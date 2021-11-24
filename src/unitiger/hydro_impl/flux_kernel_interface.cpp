@@ -23,8 +23,8 @@ CUDA_GLOBAL_METHOD inline double pow_wrapper<double>(const double& tmp1, const d
     return std::pow(tmp1, tmp2);
 }
 template <>
-CUDA_GLOBAL_METHOD inline double asin_wrapper<double>(const double& tmp1) {
-    return std::asin(tmp1);
+inline double asinh_wrapper<double>(const double& tmp1) {
+    return std::asinh(tmp1);
 }
 template <>
 CUDA_GLOBAL_METHOD inline bool skippable<double>(const double& tmp1) {
