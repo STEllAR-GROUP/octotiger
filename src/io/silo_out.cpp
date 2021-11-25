@@ -1,3 +1,6 @@
+#include <hpx/config/compiler_specific.hpp>
+#if !defined(HPX_COMPUTE_DEVICE_CODE)
+
 #include "octotiger/io/silo.hpp"
 #include "octotiger/node_registry.hpp"
 
@@ -539,7 +542,7 @@ void output_all(node_server *root_ptr, std::string fname, int cycle, bool block)
 
 	std::vector<hpx::future<node_list_t>> id_futs;
 	for (auto &id : localities) {
-		id_futs.push_back(hpx::async < output_stage2_action > (hpx::launch::async(hpx::threads::thread_priority_boost), id, fname, cycle));
+		id_futs.push_back(hpx::async<output_stage2_action>(hpx::launch::async(hpx::threads::thread_priority_boost), id, fname, cycle));
 	}
 	node_list_.silo_leaves.clear();
 	node_list_.group_num.clear();
@@ -591,4 +594,4 @@ void output_all(node_server *root_ptr, std::string fname, int cycle, bool block)
 	}
 
 }
-
+#endif
