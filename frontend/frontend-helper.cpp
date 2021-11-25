@@ -42,6 +42,7 @@
 #include <hpx/include/actions.hpp>
 #include <hpx/include/lcos.hpp>
 #include <hpx/include/util.hpp>
+#include <hpx/modules/runtime_distributed.hpp>  
 
 #include <chrono>
 #include <cstdio>
