@@ -442,8 +442,8 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/node_server_actions_2.cpp
     src/node_server_actions_3.cpp
     src/physcon.cpp # TODO(daissgr) Check if actions can be made to work with Kokkos
-    #src/io/silo_out.cpp
-    #src/io/silo_in.cpp
+    src/io/silo_out.cpp
+    src/io/silo_in.cpp
     src/radiation/rad_grid.cpp
     frontend/frontend-helper.cpp
     
