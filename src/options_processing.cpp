@@ -11,7 +11,11 @@
 #include "octotiger/common_kernel/interaction_constants.hpp"
 
 #include <boost/program_options.hpp>
+
+// header not needed for HPX versions <= 1.6
+#if HPX_VERSION_MAJOR > 1 || (HPX_VERSION_MAJOR == 1 && HPX_VERSION_MINOR > 6)
 #include <hpx/modules/runtime_distributed.hpp>
+#endif
 
 #include <cmath>
 #include <iosfwd>
