@@ -56,12 +56,9 @@ namespace fmm {
 
             // Try accelerator implementation
             if (device_type != interaction_device_kernel_type::OFF) {
+                if (device_type == interaction_device_kernel_type::KOKKOS_CUDA ||
+                    device_type == interaction_device_kernel_type::KOKKOS_HIP) {
 #if defined(OCTOTIGER_HAVE_KOKKOS)
-#if defined(KOKKOS_ENABLE_CUDA)
-                if (device_type == interaction_device_kernel_type::KOKKOS_CUDA) {
-#elif defined(KOKKOS_ENABLE_HIP)
-                if (device_type == interaction_device_kernel_type::KOKKOS_HIP) {
-#endif
                     bool avail =
                         stream_pool::interface_available<device_executor, device_pool_strategy>(
                             opts().cuda_buffer_capacity);
@@ -72,13 +69,14 @@ namespace fmm {
                             use_root_stencil);
                         return;
                     }
+                }
 #else
                     std::cerr << "Trying to call multipole Kokkos kernel with no or the wrong kokkos "
                                  "device backend active! Aborting..."
                               << std::endl;
                     abort();
-#endif
                 }
+#endif
                 if (device_type == interaction_device_kernel_type::CUDA) {
 #ifdef OCTOTIGER_HAVE_CUDA
                     cuda_multipole_interaction_interface multipole_interactor{};

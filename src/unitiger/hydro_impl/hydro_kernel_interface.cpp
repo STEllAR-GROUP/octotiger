@@ -37,18 +37,9 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
 
     // Try accelerator implementation
     if (device_type != interaction_device_kernel_type::OFF) {
-#if defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_CUDA)
-        if (device_type == interaction_device_kernel_type::KOKKOS_CUDA) {
-#elif defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_HIP)
-        if (device_type == interaction_device_kernel_type::KOKKOS_HIP) {
-#else
-        {
-            std::cerr << "Trying to call multipole Kokkos kernel with no or the wrong kokkos device backend active! "
-                         "Aborting..."
-                      << std::endl;
-            abort();
-#endif
-#if defined(KOKKOS_ENABLE_HIP) || defined(KOKKOS_ENABLE_CUDA)
+        if (device_type == interaction_device_kernel_type::KOKKOS_CUDA ||
+            device_type == interaction_device_kernel_type::KOKKOS_HIP) {
+#if defined(OCTOTIGER_HAVE_KOKKOS) 
             bool avail = false;
             avail = stream_pool::interface_available<device_executor, device_pool_strategy>(
                 cuda_buffer_capacity);
@@ -58,8 +49,14 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
                     hydro, U, X, omega, opts().n_species, executor, F);
                 return max_lambda;
             }
-#endif
         }
+#else
+            std::cerr << "Trying to call hydro Kokkos kernel with no or the wrong kokkos device backend active! "
+                         "Aborting..."
+                      << std::endl;
+            abort();
+        }
+#endif
         if (device_type == interaction_device_kernel_type::CUDA) {
 #ifdef OCTOTIGER_HAVE_CUDA
             bool avail = false;
