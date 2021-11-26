@@ -45,8 +45,8 @@ inline double limiter_wrapper<double>(const double& a, const double& b) {
     return minmod_theta_wrapper<double>(a, b, 64. / 37.);
 }
 template <>
-inline double asin_wrapper<double>(const double& tmp1) {
-    return std::asin(tmp1);
+inline double asinh_wrapper<double>(const double& tmp1) {
+    return std::asinh(tmp1);
 }
 template <>
 inline bool skippable<double>(const double& tmp1) {
