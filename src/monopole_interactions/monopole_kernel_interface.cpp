@@ -55,18 +55,12 @@ namespace fmm {
 
             // Try accelerator implementation
             if (device_type != interaction_device_kernel_type::OFF) {
-#if defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_CUDA)
+#if defined(OCTOTIGER_HAVE_KOKKOS)
+#if defined(KOKKOS_ENABLE_CUDA)
                 if (device_type == interaction_device_kernel_type::KOKKOS_CUDA) {
-#elif defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_HIP)
+#elif defined(KOKKOS_ENABLE_HIP)
                 if (device_type == interaction_device_kernel_type::KOKKOS_HIP) {
-#else
-                {
-                    std::cerr << "Trying to call P2P Kokkos kernel with no or the wrong kokkos device "
-                                 "backend active! Aborting..."
-                              << std::endl;
-                    abort();
 #endif
-#if defined(KOKKOS_ENABLE_HIP) || defined(KOKKOS_ENABLE_CUDA)
                     bool avail =
                         stream_pool::interface_available<device_executor, device_pool_strategy>(
                             opts().cuda_buffer_capacity);
@@ -82,6 +76,11 @@ namespace fmm {
                             contains_multipole_neighbor);
                         return;
                     }
+#else
+                    std::cerr << "Trying to call P2P Kokkos kernel with no or the wrong kokkos device "
+                                 "backend active! Aborting..."
+                              << std::endl;
+                    abort();
 #endif
                 }
                 if (device_type == interaction_device_kernel_type::CUDA) {
