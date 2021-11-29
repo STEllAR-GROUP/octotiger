@@ -43,11 +43,6 @@
 #include <hpx/include/lcos.hpp>
 #include <hpx/include/util.hpp>
 
-// header not needed for HPX versions <= 1.6
-#if HPX_VERSION_MAJOR > 1 || (HPX_VERSION_MAJOR == 1 && HPX_VERSION_MINOR > 6)
-#include <hpx/modules/runtime_distributed.hpp>
-#endif
-
 #include <chrono>
 #include <cstdio>
 #include <string>
