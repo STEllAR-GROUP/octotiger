@@ -229,3 +229,7 @@ workflows:
             - publish_documentation:
                 requires:
                     - build
+                filters:
+                  branches:
+                    only:
+                      - main
