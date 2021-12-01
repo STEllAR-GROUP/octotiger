@@ -17,7 +17,8 @@ if (currentBuild.getBuildCauses().toString().contains('BranchIndexingCause')) {
     print "Proceeding!"
 }
 
-
+// Basic tests on one of the development machines
+// Only supposed to test compilation and some basic tests to ensure Octo-Tiger always works in this environment
 pipeline {
     agent { label 'pcsgs05' }
 
@@ -48,6 +49,7 @@ pipeline {
                 script {
                     buildbadge.setStatus('running')
                 }
+                // notify github about test starting and send an email to whomever is in ${MAINTAINER_MAIL}
                 dir('octotiger') {
                     sh '''
                         github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
@@ -69,6 +71,7 @@ pipeline {
         }
         stage('checkout') {
             steps {
+                // Get buildscripts for this machine and the test-data
                 dir('octotiger') {
                     sh '''
 		    echo "Currently in $(pwd)"
@@ -94,6 +97,7 @@ pipeline {
         }
         stage('gcc-build') {
             steps {
+                // Build with preinstalled gcc on this machine 
                 dir('octotiger') {
                     sh '''
                     module load cuda
@@ -106,17 +110,24 @@ pipeline {
         }
         stage('gcc-ctest') {
             steps {
+                // Basic gcc test - only GRIDDIM=8 and hydro-off rotating star tests
                 dir('octotiger') {
                     sh '''
-                    module load cuda
+                    module load cuda/11.2.2 
 		    cd OctoTigerBuildChain/build/octotiger/build
-		    ctest --output-on-failure
+		    ctest --output-on-failure -R marshak
+		    ctest --output-on-failure -R blast
+		    ctest --output-on-failure -R sphere
+		    ctest --output-on-failure -R hydro_off.rotating_star
+		    ctest --output-on-failure -R eos_wd
+		    ctest --output-on-failure -R sod
                     '''
                 }
             }
         }
         stage('clang-build') {
             steps {
+                // Build with preinstalled clang on this machine (Note CUDA actually does not work with this clang as it is too old -> deactivated for this test)
                 dir('octotiger') {
                     sh '''
 		    cd OctoTigerBuildChain
@@ -129,15 +140,22 @@ pipeline {
         }
         stage('clang-ctest') {
             steps {
+                // Basic clang test - only GRIDDIM=8 and without cuda
                 dir('octotiger') {
                     sh '''
 		    cd OctoTigerBuildChain/build/octotiger/build
 		    ctest --output-on-failure
+		    ctest --output-on-failure -R marshak
+		    ctest --output-on-failure -R sphere
+		    ctest --output-on-failure -R rotating_star
+		    ctest --output-on-failure -R eos_wd
+		    ctest --output-on-failure -R sod
                     '''
                 }
             }
         }
     }
+    // notify github about test starting and send an email to whomever is in ${MAINTAINER_MAIL}
     post {
         success {
             script {
