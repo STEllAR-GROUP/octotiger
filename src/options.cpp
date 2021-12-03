@@ -426,6 +426,18 @@ bool options::process_options(int argc, char *argv[]) {
         << " Choose a different host or device kernel type!" << std::endl;
         abort();
     }
+#ifdef OCTOTIGER_HAVE_FAST_FP
+    if (opts().monopole_device_kernel_type != OFF && opts().monopole_host_kernel_type != DEVICE_ONLY ||
+        opts().multipole_device_kernel_type != OFF && opts().multipole_host_kernel_type != DEVICE_ONLY ||
+	opts().hydro_device_kernel_type != OFF && opts().hydro_host_kernel_type != DEVICE_ONLY) {
+        std::cerr << std::endl << "ERROR: "; 
+        std::cerr << std::endl << "Octotiger has been build with OCTOTIGER_WITH_FAST_FP_CONTRACT=ON "; 
+        std::cerr << " - This build configuration only supports either the host or the device kernel active, not both of them at the same time!" << std::endl
+        << "Disable either the device kernel (OFF) or the host kernel (DEVICE_ONLY)." << std::endl;
+        abort();
+    }
+#endif
+
     return true;
 }
 

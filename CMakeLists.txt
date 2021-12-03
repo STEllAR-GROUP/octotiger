@@ -353,13 +353,6 @@ if(OCTOTIGER_WITH_BLAST_TEST)
   list(APPEND hydro_dependencies quadmath)
 endif()
 
-# Output which build flags we use
-if (OCTOTIGER_WITH_FAST_FP_CONTRACT)
-  message(INFO " Building with fp_contract=fast")
-else()
-  message(INFO " Building with fp_contract=off")
-endif()
-
 # TODO(daissgr) Rework to get flags from CXX_FLAGS - setting them manually overwrites any other flags...
 if(OCTOTIGER_WITH_CUDA)
   if(OCTOTIGER_WITH_KOKKOS)
@@ -715,11 +708,23 @@ target_compile_definitions(hydrolib PUBLIC OCTOTIGER_GRIDDIM=${OCTOTIGER_WITH_GR
 
 # Interaction list disabled?
 if(OCTOTIGER_DISABLE_ILIST)
-  message(STATUS "Octot-Tiger: Interaction list is disabled -> hydro-only build!")
+  message(STATUS "Octo-Tiger: Interaction list is disabled -> hydro-only build!")
   target_compile_definitions(octotiger PUBLIC OCTOTIGER_DISABLE_ILIST)
   target_compile_definitions(octolib PUBLIC OCTOTIGER_DISABLE_ILIST)
   target_compile_definitions(hydrolib PUBLIC OCTOTIGER_DISABLE_ILIST)
 endif()
+
+# Output which build flags we use
+if (OCTOTIGER_WITH_FAST_FP_CONTRACT)
+  message(INFO " Building with fp_contract=fast")
+  target_compile_definitions(octotiger PUBLIC OCTOTIGER_HAVE_FAST_FP)
+  target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_FAST_FP)
+  target_compile_definitions(hydrolib PUBLIC OCTOTIGER_HAVE_FAST_FP)
+else()
+  message(INFO " Building with fp_contract=off")
+endif()
+
+
 
 # Maximum allowed nf (for kernel optimizations)
 message(STATUS "Octo-Tiger max nf: ${OCTOTIGER_WITH_MAX_NUMBER_FIELDS}")
