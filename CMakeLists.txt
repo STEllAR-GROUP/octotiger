@@ -48,7 +48,7 @@ set(OCTOTIGER_WITH_MAX_NUMBER_FIELDS "15" CACHE STRING "Maximum allowed nf_ (num
 set(OCTOTIGER_THETA_MINIMUM "0.34" CACHE STRING "Minimal allowed theta value - important for optimizations")
 option(OCTOTIGER_WITH_DOCU "Enable the target to build the documentation" OFF)
 
-option(OCTOTIGER_WITH_FAST_FP_CONTRACT "Enable fp-contract=fast for CPU- and fmad for GPU kernels. Causes results of CPU and GPU to slightly differ (<1e-19) " ON) # about 1e-20 in level 3 sod test
+option(OCTOTIGER_WITH_FAST_FP_CONTRACT "Enable fp-contract=fast for CPU- and fmad for GPU kernels. Causes results of CPU and GPU to slightly differ (<1e-19) " OFF) # about 1e-20 in level 3 sod test
 
 # Options for comparing different backends
 option(OCTOTIGER_WITH_MONOPOLE_HOST_HPX_EXECUTOR 
