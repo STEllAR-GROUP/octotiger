@@ -407,21 +407,21 @@ if(OCTOTIGER_WITH_CUDA)
       if (OCTOTIGER_WITH_FAST_FP_CONTRACT)
         set_source_files_properties(${source_files} ${header_files} ${hydro_source_files} ${hydro_header_files} frontend/frontend-helper.cpp PROPERTIES COMPILE_FLAGS "  -x c++")
         set_source_files_properties(${hydro_cu_source_files} ${cu_source_files} src/monopole_interactions/monopole_kernel_interface.cpp
-        src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
+        src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
         #-fassociative-math  kills it?
-        set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
-        set_source_files_properties(src/multipole_interactions/monopole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
+        set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
+        set_source_files_properties(src/multipole_interactions/monopole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
         # hydro needs no assiociate math
-        set_source_files_properties(src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
+        set_source_files_properties(src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
       else()
         set_source_files_properties(${source_files} ${header_files} ${hydro_source_files} ${hydro_header_files} frontend/frontend-helper.cpp PROPERTIES COMPILE_FLAGS "  -x c++")
         set_source_files_properties(${hydro_cu_source_files} ${cu_source_files} src/monopole_interactions/monopole_kernel_interface.cpp
-        src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=off --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
+        src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=off --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
         #-fassociative-math  kills it?
-        set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=off --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
-        set_source_files_properties(src/multipole_interactions/monopole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=off --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
+        set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=off --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
+        set_source_files_properties(src/multipole_interactions/monopole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=off --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
         # hydro needs no assiociate math
-        set_source_files_properties(src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=off --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
+        set_source_files_properties(src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=off --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
       endif()
 
     else()
