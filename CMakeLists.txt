@@ -354,9 +354,9 @@ if(OCTOTIGER_WITH_BLAST_TEST)
 endif()
 
 # TODO(daissgr) Rework to get flags from CXX_FLAGS - setting them manually overwrites any other flags...
+# needs some reworking in general
 if(OCTOTIGER_WITH_CUDA)
   if(OCTOTIGER_WITH_KOKKOS)
-    # TODO if clang
     if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
       # Using different branches for the fp_contract setting as just setting the flags within the strings below did not work.
       # Just setting the fp_contract options as a string did not get picked up by CMAKE once the option changes, resulting in it reusing the cached object files instead of rebuilding it (until one manually deletes the cache..)
@@ -400,11 +400,30 @@ if(OCTOTIGER_WITH_CUDA)
     endif()
   else()
     #set_source_files_properties(${cu_source_files} ${hydro_cu_source_files} PROPERTIES LANGUAGE CUDA)
-
     if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-      # TODO From what I can tell -fno-fast-math is only required for the sqrt in the multipole kernels - remove flag from other files
+      # From what I can tell -fno-fast-math is only required for the sqrt in the multipole kernels - remove flag from other files
       # -DSTRICT_ANSI__ resolves the issue of clang trying to pull in float128 stuff in the standard libs for the GPU pass
-      set_source_files_properties(${cu_source_files} ${hydro_cu_source_files} PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
+      #set_source_files_properties(${cu_source_files} ${hydro_cu_source_files} PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
+      if (OCTOTIGER_WITH_FAST_FP_CONTRACT)
+        set_source_files_properties(${source_files} ${header_files} ${hydro_source_files} ${hydro_header_files} frontend/frontend-helper.cpp PROPERTIES COMPILE_FLAGS "  -x c++")
+        set_source_files_properties(${hydro_cu_source_files} ${cu_source_files} src/monopole_interactions/monopole_kernel_interface.cpp
+        src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
+        #-fassociative-math  kills it?
+        set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
+        set_source_files_properties(src/multipole_interactions/monopole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
+        # hydro needs no assiociate math
+        set_source_files_properties(src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
+      else()
+        set_source_files_properties(${source_files} ${header_files} ${hydro_source_files} ${hydro_header_files} frontend/frontend-helper.cpp PROPERTIES COMPILE_FLAGS "  -x c++")
+        set_source_files_properties(${hydro_cu_source_files} ${cu_source_files} src/monopole_interactions/monopole_kernel_interface.cpp
+        src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=off --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
+        #-fassociative-math  kills it?
+        set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=off --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
+        set_source_files_properties(src/multipole_interactions/monopole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=off --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
+        # hydro needs no assiociate math
+        set_source_files_properties(src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=off --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
+      endif()
+
     else()
       # Using different branches for the fp_contract setting as just setting the flags within the strings below did not work.
       # Just setting the fp_contract options as a string did not get picked up by CMAKE once the option changes, resulting in it reusing the cached object files instead of rebuilding it (until one manually deletes the cache..)
