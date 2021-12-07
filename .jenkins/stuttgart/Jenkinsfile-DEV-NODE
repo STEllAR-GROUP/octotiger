@@ -99,6 +99,7 @@ pipeline {
                     module load cuda
 		    cd OctoTigerBuildChain
 		    sed -i 's/OCTOTIGER_WITH_BLAST_TEST=OFF/OCTOTIGER_WITH_BLAST_TEST=ON/' build-octotiger.sh
+		    sed -i 's/OCTOTIGER_WITH_FAST_FP_CONTRACT=OFF/OCTOTIGER_WITH_FAST_FP_CONTRACT=ON/' build-octotiger.sh
                     ./build-all.sh Release with-CC with-cuda without-mpi without-papi without-apex with-kokkos with-simd without-hpx-backend-multipole without-hpx-backend-monopole with-hpx-cuda-polling
                     '''
                 }
@@ -115,12 +116,30 @@ pipeline {
                 }
             }
         }
+        stage('gcc-with-fp-contract-off') {
+            steps {
+                dir('octotiger') {
+                    sh '''
+                    module load cuda
+		    cd OctoTigerBuildChain
+		    sed -i 's/OCTOTIGER_WITH_BLAST_TEST=OFF/OCTOTIGER_WITH_BLAST_TEST=ON/' build-octotiger.sh
+		    sed -i 's/OCTOTIGER_WITH_FAST_FP_CONTRACT=ON/OCTOTIGER_WITH_FAST_FP_CONTRACT=OFF/' build-octotiger.sh
+                    ./build-all.sh Release with-CC with-cuda without-mpi without-papi without-apex with-kokkos with-simd without-hpx-backend-multipole without-hpx-backend-monopole with-hpx-cuda-polling octotiger
+		    cd build/octotiger/build
+		    ctest --output-on-failure
+            cd ../../..
+		    sed -i 's/OCTOTIGER_WITH_FAST_FP_CONTRACT=OFF/OCTOTIGER_WITH_FAST_FP_CONTRACT=ON/' build-octotiger.sh
+                    '''
+                }
+            }
+        }
         stage('clang-build') {
             steps {
                 dir('octotiger') {
                     sh '''
 		    cd OctoTigerBuildChain
 		    sed -i 's/OCTOTIGER_WITH_BLAST_TEST=ON/OCTOTIGER_WITH_BLAST_TEST=OFF/' build-octotiger.sh
+		    sed -i 's/OCTOTIGER_WITH_FAST_FP_CONTRACT=OFF/OCTOTIGER_WITH_FAST_FP_CONTRACT=ON/' build-octotiger.sh
 		    rm -rf build && rm -rf src/boost
                     ./build-all.sh Release with-CC-clang without-cuda without-mpi without-papi without-apex with-kokkos with-simd without-hpx-backend-multipole without-hpx-backend-monopole with-hpx-cuda-polling
                     '''
