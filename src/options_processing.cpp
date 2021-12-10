@@ -11,12 +11,15 @@
 #include "octotiger/common_kernel/interaction_constants.hpp"
 
 #include <boost/program_options.hpp>
+ #include <hpx/modules/runtime_distributed.hpp>
 
 #include <cmath>
 #include <iosfwd>
 #include <sstream>
 #include <string>
 #include <vector>
+
+#include <fstream>
 
 #define IN_OPTIONS_CPP
 
