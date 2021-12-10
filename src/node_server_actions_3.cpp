@@ -544,7 +544,7 @@ future<void> node_server::nonrefined_step() {
 
 	for (integer rk = 0; rk < NRK; ++rk) {
 
-		fut = fut.then(hpx::launch::async(hpx::threads::thread_priority_boost),
+		fut = fut.then(
 		hpx::util::annotated_function(
 				[rk, cfl0, this, dt_fut](future<void> f) {
 					GET(f);
@@ -622,7 +622,7 @@ future<real> node_server::local_step(integer steps) {
 			}
 		}
 
-		fut = fut.then(hpx::launch::async(hpx::threads::thread_priority_boost), hpx::util::annotated_function([this, i, steps](future<void> fut) -> real {
+		fut = fut.then(hpx::util::annotated_function([this, i, steps](future<void> fut) -> real {
 			GET(fut);
 			auto time_start = std::chrono::high_resolution_clock::now();
 			auto next_dt = timestep_driver_descend();
