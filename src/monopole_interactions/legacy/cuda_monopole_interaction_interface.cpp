@@ -63,11 +63,15 @@ namespace fmm {
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
             std::array<bool, geo::direction::count()>& is_direction_empty,
             std::shared_ptr<grid>& grid_ptr, const bool contains_multipole_neighbor) {
-            // Check where we want to run this:
-            bool avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
-                pool_strategy>(opts().cuda_buffer_capacity);
+            bool avail = true;
+            if (p2p_type != interaction_host_kernel_type::DEVICE_ONLY) {
+                // Check where we want to run this:
+                avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
+                    pool_strategy>(opts().cuda_buffer_capacity);
+            }
             // avail = true;
-            if (!avail || p2p_type == interaction_host_kernel_type::LEGACY) {
+            //if (!avail || p2p_type == interaction_host_kernel_type::LEGACY) {
+            if (!avail) {
                 // Run CPU implementation
                 monopole_interaction_interface::compute_interactions(monopoles, com_ptr, neighbors,
                     type, dx, is_direction_empty, grid_ptr, contains_multipole_neighbor);
