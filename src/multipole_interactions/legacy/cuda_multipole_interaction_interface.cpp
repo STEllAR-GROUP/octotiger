@@ -33,10 +33,14 @@ namespace fmm {
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
             std::array<bool, geo::direction::count()>& is_direction_empty,
             std::array<real, NDIM> xbase, const bool use_root_stencil) {
-            bool avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
-                pool_strategy>(opts().cuda_buffer_capacity);
-            if (!avail || m2m_type == interaction_host_kernel_type::LEGACY ||
-                (use_root_stencil && !opts().root_node_on_device)) {
+            bool avail = true;
+            if (m2m_type != interaction_host_kernel_type::DEVICE_ONLY) {
+                avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
+                    pool_strategy>(opts().cuda_buffer_capacity);
+            }
+            // if (!avail || m2m_type == interaction_host_kernel_type::LEGACY ||
+            //     (use_root_stencil && !opts().root_node_on_device)) {
+            if (!avail || (use_root_stencil && !opts().root_node_on_device)) {
                 // Run fallback CPU implementation
                 multipole_interaction_interface::compute_multipole_interactions(monopoles, M_ptr,
                     com_ptr, neighbors, type, dx, is_direction_empty, xbase, use_root_stencil);

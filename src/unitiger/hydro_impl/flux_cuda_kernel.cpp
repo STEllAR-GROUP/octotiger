@@ -83,7 +83,7 @@ __global__ void __launch_bounds__(128, 2)
     sm_i[tid] = index;
     __syncthreads();
     // Max reduction with multiple warps
-    for (int tid_border = 64; tid_border >= 32; tid_border /= 2) {
+    /*for (int tid_border = 64; tid_border >= 32; tid_border /= 2) {
         if (tid < tid_border) {
             if (sm_amax[tid + tid_border] > sm_amax[tid]) {
                 sm_amax[tid] = sm_amax[tid + tid_border];
@@ -100,6 +100,44 @@ __global__ void __launch_bounds__(128, 2)
                 sm_amax[tid] = sm_amax[tid + tid_border];
                 sm_d[tid] = sm_d[tid + tid_border];
                 sm_i[tid] = sm_i[tid + tid_border];
+            }
+        }
+    }*/
+    // Find maximum:
+    sm_amax[tid] = current_amax;
+    sm_d[tid] = current_d;
+    sm_i[tid] = index;
+    __syncthreads();
+    // Max reduction with multiple warps
+    for (int tid_border = 64; tid_border >= 32; tid_border /= 2) {
+        if (tid < tid_border) {
+            if (sm_amax[tid + tid_border] > sm_amax[tid]) {
+                sm_amax[tid] = sm_amax[tid + tid_border];
+                sm_d[tid] = sm_d[tid + tid_border];
+                sm_i[tid] = sm_i[tid + tid_border];
+            } else if (sm_amax[tid + tid_border] == sm_amax[tid]) {
+                if (sm_i[tid + tid_border] < sm_i[tid]) {
+                    sm_amax[tid] = sm_amax[tid + tid_border];
+                    sm_d[tid] = sm_d[tid + tid_border];
+                    sm_i[tid] = sm_i[tid + tid_border];
+                }
+            }
+        }
+        __syncthreads();
+    }
+    // Max reduction within one warps
+    for (int tid_border = 16; tid_border >= 1; tid_border /= 2) {
+        if (tid < tid_border) {
+            if (sm_amax[tid + tid_border] > sm_amax[tid]) {
+                sm_amax[tid] = sm_amax[tid + tid_border];
+                sm_d[tid] = sm_d[tid + tid_border];
+                sm_i[tid] = sm_i[tid + tid_border];
+            } else if (sm_amax[tid + tid_border] == sm_amax[tid]) {
+                if (sm_i[tid + tid_border] < sm_i[tid]) {
+                    sm_amax[tid] = sm_amax[tid + tid_border];
+                    sm_d[tid] = sm_d[tid + tid_border];
+                    sm_i[tid] = sm_i[tid + tid_border];
+                }
             }
         }
     }

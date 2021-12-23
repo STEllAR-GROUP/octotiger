@@ -33,6 +33,7 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, con
 
 	const auto dx = X[0][geo.H_DNX] - X[0][0];
 
+  int max_index = 0;
 	for (int dim = 0; dim < NDIM; dim++) {
 
 		const auto indices = geo.get_indexes(3, geo.face_pts()[dim][0]);
@@ -57,7 +58,7 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, con
 				const auto d = faces[dim][fi];
 				// why store this?
 				for (int f = 0; f < nf_; f++) { 
-					UR[f] = Q[f][d][i];// not cache efficient at all - cacheline is going to be dismissed
+					UR[f] = Q[f][d][i];
 					UL[f] = Q[f][geo::flip_dim(d, dim)][i - geo.H_DN[dim]];
 				}
 				std::array < safe_real, NDIM > x;
@@ -111,9 +112,17 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, con
 				ts.ur = UL;
 				ts.ul = UR;
 				ts.dim = dim;
+        max_index = i;
 			}
 		}
 	}
+
+  /*int x = max_index / (14 * 14);
+  int y = (max_index % (14 * 14)) / 14;
+  int z = (max_index % (14 * 14)) % 14;
+  std::cout << "xzy" << x << " " << y << " " << z << std::endl;
+  std::cout << "xzy" << x - 2 << " " << y - 2 << " " << z - 2 << std::endl; // mapping on smaller subgrid (used by cuda kernel)
+  std::cout << "Max index: " << max_index << " Max dim: " << ts.dim << std::endl;*/
 	return ts;
 }
 template<int NDIM, int INX, class PHYS>

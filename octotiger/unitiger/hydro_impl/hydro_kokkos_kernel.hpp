@@ -263,6 +263,12 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor, const kokkos_b
                                 sm_amax[tid] = sm_amax[tid + tid_border];
                                 sm_d[tid] = sm_d[tid + tid_border];
                                 sm_i[tid] = sm_i[tid + tid_border];
+                            } else if (sm_amax[tid + tid_border] == sm_amax[tid]) {
+                                if (sm_i[tid + tid_border] < sm_i[tid]) {
+                                    sm_amax[tid] = sm_amax[tid + tid_border];
+                                    sm_d[tid] = sm_d[tid + tid_border];
+                                    sm_i[tid] = sm_i[tid + tid_border];
+                                }
                             }
                         }
                         team_handle.team_barrier();
@@ -275,6 +281,12 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor, const kokkos_b
                             sm_amax[tid] = sm_amax[tid + tid_border];
                             sm_d[tid] = sm_d[tid + tid_border];
                             sm_i[tid] = sm_i[tid + tid_border];
+                        } else if (sm_amax[tid + tid_border] == sm_amax[tid]) {
+                            if (sm_i[tid + tid_border] < sm_i[tid]) {
+                                sm_amax[tid] = sm_amax[tid + tid_border];
+                                sm_d[tid] = sm_d[tid + tid_border];
+                                sm_i[tid] = sm_i[tid + tid_border];
+                            }
                         }
                     }
                 }
@@ -442,13 +454,14 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec, const host_buffer<dou
     auto fut = hpx::kokkos::deep_copy_async(exec.instance(), host_f, f);
     fut.get();
 
-    // TODO create Maximum method
-
     // Find Maximum
     size_t current_max_slot = 0;
     for (size_t dim_i = 1; dim_i < number_blocks * NDIM; dim_i++) {
         if (host_amax[dim_i] > host_amax[current_max_slot]) {
             current_max_slot = dim_i;
+        } else if (host_amax[dim_i] == host_amax[current_max_slot]) {
+            if (host_amax_indices[dim_i] < host_amax_indices[current_max_slot])
+              current_max_slot = dim_i;
         }
     }
 
@@ -473,6 +486,13 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec, const host_buffer<dou
     ts.ul = std::move(URs);
     ts.ur = std::move(ULs);
     ts.dim = current_dim;
+ /* int ix = current_max_index / (10 * 10);
+  int iy = (current_max_index % (10 * 10)) / 10;
+  int iz = (current_max_index % (10 * 10)) % 10;
+  std::cout << "xzy" << ix << " " << iy << " " << iz << std::endl;
+    std::cout << "kokkos_cuda Max index: " << current_max_index << " Max dim: " << current_dim <<
+      std::endl;
+    std::cout << ts.x << " " << ts.y << " " << ts.z << std::endl;*/
     return ts;
 }
 
@@ -518,6 +538,9 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec, const host_buffer<dou
     for (size_t dim_i = 1; dim_i < blocks; dim_i++) {
         if (amax[dim_i] > amax[current_max_slot]) {
             current_max_slot = dim_i;
+        } else if (amax[dim_i] == amax[current_max_slot]) {
+            if (amax_indices[dim_i] < amax_indices[current_max_slot])
+              current_max_slot = dim_i;
         }
     }
 
@@ -525,13 +548,13 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec, const host_buffer<dou
     std::vector<double> URs(nf), ULs(nf);
     const size_t current_max_index = amax_indices[current_max_slot];
     const size_t current_d = amax_d[current_max_slot];
+    const auto current_dim = current_max_slot / (blocks / NDIM);
     timestep_t ts;
     ts.a = amax[current_max_slot];
     ts.x = combined_x[current_max_index];
     ts.y = combined_x[current_max_index + q_inx3];
     ts.z = combined_x[current_max_index + 2 * q_inx3];
     const size_t current_i = current_max_slot;
-    const auto current_dim = current_max_slot / (blocks / NDIM);
     const auto flipped_dim = flip_dim(current_d, current_dim);
     constexpr int compressedH_DN[3] = {q_inx2, q_inx, 1};
     for (int f = 0; f < nf; f++) {
@@ -541,6 +564,14 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec, const host_buffer<dou
     ts.ul = std::move(URs);
     ts.ur = std::move(ULs);
     ts.dim = current_dim;
+  int x = current_max_index / (10 * 10);
+  int y = (current_max_index % (10 * 10)) / 10;
+  int z = (current_max_index % (10 * 10)) % 10;
+  /*std::cout << "xzy" << x << " " << y << " " << z << std::endl;
+    std::cout << "Max index: " << current_max_index << " Max dim: " << current_dim <<
+      std::endl;
+    std::cout << ts.x << " " << ts.y << " " << ts.z << std::endl;*/
+   // std::cin.get();
     // std::cout << ts.a << std::endl;
     return ts;
 }
