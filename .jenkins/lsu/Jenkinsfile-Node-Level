@@ -8,16 +8,16 @@ pipeline {
     options {
         buildDiscarder(
             logRotator(
-                daysToKeepStr: "21",
-                numToKeepStr: "50",
-                artifactDaysToKeepStr: "21",
-                artifactNumToKeepStr: "50"
+                daysToKeepStr: "28",
+                numToKeepStr: "100",
+                artifactDaysToKeepStr: "28",
+                artifactNumToKeepStr: "100"
             )
         )
         disableConcurrentBuilds()
     }
     environment {
-        GITHUB_TOKEN = credentials('GITHUB_TOKEN_OCTOTIGER')
+        GITHUB_TOKEN = credentials('STELLARBOT_GITHUB_TOKEN')
         MAINTAINER_MAIL = credentials('OCTOTIGER_MAINTAINER_EMAIL')
     }
     stages {
@@ -62,12 +62,11 @@ pipeline {
                         steps {
                             dir('octotiger') {
                                 sh '''
-                                github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
                                 curl --verbose\
                                     --request POST \
                                     --url "https://api.github.com/repos/STEllAR-GROUP/octotiger/statuses/$GIT_COMMIT" \
                                     --header "Content-Type: application/json" \
-                                    --header "authorization: Bearer ${github_token}" \
+                                    --header "authorization: Bearer ${GITHUB_TOKEN}" \
                                     --data "{
                                         \\"state\\": \\"pending\\",
                                         \\"context\\": \\"jenkins-${compiler_config}-${cuda_config}-${kokkos_config}\\",
@@ -126,12 +125,11 @@ pipeline {
                 post {
                     success {
                         sh '''
-                        github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
                         curl --verbose\
                             --request POST \
                             --url "https://api.github.com/repos/STEllAR-GROUP/octotiger/statuses/$GIT_COMMIT" \
                             --header "Content-Type: application/json" \
-                            --header "authorization: Bearer ${github_token}" \
+                            --header "authorization: Bearer ${GITHUB_TOKEN}" \
                             --data "{
                                 \\"state\\": \\"success\\",
                                 \\"context\\": \\"jenkins-${compiler_config}-${cuda_config}-${kokkos_config}\\",
@@ -142,12 +140,11 @@ pipeline {
                     }
                     failure {
                         sh '''
-                        github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
                         curl --verbose\
                             --request POST \
                             --url "https://api.github.com/repos/STEllAR-GROUP/octotiger/statuses/$GIT_COMMIT" \
                             --header "Content-Type: application/json" \
-                            --header "authorization: Bearer ${github_token}" \
+                            --header "authorization: Bearer ${GITHUB_TOKEN}" \
                             --data "{
                                 \\"state\\": \\"failure\\",
                                 \\"context\\": \\"jenkins-${compiler_config}-${cuda_config}-${kokkos_config}\\",
@@ -158,12 +155,11 @@ pipeline {
                     }
                     aborted {
                         sh '''
-                        github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
                         curl --verbose\
                             --request POST \
                             --url "https://api.github.com/repos/STEllAR-GROUP/octotiger/statuses/$GIT_COMMIT" \
                             --header "Content-Type: application/json" \
-                            --header "authorization: Bearer ${github_token}" \
+                            --header "authorization: Bearer ${GITHUB_TOKEN}" \
                             --data "{
                                 \\"state\\": \\"error\\",
                                 \\"context\\": \\"jenkins-${compiler_config}-${cuda_config}-${kokkos_config}\\",
