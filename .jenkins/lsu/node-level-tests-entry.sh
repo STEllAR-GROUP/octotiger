@@ -24,6 +24,7 @@ if [ "${kokkos_config}" = "with-kokkos" ]; then
 	if [ "${cuda_config}" = "with-cuda" ]; then
 		sed -i 's/GRIDDIM=8/GRIDDIM=16/' build-octotiger.sh
 		echo "Running tests with griddim=16 on diablo"
+		rm -rf build/kokkos build/octotiger # in case we end up on a different cuda node we need to rebuild with its architecture
 		srun -p cuda -N 1 -n 1 -t 08:00:00 bash -c "module load ${compiler_module} cuda/11.4 hwloc && ./build-all.sh Release ${compiler_config} ${cuda_config} without-mpi without-papi without-apex ${kokkos_config} with-simd with-hpx-backend-multipole without-hpx-backend-monopole with-hpx-cuda-polling without-otf2 boost jemalloc hdf5 silo vc hpx kokkos cppuddle octotiger && cd build/octotiger/build && ctest --output-on-failure " 
 		sed -i 's/GRIDDIM=16/GRIDDIM=8/' build-octotiger.sh
 	fi
