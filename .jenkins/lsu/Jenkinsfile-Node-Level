@@ -92,7 +92,7 @@ pipeline {
                                     git checkout main
                                     git pull
                                     rm -rf build/octotiger
-                                    rn -rf build/kokkos
+                                    rm -rf build/kokkos
                                     rm -rf src/octotiger
                                 else
                                     git clone https://github.com/diehlpk/PowerTiger.git "octo-buildscripts-${compiler_config}-${cuda_config}-${kokkos_config}"
@@ -100,7 +100,7 @@ pipeline {
                                     git checkout main # change to different branch if needed for target machine
                                     mkdir src
                                     rm -rf build/octotiger
-                                    rn -rf build/kokkos
+                                    rm -rf build/kokkos
                                     rm -rf src/octotiger
                                 fi
 
