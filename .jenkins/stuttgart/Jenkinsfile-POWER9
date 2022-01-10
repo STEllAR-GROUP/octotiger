@@ -43,7 +43,6 @@ pipeline {
                                 \\"description\\": \\"Jenkins CI Job: jenkins-POWER9\\",
                                 \\"target_url\\": \\"https://simsgs.informatik.uni-stuttgart.de/jenkins/job/Octo-Tiger%20POWER9/job/${JOB_BASE_NAME}/${BUILD_NUMBER}/console\\"
                         }"
-                        echo "Build started on pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger POWER9: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} just started..." "${MAINTAINER_MAIL}"
                     '''
                 }
             }
@@ -132,7 +131,6 @@ pipeline {
                         \\"description\\": \\"Jenkins CI Job: jenkins-POWER9\\",
                         \\"target_url\\": \\"https://simsgs.informatik.uni-stuttgart.de/jenkins/job/Octo-Tiger%20POWER9/job/${JOB_BASE_NAME}/${BUILD_NUMBER}/console\\"
                 }"
-                echo "Build succeded on pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger POWER9: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} succeded" "${MAINTAINER_MAIL}"
             '''
         }
         failure {

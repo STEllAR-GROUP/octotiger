@@ -42,7 +42,6 @@ pipeline {
                                 \\"description\\": \\"Jenkins CI Job: jenkins-KNL-SIMD\\",
                                 \\"target_url\\": \\"https://simsgs.informatik.uni-stuttgart.de/jenkins/job/Octo-Tiger%20KNL/job/${JOB_BASE_NAME}/${BUILD_NUMBER}/console\\"
                         }"
-                        echo "Build started on pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger KNL: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} just started..." "${MAINTAINER_MAIL}"
                     '''
                 }
             }
@@ -162,7 +161,6 @@ pipeline {
                         \\"description\\": \\"Jenkins CI Job: jenkins-KNL-SIMD\\",
                         \\"target_url\\": \\"https://simsgs.informatik.uni-stuttgart.de/jenkins/job/Octo-Tiger%20KNL/job/${JOB_BASE_NAME}/${BUILD_NUMBER}/console\\"
                 }"
-                echo "Build succeded on pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger KNL: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} succeded" "${MAINTAINER_MAIL}"
             '''
         }
         failure {

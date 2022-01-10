@@ -8,10 +8,10 @@ pipeline {
     options {
         buildDiscarder(
             logRotator(
-                daysToKeepStr: "21",
-                numToKeepStr: "50",
-                artifactDaysToKeepStr: "21",
-                artifactNumToKeepStr: "50"
+                daysToKeepStr: "28",
+                numToKeepStr: "100",
+                artifactDaysToKeepStr: "28",
+                artifactNumToKeepStr: "100"
             )
         )
         disableConcurrentBuilds()
@@ -32,7 +32,6 @@ pipeline {
                         cd octotiger
                         git submodule update --init --recursive
                         cd ..
-                        echo "Build started on pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger Node-Level Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} just started..." "${MAINTAINER_MAIL}"
                     '''
                 }
             }
@@ -181,9 +180,6 @@ pipeline {
             script {
                 buildbadge.setStatus('success')
             }
-            sh '''
-                echo "Build succeded! Pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger Node-Level Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} succeded" "${MAINTAINER_MAIL}"
-            '''
         }
         failure {
             script {
