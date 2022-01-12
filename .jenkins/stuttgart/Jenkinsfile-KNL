@@ -24,7 +24,6 @@ pipeline {
     stages {
         stage('init') {
             steps {
-                scmSkip(deleteBuild: false, skipPattern:'.*\\[ci skip\\].*')
                 script {
                     buildbadge.setStatus('running')
                 }
