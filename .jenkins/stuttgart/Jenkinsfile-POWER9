@@ -2,38 +2,19 @@
 
 def buildbadge = addEmbeddableBadgeConfiguration(id: "powerbuild", subject: "Power9 CUDA/Kokkos Tests", status: "skipped")
 
-if (currentBuild.getBuildCauses().toString().contains('BranchIndexingCause')) {
-    print "INFO: Build on ${env.BRANCH_NAME}/${env.BUILD_NUMBER}  triggered by branch indexing..."
-    if (env.BRANCH_NAME != "master") {
-        if (env.BUILD_NUMBER != "1") { // Always execute first build to load this configuration and thus the triggers
-            print "INFO: Build on ${env.BRANCH_NAME}/${env.BUILD_NUMBER} skipped due being triggered by Branch Indexing instead of SCM change!"
-            buildbadge.setStatus('skipped')
-            currentBuild.result = 'ABORTED'
-            return // early exit to avoid redundant builds
-        }
-    }
-} else {
-    print "INFO: Build on ${env.BRANCH_NAME}/${env.BUILD_NUMBER} triggered by SCM change..."
-    print "Proceeding!"
-}
-
 pipeline {
     agent { label 'argon-fs' }
 
     options {
         buildDiscarder(
             logRotator(
-                daysToKeepStr: "21",
-                numToKeepStr: "50",
-                artifactDaysToKeepStr: "21",
-                artifactNumToKeepStr: "50"
+                daysToKeepStr: "28",
+                numToKeepStr: "100",
+                artifactDaysToKeepStr: "28",
+                artifactNumToKeepStr: "100"
             )
         )
 	disableConcurrentBuilds()
-    }
-    triggers {
-        githubPush() // Trigger by push to respective github branch
-        pollSCM 'H/30 * * * *' // Fallback polling solution as some pushes are somehow lost
     }
 
     environment {
@@ -44,7 +25,6 @@ pipeline {
     stages {
         stage('init') {
             steps {
-                scmSkip(deleteBuild: false, skipPattern:'.*\\[ci skip\\].*')
                 script {
                     buildbadge.setStatus('running')
                 }
@@ -62,7 +42,6 @@ pipeline {
                                 \\"description\\": \\"Jenkins CI Job: jenkins-POWER9\\",
                                 \\"target_url\\": \\"https://simsgs.informatik.uni-stuttgart.de/jenkins/job/Octo-Tiger%20POWER9/job/${JOB_BASE_NAME}/${BUILD_NUMBER}/console\\"
                         }"
-                        echo "Build started on pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger POWER9: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} just started..." "${MAINTAINER_MAIL}"
                     '''
                 }
             }
@@ -151,7 +130,6 @@ pipeline {
                         \\"description\\": \\"Jenkins CI Job: jenkins-POWER9\\",
                         \\"target_url\\": \\"https://simsgs.informatik.uni-stuttgart.de/jenkins/job/Octo-Tiger%20POWER9/job/${JOB_BASE_NAME}/${BUILD_NUMBER}/console\\"
                 }"
-                echo "Build succeded on pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger POWER9: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} succeded" "${MAINTAINER_MAIL}"
             '''
         }
         failure {
