@@ -106,7 +106,7 @@ future<void> node_server::exchange_flux_corrections() {
 		if (this->nieces[f] == +1) {
 			for (auto const &quadrant : geo::quadrant::full_set()) {
 				futs[index++] = niece_hydro_channels[f][quadrant].get_future().then(
-				/*hpx::util::annotated_function(*/[this, f, quadrant](future<std::vector<real> > &&fdata) -> void {
+				hpx::util::annotated_function([this, f, quadrant](future<std::vector<real> > &&fdata) -> void {
 					const auto face_dim = f.get_dimension();
 					std::array<integer, NDIM> lb, ub;
 					switch (face_dim) {
@@ -136,16 +136,17 @@ future<void> node_server::exchange_flux_corrections() {
 						break;
 					}
 					grid_ptr->set_flux_restrict(GET(fdata), lb, ub, face_dim);
-				}/*, "node_server::exchange_flux_corrections::set_flux_restrict")*/);
+				}, "node_server::exchange_flux_corrections::set_flux_restrict"));
 			}
 		}
 	}
-	return hpx::when_all(std::move(futs)).then([](future<decltype(futs)> fout) {
+	return hpx::when_all(std::move(futs)).then(
+        hpx::util::annotated_function([](future<decltype(futs)> fout) {
 		auto fin = GET(fout);
 		for (auto &f : fin) {
 			GET(f);
 		}
-	});
+	}, "node_server::exchange_flux_corrections::sync"));
 }
 
 void node_server::all_hydro_bounds() {
@@ -199,7 +200,7 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
 	for (auto const &dir : geo::direction::full_set()) {
 		if (!(neighbors[dir].empty() && my_location.level() == 0)) {
 			results[index++] = sibling_hydro_channels[dir].get_future(hcycle).then(
-			/*hpx::util::annotated_function(*/[this, energy_only, dir](future<sibling_hydro_type> &&f) -> void {
+			hpx::util::annotated_function([this, energy_only, dir](future<sibling_hydro_type> &&f) -> void {
 				auto &&tmp = GET(f);
 				if (!neighbors[dir].empty()) {
 					grid_ptr->set_hydro_boundary(tmp.data, tmp.direction, energy_only);
@@ -207,7 +208,7 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
 					grid_ptr->set_hydro_amr_boundary(tmp.data, tmp.direction, energy_only);
 
 				}
-			}/*, "node_server::collect_hydro_boundaries::set_hydro_boundary")*/);
+			}, "node_server::collect_hydro_boundaries::set_hydro_boundary"));
 		}
 	}
 	while (index < geo::direction::count()) {
@@ -243,7 +244,7 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
 			grid_ptr->is_coarse, xmin, grid_ptr->U);
 		}
 // None GPU build -> run on CPU
-#else	
+#else
 	#if defined __x86_64__ && defined OCTOTIGER_HAVE_VC
 		complete_hydro_amr_boundary_vc(dx, energy_only, grid_ptr->Ushad, grid_ptr->is_coarse, xmin, grid_ptr->U);
 	#else
@@ -419,7 +420,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 		for (auto &ci : geo::octant::full_set()) {
 			future<multipole_pass_type> m_in_future = child_gravity_channels[ci].get_future();
 
-			futs[index++] = m_in_future.then(/*hpx::util::annotated_function(*/[&m_out, ci](future<multipole_pass_type> &&fut) {
+			futs[index++] = m_in_future.then(hpx::util::annotated_function([&m_out, ci](future<multipole_pass_type> &&fut) {
 				const integer x0 = ci.get_side(XDIM) * INX / 2;
 				const integer y0 = ci.get_side(YDIM) * INX / 2;
 				const integer z0 = ci.get_side(ZDIM) * INX / 2;
@@ -434,7 +435,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 						}
 					}
 				}
-			}/*, "node_server::compute_fmm::gather_from::child_gravity_channels")*/);
+			}, "node_server::compute_fmm::gather_from::child_gravity_channels"));
 		}
 		wait_all_and_propagate_exceptions(std::move(futs));
 		m_out = grid_ptr->compute_multipoles(type, &m_out);
@@ -506,7 +507,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 	// Check if we are a multipole
 	if (!grid_ptr->get_leaf()) {
 		// Input structure, needed for multipole-monopole interactions
-		std::array<real, NDIM> Xbase = { 
+		std::array<real, NDIM> Xbase = {
 		grid_ptr->get_X()[0][hindex(H_BW, H_BW, H_BW)],
 		grid_ptr->get_X()[1][hindex(H_BW, H_BW, H_BW)],
 		grid_ptr->get_X()[2][hindex(H_BW, H_BW, H_BW)] };
