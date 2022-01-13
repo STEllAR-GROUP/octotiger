@@ -2,40 +2,19 @@
 
 def buildbadge = addEmbeddableBadgeConfiguration(id: "nodelevel", subject: "CPU / GPU Kernel Tests", status: "skipped")
 
-// Skip builds that are likely to be tested already (by push) and unlikely to be critical (not on master)
-if (currentBuild.getBuildCauses().toString().contains('BranchIndexingCause')) {
-    print "INFO: Build on ${env.BRANCH_NAME}/${env.BUILD_NUMBER} triggered by branch indexing..."
-    if (env.BRANCH_NAME != "master") { // Always run on master
-        if (env.BUILD_NUMBER != "1") { // Always run first build on a new branch pipeline to load the options (and thus github hook triggers) for the pipeline
-            print "INFO: Build on ${env.BRANCH_NAME}/${env.BUILD_NUMBER} skipped due being triggered by Branch Indexing instead of SCM change!"
-            currentBuild.result = 'ABORTED' 
-            buildbadge.setStatus('skipped')
-            return // Early exit to avoid redundant builds
-        }
-    }
-} else {
-    print "INFO: Build on ${env.BRANCH_NAME}/${env.BUILD_NUMBER} triggered by SCM change..."
-    print "Proceeding!"
-} 
-
-
 pipeline {
     agent any
 
     options {
         buildDiscarder(
             logRotator(
-                daysToKeepStr: "21",
-                numToKeepStr: "50",
-                artifactDaysToKeepStr: "21",
-                artifactNumToKeepStr: "50"
+                daysToKeepStr: "28",
+                numToKeepStr: "100",
+                artifactDaysToKeepStr: "28",
+                artifactNumToKeepStr: "100"
             )
         )
         disableConcurrentBuilds()
-    }
-    triggers {
-        githubPush() // Trigger by push to respective github branch
-        pollSCM 'H/5 * * * *' // Fallback polling solution as some pushes are somehow lost
     }
     environment {
         GITHUB_TOKEN = credentials('GITHUB_TOKEN_OCTOTIGER')
@@ -44,7 +23,6 @@ pipeline {
     stages {
         stage('checkout') {
             steps {
-                scmSkip(deleteBuild: false, skipPattern:'.*\\[ci skip\\].*')
                 script {
                     buildbadge.setStatus('running')
                 }
@@ -54,7 +32,6 @@ pipeline {
                         cd octotiger
                         git submodule update --init --recursive
                         cd ..
-                        echo "Build started on pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger Node-Level Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} just started..." "${MAINTAINER_MAIL}"
                     '''
                 }
             }
@@ -115,12 +92,16 @@ pipeline {
                                     git checkout main
                                     git pull
                                     rm -rf build/octotiger
+                                    rm -rf build/kokkos
                                     rm -rf src/octotiger
                                 else
                                     git clone https://github.com/diehlpk/PowerTiger.git "octo-buildscripts-${compiler_config}-${cuda_config}-${kokkos_config}"
                                     cd "octo-buildscripts-${compiler_config}-${cuda_config}-${kokkos_config}"
                                     git checkout main # change to different branch if needed for target machine
                                     mkdir src
+                                    rm -rf build/octotiger
+                                    rm -rf build/kokkos
+                                    rm -rf src/octotiger
                                 fi
 
                                 cd ..
@@ -199,9 +180,6 @@ pipeline {
             script {
                 buildbadge.setStatus('success')
             }
-            sh '''
-                echo "Build succeded! Pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger Node-Level Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} succeded" "${MAINTAINER_MAIL}"
-            '''
         }
         failure {
             script {
