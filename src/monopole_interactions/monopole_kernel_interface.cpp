@@ -58,12 +58,16 @@ namespace fmm {
                 if (device_type == interaction_device_kernel_type::KOKKOS_CUDA ||
                     device_type == interaction_device_kernel_type::KOKKOS_HIP) {
 #if defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_CUDA) || defined(KOKKOS_ENABLE_HIP))
-                    bool avail =
-                        stream_pool::interface_available<device_executor, device_pool_strategy>(
-                            opts().cuda_buffer_capacity);
+                    bool avail = true;
+                    if (host_type != interaction_host_kernel_type::DEVICE_ONLY) {
+                        // Check where we want to run this:
+                        avail =
+                            stream_pool::interface_available<device_executor, device_pool_strategy>(
+                                opts().cuda_buffer_capacity);
+                    }
                     // TODO p2m kokkos bug - probably not enough threads for a wavefront
 #if defined(KOKKOS_ENABLE_HIP)
-                    if (contains_multipole_neighbor)
+                    if (contains_multipole_neighbor) // TODO Add device_only error
                         avail = false;
 #endif
                     if (avail) {

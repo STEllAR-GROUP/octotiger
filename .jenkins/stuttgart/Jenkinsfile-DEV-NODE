@@ -2,39 +2,19 @@
 
 def buildbadge = addEmbeddableBadgeConfiguration(id: "devbuild", subject: "Dev-Environment Tests", status: "skipped")
 
-if (currentBuild.getBuildCauses().toString().contains('BranchIndexingCause')) {
-    print "INFO: Build on ${env.BRANCH_NAME}/${env.BUILD_NUMBER}  triggered by branch indexing..."
-    if (env.BRANCH_NAME != "master") {
-        if (env.BUILD_NUMBER != "1") { // Always execute first build to load this configuration and thus the triggers
-            print "INFO: Build on ${env.BRANCH_NAME}/${env.BUILD_NUMBER} skipped due being triggered by Branch Indexing instead of SCM change!"
-            buildbadge.setStatus('skipped')
-            currentBuild.result = 'ABORTED'
-            return // early exit to avoid redundant builds 
-        }
-    }
-} else {
-    print "INFO: Build on ${env.BRANCH_NAME}/${env.BUILD_NUMBER} triggered by SCM change..."
-    print "Proceeding!"
-}
-
-
 pipeline {
     agent { label 'pcsgs05' }
 
     options {
         buildDiscarder(
             logRotator(
-                daysToKeepStr: "21",
-                numToKeepStr: "50",
-                artifactDaysToKeepStr: "21",
-                artifactNumToKeepStr: "50"
+                daysToKeepStr: "28",
+                numToKeepStr: "100",
+                artifactDaysToKeepStr: "28",
+                artifactNumToKeepStr: "100"
             )
         )
         disableConcurrentBuilds()
-    }
-    triggers {
-        githubPush() // Trigger by push to respective github branch
-        pollSCM 'H/30 * * * *' // Fallback polling solution as some pushes are somehow lost
     }
     environment {
         GITHUB_TOKEN = credentials('GITHUB_TOKEN_OCTOTIGER')
@@ -44,7 +24,6 @@ pipeline {
     stages {
         stage('init') {
             steps {
-                scmSkip(deleteBuild: false, skipPattern:'.*\\[ci skip\\].*')
                 script {
                     buildbadge.setStatus('running')
                 }
@@ -99,6 +78,7 @@ pipeline {
                     module load cuda
 		    cd OctoTigerBuildChain
 		    sed -i 's/OCTOTIGER_WITH_BLAST_TEST=OFF/OCTOTIGER_WITH_BLAST_TEST=ON/' build-octotiger.sh
+		    sed -i 's/OCTOTIGER_WITH_FAST_FP_CONTRACT=OFF/OCTOTIGER_WITH_FAST_FP_CONTRACT=ON/' build-octotiger.sh
                     ./build-all.sh Release with-CC with-cuda without-mpi without-papi without-apex with-kokkos with-simd without-hpx-backend-multipole without-hpx-backend-monopole with-hpx-cuda-polling
                     '''
                 }
@@ -115,12 +95,30 @@ pipeline {
                 }
             }
         }
+        stage('gcc-with-fp-contract-off') {
+            steps {
+                dir('octotiger') {
+                    sh '''
+                    module load cuda
+		    cd OctoTigerBuildChain
+		    sed -i 's/OCTOTIGER_WITH_BLAST_TEST=OFF/OCTOTIGER_WITH_BLAST_TEST=ON/' build-octotiger.sh
+		    sed -i 's/OCTOTIGER_WITH_FAST_FP_CONTRACT=ON/OCTOTIGER_WITH_FAST_FP_CONTRACT=OFF/' build-octotiger.sh
+                    ./build-all.sh Release with-CC with-cuda without-mpi without-papi without-apex with-kokkos with-simd without-hpx-backend-multipole without-hpx-backend-monopole with-hpx-cuda-polling octotiger
+		    cd build/octotiger/build
+		    ctest --output-on-failure
+            cd ../../..
+		    sed -i 's/OCTOTIGER_WITH_FAST_FP_CONTRACT=OFF/OCTOTIGER_WITH_FAST_FP_CONTRACT=ON/' build-octotiger.sh
+                    '''
+                }
+            }
+        }
         stage('clang-build') {
             steps {
                 dir('octotiger') {
                     sh '''
 		    cd OctoTigerBuildChain
 		    sed -i 's/OCTOTIGER_WITH_BLAST_TEST=ON/OCTOTIGER_WITH_BLAST_TEST=OFF/' build-octotiger.sh
+		    sed -i 's/OCTOTIGER_WITH_FAST_FP_CONTRACT=OFF/OCTOTIGER_WITH_FAST_FP_CONTRACT=ON/' build-octotiger.sh
 		    rm -rf build && rm -rf src/boost
                     ./build-all.sh Release with-CC-clang without-cuda without-mpi without-papi without-apex with-kokkos with-simd without-hpx-backend-multipole without-hpx-backend-monopole with-hpx-cuda-polling
                     '''

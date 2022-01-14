@@ -587,7 +587,12 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 						rc.g[i][0] += G[iiig][gx_i] * dV * rho0;
 						rc.g[i][1] += G[iiig][gy_i] * dV * rho0;
 						rc.g[i][2] += G[iiig][gz_i] * dV * rho0;
-						auto eint = U[egas_i][iii] * dV - ekin;
+						safe_real eint;
+						if (opts().eos == WD) {
+							eint = U[egas_i][iii] * dV - ekin - ztwd_energy(rho0) * dV;
+						} else {
+							eint = U[egas_i][iii] * dV - ekin;
+						}
 						const auto epot = 0.5 * U[pot_i][iii] * dV;
 						if (eint < de_switch2 * U[egas_i][iii] * dV) {
 							eint = POWER(U[tau_i][iii], fgamma) * dV;

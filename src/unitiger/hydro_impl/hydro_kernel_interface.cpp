@@ -40,9 +40,13 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
         if (device_type == interaction_device_kernel_type::KOKKOS_CUDA ||
             device_type == interaction_device_kernel_type::KOKKOS_HIP) {
 #if defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_CUDA) || defined(KOKKOS_ENABLE_HIP))
-            bool avail = false;
-            avail = stream_pool::interface_available<device_executor, device_pool_strategy>(
-                cuda_buffer_capacity);
+            bool avail = true; 
+            // Host execution is possible: Check if there is a launch slot for device - if not 
+            // we will execute the kernel on the CPU instead
+            if (host_type != interaction_host_kernel_type::DEVICE_ONLY) {
+                avail = stream_pool::interface_available<device_executor, device_pool_strategy>(
+                    cuda_buffer_capacity);
+            }
             if (avail) {
                 executor_interface_t executor;
                 max_lambda = launch_hydro_kokkos_kernels<device_executor>(
@@ -59,9 +63,13 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
 #endif
         if (device_type == interaction_device_kernel_type::CUDA) {
 #ifdef OCTOTIGER_HAVE_CUDA
-            bool avail = false;
-            avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
-                pool_strategy>(cuda_buffer_capacity);
+            bool avail = true;
+            // Host execution is possible: Check if there is a launch slot for device - if not 
+            // we will execute the kernel on the CPU instead
+            if (host_type != interaction_host_kernel_type::DEVICE_ONLY) {
+                avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
+                    pool_strategy>(cuda_buffer_capacity);
+            }
             if (avail) {
                 size_t device_id = 0;
                 stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy> executor;
@@ -166,6 +174,21 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
                 }
             }
         }
+        /*std::cout << "legacy" << max_lambda.x << " " <<max_lambda.y << " " <<max_lambda.z << std::endl;
+        std::cin.get();
+        std::cout << "start output legacy x!" << std::endl;
+        for(int i = 0; i < inx_large * inx_large * inx_large; i++)
+          std::cout << X[0][i] << " ";
+        std::cout << "finish output legacy x!" << std::endl;
+        std::cout << "start output legacy! y" << std::endl;
+        for(int i = 0; i < inx_large * inx_large * inx_large; i++)
+          std::cout << X[1][i] << " ";
+        std::cout << "finish output legacy y!" << std::endl;
+        std::cout << "start output legacy! z" << std::endl;
+        for(int i = 0; i < inx_large * inx_large * inx_large; i++)
+          std::cout << X[2][i] << " ";
+        std::cout << "finish output legacy! z" << std::endl;
+        std::cin.get();*/
         return max_lambda;
     } else {
         std::cerr << "No valid hydro kernel type given! " << std::endl;

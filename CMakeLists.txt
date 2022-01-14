@@ -49,6 +49,8 @@ set(OCTOTIGER_WITH_MAX_NUMBER_FIELDS "15" CACHE STRING "Maximum allowed nf_ (num
 set(OCTOTIGER_THETA_MINIMUM "0.34" CACHE STRING "Minimal allowed theta value - important for optimizations")
 option(OCTOTIGER_WITH_DOCU "Enable the target to build the documentation" OFF)
 
+option(OCTOTIGER_WITH_FAST_FP_CONTRACT "Enable fp-contract=fast for CPU- and fmad for GPU kernels. Causes results of CPU and GPU to slightly differ (<1e-19) " OFF) # about 1e-20 in level 3 sod test
+
 # Options for comparing different backends
 option(OCTOTIGER_WITH_MONOPOLE_HOST_HPX_EXECUTOR 
   "Use Kokkos HPX backend for host execution of monopole kernels (ON) or serial host backend (OFF)" ON)
@@ -58,6 +60,9 @@ option(OCTOTIGER_WITH_FORCE_SCALAR_KOKKOS_SIMD
   "Uses scalar host simd types instead of the native ones" OFF) 
 option(OCTOTIGER_WITH_POLLING_EXECUTORS  
   "Use the polling executors, not the callback ones" ON)
+
+option(eCTOTIGER_ARCH_FLAG
+  "Arch flag for compilations" "-march=native")
 option(OCTOTIGER_CUDA_ARCH
   "Compile for this CUDA arch" sm_50)
 
@@ -349,40 +354,102 @@ if(OCTOTIGER_WITH_BLAST_TEST)
   list(APPEND hydro_dependencies quadmath)
 endif()
 
+# TODO(daissgr) Rework to get flags from CXX_FLAGS - setting them manually overwrites any other flags...
+# needs some reworking in general
 if(OCTOTIGER_WITH_CUDA)
   if(OCTOTIGER_WITH_KOKKOS)
-    # TODO if clang
     if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-      set_source_files_properties(${source_files} ${header_files} ${hydro_source_files} ${hydro_header_files} frontend/frontend-helper.cpp PROPERTIES COMPILE_FLAGS "  -x c++")
-      #set_source_files_properties(${source_files} ${header_files} PROPERTIES COMPILE_FLAGS " -expt-relaxed-constexpr")
-      #set_source_files_properties(${hydro_source_files} ${cu_source_files} PROPERTIES COMPILE_FLAGS " -expt-relaxed-constexpr -Xptxas=-v,-fmad=true,--opt-level=4")
-      set_source_files_properties(${hydro_cu_source_files} ${cu_source_files} src/monopole_interactions/monopole_kernel_interface.cpp
-       src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-associative-math --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
-      #set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -ffp-contract=off -fno-cuda-approx-transcendentals -fno-cuda-flush-denormals-to-zero --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
-      #set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast -fno-honor-infinities -fno-honor-nans -fno-math-errno -ffinite-math-only -freciprocal-math -fno-signed-zeros -fno-trapping-math --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
-      #set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda --cuda-host-only -fno-fast-math -ffp-contract=on -fno-honor-infinities -fno-honor-nans -fno-math-errno --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
-      #set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=on -fno-math-errno --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
-      #-fassociative-math  kills it?
-      set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-associative-math --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
-      # hydro needs no assiociate math
-      set_source_files_properties(src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-associative-math --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
-      #set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-cuda-approx-transcendentals -fcuda-flush-denormals-to-zero --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
+      # Using different branches for the fp_contract setting as just setting the flags within the strings below did not work.
+      # Just setting the fp_contract options as a string did not get picked up by CMAKE once the option changes, resulting in it reusing the cached object files instead of rebuilding it (until one manually deletes the cache..)
+      if (OCTOTIGER_WITH_FAST_FP_CONTRACT)
+        set_source_files_properties(${source_files} ${header_files} ${hydro_source_files} ${hydro_header_files} frontend/frontend-helper.cpp PROPERTIES COMPILE_FLAGS "  -x c++")
+        set_source_files_properties(${hydro_cu_source_files} ${cu_source_files} src/monopole_interactions/monopole_kernel_interface.cpp
+        src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
+        #-fassociative-math  kills it?
+        set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
+        set_source_files_properties(src/multipole_interactions/monopole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
+        # hydro needs no assiociate math
+        set_source_files_properties(src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
+      else()
+        set_source_files_properties(${source_files} ${header_files} ${hydro_source_files} ${hydro_header_files} frontend/frontend-helper.cpp PROPERTIES COMPILE_FLAGS "  -x c++")
+        set_source_files_properties(${hydro_cu_source_files} ${cu_source_files} src/monopole_interactions/monopole_kernel_interface.cpp
+        src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=off --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
+        #-fassociative-math  kills it?
+        set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=off --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
+        set_source_files_properties(src/multipole_interactions/monopole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=off --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
+        # hydro needs no assiociate math
+        set_source_files_properties(src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=off --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
+      endif()
     else()
-      set_source_files_properties(${cu_source_files} ${hydro_cu_source_files} PROPERTIES LANGUAGE CUDA)
-      set_source_files_properties(${source_files} ${header_files} PROPERTIES COMPILE_FLAGS " -expt-relaxed-constexpr")
-      set_source_files_properties(${hydro_cu_source_files} ${cu_source_files} PROPERTIES COMPILE_FLAGS " --expt-extended-lambda -expt-relaxed-constexpr -Xptxas=-v,-fmad=true,--opt-level=4")
+      # Using different branches for the fp_contract setting as just setting the flags within the strings below did not work.
+      # Just setting the fp_contract options as a string did not get picked up by CMAKE once the option changes, resulting in it reusing the cached object files instead of rebuilding it (until one manually deletes the cache..)
+      if (OCTOTIGER_WITH_FAST_FP_CONTRACT)
+        set_source_files_properties(${cu_source_files} ${hydro_cu_source_files} src/unitiger/hydro_impl/hydro_kernel_interface.cpp src/multipole_interactions/multipole_kernel_interface.cpp src/monopole_interactions/monopole_kernel_interface.cpp PROPERTIES LANGUAGE CUDA)
+        set_source_files_properties(${source_files} ${header_files} PROPERTIES COMPILE_FLAGS " -expt-relaxed-constexpr")
+        set_source_files_properties(${hydro_cu_source_files} ${cu_source_files} PROPERTIES COMPILE_FLAGS "--ftz=true --prec-div=false --prec-sqrt=false --fmad=true --expt-extended-lambda -expt-relaxed-constexpr -Xptxas=-v -Xcompiler=${OCTOTIGER_ARCH_FLAG},-ffp-contract=fast")
+        set_source_files_properties(src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " --ftz=true --prec-div=false --prec-sqrt=false --fmad=true --expt-extended-lambda -expt-relaxed-constexpr -Xptxas=-v -Xcompiler=${OCTOTIGER_ARCH_FLAG},-ffp-contract=fast")
+        set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " --ftz=true --prec-div=false --prec-sqrt=false --fmad=true --expt-extended-lambda -expt-relaxed-constexpr -Xptxas=-v -Xcompiler=${OCTOTIGER_ARCH_FLAG},-ffp-contract=fast")
+        set_source_files_properties(src/monopole_interactions/monopole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " --ftz=true --prec-div=false --prec-sqrt=false --fmad=true --expt-extended-lambda -expt-relaxed-constexpr -Xptxas=-v -Xcompiler=${OCTOTIGER_ARCH_FLAG},-ffp-contract=fast")
+      else()
+        set_source_files_properties(${cu_source_files} ${hydro_cu_source_files} src/unitiger/hydro_impl/hydro_kernel_interface.cpp src/multipole_interactions/multipole_kernel_interface.cpp src/monopole_interactions/monopole_kernel_interface.cpp PROPERTIES LANGUAGE CUDA)
+        set_source_files_properties(${source_files} ${header_files} PROPERTIES COMPILE_FLAGS " -expt-relaxed-constexpr")
+        set_source_files_properties(${hydro_cu_source_files} ${cu_source_files} PROPERTIES COMPILE_FLAGS "--ftz=true --prec-div=false --prec-sqrt=false --fmad=false --expt-extended-lambda -expt-relaxed-constexpr -Xptxas=-v -Xcompiler=${OCTOTIGER_ARCH_FLAG},-ffp-contract=off")
+        set_source_files_properties(src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " --ftz=true --prec-div=false --prec-sqrt=false --fmad=false --expt-extended-lambda -expt-relaxed-constexpr -Xptxas=-v -Xcompiler=${OCTOTIGER_ARCH_FLAG},-ffp-contract=off")
+        set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " --ftz=true --prec-div=false --prec-sqrt=false --fmad=false --expt-extended-lambda -expt-relaxed-constexpr -Xptxas=-v -Xcompiler=${OCTOTIGER_ARCH_FLAG},-ffp-contract=off")
+        set_source_files_properties(src/monopole_interactions/monopole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " --ftz=true --prec-div=false --prec-sqrt=false --fmad=false --expt-extended-lambda -expt-relaxed-constexpr -Xptxas=-v -Xcompiler=${OCTOTIGER_ARCH_FLAG},-ffp-contract=off")
+      endif()
     endif()
   else()
     #set_source_files_properties(${cu_source_files} ${hydro_cu_source_files} PROPERTIES LANGUAGE CUDA)
-
     if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-      # TODO From what I can tell -fno-fast-math is only required for the sqrt in the multipole kernels - remove flag from other files
-      set_source_files_properties(${cu_source_files} ${hydro_cu_source_files} PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
+      # From what I can tell -fno-fast-math is only required for the sqrt in the multipole kernels - remove flag from other files
       # -DSTRICT_ANSI__ resolves the issue of clang trying to pull in float128 stuff in the standard libs for the GPU pass
+      #set_source_files_properties(${cu_source_files} ${hydro_cu_source_files} PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
+      if (OCTOTIGER_WITH_FAST_FP_CONTRACT)
+        set_source_files_properties(${source_files} ${header_files} ${hydro_source_files} ${hydro_header_files} frontend/frontend-helper.cpp PROPERTIES COMPILE_FLAGS "  -x c++")
+        set_source_files_properties(${hydro_cu_source_files} ${cu_source_files} src/monopole_interactions/monopole_kernel_interface.cpp
+        src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
+        #-fassociative-math  kills it?
+        set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
+        set_source_files_properties(src/multipole_interactions/monopole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
+        # hydro needs no assiociate math
+        set_source_files_properties(src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
+      else()
+        set_source_files_properties(${source_files} ${header_files} ${hydro_source_files} ${hydro_header_files} frontend/frontend-helper.cpp PROPERTIES COMPILE_FLAGS "  -x c++")
+        set_source_files_properties(${hydro_cu_source_files} ${cu_source_files} src/monopole_interactions/monopole_kernel_interface.cpp
+        src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=off --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
+        #-fassociative-math  kills it?
+        set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=off --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
+        set_source_files_properties(src/multipole_interactions/monopole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=off --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
+        # hydro needs no assiociate math
+        set_source_files_properties(src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=off --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
+      endif()
+
     else()
-      set_source_files_properties(${cu_source_files} ${hydro_cu_source_files} PROPERTIES LANGUAGE CUDA)
-      set_source_files_properties(${hydro_cu_source_files} ${cu_source_files} PROPERTIES COMPILE_FLAGS " --expt-extended-lambda -expt-relaxed-constexpr -Xptxas=-v,-fmad=true,--opt-level=4")
+      # Using different branches for the fp_contract setting as just setting the flags within the strings below did not work.
+      # Just setting the fp_contract options as a string did not get picked up by CMAKE once the option changes, resulting in it reusing the cached object files instead of rebuilding it (until one manually deletes the cache..)
+      if (OCTOTIGER_WITH_FAST_FP_CONTRACT)
+        set_source_files_properties(${cu_source_files} ${hydro_cu_source_files} src/unitiger/hydro_impl/hydro_kernel_interface.cpp src/multipole_interactions/multipole_kernel_interface.cpp src/monopole_interactions/monopole_kernel_interface.cpp PROPERTIES LANGUAGE CUDA)
+        set_source_files_properties(${source_files} ${header_files} PROPERTIES COMPILE_FLAGS " -expt-relaxed-constexpr")
+        set_source_files_properties(${hydro_cu_source_files} ${cu_source_files} PROPERTIES COMPILE_FLAGS "--ftz=true --prec-div=false --prec-sqrt=false --fmad=true --expt-extended-lambda -expt-relaxed-constexpr -Xptxas=-v -Xcompiler=${OCTOTIGER_ARCH_FLAG},-ffp-contract=fast")
+        set_source_files_properties(src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " --ftz=true --prec-div=false --prec-sqrt=false --fmad=true --expt-extended-lambda -expt-relaxed-constexpr -Xptxas=-v -Xcompiler=${OCTOTIGER_ARCH_FLAG},-ffp-contract=fast")
+        set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " --ftz=true --prec-div=false --prec-sqrt=false --fmad=true --expt-extended-lambda -expt-relaxed-constexpr -Xptxas=-v -Xcompiler=${OCTOTIGER_ARCH_FLAG},-ffp-contract=fast")
+        set_source_files_properties(src/monopole_interactions/monopole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " --ftz=true --prec-div=false --prec-sqrt=false --fmad=true --expt-extended-lambda -expt-relaxed-constexpr -Xptxas=-v -Xcompiler=${OCTOTIGER_ARCH_FLAG},-ffp-contract=fast")
+      else()
+        set_source_files_properties(${cu_source_files} ${hydro_cu_source_files} src/unitiger/hydro_impl/hydro_kernel_interface.cpp src/multipole_interactions/multipole_kernel_interface.cpp src/monopole_interactions/monopole_kernel_interface.cpp PROPERTIES LANGUAGE CUDA)
+        set_source_files_properties(${source_files} ${header_files} PROPERTIES COMPILE_FLAGS " -expt-relaxed-constexpr")
+        set_source_files_properties(${hydro_cu_source_files} ${cu_source_files} PROPERTIES COMPILE_FLAGS "--ftz=true --prec-div=false --prec-sqrt=false --fmad=false --expt-extended-lambda -expt-relaxed-constexpr -Xptxas=-v -Xcompiler=${OCTOTIGER_ARCH_FLAG},-ffp-contract=off")
+        set_source_files_properties(src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " --ftz=true --prec-div=false --prec-sqrt=false --fmad=false --expt-extended-lambda -expt-relaxed-constexpr -Xptxas=-v -Xcompiler=${OCTOTIGER_ARCH_FLAG},-ffp-contract=off")
+        set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " --ftz=true --prec-div=false --prec-sqrt=false --fmad=false --expt-extended-lambda -expt-relaxed-constexpr -Xptxas=-v -Xcompiler=${OCTOTIGER_ARCH_FLAG},-ffp-contract=off")
+        set_source_files_properties(src/monopole_interactions/monopole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " --ftz=true --prec-div=false --prec-sqrt=false --fmad=false --expt-extended-lambda -expt-relaxed-constexpr -Xptxas=-v -Xcompiler=${OCTOTIGER_ARCH_FLAG},-ffp-contract=off")
+      endif()
+    endif()
   endif()
+else()
+  if (OCTOTIGER_WITH_FAST_FP_CONTRACT)
+        set_source_files_properties(src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS "-march=native -ffp-contract=fast")
+  else()
+        set_source_files_properties(src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS "-march=native -ffp-contract=off")
   endif()
 endif()
 
@@ -466,6 +533,7 @@ if(OCTOTIGER_WITH_KOKKOS)
   endif()
   if(OCTOTIGER_WITH_FORCE_SCALAR_KOKKOS_SIMD)
     target_compile_definitions(octolib PUBLIC OCTOTIGER_FORCE_SCALAR_KOKKOS_SIMD)
+    target_compile_definitions(hydrolib PUBLIC OCTOTIGER_FORCE_SCALAR_KOKKOS_SIMD)
   endif()
 endif()
 
@@ -473,8 +541,8 @@ endif()
 # Use this include when actively developing simd-math itself and the source changes often
 # You are responsible for checking out the simd-math source at the correct directory in this case
 #target_include_directories(octolib PUBLIC ${PROJECT_SOURCE_DIR}/../simd-math)
-message(INFO "Compiling with Kokkos SIMD! Path:")
-message(INFO ${kokkossimd_SOURCE_DIR})
+message(INFO " Compiling with Kokkos SIMD! Path:")
+message(INFO " ${kokkossimd_SOURCE_DIR} ")
 target_include_directories(hydrolib PUBLIC ${kokkossimd_SOURCE_DIR})
 target_include_directories(octolib PUBLIC ${kokkossimd_SOURCE_DIR})
 
@@ -668,11 +736,23 @@ target_compile_definitions(hydrolib PUBLIC OCTOTIGER_GRIDDIM=${OCTOTIGER_WITH_GR
 
 # Interaction list disabled?
 if(OCTOTIGER_DISABLE_ILIST)
-  message(STATUS "Octot-Tiger: Interaction list is disabled -> hydro-only build!")
+  message(STATUS "Octo-Tiger: Interaction list is disabled -> hydro-only build!")
   target_compile_definitions(octotiger PUBLIC OCTOTIGER_DISABLE_ILIST)
   target_compile_definitions(octolib PUBLIC OCTOTIGER_DISABLE_ILIST)
   target_compile_definitions(hydrolib PUBLIC OCTOTIGER_DISABLE_ILIST)
 endif()
+
+# Output which build flags we use
+if (OCTOTIGER_WITH_FAST_FP_CONTRACT)
+  message(INFO " Building with fp_contract=fast")
+  target_compile_definitions(octotiger PUBLIC OCTOTIGER_HAVE_FAST_FP)
+  target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_FAST_FP)
+  target_compile_definitions(hydrolib PUBLIC OCTOTIGER_HAVE_FAST_FP)
+else()
+  message(INFO " Building with fp_contract=off")
+endif()
+
+
 
 # Maximum allowed nf (for kernel optimizations)
 message(STATUS "Octo-Tiger max nf: ${OCTOTIGER_WITH_MAX_NUMBER_FIELDS}")

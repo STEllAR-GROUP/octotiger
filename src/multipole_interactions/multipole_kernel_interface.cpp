@@ -59,9 +59,13 @@ namespace fmm {
                 if (device_type == interaction_device_kernel_type::KOKKOS_CUDA ||
                     device_type == interaction_device_kernel_type::KOKKOS_HIP) {
 #if defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_CUDA) || defined(KOKKOS_ENABLE_HIP))
-                    bool avail =
-                        stream_pool::interface_available<device_executor, device_pool_strategy>(
-                            opts().cuda_buffer_capacity);
+                    bool avail = true;
+                    if (host_type != interaction_host_kernel_type::DEVICE_ONLY) {
+                        // Check where we want to run this:
+                        avail =
+                            stream_pool::interface_available<device_executor, device_pool_strategy>(
+                                opts().cuda_buffer_capacity);
+                    }
                     if (avail) {
                         executor_interface_t executor;
                         multipole_kernel<device_executor>(executor, monopoles, M_ptr, com_ptr,
