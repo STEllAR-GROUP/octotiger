@@ -24,20 +24,20 @@ module load "${compiler_module}" cuda/11.4 hwloc
 # Tests with griddim = 8
 if [ "${kokkos_config}" = "with-kokkos" ]; then
 	echo "Running tests with griddim=8 on diablo"
-	srun -p cuda -N 1 -n 1 -t 08:00:00 bash -c "module load ${compiler_module} cuda/11.4 hwloc && ./build-all.sh Release ${compiler_config} ${cuda_config} without-mpi without-papi without-apex ${kokkos_config} ${simd_config} with-hpx-backend-multipole without-hpx-backend-monopole with-hpx-cuda-polling without-otf2 boost jemalloc hdf5 silo vc hpx kokkos cppuddle octotiger && cd build/octotiger/build && ctest --output-on-failure " 
+	srun -p cuda-V100,cuda-A100 -N 1 -n 1 -t 08:00:00 bash -c "module load ${compiler_module} cuda/11.4 hwloc && ./build-all.sh Release ${compiler_config} ${cuda_config} without-mpi without-papi without-apex ${kokkos_config} ${simd_config} with-hpx-backend-multipole without-hpx-backend-monopole with-hpx-cuda-polling without-otf2 boost jemalloc hdf5 silo vc hpx kokkos cppuddle octotiger && cd build/octotiger/build && ctest --output-on-failure " 
 
 	# Tests with griddim = 16 - only test in full kokkos + cuda build
 	if [ "${cuda_config}" = "with-cuda" ]; then
 		sed -i 's/GRIDDIM=8/GRIDDIM=16/' build-octotiger.sh
 		echo "Running tests with griddim=16 on diablo"
 		rm -rf build/kokkos build/octotiger # in case we end up on a different cuda node we need to rebuild with its architecture
-		srun -p cuda -N 1 -n 1 -t 08:00:00 bash -c "module load ${compiler_module} cuda/11.4 hwloc && ./build-all.sh Release ${compiler_config} ${cuda_config} without-mpi without-papi without-apex ${kokkos_config} ${simd_config} with-hpx-backend-multipole without-hpx-backend-monopole with-hpx-cuda-polling without-otf2 boost jemalloc hdf5 silo vc hpx kokkos cppuddle octotiger && cd build/octotiger/build && ctest --output-on-failure " 
+		srun -p cuda-V100,cuda-A100 -N 1 -n 1 -t 08:00:00 bash -c "module load ${compiler_module} cuda/11.4 hwloc && ./build-all.sh Release ${compiler_config} ${cuda_config} without-mpi without-papi without-apex ${kokkos_config} ${simd_config} with-hpx-backend-multipole without-hpx-backend-monopole with-hpx-cuda-polling without-otf2 boost jemalloc hdf5 silo vc hpx kokkos cppuddle octotiger && cd build/octotiger/build && ctest --output-on-failure " 
 		sed -i 's/GRIDDIM=16/GRIDDIM=8/' build-octotiger.sh
 	fi
 else
 	# TODO Run this on a different server as intended to cut the test time?
 	echo "Running tests with griddim=8 on diablo"
-	srun -p cuda -N 1 -n 1 -t 08:00:00 bash -c "module load ${compiler_module} cuda/11.4 hwloc && ./build-all.sh Release ${compiler_config} ${cuda_config} without-mpi without-papi without-apex ${kokkos_config} ${simd_config} with-hpx-backend-multipole without-hpx-backend-monopole with-hpx-cuda-polling without-otf2 boost jemalloc hdf5 silo vc hpx cppuddle octotiger && cd build/octotiger/build && ctest --output-on-failure " 
+	srun -p cuda-V100,cuda-A100 -N 1 -n 1 -t 08:00:00 bash -c "module load ${compiler_module} cuda/11.4 hwloc && ./build-all.sh Release ${compiler_config} ${cuda_config} without-mpi without-papi without-apex ${kokkos_config} ${simd_config} with-hpx-backend-multipole without-hpx-backend-monopole with-hpx-cuda-polling without-otf2 boost jemalloc hdf5 silo vc hpx cppuddle octotiger && cd build/octotiger/build && ctest --output-on-failure " 
 fi
 
 # Reset buildscripts (in case of failure, the next job will reset it in the checkout step)
