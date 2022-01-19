@@ -159,9 +159,9 @@ set(source_files
     src/node_server_actions_1.cpp
     src/node_server_actions_2.cpp
     src/node_server_actions_3.cpp
-    src/options.cpp
     src/physcon.cpp
     src/problem.cpp
+    src/options_processing.cpp
     src/profiler.cpp
     src/real.cpp
     src/roe.cpp
@@ -200,8 +200,6 @@ set(source_files
     src/unitiger/hydro_impl/hydro_boundary_exchange_vc.cpp
     src/unitiger/hydro_impl/hydro_boundary_exchange_cuda.cpp 
 
-    src/unitiger/hydro_impl/hydro_kernel_interface.cpp
-    src/unitiger/hydro_impl/hydro_cuda_interface.cpp
 )
 
 # Octo-Tiger library headers
@@ -227,8 +225,6 @@ set(header_files
     octotiger/node_location.hpp
     octotiger/node_registry.hpp
     octotiger/node_server.hpp
-    octotiger/options.hpp
-    octotiger/options_enum.hpp
     octotiger/physcon.hpp
     octotiger/problem.hpp
     octotiger/profiler.hpp
@@ -291,8 +287,22 @@ endif()
 
 # Octo-Tiger library
 add_hpx_library(
+  optionslib
+  DEPENDENCIES
+  Boost::boost Boost::program_options Silo::silo CPPuddle::buffer_manager CPPuddle::stream_manager 
+  SOURCES
+    src/options.cpp
+    # As we need silo to load the options and the options get saved via silo 
+  HEADERS
+    octotiger/options.hpp
+    octotiger/options_enum.hpp
+)
+
+# Octo-Tiger library
+add_hpx_library(
   octolib
   DEPENDENCIES
+    optionslib
     hydrolib # grid.cpp requires the hydro solver 
     ${octo_dependencies}
   SOURCES
@@ -327,6 +337,8 @@ set(hydro_source_files
    src/unitiger/hydro_impl/reconstruct_cuda_kernel.cpp
    src/unitiger/hydro_impl/reconstruct_kernel_interface.cpp
    src/unitiger/hydro_impl/reconstruct_cpu_kernel.cpp
+   src/unitiger/hydro_impl/hydro_kernel_interface.cpp
+   src/unitiger/hydro_impl/hydro_cuda_interface.cpp
    src/test_problems/sod/exact_sod.cpp)
 
 set(cu_source_files
@@ -345,12 +357,6 @@ if(OCTOTIGER_WITH_Vc)
 endif()
 if(OCTOTIGER_WITH_KOKKOS)
   list(APPEND hydro_dependencies Kokkos::kokkos HPXKokkos::hpx_kokkos)
-endif()
-if(OCTOTIGER_WITH_BLAST_TEST)
-  list(APPEND hydro_source_files 
-    src/test_problems/blast/sedov.cpp
-    src/test_problems/blast/sedovf_c.cpp)
-  list(APPEND hydro_dependencies quadmath)
 endif()
 
 # TODO(daissgr) Rework to get flags from CXX_FLAGS - setting them manually overwrites any other flags...
@@ -456,6 +462,7 @@ endif()
 add_hpx_library(
   hydrolib
   DEPENDENCIES
+    optionslib
     ${hydro_dependencies}
   SOURCES
     ${hydro_source_files}
@@ -519,6 +526,8 @@ if(OCTOTIGER_WITH_KOKKOS)
   endif()
 
   # Add symbols
+  target_compile_definitions(optionslib PUBLIC OCTOTIGER_HAVE_KOKKOS)
+  target_compile_definitions(optionslib PUBLIC HPX_WITH_CUDA) # workaround for the kokkos hpx include
   target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_KOKKOS)
   target_compile_definitions(octolib PUBLIC HPX_WITH_CUDA) # workaround for the kokkos hpx include
   target_compile_definitions(hydrolib PUBLIC OCTOTIGER_HAVE_KOKKOS)
@@ -540,8 +549,9 @@ endif()
 # Use this include when actively developing simd-math itself and the source changes often
 # You are responsible for checking out the simd-math source at the correct directory in this case
 #target_include_directories(octolib PUBLIC ${PROJECT_SOURCE_DIR}/../simd-math)
-message(INFO " Compiling with Kokkos SIMD! Path:")
-message(INFO " ${kokkossimd_SOURCE_DIR} ")
+message(INFO "Compiling with Kokkos SIMD! Path:")
+message(INFO ${kokkossimd_SOURCE_DIR})
+target_include_directories(optionslib PUBLIC ${kokkossimd_SOURCE_DIR})
 target_include_directories(hydrolib PUBLIC ${kokkossimd_SOURCE_DIR})
 target_include_directories(octolib PUBLIC ${kokkossimd_SOURCE_DIR})
 
@@ -551,6 +561,7 @@ target_include_directories(octolib PUBLIC ${kokkossimd_SOURCE_DIR})
 #set_property(TARGET octolib PROPERTY FOLDER "Octo-Tiger")
 
 # add octotiger/* to compiler search path
+target_include_directories(optionslib PUBLIC ${PROJECT_SOURCE_DIR})
 target_include_directories(octolib PUBLIC ${PROJECT_SOURCE_DIR})
 target_include_directories(hydrolib PUBLIC ${PROJECT_SOURCE_DIR})
 
@@ -558,6 +569,7 @@ target_include_directories(hydrolib PUBLIC ${PROJECT_SOURCE_DIR})
 add_hpx_executable(
   octotiger
   DEPENDENCIES
+    optionslib
     hydrolib
     octolib
     Boost::boost
@@ -722,6 +734,7 @@ endif()
 
 # Grid size
 message(STATUS "Octo-Tiger grid size: ${OCTOTIGER_WITH_GRIDDIM}")
+target_compile_definitions(optionslib PUBLIC OCTOTIGER_GRIDDIM=${OCTOTIGER_WITH_GRIDDIM})
 target_compile_definitions(octolib PUBLIC OCTOTIGER_GRIDDIM=${OCTOTIGER_WITH_GRIDDIM})
 target_compile_definitions(hydrolib PUBLIC OCTOTIGER_GRIDDIM=${OCTOTIGER_WITH_GRIDDIM})
 
@@ -729,6 +742,7 @@ target_compile_definitions(hydrolib PUBLIC OCTOTIGER_GRIDDIM=${OCTOTIGER_WITH_GR
 if(OCTOTIGER_DISABLE_ILIST)
   message(STATUS "Octo-Tiger: Interaction list is disabled -> hydro-only build!")
   target_compile_definitions(octotiger PUBLIC OCTOTIGER_DISABLE_ILIST)
+  target_compile_definitions(optionslib PUBLIC OCTOTIGER_DISABLE_ILIST)
   target_compile_definitions(octolib PUBLIC OCTOTIGER_DISABLE_ILIST)
   target_compile_definitions(hydrolib PUBLIC OCTOTIGER_DISABLE_ILIST)
 endif()
@@ -747,11 +761,13 @@ endif()
 
 # Maximum allowed nf (for kernel optimizations)
 message(STATUS "Octo-Tiger max nf: ${OCTOTIGER_WITH_MAX_NUMBER_FIELDS}")
+target_compile_definitions(optionslib PUBLIC OCTOTIGER_MAX_NUMBER_FIELDS=${OCTOTIGER_WITH_MAX_NUMBER_FIELDS})
 target_compile_definitions(octolib PUBLIC OCTOTIGER_MAX_NUMBER_FIELDS=${OCTOTIGER_WITH_MAX_NUMBER_FIELDS})
 target_compile_definitions(hydrolib PUBLIC OCTOTIGER_MAX_NUMBER_FIELDS=${OCTOTIGER_WITH_MAX_NUMBER_FIELDS})
 
 # Theta minimum
 message(STATUS "Octo-Tiger minimal allowed theta: ${OCTOTIGER_THETA_MINIMUM}")
+target_compile_definitions(optionslib PUBLIC OCTOTIGER_THETA_MINIMUM=${OCTOTIGER_THETA_MINIMUM})
 target_compile_definitions(octolib PUBLIC OCTOTIGER_THETA_MINIMUM=${OCTOTIGER_THETA_MINIMUM})
 target_compile_definitions(hydrolib PUBLIC OCTOTIGER_THETA_MINIMUM=${OCTOTIGER_THETA_MINIMUM})
 
