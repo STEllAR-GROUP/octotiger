@@ -521,9 +521,10 @@ int node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std::
 		for (auto &f : geo::face::full_set()) {
 			const auto &neighbor = neighbors[f.to_direction()];
 			if (!neighbor.empty()) {
-				nfuts.push_back(neighbor.set_child_aunt(me.get_gid(), f ^ 1).then([this, f](future<set_child_aunt_type> &&n) {
+				nfuts.push_back(neighbor.set_child_aunt(me.get_gid(), f ^ 1).then(
+                    hpx::util::annotated_function([this, f](future<set_child_aunt_type> &&n) {
 					nieces[f] = GET(n);
-				}));
+				}, "node_server::form_tree::sync")));
 			} else {
 				nieces[f] = -2;
 			}
@@ -570,9 +571,9 @@ future<hpx::id_type> node_client::get_child_client(const node_location &parent_l
 			++misses;
 		}
 		if (!found) {
-			rfut = hpx::async([=]() {
+			rfut = hpx::async(hpx::util::annotated_function([=]() {
 						return sfut.get();
-					});
+					}), "return_future_get_child_client");
 		}
 #else
 		rfut = hpx::async<typename node_server::get_child_client_action>(get_unmanaged_gid(), ci);
