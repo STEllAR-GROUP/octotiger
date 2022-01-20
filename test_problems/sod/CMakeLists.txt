@@ -153,7 +153,7 @@ if(OCTOTIGER_WITH_CUDA)
 endif()
 if(OCTOTIGER_WITH_HIP)
 	test_sod_scenario(test_problems.gpu.am_hydro_off.sod_hip sod_hip_log.txt ${ini_scenario_filename} ${silo_reference_filename} OFF
-  "--correct_am_hydro=off --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=HIP --hydro_host_kernel_type=LEGACY")
+    "--correct_am_hydro=off --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=HIP --hydro_host_kernel_type=DEVICE_ONLY")
 endif()
 
 if(OCTOTIGER_WITH_KOKKOS)
@@ -165,7 +165,7 @@ if(OCTOTIGER_WITH_KOKKOS)
   endif()
   if(OCTOTIGER_WITH_HIP)
 	  test_sod_scenario(test_problems.gpu.am_hydro_off.sod_kokkos sod_kokkos_cuda_log.txt ${ini_scenario_filename} ${silo_reference_filename} OFF
-    "--correct_am_hydro=off --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=KOKKOS_HIP --hydro_host_kernel_type=KOKKOS")
+      "--correct_am_hydro=off --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=KOKKOS_HIP --hydro_host_kernel_type=DEVICE_ONLY")
   endif()
 endif()
 
