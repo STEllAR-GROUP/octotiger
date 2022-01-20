@@ -1,6 +1,6 @@
 #!groovy
 
-def buildbadge = addEmbeddableBadgeConfiguration(id: "HIP", subject: "KOKKOS HIP Kernel Tests", status: "skipped")
+def buildbadge = addEmbeddableBadgeConfiguration(id: "HIP", subject: "HIP+KOKKOS Kernel Tests", status: "skipped")
 
 pipeline {
     agent any

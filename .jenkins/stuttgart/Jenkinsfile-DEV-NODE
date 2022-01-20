@@ -1,6 +1,6 @@
 #!groovy
 
-def buildbadge = addEmbeddableBadgeConfiguration(id: "devbuild", subject: "Dev-Environment Tests", status: "skipped")
+def buildbadge = addEmbeddableBadgeConfiguration(id: "devbuild", subject: "CUDA Dev-Environment Tests", status: "skipped")
 
 pipeline {
     agent { label 'pcsgs05' }
