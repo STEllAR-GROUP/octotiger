@@ -105,7 +105,7 @@ jobs:
                 at: /
             - run:
                 name: Blast test
-                command: ctest --output-on-failure -R test_problems.cpu.blast_legacy
+                command: ctest --output-on-failure -R test_problems.cpu.*.blast_legacy
                 no_output_timeout: 200m
             - run:
                 name: Move artifacts
@@ -126,7 +126,7 @@ jobs:
                 at: /
             - run:
                 name: Sod shock tube test
-                command: ctest --output-on-failure -R test_problems.cpu.sod_legacy
+                command: ctest --output-on-failure -R test_problems.cpu.*.sod.*_legacy
                 no_output_timeout: 25m
             - run:
                 name: Move artifacts
@@ -168,7 +168,7 @@ jobs:
                 at: /
             - run:
                 name: Rotating star test
-                command: ctest --output-on-failure -R test_problems.cpu.rotating_star_legacy
+                command: ctest --output-on-failure -R test_problems.cpu.*.rotating_star_legacy
                 no_output_timeout: 25m
             - run:
                 name: Move artifacts
