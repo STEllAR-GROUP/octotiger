@@ -283,9 +283,9 @@ if (OCTOTIGER_WITH_GRIDDIM EQUAL 8)
   set(zy_regex "zy 2.003861e-04 1.158221e-03")
   set(zz_regex "zz 5.833372e-04 2.900349e-03")
   set(spc1_regex "spc_1 1.395105e-03 1.034051e-02")
-  # Around 1e-19 we neglet differences as we are hitting the limits of double accuracy 
+  # Around 1e-18 we neglet differences as we are hitting the limits of double accuracy 
   # see the wildcard . to check where we beginn to neglet differences
-  set(spc2_regex "spc_2 8.68766.e-13 3.23906.e-12")
+  set(spc2_regex "spc_2 8.6876..e-13 3.23906.e-12")
   set(spc3_regex "spc_3 0.000000e.00 0.000000e.00")
   set(spc4_regex "spc_4 0.000000e.00 0.000000e.00")
   set(spc5_regex "spc_5 0.000000e.00 0.000000e.00")
