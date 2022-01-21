@@ -42,6 +42,10 @@
 #include <hpx/include/actions.hpp>
 #include <hpx/include/lcos.hpp>
 #include <hpx/include/util.hpp>
+#if HPX_VERSION_FULL > 0x010600
+// Can't find hpx::find_all_localities() in newer HPX versions without this header
+#include <hpx/modules/runtime_distributed.hpp>
+#endif
 
 #include <chrono>
 #include <cstdio>
