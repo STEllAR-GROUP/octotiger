@@ -46,7 +46,7 @@ pipeline {
                           \\"state\\": \\"pending\\",
                           \\"context\\": \\"jenkins-HIP\\",
                           \\"description\\": \\"Jenkins CI Job: HIP\\",
-                          \\"target_url\\": \\"https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger/$BUILD_NUMBER/console\\"
+                          \\"target_url\\": \\"https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger%20HIP/$JOB_BASE_NAME/$BUILD_NUMBER/console\\"
                             }"
                     '''
                 }
@@ -109,7 +109,7 @@ pipeline {
                     \\"state\\": \\"success\\",
                     \\"context\\": \\"jenkins-HIP\\",
                     \\"description\\": \\"Jenkins CI Job: HIP\\",
-                    \\"target_url\\": \\"https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger/$BUILD_NUMBER/console\\"
+                    \\"target_url\\": \\"https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger%20HIP/$JOB_BASE_NAME/$BUILD_NUMBER/console\\"
                 }"
             '''
         }
@@ -129,7 +129,7 @@ pipeline {
                     \\"state\\": \\"failure\\",
                     \\"context\\": \\"jenkins-HIP\\",
                     \\"description\\": \\"Jenkins CI Job: HIP\\",
-                    \\"target_url\\": \\"https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger/$BUILD_NUMBER/console\\"
+                    \\"target_url\\": \\"https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger%20HIP/$JOB_BASE_NAME/$BUILD_NUMBER/console\\"
                 }"
             '''
         }
@@ -149,7 +149,7 @@ pipeline {
                     \\"state\\": \\"error\\",
                     \\"context\\": \\"jenkins-HIP\\",
                     \\"description\\": \\"Jenkins CI Job: HIP\\",
-                    \\"target_url\\": \\"https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger/$BUILD_NUMBER/console\\"
+                    \\"target_url\\": \\"https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger%20HIP/$JOB_BASE_NAME/$BUILD_NUMBER/console\\"
                 }"
             '''
         }
