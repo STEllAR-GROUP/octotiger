@@ -5,6 +5,9 @@
  *      Author: dmarce1
  */
 
+#include <hpx/config/compiler_specific.hpp>
+#if !defined(HPX_COMPUTE_DEVICE_CODE)
+
 //101 - fixed units bug in momentum
 #include "octotiger/io/silo.hpp"
 #include "octotiger/node_server.hpp"
@@ -356,3 +359,4 @@ silo_var_t::operator()(int i) {
 double silo_var_t::operator()(int i) const {
 	return data_[i];
 }
+#endif

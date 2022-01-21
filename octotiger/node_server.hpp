@@ -23,6 +23,7 @@
 
 #include <hpx/include/components.hpp>
 #include <hpx/include/serialization.hpp>
+#include <hpx/mutex.hpp>
 
 #include <array>
 #include <atomic>
