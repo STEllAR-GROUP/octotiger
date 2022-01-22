@@ -11,12 +11,18 @@
 #include "octotiger/common_kernel/interaction_constants.hpp"
 
 #include <boost/program_options.hpp>
+#if HPX_VERSION_FULL > 0x010600
+// Can't find hpx::find_all_localities() in newer HPX versions without this header
+#include <hpx/modules/runtime_distributed.hpp>
+#endif
 
 #include <cmath>
 #include <iosfwd>
 #include <sstream>
 #include <string>
 #include <vector>
+
+#include <fstream>
 
 #define IN_OPTIONS_CPP
 
