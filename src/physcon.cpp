@@ -21,6 +21,8 @@
 #include <cstdio>
 #include <functional>
 
+#if !defined(HPX_COMPUTE_DEVICE_CODE)
+
 physcon_t& physcon() {
 	static physcon_t physcon_ = { 1, 1, 1, 1, 1.0, 1.0, 1.0, 1.0 };
 	return physcon_;
@@ -352,3 +354,4 @@ void rad_coupling_vars(real rho, real e, real mmw, real &bp, real &kp, real &dkp
 	dbde = 4.0 * bp * einv;
 }
 
+#endif

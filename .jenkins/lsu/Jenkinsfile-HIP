@@ -1,0 +1,157 @@
+#!groovy
+
+def buildbadge = addEmbeddableBadgeConfiguration(id: "HIP", subject: "HIP+KOKKOS Kernel Tests", status: "skipped")
+
+pipeline {
+    agent any
+
+    options {
+        buildDiscarder(
+            logRotator(
+                daysToKeepStr: "28",
+                numToKeepStr: "100",
+                artifactDaysToKeepStr: "28",
+                artifactNumToKeepStr: "100"
+            )
+        )
+        disableConcurrentBuilds()
+    }
+    environment {
+        GITHUB_TOKEN = credentials('GITHUB_TOKEN_OCTOTIGER')
+        MAINTAINER_MAIL = credentials('OCTOTIGER_MAINTAINER_EMAIL')
+    }
+    stages {
+        stage('checkout') {
+            steps {
+                script {
+                    buildbadge.setStatus('running')
+                }
+                dir('octotiger') {
+                    checkout scm
+                    sh '''
+                        cd octotiger
+                        git submodule update --init --recursive
+                        cd ..
+                    '''
+                }
+                dir('octotiger') {
+                    sh '''
+                        github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
+                        curl --verbose\
+                            --request POST \
+                            --url "https://api.github.com/repos/STEllAR-GROUP/octotiger/statuses/$GIT_COMMIT" \
+                            --header "Content-Type: application/json" \
+                            --header "authorization: Bearer ${github_token}" \
+                            --data "{
+                          \\"state\\": \\"pending\\",
+                          \\"context\\": \\"jenkins-HIP\\",
+                          \\"description\\": \\"Jenkins CI Job: HIP\\",
+                          \\"target_url\\": \\"https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger%20HIP/job/$JOB_BASE_NAME/$BUILD_NUMBER/console\\"
+                            }"
+                    '''
+                }
+            }
+        }
+        stage('configure') {
+            steps {
+                dir('octotiger') {
+                    sh '''
+                        #!/bin/bash -l
+                        cd ..
+                        #rm -rf octo-buildscripts/src/octotiger
+                        rm -rf "octo-buildscripts-HIP" #remove line for dependency caching
+                        if [[ -d "octo-buildscripts-HIP" ]]
+                        then
+                            cd "octo-buildscripts-HIP"
+                            git reset --hard # reset griddim modification in case of unclean directory
+                            git checkout jenkins-kamand
+                            git pull
+                            rm -rf build/octotiger
+                            rm -rf src/octotiger
+                        else
+                            git clone https://github.com/diehlpk/PowerTiger.git "octo-buildscripts-HIP"
+                            cd "octo-buildscripts-HIP"
+                            git checkout jenkins-kamand
+                            mkdir src
+                        fi
+
+                        cd ..
+                        cp -r octotiger "octo-buildscripts-HIP/src/octotiger"
+                    '''
+                }
+            }
+        }
+        stage('build-and-test') {
+            steps {
+                dir('octotiger') {
+                    sh '''
+                    #!/bin/bash -l
+                    cd "../octo-buildscripts-HIP"
+                    src/octotiger/.jenkins/lsu/hip-tests-entry.sh
+                    '''
+                }
+            }
+        }
+    }
+    post {
+        success {
+            script {
+                buildbadge.setStatus('success')
+            }
+            sh '''
+            github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
+            curl --verbose\
+                --request POST \
+                --url "https://api.github.com/repos/STEllAR-GROUP/octotiger/statuses/$GIT_COMMIT" \
+                --header "Content-Type: application/json" \
+                --header "authorization: Bearer ${github_token}" \
+                --data "{
+                    \\"state\\": \\"success\\",
+                    \\"context\\": \\"jenkins-HIP\\",
+                    \\"description\\": \\"Jenkins CI Job: HIP\\",
+                    \\"target_url\\": \\"https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger%20HIP/job/$JOB_BASE_NAME/$BUILD_NUMBER/console\\"
+                }"
+            '''
+        }
+        failure {
+            script {
+                buildbadge.setStatus('failing')
+            }
+            sh '''
+            echo "Build failed! Pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger HIP Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} failed" "${MAINTAINER_MAIL}"
+            github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
+            curl --verbose\
+                --request POST \
+                --url "https://api.github.com/repos/STEllAR-GROUP/octotiger/statuses/$GIT_COMMIT" \
+                --header "Content-Type: application/json" \
+                --header "authorization: Bearer ${github_token}" \
+                --data "{
+                    \\"state\\": \\"failure\\",
+                    \\"context\\": \\"jenkins-HIP\\",
+                    \\"description\\": \\"Jenkins CI Job: HIP\\",
+                    \\"target_url\\": \\"https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger%20HIP/job/$JOB_BASE_NAME/$BUILD_NUMBER/console\\"
+                }"
+            '''
+        }
+        aborted {
+            script {
+                buildbadge.setStatus('aborted')
+            }
+            sh '''
+            echo "Build aborted on pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger HIP Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} aborted" "${MAINTAINER_MAIL}"
+            github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
+            curl --verbose\
+                --request POST \
+                --url "https://api.github.com/repos/STEllAR-GROUP/octotiger/statuses/$GIT_COMMIT" \
+                --header "Content-Type: application/json" \
+                --header "authorization: Bearer ${github_token}" \
+                --data "{
+                    \\"state\\": \\"error\\",
+                    \\"context\\": \\"jenkins-HIP\\",
+                    \\"description\\": \\"Jenkins CI Job: HIP\\",
+                    \\"target_url\\": \\"https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger%20HIP/job/$JOB_BASE_NAME/$BUILD_NUMBER/console\\"
+                }"
+            '''
+        }
+    }
+}

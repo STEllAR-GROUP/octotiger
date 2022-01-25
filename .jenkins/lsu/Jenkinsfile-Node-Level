@@ -71,7 +71,7 @@ pipeline {
                                         \\"state\\": \\"pending\\",
                                         \\"context\\": \\"jenkins-${compiler_config}-${cuda_config}-${kokkos_config}\\",
                                         \\"description\\": \\"Jenkins CI Job: ${compiler_config}-${cuda_config}-${kokkos_config}\\",
-                                        \\"target_url\\": \\"https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger/$BUILD_NUMBER/console\\"
+                                        \\"target_url\\": \\"https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger%20Node-Level/job/$JOB_BASE_NAME/$BUILD_NUMBER/console\\"
                                     }"
                                 '''
                             }
@@ -135,7 +135,7 @@ pipeline {
                                 \\"state\\": \\"success\\",
                                 \\"context\\": \\"jenkins-${compiler_config}-${cuda_config}-${kokkos_config}\\",
                                 \\"description\\": \\"Jenkins CI Job: ${compiler_config}-${cuda_config}-${kokkos_config}\\",
-                                \\"target_url\\": \\"https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger/$BUILD_NUMBER/console\\"
+                                \\"target_url\\": \\"https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger%20Node-Level/job/$JOB_BASE_NAME/$BUILD_NUMBER/console\\"
                             }"
                         '''
                     }
@@ -151,7 +151,7 @@ pipeline {
                                 \\"state\\": \\"failure\\",
                                 \\"context\\": \\"jenkins-${compiler_config}-${cuda_config}-${kokkos_config}\\",
                                 \\"description\\": \\"Jenkins CI Job: ${compiler_config}-${cuda_config}-${kokkos_config}\\",
-                                \\"target_url\\": \\"https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger/$BUILD_NUMBER/console\\"
+                                \\"target_url\\": \\"https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger%20Node-Level/job/$JOB_BASE_NAME/$BUILD_NUMBER/console\\"
                             }"
                         '''
                     }
@@ -167,7 +167,7 @@ pipeline {
                                 \\"state\\": \\"error\\",
                                 \\"context\\": \\"jenkins-${compiler_config}-${cuda_config}-${kokkos_config}\\",
                                 \\"description\\": \\"Jenkins CI Job: ${compiler_config}-${cuda_config}-${kokkos_config}\\",
-                                \\"target_url\\": \\"https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger/$BUILD_NUMBER/console\\"
+                                \\"target_url\\": \\"https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger%20Node-Level/job/$JOB_BASE_NAME/$BUILD_NUMBER/console\\"
                             }"
                         '''
                     }

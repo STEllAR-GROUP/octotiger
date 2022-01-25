@@ -16,6 +16,9 @@
 #include <unordered_map>
 #include <vector>
 
+
+#if defined(OCTOTIGER_HAVE_BLAST_TEST)
+
 #if !defined(OCTOTIGER_HAVE_BOOST_MULTIPRECISION)
 #include <quadmath.h>
 using sed_real = __float128;
@@ -30,8 +33,11 @@ using sed_real = boost::multiprecision::cpp_bin_float_quad;
 		sed_real *cs);
 //}
 
+#endif
+
 constexpr real blast_wave_t0 = 7e-4;
 
+#if defined(OCTOTIGER_HAVE_BLAST_TEST)
 std::vector<real> blast_wave_analytic(real x, real y, real z, real t) {
 	static const auto dxmin = 2.0 * opts().xscale / INX / double(1 << opts().max_level);
 	real r = std::sqrt(x * x + y * y + z * z);
@@ -51,6 +57,7 @@ std::vector<real> blast_wave_analytic(real x, real y, real z, real t) {
 	u[tau_i] = std::pow(e, 1 / grid::get_fgamma());
 	return u;
 }
+#endif
 
 std::vector<real> blast_wave(real x, real y, real z, real dx) {
 	std::vector<real> u(opts().n_fields, 0.0);

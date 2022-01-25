@@ -586,8 +586,9 @@ void physics<NDIM>::set_n_species(int n) {
 
 template<int NDIM>
 void physics<NDIM>::update_n_field() {
-	nf_ = (4 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2))) + n_species_;
-	;
+	// nf_ = (4 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2))) + n_species_;
+	// ;
+  nf_ = (4 + NDIM + (NDIM == 1 ? 0 : (NDIM == 3 ? 3 : (NDIM == 2 ? 1 : 0)) )) + n_species_;
 }
 
 template<int NDIM>

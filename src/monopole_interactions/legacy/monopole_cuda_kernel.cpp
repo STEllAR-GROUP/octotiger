@@ -1,8 +1,13 @@
-#ifdef OCTOTIGER_HAVE_CUDA
+#if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)
 #include "octotiger/monopole_interactions/legacy/monopole_cuda_kernel.hpp"
 #include "octotiger/common_kernel/interaction_constants.hpp"
 #include "octotiger/cuda_util/cuda_scheduler.hpp"
 #include "octotiger/monopole_interactions/kernel/monopole_kernel_templates.hpp"
+
+#if defined(OCTOTIGER_HAVE_HIP)
+#define cudaSetDevice hipSetDevice
+#define cudaMemcpyToSymbol hipMemcpyToSymbol
+#endif
 
 namespace octotiger {
 namespace fmm {
@@ -25,27 +30,28 @@ namespace fmm {
         __device__ const size_t cache_line_length = INX + 2 * STENCIL_MAX;
         __device__ const size_t cache_offset = INX + STENCIL_MIN;
 
+#if defined(OCTOTIGER_HAVE_HIP)
+        __global__ void cuda_p2p_interactions_kernel(
+#else
         __global__ void __launch_bounds__(INX* INX, 2) cuda_p2p_interactions_kernel(
-            const double (&local_monopoles)[NUMBER_LOCAL_MONOPOLE_VALUES],
-            double (&potential_expansions)[NUMBER_POT_EXPANSIONS_SMALL], const double theta,
+#endif
+            const double *local_monopoles,
+            double *potential_expansions, const double theta,
             const double dx) {
-            // Declare shared memory arrays/index
-            // Each holds two slices
-            // __shared__ double monopole_cache[2 * cache_line_length * cache_line_length];
-            // __shared__ multiindex<> coarse_index_cache[2 * cache_line_length *
-            // cache_line_length]; int local_id = threadIdx.y * INX + threadIdx.z;
+
+            const int block_id = blockIdx.y; 
 
             // use in case of debug prints
             // bool first_thread = (blockIdx.x == 0) && (threadIdx.y == 0) && (threadIdx.z == 0);
             // Set cell indices
             const octotiger::fmm::multiindex<> cell_index(
-                (threadIdx.x + blockIdx.z) + INNER_CELLS_PADDING_DEPTH,
+                (threadIdx.x + blockIdx.z * 1) + INNER_CELLS_PADDING_DEPTH,
                 threadIdx.y + INNER_CELLS_PADDING_DEPTH, threadIdx.z + INNER_CELLS_PADDING_DEPTH);
             octotiger::fmm::multiindex<> cell_index_coarse(cell_index);
             cell_index_coarse.transform_coarse();
             const size_t cell_flat_index = octotiger::fmm::to_flat_index_padded(cell_index);
             octotiger::fmm::multiindex<> cell_index_unpadded(
-                (threadIdx.x + blockIdx.z), threadIdx.y, threadIdx.z);
+                (threadIdx.x + blockIdx.z * 1), threadIdx.y, threadIdx.z);
             const size_t cell_flat_index_unpadded =
                 octotiger::fmm::to_inner_flat_index_not_padded(cell_index_unpadded);
 
@@ -56,112 +62,87 @@ namespace fmm {
             const size_t index_base =
                 (threadIdx.y + STENCIL_MAX) * cache_line_length + threadIdx.z + STENCIL_MAX;
 
-            // int load_offset = 0;
-            // int load_id = local_id; // which id should be loaded during the manual caching
-            // if (local_id >= cache_line_length) {
-            //     load_offset = 1; // will load a different line
-            //     load_id = load_id - cache_line_length; // naturally the line starts at a new
-            //     beginning
-            // }
+            const int x = block_id;
+            const int stencil_x = x + STENCIL_MIN;
 
-            // Go through all possible stance elements for the two cells this thread is responsible
-            // for
-            for (int stencil_x = STENCIL_MIN; stencil_x <= STENCIL_MAX; stencil_x++) {
-                int x = stencil_x - STENCIL_MIN;
+            for (int stencil_y = STENCIL_MIN; stencil_y <= STENCIL_MAX; stencil_y++) {
+                int y = stencil_y - STENCIL_MIN;
+                for (int stencil_z = STENCIL_MIN; stencil_z <= STENCIL_MAX; stencil_z++) {
+                    // Each iteration calculates two interactions, one for each of the two cells
 
-                // // Phase 1 Manual caching - minizes global memory accesses and aligns them
-                // __syncthreads();
-                // if (local_id < cache_line_length * 2) {
-                //     // we cache over two slides of our cube
-                //     for (int x = 0; x < 2; x++) {
-                //         // we always cache two lines
-                //         for (int i = 0; i < cache_line_length / 2; i++) {
-                //             const multiindex<> partner_index(INNER_CELLS_PADDING_DEPTH +
-                //             blockIdx.x * 2
-                //                                              + stencil_x + x,
-                //                                              2*i + load_offset + cache_offset,
-                //                                              cache_offset + load_id);
-                //             const size_t partner_flat_index =
-                //             to_flat_index_padded(partner_index); multiindex<>
-                //             partner_index_coarse(partner_index);
-                //             partner_index_coarse.transform_coarse();
-                //             coarse_index_cache[
-                //                 cache_line_length*(2*i + load_offset + x * cache_line_length) +
-                //                 load_id] = partner_index_coarse;
-                //             monopole_cache[
-                //                 cache_line_length*(2*i + load_offset + x * cache_line_length) +
-                //                 load_id] = local_monopoles[partner_flat_index];
-                //         }
-                //     }
-                // }
-                // // Phase 2: Actual calculations for the cached content
-                // __syncthreads();
-                for (int stencil_y = STENCIL_MIN; stencil_y <= STENCIL_MAX; stencil_y++) {
-                    int y = stencil_y - STENCIL_MIN;
-                    for (int stencil_z = STENCIL_MIN; stencil_z <= STENCIL_MAX; stencil_z++) {
-                        // Each iteration calculates two interactions, one for each of the two cells
-
-                        // Overall index (required for accessing stencil related arrays)
-                        const size_t index = x * STENCIL_INX * STENCIL_INX + y * STENCIL_INX +
-                            (stencil_z - STENCIL_MIN);
-                        if (!device_stencil_masks[index]) {
-                            // element not needed according to the stencil -> skip
-                            // Note: that this will happen to all threads of the wrap
-                            continue;
-                        }
-
-                        // partner index
-                        const multiindex<> partner_index1(cell_index.x + stencil_x,
-                            cell_index.y + stencil_y, cell_index.z + stencil_z);
-                        const size_t partner_flat_index1 = to_flat_index_padded(partner_index1);
-                        multiindex<> partner_index_coarse1(partner_index1);
-                        partner_index_coarse1.transform_coarse();
-
-                        const double theta_c_rec_squared = static_cast<double>(
-                            distance_squared_reciprocal(cell_index_coarse, partner_index_coarse1));
-
-                        // Where are we in the cache? Get required indices
-                        // const size_t cache_index = index_base + stencil_y * cache_line_length +
-                        // stencil_z; const size_t cache_index2 = index_base2 + stencil_y *
-                        // cache_line_length + stencil_z;
-
-                        // Use cached indices to create required masks
-                        // const double theta_c_rec_squared = static_cast<double>(
-                        //     distance_squared_reciprocal(cell_index_coarse,
-                        //     coarse_index_cache[cache_index]));
-                        // const double theta_c_rec_squared2 = static_cast<double>(
-                        //     distance_squared_reciprocal(cell_index_coarse2,
-                        //     coarse_index_cache[cache_index2]));
-                        const bool mask_b = theta_rec_squared > theta_c_rec_squared;
-                        const double mask = mask_b ? 1.0 : 0.0;
-
-                        // const double r = std::sqrt(stencil_x * stencil_x + stencil_y * stencil_y
-                        // + stencil_z * stencil_z); const double r3 = r *r *r; const double four[4]
-                        // = {-1.0 /r, stencil_x / r3, stencil_y / r3, stencil_z / r3};
-                        // Load required constants (same for both interactions)
-                        const double four[4] = {device_four_constants[index * 4 + 0],
-                            device_four_constants[index * 4 + 1],
-                            device_four_constants[index * 4 + 2],
-                            device_four_constants[index * 4 + 3]};
-
-                        // Load masked monopoles from cache
-                        // const double monopole = monopole_cache[cache_index] * mask *
-                        // d_components[0]; const double monopole2 = monopole_cache[cache_index2] *
-                        // mask2 * d_components[0];
-
-                        const double monopole =
-                            local_monopoles[partner_flat_index1] * mask * d_components[0];
-
-                        // Calculate the actual interactions
-                        tmpstore[0] = tmpstore[0] + four[0] * monopole;
-                        tmpstore[1] = tmpstore[1] + four[1] * monopole * d_components[1];
-                        tmpstore[2] = tmpstore[2] + four[2] * monopole * d_components[1];
-                        tmpstore[3] = tmpstore[3] + four[3] * monopole * d_components[1];
+                    // Overall index (required for accessing stencil related arrays)
+                    const size_t index = x * STENCIL_INX * STENCIL_INX + y * STENCIL_INX +
+                        (stencil_z - STENCIL_MIN);
+                    if (!device_stencil_masks[index]) {
+                        // element not needed according to the stencil -> skip
+                        // Note: that this will happen to all threads of the wrap
+                        continue;
                     }
+
+                    // partner index
+                    const multiindex<> partner_index1(cell_index.x + stencil_x,
+                        cell_index.y + stencil_y, cell_index.z + stencil_z);
+                    const size_t partner_flat_index1 = to_flat_index_padded(partner_index1);
+                    multiindex<> partner_index_coarse1(partner_index1);
+                    partner_index_coarse1.transform_coarse();
+
+                    const double theta_c_rec_squared = static_cast<double>(
+                        distance_squared_reciprocal(cell_index_coarse, partner_index_coarse1));
+
+                    const bool mask_b = theta_rec_squared > theta_c_rec_squared;
+                    const double mask = mask_b ? 1.0 : 0.0;
+
+                    // Load required constants (same for both interactions)
+                    const double four[4] = {device_four_constants[index * 4 + 0],
+                        device_four_constants[index * 4 + 1],
+                        device_four_constants[index * 4 + 2],
+                        device_four_constants[index * 4 + 3]};
+
+
+                    const double monopole =
+                        local_monopoles[partner_flat_index1] * mask * d_components[0];
+
+                    // Calculate the actual interactions
+                    tmpstore[0] = tmpstore[0] + four[0] * monopole;
+                    tmpstore[1] = tmpstore[1] + four[1] * monopole * d_components[1];
+                    tmpstore[2] = tmpstore[2] + four[2] * monopole * d_components[1];
+                    tmpstore[3] = tmpstore[3] + four[3] * monopole * d_components[1];
                 }
             }
 
             // Store results in output arrays
+            potential_expansions[block_id * NUMBER_POT_EXPANSIONS_SMALL + cell_flat_index_unpadded] = tmpstore[0];
+            potential_expansions[block_id * NUMBER_POT_EXPANSIONS_SMALL +
+              1 * component_length_unpadded + cell_flat_index_unpadded] =
+                tmpstore[1];
+            potential_expansions[block_id * NUMBER_POT_EXPANSIONS_SMALL +
+              2 * component_length_unpadded + cell_flat_index_unpadded] =
+                tmpstore[2];
+            potential_expansions[block_id * NUMBER_POT_EXPANSIONS_SMALL +
+              3 * component_length_unpadded + cell_flat_index_unpadded] =
+                tmpstore[3];
+        }
+        __global__ void cuda_sum_p2p_results(
+            double *tmp_potential_expansions,
+            double *potential_expansions) {
+            octotiger::fmm::multiindex<> cell_index_unpadded(
+                (threadIdx.x + blockIdx.z), threadIdx.y, threadIdx.z);
+            const size_t cell_flat_index_unpadded =
+                octotiger::fmm::to_inner_flat_index_not_padded(cell_index_unpadded);
+            double tmpstore[4] = {0.0, 0.0, 0.0, 0.0};
+            for (int i = 0; i < NUMBER_P2P_BLOCKS; i++) {
+                    tmpstore[0] = tmpstore[0] +
+                      tmp_potential_expansions[i * NUMBER_POT_EXPANSIONS_SMALL + cell_flat_index_unpadded];
+                    tmpstore[1] = tmpstore[1] +
+                      tmp_potential_expansions[i * NUMBER_POT_EXPANSIONS_SMALL +
+                      1 * component_length_unpadded + cell_flat_index_unpadded];
+                    tmpstore[2] = tmpstore[2] +
+                      tmp_potential_expansions[i * NUMBER_POT_EXPANSIONS_SMALL +
+                      2 * component_length_unpadded + cell_flat_index_unpadded];
+                    tmpstore[3] = tmpstore[3] +
+                      tmp_potential_expansions[i * NUMBER_POT_EXPANSIONS_SMALL +
+                      3 * component_length_unpadded + cell_flat_index_unpadded];
+            }
             potential_expansions[cell_flat_index_unpadded] = tmpstore[0];
             potential_expansions[1 * component_length_unpadded + cell_flat_index_unpadded] =
                 tmpstore[1];
@@ -170,13 +151,60 @@ namespace fmm {
             potential_expansions[3 * component_length_unpadded + cell_flat_index_unpadded] =
                 tmpstore[3];
         }
+#if defined(OCTOTIGER_HAVE_HIP)
+        void hip_p2p_interactions_kernel_ggl_wrapper(dim3 const grid_spec,
+            dim3 const threads_per_block, const double *monopoles, 
+            double *tmp_potential_expansions,
+            const double theta, const double dx,
+            hipStream_t& stream) {
+            hipLaunchKernelGGL(cuda_p2p_interactions_kernel, grid_spec, threads_per_block,
+                0, stream, monopoles, tmp_potential_expansions, 
+                theta, dx);
+        }
+        void hip_p2p_interactions_kernel_post(
+            stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+            dim3 const grid_spec, dim3 const threads_per_block, const double *monopoles,
+            double *tmp_potential_expansions,
+            const double theta, const double dx) {
+            executor.post(hip_p2p_interactions_kernel_ggl_wrapper, grid_spec,
+                threads_per_block, monopoles, tmp_potential_expansions,
+                theta, dx);
+        }
+        void hip_sum_p2p_results_ggl_wrapper(dim3 const grid_spec,
+            dim3 const threads_per_block, 
+            double *tmp_potential_expansions,
+            double *potential_expansions,
+            hipStream_t& stream) {
+            hipLaunchKernelGGL(cuda_sum_p2p_results, grid_spec, threads_per_block,
+                0, stream, tmp_potential_expansions, 
+                potential_expansions);
+        }
+        void hip_sum_p2p_results_post(
+            stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+            dim3 const grid_spec, dim3 const threads_per_block, 
+            double *tmp_potential_expansions,
+            double *potential_expansions) {
+            executor.post(hip_sum_p2p_results_ggl_wrapper, grid_spec,
+                threads_per_block, tmp_potential_expansions,
+                potential_expansions);
+        }
+#else
+        void launch_sum_p2p_results_post(stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+            dim3 const grid_spec, dim3 const threads_per_block, void *args[]) {
+            executor.post(
+            cudaLaunchKernel<decltype(cuda_sum_p2p_results)>,
+            cuda_sum_p2p_results, grid_spec, threads_per_block, args, 0);
+        }
+
         void launch_p2p_cuda_kernel_post(stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
             dim3 const grid_spec, dim3 const threads_per_block, void *args[]) {
             executor.post(
             cudaLaunchKernel<decltype(cuda_p2p_interactions_kernel)>,
             cuda_p2p_interactions_kernel, grid_spec, threads_per_block, args, 0);
         }
+#endif
 
+#ifndef OCTOTIGER_HAVE_HIP
         __global__ void __launch_bounds__(INX* INX, 2)
             cuda_p2m_interaction_rho(const double* __restrict__ expansions_neighbors_soa,
                 const double* __restrict__ center_of_mass_neighbor_soa,
@@ -410,6 +438,7 @@ namespace fmm {
             cudaLaunchKernel<decltype(cuda_p2m_interaction_non_rho)>,
             cuda_p2m_interaction_non_rho, grid_spec, threads_per_block, args, 0);
         }
+#endif
     }    // namespace monopole_interactions
 }    // namespace fmm
 }    // namespace octotiger

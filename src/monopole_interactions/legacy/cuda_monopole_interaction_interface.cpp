@@ -3,7 +3,7 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#ifdef OCTOTIGER_HAVE_CUDA
+#if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)
 
 #include "octotiger/monopole_interactions/legacy/cuda_monopole_interaction_interface.hpp"
 #include "octotiger/monopole_interactions/legacy/p2m_interaction_interface.hpp"
@@ -17,13 +17,40 @@
 #include <vector>
 
 #include <buffer_manager.hpp>
+#if defined(OCTOTIGER_HAVE_CUDA)
 #include <cuda_buffer_util.hpp>
 #include <cuda_runtime.h>
+#elif defined(OCTOTIGER_HAVE_HIP)
+#include <hip/hip_runtime.h>
+#include <hip_buffer_util.hpp>
+#endif
 #include <stream_manager.hpp>
+
+#if defined(OCTOTIGER_HAVE_CUDA)
+template <typename T>
+using device_buffer_t = recycler::cuda_device_buffer<T>;
+template <typename T>
+using host_buffer_t = std::vector<T, recycler::recycle_allocator_cuda_host<T>>;
+using executor_t = hpx::cuda::experimental::cuda_executor;
+#elif defined(OCTOTIGER_HAVE_HIP)
+template <typename T>
+using device_buffer_t = recycler::hip_device_buffer<T>;
+template <typename T>
+using host_buffer_t = std::vector<T, recycler::recycle_allocator_hip_host<T>>;
+using executor_t = hpx::cuda::experimental::cuda_executor;
+
+#define cudaLaunchKernel hipLaunchKernel
+#define cudaMemcpy hipMemcpy
+#define cudaMemcpyHostToDevice hipMemcpyHostToDevice
+#define cudaMemcpyDeviceToHost hipMemcpyDeviceToHost
+#define cudaMemcpyAsync hipMemcpyAsync
+
+#endif
 
 namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
+#ifndef OCTOTIGER_HAVE_HIP
         template <size_t buffer_size>
         inline void run_p2m_kernel(gsolve_type type, double theta, double* device_center_of_masses,
             double* device_local_expansions, double* device_center_of_masses_inner_cells,
@@ -53,6 +80,7 @@ namespace fmm {
                 launch_p2m_non_rho_cuda_kernel_post(executor, grid_spec, threads_per_block, args);
             }
         }
+#endif
 
         cuda_monopole_interaction_interface::cuda_monopole_interaction_interface()
           : monopole_interaction_interface()
@@ -63,14 +91,18 @@ namespace fmm {
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
             std::array<bool, geo::direction::count()>& is_direction_empty,
             std::shared_ptr<grid>& grid_ptr, const bool contains_multipole_neighbor) {
+            // Check where we want to run this:
             bool avail = true;
             if (p2p_type != interaction_host_kernel_type::DEVICE_ONLY) {
                 // Check where we want to run this:
                 avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
                     pool_strategy>(opts().cuda_buffer_capacity);
             }
-            // avail = true;
-            //if (!avail || p2p_type == interaction_host_kernel_type::LEGACY) {
+#if defined(OCTOTIGER_HAVE_HIP)
+            if (contains_multipole_neighbor) // TODO Add DEVICE_ONLY error/warning
+              avail = false;
+#endif
+
             if (!avail) {
                 // Run CPU implementation
                 monopole_interaction_interface::compute_interactions(monopoles, com_ptr, neighbors,
@@ -87,8 +119,9 @@ namespace fmm {
 
                 cuda_expansion_result_buffer_t potential_expansions_SoA;
                 cuda_monopole_buffer_t local_monopoles(ENTRIES);
-                recycler::cuda_device_buffer<double> device_local_monopoles(ENTRIES, device_id);
-                recycler::cuda_device_buffer<double> erg(NUMBER_POT_EXPANSIONS_SMALL, device_id);
+                device_buffer_t<double> device_local_monopoles(ENTRIES, device_id);
+                device_buffer_t<double> tmp_ergs(NUMBER_P2P_BLOCKS * NUMBER_POT_EXPANSIONS_SMALL, device_id);
+                device_buffer_t<double> erg(NUMBER_POT_EXPANSIONS_SMALL, device_id);
 
                 // Move data into staging buffers
                 update_input(monopoles, neighbors, type, local_monopoles, 
@@ -99,17 +132,30 @@ namespace fmm {
                     local_monopoles.data(), local_monopoles_size, cudaMemcpyHostToDevice);
 
                 // Launch kernel and queue copying of results
-                dim3 const grid_spec(1, 1, INX);
+                dim3 const grid_spec(1, NUMBER_P2P_BLOCKS, INX);
                 dim3 const threads_per_block(1, INX, INX);
+                dim3 const grid_spec_sum(1, 1, INX);
+#if defined(OCTOTIGER_HAVE_CUDA)
                 void* args[] = {&(device_local_monopoles.device_side_buffer),
-                    &(erg.device_side_buffer), &theta, &dx};
+                    &(tmp_ergs.device_side_buffer), &theta, &dx};
                 // hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                 //     cudalaunchkernel<decltype(cuda_p2p_interactions_kernel)>,
                 //     cuda_p2p_interactions_kernel, grid_spec, threads_per_block, args, 0);
                 // executor.post(cudaLaunchKernel<decltype(cuda_p2p_interactions_kernel)>,
                 //  cuda_p2p_interactions_kernel, grid_spec, threads_per_block, args, 0);
-                launch_p2p_cuda_kernel_post(executor, grid_spec, threads_per_block, args);
 
+                launch_p2p_cuda_kernel_post(executor, grid_spec, threads_per_block, args);
+                void* args_sum[] = {&(tmp_ergs.device_side_buffer),
+                    &(erg.device_side_buffer), &theta, &dx};
+                launch_sum_p2p_results_post(executor, grid_spec_sum, threads_per_block, args_sum);
+#elif defined(OCTOTIGER_HAVE_HIP)
+                hip_p2p_interactions_kernel_post(executor, grid_spec,
+                  threads_per_block, device_local_monopoles.device_side_buffer, tmp_ergs.device_side_buffer, theta, dx);
+                hip_sum_p2p_results_post(executor, grid_spec_sum,
+                  threads_per_block, tmp_ergs.device_side_buffer, erg.device_side_buffer);
+#endif
+
+#ifndef OCTOTIGER_HAVE_HIP
                 if (contains_multipole_neighbor) {
                     // Depending on the size of the neighbor there are 3 possible p2m kernels
                     // We need to check how many of which to launch and get appropriate input
@@ -132,7 +178,7 @@ namespace fmm {
                     
                     // Get and reset (as it is recycled) buffer for the angular correction results
                     // Same for all p2m kernel types
-                    recycler::cuda_device_buffer<double> device_erg_corrs(NUMBER_ANG_CORRECTIONS);
+                    device_buffer_t<double> device_erg_corrs(NUMBER_ANG_CORRECTIONS);
                     if (type == RHO)
                       hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                           cudaMemsetAsync, device_erg_corrs.device_side_buffer, 0,
@@ -149,7 +195,7 @@ namespace fmm {
                             center_of_masses_inner_cells_staging_area.set_AoS_value(
                                 std::move(com0.at(flat_index_unpadded)), flat_index_unpadded);
                         });
-                    recycler::cuda_device_buffer<double> center_of_masses_inner_cells(
+                    device_buffer_t<double> center_of_masses_inner_cells(
                         (INNER_CELLS + SOA_PADDING) * 3, device_id);
                     hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                         cudaMemcpyAsync, center_of_masses_inner_cells.device_side_buffer,
@@ -187,10 +233,10 @@ namespace fmm {
                         buffer_size_kernel_type1, SOA_PADDING,
                         std::vector<real, recycler::recycle_allocator_cuda_host<real>>>>
                         center_of_masses_staging_area_type1(number_kernel_type1);
-                    recycler::cuda_device_buffer<double> local_expansions_type1(
+                    device_buffer_t<double> local_expansions_type1(
                         (buffer_size_kernel_type1 + SOA_PADDING) * 20 * number_kernel_type1 + 32,
                         device_id);
-                    recycler::cuda_device_buffer<double> center_of_masses_type1(
+                    device_buffer_t<double> center_of_masses_type1(
                         (buffer_size_kernel_type1 + SOA_PADDING) * 3 * number_kernel_type1 + 32,
                         device_id);
                     // Input buffers for type 2
@@ -202,10 +248,10 @@ namespace fmm {
                         buffer_size_kernel_type2, SOA_PADDING,
                         std::vector<real, recycler::recycle_allocator_cuda_host<real>>>>
                         center_of_masses_staging_area_type2(number_kernel_type2);
-                    recycler::cuda_device_buffer<double> local_expansions_type2(
+                    device_buffer_t<double> local_expansions_type2(
                         (buffer_size_kernel_type2 + SOA_PADDING) * 20 * number_kernel_type2 + 32,
                         device_id);
-                    recycler::cuda_device_buffer<double> center_of_masses_type2(
+                    device_buffer_t<double> center_of_masses_type2(
                         (buffer_size_kernel_type2 + SOA_PADDING) * 3 * number_kernel_type2 + 32,
                         device_id);
                     // Input buffers for type 3
@@ -217,10 +263,10 @@ namespace fmm {
                         buffer_size_kernel_type3, SOA_PADDING,
                         std::vector<real, recycler::recycle_allocator_cuda_host<real>>>>
                         center_of_masses_staging_area_type3(number_kernel_type3);
-                    recycler::cuda_device_buffer<double> local_expansions_type3(
+                    device_buffer_t<double> local_expansions_type3(
                         (buffer_size_kernel_type3 + SOA_PADDING) * 20 * number_kernel_type3 + 32,
                         device_id);
-                    recycler::cuda_device_buffer<double> center_of_masses_type3(
+                    device_buffer_t<double> center_of_masses_type3(
                         (buffer_size_kernel_type3 + SOA_PADDING) * 3 * number_kernel_type3 + 32,
                         device_id);
 
@@ -436,6 +482,7 @@ namespace fmm {
                     if (type == RHO)
                         angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());
                 }
+#endif
 
                 // Handle results in case we did not need any p2m kernels or used the CPU p2m
                 // kernels

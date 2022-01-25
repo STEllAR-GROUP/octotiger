@@ -1,9 +1,9 @@
 #!groovy
 
-def buildbadge = addEmbeddableBadgeConfiguration(id: "devbuild", subject: "Dev-Environment Tests", status: "skipped")
+def buildbadge = addEmbeddableBadgeConfiguration(id: "hip-devbuild", subject: "HIP Dev-Environment Tests", status: "skipped")
 
 pipeline {
-    agent { label 'pcsgs05' }
+    agent { label 'pcsgs09' }
 
     options {
         buildDiscarder(
@@ -18,7 +18,6 @@ pipeline {
     }
     environment {
         GITHUB_TOKEN = credentials('GITHUB_TOKEN_OCTOTIGER')
-        NEXTCLOUD_OCTOTIGER_DEPENDENCIES_TOKEN = credentials('NEXTCLOUD_OCTOTIGER_DEPENDENCIES_TOKEN')
         MAINTAINER_MAIL = credentials('OCTOTIGER_MAINTAINER_EMAIL')
     }
     stages {
@@ -38,8 +37,8 @@ pipeline {
                             --header "authorization: Bearer ${github_token}" \
                             --data "{
                                 \\"state\\": \\"pending\\",
-                                \\"context\\": \\"jenkins-DEV-NODE-TESTS\\",
-                                \\"description\\": \\"Jenkins CI Job: jenkins-DEV-NODE-TESTS\\",
+                                \\"context\\": \\"jenkins-HIP-DEV-NODE-TESTS\\",
+                                \\"description\\": \\"Jenkins CI Job: jenkins-HIP-DEV-NODE-TESTS\\",
                                 \\"target_url\\": \\"https://simsgs.informatik.uni-stuttgart.de/jenkins/job/Octo-Tiger%20DEV/job/${JOB_BASE_NAME}/${BUILD_NUMBER}/console\\"
                         }"
                     '''
@@ -60,65 +59,52 @@ pipeline {
                     git submodule update --init --recursive 
                     cd - 
                     git clone https://github.com/STEllAR-GROUP/OctoTigerBuildChain && cd OctoTigerBuildChain/ 
-                    git checkout jenkins-devnode
+                    git checkout jenkins-hip-devnode
                     mkdir src 
                     cp -r ../octotiger src/octotiger 
-                    cd src 
-                    curl -u "6PRsT5XzKK2pHam:${NEXTCLOUD_OCTOTIGER_DEPENDENCIES_TOKEN}" -H 'X-Requested-With: XMLHttpRequest' 'https://ipvs.informatik.uni-stuttgart.de/cloud/public.php/webdav/' -o silo.tar.gz 
-                    tar -xvf silo.tar.gz 
-                    mv silo-4.10.2 silo 
-                    rm silo.tar.gz 
                     '''
                 }
             }
         }
-        stage('gcc-build') {
+        stage('build') {
             steps {
-                // Build with preinstalled gcc on this machine 
                 dir('octotiger') {
                     sh '''
-                    module load cuda/11.2.2 
+		    export ROCM_PATH=/opt/rocm-4.3.1
+		    export HIP_PATH=${ROCM_PATH}/hip
+		    export PATH=${HIP_PATH}/bin:${ROCM_PATH}/bin:${PATH}
+		    export LD_LIBRARY_PATH=${HIP_PATH}/lib:${ROCM_PATH}/lib:${LD_LIBRARY_PATH}
 		    cd OctoTigerBuildChain
-		    sed -i 's/OCTOTIGER_WITH_BLAST_TEST=OFF/OCTOTIGER_WITH_BLAST_TEST=ON/' build-octotiger.sh
-		    sed -i 's/OCTOTIGER_WITH_FAST_FP_CONTRACT=OFF/OCTOTIGER_WITH_FAST_FP_CONTRACT=ON/' build-octotiger.sh
-                    ./build-all.sh Release with-CC with-cuda without-mpi without-papi without-apex with-kokkos with-simd without-hpx-backend-multipole without-hpx-backend-monopole with-hpx-cuda-polling
+		    rm -rf build 
+                    ./build-all.sh RelWithDebInfo with-CC-clang without-cuda without-mpi without-papi without-apex with-kokkos with-simd without-hpx-backend-multipole without-hpx-backend-monopole with-hpx-cuda-polling without-otf2
                     '''
                 }
             }
         }
-        stage('gcc-ctest') {
+        stage('cpu test') {
             steps {
-                // Basic gcc test - only GRIDDIM=8 and hydro-off rotating star tests
                 dir('octotiger') {
                     sh '''
-                    module load cuda/11.2.2 
+		    export ROCM_PATH=/opt/rocm-4.3.1
+		    export HIP_PATH=${ROCM_PATH}/hip
+		    export PATH=${HIP_PATH}/bin:${ROCM_PATH}/bin:${PATH}
+		    export LD_LIBRARY_PATH=${HIP_PATH}/lib:${ROCM_PATH}/lib:${LD_LIBRARY_PATH}
 		    cd OctoTigerBuildChain/build/octotiger/build
 		    ctest --output-on-failure -R cpu
                     '''
                 }
             }
         }
-        stage('clang-build') {
+        stage('gpu test') {
             steps {
-                // Build with preinstalled clang on this machine (Note CUDA actually does not work with this clang as it is too old -> deactivated for this test)
                 dir('octotiger') {
                     sh '''
-		    cd OctoTigerBuildChain
-		    sed -i 's/OCTOTIGER_WITH_BLAST_TEST=ON/OCTOTIGER_WITH_BLAST_TEST=OFF/' build-octotiger.sh
-		    sed -i 's/OCTOTIGER_WITH_FAST_FP_CONTRACT=OFF/OCTOTIGER_WITH_FAST_FP_CONTRACT=ON/' build-octotiger.sh
-		    rm -rf build && rm -rf src/boost
-                    ./build-all.sh Release with-CC-clang without-cuda without-mpi without-papi without-apex with-kokkos with-simd without-hpx-backend-multipole without-hpx-backend-monopole with-hpx-cuda-polling
-                    '''
-                }
-            }
-        }
-        stage('clang-ctest') {
-            steps {
-                // Basic clang test - only GRIDDIM=8 and without cuda
-                dir('octotiger') {
-                    sh '''
+		    export ROCM_PATH=/opt/rocm-4.3.1
+		    export HIP_PATH=${ROCM_PATH}/hip
+		    export PATH=${HIP_PATH}/bin:${ROCM_PATH}/bin:${PATH}
+		    export LD_LIBRARY_PATH=${HIP_PATH}/lib:${ROCM_PATH}/lib:${LD_LIBRARY_PATH}
 		    cd OctoTigerBuildChain/build/octotiger/build
-		    ctest --output-on-failure -R cpu
+		    ctest --output-on-failure -R gpu
                     '''
                 }
             }
@@ -139,8 +125,8 @@ pipeline {
                     --header "authorization: Bearer ${github_token}" \
                     --data "{
                         \\"state\\": \\"success\\",
-                        \\"context\\": \\"jenkins-DEV-NODE-TESTS\\",
-                        \\"description\\": \\"Jenkins CI Job: jenkins-DEV-NODE-TESTS\\",
+                        \\"context\\": \\"jenkins-HIP-DEV-NODE-TESTS\\",
+                        \\"description\\": \\"Jenkins CI Job: jenkins-HIP-DEV-NODE-TESTS\\",
                         \\"target_url\\": \\"https://simsgs.informatik.uni-stuttgart.de/jenkins/job/Octo-Tiger%20DEV/job/${JOB_BASE_NAME}/${BUILD_NUMBER}/console\\"
                 }"
             '''
@@ -158,11 +144,11 @@ pipeline {
                     --header "authorization: Bearer ${github_token}" \
                     --data "{
                         \\"state\\": \\"failure\\",
-                        \\"context\\": \\"jenkins-DEV-NODE-TESTS\\",
-                        \\"description\\": \\"Jenkins CI Job: jenkins-DEV-NODE-TESTS\\",
+                        \\"context\\": \\"jenkins-HIP-DEV-NODE-TESTS\\",
+                        \\"description\\": \\"Jenkins CI Job: jenkins-HIP-DEV-NODE-TESTS\\",
                         \\"target_url\\": \\"https://simsgs.informatik.uni-stuttgart.de/jenkins/job/Octo-Tiger%20DEV/job/${JOB_BASE_NAME}/${BUILD_NUMBER}/console\\"
                 }"
-                echo "Build failed on pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger DEV: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} failed" "${MAINTAINER_MAIL}"
+                echo "Build failed on pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger HIP DEV: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} failed" "${MAINTAINER_MAIL}"
             '''
         }
         aborted {
@@ -178,11 +164,11 @@ pipeline {
                     --header "authorization: Bearer ${github_token}" \
                     --data "{
                         \\"state\\": \\"error\\",
-                        \\"context\\": \\"jenkins-DEV-NODE-TESTS\\",
-                        \\"description\\": \\"Jenkins CI Job: jenkins-DEV-NODE-TESTS\\",
+                        \\"context\\": \\"jenkins-HIP-DEV-NODE-TESTS\\",
+                        \\"description\\": \\"Jenkins CI Job: jenkins-HIP-DEV-NODE-TESTS\\",
                         \\"target_url\\": \\"https://simsgs.informatik.uni-stuttgart.de/jenkins/job/Octo-Tiger%20DEV/job/${JOB_BASE_NAME}/${BUILD_NUMBER}/console\\"
                 }"
-                echo "Build aborted on pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger DEV: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} aborted" "${MAINTAINER_MAIL}"
+                echo "Build aborted on pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger HIP DEV: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} aborted" "${MAINTAINER_MAIL}"
             '''
         }
     }

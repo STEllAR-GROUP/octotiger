@@ -26,7 +26,15 @@ static constexpr safe_real dt_out = tmax / 100;
 
 #define H_BW 3
 #define H_NX (INX + 2 * H_BW)
-#define H_N3 std::pow(INX+2*H_BW,NDIM)
+#if NDIM == 3
+#define H_N3 (INX+2*H_BW) * (INX+2*H_BW) * (INX+2*H_BW)
+#endif
+#if NDIM == 2
+#define H_N3 (INX+2*H_BW) * (INX+2*H_BW) 
+#endif
+#if NDIM == 1
+#define H_N3 (INX+2*H_BW)
+#endif
 
 template<int NDIM, int INX, class PHYS>
 void run_test(typename PHYS::test_type problem, bool with_correction, bool writingForTest);

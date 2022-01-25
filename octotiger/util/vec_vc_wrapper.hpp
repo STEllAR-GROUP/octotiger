@@ -22,26 +22,26 @@ using mask_type = vc_type::mask_type;
 using index_type = Vc::SimdArray<int, 4>;
 
 template <>
-inline void select_wrapper<vc_type, mask_type>(
+CUDA_GLOBAL_METHOD inline void select_wrapper<vc_type, mask_type>(
     vc_type& target, const mask_type cond, const vc_type& tmp1, const vc_type& tmp2) {
     target = tmp2;
     Vc::where(cond, target) = tmp1;
 }
 
 template <>
-inline vc_type max_wrapper<vc_type>(const vc_type& tmp1, const vc_type& tmp2) {
+CUDA_GLOBAL_METHOD inline vc_type max_wrapper<vc_type>(const vc_type& tmp1, const vc_type& tmp2) {
     return Vc::max(tmp1, tmp2);
 }
 template <>
-inline vc_type min_wrapper<vc_type>(const vc_type& tmp1, const vc_type& tmp2) {
+CUDA_GLOBAL_METHOD inline vc_type min_wrapper<vc_type>(const vc_type& tmp1, const vc_type& tmp2) {
     return Vc::min(tmp1, tmp2);
 }
 template <>
-inline vc_type sqrt_wrapper<vc_type>(const vc_type& tmp1) {
+CUDA_GLOBAL_METHOD inline vc_type sqrt_wrapper<vc_type>(const vc_type& tmp1) {
     return Vc::sqrt(tmp1);
 }
 template <>
-inline vc_type asinh_wrapper<vc_type>(const vc_type& tmp1) {
+CUDA_GLOBAL_METHOD inline vc_type asinh_wrapper<vc_type>(const vc_type& tmp1) {
     // return Vc::asinh(tmp1);
     vc_type ret = 0.0;
     for (auto vec_i = 0; vec_i < vc_type::size(); vec_i++) {
@@ -50,42 +50,42 @@ inline vc_type asinh_wrapper<vc_type>(const vc_type& tmp1) {
     return ret;
 }
 template <>
-inline vc_type copysign_wrapper<vc_type>(const vc_type& tmp1, const vc_type& tmp2) {
+CUDA_GLOBAL_METHOD inline vc_type copysign_wrapper<vc_type>(const vc_type& tmp1, const vc_type& tmp2) {
     return Vc::copysign(tmp1, tmp2);
 }
 template <>
-inline vc_type abs_wrapper<vc_type>(const vc_type& tmp1) {
+CUDA_GLOBAL_METHOD inline vc_type abs_wrapper<vc_type>(const vc_type& tmp1) {
     return Vc::abs(tmp1);
 }
 template <>
-inline vc_type minmod_wrapper<vc_type>(const vc_type& a, const vc_type& b) {
+CUDA_GLOBAL_METHOD inline vc_type minmod_wrapper<vc_type>(const vc_type& a, const vc_type& b) {
     return (copysign_wrapper<vc_type>(0.5, a) + copysign_wrapper<vc_type>(0.5, b)) *
         min_wrapper<vc_type>(abs_wrapper<vc_type>(a), abs_wrapper<vc_type>(b));
 }
 template <>
-inline vc_type minmod_theta_wrapper<vc_type>(const vc_type& a, const vc_type& b, const vc_type& c) {
+CUDA_GLOBAL_METHOD inline vc_type minmod_theta_wrapper<vc_type>(const vc_type& a, const vc_type& b, const vc_type& c) {
     return minmod_wrapper<vc_type>(c * minmod_wrapper<vc_type>(a, b), 0.5 * (a + b));
 }
 template <>
-inline vc_type limiter_wrapper<vc_type>(const vc_type& a, const vc_type& b) {
+CUDA_GLOBAL_METHOD inline vc_type limiter_wrapper<vc_type>(const vc_type& a, const vc_type& b) {
     return minmod_theta_wrapper<vc_type>(a, b, 64. / 37.);
 }
 template <>
-inline vc_type load_value<vc_type>(const double* __restrict__ data, const size_t index) {
+CUDA_GLOBAL_METHOD inline vc_type load_value<vc_type>(const double* __restrict__ data, const size_t index) {
     return vc_type(data + index);
 }
 template <>
-inline void store_value<vc_type>(
+CUDA_GLOBAL_METHOD inline void store_value<vc_type>(
     double* __restrict__ data, const size_t index, const vc_type& value) {
   value.store(data + index);
 }
 template <>
-inline bool skippable<mask_type>(const mask_type& tmp1) {
+CUDA_GLOBAL_METHOD inline bool skippable<mask_type>(const mask_type& tmp1) {
     return Vc::none_of(tmp1);
 }
 /// Awful workaround for missing Vc::pow
 template <>
-inline vc_type pow_wrapper<vc_type>(const vc_type& tmp1, const double& tmp2) {
+CUDA_GLOBAL_METHOD inline vc_type pow_wrapper<vc_type>(const vc_type& tmp1, const double& tmp2) {
     // TODO(daissgr) is this accurate enough?
     return Vc::exp(static_cast<vc_type>(tmp2) * Vc::log(tmp1));
     // vc_type ret = 0.0;

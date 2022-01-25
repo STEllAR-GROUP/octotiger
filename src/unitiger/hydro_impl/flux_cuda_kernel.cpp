@@ -1,8 +1,23 @@
-#ifdef OCTOTIGER_HAVE_CUDA
+#if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)
+
+#if defined(OCTOTIGER_HAVE_HIP)
+#define cudaLaunchKernel hipLaunchKernel
+#define cudaMemcpy hipMemcpy
+#define cudaMemcpyHostToDevice hipMemcpyHostToDevice
+#define cudaMemcpyDeviceToHost hipMemcpyDeviceToHost
+#define cudaMemcpyAsync hipMemcpyAsync
+#define cudaError_t hipError_t
+#endif
 
 #include <buffer_manager.hpp>
+#include <hpx/modules/async_cuda.hpp>
+#if defined(OCTOTIGER_HAVE_CUDA)
 #include <cuda_buffer_util.hpp>
 #include <cuda_runtime.h>
+#elif defined(OCTOTIGER_HAVE_HIP)
+#include <hip/hip_runtime.h>
+#include <hip_buffer_util.hpp>
+#endif
 #include <stream_manager.hpp>
 #include "octotiger/cuda_util/cuda_helper.hpp"
 #include "octotiger/options.hpp"
@@ -10,7 +25,6 @@
 #include "octotiger/unitiger/hydro_impl/flux_kernel_interface.hpp"
 #include "octotiger/unitiger/hydro_impl/flux_kernel_templates.hpp"
 #include "octotiger/unitiger/hydro_impl/reconstruct_kernel_templates.hpp"    // required for xloc definition
-
 
 __global__ void __launch_bounds__(128, 2)
     flux_cuda_kernel(const double* __restrict__ q_combined, const double* __restrict__ x_combined,
@@ -40,7 +54,7 @@ __global__ void __launch_bounds__(128, 2)
     const int blocks_per_dim = gridDim.y;
     const int dim = blockIdx.z;
     const int tid = threadIdx.x * 64 + threadIdx.y * 8 + threadIdx.z;
-    const int index = blockIdx.y * 128 + tid; // + 104;
+    const int index = blockIdx.y * 128 + tid;    // + 104;
     for (int f = 0; f < nf; f++) {
         f_combined[dim * nf * q_inx3 + f * q_inx3 + index] = 0.0;
     }
@@ -69,12 +83,14 @@ __global__ void __launch_bounds__(128, 2)
                     current_d = d;
                 }
                 for (int f = 1; f < nf; f++) {
-                    f_combined[dim * nf * q_inx3 + f * q_inx3 + index] += quad_weights[fi] * local_f[f];
+                    f_combined[dim * nf * q_inx3 + f * q_inx3 + index] +=
+                        quad_weights[fi] * local_f[f];
                 }
             }
         }
         for (int f = 10; f < nf; f++) {
-            f_combined[dim * nf * q_inx3 + index] += f_combined[dim * nf * q_inx3 + f * q_inx3 + index];
+            f_combined[dim * nf * q_inx3 + index] +=
+                f_combined[dim * nf * q_inx3 + f * q_inx3 + index];
         }
     }
     // Find maximum:
@@ -153,17 +169,40 @@ __global__ void __launch_bounds__(128, 2)
         for (int f = 0; f < nf; f++) {
             amax[blocks_per_dim * number_dims + block_id * 2 * nf + f] =
                 q_combined[sm_i[0] + f * face_offset + dim_offset * sm_d[0]];
-            amax[blocks_per_dim * number_dims + block_id * 2 * nf + nf + f] = q_combined[sm_i[0] - compressedH_DN[dim] +
-                f * face_offset + dim_offset * flipped_dim];
+            amax[blocks_per_dim * number_dims + block_id * 2 * nf + nf + f] = q_combined[sm_i[0] -
+                compressedH_DN[dim] + f * face_offset + dim_offset * flipped_dim];
         }
     }
     return;
 }
+
+#if defined(OCTOTIGER_HAVE_HIP)
+void flux_hip_kernel_ggl_wrapper(dim3 const grid_spec, dim3 const threads_per_block,
+    double* device_q, double* device_x, double* device_f, double* device_amax,
+    int* device_amax_indices, int* device_amax_d, const bool* masks, const double omega,
+    const double dx, const double A_, const double B_, const size_t nf_, const double fgamma,
+    const double de_switch_1, cudaStream_t &stream) {
+    hipLaunchKernelGGL(flux_cuda_kernel, grid_spec, threads_per_block, 0, stream, device_q,
+       device_x, device_f, device_amax, device_amax_indices, device_amax_d, masks, omega, dx, A_, B_, nf_,
+       fgamma, de_switch_1);
+}
+
+void launch_flux_hip_kernel_post(
+    stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+    dim3 const grid_spec, dim3 const threads_per_block, double* device_q, double* device_x,
+    double* device_f, double* device_amax, int* device_amax_indices, int* device_amax_d,
+    const bool* masks, const double omega, const double dx, const double A_, const double B_,
+    const size_t nf_, const double fgamma, const double de_switch_1) {
+    executor.post(flux_hip_kernel_ggl_wrapper, grid_spec, threads_per_block, device_q, device_x,
+        device_f, device_amax, device_amax_indices, device_amax_d, masks, omega, dx, A_, B_, nf_, fgamma, de_switch_1);
+}
+#else
 void launch_flux_cuda_kernel_post(
     stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
     dim3 const grid_spec, dim3 const threads_per_block, void* args[]) {
     executor.post(cudaLaunchKernel<decltype(flux_cuda_kernel)>, flux_cuda_kernel, grid_spec,
         threads_per_block, args, 0);
 }
+#endif
 
 #endif

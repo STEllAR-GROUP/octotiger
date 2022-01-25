@@ -26,7 +26,8 @@ set(CMAKE_CXX_STANDARD 17)
 option(OCTOTIGER_DISABLE_ILIST "Disables the interaction list to allow larger sub-grids for hydro-only scenarios!" OFF)
 option(OCTOTIGER_WITH_GRAV_PAR "Enable parallelism in gravitational solver" OFF)
 option(OCTOTIGER_WITH_RADIATION "Enable radiation transport solver" OFF)
-option(OCTOTIGER_WITH_CUDA "Enable CUDA fmm kernels" OFF)
+option(OCTOTIGER_WITH_CUDA "Enable CUDA kernels" OFF)
+option(OCTOTIGER_WITH_HIP "Enable HIP kernels" OFF)
 option(OCTOTIGER_WITH_KOKKOS "Enable the build with Kokkos" OFF)
 option(OCTOTIGER_SPACK_BUILD "Project is build with the spack package" OFF)
 option(OCTOTIGER_WITH_BLAST_TEST "Enable the Blast test" ON)
@@ -195,6 +196,7 @@ set(source_files
     src/test_problems/sod/sod.cpp
     src/test_problems/sod/exact_sod.cpp
     src/test_problems/amr/amr.cpp
+    src/test_problems/blast/sedov.cpp
 
     src/unitiger/hydro_impl/hydro_boundary_exchange.cpp # TODO Move to different location - it's not unitiger
     src/unitiger/hydro_impl/hydro_boundary_exchange_vc.cpp
@@ -584,6 +586,9 @@ set_property(TARGET octotiger PROPERTY FOLDER "Octo-Tiger")
 if(OCTOTIGER_WITH_CUDA)
   target_compile_definitions(octotiger PUBLIC OCTOTIGER_HAVE_CUDA)
 endif()
+if(OCTOTIGER_WITH_HIP)
+  target_compile_definitions(octotiger PUBLIC OCTOTIGER_HAVE_HIP)
+endif()
 if(OCTOTIGER_WITH_KOKKOS)
   target_compile_definitions(octotiger PUBLIC OCTOTIGER_HAVE_KOKKOS)
 endif()
@@ -720,6 +725,12 @@ if(OCTOTIGER_WITH_CUDA)
   #set_property(TARGET octolib PROPERTY INTERFACE_COMPILE_OPTIONS "${MY_CUDA_FLAGS}")
   #set_property(TARGET hydrolib PROPERTY CUDA_SEPARABLE_COMPILATION ON)
   #set_property(TARGET hydrolib PROPERTY INTERFACE_COMPILE_OPTIONS "${MY_CUDA_FLAGS}")
+endif()
+if(OCTOTIGER_WITH_HIP)
+  message(INFO " HIP support is turned on!")
+  message(WARNING " HIP support is still experimental! Do not use for productin runs (yet)")
+  target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_HIP)
+  target_compile_definitions(hydrolib PUBLIC OCTOTIGER_HAVE_HIP)
 endif()
 
 # Handle other options

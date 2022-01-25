@@ -3,7 +3,7 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#ifdef OCTOTIGER_HAVE_CUDA
+#if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)
 #include "octotiger/cuda_util/cuda_scheduler.hpp"
 #include "octotiger/monopole_interactions/legacy/monopole_cuda_kernel.hpp"
 #include "octotiger/monopole_interactions/util/calculate_stencil.hpp"
@@ -21,6 +21,7 @@
 
 namespace octotiger {
 namespace fmm {
+#ifdef OCTOTIGER_HAVE_CUDA
     void cuda_error(cudaError_t err) {
         if (err != cudaSuccess) {
             std::stringstream temp;
@@ -28,6 +29,7 @@ namespace fmm {
             throw std::runtime_error(temp.str());
         }
     }
+#endif
     kernel_scheduler& kernel_scheduler::scheduler() {
         static thread_local kernel_scheduler scheduler_;
         return scheduler_;

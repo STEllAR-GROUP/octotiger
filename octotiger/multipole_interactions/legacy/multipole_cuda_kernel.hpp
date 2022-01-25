@@ -5,7 +5,7 @@
 
 #pragma once
 
-#ifdef OCTOTIGER_HAVE_CUDA
+#if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)
 #include "octotiger/common_kernel/interaction_constants.hpp"
 #include "octotiger/common_kernel/multiindex.hpp"
 #include "octotiger/cuda_util/cuda_helper.hpp"
@@ -45,6 +45,7 @@ namespace fmm {
             double (&potential_expansions)[NUMBER_POT_EXPANSIONS]); */
 
 
+#if defined(OCTOTIGER_HAVE_CUDA)
         void launch_multipole_rho_cuda_kernel_post(
             stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
             dim3 const grid_spec, dim3 const threads_per_block, void *args[]);
@@ -57,6 +58,59 @@ namespace fmm {
         void launch_multipole_root_non_rho_cuda_kernel_post(
             stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
             dim3 const grid_spec, dim3 const threads_per_block, void *args[]);
+
+
+        void launch_sum_multipole_potential_expansions_results_post(
+            stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+            dim3 const grid_spec, dim3 const threads_per_block, void *args[]);
+        void launch_sum_multipole_angular_corrections_results_post(
+            stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+            dim3 const grid_spec, dim3 const threads_per_block, void *args[]);
+#elif defined(OCTOTIGER_HAVE_HIP)
+        void hip_multipole_interactions_kernel_rho_post(
+            stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+            dim3 const grid_spec, dim3 const threads_per_block,
+            const double *monopoles,
+            const double *center_of_masses,
+            const double *multipoles,
+            double *potential_expansions,
+            double *angular_corrections, const double theta,
+            const bool computing_second_half);
+        void hip_multipole_interactions_kernel_root_rho_post(
+            stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+            dim3 const grid_spec, dim3 const threads_per_block,
+            const double *center_of_masses,
+            const double *multipoles,
+            double *potential_expansions,
+            double *angular_corrections);
+        void hip_multipole_interactions_kernel_non_rho_post(
+            stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+            dim3 const grid_spec, dim3 const threads_per_block,
+            const double *monopoles,
+            const double *center_of_masses,
+            const double *multipoles,
+            double *potential_expansions, const double theta,
+            const bool computing_second_half);
+        void hip_multipole_interactions_kernel_root_non_rho_post(
+            stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+            dim3 const grid_spec, dim3 const threads_per_block,
+            const double *center_of_masses,
+            const double *multipoles,
+            double *potential_expansions);
+
+
+        void hip_sum_multipole_angular_corrections_results_post(
+            stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+            dim3 const grid_spec, dim3 const threads_per_block, int block_numbers,
+            double *tmp_angular_corrections,
+            double *angular_corrections);
+        void hip_sum_multipole_potential_expansions_results_post(
+            stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+            dim3 const grid_spec, dim3 const threads_per_block, int block_numbers,
+            double *tmp_potential_expansions,
+            double *potential_expansions);
+        
+#endif
     }    // namespace multipole_interactions
 }    // namespace fmm
 }    // namespace octotiger

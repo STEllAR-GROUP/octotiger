@@ -37,6 +37,8 @@
 //#include "octotiger/unitiger/hydro_impl/hydro_cuda_interface.hpp"
 #include "octotiger/unitiger/hydro_impl/hydro_kernel_interface.hpp"
 
+#if !defined(HPX_COMPUTE_DEVICE_CODE)
+
 std::vector<int> grid::field_bw;
 std::vector<int> grid::energy_bw;
 std::unordered_map<std::string, int> grid::str_to_index_hydro;
@@ -2407,4 +2409,4 @@ std::vector<real> grid::conserved_outflows() const {
 	}
 	return Uret;
 }
-
+#endif

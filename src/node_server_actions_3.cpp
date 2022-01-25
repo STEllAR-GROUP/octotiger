@@ -23,6 +23,8 @@
 #include <array>
 #include <cstdio>
 
+#if !defined(HPX_COMPUTE_DEVICE_CODE)
+
 using send_gravity_boundary_action_type = node_server::send_gravity_boundary_action;
 HPX_REGISTER_ACTION (send_gravity_boundary_action_type);
 
@@ -269,9 +271,31 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 			output_all(this, "final", output_cnt, true);
 		}
 		if (get_analytic() != nullptr) {
-			compare_analytic();
+      if (!(opts().stop_step > 1)) // Pure performance measurements - skip analytics 
+          compare_analytic();
 			if (opts().gravity) {
-				solve_gravity(true, false);
+        auto start_all_gravity = std::chrono::high_resolution_clock::now(); 
+        auto min_duration = std::chrono::milliseconds::max();
+        auto max_duration = std::chrono::milliseconds::min();
+        for (int iteration = 0; iteration < opts().stop_step; iteration++) {
+          std::cout << "Pure-gravity iteration " << iteration << std::endl;
+          auto start = std::chrono::high_resolution_clock::now(); 
+          solve_gravity(true, false);
+          auto stop = std::chrono::high_resolution_clock::now(); 
+          auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start); 
+          std::cout << "--> " << iteration + 1 << ". FMM iteration took: " << duration.count() << " ms" << std::endl; 
+          if (duration.count() < min_duration.count())
+            min_duration = duration;
+          if (duration.count() > max_duration.count())
+            max_duration = duration;
+
+        }
+        auto stop_all_gravity = std::chrono::high_resolution_clock::now(); 
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop_all_gravity - start_all_gravity); 
+        std::cout << "==> Overall execution time: " << duration.count() << " ms" << std::endl; 
+        std::cout << "==> Average iteration execution time: " << duration.count() / opts().stop_step << " ms" << std::endl; 
+        std::cout << "==> Minimal iteration execution time: " << min_duration.count() << " ms" << std::endl; 
+        std::cout << "==> Maximal iteration execution time: " << max_duration.count() << " ms" << std::endl; 
 			}
 			if (!opts().disable_output) {
 				output_all(this, "analytic", output_cnt, true);
@@ -759,3 +783,4 @@ void node_server::velocity_inc(const space_vector &dv) {
 		grid_ptr->velocity_inc(dv);
 	}
 }
+#endif

@@ -151,6 +151,10 @@ if(OCTOTIGER_WITH_CUDA)
   test_sod_scenario(test_problems.gpu.am_hydro_on.sod_cuda sod_cuda_log.txt ${ini_scenario_filename} ${silo_reference_filename} OFF
   "--correct_am_hydro=1 --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=DEVICE_ONLY")
 endif()
+if(OCTOTIGER_WITH_HIP)
+	test_sod_scenario(test_problems.gpu.am_hydro_off.sod_hip sod_hip_log.txt ${ini_scenario_filename} ${silo_reference_filename} OFF
+    "--correct_am_hydro=off --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=HIP --hydro_host_kernel_type=DEVICE_ONLY")
+endif()
 
 if(OCTOTIGER_WITH_KOKKOS)
   test_sod_scenario(test_problems.cpu.am_hydro_on.sod_kokkos sod_kokkos_log.txt ${ini_scenario_filename} ${silo_reference_filename} OFF
@@ -158,6 +162,10 @@ if(OCTOTIGER_WITH_KOKKOS)
   if(OCTOTIGER_WITH_CUDA)
     test_sod_scenario(test_problems.gpu.am_hydro_on.sod_kokkos sod_kokkos_cuda_log.txt ${ini_scenario_filename} ${silo_reference_filename} OFF
     "--correct_am_hydro=1 --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=KOKKOS_CUDA --hydro_host_kernel_type=DEVICE_ONLY")
+  endif()
+  if(OCTOTIGER_WITH_HIP)
+	  test_sod_scenario(test_problems.gpu.am_hydro_off.sod_kokkos sod_kokkos_cuda_log.txt ${ini_scenario_filename} ${silo_reference_filename} OFF
+      "--correct_am_hydro=off --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=KOKKOS_HIP --hydro_host_kernel_type=DEVICE_ONLY")
   endif()
 endif()
 
