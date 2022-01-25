@@ -7,14 +7,58 @@
 #include "octotiger/common_kernel/interaction_constants.hpp"
 #include "octotiger/common_kernel/struct_of_array_data.hpp"
 
-#include <kokkos_buffer_util.hpp>
+
+// ============================================================ 
+// Executor types / helpers
+// ============================================================ 
 #include <stream_manager.hpp>
 
+#if defined(KOKKOS_ENABLE_CUDA)
+using kokkos_device_executor = hpx::kokkos::cuda_executor;
+#elif defined(KOKKOS_ENABLE_HIP)
+using kokkos_device_executor = hpx::kokkos::hip_executor;
+#endif
+
+template <typename T>
+struct always_false
+{
+    enum
+    {
+        value = false
+    };
+};
+template <class T>
+struct is_kokkos_host_executor
+  : std::integral_constant<bool,
+        std::is_same<hpx::kokkos::serial_executor, typename std::remove_cv<T>::type>::value ||
+            std::is_same<hpx::kokkos::hpx_executor, typename std::remove_cv<T>::type>::value>
+{};
+
+template <class T>
+struct is_kokkos_device_executor
+  : std::integral_constant<bool,
+#ifdef KOKKOS_ENABLE_CUDA 
+        std::is_same<hpx::kokkos::cuda_executor, typename std::remove_cv<T>::type>::value>
+#elif defined(KOKKOS_ENABLE_HIP)
+        std::is_same<hpx::kokkos::hip_executor, typename std::remove_cv<T>::type>::value>
+#else
+        false>
+#endif
+{};
+
+// ============================================================ 
+// Buffer defines / types
+// ============================================================ 
+
+#include <kokkos_buffer_util.hpp>
 #ifdef KOKKOS_ENABLE_CUDA
 #include <cuda_buffer_util.hpp>
 #endif
+#ifdef KOKKOS_ENABLE_HIP
+#include <hip_buffer_util.hpp>
+#endif
 
-#ifdef KOKKOS_ENABLE_CUDA
+#if defined(KOKKOS_ENABLE_CUDA)
 template <class T>
 using kokkos_um_device_array = Kokkos::View<T*, Kokkos::CudaSpace, Kokkos::MemoryUnmanaged>;
 template <class T>
@@ -22,6 +66,14 @@ using kokkos_device_array = Kokkos::View<T*, Kokkos::CudaSpace>;
 template <class T>
 using recycled_device_view = recycler::recycled_view<kokkos_um_device_array<T>,
     recycler::recycle_allocator_cuda_device<T>, T>;
+#elif defined(KOKKOS_ENABLE_HIP)
+template <class T>
+using kokkos_um_device_array = Kokkos::View<T*, Kokkos::Experimental::HIPSpace, Kokkos::MemoryUnmanaged>;
+template <class T>
+using kokkos_device_array = Kokkos::View<T*, Kokkos::Experimental::HIPSpace>;
+template <class T>
+using recycled_device_view = recycler::recycled_view<kokkos_um_device_array<T>,
+    recycler::recycle_allocator_hip_device<T>, T>;
 #else
 // Fallback without cuda
 template <class T>
@@ -45,13 +97,20 @@ template <class T>
 using recycled_host_view = recycler::recycled_view<kokkos_um_array<T>, recycler::recycle_std<T>, T>;
 
 // NOTE: Must use the same layout to be able to use e.g. cudaMemcpyAsync
-#ifdef KOKKOS_ENABLE_CUDA
+#if defined(KOKKOS_ENABLE_CUDA)
 template <class T>
 using kokkos_um_pinned_array = Kokkos::View<T*, typename kokkos_um_device_array<T>::array_layout,
     Kokkos::CudaHostPinnedSpace, Kokkos::MemoryUnmanaged>;
 template <class T>
 using recycled_pinned_view =
     recycler::recycled_view<kokkos_um_pinned_array<T>, recycler::recycle_allocator_cuda_host<T>, T>;
+#elif defined(KOKKOS_ENABLE_HIP)
+template <class T>
+using kokkos_um_pinned_array = Kokkos::View<T*, typename kokkos_um_device_array<T>::array_layout,
+    Kokkos::Experimental::HIPHostPinnedSpace, Kokkos::MemoryUnmanaged>;
+template <class T>
+using recycled_pinned_view =
+    recycler::recycled_view<kokkos_um_pinned_array<T>, recycler::recycle_allocator_hip_host<T>, T>;
 #else
 template <class T>
 using kokkos_um_pinned_array = Kokkos::View<T*, typename kokkos_um_device_array<T>::array_layout,
@@ -78,31 +137,6 @@ inline void sync_kokkos_host_kernel(hpx::kokkos::hpx_executor& exec) {
 }
 
 template <typename T>
-struct always_false
-{
-    enum
-    {
-        value = false
-    };
-};
-template <class T>
-struct is_kokkos_host_executor
-  : std::integral_constant<bool,
-        std::is_same<hpx::kokkos::serial_executor, typename std::remove_cv<T>::type>::value ||
-            std::is_same<hpx::kokkos::hpx_executor, typename std::remove_cv<T>::type>::value>
-{};
-
-template <class T>
-struct is_kokkos_device_executor
-  : std::integral_constant<bool,
-#ifdef KOKKOS_ENABLE_CUDA
-        std::is_same<hpx::kokkos::cuda_executor, typename std::remove_cv<T>::type>::value>
-#else
-        false>
-#endif
-{};
-
-template <typename T>
 using host_buffer = recycled_pinned_view<T>;
 template <typename T>
 using device_buffer = recycled_device_view<T>;
@@ -110,6 +144,10 @@ template <typename T>
 using normal_host_buffer = kokkos_host_array<T>;
 template <typename T>
 using normal_device_buffer = kokkos_device_array<T>;
+
+// =================================================================================================
+// SIMD types
+// =================================================================================================
 
 // defines HPX_COMPUTE_HOST_CODE and HPX_COMPUTE_DEVICE_CODE accordingly for the device passes
 // useful for picking the correct simd type!

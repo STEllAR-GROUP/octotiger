@@ -2,8 +2,8 @@
 #include "octotiger/common_kernel/interaction_constants.hpp"
 #include "octotiger/defs.hpp"
 #include "octotiger/monopole_interactions/kernel/monopole_kernel_templates.hpp"
-#include "octotiger/monopole_interactions/legacy/p2m_interaction_interface.hpp"
 #include "octotiger/monopole_interactions/legacy/monopole_interaction_interface.hpp"
+#include "octotiger/monopole_interactions/legacy/p2m_interaction_interface.hpp"
 
 #ifdef OCTOTIGER_HAVE_KOKKOS
 #include "octotiger/common_kernel/kokkos_util.hpp"
@@ -11,7 +11,6 @@
 namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
-
         // --------------------------------------- Stencil interface
 
         template <typename storage>
@@ -20,7 +19,7 @@ namespace fmm {
             static bool initialized = false;
             // Gets initialized at the start of octotiger (init_methods.cpp) by the root thread
             // to avoid racing this
-            if (!initialized) { 
+            if (!initialized) {
                 initialized = true;
                 auto p2p_stencil_pair = monopole_interactions::calculate_stencil();
                 auto p2p_stencil_mask_pair =
@@ -42,7 +41,7 @@ namespace fmm {
             static bool initialized = false;
             // Gets initialized at the start of octotiger (init_methods.cpp) by the root thread
             // to avoid racing this
-            if (!initialized) { 
+            if (!initialized) {
                 initialized = true;
                 auto p2p_stencil_pair = monopole_interactions::calculate_stencil();
                 auto p2p_stencil_mask_pair =
@@ -85,37 +84,65 @@ namespace fmm {
         }
 
         // --------------------------------------- P2P Kernel implementations
-
-        template <typename simd_t, typename simd_mask_t, typename kokkos_backend_t, typename kokkos_buffer_t,
-                 typename kokkos_mask_t>
-        void p2p_kernel_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
-            const kokkos_buffer_t& monopoles, const kokkos_mask_t& devicemasks, const kokkos_buffer_t& constants,
-            kokkos_buffer_t& potential_expansions, const double dx, const double theta,
-            const Kokkos::Array<long, 3> &&tiling_config) {
-            auto policy_1 = Kokkos::Experimental::require(
-                Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<3>>(
-                    executor.instance(), {0, 0, 0}, {INX, INX / 2, INX / simd_t::size()}, tiling_config ),
+        //
+        template <typename kokkos_backend_t, typename kokkos_buffer_t>
+        void sum_p2p_results(hpx::kokkos::executor<kokkos_backend_t>& executor,
+            kokkos_buffer_t& tmp_potential_expansions, kokkos_buffer_t& potential_expansions,
+            const Kokkos::Array<long, 4>&& tiling_config) {
+            auto policy_sum = Kokkos::Experimental::require(
+                Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<4>>(
+                    executor.instance(), {0, 0, 0, 0}, {4, INX, INX, INX}, tiling_config),
                 Kokkos::Experimental::WorkItemProperty::HintLightWeight);
+            Kokkos::parallel_for(
+                "kernel sum p2p", policy_sum, KOKKOS_LAMBDA(int component, int idx, int idy, int idz) {
+                    constexpr size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
+                    octotiger::fmm::multiindex<> cell_index_unpadded(idx, idy, idz);
+                    const size_t cell_flat_index_unpadded =
+                        octotiger::fmm::to_inner_flat_index_not_padded(cell_index_unpadded);
+                    double tmpstore = 0.0;
+                    for (int i = 0; i < NUMBER_P2P_BLOCKS; i++) {
+                        tmpstore = tmpstore +
+                            tmp_potential_expansions[i * NUMBER_POT_EXPANSIONS_SMALL +
+                                component * component_length_unpadded + cell_flat_index_unpadded];
+                    }
+                    potential_expansions[component * component_length_unpadded + cell_flat_index_unpadded] =
+                        tmpstore;
+                });
+        }
 
+        template <typename simd_t, typename simd_mask_t, typename kokkos_backend_t,
+            typename kokkos_buffer_t, typename kokkos_mask_t>
+        void p2p_kernel_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
+            const kokkos_buffer_t& monopoles, const kokkos_mask_t& devicemasks,
+            const kokkos_buffer_t& constants, kokkos_buffer_t& tmp_potential_expansions,
+            const double dx, const double theta, const long p2p_blocks,
+            const Kokkos::Array<long, 4>&& tiling_config) {
+            auto policy_1 = Kokkos::Experimental::require(
+                Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<4>>(
+                    executor.instance(), {0, 0, 0, 0},
+                    {p2p_blocks, INX, INX / 2, INX / simd_t::size()}, tiling_config),
+                Kokkos::Experimental::WorkItemProperty::HintLightWeight);
 
             // Kokkos::parallel_for("kernel p2p", policy_1,
             //   [monopoles, potential_expansions, devicemasks, dx, theta] CUDA_GLOBAL_METHOD(
             //       int idx, int idy, int idz) {
             Kokkos::parallel_for(
-                "kernel p2p", policy_1, KOKKOS_LAMBDA(int idx, int idy, int idz) {
+                "kernel p2p", policy_1, KOKKOS_LAMBDA(int block_id, int idx, int idy, int idz) {
                     // helper variables
                     constexpr size_t simd_length = simd_t::size();
                     constexpr size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
                     const multiindex<> cell_index(idx + INNER_CELLS_PADDING_DEPTH,
-                        idy * 2 + INNER_CELLS_PADDING_DEPTH, idz * simd_length + INNER_CELLS_PADDING_DEPTH);
+                        idy * 2 + INNER_CELLS_PADDING_DEPTH,
+                        idz * simd_length + INNER_CELLS_PADDING_DEPTH);
                     const size_t cell_flat_index = to_flat_index_padded(cell_index);
-                    multiindex<> cell_index_unpadded(idx, idy * 2, idz * simd_length );
+                    multiindex<> cell_index_unpadded(idx, idy * 2, idz * simd_length);
                     const size_t cell_flat_index_unpadded =
                         to_inner_flat_index_not_padded(cell_index_unpadded);
 
                     const int32_t cell_index_coarse_x = ((cell_index.x + INX) >> 1) - (INX / 2);
                     const int32_t cell_index_coarse_y = ((cell_index.y + INX) >> 1) - (INX / 2);
-                    const int32_t cell_index_coarse_y2 = ((cell_index.y + 1 + INX) >> 1) - (INX / 2);
+                    const int32_t cell_index_coarse_y2 =
+                        ((cell_index.y + 1 + INX) >> 1) - (INX / 2);
                     int32_t cell_index_coarse_z[simd_length];
                     for (int i = 0; i < simd_length; i++) {
                         cell_index_coarse_z[i] = ((cell_index.z + i + INX) >> 1) - (INX / 2);
@@ -131,22 +158,34 @@ namespace fmm {
                     simd_t tmpstore[4] = {simd_t(0.0), simd_t(0.0), simd_t(0.0), simd_t(0.0)};
                     simd_t tmpstore2[4] = {simd_t(0.0), simd_t(0.0), simd_t(0.0), simd_t(0.0)};
                     multiindex<> partner_index;
+
                     // Go through all possible stance elements for the two cells this thread
                     // is responsible for
-                    for (int stencil_x = STENCIL_MIN; stencil_x <= STENCIL_MAX; stencil_x++) {
+
+                    // Loop gets executed once on GPU (as we have multiple blocks to replace it)
+                    // and NUMBER_P2P_BLOCKS often on CPU
+                    for (int x_iteration = 0; x_iteration <= NUMBER_P2P_BLOCKS - p2p_blocks;
+                         x_iteration++) {
+                        const int x = block_id + x_iteration;
+                        const int stencil_x = x + STENCIL_MIN;
                         partner_index.x = cell_index.x + stencil_x;
-                        const int32_t partner_index_coarse_x = ((partner_index.x + INX) >> 1) - (INX / 2);
-                        const int32_t distance_x = (cell_index_coarse_x - partner_index_coarse_x) * 
-                          (cell_index_coarse_x - partner_index_coarse_x);
-                        const int x = stencil_x - STENCIL_MIN;
+                        const int32_t partner_index_coarse_x =
+                            ((partner_index.x + INX) >> 1) - (INX / 2);
+                        const int32_t distance_x = (cell_index_coarse_x - partner_index_coarse_x) *
+                            (cell_index_coarse_x - partner_index_coarse_x);
+                        // const int x = stencil_x - STENCIL_MIN;
                         for (int stencil_y = STENCIL_MIN; stencil_y <= STENCIL_MAX; stencil_y++) {
                             partner_index.y = cell_index.y + stencil_y;
-                            const int32_t partner_index_coarse_y = ((partner_index.y + INX) >> 1) - (INX / 2);
-                            const int32_t partner_index_coarse_y2 = ((partner_index.y + 1 + INX) >> 1) - (INX / 2);
-                            const int32_t distance_y = (cell_index_coarse_y - partner_index_coarse_y) * 
-                              (cell_index_coarse_y - partner_index_coarse_y);
-                            const int32_t distance_y2 = (cell_index_coarse_y2 - partner_index_coarse_y2) * 
-                              (cell_index_coarse_y2 - partner_index_coarse_y2);
+                            const int32_t partner_index_coarse_y =
+                                ((partner_index.y + INX) >> 1) - (INX / 2);
+                            const int32_t partner_index_coarse_y2 =
+                                ((partner_index.y + 1 + INX) >> 1) - (INX / 2);
+                            const int32_t distance_y =
+                                (cell_index_coarse_y - partner_index_coarse_y) *
+                                (cell_index_coarse_y - partner_index_coarse_y);
+                            const int32_t distance_y2 =
+                                (cell_index_coarse_y2 - partner_index_coarse_y2) *
+                                (cell_index_coarse_y2 - partner_index_coarse_y2);
                             const int y = stencil_y - STENCIL_MIN;
                             for (int stencil_z = STENCIL_MIN; stencil_z <= STENCIL_MAX;
                                  stencil_z++) {
@@ -158,29 +197,35 @@ namespace fmm {
                                 }
                                 partner_index.z = cell_index.z + stencil_z;
                                 for (int i = 0; i < simd_length; i++) {
-                                  const int32_t partner_index_coarse_z = ((partner_index.z + i + INX) >> 1) - (INX / 2);
-                                  theta_c_rec_squared_array[i] = static_cast<double>(distance_x + distance_y +
-                                      (cell_index_coarse_z[i] - partner_index_coarse_z) * 
-                                      (cell_index_coarse_z[i] - partner_index_coarse_z));
-                                  theta_c_rec_squared_array2[i] = static_cast<double>(distance_x + distance_y2 +
-                                      (cell_index_coarse_z[i] - partner_index_coarse_z) * 
-                                      (cell_index_coarse_z[i] - partner_index_coarse_z));
+                                    const int32_t partner_index_coarse_z =
+                                        ((partner_index.z + i + INX) >> 1) - (INX / 2);
+                                    theta_c_rec_squared_array[i] =
+                                        static_cast<double>(distance_x + distance_y +
+                                            (cell_index_coarse_z[i] - partner_index_coarse_z) *
+                                                (cell_index_coarse_z[i] - partner_index_coarse_z));
+                                    theta_c_rec_squared_array2[i] =
+                                        static_cast<double>(distance_x + distance_y2 +
+                                            (cell_index_coarse_z[i] - partner_index_coarse_z) *
+                                                (cell_index_coarse_z[i] - partner_index_coarse_z));
                                 }
                                 theta_c_rec_squared.copy_from(theta_c_rec_squared_array,
-                                    SIMD_NAMESPACE::element_aligned_tag{}); 
+                                    SIMD_NAMESPACE::element_aligned_tag{});
                                 theta_c_rec_squared2.copy_from(theta_c_rec_squared_array2,
-                                    SIMD_NAMESPACE::element_aligned_tag{}); 
+                                    SIMD_NAMESPACE::element_aligned_tag{});
 
                                 const simd_mask_t mask = theta_c_rec_squared < theta_rec_squared;
                                 const simd_mask_t mask2 = theta_c_rec_squared2 < theta_rec_squared;
-                                if (!SIMD_NAMESPACE::any_of(mask) && !SIMD_NAMESPACE::any_of(mask2)) {
+                                if (!SIMD_NAMESPACE::any_of(mask) &&
+                                    !SIMD_NAMESPACE::any_of(mask2)) {
                                     continue;
                                 }
 
                                 const size_t partner_flat_index =
                                     to_flat_index_padded(partner_index);
-                                simd_t monopole(monopoles.data() + partner_flat_index, SIMD_NAMESPACE::element_aligned_tag{});
-                                simd_t monopole2(monopoles.data() + partner_flat_index + INX + 2 * STENCIL_MAX,
+                                simd_t monopole(monopoles.data() + partner_flat_index,
+                                    SIMD_NAMESPACE::element_aligned_tag{});
+                                simd_t monopole2(
+                                    monopoles.data() + partner_flat_index + INX + 2 * STENCIL_MAX,
                                     SIMD_NAMESPACE::element_aligned_tag{});
                                 monopole = SIMD_NAMESPACE::choose(mask, monopole, simd_t(0.0));
                                 monopole2 = SIMD_NAMESPACE::choose(mask2, monopole2, simd_t(0.0));
@@ -193,10 +238,10 @@ namespace fmm {
                                 const double r3 = r * r * r;
                                 const double four[4] = {
                                     -1.0 / r, stencil_x / r3, stencil_y / r3, stencil_z / r3};*/
-                              
-                                const simd_t four[4] = {
-                                    constants[index * 4 + 0], constants[index * 4 + 1],
-                                    constants[index * 4 + 2], constants[index * 4 + 3]};
+
+                                const simd_t four[4] = {constants[index * 4 + 0],
+                                    constants[index * 4 + 1], constants[index * 4 + 2],
+                                    constants[index * 4 + 3]};
                                 tmpstore[0] += four[0] * monopole;
                                 tmpstore2[0] += four[0] * monopole2;
                                 tmpstore[1] += four[1] * monopole * d_components[1];
@@ -205,32 +250,46 @@ namespace fmm {
                                 tmpstore2[2] += four[2] * monopole2 * d_components[1];
                                 tmpstore[3] += four[3] * monopole * d_components[1];
                                 tmpstore2[3] += four[3] * monopole2 * d_components[1];
-
                             }
                         }
                     }
-                    tmpstore[0].copy_to(potential_expansions.data() + cell_flat_index_unpadded,
+                    // printf("%i %i %i %i\n", block_id, idx, idy, idz);
+                    tmpstore[0].copy_to(tmp_potential_expansions.data() +
+                            block_id * NUMBER_POT_EXPANSIONS_SMALL + cell_flat_index_unpadded,
                         SIMD_NAMESPACE::element_aligned_tag{});
-                    tmpstore[1].copy_to(potential_expansions.data() + 1 * component_length_unpadded + cell_flat_index_unpadded,
+                    tmpstore[1].copy_to(tmp_potential_expansions.data() +
+                            block_id * NUMBER_POT_EXPANSIONS_SMALL + 1 * component_length_unpadded +
+                            cell_flat_index_unpadded,
                         SIMD_NAMESPACE::element_aligned_tag{});
-                    tmpstore[2].copy_to(potential_expansions.data() + 2 * component_length_unpadded + cell_flat_index_unpadded,
+                    tmpstore[2].copy_to(tmp_potential_expansions.data() +
+                            block_id * NUMBER_POT_EXPANSIONS_SMALL + 2 * component_length_unpadded +
+                            cell_flat_index_unpadded,
                         SIMD_NAMESPACE::element_aligned_tag{});
-                    tmpstore[3].copy_to(potential_expansions.data() + 3 * component_length_unpadded + cell_flat_index_unpadded,
+                    tmpstore[3].copy_to(tmp_potential_expansions.data() +
+                            block_id * NUMBER_POT_EXPANSIONS_SMALL + 3 * component_length_unpadded +
+                            cell_flat_index_unpadded,
                         SIMD_NAMESPACE::element_aligned_tag{});
-                    tmpstore2[0].copy_to(potential_expansions.data() + cell_flat_index_unpadded + INX,
+                    tmpstore2[0].copy_to(tmp_potential_expansions.data() +
+                            block_id * NUMBER_POT_EXPANSIONS_SMALL + cell_flat_index_unpadded + INX,
                         SIMD_NAMESPACE::element_aligned_tag{});
-                    tmpstore2[1].copy_to(potential_expansions.data() + 1 * component_length_unpadded +
-                        cell_flat_index_unpadded + INX, SIMD_NAMESPACE::element_aligned_tag{});
-                    tmpstore2[2].copy_to(potential_expansions.data() + 2 * component_length_unpadded +
-                        cell_flat_index_unpadded + INX, SIMD_NAMESPACE::element_aligned_tag{});
-                    tmpstore2[3].copy_to(potential_expansions.data() + 3 * component_length_unpadded +
-                        cell_flat_index_unpadded + INX, SIMD_NAMESPACE::element_aligned_tag{});
+                    tmpstore2[1].copy_to(tmp_potential_expansions.data() +
+                            block_id * NUMBER_POT_EXPANSIONS_SMALL + 1 * component_length_unpadded +
+                            cell_flat_index_unpadded + INX,
+                        SIMD_NAMESPACE::element_aligned_tag{});
+                    tmpstore2[2].copy_to(tmp_potential_expansions.data() +
+                            block_id * NUMBER_POT_EXPANSIONS_SMALL + 2 * component_length_unpadded +
+                            cell_flat_index_unpadded + INX,
+                        SIMD_NAMESPACE::element_aligned_tag{});
+                    tmpstore2[3].copy_to(tmp_potential_expansions.data() +
+                            block_id * NUMBER_POT_EXPANSIONS_SMALL + 3 * component_length_unpadded +
+                            cell_flat_index_unpadded + INX,
+                        SIMD_NAMESPACE::element_aligned_tag{});
                 });
         }
         // --------------------------------------- P2M Kernel implementations
 
-        template <typename simd_t, typename simd_mask_t, typename kokkos_backend_t, typename kokkos_buffer_t,
-                 typename kokkos_mask_t>
+        template <typename simd_t, typename simd_mask_t, typename kokkos_backend_t,
+            typename kokkos_buffer_t, typename kokkos_mask_t>
         void p2m_kernel_impl_non_rho(hpx::kokkos::executor<kokkos_backend_t>& executor,
             const kokkos_buffer_t& expansions_neighbors_soa,
             const kokkos_buffer_t& center_of_mass_neighbor_soa,
@@ -243,6 +302,8 @@ namespace fmm {
             auto policy_1 = Kokkos::Experimental::require(
                 Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<3>>(
                     executor.instance(), {0, 0, 0},
+                    {cells_end.x - cells_start.x, cells_end.y - cells_start.y,
+                        (cells_end.z - cells_start.z) / simd_t::size() + workitem_offset},
                     {cells_end.x - cells_start.x, cells_end.y - cells_start.y,
                         (cells_end.z - cells_start.z) / simd_t::size() + workitem_offset}),
                 Kokkos::Experimental::WorkItemProperty::HintLightWeight);
@@ -262,8 +323,8 @@ namespace fmm {
                         idy + INNER_CELLS_PADDING_DEPTH + cells_start.y,
                         idz * simd_length + INNER_CELLS_PADDING_DEPTH + cells_start.z);
                     const size_t cell_flat_index = to_flat_index_padded(cell_index);
-                    multiindex<> cell_index_unpadded(
-                        idx + cells_start.x, idy + cells_start.y, idz * simd_length + cells_start.z);
+                    multiindex<> cell_index_unpadded(idx + cells_start.x, idy + cells_start.y,
+                        idz * simd_length + cells_start.z);
                     const size_t cell_flat_index_unpadded =
                         to_inner_flat_index_not_padded(cell_index_unpadded);
 
@@ -277,16 +338,19 @@ namespace fmm {
                     simd_t X[NDIM];
                     X[0].copy_from(center_of_mass_cells_soa.data() + cell_flat_index_unpadded,
                         SIMD_NAMESPACE::element_aligned_tag{});
-                    X[1].copy_from(center_of_mass_cells_soa.data() + 1 * component_length_unpadded + cell_flat_index_unpadded,
+                    X[1].copy_from(center_of_mass_cells_soa.data() + 1 * component_length_unpadded +
+                            cell_flat_index_unpadded,
                         SIMD_NAMESPACE::element_aligned_tag{});
-                    X[2].copy_from(center_of_mass_cells_soa.data() + 2 * component_length_unpadded + cell_flat_index_unpadded,
+                    X[2].copy_from(center_of_mass_cells_soa.data() + 2 * component_length_unpadded +
+                            cell_flat_index_unpadded,
                         SIMD_NAMESPACE::element_aligned_tag{});
 
                     // Create and set result arrays
                     simd_t tmpstore[4];
                     for (size_t i = 0; i < 4; ++i) {
-                        tmpstore[i].copy_from(potential_expansions.data() +  i * component_length_unpadded +
-                            cell_flat_index_unpadded, SIMD_NAMESPACE::element_aligned_tag{});
+                        tmpstore[i].copy_from(potential_expansions.data() +
+                                i * component_length_unpadded + cell_flat_index_unpadded,
+                            SIMD_NAMESPACE::element_aligned_tag{});
                     }
 
                     // Arrays to store input for current interaction partner
@@ -321,38 +385,49 @@ namespace fmm {
                                     stencil_element.x * STENCIL_INX * STENCIL_INX +
                                     stencil_element.y * STENCIL_INX + stencil_element.z;
                                 for (int i = 0; i < simd_length; i++) {
-                                   if (stencil_flat_index - i >= 0 && stencil_flat_index - i < FULL_STENCIL_SIZE)
-                                      mask_helper_array[i] = static_cast<double>(devicemasks[stencil_flat_index - i]);
-                                   else
-                                      mask_helper_array[i] = 0,0;
-                                   if (cell_index_unpadded.z + i >= INX ||
-                                       idz * simd_length + i >= (cells_end.z - cells_start.z) )
-                                      mask_helper_array[i] = 0,0;
+                                    if (stencil_flat_index - i >= 0 &&
+                                        stencil_flat_index - i < FULL_STENCIL_SIZE)
+                                        mask_helper_array[i] = static_cast<double>(
+                                            devicemasks[stencil_flat_index - i]);
+                                    else
+                                        mask_helper_array[i] = 0, 0;
+                                    if (cell_index_unpadded.z + i >= INX ||
+                                        idz * simd_length + i >= (cells_end.z - cells_start.z))
+                                        mask_helper_array[i] = 0, 0;
                                 }
-                                // Workaround to set the mask - usually I'd like to set it component-wise but
-                                // kokkos-simd currently does not support this! hence the mask_helpers
+                                // Workaround to set the mask - usually I'd like to set it
+                                // component-wise but kokkos-simd currently does not support this!
+                                // hence the mask_helpers
                                 const simd_t mask_helper_zero(0.0);
-                                const simd_t mask_helper(mask_helper_array, SIMD_NAMESPACE::element_aligned_tag{});
+                                const simd_t mask_helper(
+                                    mask_helper_array, SIMD_NAMESPACE::element_aligned_tag{});
                                 const simd_mask_t mask1 = mask_helper_zero < mask_helper;
                                 if (!SIMD_NAMESPACE::any_of(mask1)) {
                                     continue;
                                 }
 
-                                // Note: Only one interaction partner, so it's the same index for all simd interactions
-                                const int32_t partner_index_coarse_x = ((interaction_partner_index.x + INX) >> 1) - (INX / 2);
-                                const int32_t distance_x = (cell_index_coarse_x - partner_index_coarse_x) * 
-                                  (cell_index_coarse_x - partner_index_coarse_x);
-                                const int32_t partner_index_coarse_y = ((interaction_partner_index.y + INX) >> 1) - (INX / 2);
-                                const int32_t distance_y = (cell_index_coarse_y - partner_index_coarse_y) * 
-                                  (cell_index_coarse_y - partner_index_coarse_y);
-                                const int32_t partner_index_coarse_z = ((interaction_partner_index.z + INX) >> 1) -
-                                   INX / 2;
+                                // Note: Only one interaction partner, so it's the same index for
+                                // all simd interactions
+                                const int32_t partner_index_coarse_x =
+                                    ((interaction_partner_index.x + INX) >> 1) - (INX / 2);
+                                const int32_t distance_x =
+                                    (cell_index_coarse_x - partner_index_coarse_x) *
+                                    (cell_index_coarse_x - partner_index_coarse_x);
+                                const int32_t partner_index_coarse_y =
+                                    ((interaction_partner_index.y + INX) >> 1) - (INX / 2);
+                                const int32_t distance_y =
+                                    (cell_index_coarse_y - partner_index_coarse_y) *
+                                    (cell_index_coarse_y - partner_index_coarse_y);
+                                const int32_t partner_index_coarse_z =
+                                    ((interaction_partner_index.z + INX) >> 1) - INX / 2;
                                 for (int i = 0; i < simd_length; i++) {
-                                    theta_c_rec_squared_array[i] = static_cast<double>(distance_x + distance_y +
-                                        (cell_index_coarse_z[i] - partner_index_coarse_z) * 
-                                        (cell_index_coarse_z[i] - partner_index_coarse_z));
+                                    theta_c_rec_squared_array[i] =
+                                        static_cast<double>(distance_x + distance_y +
+                                            (cell_index_coarse_z[i] - partner_index_coarse_z) *
+                                                (cell_index_coarse_z[i] - partner_index_coarse_z));
                                 }
-                                theta_c_rec_squared.copy_from(theta_c_rec_squared_array, SIMD_NAMESPACE::element_aligned_tag{}); 
+                                theta_c_rec_squared.copy_from(theta_c_rec_squared_array,
+                                    SIMD_NAMESPACE::element_aligned_tag{});
                                 const simd_mask_t mask2 = theta_c_rec_squared < theta_rec_squared;
                                 if (!SIMD_NAMESPACE::any_of(mask2)) {
                                     continue;
@@ -371,17 +446,23 @@ namespace fmm {
                                     interaction_partner_data_index.z;
 
                                 // Load data of interaction partner!
-                                // NOTE: We only load ONE partner (the same one) for all SIMD cell indices (1 to n)
-                                // This is unlike the p2p kernel where we have one partner for each cell (n to n)
-                                Y[0] = simd_t(center_of_mass_neighbor_soa[interaction_partner_flat_index]);
-                                Y[1] = simd_t(center_of_mass_neighbor_soa[1 * component_length_neighbor +
-                                    interaction_partner_flat_index]);
-                                Y[2] = simd_t(center_of_mass_neighbor_soa[2 * component_length_neighbor +
-                                    interaction_partner_flat_index]);
+                                // NOTE: We only load ONE partner (the same one) for all SIMD cell
+                                // indices (1 to n) This is unlike the p2p kernel where we have one
+                                // partner for each cell (n to n)
+                                Y[0] = simd_t(
+                                    center_of_mass_neighbor_soa[interaction_partner_flat_index]);
+                                Y[1] = simd_t(
+                                    center_of_mass_neighbor_soa[1 * component_length_neighbor +
+                                        interaction_partner_flat_index]);
+                                Y[2] = simd_t(
+                                    center_of_mass_neighbor_soa[2 * component_length_neighbor +
+                                        interaction_partner_flat_index]);
                                 for (size_t i = 0; i < 20; ++i) {
-                                    m_partner[i] = simd_t(expansions_neighbors_soa[i *
-                                        component_length_neighbor + interaction_partner_flat_index]);
-                                    m_partner[i] = SIMD_NAMESPACE::choose(mask, m_partner[i], simd_t(0.0));
+                                    m_partner[i] = simd_t(
+                                        expansions_neighbors_soa[i * component_length_neighbor +
+                                            interaction_partner_flat_index]);
+                                    m_partner[i] =
+                                        SIMD_NAMESPACE::choose(mask, m_partner[i], simd_t(0.0));
                                 }
 
                                 // run templated interaction method instanced with double type
@@ -394,14 +475,15 @@ namespace fmm {
                     }
                     // Store results in output arrays
                     for (size_t i = 0; i < 4; ++i) {
-                        tmpstore[i].copy_to(potential_expansions.data() +  i * component_length_unpadded +
-                            cell_flat_index_unpadded, SIMD_NAMESPACE::element_aligned_tag{});
+                        tmpstore[i].copy_to(potential_expansions.data() +
+                                i * component_length_unpadded + cell_flat_index_unpadded,
+                            SIMD_NAMESPACE::element_aligned_tag{});
                     }
                 });
         }
 
-        template <typename simd_t, typename simd_mask_t, typename kokkos_backend_t, typename kokkos_buffer_t,
-                 typename kokkos_mask_t>
+        template <typename simd_t, typename simd_mask_t, typename kokkos_backend_t,
+            typename kokkos_buffer_t, typename kokkos_mask_t>
         void p2m_kernel_impl_rho(hpx::kokkos::executor<kokkos_backend_t>& executor,
             const kokkos_buffer_t& expansions_neighbors_soa,
             const kokkos_buffer_t& center_of_mass_neighbor_soa,
@@ -437,6 +519,8 @@ namespace fmm {
                 Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<3>>(
                     executor.instance(), {0, 0, 0},
                     {cells_end.x - cells_start.x, cells_end.y - cells_start.y,
+                        (cells_end.z - cells_start.z) / simd_t::size() + workitem_offset},
+                    {cells_end.x - cells_start.x, cells_end.y - cells_start.y,
                         (cells_end.z - cells_start.z) / simd_t::size() + workitem_offset}),
                 Kokkos::Experimental::WorkItemProperty::HintLightWeight);
 
@@ -452,8 +536,8 @@ namespace fmm {
                         idy + INNER_CELLS_PADDING_DEPTH + cells_start.y,
                         idz * simd_length + INNER_CELLS_PADDING_DEPTH + cells_start.z);
                     const size_t cell_flat_index = to_flat_index_padded(cell_index);
-                    multiindex<> cell_index_unpadded(
-                        idx + cells_start.x, idy + cells_start.y, idz * simd_length + cells_start.z);
+                    multiindex<> cell_index_unpadded(idx + cells_start.x, idy + cells_start.y,
+                        idz * simd_length + cells_start.z);
                     const size_t cell_flat_index_unpadded =
                         to_inner_flat_index_not_padded(cell_index_unpadded);
 
@@ -467,24 +551,30 @@ namespace fmm {
                     simd_t X[NDIM];
                     X[0].copy_from(center_of_mass_cells_soa.data() + cell_flat_index_unpadded,
                         SIMD_NAMESPACE::element_aligned_tag{});
-                    X[1].copy_from(center_of_mass_cells_soa.data() + 1 * component_length_unpadded + cell_flat_index_unpadded,
+                    X[1].copy_from(center_of_mass_cells_soa.data() + 1 * component_length_unpadded +
+                            cell_flat_index_unpadded,
                         SIMD_NAMESPACE::element_aligned_tag{});
-                    X[2].copy_from(center_of_mass_cells_soa.data() + 2 * component_length_unpadded + cell_flat_index_unpadded,
+                    X[2].copy_from(center_of_mass_cells_soa.data() + 2 * component_length_unpadded +
+                            cell_flat_index_unpadded,
                         SIMD_NAMESPACE::element_aligned_tag{});
 
                     // Create and set result arrays
                     simd_t tmpstore[4];
                     for (size_t i = 0; i < 4; ++i) {
-                        tmpstore[i].copy_from(potential_expansions.data() +  i * component_length_unpadded +
-                            cell_flat_index_unpadded, SIMD_NAMESPACE::element_aligned_tag{});
+                        tmpstore[i].copy_from(potential_expansions.data() +
+                                i * component_length_unpadded + cell_flat_index_unpadded,
+                            SIMD_NAMESPACE::element_aligned_tag{});
                     }
                     simd_t tmp_corrections[3];
-                    tmp_corrections[0].copy_from(angular_corrections.data() + cell_flat_index_unpadded,
+                    tmp_corrections[0].copy_from(
+                        angular_corrections.data() + cell_flat_index_unpadded,
                         SIMD_NAMESPACE::element_aligned_tag{});
-                    tmp_corrections[1].copy_from(angular_corrections.data() + 1 * component_length_unpadded +
-                        cell_flat_index_unpadded, SIMD_NAMESPACE::element_aligned_tag{});
-                    tmp_corrections[2].copy_from(angular_corrections.data() + 2 * component_length_unpadded +
-                        cell_flat_index_unpadded, SIMD_NAMESPACE::element_aligned_tag{});
+                    tmp_corrections[1].copy_from(angular_corrections.data() +
+                            1 * component_length_unpadded + cell_flat_index_unpadded,
+                        SIMD_NAMESPACE::element_aligned_tag{});
+                    tmp_corrections[2].copy_from(angular_corrections.data() +
+                            2 * component_length_unpadded + cell_flat_index_unpadded,
+                        SIMD_NAMESPACE::element_aligned_tag{});
 
                     // Arrays to store input for current interaction partner
                     simd_t m_partner[20];
@@ -518,45 +608,55 @@ namespace fmm {
                                     stencil_element.x * STENCIL_INX * STENCIL_INX +
                                     stencil_element.y * STENCIL_INX + stencil_element.z;
                                 for (int i = 0; i < simd_length; i++) {
-                                   if (stencil_flat_index - i >= 0 && stencil_flat_index - i < FULL_STENCIL_SIZE)
-                                      mask_helper_array[i] = static_cast<double>(devicemasks[stencil_flat_index - i]);
-                                   else
-                                      mask_helper_array[i] = 0,0;
-                                   if (cell_index_unpadded.z + i >= INX ||
-                                       idz * simd_length + i >= (cells_end.z - cells_start.z) )
-                                      mask_helper_array[i] = 0,0;
+                                    if (stencil_flat_index - i >= 0 &&
+                                        stencil_flat_index - i < FULL_STENCIL_SIZE)
+                                        mask_helper_array[i] = static_cast<double>(
+                                            devicemasks[stencil_flat_index - i]);
+                                    else
+                                        mask_helper_array[i] = 0, 0;
+                                    if (cell_index_unpadded.z + i >= INX ||
+                                        idz * simd_length + i >= (cells_end.z - cells_start.z))
+                                        mask_helper_array[i] = 0, 0;
                                 }
-                                // Workaround to set the mask - usually I'd like to set it component-wise but
-                                // kokkos-simd currently does not support this! hence the mask_helpers
+                                // Workaround to set the mask - usually I'd like to set it
+                                // component-wise but kokkos-simd currently does not support this!
+                                // hence the mask_helpers
                                 const simd_t mask_helper_zero(0.0);
-                                const simd_t mask_helper(mask_helper_array, SIMD_NAMESPACE::element_aligned_tag{});
+                                const simd_t mask_helper(
+                                    mask_helper_array, SIMD_NAMESPACE::element_aligned_tag{});
                                 const simd_mask_t mask1 = mask_helper_zero < mask_helper;
                                 if (!SIMD_NAMESPACE::any_of(mask1)) {
                                     continue;
                                 }
-                                
-                                // Note: Only one interaction partner, so it's the same index for all simd interactions
-                                const int32_t partner_index_coarse_x = ((interaction_partner_index.x + INX) >> 1) - (INX / 2);
-                                const int32_t distance_x = (cell_index_coarse_x - partner_index_coarse_x) * 
-                                  (cell_index_coarse_x - partner_index_coarse_x);
-                                const int32_t partner_index_coarse_y = ((interaction_partner_index.y + INX) >> 1) - (INX / 2);
-                                const int32_t distance_y = (cell_index_coarse_y - partner_index_coarse_y) * 
-                                  (cell_index_coarse_y - partner_index_coarse_y);
-                                const int32_t partner_index_coarse_z = ((interaction_partner_index.z + INX) >> 1) -
-                                   INX / 2;
+
+                                // Note: Only one interaction partner, so it's the same index for
+                                // all simd interactions
+                                const int32_t partner_index_coarse_x =
+                                    ((interaction_partner_index.x + INX) >> 1) - (INX / 2);
+                                const int32_t distance_x =
+                                    (cell_index_coarse_x - partner_index_coarse_x) *
+                                    (cell_index_coarse_x - partner_index_coarse_x);
+                                const int32_t partner_index_coarse_y =
+                                    ((interaction_partner_index.y + INX) >> 1) - (INX / 2);
+                                const int32_t distance_y =
+                                    (cell_index_coarse_y - partner_index_coarse_y) *
+                                    (cell_index_coarse_y - partner_index_coarse_y);
+                                const int32_t partner_index_coarse_z =
+                                    ((interaction_partner_index.z + INX) >> 1) - INX / 2;
                                 for (int i = 0; i < simd_length; i++) {
-                                    theta_c_rec_squared_array[i] = static_cast<double>(distance_x + distance_y +
-                                        (cell_index_coarse_z[i] - partner_index_coarse_z) * 
-                                        (cell_index_coarse_z[i] - partner_index_coarse_z));
+                                    theta_c_rec_squared_array[i] =
+                                        static_cast<double>(distance_x + distance_y +
+                                            (cell_index_coarse_z[i] - partner_index_coarse_z) *
+                                                (cell_index_coarse_z[i] - partner_index_coarse_z));
                                 }
-                                theta_c_rec_squared.copy_from(theta_c_rec_squared_array, SIMD_NAMESPACE::element_aligned_tag{}); 
+                                theta_c_rec_squared.copy_from(theta_c_rec_squared_array,
+                                    SIMD_NAMESPACE::element_aligned_tag{});
                                 const simd_mask_t mask2 = theta_c_rec_squared < theta_rec_squared;
                                 if (!SIMD_NAMESPACE::any_of(mask2)) {
                                     continue;
                                 }
                                 // Combine mask1 and mask2
                                 const simd_mask_t mask = mask1 && mask2;
-
 
                                 // Local index
                                 // Used to figure out which data element to load
@@ -569,17 +669,23 @@ namespace fmm {
                                     interaction_partner_data_index.z;
 
                                 // Load data of interaction partner!
-                                // NOTE: We only load ONE partner (the same one) for all SIMD cell indices (1 to n)
-                                // This is unlike the p2p kernel where we have one partner for each cell (n to n)
-                                Y[0] = simd_t(center_of_mass_neighbor_soa[interaction_partner_flat_index]);
-                                Y[1] = simd_t(center_of_mass_neighbor_soa[1 * component_length_neighbor +
-                                    interaction_partner_flat_index]);
-                                Y[2] = simd_t(center_of_mass_neighbor_soa[2 * component_length_neighbor +
-                                    interaction_partner_flat_index]);
+                                // NOTE: We only load ONE partner (the same one) for all SIMD cell
+                                // indices (1 to n) This is unlike the p2p kernel where we have one
+                                // partner for each cell (n to n)
+                                Y[0] = simd_t(
+                                    center_of_mass_neighbor_soa[interaction_partner_flat_index]);
+                                Y[1] = simd_t(
+                                    center_of_mass_neighbor_soa[1 * component_length_neighbor +
+                                        interaction_partner_flat_index]);
+                                Y[2] = simd_t(
+                                    center_of_mass_neighbor_soa[2 * component_length_neighbor +
+                                        interaction_partner_flat_index]);
                                 for (size_t i = 0; i < 20; ++i) {
-                                    m_partner[i] = simd_t(expansions_neighbors_soa[i *
-                                        component_length_neighbor + interaction_partner_flat_index]);
-                                    m_partner[i] = SIMD_NAMESPACE::choose(mask, m_partner[i], simd_t(0.0));
+                                    m_partner[i] = simd_t(
+                                        expansions_neighbors_soa[i * component_length_neighbor +
+                                            interaction_partner_flat_index]);
+                                    m_partner[i] =
+                                        SIMD_NAMESPACE::choose(mask, m_partner[i], simd_t(0.0));
                                 }
 
                                 // run templated interaction method instanced with double type
@@ -593,15 +699,19 @@ namespace fmm {
                     }
                     // Store results in output arrays
                     for (size_t i = 0; i < 4; ++i) {
-                        tmpstore[i].copy_to(potential_expansions.data() +  i * component_length_unpadded +
-                            cell_flat_index_unpadded, SIMD_NAMESPACE::element_aligned_tag{});
+                        tmpstore[i].copy_to(potential_expansions.data() +
+                                i * component_length_unpadded + cell_flat_index_unpadded,
+                            SIMD_NAMESPACE::element_aligned_tag{});
                     }
-                    tmp_corrections[0].copy_to(angular_corrections.data() + cell_flat_index_unpadded,
+                    tmp_corrections[0].copy_to(
+                        angular_corrections.data() + cell_flat_index_unpadded,
                         SIMD_NAMESPACE::element_aligned_tag{});
-                    tmp_corrections[1].copy_to(angular_corrections.data() + 1 * component_length_unpadded +
-                        cell_flat_index_unpadded, SIMD_NAMESPACE::element_aligned_tag{});
-                    tmp_corrections[2].copy_to(angular_corrections.data() + 2 * component_length_unpadded +
-                        cell_flat_index_unpadded, SIMD_NAMESPACE::element_aligned_tag{});
+                    tmp_corrections[1].copy_to(angular_corrections.data() +
+                            1 * component_length_unpadded + cell_flat_index_unpadded,
+                        SIMD_NAMESPACE::element_aligned_tag{});
+                    tmp_corrections[2].copy_to(angular_corrections.data() +
+                            2 * component_length_unpadded + cell_flat_index_unpadded,
+                        SIMD_NAMESPACE::element_aligned_tag{});
                 });
         }
 
@@ -617,14 +727,18 @@ namespace fmm {
             const device_buffer<double>& device_constants =
                 get_device_constants<device_buffer<double>, host_buffer<double>, executor_t>(exec);
             device_buffer<double> device_monopoles(NUMBER_LOCAL_MONOPOLE_VALUES);
+            device_buffer<double> device_tmp_results(
+                NUMBER_P2P_BLOCKS * NUMBER_POT_EXPANSIONS_SMALL);
             device_buffer<double> device_results(NUMBER_POT_EXPANSIONS_SMALL);
 
             // move device buffers
             Kokkos::deep_copy(exec.instance(), device_monopoles, monopoles);
 
             // call kernel
-            p2p_kernel_impl<device_simd_t, device_simd_mask_t>(exec, device_monopoles,
-                device_masks, device_constants, device_results, dx, theta, {1, INX / 2 , INX / device_simd_t::size()});
+            p2p_kernel_impl<device_simd_t, device_simd_mask_t>(exec, device_monopoles, device_masks,
+                device_constants, device_tmp_results, dx, theta, NUMBER_P2P_BLOCKS,
+                {1, 2, INX, INX / device_simd_t::size()});
+            sum_p2p_results(exec, device_tmp_results, device_results, {1, 1, INX, INX});
 
             auto fut = hpx::kokkos::deep_copy_async(exec.instance(), results, device_results);
             fut.get();
@@ -637,7 +751,8 @@ namespace fmm {
             const host_buffer<double>& host_constants = get_host_constants<host_buffer<double>>();
             // call kernel
             p2p_kernel_impl<host_simd_t, host_simd_mask_t>(exec, monopoles, host_masks,
-                host_constants, results, dx, theta, {INX / 2, INX / 2 , INX / host_simd_t::size()});
+                host_constants, results, dx, theta, 1,
+                {NUMBER_P2P_BLOCKS, INX / 2, INX / 2, INX / host_simd_t::size()});
 
             sync_kokkos_host_kernel(exec);
         }
@@ -659,6 +774,8 @@ namespace fmm {
             const device_buffer<double>& device_constants =
                 get_device_constants<device_buffer<double>, host_buffer<double>, executor_t>(exec);
             device_buffer<double> device_monopoles(NUMBER_LOCAL_MONOPOLE_VALUES);
+            device_buffer<double> device_tmp_results(
+                NUMBER_P2P_BLOCKS * NUMBER_POT_EXPANSIONS_SMALL);
             device_buffer<double> device_results(NUMBER_POT_EXPANSIONS_SMALL);
 
             // move device buffers
@@ -666,7 +783,9 @@ namespace fmm {
 
             // call p2p kernel
             p2p_kernel_impl<device_simd_t, device_simd_mask_t>(exec, device_monopoles, device_masks,
-                device_constants, device_results, dx, theta, {1, INX / 2 , INX / device_simd_t::size()});
+                device_constants, device_tmp_results, dx, theta, NUMBER_P2P_BLOCKS,
+                {1, 2, INX, INX / device_simd_t::size()});
+            sum_p2p_results(exec, device_tmp_results, device_results, {1, 1, INX, INX});
 
             device_buffer<double> device_center_of_masses_inner_cells(
                 (INNER_CELLS + SOA_PADDING) * 3);
@@ -767,7 +886,8 @@ namespace fmm {
 
             // call p2p kernel
             p2p_kernel_impl<host_simd_t, host_simd_mask_t>(exec, monopoles, host_masks,
-                host_constants, results, dx, theta, {INX / 2, INX / 2 , INX / host_simd_t::size()});
+                host_constants, results, dx, theta, 1,
+                {NUMBER_P2P_BLOCKS, INX / 2, INX / 2, INX / host_simd_t::size()});
 
             // - Launch Kernel
             size_t counter_kernel = 0;
@@ -809,17 +929,18 @@ namespace fmm {
                         cells_end.z = (STENCIL_MAX + 1);
 
                     if (type == RHO) {
-                        p2m_kernel_impl_rho<host_simd_t, host_simd_mask_t>(exec, local_expansions[counter_kernel],
-                            center_of_masses[counter_kernel], center_of_masses_inner_cells, results,
-                            ang_corr_results, neighbor_size, start_index, end_index, dir_index,
-                            theta, cells_start, cells_end, host_masks, reset_ang_corrs);
+                        p2m_kernel_impl_rho<host_simd_t, host_simd_mask_t>(exec,
+                            local_expansions[counter_kernel], center_of_masses[counter_kernel],
+                            center_of_masses_inner_cells, results, ang_corr_results, neighbor_size,
+                            start_index, end_index, dir_index, theta, cells_start, cells_end,
+                            host_masks, reset_ang_corrs);
                         // only reset angular correction result buffer for the first run
                         reset_ang_corrs = false;
                     } else {
-                        p2m_kernel_impl_non_rho<host_simd_t, host_simd_mask_t>(exec, local_expansions[counter_kernel],
-                            center_of_masses[counter_kernel], center_of_masses_inner_cells, results,
-                            neighbor_size, start_index, end_index, dir_index, theta, cells_start,
-                            cells_end, host_masks);
+                        p2m_kernel_impl_non_rho<host_simd_t, host_simd_mask_t>(exec,
+                            local_expansions[counter_kernel], center_of_masses[counter_kernel],
+                            center_of_masses_inner_cells, results, neighbor_size, start_index,
+                            end_index, dir_index, theta, cells_start, cells_end, host_masks);
                     }
                     counter_kernel++;
                 }

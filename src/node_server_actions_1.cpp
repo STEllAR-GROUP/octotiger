@@ -28,6 +28,8 @@
 #include <fstream>
 #include <vector>
 
+#if !defined(HPX_COMPUTE_DEVICE_CODE)
+
 using amr_error_action_type = node_server::amr_error_action;
 HPX_REGISTER_ACTION(amr_error_action_type);
 
@@ -310,3 +312,4 @@ void node_server::solve_gravity(bool ene, bool aonly) {
 		}
 	}
 }
+#endif

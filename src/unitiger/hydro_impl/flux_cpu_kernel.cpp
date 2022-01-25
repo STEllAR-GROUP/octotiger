@@ -1,3 +1,5 @@
+#include <hpx/config/compiler_specific.hpp> 
+#ifndef HPX_COMPUTE_DEVICE_CODE
 
 #include "octotiger/unitiger/hydro_impl/flux_kernel_interface.hpp"
 
@@ -47,27 +49,27 @@ using index_type = Vc::Vector<int, Vc::VectorAbi::Avx>;
 
 // helpers for using vectortype specialization functions
 template <>
-inline void select_wrapper<vc_type, mask_type>(
+CUDA_GLOBAL_METHOD inline void select_wrapper<vc_type, mask_type>(
     vc_type& target, const mask_type cond, const vc_type& tmp1, const vc_type& tmp2) {
     target = tmp2;
     Vc::where(cond, target) = tmp1;
 }
 
 template <>
-inline vc_type max_wrapper<vc_type>(const vc_type& tmp1, const vc_type& tmp2) {
+CUDA_GLOBAL_METHOD inline vc_type max_wrapper<vc_type>(const vc_type& tmp1, const vc_type& tmp2) {
     return Vc::max(tmp1, tmp2);
 }
 template <>
-inline vc_type min_wrapper<vc_type>(const vc_type& tmp1, const vc_type& tmp2) {
+CUDA_GLOBAL_METHOD inline vc_type min_wrapper<vc_type>(const vc_type& tmp1, const vc_type& tmp2) {
     return Vc::min(tmp1, tmp2);
 }
 template <>
-inline vc_type sqrt_wrapper<vc_type>(const vc_type& tmp1) {
+CUDA_GLOBAL_METHOD inline vc_type sqrt_wrapper<vc_type>(const vc_type& tmp1) {
     return Vc::sqrt(tmp1);
 }
 /// Awful workaround for missing Vc::pow
 template <>
-inline vc_type pow_wrapper<vc_type>(const vc_type& tmp1, const double& tmp2) {
+CUDA_GLOBAL_METHOD inline vc_type pow_wrapper<vc_type>(const vc_type& tmp1, const double& tmp2) {
     // TODO(daissgr) is this accurate enough?
     return Vc::exp(static_cast<vc_type>(tmp2) * Vc::log(tmp1));
 
@@ -78,7 +80,7 @@ inline vc_type pow_wrapper<vc_type>(const vc_type& tmp1, const double& tmp2) {
     // return ret;
 }
 template <>
-inline vc_type asinh_wrapper<vc_type>(const vc_type& tmp1) {
+CUDA_GLOBAL_METHOD inline vc_type asinh_wrapper<vc_type>(const vc_type& tmp1) {
     // not implemented 
     //return Vc::asinh(tmp1);
 
@@ -89,11 +91,11 @@ inline vc_type asinh_wrapper<vc_type>(const vc_type& tmp1) {
     return ret;
 }
 template <>
-inline bool skippable<mask_type>(const mask_type& tmp1) {
+CUDA_GLOBAL_METHOD inline bool skippable<mask_type>(const mask_type& tmp1) {
     return Vc::none_of(tmp1);
 }
 template <>
-inline vc_type load_value<vc_type>(const double* __restrict__ data, const size_t index) {
+CUDA_GLOBAL_METHOD inline vc_type load_value<vc_type>(const double* __restrict__ data, const size_t index) {
     return vc_type(data + index);
 }
 
@@ -390,5 +392,6 @@ timestep_t flux_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F
     return ts;
 }*/
 #pragma GCC pop_options
+#endif
 #endif
 #endif

@@ -65,6 +65,9 @@ namespace fmm {
     constexpr size_t NUMBER_ANG_CORRECTIONS = 3 * (INNER_CELLS + SOA_PADDING);
     constexpr size_t NUMBER_FACTORS = 20;
 
+    constexpr int NUMBER_P2P_BLOCKS = STENCIL_MAX - STENCIL_MIN + 1;
+    constexpr int NUMBER_MULTIPOLE_BLOCKS = STENCIL_MAX - STENCIL_MIN + 1;
+
     constexpr uint64_t P2P_CHUNKSIZE = 128;
     constexpr uint64_t P2P_CHUNK_STENCIL_SIZE = P2P_CHUNKSIZE + 1;
     constexpr uint64_t P2P_PADDED_STENCIL_SIZE = STENCIL_SIZE + P2P_CHUNK_STENCIL_SIZE - STENCIL_SIZE % P2P_CHUNK_STENCIL_SIZE;

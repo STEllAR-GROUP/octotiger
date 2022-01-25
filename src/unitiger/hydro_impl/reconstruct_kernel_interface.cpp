@@ -1,15 +1,23 @@
+#include <hpx/config/compiler_specific.hpp> 
+#ifndef HPX_COMPUTE_DEVICE_CODE
+
 #include "octotiger/unitiger/hydro_impl/reconstruct_kernel_interface.hpp"
+
+// Deprecated
+
+// TODO(daissgr)
+// Remove entire file once SIMD vectorization of reconstruct works in the reconstruct kokkos kernel
 
 
 #pragma GCC push_options
 #pragma GCC optimize("unroll-loops")
 
 template <>
-inline double min_wrapper<double>(const double& tmp1, const double& tmp2) {
+CUDA_GLOBAL_METHOD inline double min_wrapper<double>(const double& tmp1, const double& tmp2) {
     return std::min(tmp1, tmp2);
 }
 template <>
-inline double abs_wrapper<double>(const double& tmp1) {
+CUDA_GLOBAL_METHOD inline double abs_wrapper<double>(const double& tmp1) {
     return std::abs(tmp1);
 }
 
@@ -489,3 +497,5 @@ void reconstruct_experimental(const safe_real omega, const size_t nf_, const int
 }
 
 #pragma GCC pop_options
+
+#endif

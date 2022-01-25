@@ -2,32 +2,32 @@
 
 // Scalar kernel
 template <>
-inline void select_wrapper<double, bool>(
+CUDA_GLOBAL_METHOD inline void select_wrapper<double, bool>(
     double_t& target, const bool cond, const double& tmp1, const double& tmp2) {
     target = cond ? tmp1 : tmp2;
 }
 template <>
-inline double max_wrapper<double>(const double& tmp1, const double& tmp2) {
+CUDA_GLOBAL_METHOD inline double max_wrapper<double>(const double& tmp1, const double& tmp2) {
     return std::max(tmp1, tmp2);
 }
 template <>
-inline double min_wrapper<double>(const double& tmp1, const double& tmp2) {
+CUDA_GLOBAL_METHOD inline double min_wrapper<double>(const double& tmp1, const double& tmp2) {
     return std::min(tmp1, tmp2);
 }
 template <>
-inline double sqrt_wrapper<double>(const double& tmp1) {
+CUDA_GLOBAL_METHOD inline double sqrt_wrapper<double>(const double& tmp1) {
     return std::sqrt(tmp1);
 }
 template <>
-inline double pow_wrapper<double>(const double& tmp1, const double& tmp2) {
+CUDA_GLOBAL_METHOD inline double pow_wrapper<double>(const double& tmp1, const double& tmp2) {
     return std::pow(tmp1, tmp2);
 }
 template <>
-inline double asinh_wrapper<double>(const double& tmp1) {
+CUDA_GLOBAL_METHOD inline double asinh_wrapper<double>(const double& tmp1) {
     return std::asinh(tmp1);
 }
 template <>
-inline bool skippable<double>(const double& tmp1) {
+CUDA_GLOBAL_METHOD inline bool skippable<double>(const double& tmp1) {
     return !tmp1;
 }
 

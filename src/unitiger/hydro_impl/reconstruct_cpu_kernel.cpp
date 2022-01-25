@@ -1,3 +1,11 @@
+#include <hpx/config/compiler_specific.hpp> 
+#ifndef HPX_COMPUTE_DEVICE_CODE
+
+// Deprecated
+
+// TODO(daissgr)
+// Remove entire file once SIMD vectorization of reconstruct works in the reconstruct kokkos kernel
+
 #ifdef __x86_64__ // currently only works on x86
 #ifdef OCTOTIGER_HAVE_VC
 #include "octotiger/unitiger/hydro_impl/reconstruct_kernel_interface.hpp"
@@ -14,24 +22,24 @@ using mask_type = vc_type::mask_type;
 using index_type = Vc::Vector<int, Vc::VectorAbi::Avx>;
 
 template <>
-inline vc_type copysign_wrapper<vc_type>(const vc_type& tmp1, const vc_type& tmp2) {
+CUDA_GLOBAL_METHOD inline vc_type copysign_wrapper<vc_type>(const vc_type& tmp1, const vc_type& tmp2) {
     return Vc::copysign(tmp1, tmp2);
 }
 template <>
-inline vc_type abs_wrapper<vc_type>(const vc_type& tmp1) {
+CUDA_GLOBAL_METHOD inline vc_type abs_wrapper<vc_type>(const vc_type& tmp1) {
     return Vc::abs(tmp1);
 }
 template <>
-inline vc_type minmod_wrapper<vc_type>(const vc_type& a, const vc_type& b) {
+CUDA_GLOBAL_METHOD inline vc_type minmod_wrapper<vc_type>(const vc_type& a, const vc_type& b) {
     return (copysign_wrapper<vc_type>(0.5, a) + copysign_wrapper<vc_type>(0.5, b)) *
         min_wrapper<vc_type>(abs_wrapper<vc_type>(a), abs_wrapper<vc_type>(b));
 }
 template <>
-inline vc_type minmod_theta_wrapper<vc_type>(const vc_type& a, const vc_type& b, const vc_type& c) {
+CUDA_GLOBAL_METHOD inline vc_type minmod_theta_wrapper<vc_type>(const vc_type& a, const vc_type& b, const vc_type& c) {
     return minmod_wrapper<vc_type>(c * minmod_wrapper<vc_type>(a, b), 0.5 * (a + b));
 }
 template <>
-inline vc_type load_value<vc_type>(const double* __restrict__ data, const size_t index) {
+CUDA_GLOBAL_METHOD inline vc_type load_value<vc_type>(const double* __restrict__ data, const size_t index) {
     return vc_type(data + index);
 }
 
@@ -718,4 +726,6 @@ void convert_find_contact_discs(const double* __restrict__ combined_u, double* _
 }
 #pragma GCC pop_options
 #endif
+#endif
+
 #endif

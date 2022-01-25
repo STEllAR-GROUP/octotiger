@@ -6,7 +6,7 @@
 #pragma once
 #include "octotiger/multipole_interactions/legacy/multipole_interaction_interface.hpp"    // will be used as fallback in non-cuda compilations
 
-#ifdef OCTOTIGER_HAVE_CUDA
+#if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)
 #include "octotiger/cuda_util/cuda_helper.hpp"
 #include "octotiger/cuda_util/cuda_scheduler.hpp"
 

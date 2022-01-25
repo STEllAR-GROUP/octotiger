@@ -3,7 +3,7 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#ifdef OCTOTIGER_HAVE_CUDA
+#if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)
 #include "octotiger/common_kernel/interaction_constants.hpp"
 #include "octotiger/common_kernel/multiindex.hpp"
 #include "octotiger/cuda_util/cuda_helper.hpp"
@@ -19,6 +19,7 @@ namespace fmm {
         // extern __constant__ double device_four_constants[4 * FULL_STENCIL_SIZE];
         __host__ void init_stencil(size_t gpu_id, std::unique_ptr<bool[]> stencil_masks,
             std::unique_ptr<double[]> four_constants_tmp);
+        constexpr int NUMBER_P2P_BLOCKS = STENCIL_MAX - STENCIL_MIN + 1;
         /*__global__ void cuda_p2p_interactions_kernel(
             const double (&local_monopoles)[NUMBER_LOCAL_MONOPOLE_VALUES],
             double (&potential_expansions)[NUMBER_POT_EXPANSIONS_SMALL], const double theta,
@@ -38,15 +39,34 @@ namespace fmm {
             double* __restrict__ potential_expansions, const multiindex<> neighbor_size,
             const multiindex<> start_index, const multiindex<> end_index, const multiindex<> dir,
             const double theta, multiindex<> cells_start);*/
+#ifdef OCTOTIGER_HAVE_CUDA
         void launch_p2p_cuda_kernel_post(
             stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
             dim3 const grid_spec, dim3 const threads_per_block, void *args[]);
+        void launch_sum_p2p_results_post(
+            stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+            dim3 const grid_spec, dim3 const threads_per_block, void *args[]);
+
         void launch_p2m_rho_cuda_kernel_post(
             stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
             dim3 const grid_spec, dim3 const threads_per_block, void *args[]);
         void launch_p2m_non_rho_cuda_kernel_post(
             stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
             dim3 const grid_spec, dim3 const threads_per_block, void *args[]);
+#else
+        void hip_p2p_interactions_kernel_post(
+            stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+            dim3 const grid_spec, dim3 const threads_per_block, const double *monopoles,
+            double *tmp_potential_expansions,
+            const double theta, const double dx);
+        void hip_sum_p2p_results_post(
+            stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+            dim3 const grid_spec, dim3 const threads_per_block, 
+            double *tmp_potential_expansions,
+            double *potential_expansions);
+
+#endif
+
     }    // namespace monopole_interactions
 }    // namespace fmm
 }    // namespace octotiger

@@ -25,6 +25,8 @@
 #include <vector>
 #include "octotiger/unitiger/radiation/radiation_physics_impl.hpp"
 
+#if !defined(HPX_COMPUTE_DEVICE_CODE)
+
 using real = double;
 
 std::unordered_map<std::string, int> rad_grid::str_to_index;
@@ -1092,3 +1094,4 @@ void node_client::send_rad_amr_boundary(std::vector<real>&& data, const geo::dir
 	hpx::apply<typename node_server::send_rad_amr_boundary_action>(get_unmanaged_gid(), std::move(data), dir, cycle);
 }
 
+#endif

@@ -15,6 +15,12 @@
 #include <stream_manager.hpp>
 #include "octotiger/cuda_util/cuda_helper.hpp"
 #endif
+#ifdef OCTOTIGER_HAVE_HIP
+#include <hip_buffer_util.hpp>
+#include <hip/hip_runtime.h>
+#include <stream_manager.hpp>
+#include "octotiger/cuda_util/cuda_helper.hpp"
+#endif
 
 #include <boost/container/vector.hpp>    // to get non-specialized vector<bool>
 
@@ -29,7 +35,7 @@ timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux
     hydro::x_type& X, safe_real omega, const size_t nf_);
 #endif
 
-#ifdef OCTOTIGER_HAVE_CUDA
+#if defined(OCTOTIGER_HAVE_CUDA) 
 timestep_t launch_flux_cuda(
     stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
     double* device_q,
@@ -38,6 +44,20 @@ timestep_t launch_flux_cuda(
     safe_real omega, const size_t nf_, double dx, size_t device_id);
 void launch_flux_cuda_kernel_post(stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
     dim3 const grid_spec, dim3 const threads_per_block, void *args[]);
+#endif
+#if defined(OCTOTIGER_HAVE_HIP) 
+timestep_t launch_flux_cuda(
+    stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+    double* device_q,
+    std::vector<double, recycler::recycle_allocator_hip_host<double>>& combined_f,
+    std::vector<double, recycler::recycle_allocator_hip_host<double>> &combined_x, double* device_x,
+    safe_real omega, const size_t nf_, double dx, size_t device_id);
+void launch_flux_hip_kernel_post(
+    stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+    dim3 const grid_spec, dim3 const threads_per_block, double* device_q, double* device_x,
+    double* device_f, double* device_amax, int* device_amax_indices, int* device_amax_d,
+    const bool* masks, const double omega, const double dx, const double A_, const double B_,
+    const size_t nf_, const double fgamma, const double de_switch_1);
 #endif
 
 // helpers for using vectortype specialization functions

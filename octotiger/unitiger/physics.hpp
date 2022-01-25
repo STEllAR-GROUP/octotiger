@@ -161,7 +161,8 @@ template<int NDIM>
 safe_real physics<NDIM>::de_switch_2 = 1e-1;
 
 template<int NDIM>
-int physics<NDIM>::nf_ = (4 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2))) + physics<NDIM>::n_species_;
+//int physics<NDIM>::nf_ = (4 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2))) + physics<NDIM>::n_species_;
+int physics<NDIM>::nf_ = (4 + NDIM + (NDIM == 1 ? 0 : (NDIM == 3 ? 3 : (NDIM == 2 ? 1 : 0)) )) + physics<NDIM>::n_species_;
 
 template<int NDIM>
 int physics<NDIM>::n_species_ = 5;

@@ -24,6 +24,8 @@
 #include <cstdint>
 #include <cstdio>
 
+#if !defined(HPX_COMPUTE_DEVICE_CODE)
+
 using check_for_refinement_action_type = node_server::check_for_refinement_action;
 HPX_REGISTER_ACTION(check_for_refinement_action_type);
 
@@ -643,3 +645,4 @@ future<node_server*> node_client::get_ptr() const {
 		return reinterpret_cast<node_server*>(GET(fut));
 	}, "node_client::get_ptr"));
 }
+#endif
