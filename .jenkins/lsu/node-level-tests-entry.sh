@@ -8,7 +8,7 @@ simd_config="with-simd"
 
 # if clang: change modules and no blast test (no quadmath..)
 if [ "${compiler_config}" = "with-CC-clang" ]; then
-  compiler_module="llvm/11.1.0"
+  compiler_module="llvm/13.0.0"
   sed -i 's/OCTOTIGER_WITH_BLAST_TEST=ON/OCTOTIGER_WITH_BLAST_TEST=OFF/' build-octotiger.sh
 fi
 
