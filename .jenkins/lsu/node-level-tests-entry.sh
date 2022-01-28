@@ -3,12 +3,12 @@
 set -eux
 
 #default: Assume gcc 
-compiler_module="gcc/11.2.0"
+compiler_module="gcc/10.3.0"
 simd_config="with-simd"
 
 # if clang: change modules and no blast test (no quadmath..)
 if [ "${compiler_config}" = "with-CC-clang" ]; then
-  compiler_module="llvm/13.0.0"
+  compiler_module="llvm/12.0.1"
   sed -i 's/OCTOTIGER_WITH_BLAST_TEST=ON/OCTOTIGER_WITH_BLAST_TEST=OFF/' build-octotiger.sh
 fi
 
