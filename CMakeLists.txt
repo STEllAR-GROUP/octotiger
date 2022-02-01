@@ -251,6 +251,7 @@ set(header_files
     octotiger/common_kernel/multiindex.hpp
     octotiger/common_kernel/struct_of_array_data.hpp
     octotiger/common_kernel/kokkos_util.hpp
+    octotiger/common_kernel/std_simd.hpp
     octotiger/compute_factor.hpp
     octotiger/cuda_util/cuda_global_def.hpp
     octotiger/cuda_util/cuda_helper.hpp
@@ -737,6 +738,11 @@ if(OCTOTIGER_WITH_HIP)
   target_compile_definitions(hydrolib PUBLIC OCTOTIGER_HAVE_HIP)
 endif()
 
+target_compile_definitions(octotiger PUBLIC OCTOTIGER_HAVE_STD_EXPERIMENTAL_SIMD)
+target_compile_definitions(optionslib PUBLIC OCTOTIGER_HAVE_STD_EXPERIMENTAL_SIMD)
+target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_STD_EXPERIMENTAL_SIMD)
+target_compile_definitions(hydrolib PUBLIC OCTOTIGER_HAVE_STD_EXPERIMENTAL_SIMD)
+  
 # Handle other options
 if(OCTOTIGER_WITH_GRAV_PAR)
   target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_GRAV_PAR)
