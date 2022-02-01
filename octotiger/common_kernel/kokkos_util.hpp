@@ -153,7 +153,7 @@ using normal_device_buffer = kokkos_device_array<T>;
 // useful for picking the correct simd type!
 #include <hpx/config/compiler_specific.hpp> 
 // SIMD settings
-#if defined(OCTOTIGER_USE_STD_EXPERIMENTAL_SIMD)
+#if defined(OCTOTIGER_HAVE_STD_EXPERIMENTAL_SIMD)
 #include "octotiger/common_kernel/std_simd.hpp"
 #warning "Using std-experimental-simd SIMD types"
 #else

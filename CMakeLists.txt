@@ -35,6 +35,7 @@ option(OCTOTIGER_WITH_BOOST_MULTIPRECISION
   "Use Boost.Multiprecision Instead of GCC Quad-Precision Math Library" OFF)
 option(OCTOTIGER_WITH_QUADMATH "Enable sections using GCC Quad-Precision Math Library" ON)
 option(OCTOTIGER_WITH_Vc "" ON)
+option(OCTOTIGER_WITH_STD_EXPERIMENTAL_SIMD "" ON)
 # Re-enables Vc datatypes in the octotiger parts - use with caution
 option(OCTOTIGER_WITH_LEGACY_Vc "" OFF)
 
@@ -591,6 +592,9 @@ if(OCTOTIGER_WITH_HIP)
 endif()
 if(OCTOTIGER_WITH_KOKKOS)
   target_compile_definitions(octotiger PUBLIC OCTOTIGER_HAVE_KOKKOS)
+endif()
+if(OCTOTIGER_WITH_STD_EXPERIMENTAL_SIMD)
+  target_compile_definitions(octotiger PUBLIC OCTOTIGER_HAVE_STD_EXPERIMENTAL_SIMD)
 endif()
 
 # Unitiger executable
