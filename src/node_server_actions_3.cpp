@@ -271,9 +271,10 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 			output_all(this, "final", output_cnt, true);
 		}
 		if (get_analytic() != nullptr) {
-      if (!(opts().stop_step > 1) && !opts().disable_analytic) // Pure performance measurements - skip analytics 
+      if (!opts().disable_analytic) { // Pure performance measurements - skip analytics 
           compare_analytic();
-			if (opts().gravity) {
+      }
+      if (opts().gravity) {
         auto start_all_gravity = std::chrono::high_resolution_clock::now(); 
         auto min_duration = std::chrono::milliseconds::max();
         auto max_duration = std::chrono::milliseconds::min();
