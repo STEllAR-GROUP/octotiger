@@ -51,8 +51,8 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
     // Supported team_sizes need to be the power of two! Team size of 1 is a special case for usage
     // with the serial kokkos backend:
     assert((team_size == 1));
-    auto policy = Kokkos::Experimental::require(Kokkos::RangePolicy<decltype(executor.instance())>(
-                                                    executor.instance(), 0, number_blocks),
+    auto policy = Kokkos::Experimental::require(
+        Kokkos::RangePolicy<decltype(executor.instance())>(executor.instance(), 0, number_blocks),
         Kokkos::Experimental::WorkItemProperty::HintLightWeight);
 
     // Start kernel using policy (and through it the passed executor):
@@ -324,6 +324,7 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor, const kokkos_b
         });
 }
 
+/// Reconstruct with or without am
 template <typename kokkos_backend_t, typename kokkos_buffer_t, typename kokkos_int_buffer_t>
 void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor, const double omega,
     const int nf_, const int angmom_index_, const kokkos_int_buffer_t& smooth_field_,
@@ -348,6 +349,38 @@ void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor, const d
                     AM[n * am_offset + q_i] =
                         combined_u[(zx_i + n) * u_face_offset + i] * combined_u[i];
                 }
+                for (int d = 0; d < ndir; d++) {
+                    cell_reconstruct_inner_loop_p1(nf_, angmom_index_, smooth_field_, disc_detect_,
+                        combined_q, combined_u, AM, dx, cdiscs, d, i, q_i, ndir, nangmom);
+                }
+                // Phase 2
+                for (int d = 0; d < ndir; d++) {
+                    cell_reconstruct_inner_loop_p2(omega, angmom_index_, combined_q, combined_x,
+                        combined_u, AM, dx, d, i, q_i, ndir, nangmom, n_species_);
+                }
+            }
+        });
+}
+
+/// Optimized for reconstruct without am correction
+template <typename kokkos_backend_t, typename kokkos_buffer_t, typename kokkos_int_buffer_t>
+void reconstruct_no_amc_impl(hpx::kokkos::executor<kokkos_backend_t>& executor, const double omega,
+    const int nf_, const int angmom_index_, const kokkos_int_buffer_t& smooth_field_,
+    const kokkos_int_buffer_t& disc_detect_, kokkos_buffer_t& combined_q,
+    const kokkos_buffer_t& combined_x, kokkos_buffer_t& combined_u, kokkos_buffer_t& AM,
+    const double dx, const kokkos_buffer_t& cdiscs, const int n_species_, const int ndir,
+    const int nangmom, const Kokkos::Array<long, 3>&& tiling_config) {
+    const int blocks = q_inx3 / 64 + 1;
+    auto policy = Kokkos::Experimental::require(
+        Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<3>>(
+            executor.instance(), {0, 0, 0}, {blocks, 8, 8}, tiling_config),
+        Kokkos::Experimental::WorkItemProperty::HintLightWeight);
+    Kokkos::parallel_for(
+        "kernel hydro reconstruct", policy, KOKKOS_LAMBDA(int idx, int idy, int idz) {
+            const int q_i = (idx) *64 + (idy) *8 + (idz);
+            const int i = ((q_i / q_inx2) + 2) * inx_large * inx_large +
+                (((q_i % q_inx2) / q_inx) + 2) * inx_large + (((q_i % q_inx2) % q_inx) + 2);
+            if (q_i < q_inx3) {
                 for (int d = 0; d < ndir; d++) {
                     cell_reconstruct_inner_loop_p1(nf_, angmom_index_, smooth_field_, disc_detect_,
                         combined_q, combined_u, AM, dx, cdiscs, d, i, q_i, ndir, nangmom);
@@ -431,8 +464,14 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec, const host_buffer<dou
     Kokkos::deep_copy(exec.instance(), device_smooth_field, smooth_field);
     device_buffer<double> q(nf * 27 * q_inx3 + padding);
     device_buffer<double> AM(NDIM * q_inx3 + padding);
-    reconstruct_impl(exec, omega, nf, angmom_index, device_smooth_field, device_disc_detect, q, x,
-        u, AM, dx, disc, n_species, ndir, nangmom, {1, 8, 8});
+
+    if (angmom_index > -1) {
+        reconstruct_impl(exec, omega, nf, angmom_index, device_smooth_field, device_disc_detect, q,
+            x, u, AM, dx, disc, n_species, ndir, nangmom, {1, 8, 8});
+    } else {
+        reconstruct_no_amc_impl(exec, omega, nf, angmom_index, device_smooth_field,
+            device_disc_detect, q, x, u, AM, dx, disc, n_species, ndir, nangmom, {1, 8, 8});
+    }
 
     // Flux
     const device_buffer<bool>& masks =
@@ -461,7 +500,7 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec, const host_buffer<dou
             current_max_slot = dim_i;
         } else if (host_amax[dim_i] == host_amax[current_max_slot]) {
             if (host_amax_indices[dim_i] < host_amax_indices[current_max_slot])
-              current_max_slot = dim_i;
+                current_max_slot = dim_i;
         }
     }
 
@@ -486,13 +525,13 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec, const host_buffer<dou
     ts.ul = std::move(URs);
     ts.ur = std::move(ULs);
     ts.dim = current_dim;
- /* int ix = current_max_index / (10 * 10);
-  int iy = (current_max_index % (10 * 10)) / 10;
-  int iz = (current_max_index % (10 * 10)) % 10;
-  std::cout << "xzy" << ix << " " << iy << " " << iz << std::endl;
-    std::cout << "kokkos_cuda Max index: " << current_max_index << " Max dim: " << current_dim <<
-      std::endl;
-    std::cout << ts.x << " " << ts.y << " " << ts.z << std::endl;*/
+    /* int ix = current_max_index / (10 * 10);
+     int iy = (current_max_index % (10 * 10)) / 10;
+     int iz = (current_max_index % (10 * 10)) % 10;
+     std::cout << "xzy" << ix << " " << iy << " " << iz << std::endl;
+       std::cout << "kokkos_cuda Max index: " << current_max_index << " Max dim: " << current_dim <<
+         std::endl;
+       std::cout << ts.x << " " << ts.y << " " << ts.z << std::endl;*/
     return ts;
 }
 
@@ -540,7 +579,7 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec, const host_buffer<dou
             current_max_slot = dim_i;
         } else if (amax[dim_i] == amax[current_max_slot]) {
             if (amax_indices[dim_i] < amax_indices[current_max_slot])
-              current_max_slot = dim_i;
+                current_max_slot = dim_i;
         }
     }
 
@@ -564,14 +603,14 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec, const host_buffer<dou
     ts.ul = std::move(URs);
     ts.ur = std::move(ULs);
     ts.dim = current_dim;
-  int x = current_max_index / (10 * 10);
-  int y = (current_max_index % (10 * 10)) / 10;
-  int z = (current_max_index % (10 * 10)) % 10;
-  /*std::cout << "xzy" << x << " " << y << " " << z << std::endl;
-    std::cout << "Max index: " << current_max_index << " Max dim: " << current_dim <<
-      std::endl;
-    std::cout << ts.x << " " << ts.y << " " << ts.z << std::endl;*/
-   // std::cin.get();
+    int x = current_max_index / (10 * 10);
+    int y = (current_max_index % (10 * 10)) / 10;
+    int z = (current_max_index % (10 * 10)) % 10;
+    /*std::cout << "xzy" << x << " " << y << " " << z << std::endl;
+      std::cout << "Max index: " << current_max_index << " Max dim: " << current_dim <<
+        std::endl;
+      std::cout << ts.x << " " << ts.y << " " << ts.z << std::endl;*/
+    // std::cin.get();
     // std::cout << ts.a << std::endl;
     return ts;
 }
