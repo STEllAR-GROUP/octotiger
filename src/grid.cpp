@@ -1825,6 +1825,8 @@ timestep_t grid::compute_fluxes() {
 		if (opts().eos == WD) {
 //			print("%e %e\n", physcon().A, physcon().B);
 			physics<NDIM>::set_degenerate_eos(physcon().A, physcon().B);
+		} else if (opts().eos == IPR) {
+			physics<NDIM>::set_ideal_plus_rad_eos(physcon().kb / physcon().mh, 4 * physcon().sigma / physcon().c);
 		}
 		physics<NDIM>::set_dual_energy_switches(opts().dual_energy_sw1, opts().dual_energy_sw2);
 	});

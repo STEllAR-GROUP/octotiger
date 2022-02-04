@@ -34,6 +34,41 @@ safe_real physics<NDIM>::deg_pres(safe_real x) {
 }
 
 template<int NDIM>
+safe_real physics<NDIM>::pres_IPR(safe_real t, const safe_real a0, const safe_real a1, const safe_real a2, int &iter_num, const safe_real tol, const int max_iter) {
+//	printf("%i : %e + %e * %e + %e * %e^4 = %e\n", iter_num, a0, a1, t, a2, t, pres_IPR_ft(t, a0, a1, a2)); 
+	if (std::abs(pres_IPR_ft(t, a0, a1, a2)) < tol) {
+		return t;
+	}
+	if (iter_num > max_iter) {
+		std::cout << "Exceeded number of Iteration in Newton-Rahpson method! aborting\n";
+		std::cout << "Maximum number of iteration " << max_iter << ". Current iteration find: " << a0 << "+" << a1 << "*" << t << "+" << a2 << "*" << t << "^4=" << pres_IPR_ft(t, a0, a1, a2) << "\n";
+		abort();
+	}
+	iter_num++;
+	return pres_IPR(t - pres_IPR_ft(t, a0, a1, a2) / pres_IPR_dft(t, a0, a1, a2), a0, a1, a2, iter_num, tol, max_iter);
+}
+
+template<int NDIM>
+safe_real physics<NDIM>::pres_IPR_ft(safe_real t, const safe_real a0, const safe_real a1, const safe_real a2) {
+        return (-a0 + a1 * t + a2 * t * t * t * t);
+}
+
+template<int NDIM>
+safe_real physics<NDIM>::pres_IPR_dft(safe_real t, const safe_real a0, const safe_real a1, const safe_real a2) {
+        return (a1 + 4 * a2 * t * t * t);
+}
+
+template<int NDIM>
+safe_real physics<NDIM>::get_mu_average(std::vector<safe_real> u) {
+	safe_real mu_avg_inv = 0.0;
+        for (int s = 0; s < n_species_; s++) {
+                mu_avg_inv += (u[spc_i + s] / u[rho_i]) / mu_[s];
+//		printf("mu %i = %e, X %i = %e\n", s+1, mu_[s], s+1, u[spc_i + s] / u[rho_i]);
+        }
+        return INVERSE(mu_avg_inv);
+}
+
+template<int NDIM>
 void physics<NDIM>::to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v, safe_real &cs, int dim) {
 	const auto rho = u[rho_i];
 	const auto rhoinv = INVERSE(rho);
@@ -61,7 +96,34 @@ void physics<NDIM>::to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v
 	const double dp_deps = (fgamma_ - 1.0) * rho;
 	v = u[sx_i + dim] * rhoinv;
 	p = (fgamma_ - 1.0) * ein + pdeg;
-	const auto z = p * rhoinv * rhoinv * dp_deps + dp_drho;
+	auto z = p * rhoinv * rhoinv * dp_deps + dp_drho;
+	if (RC_ != 0)  {  
+		int it_num = 0;
+		const auto mu_avg = get_mu_average(u); // get mu by specie weight fractions
+//		printf("mu avg = %e\n", mu_avg);
+		const auto t0 = mu_avg * ein * (fgamma_ - 1.0) / (IC_ * rho); // the first guess assumes only thermal pressure
+		auto t = pres_IPR(t0, 1.0, IC_ * rho / (mu_avg * ein * (fgamma_ - 1.0)), RC_ / ein, it_num, 1.48e-015, 50);//, it_num);
+//		print("Tgas = %.15e,  %.15e * %.15e * %.15e + %.15e * %.15e^4 = %.15e\n", t0, IC_ / mu_avg / (fgamma_ - 1.0), rho, t, RC_, t, ein);
+//		printf("Newton solution: %15e after %i\n", t, it_num);		
+		const auto p2 = IC_ * rho * t / mu_avg + RC_ * t * t * t * t / 3.0;
+		// computation of some thermodynamic qunatities to derive the sound speed (based on Kippenhahn book chapter 13.2)
+		const auto pinv = INVERSE(p2);
+		const auto beta = IC_ * rho * t / mu_avg * pinv; //  pgas / p
+//		printf("pgas = %e, prad = %e, p = %e, beta = %e\n", beta * p2, (1.0 - beta) * p2, p2, beta);
+		safe_real gamma1;
+		if (beta <= 0.001) {
+			gamma1 = 4.0/3.0 + beta / 6.0;
+		} else {
+			const auto alpha = INVERSE(beta); // dln(rho)/dln(P) at constant T
+			const auto delta = (4.0 - 3.0 * beta) * alpha;  // -dln(rho)/dln(T) at constant P
+			const auto invden = INVERSE(fgamma_ / (fgamma_ -1) + 4.0 * (1.0 - beta) * (4.0 + beta) * alpha * alpha);
+			const auto nab_ad = (1.0 + (1.0 - beta) * (4.0 + beta) * alpha * alpha) * invden; // dln(T)/dln(P) at constant entropy
+			gamma1 = INVERSE(alpha - delta * nab_ad); // dln(P)/dln(rho) at constant entropy
+		}
+		const auto z2 = p2 * gamma1 * rhoinv;
+	//	printf("p = %e, cs^2 = %e, gamma1 = %e\n", p2, z2, gamma1);
+	//	printf("p = %e, cs^2 = %e, gamma = %e\n", p, z, fgamma_);
+	}
 	if( z < 0.0 ) {
 		print( "%e %e %e %e %e %e %e %e %e\n", p, rhoinv, dpdeg_drho, dp_deps, ein, dp_drho, u[tau_i], ek, edeg);
 	}
@@ -331,6 +393,13 @@ void physics<NDIM>::set_degenerate_eos(safe_real a, safe_real b) {
 }
 
 template<int NDIM>
+void physics<NDIM>::set_ideal_plus_rad_eos(safe_real ideal_coeff, safe_real rad_coeff) {
+        IC_ = ideal_coeff;
+        RC_ = rad_coeff;
+}
+
+
+template<int NDIM>
 void physics<NDIM>::set_dual_energy_switches(safe_real one, safe_real two) {
 	de_switch_1 = one;
 	de_switch_2 = two;
@@ -339,6 +408,17 @@ void physics<NDIM>::set_dual_energy_switches(safe_real one, safe_real two) {
 template<int NDIM>
 void physics<NDIM>::set_fgamma(safe_real fg) {
 	fgamma_ = fg;
+}
+
+template<int NDIM>
+void physics<NDIM>::set_mu(std::vector<safe_real> atomic_mass, std::vector<safe_real> atomic_number) {
+//	std::vector<safe_real> mu_temp(n_species_);
+	mu_.resize(n_species_);
+        for (int i = 0; i < n_species_; i++) {
+                mu_[i] = atomic_mass[i] / (atomic_number[i] + 1.);
+//		printf("A = %e, Z = %e, mu %i = %e\n", atomic_mass[i], atomic_number[i], i+1, mu_[i]);
+	}
+//	mu_ = mu_temp;
 }
 
 template<int NDIM>
