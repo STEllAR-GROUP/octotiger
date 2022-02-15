@@ -89,27 +89,43 @@ void physics<NDIM>::to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v
 		ek += pow(u[sx_i + dim], 2) * rhoinv * safe_real(0.5);
 	}
 	auto ein = u[egas_i] - ek - edeg;
-	if (ein <= de_switch_1 * u[egas_i]) {
-		ein = POWER(u[tau_i], fgamma_);
-	}
-	const double dp_drho = dpdeg_drho + (fgamma_ - 1.0) * ein * rhoinv;
-	const double dp_deps = (fgamma_ - 1.0) * rho;
-	v = u[sx_i + dim] * rhoinv;
-	p = (fgamma_ - 1.0) * ein + pdeg;
-	auto z = p * rhoinv * rhoinv * dp_deps + dp_drho;
-	if (RC_ != 0)  {  
+	safe_real z;
+	if (RC_ == 0.0) { 	// not IPR eos
+		if (ein <= de_switch_1 * u[egas_i]) {
+			ein = POWER(u[tau_i], fgamma_);
+		}
+		const double dp_drho = dpdeg_drho + (fgamma_ - 1.0) * ein * rhoinv;
+		const double dp_deps = (fgamma_ - 1.0) * rho;
+		p = (fgamma_ - 1.0) * ein + pdeg;
+		z = p * rhoinv * rhoinv * dp_deps + dp_drho;
+        	if( z < 0.0 ) {
+                	print( "%e %e %e %e %e %e %e %e %e\n", p, rhoinv, dpdeg_drho, dp_deps, ein, dp_drho, u[tau_i], ek, edeg);
+        	}
+	} else {  
 		int it_num = 0;
 		const auto mu_avg = get_mu_average(u); // get mu by specie weight fractions
 //		printf("mu avg = %e\n", mu_avg);
+
 		const auto t0 = mu_avg * ein * (fgamma_ - 1.0) / (IC_ * rho); // the first guess assumes only thermal pressure
-		auto t = pres_IPR(t0, 1.0, IC_ * rho / (mu_avg * ein * (fgamma_ - 1.0)), RC_ / ein, it_num, 1.48e-015, 50);//, it_num);
+		// gets temperature according to total internal energy by the Newton-Raphson method
+		auto t = pres_IPR(t0, 1.0, IC_ * rho / (mu_avg * ein * (fgamma_ - 1.0)), RC_ / ein, it_num, 1.48e-15);
 //		print("Tgas = %.15e,  %.15e * %.15e * %.15e + %.15e * %.15e^4 = %.15e\n", t0, IC_ / mu_avg / (fgamma_ - 1.0), rho, t, RC_, t, ein);
 //		printf("Newton solution: %15e after %i\n", t, it_num);		
-		const auto p2 = IC_ * rho * t / mu_avg + RC_ * t * t * t * t / 3.0;
+		p = IC_ * rho * t / mu_avg + RC_ * t * t * t * t / 3.0;
+
+		const bool check_IPR = 0;
+		if (check_IPR) {
+			const auto t2 = pres_IPR(t0, 1.0, IC_ * rho / (mu_avg * p ), RC_ / 3.0 / p, it_num, 1.48e-15);
+			const auto ein2 = IC_ * rho * t / (fgamma_ - 1.0) / mu_avg + RC_ * t * t * t * t;
+			if (std::abs(ein2 - ein) > 1.48e-15) {
+				printf("problem in eos: %e\n", ein - ein2);
+			}
+		}
+
 		// computation of some thermodynamic qunatities to derive the sound speed (based on Kippenhahn book chapter 13.2)
-		const auto pinv = INVERSE(p2);
+		const auto pinv = INVERSE(p);
 		const auto beta = IC_ * rho * t / mu_avg * pinv; //  pgas / p
-//		printf("pgas = %e, prad = %e, p = %e, beta = %e\n", beta * p2, (1.0 - beta) * p2, p2, beta);
+//		printf("pgas = %e, prad = %e, p = %e, beta = %e\n", beta * p, (1.0 - beta) * p, p, beta);
 		safe_real gamma1;
 		if (beta <= 0.001) {
 			gamma1 = 4.0/3.0 + beta / 6.0;
@@ -120,13 +136,13 @@ void physics<NDIM>::to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v
 			const auto nab_ad = (1.0 + (1.0 - beta) * (4.0 + beta) * alpha * alpha) * invden; // dln(T)/dln(P) at constant entropy
 			gamma1 = INVERSE(alpha - delta * nab_ad); // dln(P)/dln(rho) at constant entropy
 		}
-		const auto z2 = p2 * gamma1 * rhoinv;
-	//	printf("p = %e, cs^2 = %e, gamma1 = %e\n", p2, z2, gamma1);
+		z = p * gamma1 * rhoinv;
 	//	printf("p = %e, cs^2 = %e, gamma = %e\n", p, z, fgamma_);
+		if( z < 0.0 ) {
+			print( "%e %e %e %e %e %e %e %e %e\n", p, rhoinv, gamma1, t, ein, beta, mu_avg, ek, edeg);
+		}
 	}
-	if( z < 0.0 ) {
-		print( "%e %e %e %e %e %e %e %e %e\n", p, rhoinv, dpdeg_drho, dp_deps, ein, dp_drho, u[tau_i], ek, edeg);
-	}
+	v = u[sx_i + dim] * rhoinv;
 	cs = SQRT(z);
 }
 
