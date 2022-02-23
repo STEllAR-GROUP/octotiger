@@ -312,6 +312,7 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 		print("OMEGA <= 0.0\n");
 		abort();
 	}
+	real rho_floor = opts().scf_rho_floor;
 	real rho_int = 10.0 * rho_floor;
 	rho_int = SQRT(rho_int * rho_floor);
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
@@ -716,7 +717,7 @@ std::vector<real> scf_binary(real x, real y, real z, real dx) {
 		}
 	}
 //	grid::set_AB(this_struct_eos->A, this_struct_eos->B());
-	rho = std::max(rho / nsamp, rho_floor);
+	rho = std::max(rho / nsamp, opts().scf_rho_floor);
 	if (opts().eos == WD) {
 		ei = this_struct_eos->energy(rho);
 	} else {

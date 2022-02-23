@@ -77,7 +77,7 @@ struct physics {
 	static void post_process(hydro::state_type &U, const hydro::x_type& X, safe_real dx);
 
 	static void set_degenerate_eos(safe_real, safe_real);
-        static void set_ideal_plus_rad_eos(safe_real, safe_real);
+        static void set_ideal_plus_rad_eos(safe_real, safe_real, safe_real, int, bool, safe_real);
 
 	template<int INX>
 	static void source(hydro::state_type &dudt, const hydro::state_type &U, const hydro::flux_type &F, const hydro::x_type X, safe_real omega, safe_real dx);
@@ -131,8 +131,12 @@ public:
 	static safe_real fgamma_;
 	static safe_real A_;
 	static safe_real B_;
-	static safe_real IC_;
-	static safe_real RC_;
+	static safe_real IPR_IC_;
+	static safe_real IPR_RC_;
+	static safe_real IPR_NR_tol;
+	static int IPR_NR_maxiter;
+	static bool IPR_test;
+	static safe_real IPR_eint_floor;
 	static std::vector<safe_real> mu_;
 	static safe_real GM_;
 	static safe_real deg_pres(safe_real x);
@@ -165,11 +169,25 @@ safe_real physics<NDIM>::A_ = 0.0;
 template<int NDIM>
 safe_real physics<NDIM>::B_ = 1.0;
 
+// IPR eos definitions
 template<int NDIM>
-safe_real physics<NDIM>::IC_ = 0.0;
+safe_real physics<NDIM>::IPR_IC_ = 0.0;
 
 template<int NDIM>
-safe_real physics<NDIM>::RC_ = 0.0;
+safe_real physics<NDIM>::IPR_RC_ = 0.0;
+
+template<int NDIM>
+safe_real physics<NDIM>::IPR_NR_tol = 1.48e-08;
+
+template<int NDIM>
+int physics<NDIM>::IPR_NR_maxiter = 50.0;
+
+template<int NDIM>
+safe_real physics<NDIM>::IPR_eint_floor = 0.0;
+
+template<int NDIM>
+bool physics<NDIM>::IPR_test = false;
+//
 
 template<int NDIM>
 std::vector<safe_real> physics<NDIM>::mu_;

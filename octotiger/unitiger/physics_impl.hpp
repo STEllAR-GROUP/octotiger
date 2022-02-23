@@ -90,10 +90,10 @@ void physics<NDIM>::to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v
 	}
 	auto ein = u[egas_i] - ek - edeg;
 	safe_real z;
-	if (RC_ == 0.0) { 	// not IPR eos
-		if (ein <= de_switch_1 * u[egas_i]) {
-			ein = POWER(u[tau_i], fgamma_);
-		}
+	if (IPR_RC_ == 0.0) { 	// not IPR eos
+        	if (ein <= de_switch_1 * u[egas_i]) {
+                	ein = POWER(u[tau_i], fgamma_);
+        	}
 		const double dp_drho = dpdeg_drho + (fgamma_ - 1.0) * ein * rhoinv;
 		const double dp_deps = (fgamma_ - 1.0) * rho;
 		p = (fgamma_ - 1.0) * ein + pdeg;
@@ -102,21 +102,21 @@ void physics<NDIM>::to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v
                 	print( "%e %e %e %e %e %e %e %e %e\n", p, rhoinv, dpdeg_drho, dp_deps, ein, dp_drho, u[tau_i], ek, edeg);
         	}
 	} else {  
+		ein = std::max(IPR_eint_floor, ein);
 		int it_num = 0;
 		const auto mu_avg = get_mu_average(u); // get mu by specie weight fractions
 //		printf("mu avg = %e\n", mu_avg);
 
-		const auto t0 = mu_avg * ein * (fgamma_ - 1.0) / (IC_ * rho); // the first guess assumes only thermal pressure
+		const auto t0 = mu_avg * ein * (fgamma_ - 1.0) / (IPR_IC_ * rho); // the first guess assumes only thermal pressure
 		// gets temperature according to total internal energy by the Newton-Raphson method
-		auto t = pres_IPR(t0, 1.0, IC_ * rho / (mu_avg * ein * (fgamma_ - 1.0)), RC_ / ein, it_num, 1.48e-15);
+		auto t = pres_IPR(t0, 1.0, IPR_IC_ * rho / (mu_avg * ein * (fgamma_ - 1.0)), IPR_RC_ / ein, it_num, IPR_NR_tol, IPR_NR_maxiter);
 //		print("Tgas = %.15e,  %.15e * %.15e * %.15e + %.15e * %.15e^4 = %.15e\n", t0, IC_ / mu_avg / (fgamma_ - 1.0), rho, t, RC_, t, ein);
 //		printf("Newton solution: %15e after %i\n", t, it_num);		
-		p = IC_ * rho * t / mu_avg + RC_ * t * t * t * t / 3.0;
+		p = IPR_IC_ * rho * t / mu_avg + IPR_RC_ * t * t * t * t / 3.0;
 
-		const bool check_IPR = 0;
-		if (check_IPR) {
-			const auto t2 = pres_IPR(t0, 1.0, IC_ * rho / (mu_avg * p ), RC_ / 3.0 / p, it_num, 1.48e-15);
-			const auto ein2 = IC_ * rho * t / (fgamma_ - 1.0) / mu_avg + RC_ * t * t * t * t;
+		if (IPR_test) {
+			const auto t2 = pres_IPR(t0, 1.0, IPR_IC_ * rho / (mu_avg * p ), IPR_RC_ / 3.0 / p, it_num, IPR_NR_tol, IPR_NR_maxiter);
+			const auto ein2 = IPR_IC_ * rho * t / (fgamma_ - 1.0) / mu_avg + IPR_RC_ * t * t * t * t;
 			if (std::abs(ein2 - ein) > 1.48e-15) {
 				printf("problem in eos: %e\n", ein - ein2);
 			}
@@ -124,8 +124,8 @@ void physics<NDIM>::to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v
 
 		// computation of some thermodynamic qunatities to derive the sound speed (based on Kippenhahn book chapter 13.2)
 		const auto pinv = INVERSE(p);
-		const auto beta = IC_ * rho * t / mu_avg * pinv; //  pgas / p
-//		printf("pgas = %e, prad = %e, p = %e, beta = %e\n", beta * p, (1.0 - beta) * p, p, beta);
+		const auto beta = IPR_IC_ * rho * t / mu_avg * pinv; //  pgas / p
+		//printf("pgas = %e, prad = %e, p = %e, beta = %e\n", beta * p, (1.0 - beta) * p, p, beta);
 		safe_real gamma1;
 		if (beta <= 0.001) {
 			gamma1 = 4.0/3.0 + beta / 6.0;
@@ -409,9 +409,13 @@ void physics<NDIM>::set_degenerate_eos(safe_real a, safe_real b) {
 }
 
 template<int NDIM>
-void physics<NDIM>::set_ideal_plus_rad_eos(safe_real ideal_coeff, safe_real rad_coeff) {
-        IC_ = ideal_coeff;
-        RC_ = rad_coeff;
+void physics<NDIM>::set_ideal_plus_rad_eos(safe_real ideal_coeff, safe_real rad_coeff, safe_real NR_tol, int NR_maxiter, bool eos_test, safe_real min_eint) {
+        IPR_IC_ = ideal_coeff;
+        IPR_RC_ = rad_coeff;
+	IPR_NR_tol = NR_tol;
+	IPR_NR_maxiter = NR_maxiter;
+	IPR_test = eos_test;
+	IPR_eint_floor = min_eint;
 }
 
 

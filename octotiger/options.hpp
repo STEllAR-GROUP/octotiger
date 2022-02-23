@@ -51,6 +51,7 @@ public:
 	bool correct_am_hydro;
 	bool rotating_star_amr;
 	bool idle_rates;
+	bool ipr_test;
 
 	integer scf_output_frequency;
 	integer silo_num_groups;
@@ -66,6 +67,7 @@ public:
 	integer silo_offset_y;
 	integer silo_offset_z;
 	integer future_wait_time;
+	integer ipr_nr_maxiter;
 
 	real dt_max;
 	real eblast0;
@@ -89,6 +91,9 @@ public:
 	real cfl;
 	real rho_floor;
 	real tau_floor;
+	real scf_rho_floor;
+	real ipr_eint_floor;
+	real ipr_nr_tol;
 
 	real sod_rhol;
 	real sod_rhor;
@@ -155,6 +160,11 @@ public:
 		arc & eblast0;
 		arc & rho_floor;
 		arc & tau_floor;
+		arc & scf_rho_floor;
+		arc & ipr_eint_floor;
+		arc & ipr_nr_tol;
+		arc & ipr_test;
+		arc & ipr_nr_maxiter;
 		arc & sod_rhol;
 		arc & sod_rhor;
 		arc & sod_pl;

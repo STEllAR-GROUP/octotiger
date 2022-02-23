@@ -611,7 +611,7 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 						if (phi_eff < diags.l1_phi) {
 							rc.roche_vol[i] += dV;
 						}
-						if (U[rho_i][iii] > 10.0 * rho_floor) {
+						if (U[rho_i][iii] > 10.0 * opts().scf_rho_floor) {
 							rc.stellar_vol[i] += dV;
 						}
 						rc.rho_max[i] = std::max(rc.rho_max[i], safe_real(rho0));
@@ -1487,7 +1487,7 @@ void grid::rho_move(real x) {
 				for (integer si = 0; si != opts().n_species; ++si) {
 					U[rho_i][hindex(i, j, k)] += U[spc_i + si][hindex(i, j, k)];
 				}
-				U[rho_i][hindex(i, j, k)] = std::max((double) U[rho_i][hindex(i, j, k)], rho_floor);
+				U[rho_i][hindex(i, j, k)] = std::max((double) U[rho_i][hindex(i, j, k)], opts().scf_rho_floor);
 			}
 		}
 	}
@@ -1826,7 +1826,7 @@ timestep_t grid::compute_fluxes() {
 //			print("%e %e\n", physcon().A, physcon().B);
 			physics<NDIM>::set_degenerate_eos(physcon().A, physcon().B);
 		} else if (opts().eos == IPR) {
-			physics<NDIM>::set_ideal_plus_rad_eos(physcon().kb / physcon().mh, 4 * physcon().sigma / physcon().c);
+			physics<NDIM>::set_ideal_plus_rad_eos(physcon().kb / physcon().mh, 4 * physcon().sigma / physcon().c, opts().ipr_nr_tol, opts().ipr_nr_maxiter, opts().ipr_test, opts().ipr_eint_floor);
 		}
 		physics<NDIM>::set_dual_energy_switches(opts().dual_energy_sw1, opts().dual_energy_sw2);
 	});

@@ -52,7 +52,7 @@ void these_units(real &m, real &l, real &t, real &k) {
 	real m1, l1, t1, k1;
 	real kb = kbcgs;
 	real A, B, G;
-	if ((opts().radiation || opts().eos == WD || opts().eos == IPR) && opts().gravity) {
+	if ((opts().radiation || opts().eos == WD) && opts().gravity) {
 		A = physcon().A;
 		B = physcon().B;
 		G = physcon().G;
