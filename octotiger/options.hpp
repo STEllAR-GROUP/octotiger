@@ -38,6 +38,7 @@ public:
 	bool disable_diagnostics;
 	bool bench;
 	bool disable_output;
+	bool disable_analytic;
 	bool core_refine;
 	bool gravity;
 	bool hydro;
@@ -237,6 +238,7 @@ public:
 		arc & stop_step;
 		arc & disable_diagnostics;
 		arc & disable_output;
+	  arc & disable_analytic;
 		arc & theta;
 		arc & core_refine;
 		arc & donor_refine;
