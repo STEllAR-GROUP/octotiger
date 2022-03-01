@@ -124,7 +124,7 @@ future<hpx::id_type> node_server::copy_to_locality(const hpx::id_type &id) {
 	std::vector<hpx::id_type> cids;
 	if (is_refined) {
 		cids.resize(NCHILD);
-		for (auto &ci : geo::octant::full_set()) {
+		for (auto ci : geo::octant::full_set()) {
 			cids[ci] = children[ci].get_gid();
 		}
 	}
@@ -391,7 +391,7 @@ void node_server::force_nodes_to_exist(std::vector<node_location> &&locs) {
 				futs.push_back(parent.force_nodes_to_exist(my_location.get_neighbors()));
 			}
 			if (is_refined) {
-				for (auto &ci : geo::octant::full_set()) {
+				for (auto ci : geo::octant::full_set()) {
 					if (loc.is_child_of(my_location.get_child(ci))) {
 						child_lists[ci].push_back(loc);
 						break;
@@ -408,7 +408,7 @@ void node_server::force_nodes_to_exist(std::vector<node_location> &&locs) {
 			assert(!parent.empty());
 
 			bool found_match = false;
-			for (auto &di : geo::direction::full_set()) {
+			for (auto di : geo::direction::full_set()) {
 				if (loc.is_child_of(my_location.get_neighbor(di)) && !neighbors[di].empty()) {
 					sibling_lists[di].push_back(loc);
 					found_match = true;
@@ -420,12 +420,12 @@ void node_server::force_nodes_to_exist(std::vector<node_location> &&locs) {
 			}
 		}
 	}
-	for (auto &ci : geo::octant::full_set()) {
+	for (auto ci : geo::octant::full_set()) {
 		if (is_refined && child_lists[ci].size()) {
 			futs.push_back(children[ci].force_nodes_to_exist(std::move(child_lists[ci])));
 		}
 	}
-	for (auto &di : geo::direction::full_set()) {
+	for (auto di : geo::direction::full_set()) {
 		if (sibling_lists[di].size()) {
 			futs.push_back(neighbors[di].force_nodes_to_exist(std::move(sibling_lists[di])));
 		}
@@ -455,7 +455,7 @@ int node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std::
 	int amr_bnd = 0;
 
 	std::fill(nieces.begin(), nieces.end(), 0);
-	for (auto &dir : geo::direction::full_set()) {
+	for (auto dir : geo::direction::full_set()) {
 		neighbors[dir] = std::move(neighbor_gids[dir]);
 	}
 	me = std::move(self_gid);
@@ -494,7 +494,7 @@ int node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std::
 					}
 					cfuts[index++] = hpx::dataflow(hpx::launch::sync, [this, ci](std::array<future<hpx::id_type>, geo::direction::count()> &&cns) {
 						std::vector<hpx::id_type> child_neighbors(geo::direction::count());
-						for (auto &dir : geo::direction::full_set()) {
+						for (auto dir : geo::direction::full_set()) {
 							child_neighbors[dir] = GET(cns[dir]);
 							amr_flags[ci][dir] = bool(child_neighbors[dir] == hpx::invalid_id);
 						}
@@ -509,7 +509,7 @@ int node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std::
 		constexpr auto full_set = geo::octant::full_set();
 		for (auto &ci : full_set) {
 			const auto &flags = amr_flags[ci];
-			for (auto &dir : geo::direction::full_set()) {
+			for (auto dir : geo::direction::full_set()) {
 				if (dir.is_face()) {
 					if (flags[dir]) {
 						amr_bnd++;
@@ -520,7 +520,7 @@ int node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std::
 	} else {
 		std::vector<future<void>> nfuts;
 		nfuts.reserve(NFACE);
-		for (auto &f : geo::face::full_set()) {
+		for (auto f : geo::face::full_set()) {
 			const auto &neighbor = neighbors[f.to_direction()];
 			if (!neighbor.empty()) {
 				nfuts.push_back(neighbor.set_child_aunt(me.get_gid(), f ^ 1).then(
