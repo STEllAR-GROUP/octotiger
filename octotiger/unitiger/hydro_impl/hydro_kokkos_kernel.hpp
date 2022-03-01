@@ -335,7 +335,7 @@ void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor, const d
     const int blocks = q_inx3 / 64 + 1;
     auto policy = Kokkos::Experimental::require(
         Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<3>>(
-            executor.instance(), {0, 0, 0}, {blocks, 8, 8}),
+            executor.instance(), {0, 0, 0}, {blocks, 8, 8}, tiling_config),
         Kokkos::Experimental::WorkItemProperty::HintLightWeight);
     Kokkos::parallel_for(
         "kernel hydro reconstruct", policy, KOKKOS_LAMBDA(int idx, int idy, int idz) {
