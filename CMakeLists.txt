@@ -35,6 +35,7 @@ option(OCTOTIGER_WITH_BOOST_MULTIPRECISION
   "Use Boost.Multiprecision Instead of GCC Quad-Precision Math Library" OFF)
 option(OCTOTIGER_WITH_QUADMATH "Enable sections using GCC Quad-Precision Math Library" ON)
 option(OCTOTIGER_WITH_Vc "" ON)
+option(OCTOTIGER_WITH_STD_EXPERIMENTAL_SIMD "" OFF)
 # Re-enables Vc datatypes in the octotiger parts - use with caution
 option(OCTOTIGER_WITH_LEGACY_Vc "" OFF)
 
@@ -250,6 +251,7 @@ set(header_files
     octotiger/common_kernel/multiindex.hpp
     octotiger/common_kernel/struct_of_array_data.hpp
     octotiger/common_kernel/kokkos_util.hpp
+    octotiger/common_kernel/std_simd.hpp
     octotiger/compute_factor.hpp
     octotiger/cuda_util/cuda_global_def.hpp
     octotiger/cuda_util/cuda_helper.hpp
@@ -731,6 +733,14 @@ if(OCTOTIGER_WITH_HIP)
   message(WARNING " HIP support is still experimental! Do not use for productin runs (yet)")
   target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_HIP)
   target_compile_definitions(hydrolib PUBLIC OCTOTIGER_HAVE_HIP)
+endif()
+
+# Handle use of STD EXPERIMENTAL SIMD
+if(OCTOTIGER_WITH_STD_EXPERIMENTAL_SIMD)
+  target_compile_definitions(octotiger PUBLIC OCTOTIGER_HAVE_STD_EXPERIMENTAL_SIMD)
+  target_compile_definitions(optionslib PUBLIC OCTOTIGER_HAVE_STD_EXPERIMENTAL_SIMD)
+  target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_STD_EXPERIMENTAL_SIMD)
+  target_compile_definitions(hydrolib PUBLIC OCTOTIGER_HAVE_STD_EXPERIMENTAL_SIMD)
 endif()
 
 # Handle other options

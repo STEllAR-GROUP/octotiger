@@ -153,6 +153,10 @@ using normal_device_buffer = kokkos_device_array<T>;
 // useful for picking the correct simd type!
 #include <hpx/config/compiler_specific.hpp> 
 // SIMD settings
+#if defined(OCTOTIGER_HAVE_STD_EXPERIMENTAL_SIMD)
+#include "octotiger/common_kernel/std_simd.hpp"
+#warning "Using std-experimental-simd SIMD types"
+#else
 #include <simd.hpp>
 using device_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>;
 using device_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::scalar>;
@@ -191,6 +195,8 @@ using host_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_
 using host_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>;
 using host_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::scalar>;
 #warning "Using scalar SIMD types"
+#endif
+
 #endif
 
 #endif
