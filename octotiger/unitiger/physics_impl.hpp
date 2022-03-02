@@ -90,18 +90,7 @@ void physics<NDIM>::to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v
 	}
 	auto ein = u[egas_i] - ek - edeg;
 	safe_real z;
-	if (IPR_RC_ == 0.0) { 	// not IPR eos
-        	if (ein <= de_switch_1 * u[egas_i]) {
-                	ein = POWER(u[tau_i], fgamma_);
-        	}
-		const double dp_drho = dpdeg_drho + (fgamma_ - 1.0) * ein * rhoinv;
-		const double dp_deps = (fgamma_ - 1.0) * rho;
-		p = (fgamma_ - 1.0) * ein + pdeg;
-		z = p * rhoinv * rhoinv * dp_deps + dp_drho;
-        	if( z < 0.0 ) {
-                	print( "%e %e %e %e %e %e %e %e %e\n", p, rhoinv, dpdeg_drho, dp_deps, ein, dp_drho, u[tau_i], ek, edeg);
-        	}
-	} else {  
+	if (IPR_RC_ != 0.0) { 
 		ein = std::max(IPR_eint_floor, ein);
 		int it_num = 0;
 		const auto mu_avg = get_mu_average(u); // get mu by specie weight fractions
@@ -141,6 +130,17 @@ void physics<NDIM>::to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v
 		if( z < 0.0 ) {
 			print( "%e %e %e %e %e %e %e %e %e\n", p, rhoinv, gamma1, t, ein, beta, mu_avg, ek, edeg);
 		}
+	} else { // WD or ideal eos
+                if (ein <= de_switch_1 * u[egas_i]) {
+                        ein = POWER(u[tau_i], fgamma_);
+                }
+                const double dp_drho = dpdeg_drho + (fgamma_ - 1.0) * ein * rhoinv;
+                const double dp_deps = (fgamma_ - 1.0) * rho;
+                p = (fgamma_ - 1.0) * ein + pdeg;
+                z = p * rhoinv * rhoinv * dp_deps + dp_drho;
+                if( z < 0.0 ) {
+                        print( "%e %e %e %e %e %e %e %e %e\n", p, rhoinv, dpdeg_drho, dp_deps, ein, dp_drho, u[tau_i], ek, edeg);
+                }
 	}
 	v = u[sx_i + dim] * rhoinv;
 	cs = SQRT(z);
@@ -263,7 +263,19 @@ void physics<NDIM>::post_process(hydro::state_type &U, const hydro::x_type &X, s
 			egas_max = std::max(egas_max, U[egas_i][i + dir[d]]);
 		}
 		safe_real ein = U[egas_i][i] - ek - edeg;
-		if (ein > de_switch_2 * egas_max) {
+		if (IPR_RC_ != 0.0) {
+			ein = std::max(IPR_eint_floor, ein);
+        		safe_real mu_avg_inv = 0.0, rho =0.0;
+        		for (int s = 0; s < n_species_; s++) {
+                		mu_avg_inv += U[spc_i + s][i] / mu_[s];
+				rho += U[spc_i + s][i];
+                        }
+                	const auto mu_avg = rho * INVERSE(mu_avg_inv); // get mu by specie weight fractions
+			const auto t0 = mu_avg * ein * (fgamma_ - 1.0) / (IPR_IC_ * rho); // the first guess assumes only thermal pressure
+                        // gets temperature according to total internal energy by the Newton-Raphson methoda
+                        int it_num = 0;
+                        U[tau_i][i] = pres_IPR(t0, 1.0, IPR_IC_ * rho / (mu_avg * ein * (fgamma_ - 1.0)), IPR_RC_ / ein, it_num, IPR_NR_tol, IPR_NR_maxiter);
+		} else if (ein > de_switch_2 * egas_max) {
 			U[tau_i][i] = POWER(ein, 1.0 / fgamma_);
 		}
 		if (rho_sink_radius_ > 0.0) {

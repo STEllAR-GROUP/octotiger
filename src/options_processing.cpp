@@ -443,6 +443,26 @@ bool options::process_options(int argc, char *argv[]) {
 #endif
 
     }
+    if (opts().eos == IPR) {
+        if ((opts().hydro_host_kernel_type != interaction_host_kernel_type::VC) && (opts().hydro_host_kernel_type != interaction_host_kernel_type::LEGACY)) {
+            std::cerr << std::endl << "ERROR: ";
+            std::cerr << "The ideal gas plus radiation (ipr) eos is currently only supported with VC or LEGACY host kernel types of the hydro solver!"  << std::endl
+            << " Choose either a VC or LEGACY for hydro host kernel type!" << std::endl;
+            abort();
+        }
+        if (opts().hydro_device_kernel_type != OFF) {
+            std::cerr << std::endl << "ERROR: ";
+            std::cerr << "The ideal gas plus radiation (ipr) eos is currently only supported on the host!"  << std::endl
+            << " Choose OFF for hydro device kernel type!" << std::endl;
+            abort();
+        }
+        if (opts().cdisc_detect) {
+            std::cerr << std::endl << "ERROR: ";
+            std::cerr << "The ideal gas plus radiation (ipr) eos is currently not supported with discontiniuty detection!"  << std::endl
+            << " Set cdisc_detect to off" << std::endl;
+            abort();        
+        }
+    }
     if (opts().monopole_device_kernel_type == OFF && opts().monopole_host_kernel_type == DEVICE_ONLY ||
         opts().multipole_device_kernel_type == OFF && opts().multipole_host_kernel_type == DEVICE_ONLY ||
 	opts().hydro_device_kernel_type == OFF && opts().hydro_host_kernel_type == DEVICE_ONLY) {

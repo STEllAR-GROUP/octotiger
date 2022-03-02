@@ -277,6 +277,7 @@ public:
 	real scf_update(real, real, real, real, real, real, real, struct_eos, struct_eos);
 	std::pair<std::vector<real>, std::vector<real> > field_range() const;
 	void velocity_inc(const space_vector& dv);
+	void energy_adj();
 	std::vector<real> get_restrict() const;
 	std::vector<real> get_flux_restrict(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub,
 			const geo::dimension&) const;

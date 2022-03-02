@@ -285,6 +285,9 @@ public:
 	void velocity_inc(const space_vector& dv);/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server, velocity_inc, velocity_inc_action);
 
+        void energy_adj();/**/
+        HPX_DEFINE_COMPONENT_ACTION(node_server, energy_adj, energy_adj_action);
+
 	line_of_centers_t line_of_centers(const std::pair<space_vector, space_vector>& line) const;
 	HPX_DEFINE_COMPONENT_ACTION(node_server, line_of_centers, line_of_centers_action);
 
@@ -345,6 +348,7 @@ HPX_REGISTER_ACTION_DECLARATION(node_server::change_units_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::rho_mult_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::line_of_centers_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::velocity_inc_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::energy_adj_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::scf_update_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::set_grid_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::force_nodes_to_exist_action);
