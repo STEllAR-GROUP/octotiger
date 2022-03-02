@@ -55,8 +55,7 @@ pipeline {
         stage('configure') {
             steps {
                 dir('octotiger') {
-                    sh '''
-                        #!/bin/bash -l
+                    sh '''#!/bin/bash -l
                         cd ..
                         #rm -rf octo-buildscripts/src/octotiger
                         rm -rf "octo-buildscripts-std-simd" #remove line for dependency caching
@@ -84,8 +83,7 @@ pipeline {
         stage('build') {
             steps {
                 dir('octotiger') {
-                    sh '''
-                        #!/bin/bash -l
+                    sh '''#!/bin/bash -l
                         cd "../octo-buildscripts-std-simd"
                         rm -f build-log.txt
                         sed -i 's/OCTOTIGER_WITH_STD_EXPERIMENTAL_SIMD=OFF/OCTOTIGER_WITH_STD_EXPERIMENTAL_SIMD=ON/' build-octotiger.sh
@@ -108,8 +106,7 @@ pipeline {
         stage('test') {
             steps {
                 dir('octotiger') {
-                    sh '''
-                        #!/bin/bash -l
+                    sh '''#!/bin/bash -l
                         cd "../octo-buildscripts-std-simd"
 		        module load gcc/11.2.0
                         g++ --version
