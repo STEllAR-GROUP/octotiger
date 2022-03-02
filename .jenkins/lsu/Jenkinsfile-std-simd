@@ -92,7 +92,7 @@ pipeline {
 	    	        srun -p medusa -N 1 -n 1 bash -c ' ./build-all.sh RelWithDebInfo with-CC without-cuda without-mpi without-papi without-apex with-kokkos with-simd without-hpx-backend-multipole without-hpx-backend-monopole without-hpx-cuda-polling without-otf2 cmake jemalloc boost hdf5 silo vc hpx kokkos cppuddle octotiger |& tee build-log.txt'
 	   	        if grep -Fx "Using std-experimental-simd SIMD types" build-log.txt
 		        then
-		            echo "Found std-experimental build log output! All goood!"
+		            echo "Found std-experimental build log output! All good!"
 		            exit 0
 	    	        else
 		            echo "Error: Did not find std-experimental output in the build look!"
