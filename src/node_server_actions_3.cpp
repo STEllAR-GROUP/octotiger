@@ -372,7 +372,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 
 		}
 		if (step_num == 0) {
-			bench_start = hpx::util::high_resolution_clock::now() / 1e9;
+			bench_start = hpx::chrono::high_resolution_clock::now() / 1e9;
 		}
 
 		real dt = 0;
@@ -451,7 +451,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 			// run output on separate thread
 			auto need_break = hpx::threads::run_as_os_thread([&]() {
 				//		set_omega_and_pivot();
-				bench_stop = hpx::util::high_resolution_clock::now() / 1e9;
+				bench_stop = hpx::chrono::high_resolution_clock::now() / 1e9;
 				if (scf || opts().bench) {
 					print("Total time = %e s\n", double(bench_stop - bench_start));
 					if (!opts().disable_output) {
@@ -467,13 +467,13 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 				break;
 		}
 		if (scf) {
-			bench_stop = hpx::util::high_resolution_clock::now() / 1e9;
+			bench_stop = hpx::chrono::high_resolution_clock::now() / 1e9;
 			print("Total time = %e s\n", double(bench_stop - bench_start));
 			break;
 		}
 	}
 
-	bench_stop = hpx::util::high_resolution_clock::now() / 1e9;
+	bench_stop = hpx::chrono::high_resolution_clock::now() / 1e9;
 	{
 		timings::scope ts(timings_, timings::time_compare_analytic);
 
