@@ -155,7 +155,7 @@ using normal_device_buffer = kokkos_device_array<T>;
 // SIMD settings
 #if defined(OCTOTIGER_HAVE_STD_EXPERIMENTAL_SIMD)
 #include "octotiger/common_kernel/std_simd.hpp"
-#warning "Using std-experimental-simd SIMD types"
+#pragma message "Using std-experimental-simd SIMD types"
 #else
 #include <simd.hpp>
 using device_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>;
