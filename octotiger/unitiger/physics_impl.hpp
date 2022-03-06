@@ -106,7 +106,7 @@ void physics<NDIM>::to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v
 		if (IPR_test) {
 			const auto t2 = pres_IPR(t0, 1.0, IPR_IC_ * rho / (mu_avg * p ), IPR_RC_ / 3.0 / p, it_num, IPR_NR_tol, IPR_NR_maxiter);
 			const auto ein2 = IPR_IC_ * rho * t / (fgamma_ - 1.0) / mu_avg + IPR_RC_ * t * t * t * t;
-			if (std::abs(ein2 - ein) > 1.48e-15) {
+			if (std::abs(ein2 - ein) > IPR_NR_tol) {
 				printf("problem in eos: %e\n", ein - ein2);
 			}
 		}

@@ -680,7 +680,7 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 					}
 					real et = U[egas_i][iii];
 					real p;
-					if (opts().eos == IPR) { 
+					if (false) { // (opts().eos == IPR) { // disabling this part because this mainly serves for computing the virial error as part of the SCF, and the SCF does not use the ipr eos
                                                 ei = std::max(opts().ipr_eint_floor, ei);
                                         	specie_state_t<real> spc;
                                         	real mmw_loc, X_loc, Z_loc;
@@ -1678,14 +1678,14 @@ std::vector<std::pair<std::string, std::string>> grid::get_scalar_expressions() 
 	}
 	if (opts().problem == MARSHAK) {
 		rc.push_back(std::make_pair(std::string("T"), std::string("(ei/rho)^(1.0/3.0)")));
+	} else if (opts().eos == IPR) {
+                rc.push_back(std::make_pair(std::string("T"), std::string("tau")));
+                rc.push_back(std::make_pair(std::string("P"), hpx::util::format("n * {:e} * tau + {:e} * tau^4", kb,  (4.0 * physcon().sigma * opts().code_to_g / std::pow(opts().code_to_s, 3)) / (3.0 * physcon().c * opts().code_to_cm / opts().code_to_s))));
+                rc.push_back(std::make_pair(std::string("ei"), hpx::util::format("max(egas-ek,{:e})", opts().ipr_eint_floor * opts().code_to_g / std::pow(opts().code_to_s, 2) / opts().code_to_cm)));
 	} else if (opts().eos != WD) {
 		rc.push_back(std::make_pair(std::string("ei"), hpx::util::format("if( gt(egas-ek,{:e}*egas), egas-ek, tau^{:e})", opts().dual_energy_sw1, fgamma)));
 		rc.push_back(std::make_pair(std::string("P"), hpx::util::format("{:e} * ei", (fgamma - 1.0))));
 		rc.push_back(std::make_pair(std::string("T"), hpx::util::format("{:e} * ei / n", 1.0 / (kb / (fgamma - 1.0)))));
-	} else if (opts().eos == IPR) {
-		rc.push_back(std::make_pair(std::string("T"), std::string("tau")));
-		rc.push_back(std::make_pair(std::string("P"), hpx::util::format("n * {:e} * tau + {:e} * tau^4", kb,  (4.0 * physcon().sigma) / (3.0 * physcon().c * opts().code_to_cm / opts().code_to_s) * opts().code_to_g)));
-		rc.push_back(std::make_pair(std::string("ei"), hpx::util::format("max(egas-ek,{:e})", opts().ipr_eint_floor * opts().code_to_g / std::pow(opts().code_to_s, 2) / opts().code_to_cm)));
 	} else {
 		rc.push_back(
 				std::make_pair(std::string("ei"),

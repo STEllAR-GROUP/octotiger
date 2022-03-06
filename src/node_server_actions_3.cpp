@@ -306,7 +306,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 	if (scf) {
 		run_scf(opts().data_dir);
 		if (opts().eos == IPR) {
-			print("Adjusting energy by SCF pressure\n");
+			print("Adjusting energy by SCF pressure:\n");
 			this->energy_adj();
 		}
 		print("Adjusting velocities:\n");
