@@ -46,7 +46,7 @@ struct timings
             time_ += timer_.elapsed();
         }
 
-        hpx::util::high_resolution_timer timer_;
+        hpx::chrono::high_resolution_timer timer_;
         double& time_;
     };
 

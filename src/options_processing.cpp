@@ -142,6 +142,7 @@ bool options::process_options(int argc, char *argv[]) {
 	("reflect_bc", po::value<bool>(&(opts().reflect_bc))->default_value(false), "Reflecting Boundary Conditions") //
 	("cdisc_detect", po::value<bool>(&(opts().cdisc_detect))->default_value(true), "PPM contact discontinuity detection") //
 	("disable_output", po::value<bool>(&(opts().disable_output))->default_value(false), "disable silo output") //
+	("disable_analytic", po::value<bool>(&(opts().disable_analytic))->default_value(false), "disable analytic step") //
 	("disable_diagnostics", po::value<bool>(&(opts().disable_diagnostics))->default_value(false), "disable diagnostics") //
 	("problem", po::value<problem_type>(&(opts().problem))->default_value(NONE), "problem type")                            //
 	("restart_filename", po::value<std::string>(&(opts().restart_filename))->default_value(""), "restart filename")         //

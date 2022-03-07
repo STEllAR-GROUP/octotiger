@@ -226,7 +226,7 @@ void node_server::regrid_scatter(integer a_, integer total) {
 
 node_count_type node_server::regrid(const hpx::id_type &root_gid, real omega, real new_floor, bool rb, bool grav_energy_comp) {
 	timings::scope ts(timings_, timings::time_regrid);
-	hpx::util::high_resolution_timer timer;
+	hpx::chrono::high_resolution_timer timer;
 	assert(grid_ptr != nullptr);
 	print("-----------------------------------------------\n");
 	if (!rb) {
