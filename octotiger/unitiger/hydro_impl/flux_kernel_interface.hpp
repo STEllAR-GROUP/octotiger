@@ -35,25 +35,29 @@ timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux
     hydro::x_type& X, safe_real omega, const size_t nf_);
 #endif
 
+#if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_CUDA)
+#include <aggregation_manager.hpp>
+using aggregated_executor_t = Aggregated_Executor<hpx::cuda::experimental::cuda_executor>::Executor_Slice;
+#endif
 #if defined(OCTOTIGER_HAVE_CUDA) 
-timestep_t launch_flux_cuda(
-    stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
-    double* device_q,
-    std::vector<double, recycler::recycle_allocator_cuda_host<double>>& combined_f,
-    std::vector<double, recycler::recycle_allocator_cuda_host<double>> &combined_x, double* device_x,
-    safe_real omega, const size_t nf_, double dx, size_t device_id);
-void launch_flux_cuda_kernel_post(stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+/* timestep_t launch_flux_cuda( */
+/*     stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor, */
+/*     double* device_q, */
+/*     std::vector<double, recycler::recycle_allocator_cuda_host<double>>& combined_f, */
+/*     std::vector<double, recycler::recycle_allocator_cuda_host<double>> &combined_x, double* device_x, */
+/*     safe_real omega, const size_t nf_, double dx, size_t device_id); */
+void launch_flux_cuda_kernel_post(aggregated_executor_t& executor,
     dim3 const grid_spec, dim3 const threads_per_block, void *args[]);
 #endif
 #if defined(OCTOTIGER_HAVE_HIP) 
-timestep_t launch_flux_cuda(
-    stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
-    double* device_q,
-    std::vector<double, recycler::recycle_allocator_hip_host<double>>& combined_f,
-    std::vector<double, recycler::recycle_allocator_hip_host<double>> &combined_x, double* device_x,
-    safe_real omega, const size_t nf_, double dx, size_t device_id);
+/* timestep_t launch_flux_cuda( */
+/*     stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor, */
+/*     double* device_q, */
+/*     std::vector<double, recycler::recycle_allocator_hip_host<double>>& combined_f, */
+/*     std::vector<double, recycler::recycle_allocator_hip_host<double>> &combined_x, double* device_x, */
+/*     safe_real omega, const size_t nf_, double dx, size_t device_id); */
 void launch_flux_hip_kernel_post(
-    stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+    aggregated_executor_t& executor,
     dim3 const grid_spec, dim3 const threads_per_block, double* device_q, double* device_x,
     double* device_f, double* device_amax, int* device_amax_indices, int* device_amax_d,
     const bool* masks, const double omega, const double dx, const double A_, const double B_,

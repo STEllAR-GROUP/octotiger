@@ -89,7 +89,7 @@ void reconstruct_hip_kernel_ggl_wrapper(dim3 const grid_spec, dim3 const threads
 #endif
 
 void launch_reconstruct_cuda(
-    stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor, double omega,
+    aggregated_executor_t& executor, double omega,
     int nf_, int angmom_index_, int* smooth_field_, int* disc_detect_, double* combined_q,
     double* combined_x, double* combined_u, double* AM, double dx, double* cdiscs, int n_species_) {
     static const cell_geometry<NDIM, INX> geo;
@@ -101,25 +101,27 @@ void launch_reconstruct_cuda(
     dim3 const threads_per_block(1, 8, 8);
     int ndir = geo.NDIR;
     int nangmom = geo.NANGMOM;
+    hpx::lcos::future<void> fut;
 #if defined(OCTOTIGER_HAVE_CUDA)
     void* args[] = {&omega, &nf_, &angmom_index_, &(smooth_field_), &(disc_detect_), &(combined_q),
         &(combined_x), &(combined_u), &(AM), &dx, &(cdiscs), &n_species_, &ndir, &nangmom};
     if (angmom_index_ > -1) {
-        executor.post(cudaLaunchKernel<decltype(reconstruct_cuda_kernel)>, reconstruct_cuda_kernel,
+        fut = executor.async(cudaLaunchKernel<decltype(reconstruct_cuda_kernel)>, reconstruct_cuda_kernel,
             grid_spec, threads_per_block, args, 0);
     } else {
-        executor.post(cudaLaunchKernel<decltype(reconstruct_cuda_kernel_no_amc)>,
+        fut = executor.async(cudaLaunchKernel<decltype(reconstruct_cuda_kernel_no_amc)>,
             reconstruct_cuda_kernel_no_amc, grid_spec, threads_per_block, args, 0);
     }
 #elif defined(OCTOTIGER_HAVE_HIP)
-		executor.post(reconstruct_hip_kernel_ggl_wrapper, grid_spec, threads_per_block, omega, nf_, angmom_index_, smooth_field_,
+		fut = executor.async(reconstruct_hip_kernel_ggl_wrapper, grid_spec, threads_per_block, omega, nf_, angmom_index_, smooth_field_,
          disc_detect_, combined_q, combined_x, combined_u, AM, dx, cdiscs, n_species_, ndir, nangmom);
 #endif
+    fut.get();
 }
 
 // TODO Launch bounds do not work with larger subgrid size (>8)
 __global__ void    //__launch_bounds__(12 * 12, 1)
-discs_phase1(double* __restrict__ P, const double* __restrict__ combined_u, const double A_,
+discs_phase1(double* __restrict__ P, double* __restrict__ combined_u, const double A_,
     const double B_, const double fgamma_, const double de_switch_1) {
     const int index = (blockIdx.z * 1 + threadIdx.x) * 64 + (threadIdx.y) * 8 + (threadIdx.z);
     if (index < inx_normal * inx_normal * inx_normal) {
@@ -136,7 +138,7 @@ __global__ void __launch_bounds__(64, 4) discs_phase2(
 #elif defined(OCTOTIGER_HAVE_HIP)
 __global__ void discs_phase2(
 #endif
-    double* __restrict__ disc, const double* __restrict__ P, const double fgamma_, const int ndir) {
+    double* __restrict__ disc, double* __restrict__ P, const double fgamma_, const int ndir) {
     const int index = (blockIdx.z * 1 + threadIdx.x) * 64 + (threadIdx.y) * 8 + (threadIdx.z);
     if (index < q_inx3) {
         const int grid_x = index / (q_inx * q_inx);
@@ -161,7 +163,7 @@ void disc2_hip_kernel_ggl_wrapper(dim3 const grid_spec, dim3 const threads_per_b
 #endif
 
 void launch_find_contact_discs_cuda(
-    stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+    aggregated_executor_t& executor,
     double* device_u, double* device_P, double* device_disc, double A_, double B_, double fgamma_,
     double de_switch_1) {
     static const cell_geometry<NDIM, INX> geo;
@@ -182,12 +184,13 @@ void launch_find_contact_discs_cuda(
     dim3 const threads_per_block_phase2(1, 8, 8);
 #if defined(OCTOTIGER_HAVE_CUDA)
     void* args_phase2[] = {&device_disc, &device_P, &fgamma_, &ndir};
-    executor.post(cudaLaunchKernel<decltype(discs_phase2)>, discs_phase2, grid_spec_phase2,
+    auto disc_fut = executor.async(cudaLaunchKernel<decltype(discs_phase2)>, discs_phase2, grid_spec_phase2,
         threads_per_block_phase2, args_phase2, 0);
 #elif defined(OCTOTIGER_HAVE_HIP)
-    executor.post(disc2_hip_kernel_ggl_wrapper, grid_spec_phase2, threads_per_block_phase2,
+    auto disc_fut = executor.post(disc2_hip_kernel_ggl_wrapper, grid_spec_phase2, threads_per_block_phase2,
         device_disc, device_P, fgamma_, ndir);
 #endif
+    disc_fut.get();
 }
 
 __global__ void __launch_bounds__(64, 4)
@@ -213,19 +216,20 @@ void pre_recon_hip_kernel_ggl_wrapper(dim3 const grid_spec, dim3 const threads_p
 #endif
 
 void launch_hydro_pre_recon_cuda(
-    stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+    aggregated_executor_t& executor,
     double* device_X, double omega, bool angmom, double* device_u, int nf, int n_species_) {
     const int blocks = (inx_large * inx_large * inx_large) / 64 + 1;
     dim3 const grid_spec(1, 1, blocks);
     dim3 const threads_per_block(1, 8, 8);
 #if defined(OCTOTIGER_HAVE_CUDA)
     void* args[] = {&(device_X), &omega, &angmom, &(device_u), &nf, &n_species_};
-    executor.post(cudaLaunchKernel<decltype(hydro_pre_recon_cuda)>, hydro_pre_recon_cuda, grid_spec,
+    auto fut = executor.async(cudaLaunchKernel<decltype(hydro_pre_recon_cuda)>, hydro_pre_recon_cuda, grid_spec,
         threads_per_block, args, 0);
 #elif defined(OCTOTIGER_HAVE_HIP)
-    executor.post(pre_recon_hip_kernel_ggl_wrapper, grid_spec, threads_per_block, device_X, omega,
+    auto fut = executor.async(pre_recon_hip_kernel_ggl_wrapper, grid_spec, threads_per_block, device_X, omega,
         angmom, device_u, nf, n_species_);
 #endif
+    fut.get();
 }
 
 #endif

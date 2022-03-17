@@ -55,15 +55,25 @@ void reconstruct_cpu_kernel(const safe_real omega, const size_t nf_, const int a
     const std::vector<std::vector<safe_real>>& cdiscs);
 #endif
 #if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)
+__global__ void discs_phase1(double* __restrict__ P, double* __restrict__ combined_u,
+    const double A_, const double B_, const double fgamma_, const double
+    de_switch_1);
+__global__ void discs_phase2(
+    double* __restrict__ disc, double* __restrict__ P, const double
+    fgamma_, const int ndir);
+
+#include <aggregation_manager.hpp>
+using aggregated_executor_t = Aggregated_Executor<hpx::cuda::experimental::cuda_executor>::Executor_Slice;
+
 void launch_reconstruct_cuda(
-    stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+    aggregated_executor_t& executor,
     double omega, int nf_, int angmom_index_,
     int* smooth_field_, int* disc_detect_ ,
     double* combined_q, double* combined_x,
     double* combined_u, double* AM, double dx,
     double* cdiscs, int n_species_);
 void convert_find_contact_discs(const double* __restrict__ combined_u, double* __restrict__ disc, const double A_, const double B_, const double fgamma_, const double de_switch_1);
-void launch_find_contact_discs_cuda(stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor, double* combined_u, double *device_P, double* disc, double A_, double B_, double fgamma_, double de_switch_1);
-void launch_hydro_pre_recon_cuda(stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor, 
+void launch_find_contact_discs_cuda(aggregated_executor_t& executor, double* combined_u, double *device_P, double* disc, double A_, double B_, double fgamma_, double de_switch_1);
+void launch_hydro_pre_recon_cuda(aggregated_executor_t& executor, 
     double* device_X, double omega, bool angmom, double* device_u, int nf, int n_species_);
 #endif
