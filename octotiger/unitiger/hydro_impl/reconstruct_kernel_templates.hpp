@@ -223,51 +223,54 @@ CUDA_GLOBAL_METHOD inline void cell_find_contact_discs_phase2(
 
 template <typename container_t, typename const_container_t>
 CUDA_GLOBAL_METHOD inline void cell_hydro_pre_recon(const_container_t& X, safe_real omega, bool angmom,
-        container_t &u, const int nf, const int n_species_, const unsigned int x, const unsigned int y, const unsigned int z) {
+        container_t &u, const int nf, const int n_species_, const unsigned int x, const unsigned int y, const unsigned int z, const int slice_id) {
     const int i = (x) * inx_large * inx_large + (y) * inx_large + (z);
-    const auto rho = u[rho_i * u_face_offset + i];
+    const int u_slice_offset = (H_N3 * nf + 128) * slice_id; 
+    const int large_x_slice_offset = (H_N3 * NDIM + 128) * slice_id; 
+
+    const auto rho = u[u_slice_offset + rho_i * u_face_offset + i];
     const auto rhoinv = 1.0 / rho;
     for (int dim = 0; dim < NDIM; dim++) {
-        auto& s = u[(sx_i + dim) * u_face_offset + i];
-        u[egas_i * u_face_offset + i] -= 0.5 * s * s * rhoinv;
+        auto& s = u[u_slice_offset + (sx_i + dim) * u_face_offset + i];
+        u[u_slice_offset + egas_i * u_face_offset + i] -= 0.5 * s * s * rhoinv;
         s *= rhoinv;
     }
     for (int si = 0; si < n_species_; si++) {
-        u[(spc_i + si) * u_face_offset + i] *= rhoinv;
+        u[u_slice_offset + (spc_i + si) * u_face_offset + i] *= rhoinv;
     }
-    u[pot_i * u_face_offset + i] *= rhoinv;
+    u[u_slice_offset + pot_i * u_face_offset + i] *= rhoinv;
 
-    u[(lx_i + 0) * u_face_offset + i] *= rhoinv;
-    u[(lx_i + 1) * u_face_offset + i] *= rhoinv;
-    u[(lx_i + 2) * u_face_offset + i] *= rhoinv;
+    u[u_slice_offset + (lx_i + 0) * u_face_offset + i] *= rhoinv;
+    u[u_slice_offset + (lx_i + 1) * u_face_offset + i] *= rhoinv;
+    u[u_slice_offset + (lx_i + 2) * u_face_offset + i] *= rhoinv;
 
     // Levi civita n m q -> lc
     // Levi civita 0 1 2 -> 1
-    u[(lx_i + 0) * u_face_offset + i] -=
-        1.0 * X[1 * x_offset + i] * u[(sx_i + 2) * u_face_offset + i];
+    u[u_slice_offset + (lx_i + 0) * u_face_offset + i] -=
+        1.0 * X[large_x_slice_offset + 1 * x_offset + i] * u[u_slice_offset + (sx_i + 2) * u_face_offset + i];
     // Levi civita n m q -> lc
     // Levi civita 0 2 1 -> -1
-    u[(lx_i + 0) * u_face_offset + i] -=
-        -1.0 * X[2 * x_offset + i] * u[(sx_i + 1) * u_face_offset + i];
+    u[u_slice_offset + (lx_i + 0) * u_face_offset + i] -=
+        -1.0 * X[large_x_slice_offset + 2 * x_offset + i] * u[u_slice_offset + (sx_i + 1) * u_face_offset + i];
     // Levi civita n m q -> lc
     // Levi civita 1 0 2 -> -1
-    u[(lx_i + 1) * u_face_offset + i] -=
-        -1.0 * X[i] * u[(sx_i + 2) * u_face_offset + i];
+    u[u_slice_offset + (lx_i + 1) * u_face_offset + i] -=
+        -1.0 * X[large_x_slice_offset + i] * u[u_slice_offset + (sx_i + 2) * u_face_offset + i];
     // Levi civita n m q -> lc
     // Levi civita 1 2 0 -> 1
-    u[(lx_i + 1) * u_face_offset + i] -=
-        1.0 * X[2 * x_offset + i] * u[(sx_i + 0) * u_face_offset + i];
+    u[u_slice_offset + (lx_i + 1) * u_face_offset + i] -=
+        1.0 * X[large_x_slice_offset + 2 * x_offset + i] * u[u_slice_offset + (sx_i + 0) * u_face_offset + i];
     // Levi civita n m q -> lc
     // Levi civita 2 0 1 -> 1
-    u[(lx_i + 2) * u_face_offset + i] -=
-        1.0 * X[i] * u[(sx_i + 1) * u_face_offset + i];
+    u[u_slice_offset + (lx_i + 2) * u_face_offset + i] -=
+        1.0 * X[large_x_slice_offset + i] * u[u_slice_offset + (sx_i + 1) * u_face_offset + i];
     // Levi civita n m q -> lc
     // Levi civita 2 1 0 -> -1
-    u[(lx_i + 2) * u_face_offset + i] -=
-        -1.0 * X[1 * x_offset + i] * u[(sx_i + 0) * u_face_offset + i];
+    u[u_slice_offset + (lx_i + 2) * u_face_offset + i] -=
+        -1.0 * X[large_x_slice_offset + 1 * x_offset + i] * u[u_slice_offset + (sx_i + 0) * u_face_offset + i];
 
-    u[sx_i * u_face_offset + i] += omega * X[1 * x_offset + i];
-    u[sy_i * u_face_offset + i] -= omega * X[0 * x_offset + i];
+    u[u_slice_offset + sx_i * u_face_offset + i] += omega * X[large_x_slice_offset + 1 * x_offset + i];
+    u[u_slice_offset + sy_i * u_face_offset + i] -= omega * X[large_x_slice_offset + 0 * x_offset + i];
 }
 
 template <typename container_t, typename const_container_t>

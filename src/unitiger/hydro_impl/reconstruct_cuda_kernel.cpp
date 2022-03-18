@@ -203,12 +203,13 @@ __global__ void __launch_bounds__(64, 4)
         double* __restrict__ device_u, const int nf, const int n_species_) {
     // Index mapping to actual grid
     const int index = (blockIdx.z * 1 + threadIdx.x) * 64 + (threadIdx.y) * 8 + (threadIdx.z);
+    const int slice_id = blockIdx.x;
     if (index < inx_large * inx_large * inx_large) {
         const int grid_x = index / (inx_large * inx_large);
         const int grid_y = (index % (inx_large * inx_large)) / inx_large;
         const int grid_z = (index % (inx_large * inx_large)) % inx_large;
         cell_hydro_pre_recon(
-            device_X, omega, angmom, device_u, nf, n_species_, grid_x, grid_y, grid_z);
+            device_X, omega, angmom, device_u, nf, n_species_, grid_x, grid_y, grid_z, slice_id);
     }
 }
 #if defined(OCTOTIGER_HAVE_HIP)
@@ -224,7 +225,7 @@ void launch_hydro_pre_recon_cuda(
     aggregated_executor_t& executor,
     double* device_X, double omega, bool angmom, double* device_u, int nf, int n_species_) {
     const int blocks = (inx_large * inx_large * inx_large) / 64 + 1;
-    dim3 const grid_spec(1, 1, blocks);
+    dim3 const grid_spec(executor.number_slices, 1, blocks);
     dim3 const threads_per_block(1, 8, 8);
 #if defined(OCTOTIGER_HAVE_CUDA)
     void* args[] = {&(device_X), &omega, &angmom, &(device_u), &nf, &n_species_};

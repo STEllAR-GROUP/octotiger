@@ -404,7 +404,7 @@ void hydro_pre_recon_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
         Kokkos::Experimental::WorkItemProperty::HintLightWeight);
     Kokkos::parallel_for(
         "kernel hydro pre recon", policy, KOKKOS_LAMBDA(int idx, int idy, int idz) {
-            cell_hydro_pre_recon(large_x, omega, angmom, u, nf, n_species, idx, idy, idz);
+            cell_hydro_pre_recon(large_x, omega, angmom, u, nf, n_species, idx, idy, idz, 1); // TODO add slice id
         });
 }
 
