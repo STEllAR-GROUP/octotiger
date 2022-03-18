@@ -411,7 +411,7 @@ void hydro_pre_recon_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
 template <typename kokkos_backend_t, typename kokkos_buffer_t>
 void find_contact_discs_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
     const kokkos_buffer_t& u, kokkos_buffer_t& P, kokkos_buffer_t& disc, const double A_,
-    const double B_, const double fgamma_, const double de_switch_1, const size_t ndir,
+    const double B_, const double fgamma_, const double de_switch_1, const size_t ndir, const size_t nf,
     const Kokkos::Array<long, 3>&& tiling_config_phase1,
     const Kokkos::Array<long, 3>&& tiling_config_phase2) {
     auto policy_phase_1 = Kokkos::Experimental::require(
@@ -420,7 +420,7 @@ void find_contact_discs_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
         Kokkos::Experimental::WorkItemProperty::HintLightWeight);
     Kokkos::parallel_for(
         "kernel find contact discs 1", policy_phase_1, KOKKOS_LAMBDA(int idx, int idy, int idz) {
-            cell_find_contact_discs_phase1(P, u, A_, B_, fgamma_, de_switch_1, idx, idy, idz);
+            cell_find_contact_discs_phase1(P, u, A_, B_, fgamma_, de_switch_1, nf, idx, idy, idz, 1); // TODO add slice id
         });
 
     auto policy_phase_2 = Kokkos::Experimental::require(
@@ -429,7 +429,7 @@ void find_contact_discs_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
         Kokkos::Experimental::WorkItemProperty::HintLightWeight);
     Kokkos::parallel_for(
         "kernel find contact discs 2", policy_phase_2, KOKKOS_LAMBDA(int idx, int idy, int idz) {
-            cell_find_contact_discs_phase2(disc, P, fgamma_, ndir, idx, idy, idz);
+            cell_find_contact_discs_phase2(disc, P, fgamma_, ndir, idx, idy, idz, 1); // TODO add slice id
         });
 }
 
@@ -448,7 +448,7 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec, const host_buffer<dou
     device_buffer<double> P(H_N3 + padding);
     device_buffer<double> disc(ndir / 2 * H_N3 + padding);
     find_contact_discs_impl(exec, u, P, disc, physics<NDIM>::A_, physics<NDIM>::B_,
-        physics<NDIM>::fgamma_, physics<NDIM>::de_switch_1, ndir, {1, 12, 12}, {1, 10, 10});
+        physics<NDIM>::fgamma_, physics<NDIM>::de_switch_1, ndir, nf, {1, 12, 12}, {1, 10, 10});
 
     // Pre recon
     device_buffer<double> large_x(NDIM * H_N3 + padding);
@@ -548,7 +548,7 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec, const host_buffer<dou
     host_buffer<double> P(H_N3 + padding);
     host_buffer<double> disc(ndir / 2 * H_N3 + padding);
     find_contact_discs_impl(exec, combined_u, P, disc, physics<NDIM>::A_, physics<NDIM>::B_,
-        physics<NDIM>::fgamma_, physics<NDIM>::de_switch_1, ndir,
+        physics<NDIM>::fgamma_, physics<NDIM>::de_switch_1, ndir, nf,
         {inx_normal, inx_normal, inx_normal}, {q_inx, q_inx, q_inx});
 
     // Pre recon

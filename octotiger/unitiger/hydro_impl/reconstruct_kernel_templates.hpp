@@ -168,11 +168,14 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_minmod(container_t &combined_q,
 template <typename container_t, typename const_container_t>
 CUDA_GLOBAL_METHOD inline void cell_find_contact_discs_phase1(container_t &P,
     const_container_t &combined_u, const double A_, const double B_, const double fgamma_,
-    const double de_switch_1, const unsigned int x, const unsigned int y,
-    const unsigned int z) {
+    const double de_switch_1, const int nf, const unsigned int x, const unsigned int y,
+    const unsigned int z, const int slice_id) {
     const int i = (x + 1) * inx_large * inx_large + (y + 1) * inx_large + (z + 1);
 
-    const auto rho = combined_u[rho_i * u_face_offset + i];
+    const int u_slice_offset = (H_N3 * nf + 128) * slice_id; 
+    const int p_slice_offset = (H_N3 + 128) * slice_id; 
+
+    const auto rho = combined_u[u_slice_offset + rho_i * u_face_offset + i];
     const auto rhoinv = 1.0 / rho;
     double pdeg = 0.0, edeg = 0.0;
 
@@ -185,31 +188,36 @@ CUDA_GLOBAL_METHOD inline void cell_find_contact_discs_phase1(container_t &P,
 
     safe_real ek = 0.0;
     for (int dim = 0; dim < NDIM; dim++) {
-        ek += combined_u[(sx_i + dim) * u_face_offset + i] *
-            combined_u[(sx_i + dim) * u_face_offset + i] * rhoinv * 0.5;
+        ek += combined_u[u_slice_offset + (sx_i + dim) * u_face_offset + i] *
+            combined_u[u_slice_offset + (sx_i + dim) * u_face_offset + i] * rhoinv * 0.5;
     }
 
-    auto ein = combined_u[egas_i * u_face_offset + i] - ek - edeg;
-    if (ein < de_switch_1 * combined_u[egas_i * u_face_offset + i]) {
-        ein = pow(combined_u[tau_i * u_face_offset + i], fgamma_);
+    auto ein = combined_u[u_slice_offset + egas_i * u_face_offset + i] - ek - edeg;
+    if (ein < de_switch_1 * combined_u[u_slice_offset + egas_i * u_face_offset + i]) {
+        ein = pow(combined_u[u_slice_offset + tau_i * u_face_offset + i], fgamma_);
     }
-    P[i] = (fgamma_ - 1.0) * ein + pdeg;
+    P[p_slice_offset + i] = (fgamma_ - 1.0) * ein + pdeg;
 }
 
 template <typename container_t, typename const_container_t>
 CUDA_GLOBAL_METHOD inline void cell_find_contact_discs_phase2(
     container_t &disc, const_container_t &P, const double fgamma_,
-    const int ndir, const unsigned int x, const unsigned int y, const unsigned int z) {
+    const int ndir, const unsigned int x, const unsigned int y, const unsigned int z, const int slice_id) {
+
+    const int p_slice_offset = (H_N3 + 128) * slice_id; 
+    const int disc_slice_offset = (ndir / 2 * H_N3 + 128) * slice_id; 
+
     const int disc_offset = inx_large * inx_large * inx_large;
+
     const double K0 = 0.1;
     const int i = (x + 2) * inx_large * inx_large + (y + 2) * inx_large + (z + 2);
     for (int d = 0; d < ndir / 2; d++) {
         const auto di = dir[d];
-        const double P_r = P[i + di];
-        const double P_l = P[i - di];
+        const double P_r = P[p_slice_offset + i + di];
+        const double P_l = P[p_slice_offset + i - di];
         const double tmp1 = fgamma_ * K0;
         const double tmp2 = abs(P_r - P_l) / std::min(std::abs(P_r), abs(P_l));
-        disc[d * disc_offset + i] = tmp2 / tmp1;
+        disc[disc_slice_offset + d * disc_offset + i] = tmp2 / tmp1;
     }
 }
 

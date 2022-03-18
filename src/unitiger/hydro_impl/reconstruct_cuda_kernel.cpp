@@ -1,3 +1,4 @@
+#include <__clang_cuda_builtin_vars.h>
 #if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)
 #include <hpx/modules/async_cuda.hpp>
 
@@ -122,14 +123,17 @@ void launch_reconstruct_cuda(
 // TODO Launch bounds do not work with larger subgrid size (>8)
 __global__ void    //__launch_bounds__(12 * 12, 1)
 discs_phase1(double* __restrict__ P, double* __restrict__ combined_u, const double A_,
-    const double B_, const double fgamma_, const double de_switch_1) {
+    const double B_, const double fgamma_, const double de_switch_1, const int nf) {
+
     const int index = (blockIdx.z * 1 + threadIdx.x) * 64 + (threadIdx.y) * 8 + (threadIdx.z);
+    const int slice_id = blockIdx.x;
+
     if (index < inx_normal * inx_normal * inx_normal) {
         const int grid_x = index / (inx_normal * inx_normal);
         const int grid_y = (index % (inx_normal * inx_normal)) / inx_normal;
         const int grid_z = (index % (inx_normal * inx_normal)) % inx_normal;
         cell_find_contact_discs_phase1(
-            P, combined_u, A_, B_, fgamma_, de_switch_1, grid_x, grid_y, grid_z);
+            P, combined_u, A_, B_, fgamma_, de_switch_1, nf, grid_x, grid_y, grid_z, slice_id);
     }
 }
 
@@ -140,11 +144,12 @@ __global__ void discs_phase2(
 #endif
     double* __restrict__ disc, double* __restrict__ P, const double fgamma_, const int ndir) {
     const int index = (blockIdx.z * 1 + threadIdx.x) * 64 + (threadIdx.y) * 8 + (threadIdx.z);
+    const int slice_id = blockIdx.x;
     if (index < q_inx3) {
         const int grid_x = index / (q_inx * q_inx);
         const int grid_y = (index % (q_inx * q_inx)) / q_inx;
         const int grid_z = (index % (q_inx * q_inx)) % q_inx;
-        cell_find_contact_discs_phase2(disc, P, fgamma_, ndir, grid_x, grid_y, grid_z);
+        cell_find_contact_discs_phase2(disc, P, fgamma_, ndir, grid_x, grid_y, grid_z, slice_id);
     }
 }
 
@@ -165,13 +170,13 @@ void disc2_hip_kernel_ggl_wrapper(dim3 const grid_spec, dim3 const threads_per_b
 void launch_find_contact_discs_cuda(
     aggregated_executor_t& executor,
     double* device_u, double* device_P, double* device_disc, double A_, double B_, double fgamma_,
-    double de_switch_1) {
+    double de_switch_1, int nf) {
     static const cell_geometry<NDIM, INX> geo;
     const int blocks = (inx_normal * inx_normal * inx_normal) / 64 + 1;
-    dim3 const grid_spec_phase1(1, 1, blocks);
+    dim3 const grid_spec_phase1(executor.number_slices, 1, blocks);
     dim3 const threads_per_block_phase1(1, 8, 8);
 #if defined(OCTOTIGER_HAVE_CUDA)
-    void* args_phase1[] = {&(device_P), &(device_u), &A_, &B_, &fgamma_, &de_switch_1};
+    void* args_phase1[] = {&(device_P), &(device_u), &A_, &B_, &fgamma_, &de_switch_1, &nf};
     executor.post(cudaLaunchKernel<decltype(discs_phase1)>, discs_phase1, grid_spec_phase1,
         threads_per_block_phase1, args_phase1, 0);
 #elif defined(OCTOTIGER_HAVE_HIP)
@@ -180,7 +185,7 @@ void launch_find_contact_discs_cuda(
 #endif
     int ndir = geo.NDIR;
     const int blocks2 = (q_inx * q_inx * q_inx) / 64 + 1;
-    dim3 const grid_spec_phase2(1, 1, blocks2);
+    dim3 const grid_spec_phase2(executor.number_slices, 1, blocks2);
     dim3 const threads_per_block_phase2(1, 8, 8);
 #if defined(OCTOTIGER_HAVE_CUDA)
     void* args_phase2[] = {&device_disc, &device_P, &fgamma_, &ndir};

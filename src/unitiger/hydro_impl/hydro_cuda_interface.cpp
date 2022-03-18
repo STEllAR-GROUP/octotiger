@@ -57,7 +57,7 @@ using executor_t = hpx::cuda::experimental::cuda_executor;
 #endif
 
 void init_aggregation_pool(void) {
-    constexpr size_t number_aggregation_executors = 1;
+    constexpr size_t number_aggregation_executors = 16;
     constexpr size_t max_slices = 1;
     constexpr Aggregated_Executor_Modes executor_mode = Aggregated_Executor_Modes::EAGER;
     hydro_cuda_agg_executor_pool::init(number_aggregation_executors, max_slices, executor_mode);
@@ -210,75 +210,79 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
       // Device buffers
       aggregated_device_buffer_t<double, decltype(alloc_device_double)>
         device_q(
-          hydro.get_nf() * 27 * q_inx * q_inx * q_inx + 128, device_id, alloc_device_double);
+          (hydro.get_nf() * 27 * q_inx * q_inx * q_inx + 128) * number_slices, device_id, alloc_device_double);
       aggregated_device_buffer_t<double, decltype(alloc_device_double)> device_x(
-          NDIM * q_inx3 + 128, device_id, alloc_device_double);
+          (NDIM * q_inx3 + 128) * number_slices, device_id, alloc_device_double);
       aggregated_device_buffer_t<double, decltype(alloc_device_double)> device_large_x(
-          NDIM * H_N3 + 128, device_id, alloc_device_double);
+          (NDIM * H_N3 + 128) * number_slices, device_id, alloc_device_double);
       aggregated_device_buffer_t<double, decltype(alloc_device_double)> device_f(
-          NDIM * hydro.get_nf() * q_inx3 + 128, device_id, alloc_device_double);
+          (NDIM * hydro.get_nf() * q_inx3 + 128) * number_slices, device_id, alloc_device_double);
       aggregated_device_buffer_t<double, decltype(alloc_device_double)> device_u(
-          hydro.get_nf() * H_N3 + 128, device_id, alloc_device_double);
+          (hydro.get_nf() * H_N3 + 128) * number_slices, device_id, alloc_device_double);
       aggregated_device_buffer_t<double, decltype(alloc_device_double)>
         device_unified_discs(
-          geo.NDIR / 2 * H_N3 + 128, device_id, alloc_device_double);
+          (geo.NDIR / 2 * H_N3 + 128) * number_slices, device_id, alloc_device_double);
       aggregated_device_buffer_t<double, decltype(alloc_device_double)> device_P(
-          H_N3 + 128, device_id, alloc_device_double);
+          (H_N3 + 128) * number_slices, device_id, alloc_device_double);
       aggregated_device_buffer_t<int, decltype(alloc_device_int)> device_disc_detect(
-          hydro.get_nf(), device_id, alloc_device_int);
+          (hydro.get_nf()) * number_slices, device_id, alloc_device_int);
       aggregated_device_buffer_t<int, decltype(alloc_device_int)> device_smooth_field(
-          hydro.get_nf(), device_id, alloc_device_int);
+          (hydro.get_nf()) * number_slices, device_id, alloc_device_int);
       aggregated_device_buffer_t<double, decltype(alloc_device_double)> device_AM(
-          NDIM * q_inx * q_inx * q_inx + 128, device_id, alloc_device_double);
+          (NDIM * q_inx * q_inx * q_inx + 128) * number_slices, device_id, alloc_device_double);
 
       // Host buffers
       aggregated_host_buffer_t<double, decltype(alloc_host_double)> combined_x(
-          NDIM * q_inx3 + 128, double{}, alloc_host_double);
+          (NDIM * q_inx3 + 128) * number_slices, double{}, alloc_host_double);
       aggregated_host_buffer_t<double, decltype(alloc_host_double)> combined_large_x(
-          NDIM * H_N3 + 128, double{}, alloc_host_double);
+          (NDIM * H_N3 + 128) * number_slices, double{}, alloc_host_double);
       aggregated_host_buffer_t<double, decltype(alloc_host_double)> combined_u(
-          hydro.get_nf() * H_N3 + 128, double{}, alloc_host_double);
+          (hydro.get_nf() * H_N3 + 128) * number_slices, double{}, alloc_host_double);
       aggregated_host_buffer_t<double, decltype(alloc_host_double)> f(
-          NDIM * hydro.get_nf() * q_inx3 + 128, double{}, alloc_host_double);
+          (NDIM * hydro.get_nf() * q_inx3 + 128) * number_slices, double{}, alloc_host_double);
       aggregated_host_buffer_t<int, decltype(alloc_host_int)> disc_detect(
-          hydro.get_nf(), int{}, alloc_host_int);
+          (hydro.get_nf()) * number_slices, int{}, alloc_host_int);
       aggregated_host_buffer_t<int, decltype(alloc_host_int)> smooth_field(
-          hydro.get_nf(), int{}, alloc_host_int);
+          (hydro.get_nf()) * number_slices, int{}, alloc_host_int);
 
-      // TODO Adapt indexing for aggregated buffer
+      // Slice offsets
+      constexpr int x_slice_offset = NDIM * q_inx3 + 128;
+      const int u_slice_offset = hydro.get_nf() * H_N3 + 128;
+      const int disc_detect_slice_offset = hydro.get_nf();
+      const int smooth_slice_offset = hydro.get_nf();
+
       // Convert input
-      convert_x_structure(X, combined_x.data());
+      convert_x_structure(X, combined_x.data() + x_slice_offset * slice_id);
       for (int f = 0; f < hydro.get_nf(); f++) {
-          std::copy(U[f].begin(), U[f].end(), combined_u.data() + f * H_N3);
+          std::copy(U[f].begin(), U[f].end(), combined_u.data() + f * H_N3 + u_slice_offset * slice_id);
       }
 
       const auto& disc_detect_bool = hydro.get_disc_detect();
       const auto& smooth_bool = hydro.get_smooth_field();
-      // TODO Update indexing for aggregated buffers
       for (auto f = 0; f < hydro.get_nf(); f++) {
-          disc_detect[f] = disc_detect_bool[f];
-          smooth_field[f] = smooth_bool[f];
+          disc_detect[f + disc_detect_slice_offset * slice_id] = disc_detect_bool[f];
+          smooth_field[f + smooth_slice_offset * slice_id] = smooth_bool[f];
       }
 
       // Move input to device
       exec_slice.post(cudaMemcpyAsync,
           device_u.device_side_buffer, combined_u.data(),
-          (hydro.get_nf() * H_N3 + 128) * sizeof(double), cudaMemcpyHostToDevice);
+          (hydro.get_nf() * H_N3 + 128) * sizeof(double) * number_slices, cudaMemcpyHostToDevice);
       exec_slice.post(cudaMemcpyAsync,
-          device_x.device_side_buffer, combined_x.data(), (NDIM * q_inx3 + 128) * sizeof(double),
+          device_x.device_side_buffer, combined_x.data(), (NDIM * q_inx3 + 128) * sizeof(double) * number_slices,
           cudaMemcpyHostToDevice);
       exec_slice.post(cudaMemcpyAsync,
-          device_disc_detect.device_side_buffer, disc_detect.data(), (hydro.get_nf()) * sizeof(int),
+          device_disc_detect.device_side_buffer, disc_detect.data(), (hydro.get_nf()) * sizeof(int) * number_slices,
           cudaMemcpyHostToDevice);
       exec_slice.post(cudaMemcpyAsync,
-          device_smooth_field.device_side_buffer, smooth_field.data(), (hydro.get_nf()) * sizeof(int),
+          device_smooth_field.device_side_buffer, smooth_field.data(), (hydro.get_nf()) * sizeof(int) * number_slices,
           cudaMemcpyHostToDevice);
 
 
       // get discs
       launch_find_contact_discs_cuda(exec_slice, device_u.device_side_buffer,
           device_P.device_side_buffer, device_unified_discs.device_side_buffer, physics<NDIM>::A_,
-          physics<NDIM>::B_, physics<NDIM>::fgamma_, physics<NDIM>::de_switch_1);
+          physics<NDIM>::B_, physics<NDIM>::fgamma_, physics<NDIM>::de_switch_1, hydro.get_nf());
 
       // TODO Update indexing for aggregated buffers
       for (int n = 0; n < NDIM; n++) {
