@@ -26,14 +26,21 @@
 #include "octotiger/unitiger/hydro_impl/flux_kernel_templates.hpp"
 #include "octotiger/unitiger/hydro_impl/reconstruct_kernel_templates.hpp"    // required for xloc definition
 
-__global__ void __launch_bounds__(128, 2)
-    flux_cuda_kernel(const double* __restrict__ q_combined, const double* __restrict__ x_combined,
-        double* __restrict__ f_combined, double* amax, int* amax_indices, int* amax_d,
-        const bool* __restrict__ masks, const double omega, const double dx, const double A_,
-        const double B_, const int nf, const double fgamma, const double de_switch_1) {
+__global__ void __launch_bounds__(128, 2) flux_cuda_kernel(const double* __restrict__ q_combined,
+    const double* __restrict__ x_combined, double* __restrict__ f_combined, double* amax,
+    int* amax_indices, int* amax_d, const bool* __restrict__ masks, const double omega,
+    const double dx, const double A_, const double B_, const int nf, const double fgamma,
+    const double de_switch_1, const int number_blocks) {
     __shared__ double sm_amax[128];
     __shared__ int sm_d[128];
     __shared__ int sm_i[128];
+
+    const int slice_id = blockIdx.x;
+    const int q_slice_offset = (nf * 27 * H_N3 + 128) * slice_id;
+    const int f_slice_offset = (nf * q_inx3 + 128) * slice_id;
+    const int x_slice_offset = (NDIM * q_inx3 + 128) * slice_id;
+    const int amax_slice_offset = NDIM * (1 + 2 * nf) * number_blocks * slice_id;
+    const int max_indices_slice_offset = NDIM * number_blocks * slice_id;
 
     // Set during cmake step with -DOCTOTIGER_WITH_MAX_NUMBER_FIELDS
     double local_f[OCTOTIGER_MAX_NUMBER_FIELDS];
@@ -56,7 +63,7 @@ __global__ void __launch_bounds__(128, 2)
     const int tid = threadIdx.x * 64 + threadIdx.y * 8 + threadIdx.z;
     const int index = blockIdx.y * 128 + tid;    // + 104;
     for (int f = 0; f < nf; f++) {
-        f_combined[dim * nf * q_inx3 + f * q_inx3 + index] = 0.0;
+        f_combined[dim * nf * q_inx3 + f * q_inx3 + index + f_slice_offset] = 0.0;
     }
     if (index > q_inx * q_inx + q_inx && index < q_inx3) {
         double mask = masks[index + dim * dim_offset];
@@ -66,12 +73,13 @@ __global__ void __launch_bounds__(128, 2)
                 const int d = faces[dim][fi];
                 const int flipped_dim = flip_dim(d, dim);
                 for (int dim = 0; dim < 3; dim++) {
-                    local_x[dim] = x_combined[dim * q_inx3 + index] + (0.5 * xloc[d][dim] * dx);
+                    local_x[dim] = x_combined[dim * q_inx3 + index + x_slice_offset] + (0.5 * xloc[d][dim] * dx);
                 }
-                local_vg[0] = -omega * (x_combined[q_inx3 + index] + 0.5 * xloc[d][1] * dx);
-                local_vg[1] = +omega * (x_combined[index] + 0.5 * xloc[d][0] * dx);
+                local_vg[0] = -omega * (x_combined[q_inx3 + index + x_slice_offset] + 0.5 * xloc[d][1] * dx);
+                local_vg[1] = +omega * (x_combined[index + x_slice_offset] + 0.5 * xloc[d][0] * dx);
                 local_vg[2] = 0.0;
-                cell_inner_flux_loop<double>(omega, nf, A_, B_, q_combined, local_f, local_x,
+                const double *q_with_offset = q_combined + q_slice_offset;
+                cell_inner_flux_loop<double>(omega, nf, A_, B_, q_with_offset, local_f, local_x,
                     local_vg, this_ap, this_am, dim, d, dx, fgamma, de_switch_1,
                     dim_offset * d + index, dim_offset * flipped_dim - compressedH_DN[dim] + index,
                     face_offset);
@@ -83,14 +91,14 @@ __global__ void __launch_bounds__(128, 2)
                     current_d = d;
                 }
                 for (int f = 1; f < nf; f++) {
-                    f_combined[dim * nf * q_inx3 + f * q_inx3 + index] +=
+                    f_combined[dim * nf * q_inx3 + f * q_inx3 + index + f_slice_offset] +=
                         quad_weights[fi] * local_f[f];
                 }
             }
         }
         for (int f = 10; f < nf; f++) {
-            f_combined[dim * nf * q_inx3 + index] +=
-                f_combined[dim * nf * q_inx3 + f * q_inx3 + index];
+            f_combined[dim * nf * q_inx3 + index + f_slice_offset] +=
+                f_combined[dim * nf * q_inx3 + f * q_inx3 + index + f_slice_offset];
         }
     }
     // Find maximum:
@@ -160,17 +168,17 @@ __global__ void __launch_bounds__(128, 2)
 
     if (tid == 0) {
         const int block_id = blockIdx.y + dim * blocks_per_dim;
-        amax[block_id] = sm_amax[0];
-        amax_indices[block_id] = sm_i[0];
-        amax_d[block_id] = sm_d[0];
+        amax[block_id + max_indices_slice_offset] = sm_amax[0];
+        amax_indices[block_id + max_indices_slice_offset] = sm_i[0];
+        amax_d[block_id + max_indices_slice_offset] = sm_d[0];
 
         // Save face to the end of the amax buffer
         const int flipped_dim = flip_dim(sm_d[0], dim);
         for (int f = 0; f < nf; f++) {
-            amax[blocks_per_dim * number_dims + block_id * 2 * nf + f] =
-                q_combined[sm_i[0] + f * face_offset + dim_offset * sm_d[0]];
-            amax[blocks_per_dim * number_dims + block_id * 2 * nf + nf + f] = q_combined[sm_i[0] -
-                compressedH_DN[dim] + f * face_offset + dim_offset * flipped_dim];
+            amax[blocks_per_dim * number_dims + block_id * 2 * nf + f + amax_slice_offset] =
+                q_combined[sm_i[0] + f * face_offset + dim_offset * sm_d[0] + q_slice_offset];
+            amax[blocks_per_dim * number_dims + block_id * 2 * nf + nf + f + amax_slice_offset] = q_combined[sm_i[0] -
+                compressedH_DN[dim] + f * face_offset + dim_offset * flipped_dim + q_slice_offset];
         }
     }
     return;
