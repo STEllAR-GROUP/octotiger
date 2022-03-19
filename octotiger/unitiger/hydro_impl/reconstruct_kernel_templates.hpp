@@ -364,7 +364,11 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p1(const size_t nf_, 
     const_int_container_t& smooth_field_, const_int_container_t& disc_detect_,
     container_t& combined_q, container_t& combined_u, container_t& AM,
     const double dx, const_container_t &cdiscs, const int d, const int i, const int q_i,
-    const int ndir, const int nangmom) {
+    const int ndir, const int nangmom, const int slice_id) {
+    const int q_slice_offset = (nf_ * 27 * H_N3 + 128) * slice_id;
+    const int u_slice_offset = (nf_ * H_N3 + 128) * slice_id;
+    const int am_slice_offset = (NDIM * q_inx3 + 128) * slice_id;
+
     int l_start;
     int s_start;
     if (angmom_index_ > -1) {
@@ -378,20 +382,20 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p1(const size_t nf_, 
         if (d < ndir / 2) {
             for (int f = 0; f < s_start; f++) {
                 cell_reconstruct_ppm(combined_q, combined_u,
-                    smooth_field_[f], disc_detect_[f], cdiscs, d, f, i, q_i);
+                    smooth_field_[f], disc_detect_[f], cdiscs, d, f, i + u_slice_offset, q_i + q_slice_offset);
             }
             for (int f = s_start; f < l_start; f++) {
                 cell_reconstruct_ppm(
-                    combined_q, combined_u, true, false, cdiscs, d, f, i, q_i);
+                    combined_q, combined_u, true, false, cdiscs, d, f, i + u_slice_offset, q_i + q_slice_offset);
             }
         }
         for (int f = l_start; f < l_start + nangmom; f++) {
-            cell_reconstruct_minmod(combined_q, combined_u, d, f, i, q_i);
+            cell_reconstruct_minmod(combined_q, combined_u, d, f, i + u_slice_offset, q_i + q_slice_offset);
         }
         if (d < ndir / 2) {
             for (int f = l_start + nangmom; f < nf_; f++) {
                 cell_reconstruct_ppm(combined_q, combined_u,
-                    smooth_field_[f], disc_detect_[f], cdiscs, d, f, i, q_i);
+                    smooth_field_[f], disc_detect_[f], cdiscs, d, f, i + u_slice_offset, q_i + q_slice_offset);
             }
         }
     } else {
@@ -399,10 +403,10 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p1(const size_t nf_, 
             if (f < lx_i || f > lx_i + nangmom ) {
                 if (d < ndir / 2) {
                     cell_reconstruct_ppm(combined_q, combined_u,
-                        smooth_field_[f], disc_detect_[f], cdiscs, d, f, i, q_i);
+                        smooth_field_[f], disc_detect_[f], cdiscs, d, f, i + u_slice_offset, q_i + q_slice_offset);
                 }
             } else {
-                cell_reconstruct_minmod(combined_q, combined_u, d, f, i, q_i);
+                cell_reconstruct_minmod(combined_q, combined_u, d, f, i + u_slice_offset, q_i + q_slice_offset);
             }
         }
     }
@@ -412,45 +416,45 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p1(const size_t nf_, 
 
         // n m q Levi Civita
         // 0 1 2 -> 1
-        double results0 = AM[q_i] -
+        double results0 = AM[q_i + am_slice_offset] -
             vw[d] * 1.0 * 0.5 * xloc[d][1] *
-                combined_q[(sx_i + 2) * q_face_offset + d * q_dir_offset + q_i] *
-                combined_q[start_index_rho + q_i] * dx;
+                combined_q[(sx_i + 2) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset] *
+                combined_q[start_index_rho + q_i + q_slice_offset] * dx;
 
         // n m q Levi Civita
         // 0 2 1 -> -1
         results0 -= vw[d] * (-1.0) * 0.5 * xloc[d][2] *
-            combined_q[(sx_i + 1) * q_face_offset + d * q_dir_offset + q_i] *
-            combined_q[start_index_rho + q_i] * dx;
-        AM[q_i] = results0;
+            combined_q[(sx_i + 1) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset] *
+            combined_q[start_index_rho + q_i + q_slice_offset] * dx;
+        AM[q_i + am_slice_offset] = results0;
 
         // n m q Levi Civita
         // 1 0 2 -> -1
-        double results1 = AM[am_offset + q_i] -
+        double results1 = AM[am_offset + q_i + am_slice_offset] -
             vw[d] * (-1.0) * 0.5 * xloc[d][0] *
-                combined_q[(sx_i + 2) * q_face_offset + d * q_dir_offset + q_i] *
-                combined_q[start_index_rho + q_i] * dx;
+                combined_q[(sx_i + 2) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset] *
+                combined_q[start_index_rho + q_i + q_slice_offset] * dx;
 
         // n m q Levi Civita
         // 1 2 0 -> 1
         results1 -= vw[d] * (1.0) * 0.5 * xloc[d][2] *
-            combined_q[(sx_i + 0) * q_face_offset + d * q_dir_offset + q_i] *
-            combined_q[start_index_rho + q_i] * dx;
-        AM[am_offset + q_i] = results1;
+            combined_q[(sx_i + 0) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset] *
+            combined_q[start_index_rho + q_i + q_slice_offset] * dx;
+        AM[am_offset + q_i + am_slice_offset] = results1;
 
         // n m q Levi Civita
         // 2 0 1 -> 1
-        double results2 = AM[2 * am_offset + q_i] -
+        double results2 = AM[2 * am_offset + q_i + am_slice_offset] -
             vw[d] * (1.0) * 0.5 * xloc[d][0] *
-                combined_q[(sx_i + 1) * q_face_offset + d * q_dir_offset + q_i] *
-                combined_q[start_index_rho + q_i] * dx;
+                combined_q[(sx_i + 1) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset] *
+                combined_q[start_index_rho + q_i + q_slice_offset] * dx;
 
         // n m q Levi Civita
         // 2 1 0 -> -1
         results2 -= vw[d] * (-1.0) * 0.5 * xloc[d][1] *
-            combined_q[(sx_i + 0) * q_face_offset + d * q_dir_offset + q_i] *
-            combined_q[start_index_rho + q_i] * dx;
-        AM[2 * am_offset + q_i] = results2;
+            combined_q[(sx_i + 0) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset] *
+            combined_q[start_index_rho + q_i + q_slice_offset] * dx;
+        AM[2 * am_offset + q_i + am_slice_offset] = results2;
     }
 }
 
@@ -458,7 +462,13 @@ template <typename container_t, typename const_container_t>
 CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p2(const safe_real omega, const int angmom_index_,
     container_t& combined_q, const_container_t& combined_x,
     container_t& combined_u, const_container_t& AM, const double dx, const int d,
-    const int i, const int q_i, const int ndir, const int nangmom, const int n_species_) {
+    const int i, const int q_i, const int ndir, const int nangmom, const int n_species_, const int nf_, const int slice_id) {
+
+    const int q_slice_offset = (nf_ * 27 * H_N3 + 128) * slice_id;
+    const int u_slice_offset = (nf_ * H_N3 + 128) * slice_id;
+    const int am_slice_offset = (NDIM * q_inx3 + 128) * slice_id;
+    const int x_slice_offset = (NDIM * q_inx3 + 128) * slice_id;
+
     if (d < ndir / 2 && angmom_index_ > -1) {
         const auto di = dir[d];
 
@@ -470,38 +480,38 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p2(const safe_real om
             const int start_index_zero_flipped = 0 * q_face_offset + flip(d) * q_dir_offset;
             // const auto& rho_r = Q[0][d][i];
             // const auto& rho_l = Q[0][geo.flip(d)][i];
-            const auto& rho_r = combined_q[start_index_zero + q_i];
-            const auto& rho_l = combined_q[start_index_zero_flipped + q_i];
-            auto& qr = combined_q[start_index_f + q_i];
-            auto& ql = combined_q[start_index_flipped + q_i];
+            const auto& rho_r = combined_q[start_index_zero + q_i + q_slice_offset];
+            const auto& rho_l = combined_q[start_index_zero_flipped + q_i + q_slice_offset];
+            auto& qr = combined_q[start_index_f + q_i + q_slice_offset];
+            auto& ql = combined_q[start_index_flipped + q_i + q_slice_offset];
             // auto& qr = Q[f][d][i];
             // auto& ql = Q[f][geo.flip(d)][i];
-            const auto& ur = combined_u[f * u_face_offset + i + di];
-            const auto& u0 = combined_u[f * u_face_offset + i];
-            const auto& ul = combined_u[f * u_face_offset + i - di];
+            const auto& ur = combined_u[f * u_face_offset + i + u_slice_offset + di];
+            const auto& u0 = combined_u[f * u_face_offset + i + u_slice_offset];
+            const auto& ul = combined_u[f * u_face_offset + i + u_slice_offset - di];
             const auto b0 = qr - ql;
             auto b = b0;
             if (q == 0) {
                 // n m q Levi Civita
                 // 1 2 0 -> 1
-                b += 12.0 * AM[1 * am_offset + q_i] * 1.0 * xloc[d][2] / (dx * (rho_l + rho_r));
+                b += 12.0 * AM[1 * am_offset + q_i + am_slice_offset] * 1.0 * xloc[d][2] / (dx * (rho_l + rho_r));
                 // n m q Levi Civita
                 // 2 1 0 -> -1
-                b -= 12.0 * AM[2 * am_offset + q_i] * 1.0 * xloc[d][1] / (dx * (rho_l + rho_r));
+                b -= 12.0 * AM[2 * am_offset + q_i + am_slice_offset] * 1.0 * xloc[d][1] / (dx * (rho_l + rho_r));
             } else if (q == 1) {
                 // n m q Levi Civita
                 // 0 2 1 -> -1
-                b -= 12.0 * AM[0 * am_offset + q_i] * 1.0 * xloc[d][2] / (dx * (rho_l + rho_r));
+                b -= 12.0 * AM[0 * am_offset + q_i + am_slice_offset] * 1.0 * xloc[d][2] / (dx * (rho_l + rho_r));
                 // n m q Levi Civita
                 // 2 0 1 -> 1
-                b += 12.0 * AM[2 * am_offset + q_i] * 1.0 * xloc[d][0] / (dx * (rho_l + rho_r));
+                b += 12.0 * AM[2 * am_offset + q_i + am_slice_offset] * 1.0 * xloc[d][0] / (dx * (rho_l + rho_r));
             } else {
                 // n m q Levi Civita
                 // 0 1 2 -> 1
-                b += 12.0 * AM[0 * am_offset + q_i] * 1.0 * xloc[d][1] / (dx * (rho_l + rho_r));
+                b += 12.0 * AM[0 * am_offset + q_i + am_slice_offset] * 1.0 * xloc[d][1] / (dx * (rho_l + rho_r));
                 // n m q Levi Civita
                 // 1 0 2 -> -1
-                b -= 12.0 * AM[1 * am_offset + q_i] * 1.0 * xloc[d][0] / (dx * (rho_l + rho_r));
+                b -= 12.0 * AM[1 * am_offset + q_i + am_slice_offset] * 1.0 * xloc[d][0] / (dx * (rho_l + rho_r));
             }
             double blim;
             if ((ur - u0) * (u0 - ul) <= 0.0) {
@@ -538,77 +548,77 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p2(const safe_real om
     if (d != ndir / 2) {
         const int start_index_sx = sx_i * q_face_offset + d * q_dir_offset;
         const int start_index_sy = sy_i * q_face_offset + d * q_dir_offset;
-        combined_q[start_index_sx + q_i] -=
-            omega * (combined_x[1 * q_inx3 + q_i] + 0.5 * xloc[d][1] * dx);
-        combined_q[start_index_sy + q_i] += omega * (combined_x[q_i] + 0.5 * xloc[d][0] * dx);
+        combined_q[start_index_sx + q_i + q_slice_offset] -=
+            omega * (combined_x[1 * q_inx3 + q_i + x_slice_offset] + 0.5 * xloc[d][1] * dx);
+        combined_q[start_index_sy + q_i + q_slice_offset] += omega * (combined_x[q_i + x_slice_offset] + 0.5 * xloc[d][0] * dx);
         // Q[sx_i][d][i] -= omega * (X[1][i] + 0.5 * xloc[d][1] * dx);
         // Q[sy_i][d][i] += omega * (X[0][i] + 0.5 * xloc[d][0] * dx);
-        const double rho = combined_q[start_index_rho + q_i];
+        const double rho = combined_q[start_index_rho + q_i + q_slice_offset];
 
         // n m q Levi Civita
         // 0 1 2 -> 1
         const double xloc_tmp1 = 0.5 * xloc[d][1] * dx;
-        const double q_lx_val0 = combined_q[(lx_i + 0) * q_face_offset + d * q_dir_offset + q_i];
+        const double q_lx_val0 = combined_q[(lx_i + 0) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset];
         double result0 = q_lx_val0 +
-            (1.0) * (combined_x[q_inx3 + q_i] + xloc_tmp1) *
-                combined_q[(sx_i + 2) * q_face_offset + d * q_dir_offset + q_i];
+            (1.0) * (combined_x[q_inx3 + q_i + x_slice_offset] + xloc_tmp1) *
+                combined_q[(sx_i + 2) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset];
 
         // n m q Levi Civita
         // 0 2 1 -> -1
         const double xloc_tmp2 = 0.5 * xloc[d][2] * dx;
-        result0 += (-1.0) * (combined_x[2 * q_inx3 + q_i] + xloc_tmp2) *
-            combined_q[(sx_i + 1) * q_face_offset + d * q_dir_offset + q_i];
-        combined_q[(lx_i + 0) * q_face_offset + d * q_dir_offset + q_i] = result0;
+        result0 += (-1.0) * (combined_x[2 * q_inx3 + q_i + x_slice_offset] + xloc_tmp2) *
+            combined_q[(sx_i + 1) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset];
+        combined_q[(lx_i + 0) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset] = result0;
 
         // n m q Levi Civita
         // 1 0 2 -> -1
         const double xloc_tmp0 = 0.5 * xloc[d][0] * dx;
-        const double q_lx_val1 = combined_q[(lx_i + 1) * q_face_offset + d * q_dir_offset + q_i];
+        const double q_lx_val1 = combined_q[(lx_i + 1) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset];
         double result1 = q_lx_val1 +
-            (-1.0) * (combined_x[q_i] + xloc_tmp0) *
-                combined_q[(sx_i + 2) * q_face_offset + d * q_dir_offset + q_i];
+            (-1.0) * (combined_x[q_i + x_slice_offset] + xloc_tmp0) *
+                combined_q[(sx_i + 2) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset];
 
         // n m q Levi Civita
         // 1 2 0 -> 1
-        result1 += (1.0) * (combined_x[2 * q_inx3 + q_i] + xloc_tmp2) *
-            combined_q[(sx_i + 0) * q_face_offset + d * q_dir_offset + q_i];
-        combined_q[(lx_i + 1) * q_face_offset + d * q_dir_offset + q_i] = result1;
+        result1 += (1.0) * (combined_x[2 * q_inx3 + q_i + x_slice_offset] + xloc_tmp2) *
+            combined_q[(sx_i + 0) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset];
+        combined_q[(lx_i + 1) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset] = result1;
 
         // n m q Levi Civita
         // 2 0 1 -> 1
-        const double q_lx_val2 = combined_q[(lx_i + 2) * q_face_offset + d * q_dir_offset + q_i];
+        const double q_lx_val2 = combined_q[(lx_i + 2) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset];
         auto result2 = q_lx_val2 +
-            (1.0) * (combined_x[q_i] + xloc_tmp0) *
-                combined_q[(sx_i + 1) * q_face_offset + d * q_dir_offset + q_i];
+            (1.0) * (combined_x[q_i + x_slice_offset] + xloc_tmp0) *
+                combined_q[(sx_i + 1) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset];
 
         // n m q Levi Civita
         // 2 1 0 -> -1
-        result2 += (-1.0) * (combined_x[q_inx3 + q_i] + xloc_tmp1) *
-            combined_q[(sx_i + 0) * q_face_offset + d * q_dir_offset + q_i];
-        combined_q[(lx_i + 2) * q_face_offset + d * q_dir_offset + q_i] = result2;
+        result2 += (-1.0) * (combined_x[q_inx3 + q_i + x_slice_offset] + xloc_tmp1) *
+            combined_q[(sx_i + 0) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset];
+        combined_q[(lx_i + 2) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset] = result2;
         const int start_index_egas = egas_i * q_face_offset + d * q_dir_offset;
         const int start_index_pot = pot_i * q_face_offset + d * q_dir_offset;
         for (int n = 0; n < nangmom; n++) {
             const int start_index_lx_n = (lx_i + n) * q_face_offset + d * q_dir_offset;
-            combined_q[start_index_lx_n + q_i] *= rho;
+            combined_q[start_index_lx_n + q_i + q_slice_offset] *= rho;
         }
         for (int dim = 0; dim < NDIM; dim++) {
             const int start_index_sx_d = (sx_i + dim) * q_face_offset + d * q_dir_offset;
-            auto& v = combined_q[start_index_sx_d + q_i];
-            combined_q[start_index_egas + q_i] += 0.5 * v * v * rho;
+            auto& v = combined_q[start_index_sx_d + q_i + q_slice_offset];
+            combined_q[start_index_egas + q_i + q_slice_offset] += 0.5 * v * v * rho;
             v *= rho;
         }
-        combined_q[start_index_pot + q_i] *= rho;
+        combined_q[start_index_pot + q_i + q_slice_offset] *= rho;
         safe_real w = 0.0;
         for (int si = 0; si < n_species_; si++) {
             const int start_index_sp_i = (spc_i + si) * q_face_offset + d * q_dir_offset;
-            w += combined_q[start_index_sp_i + q_i];
-            combined_q[start_index_sp_i + q_i] *= rho;
+            w += combined_q[start_index_sp_i + q_i + q_slice_offset];
+            combined_q[start_index_sp_i + q_i + q_slice_offset] *= rho;
         }
         w = 1.0 / w;
         for (int si = 0; si < n_species_; si++) {
             const int start_index_sp_i = (spc_i + si) * q_face_offset + d * q_dir_offset;
-            combined_q[start_index_sp_i + q_i] *= w;
+            combined_q[start_index_sp_i + q_i + q_slice_offset] *= w;
         }
     }
 }

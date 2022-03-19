@@ -351,12 +351,12 @@ void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor, const d
                 }
                 for (int d = 0; d < ndir; d++) {
                     cell_reconstruct_inner_loop_p1(nf_, angmom_index_, smooth_field_, disc_detect_,
-                        combined_q, combined_u, AM, dx, cdiscs, d, i, q_i, ndir, nangmom);
+                        combined_q, combined_u, AM, dx, cdiscs, d, i, q_i, ndir, nangmom, 0);
                 }
                 // Phase 2
                 for (int d = 0; d < ndir; d++) {
                     cell_reconstruct_inner_loop_p2(omega, angmom_index_, combined_q, combined_x,
-                        combined_u, AM, dx, d, i, q_i, ndir, nangmom, n_species_);
+                        combined_u, AM, dx, d, i, q_i, ndir, nangmom, n_species_, nf_, 0);
                 }
             }
         });
@@ -383,12 +383,12 @@ void reconstruct_no_amc_impl(hpx::kokkos::executor<kokkos_backend_t>& executor, 
             if (q_i < q_inx3) {
                 for (int d = 0; d < ndir; d++) {
                     cell_reconstruct_inner_loop_p1(nf_, angmom_index_, smooth_field_, disc_detect_,
-                        combined_q, combined_u, AM, dx, cdiscs, d, i, q_i, ndir, nangmom);
+                        combined_q, combined_u, AM, dx, cdiscs, d, i, q_i, ndir, nangmom, 0);
                 }
                 // Phase 2
                 for (int d = 0; d < ndir; d++) {
                     cell_reconstruct_inner_loop_p2(omega, angmom_index_, combined_q, combined_x,
-                        combined_u, AM, dx, d, i, q_i, ndir, nangmom, n_species_);
+                        combined_u, AM, dx, d, i, q_i, ndir, nangmom, n_species_, nf_, 0);
                 }
             }
         });
@@ -404,7 +404,7 @@ void hydro_pre_recon_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
         Kokkos::Experimental::WorkItemProperty::HintLightWeight);
     Kokkos::parallel_for(
         "kernel hydro pre recon", policy, KOKKOS_LAMBDA(int idx, int idy, int idz) {
-            cell_hydro_pre_recon(large_x, omega, angmom, u, nf, n_species, idx, idy, idz, 1); // TODO add slice id
+            cell_hydro_pre_recon(large_x, omega, angmom, u, nf, n_species, idx, idy, idz, 0); // TODO add slice id
         });
 }
 
@@ -420,7 +420,7 @@ void find_contact_discs_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
         Kokkos::Experimental::WorkItemProperty::HintLightWeight);
     Kokkos::parallel_for(
         "kernel find contact discs 1", policy_phase_1, KOKKOS_LAMBDA(int idx, int idy, int idz) {
-            cell_find_contact_discs_phase1(P, u, A_, B_, fgamma_, de_switch_1, nf, idx, idy, idz, 1); // TODO add slice id
+            cell_find_contact_discs_phase1(P, u, A_, B_, fgamma_, de_switch_1, nf, idx, idy, idz, 0); // TODO add slice id
         });
 
     auto policy_phase_2 = Kokkos::Experimental::require(
@@ -429,7 +429,7 @@ void find_contact_discs_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
         Kokkos::Experimental::WorkItemProperty::HintLightWeight);
     Kokkos::parallel_for(
         "kernel find contact discs 2", policy_phase_2, KOKKOS_LAMBDA(int idx, int idy, int idz) {
-            cell_find_contact_discs_phase2(disc, P, fgamma_, ndir, idx, idy, idz, 1); // TODO add slice id
+            cell_find_contact_discs_phase2(disc, P, fgamma_, ndir, idx, idy, idz, 0); // TODO add slice id
         });
 }
 

@@ -28,15 +28,16 @@ __global__ void reconstruct_cuda_kernel_no_amc(const double omega,
     const int q_i = (blockIdx.z * 1 + threadIdx.x) * 64 + (threadIdx.y) * 8 + (threadIdx.z);
     const int i = ((q_i / q_inx2) + 2) * inx_large * inx_large +
         (((q_i % q_inx2) / q_inx) + 2) * inx_large + (((q_i % q_inx2) % q_inx) + 2);
+    const int slice_id = blockIdx.x;
     if (q_i < q_inx3) {
         for (int d = 0; d < ndir; d++) {
             cell_reconstruct_inner_loop_p1(nf_, angmom_index_, smooth_field_, disc_detect_,
-                combined_q, combined_u, AM, dx, cdiscs, d, i, q_i, ndir, nangmom);
+                combined_q, combined_u, AM, dx, cdiscs, d, i, q_i, ndir, nangmom, slice_id);
         }
         // Phase 2
         for (int d = 0; d < ndir; d++) {
             cell_reconstruct_inner_loop_p2(omega, angmom_index_, combined_q, combined_x, combined_u,
-                AM, dx, d, i, q_i, ndir, nangmom, n_species_);
+                AM, dx, d, i, q_i, ndir, nangmom, n_species_, nf_, slice_id);
         }
     }
 }
@@ -56,18 +57,19 @@ __global__ void reconstruct_cuda_kernel(const double omega, const int nf_,
     const int q_i = (blockIdx.z * 1 + threadIdx.x) * 64 + (threadIdx.y) * 8 + (threadIdx.z);
     const int i = ((q_i / q_inx2) + 2) * inx_large * inx_large +
         (((q_i % q_inx2) / q_inx) + 2) * inx_large + (((q_i % q_inx2) % q_inx) + 2);
+    const int slice_id = blockIdx.x;
     if (q_i < q_inx3) {
         for (int n = 0; n < nangmom; n++) {
             AM[n * am_offset + q_i] = combined_u[(zx_i + n) * u_face_offset + i] * combined_u[i];
         }
         for (int d = 0; d < ndir; d++) {
             cell_reconstruct_inner_loop_p1(nf_, angmom_index_, smooth_field_, disc_detect_,
-                combined_q, combined_u, AM, dx, cdiscs, d, i, q_i, ndir, nangmom);
+                combined_q, combined_u, AM, dx, cdiscs, d, i, q_i, ndir, nangmom, slice_id);
         }
         // Phase 2
         for (int d = 0; d < ndir; d++) {
             cell_reconstruct_inner_loop_p2(omega, angmom_index_, combined_q, combined_x, combined_u,
-                AM, dx, d, i, q_i, ndir, nangmom, n_species_);
+                AM, dx, d, i, q_i, ndir, nangmom, n_species_, nf_, slice_id);
         }
     }
 }
@@ -98,7 +100,7 @@ void launch_reconstruct_cuda(
     assert(geo.NDIR == 27);
 
     constexpr int blocks = q_inx3 / 64 + 1;
-    dim3 const grid_spec(1, 1, blocks);
+    dim3 const grid_spec(executor.number_slices, 1, blocks);
     dim3 const threads_per_block(1, 8, 8);
     int ndir = geo.NDIR;
     int nangmom = geo.NANGMOM;
