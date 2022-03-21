@@ -276,7 +276,7 @@ CUDA_GLOBAL_METHOD inline void cell_hydro_pre_recon(const_container_t& X, safe_r
 template <typename container_t, typename const_container_t>
 CUDA_GLOBAL_METHOD inline void cell_reconstruct_ppm(container_t &combined_q,
     container_t &combined_u_face, bool smooth, bool disc_detect,
-    const_container_t &disc, const int d, const int f, int i, int q_i) {
+    const_container_t &disc, const int d, const int f, int i, int q_i, int d_i) {
     // const vc_type zindices = vc_type::IndexesFromZero() + 1;
     // static thread_local auto D1 = std::vector<safe_real>(geo.H_N3, 0.0);
     const auto di = dir[d];
@@ -316,7 +316,7 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_ppm(container_t &combined_q,
         const auto& u0 = combined_u_face[f * u_face_offset + i];
         const auto& um = combined_u_face[f * u_face_offset + i - di];
         const auto dif = up - um;
-        if (std::abs(dif) > disc[d * disc_offset + i] * std::min(std::abs(up), std::abs(um))) {
+        if (std::abs(dif) > disc[d * disc_offset + d_i] * std::min(std::abs(up), std::abs(um))) {
             if (std::min(std::abs(up), std::abs(um)) / std::max(std::abs(up), std::abs(um)) >
                 eps2) {
                 const auto d2p = (1.0 / 6.0) *
@@ -365,9 +365,10 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p1(const size_t nf_, 
     container_t& combined_q, container_t& combined_u, container_t& AM,
     const double dx, const_container_t &cdiscs, const int d, const int i, const int q_i,
     const int ndir, const int nangmom, const int slice_id) {
-    const int q_slice_offset = (nf_ * 27 * H_N3 + 128) * slice_id;
+    const int q_slice_offset = (nf_ * 27 * q_inx3 + 128) * slice_id;
     const int u_slice_offset = (nf_ * H_N3 + 128) * slice_id;
     const int am_slice_offset = (NDIM * q_inx3 + 128) * slice_id;
+    const int disc_slice_offset = (ndir / 2 * H_N3 + 128) * slice_id; 
 
     int l_start;
     int s_start;
@@ -382,11 +383,11 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p1(const size_t nf_, 
         if (d < ndir / 2) {
             for (int f = 0; f < s_start; f++) {
                 cell_reconstruct_ppm(combined_q, combined_u,
-                    smooth_field_[f], disc_detect_[f], cdiscs, d, f, i + u_slice_offset, q_i + q_slice_offset);
+                    smooth_field_[f + nf_ * slice_id], disc_detect_[f + nf_ * slice_id], cdiscs, d, f, i, q_i, i + disc_slice_offset);
             }
             for (int f = s_start; f < l_start; f++) {
                 cell_reconstruct_ppm(
-                    combined_q, combined_u, true, false, cdiscs, d, f, i + u_slice_offset, q_i + q_slice_offset);
+                    combined_q, combined_u, true, false, cdiscs, d, f, i + u_slice_offset, q_i + q_slice_offset, i + disc_slice_offset);
             }
         }
         for (int f = l_start; f < l_start + nangmom; f++) {
@@ -395,7 +396,7 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p1(const size_t nf_, 
         if (d < ndir / 2) {
             for (int f = l_start + nangmom; f < nf_; f++) {
                 cell_reconstruct_ppm(combined_q, combined_u,
-                    smooth_field_[f], disc_detect_[f], cdiscs, d, f, i + u_slice_offset, q_i + q_slice_offset);
+                    smooth_field_[f + nf_ * slice_id], disc_detect_[f + nf_ * slice_id], cdiscs, d, f, i + u_slice_offset, q_i + q_slice_offset, i + disc_slice_offset);
             }
         }
     } else {
@@ -403,7 +404,7 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p1(const size_t nf_, 
             if (f < lx_i || f > lx_i + nangmom ) {
                 if (d < ndir / 2) {
                     cell_reconstruct_ppm(combined_q, combined_u,
-                        smooth_field_[f], disc_detect_[f], cdiscs, d, f, i + u_slice_offset, q_i + q_slice_offset);
+                        smooth_field_[f + nf_ * slice_id], disc_detect_[f + nf_ * slice_id], cdiscs, d, f, i + u_slice_offset, q_i + q_slice_offset, i + disc_slice_offset);
                 }
             } else {
                 cell_reconstruct_minmod(combined_q, combined_u, d, f, i + u_slice_offset, q_i + q_slice_offset);
@@ -464,7 +465,7 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p2(const safe_real om
     container_t& combined_u, const_container_t& AM, const double dx, const int d,
     const int i, const int q_i, const int ndir, const int nangmom, const int n_species_, const int nf_, const int slice_id) {
 
-    const int q_slice_offset = (nf_ * 27 * H_N3 + 128) * slice_id;
+    const int q_slice_offset = (nf_ * 27 * q_inx3 + 128) * slice_id;
     const int u_slice_offset = (nf_ * H_N3 + 128) * slice_id;
     const int am_slice_offset = (NDIM * q_inx3 + 128) * slice_id;
     const int x_slice_offset = (NDIM * q_inx3 + 128) * slice_id;

@@ -36,8 +36,8 @@ __global__ void __launch_bounds__(128, 2) flux_cuda_kernel(const double* __restr
     __shared__ int sm_i[128];
 
     const int slice_id = blockIdx.x;
-    const int q_slice_offset = (nf * 27 * H_N3 + 128) * slice_id;
-    const int f_slice_offset = (nf * q_inx3 + 128) * slice_id;
+    const int q_slice_offset = (nf * 27 * q_inx3 + 128) * slice_id;
+    const int f_slice_offset = (NDIM * nf * q_inx3 + 128) * slice_id;
     const int x_slice_offset = (NDIM * q_inx3 + 128) * slice_id;
     const int amax_slice_offset = NDIM * (1 + 2 * nf) * number_blocks * slice_id;
     const int max_indices_slice_offset = NDIM * number_blocks * slice_id;
@@ -168,7 +168,7 @@ __global__ void __launch_bounds__(128, 2) flux_cuda_kernel(const double* __restr
 
     if (tid == 0) {
         const int block_id = blockIdx.y + dim * blocks_per_dim;
-        amax[block_id + max_indices_slice_offset] = sm_amax[0];
+        amax[block_id + amax_slice_offset] = sm_amax[0];
         amax_indices[block_id + max_indices_slice_offset] = sm_i[0];
         amax_d[block_id + max_indices_slice_offset] = sm_d[0];
 

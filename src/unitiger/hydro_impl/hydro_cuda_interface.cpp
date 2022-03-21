@@ -58,7 +58,7 @@ using executor_t = hpx::cuda::experimental::cuda_executor;
 
 void init_aggregation_pool(void) {
     constexpr size_t number_aggregation_executors = 16;
-    constexpr size_t max_slices = 1;
+    constexpr size_t max_slices = 2;
     constexpr Aggregated_Executor_Modes executor_mode = Aggregated_Executor_Modes::EAGER;
     hydro_cuda_agg_executor_pool::init(number_aggregation_executors, max_slices, executor_mode);
 }
@@ -231,6 +231,11 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
       aggregated_device_buffer_t<double, decltype(alloc_device_double)> device_AM(
           (NDIM * q_inx * q_inx * q_inx + 128) * number_slices, device_id, alloc_device_double);
 
+
+      // TODO remove
+      aggregated_host_buffer_t<double, decltype(alloc_host_double)>
+        host_q(
+          (hydro.get_nf() * 27 * q_inx * q_inx * q_inx + 128) * number_slices, double{}, alloc_host_double);
       // Host buffers
       aggregated_host_buffer_t<double, decltype(alloc_host_double)> combined_x(
           (NDIM * q_inx3 + 128) * number_slices, double{}, alloc_host_double);
@@ -252,7 +257,8 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
       const int smooth_slice_offset = hydro.get_nf();
       constexpr int large_x_slice_offset = (H_N3 * NDIM + 128); 
       //const int q_slice_offset = (nf_ * 27 * H_N3 + 128) 
-      const int f_slice_offset = (hydro.get_nf() *  q_inx3 + 128);
+      const int f_slice_offset = (NDIM* hydro.get_nf() *  q_inx3 + 128);
+      constexpr int disc_offset = geo.NDIR / 2 * H_N3 + 128;
 
       // Convert input
       convert_x_structure(X, combined_x.data() + x_slice_offset * slice_id);
@@ -282,6 +288,7 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
           cudaMemcpyHostToDevice);
 
 
+
       // get discs
       launch_find_contact_discs_cuda(exec_slice, device_u.device_side_buffer,
           device_P.device_side_buffer, device_unified_discs.device_side_buffer, physics<NDIM>::A_,
@@ -304,6 +311,14 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
           device_AM.device_side_buffer, X[0][geo.H_DNX] - X[0][0],
           device_unified_discs.device_side_buffer, opts().n_species);
 
+      // TODO Remove
+      auto flux_kernel_fut2 = exec_slice.async(cudaMemcpyAsync, host_q.data(), device_q.device_side_buffer,
+          number_slices * (hydro.get_nf() * 27 * q_inx * q_inx * q_inx + 128) * sizeof(double), cudaMemcpyDeviceToHost);
+      flux_kernel_fut2.get();
+      std::cerr << "\nQSlice id:" << slice_id << std::endl;
+      for (auto bla = 0; bla < 1000; bla++) {
+        std::cerr << host_q[bla + (hydro.get_nf() * 27 * q_inx * q_inx * q_inx + 128) * slice_id] << " ";
+      }
       // Call Flux kernel
       timestep_t ts;
       size_t nf_ = hydro.get_nf();
@@ -370,7 +385,9 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
       const int amax_slice_offset = NDIM * (1 + 2 * nf_local) * number_blocks * slice_id;
       const int max_indices_slice_offset = NDIM * number_blocks * slice_id;
       size_t current_dim = 0;
+        std::cerr << "\nSlice id:" << slice_id << std::endl;
       for (size_t dim_i = 1; dim_i < number_blocks * NDIM; dim_i++) {
+        std::cerr << amax[dim_i + amax_slice_offset] << " ";
         if (amax[dim_i + amax_slice_offset] > amax[current_dim + amax_slice_offset]) { 
           current_dim = dim_i;
         } else if (amax[dim_i + amax_slice_offset] == amax[current_dim + amax_slice_offset]) {
@@ -378,6 +395,10 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
             current_dim = dim_i;
           }
         }
+      }
+      std::cerr << "\nSlice id:" << slice_id << std::endl;
+      for (auto bla = 0; bla < 1000; bla++) {
+        std::cerr << f[bla + f_slice_offset * slice_id] << " ";
       }
       std::vector<double> URs(nf_local), ULs(nf_local);
       const size_t current_max_index = amax_indices[current_dim + max_indices_slice_offset];
@@ -419,6 +440,7 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
               }
           }
       }
+      std::cerr << "\nTimestep result for slice id " << slice_id << ": " << max_lambda.a << std::endl;
       return max_lambda;
     });
     return ret_fut.get();
