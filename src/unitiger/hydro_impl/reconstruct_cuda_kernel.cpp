@@ -109,17 +109,16 @@ void launch_reconstruct_cuda(
     void* args[] = {&omega, &nf_, &angmom_index_, &(smooth_field_), &(disc_detect_), &(combined_q),
         &(combined_x), &(combined_u), &(AM), &dx, &(cdiscs), &n_species_, &ndir, &nangmom};
     if (angmom_index_ > -1) {
-        fut = executor.async(cudaLaunchKernel<decltype(reconstruct_cuda_kernel)>, reconstruct_cuda_kernel,
+        executor.post(cudaLaunchKernel<decltype(reconstruct_cuda_kernel)>, reconstruct_cuda_kernel,
             grid_spec, threads_per_block, args, 0);
     } else {
-        fut = executor.async(cudaLaunchKernel<decltype(reconstruct_cuda_kernel_no_amc)>,
+        executor.post(cudaLaunchKernel<decltype(reconstruct_cuda_kernel_no_amc)>,
             reconstruct_cuda_kernel_no_amc, grid_spec, threads_per_block, args, 0);
     }
 #elif defined(OCTOTIGER_HAVE_HIP)
-		fut = executor.async(reconstruct_hip_kernel_ggl_wrapper, grid_spec, threads_per_block, omega, nf_, angmom_index_, smooth_field_,
+		executor.post(reconstruct_hip_kernel_ggl_wrapper, grid_spec, threads_per_block, omega, nf_, angmom_index_, smooth_field_,
          disc_detect_, combined_q, combined_x, combined_u, AM, dx, cdiscs, n_species_, ndir, nangmom);
 #endif
-    fut.get();
 }
 
 // TODO Launch bounds do not work with larger subgrid size (>8)
@@ -191,13 +190,12 @@ void launch_find_contact_discs_cuda(
     dim3 const threads_per_block_phase2(1, 8, 8);
 #if defined(OCTOTIGER_HAVE_CUDA)
     void* args_phase2[] = {&device_disc, &device_P, &fgamma_, &ndir};
-    auto disc_fut = executor.async(cudaLaunchKernel<decltype(discs_phase2)>, discs_phase2, grid_spec_phase2,
+    executor.post(cudaLaunchKernel<decltype(discs_phase2)>, discs_phase2, grid_spec_phase2,
         threads_per_block_phase2, args_phase2, 0);
 #elif defined(OCTOTIGER_HAVE_HIP)
-    auto disc_fut = executor.post(disc2_hip_kernel_ggl_wrapper, grid_spec_phase2, threads_per_block_phase2,
+    executor.post(disc2_hip_kernel_ggl_wrapper, grid_spec_phase2, threads_per_block_phase2,
         device_disc, device_P, fgamma_, ndir);
 #endif
-    disc_fut.get();
 }
 
 __global__ void __launch_bounds__(64, 4)
@@ -231,13 +229,12 @@ void launch_hydro_pre_recon_cuda(
     dim3 const threads_per_block(1, 8, 8);
 #if defined(OCTOTIGER_HAVE_CUDA)
     void* args[] = {&(device_X), &omega, &angmom, &(device_u), &nf, &n_species_};
-    auto fut = executor.async(cudaLaunchKernel<decltype(hydro_pre_recon_cuda)>, hydro_pre_recon_cuda, grid_spec,
+    executor.post(cudaLaunchKernel<decltype(hydro_pre_recon_cuda)>, hydro_pre_recon_cuda, grid_spec,
         threads_per_block, args, 0);
 #elif defined(OCTOTIGER_HAVE_HIP)
-    auto fut = executor.async(pre_recon_hip_kernel_ggl_wrapper, grid_spec, threads_per_block, device_X, omega,
+    executor.post(pre_recon_hip_kernel_ggl_wrapper, grid_spec, threads_per_block, device_X, omega,
         angmom, device_u, nf, n_species_);
 #endif
-    fut.get();
 }
 
 #endif
