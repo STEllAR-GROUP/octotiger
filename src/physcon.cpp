@@ -35,13 +35,25 @@ real find_T_rad_gas(real p, real rho, real mu) {
 	const real cr = (4.0 * physcon().sigma) / (3.0 * physcon().c);
 	real T = std::min(p / (cg * rho), std::pow(p / cr, 0.25));
 	real dfdT, f;
-	for (int i = 0; i != 6; ++i) {
-		f = cg * rho * T + cr * std::pow(T, 4) - p;
-		dfdT = cg * rho + 4.0 * cr * std::pow(T, 3);
+	for (int i = 0; i != opts().ipr_nr_maxiter; ++i) {
+		f = cg * rho * T / p + cr * std::pow(T, 4) / p - 1.0;
+		if (std::abs(f) < opts().ipr_nr_tol) {
+			return T;
+		}
+		dfdT = cg * rho / p + 4.0 * cr * std::pow(T, 3) / p;
 		T -= f / dfdT;
 	}
-//	print("%e\n", f / (T * dfdT));
+        std::cout << "Error: exceeded number of iterations in Newton-Rahpson method, could not find accurate temperature.\n";
+        std::cout << "Maximum number of iteration " << opts().ipr_nr_maxiter << ". Current iteration find: " << -1.0 << "+" << cg << "*" << T << "+" << cr << "*" << T << "^4=" << f << "\n";
+	abort();
 	return T;
+}
+
+real find_ei_rad_gas(real p, real rho, real mu, real gamma, real &T) {
+	T = find_T_rad_gas(p, rho, mu);
+        const real cg_e = physcon().kb / (mu * physcon().mh) / (gamma - 1.0);
+        const real cr_e = (4.0 * physcon().sigma) / physcon().c;
+	return cg_e * rho * T + cr_e * std::pow(T, 4); 
 }
 
 void these_units(real &m, real &l, real &t, real &k) {

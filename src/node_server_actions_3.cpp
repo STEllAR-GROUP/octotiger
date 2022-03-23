@@ -306,6 +306,10 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 	}
 	if (scf) {
 		run_scf(opts().data_dir);
+		if (opts().eos == IPR) {
+			print("Adjusting energy by SCF pressure:\n");
+			this->energy_adj();
+		}
 		print("Adjusting velocities:\n");
 		auto diag = diagnostics();
 		space_vector dv;
@@ -783,5 +787,28 @@ void node_server::velocity_inc(const space_vector &dv) {
 	} else {
 		grid_ptr->velocity_inc(dv);
 	}
+}
+
+using energy_adj_action_type = node_server::energy_adj_action;
+HPX_REGISTER_ACTION (energy_adj_action_type);
+
+future<void> node_client::energy_adj() const {
+        return hpx::async<typename node_server::energy_adj_action>(get_gid());
+}
+
+void node_server::energy_adj() {
+        if (is_refined) {
+                std::array<future<void>, NCHILD> futs;
+                integer index = 0;
+                for (auto &child : children) {
+                        futs[index++] = child.energy_adj();
+                }
+                //       wait_all_and_propagate_exceptions(futs);
+                for (auto &f : futs) {
+                        GET(f);
+                }
+        } else {
+                grid_ptr->energy_adj();
+        }
 }
 #endif

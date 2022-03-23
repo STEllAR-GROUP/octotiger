@@ -107,6 +107,7 @@ bool options::process_options(int argc, char *argv[]) {
 	("silo_offset_z", po::value<integer>(&(opts().silo_offset_z))->default_value(0), "")      //
 	("amrbnd_order", po::value<integer>(&(opts().amrbnd_order))->default_value(1), "amr boundary interpolation order")        //
 	("scf_output_frequency", po::value<integer>(&(opts().scf_output_frequency))->default_value(25), "Frequency of SCF output")        //
+	("scf_rho_floor", po::value<real>(&(opts().scf_rho_floor))->default_value(1.0e-12), "scf density floor")     //
 	("silo_num_groups", po::value<integer>(&(opts().silo_num_groups))->default_value(-1), "Number of SILO I/O groups")        //
 	("core_refine", po::value<bool>(&(opts().core_refine))->default_value(false), "refine cores by one more level")           //
 	("grad_rho_refine", po::value<real>(&(opts().grad_rho_refine))->default_value(-1.0), "density gradient refinement criteria (-1=off)")           //
@@ -117,6 +118,10 @@ bool options::process_options(int argc, char *argv[]) {
 	("refinement_floor", po::value<real>(&(opts().refinement_floor))->default_value(1.0e-3), "density refinement floor")      //
 	("theta", po::value<real>(&(opts().theta))->default_value(0.5), "controls nearness determination for FMM, must be between 1/3 and 1/2")               //
 	("eos", po::value<eos_type>(&(opts().eos))->default_value(IDEAL), "gas equation of state")                              //
+        ("ipr_nr_tol", po::value<real>(&(opts().ipr_nr_tol))->default_value(1.48e-08), "Newton-Raphson tolerance for solving ideal gas plus radiation eos")                              //
+        ("ipr_nr_maxiter", po::value<integer>(&(opts().ipr_nr_maxiter))->default_value(50), "Newton-Raphson max iterations for solving ideal gas plus radiation eos")                              //
+        ("ipr_test", po::value<bool>(&(opts().ipr_test))->default_value(false), "test consistency of the ideal gas plus radiation eos")                              //
+        ("ipr_eint_floor", po::value<real>(&(opts().ipr_eint_floor))->default_value(0.0), "floor thermal energy for ideal gas plus radiation eos")                              //
 	("hydro", po::value<bool>(&(opts().hydro))->default_value(true), "hydro on/off")    //
 	("radiation", po::value<bool>(&(opts().radiation))->default_value(false), "radiation on/off")    //
 	("correct_am_hydro", po::value<bool>(&(opts().correct_am_hydro))->default_value(false), "Angular momentum correction switch for hydro")    //
@@ -438,6 +443,32 @@ bool options::process_options(int argc, char *argv[]) {
         }
 #endif
 
+    }
+    if (opts().eos == IPR) {
+        if ((opts().hydro_host_kernel_type != interaction_host_kernel_type::VC) && (opts().hydro_host_kernel_type != interaction_host_kernel_type::LEGACY)) {
+            std::cerr << std::endl << "ERROR: ";
+            std::cerr << "The ideal gas plus radiation (ipr) eos is currently only supported with VC or LEGACY host kernel types of the hydro solver!"  << std::endl
+            << " Choose either a VC or LEGACY for hydro host kernel type or use a different eos!" << std::endl;
+            abort();
+        }
+        if (opts().hydro_device_kernel_type != OFF) {
+            std::cerr << std::endl << "ERROR: ";
+            std::cerr << "The ideal gas plus radiation (ipr) eos is currently only supported on the host!"  << std::endl
+            << " Choose OFF for hydro device kernel type or use a different eos!" << std::endl;
+            abort();
+        }
+        if (opts().cdisc_detect) {
+            std::cerr << std::endl << "ERROR: ";
+            std::cerr << "The ideal gas plus radiation (ipr) eos is currently not supported with discontiniuty detection!"  << std::endl
+            << " Either set cdisc_detect to off or use a different eos!" << std::endl;
+            abort();        
+        }
+        if (opts().radiation) {
+            std::cerr << std::endl << "ERROR: ";
+            std::cerr << "The ideal gas plus radiation (ipr) eos is currently not supported together with radiation field on!"  << std::endl
+            << " Either set radiation to off or use a different eos!" << std::endl;
+            abort();
+        }
     }
     if (opts().monopole_device_kernel_type == OFF && opts().monopole_host_kernel_type == DEVICE_ONLY ||
         opts().multipole_device_kernel_type == OFF && opts().multipole_host_kernel_type == DEVICE_ONLY ||

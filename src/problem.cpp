@@ -394,8 +394,17 @@ std::vector<real> star(real x, real y, real z, real) {
 		}
 //		u[rho_i] = std::max(rho_c * std::pow(theta, n), rho_out);
 		u[spc_i] = u[rho_i];
-		u[egas_i] = std::max(opts().star_egas_out, std::pow(rho_c * std::pow(theta, n), (real(1) + real(1)/n)) * c0 * n);
-		u[tau_i] = std::pow(u[egas_i], (n / (real(1) + n)));
+		const real p = std::pow(rho_c * std::pow(theta, n), (real(1) + real(1)/n)) * c0;
+		if (opts().eos == IPR) {
+			//printf("p(%e) = %e, rho = %e\n", r, p, u[rho_i]);
+			u[egas_i] = std::max(opts().star_egas_out, find_ei_rad_gas(p, u[rho_i], opts().atomic_mass[0] / (opts().atomic_number[0] + 1.0), fgamma, u[tau_i])); // makes sure the calculated pressure will be as the polytropic one
+			//printf("egas(%e) = %e, epoly=%e\n", r, u[egas_i], n * p);
+		} else {
+			// u[egas_i] = std::max(opts().star_egas_out, p * n);
+			u[egas_i] = std::max(opts().star_egas_out, p / (fgamma - 1.0));
+			u[tau_i] = std::pow(u[egas_i], 1.0 / fgamma);
+			//u[tau_i] = std::pow(u[egas_i], (n / (real(1) + n)));
+		}
 
 		/*		const real r = std::sqrt(x * x + y * y + z * z);
 		 static struct_eos eos(0.0040083, 0.33593, 3.0, 1.5, 0.1808, 2.0);
