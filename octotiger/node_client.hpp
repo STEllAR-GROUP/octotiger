@@ -52,7 +52,7 @@ public:
         arc& id;
         if (!empty())
         {
-            unmanaged = hpx::id_type(id.get_gid(), hpx::id_type::unmanaged);
+            unmanaged = hpx::id_type(id.get_gid(), hpx::id_type::management_type::unmanaged);
         }
     }
 
