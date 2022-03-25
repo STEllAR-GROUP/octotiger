@@ -444,11 +444,17 @@ bool options::process_options(int argc, char *argv[]) {
 #endif
 
     }
+    if (opts().hydro_host_kernel_type == interaction_host_kernel_type::VC) {
+        std::cerr << std::endl
+                  << "ERROR: hydro host VC kernel is experimental - use either LEGACY or "
+                     "KOKKOS (or disable this error for a dev/test build!) ";
+        abort();
+    }
     if (opts().eos == IPR) {
         if ((opts().hydro_host_kernel_type != interaction_host_kernel_type::VC) && (opts().hydro_host_kernel_type != interaction_host_kernel_type::LEGACY)) {
             std::cerr << std::endl << "ERROR: ";
-            std::cerr << "The ideal gas plus radiation (ipr) eos is currently only supported with VC or LEGACY host kernel types of the hydro solver!"  << std::endl
-            << " Choose either a VC or LEGACY for hydro host kernel type or use a different eos!" << std::endl;
+            std::cerr << "The ideal gas plus radiation (ipr) eos is currently only supported with LEGACY host kernel types of the hydro solver!"  << std::endl
+            << " Choose either a LEGACY for hydro host kernel type or use a different eos!" << std::endl;
             abort();
         }
         if (opts().hydro_device_kernel_type != OFF) {
