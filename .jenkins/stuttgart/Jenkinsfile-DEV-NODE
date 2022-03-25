@@ -77,12 +77,11 @@ pipeline {
                 // Build with preinstalled gcc on this machine 
                 dir('octotiger') {
                     sh '''
-                    module load gcc/9.2.0
                     module load cuda/11.2.2 
 		    cd OctoTigerBuildChain
 		    sed -i 's/OCTOTIGER_WITH_BLAST_TEST=OFF/OCTOTIGER_WITH_BLAST_TEST=ON/' build-octotiger.sh
 		    sed -i 's/OCTOTIGER_WITH_FAST_FP_CONTRACT=OFF/OCTOTIGER_WITH_FAST_FP_CONTRACT=ON/' build-octotiger.sh
-                    ./build-all.sh Release with-CC with-cuda without-mpi without-papi without-apex with-kokkos with-simd without-hpx-backend-multipole without-hpx-backend-monopole with-hpx-cuda-polling
+                    ./build-all.sh Release with-CC with-cuda without-mpi without-papi without-apex with-kokkos without-simd without-hpx-backend-multipole without-hpx-backend-monopole with-hpx-cuda-polling
                     '''
                 }
             }
@@ -92,7 +91,6 @@ pipeline {
                 // Basic gcc test - only GRIDDIM=8 and hydro-off rotating star tests
                 dir('octotiger') {
                     sh '''
-                    module load gcc/9.2.0
                     module load cuda/11.2.2 
 		    cd OctoTigerBuildChain/build/octotiger/build
 		    ctest --output-on-failure -R cpu
