@@ -81,7 +81,7 @@ pipeline {
 		    cd OctoTigerBuildChain
 		    sed -i 's/OCTOTIGER_WITH_BLAST_TEST=OFF/OCTOTIGER_WITH_BLAST_TEST=ON/' build-octotiger.sh
 		    sed -i 's/OCTOTIGER_WITH_FAST_FP_CONTRACT=OFF/OCTOTIGER_WITH_FAST_FP_CONTRACT=ON/' build-octotiger.sh
-                    ./build-all.sh Release with-CC with-cuda without-mpi without-papi without-apex with-kokkos with-simd without-hpx-backend-multipole without-hpx-backend-monopole with-hpx-cuda-polling
+                    ./build-all.sh Release with-CC with-cuda without-mpi without-papi without-apex with-kokkos without-simd without-hpx-backend-multipole without-hpx-backend-monopole with-hpx-cuda-polling
                     '''
                 }
             }
