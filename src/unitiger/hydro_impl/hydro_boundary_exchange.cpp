@@ -7,102 +7,184 @@
 #include "octotiger/unitiger/hydro_impl/hydro_boundary_exchange.hpp"
 #include "octotiger/util/vec_scalar_host_wrapper.hpp"
 
+#include <hpx/synchronization/once.hpp>
+
+
+static const char amr_cuda_kernel_identifier[] = "amr_kernel_aggregator_cuda";
+using amr_cuda_agg_executor_pool = aggregation_pool<amr_cuda_kernel_identifier, hpx::cuda::experimental::cuda_executor,
+                                       pool_strategy>;
+hpx::lcos::local::once_flag init_pool_flag;
+
+constexpr size_t max_slices = 32;
+void init_aggregation_pool(void) {
+    constexpr size_t number_aggregation_executors = 16;
+    constexpr Aggregated_Executor_Modes executor_mode = Aggregated_Executor_Modes::EAGER;
+    amr_cuda_agg_executor_pool::init(number_aggregation_executors, max_slices, executor_mode);
+}
+
 #ifdef OCTOTIGER_HAVE_CUDA
 __host__ void launch_complete_hydro_amr_boundary_cuda(stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor, double dx, bool energy_only, const std::vector<std::vector<real>> &Ushad, const std::vector<std::atomic<int>> &is_coarse, const std::array<double, NDIM> &xmin, std::vector<std::vector<real>> &U) {
-
-    // Create host buffers
-    std::vector<double, recycler::recycle_allocator_cuda_host<double>> unified_uf(
-        opts().n_fields * HS_N3 * 8);
-    std::vector<double, recycler::recycle_allocator_cuda_host<double>> unified_ushad(
-        opts().n_fields * HS_N3);
-    std::vector<int, recycler::recycle_allocator_cuda_host<int>> coarse(HS_N3);
-    std::vector<double, recycler::recycle_allocator_cuda_host<double>> x_min(HS_N3);
-
-    // Create device buffers
-    recycler::cuda_device_buffer<double> device_uf(opts().n_fields * HS_N3 * 8);
-    recycler::cuda_device_buffer<double> device_ushad(opts().n_fields * HS_N3);
-    recycler::cuda_device_buffer<double> device_coarse(HS_N3);
-    recycler::cuda_device_buffer<double> device_xmin(NDIM);
-
-    for (int d = 0; d < NDIM; d++) {
-      x_min[d] = xmin[d];
-    }
-    hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
-    cudaMemcpyAsync, device_xmin.device_side_buffer,
-    x_min.data(), (NDIM) * sizeof(double), cudaMemcpyHostToDevice);
-
-    // Fill host buffers
-    for (int f = 0; f < opts().n_fields; f++) {
-        if (!energy_only || f == egas_i) {
-            std::copy(
-                Ushad[f].begin(), Ushad[f].begin() + HS_N3, unified_ushad.begin() + f * HS_N3);
+    bool early_exit = true;
+    for (int i = 0; i < HS_N3; i++) {
+        if (early_exit && is_coarse[i]) {
+          early_exit = false;
+          break;
         }
     }
-    hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
-    cudaMemcpyAsync, device_ushad.device_side_buffer,
-    unified_ushad.data(), (opts().n_fields * HS_N3) * sizeof(double), cudaMemcpyHostToDevice);
+    if (early_exit)
+      return;
+    // Init local kernel pool if not done already
+    hpx::lcos::local::call_once(init_pool_flag, init_aggregation_pool);
 
-    //
-    for (int i = 0; i < HS_N3; i++) {
-        coarse[i] = is_coarse[i];
-   }
-   hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
-   cudaMemcpyAsync, device_coarse.device_side_buffer,
-   coarse.data(), (HS_N3) * sizeof(int), cudaMemcpyHostToDevice);
+    auto executor_slice_fut =
+      amr_cuda_agg_executor_pool::request_executor_slice();
 
+    auto ret_fut = executor_slice_fut.value().then([&](auto&& fut) {
+        // Unwrap executor from ready future
+        aggregated_executor_t exec_slice = fut.get();
+        // How many executor slices are working together and what's our ID?
+        const size_t slice_id = exec_slice.id;
+        const size_t number_slices = exec_slice.number_slices;
 
-    dim3 const grid_spec(1, 1, HS_NX - 2);
-    dim3 const threads_per_block(1,  HS_NX - 2, HS_NX - 2);
-    int nfields = opts().n_fields;
-    void* args[] = {&dx, &energy_only, &(device_ushad.device_side_buffer), &(device_coarse.device_side_buffer),
-      &(device_xmin.device_side_buffer), &(device_uf.device_side_buffer), &nfields};
+        // Get allocators of all the executors working together
+        auto alloc_host_double =
+            exec_slice
+                .template make_allocator<double, recycler::detail::cuda_pinned_allocator<double>>();
+        auto alloc_device_double =
+            exec_slice
+                .template make_allocator<double, recycler::detail::cuda_device_allocator<double>>();
+        auto alloc_host_int =
+            exec_slice.template make_allocator<int, recycler::detail::cuda_pinned_allocator<int>>();
+        auto alloc_device_int =
+            exec_slice.template make_allocator<int, recycler::detail::cuda_device_allocator<int>>();
+        int nfields = opts().n_fields;
 
-   /*executor.post(
-   cudaLaunchKernel<decltype(complete_hydro_amr_cuda_kernel)>,
-   complete_hydro_amr_cuda_kernel, grid_spec, threads_per_block, args, 0);*/
-    launch_complete_hydro_amr_boundary_cuda_post(executor, grid_spec, threads_per_block, args);
+        // Create host buffers
+        std::vector<double, decltype(alloc_host_double)> unified_uf(
+            max_slices * opts().n_fields * HS_N3 * 8, double{},
+            alloc_host_double);
+        std::vector<double, decltype(alloc_host_double)> unified_ushad(
+            max_slices * opts().n_fields * HS_N3, double{}, alloc_host_double);
+        std::vector<int, decltype(alloc_host_int)> coarse(
+            max_slices * HS_N3, int{}, alloc_host_int);
+        std::vector<double, decltype(alloc_host_double)> x_min(
+            max_slices * NDIM, double{}, alloc_host_double);
 
-    auto fut = hpx::async(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
-               cudaMemcpyAsync, unified_uf.data(), device_uf.device_side_buffer,
-               (opts().n_fields * HS_N3 * 8) * sizeof(double), cudaMemcpyDeviceToHost);
-    fut.get();
+        std::vector<int, decltype(alloc_host_int)> energy_only_host(
+            max_slices * 1, int{}, alloc_host_int);
+        std::vector<double, decltype(alloc_host_double)> dx_host(
+            max_slices * 1, double{}, alloc_host_double);    // TODO Why *8 ?!
 
-    constexpr int field_offset = HS_N3 * 8;
-    for (int f = 0; f < opts().n_fields; f++) {
-        if (!energy_only || f == egas_i) {
-            // std::copy(U[f].begin(), U[f].end(), unified_u.begin() + f * H_N3);
-            for (int i = 0; i < H_NX; i++) {
-                for (int j = 0; j < H_NX; j++) {
-                    for (int k = 0; k < H_NX; k++) {
-                        const int i0 = (i + H_BW) / 2;
-                        const int j0 = (j + H_BW) / 2;
-                        const int k0 = (k + H_BW) / 2;
-                        const int iii0 = hSindex(i0, j0, k0);
-                        const int iiir = hindex(i, j, k);
-                        if (coarse[iii0]) {
-                            int ir, jr, kr;
-                            if HOST_CONSTEXPR (H_BW % 2 == 0) {
-                                ir = i % 2;
-                                jr = j % 2;
-                                kr = k % 2;
-                            } else {
-                                ir = 1 - (i % 2);
-                                jr = 1 - (j % 2);
-                                kr = 1 - (k % 2);
+        // Create device buffers
+        recycler::cuda_aggregated_device_buffer<double, decltype(alloc_device_double)> device_uf(
+            max_slices * opts().n_fields * HS_N3 * 8, 0, alloc_device_double);
+        recycler::cuda_aggregated_device_buffer<double, decltype(alloc_device_double)> device_ushad(
+            max_slices * opts().n_fields * HS_N3, 0, alloc_device_double);
+        recycler::cuda_aggregated_device_buffer<int, decltype(alloc_device_int)> device_coarse(
+            max_slices * HS_N3, 0, alloc_device_int);
+        recycler::cuda_aggregated_device_buffer<double, decltype(alloc_device_double)> device_xmin(
+            max_slices * NDIM, 0, alloc_device_double);
+
+        recycler::cuda_aggregated_device_buffer<int, decltype(alloc_device_int)> energy_only_device(
+            max_slices * 1, 0, alloc_device_int);
+        recycler::cuda_aggregated_device_buffer<double, decltype(alloc_device_double)> dx_device(
+            max_slices * 1, 0, alloc_device_double);
+
+        for (int d = 0; d < NDIM; d++) {
+            x_min[d + slice_id * NDIM] = xmin[d];
+        }
+        exec_slice.post(cudaMemcpyAsync, device_xmin.device_side_buffer, x_min.data(),
+            number_slices * (NDIM) * sizeof(double), cudaMemcpyHostToDevice);
+        dx_host[slice_id] = dx;
+        exec_slice.post(cudaMemcpyAsync, dx_device.device_side_buffer, dx_host.data(),
+            number_slices * sizeof(double), cudaMemcpyHostToDevice);
+
+        energy_only_host[slice_id] = energy_only;
+        exec_slice.post(cudaMemcpyAsync, energy_only_device.device_side_buffer,
+            energy_only_host.data(), number_slices * sizeof(int),
+            cudaMemcpyHostToDevice);
+
+        // Fill host buffers
+        for (int f = 0; f < opts().n_fields; f++) {
+            if (!energy_only || f == egas_i) {
+                std::copy(Ushad[f].begin(), Ushad[f].begin() + HS_N3,
+                    unified_ushad.begin() + f * HS_N3 + slice_id * nfields * HS_N3);
+            }
+        }
+        exec_slice.post(cudaMemcpyAsync, device_ushad.device_side_buffer, unified_ushad.data(),
+            number_slices * (opts().n_fields * HS_N3) * sizeof(double),
+            cudaMemcpyHostToDevice);
+
+        for (int i = 0; i < HS_N3; i++) {
+            coarse[i + slice_id * HS_N3] = is_coarse[i];
+        }
+        exec_slice.post(cudaMemcpyAsync, device_coarse.device_side_buffer, coarse.data(),
+            number_slices * (HS_N3) * sizeof(int), cudaMemcpyHostToDevice);
+
+        dim3 const grid_spec(number_slices, 1, HS_NX - 2);
+        dim3 const threads_per_block(1, HS_NX - 2, HS_NX - 2);
+        void* args[] = {&(dx_device.device_side_buffer), &(energy_only_device.device_side_buffer),
+            &(device_ushad.device_side_buffer), &(device_coarse.device_side_buffer),
+            &(device_xmin.device_side_buffer), &(device_uf.device_side_buffer),
+            &nfields};
+
+        /*executor.post(
+        cudaLaunchKernel<decltype(complete_hydro_amr_cuda_kernel)>, complete_hydro_amr_cuda_kernel,
+        grid_spec, threads_per_block, args, 0);*/
+
+        launch_complete_hydro_amr_boundary_cuda_post(
+            exec_slice, grid_spec, threads_per_block, args);
+
+        auto ret_fut =
+            exec_slice.async(cudaMemcpyAsync, unified_uf.data(), device_uf.device_side_buffer,
+                number_slices * (opts().n_fields * HS_N3 * 8) * sizeof(double),
+                cudaMemcpyDeviceToHost);
+
+        ret_fut.get();
+
+        constexpr int field_offset = HS_N3 * 8;
+        for (int f = 0; f < opts().n_fields; f++) {
+            if (!energy_only || f == egas_i) {
+                /* std::copy(U[f].begin(), U[f].end(), unified_uf.begin() + f *
+                 * H_N3); */
+
+                for (int i = 0; i < H_NX; i++) {
+                    for (int j = 0; j < H_NX; j++) {
+                        for (int k = 0; k < H_NX; k++) {
+                            const int i0 = (i + H_BW) / 2;
+                            const int j0 = (j + H_BW) / 2;
+                            const int k0 = (k + H_BW) / 2;
+                            const int iii0 = hSindex(i0, j0, k0);
+                            const int iiir = hindex(i, j, k);
+                            if (coarse[iii0 + slice_id * HS_N3]) {
+                                int ir, jr, kr;
+                                if HOST_CONSTEXPR (H_BW % 2 == 0) {
+                                    ir = i % 2;
+                                    jr = j % 2;
+                                    kr = k % 2;
+                                } else {
+                                    ir = 1 - (i % 2);
+                                    jr = 1 - (j % 2);
+                                    kr = 1 - (k % 2);
+                                }
+                                const int oct_index = ir * 4 + jr * 2 + kr;
+                                // unified_u[f * H_N3 + iiir] = unified_uf[f * field_offset + 8 *
+                                // iii0 + oct_index];
+                                U[f][iiir] = unified_uf[f * field_offset + iii0 +
+                                    oct_index * HS_N3 + slice_id * nfields * HS_N3 * 8];
                             }
-                            const int oct_index = ir * 4 + jr * 2 + kr;
-                            // unified_u[f * H_N3 + iiir] =
-                            //    unified_uf[f * field_offset + 8 * iii0 + oct_index];
-                            U[f][iiir] = unified_uf[f * field_offset + iii0 + oct_index * HS_N3];
                         }
                     }
                 }
-            }
-            // std::copy(unified_u.begin() + f * H_N3, unified_u.begin() + f * H_N3 + H_N3,
-            // U[f].begin());
-        }
-    }
-}
+
+                // std::copy(unified_u.begin() + f * H_N3, unified_u.begin() + f * H_N3 + H_N3,
+                // U[f].begin());
+            } 
+        } 
+    }); 
+    ret_fut.get(); 
+} 
+
 #endif
 
 void complete_hydro_amr_boundary_cpu(const double dx, const bool energy_only,

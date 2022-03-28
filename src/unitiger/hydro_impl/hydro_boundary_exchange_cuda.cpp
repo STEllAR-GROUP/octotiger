@@ -6,14 +6,24 @@
 
 __global__ void
 __launch_bounds__((HS_NX - 2) * (HS_NX - 2), 1)
-complete_hydro_amr_cuda_kernel(const double dx, const bool energy_only,
-    double* __restrict__ unified_ushad, int* __restrict__ coarse,
-    double* __restrict__ xmin, double* __restrict__ unified_uf,
+complete_hydro_amr_cuda_kernel(const double *dx_global, const int *energy_only_global,
+    double* unified_ushad_global, int* coarse_global,
+    double* xmin_global, double* unified_uf_global,
     const int nfields) {
     constexpr int max_nf = 15;
     const int field_offset = HS_N3 * 8;
     double uf_local[max_nf * 8];
     const int iii0 = (blockIdx.z + 1) * HS_DNX + (threadIdx.y + 1) * HS_DNY + (threadIdx.z + 1) * HS_DNZ;
+
+    // Map arrays to slices
+    const int slice_id = blockIdx.x;
+    const int * coarse = coarse_global + slice_id * HS_N3;
+    const double * unified_ushad = unified_ushad_global + slice_id * nfields * HS_N3;
+    double * unified_uf = unified_uf_global + slice_id * nfields * HS_N3 * 8;
+    const double * xmin = xmin_global + slice_id * NDIM;
+    const bool energy_only = energy_only_global[slice_id];
+    const double dx  = dx_global[slice_id];
+
     if (coarse[iii0]) {
         complete_hydro_amr_boundary_inner_loop<double>(dx, energy_only, unified_ushad, coarse, xmin, 
              blockIdx.z + 1, threadIdx.y + 1, threadIdx.z + 1, nfields, true, 0, iii0, uf_local);
@@ -35,7 +45,7 @@ complete_hydro_amr_cuda_kernel(const double dx, const bool energy_only,
 }
 
 void launch_complete_hydro_amr_boundary_cuda_post(
-    stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+    aggregated_executor_t& executor,
     dim3 const grid_spec, dim3 const threads_per_block, void *args[]) {
     executor.post(
     cudaLaunchKernel<decltype(complete_hydro_amr_cuda_kernel)>,

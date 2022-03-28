@@ -17,6 +17,9 @@ void complete_hydro_amr_boundary_vc(const double dx, const bool energy_only,
     const std::vector<std::vector<real>>& Ushad, const std::vector<std::atomic<int>>& is_coarse,
     const std::array<double, NDIM>& xmin, std::vector<std::vector<double>>& U);
 #ifdef OCTOTIGER_HAVE_CUDA
+
+#include <aggregation_manager.hpp>
+using aggregated_executor_t = Aggregated_Executor<hpx::cuda::experimental::cuda_executor>::Executor_Slice;
 /*__global__ void
 complete_hydro_amr_cuda_kernel(const double dx, const bool energy_only,
     double* __restrict__ unified_ushad, int* __restrict__ coarse,
@@ -28,7 +31,7 @@ void launch_complete_hydro_amr_boundary_cuda(
     const std::vector<std::atomic<int>>& is_coarse, const std::array<double, NDIM>& xmin,
     std::vector<std::vector<real>>& u);
 void launch_complete_hydro_amr_boundary_cuda_post(
-    stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+    aggregated_executor_t& executor,
     dim3 const grid_spec, dim3 const threads_per_block, void *args[]);
 #endif
 

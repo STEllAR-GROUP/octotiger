@@ -28,7 +28,7 @@ using hydro_cuda_agg_executor_pool = aggregation_pool<hydro_cuda_kernel_identifi
                                        pool_strategy>;
 
 hpx::lcos::local::once_flag flag1;
-hpx::lcos::local::once_flag init_pool_flag;
+hpx::lcos::local::once_flag init_hydro_pool_flag;
 
 #if defined(OCTOTIGER_HAVE_CUDA)
 template <typename T>
@@ -55,8 +55,8 @@ using executor_t = hpx::cuda::experimental::cuda_executor;
 
 #endif
 
-constexpr size_t max_slices = 32;
-void init_aggregation_pool(void) {
+constexpr size_t max_slices = 16;
+void init_hydro_aggregation_pool(void) {
     constexpr size_t number_aggregation_executors = 16;
     constexpr Aggregated_Executor_Modes executor_mode = Aggregated_Executor_Modes::EAGER;
     hydro_cuda_agg_executor_pool::init(number_aggregation_executors, max_slices, executor_mode);
@@ -179,7 +179,7 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
     std::vector<hydro_state_t<std::vector<safe_real>>>& F) {
 
     // Init local kernel pool if not done already
-    hpx::lcos::local::call_once(init_pool_flag, init_aggregation_pool);
+    hpx::lcos::local::call_once(init_hydro_pool_flag, init_hydro_aggregation_pool);
     // Get executor (-slice if aggregated with max_slices > 1) future
     auto executor_slice_fut = hydro_cuda_agg_executor_pool::request_executor_slice();
     // Add continuation to executor future to execute the hydro kernels as soon as it's ready

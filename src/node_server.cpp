@@ -230,8 +230,9 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
 #ifdef OCTOTIGER_HAVE_CUDA
 		bool avail = false;
 		if (kernel_type == AMR_CUDA)
-			avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
-					pool_strategy>(opts().cuda_buffer_capacity);
+      avail = true;
+			/* avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor, */
+			/* 		pool_strategy>(opts().cuda_buffer_capacity); */
 		if (!avail) { // no stream is available or flag is turned off, proceed with CPU implementations
 	#if defined __x86_64__ && defined OCTOTIGER_HAVE_VC
 			complete_hydro_amr_boundary_vc(dx, energy_only, grid_ptr->Ushad, grid_ptr->is_coarse, xmin, grid_ptr->U);
