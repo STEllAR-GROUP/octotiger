@@ -26,7 +26,7 @@ complete_hydro_amr_cuda_kernel(const double dx, const bool energy_only,
     double* __restrict__ xmin, double* __restrict__ unified_uf,
     const int nfields);*/
 void launch_complete_hydro_amr_boundary_cuda(
-    stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor, double dx,
+    double dx,
     bool energy_only, const std::vector<std::vector<real>>& ushad,
     const std::vector<std::atomic<int>>& is_coarse, const std::array<double, NDIM>& xmin,
     std::vector<std::vector<real>>& u);

@@ -240,8 +240,7 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
 			complete_hydro_amr_boundary_cpu(dx, energy_only, grid_ptr->Ushad, grid_ptr->is_coarse, xmin, grid_ptr->U);
 	#endif
 		} else { // Run on GPU
-			stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy> executor;
-			launch_complete_hydro_amr_boundary_cuda(executor, dx, energy_only, grid_ptr->Ushad,
+			launch_complete_hydro_amr_boundary_cuda(dx, energy_only, grid_ptr->Ushad,
 			grid_ptr->is_coarse, xmin, grid_ptr->U);
 		}
 // None GPU build -> run on CPU

@@ -24,7 +24,10 @@ void init_aggregation_pool(void) {
 }
 
 #ifdef OCTOTIGER_HAVE_CUDA
-__host__ void launch_complete_hydro_amr_boundary_cuda(stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor, double dx, bool energy_only, const std::vector<std::vector<real>> &Ushad, const std::vector<std::atomic<int>> &is_coarse, const std::array<double, NDIM> &xmin, std::vector<std::vector<real>> &U) {
+__host__ void launch_complete_hydro_amr_boundary_cuda(double dx, bool
+    energy_only,
+    const std::vector<std::vector<real>>& Ushad, const std::vector<std::atomic<int>>& is_coarse,
+    const std::array<double, NDIM>& xmin, std::vector<std::vector<real>>& U) {
     bool early_exit = true;
     for (int i = 0; i < HS_N3; i++) {
         if (early_exit && is_coarse[i]) {
@@ -226,8 +229,8 @@ __host__ void launch_complete_hydro_amr_boundary_cuda(stream_interface<hpx::cuda
         } 
 
     }); 
-    ret_fut.get(); 
-} 
+    ret_fut.get();
+}
 
 #endif
 

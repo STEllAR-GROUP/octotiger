@@ -72,8 +72,7 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
             }
             if (avail) {
                 size_t device_id = 0;
-                stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy> executor;
-                max_lambda = launch_hydro_cuda_kernels(hydro, U, X, omega, device_id, executor, F);
+                max_lambda = launch_hydro_cuda_kernels(hydro, U, X, omega, device_id, F);
                 return max_lambda;
             }
         }
@@ -90,8 +89,7 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
                 pool_strategy>(cuda_buffer_capacity);
             if (avail) {
                 size_t device_id = 0;
-                stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy> executor;
-                max_lambda = launch_hydro_cuda_kernels(hydro, U, X, omega, device_id, executor, F);
+                max_lambda = launch_hydro_cuda_kernels(hydro, U, X, omega, device_id, F);
                 return max_lambda;
             }
         }
