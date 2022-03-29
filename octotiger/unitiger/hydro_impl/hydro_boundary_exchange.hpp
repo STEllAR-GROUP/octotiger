@@ -33,6 +33,9 @@ void launch_complete_hydro_amr_boundary_cuda(
 void launch_complete_hydro_amr_boundary_cuda_post(
     aggregated_executor_t& executor,
     dim3 const grid_spec, dim3 const threads_per_block, void *args[]);
+void launch_complete_hydro_amr_boundary_cuda_phase2_post(
+    aggregated_executor_t& executor,
+    dim3 const grid_spec, dim3 const threads_per_block, void *args[]);
 #endif
 
 template <typename T, typename mask_t, typename index_t>

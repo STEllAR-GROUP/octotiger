@@ -4,6 +4,7 @@
 #include <iostream>
 #include <vector>
 
+#include "octotiger/hydro_defs.hpp"
 #include "octotiger/unitiger/hydro_impl/hydro_boundary_exchange.hpp"
 #include "octotiger/util/vec_scalar_host_wrapper.hpp"
 
@@ -128,18 +129,75 @@ __host__ void launch_complete_hydro_amr_boundary_cuda(stream_interface<hpx::cuda
             &(device_xmin.device_side_buffer), &(device_uf.device_side_buffer),
             &nfields};
 
-        /*executor.post(
-        cudaLaunchKernel<decltype(complete_hydro_amr_cuda_kernel)>, complete_hydro_amr_cuda_kernel,
-        grid_spec, threads_per_block, args, 0);*/
 
         launch_complete_hydro_amr_boundary_cuda_post(
             exec_slice, grid_spec, threads_per_block, args);
 
-        auto ret_fut =
-            exec_slice.async(cudaMemcpyAsync, unified_uf.data(), device_uf.device_side_buffer,
-                number_slices * (opts().n_fields * HS_N3 * 8) * sizeof(double),
-                cudaMemcpyDeviceToHost);
+        /* auto ret_fut = */
+        /*     exec_slice.async(cudaMemcpyAsync, unified_uf.data(), device_uf.device_side_buffer, */
+        /*         number_slices * (opts().n_fields * HS_N3 * 8) * sizeof(double), */
+        /*         cudaMemcpyDeviceToHost); */
+        /* constexpr int field_offset = HS_N3 * 8; */
+        /* for (int f = 0; f < opts().n_fields; f++) { */
+        /*     if (!energy_only || f == egas_i) { */
+        /*         /1* std::copy(U[f].begin(), U[f].end(), unified_uf.begin() + f * */
+        /*          * H_N3); *1/ */
 
+        /*         for (int i = 0; i < H_NX; i++) { */
+        /*             for (int j = 0; j < H_NX; j++) { */
+        /*                 for (int k = 0; k < H_NX; k++) { */
+        /*                     const int i0 = (i + H_BW) / 2; */
+        /*                     const int j0 = (j + H_BW) / 2; */
+        /*                     const int k0 = (k + H_BW) / 2; */
+        /*                     const int iii0 = hSindex(i0, j0, k0); */
+        /*                     const int iiir = hindex(i, j, k); */
+        /*                     if (coarse[iii0 + slice_id * HS_N3]) { */
+        /*                         int ir, jr, kr; */
+        /*                         if HOST_CONSTEXPR (H_BW % 2 == 0) { */
+        /*                             ir = i % 2; */
+        /*                             jr = j % 2; */
+        /*                             kr = k % 2; */
+        /*                         } else { */
+        /*                             ir = 1 - (i % 2); */
+        /*                             jr = 1 - (j % 2); */
+        /*                             kr = 1 - (k % 2); */
+        /*                         } */
+        /*                         const int oct_index = ir * 4 + jr * 2 + kr; */
+        /*                         // unified_u[f * H_N3 + iiir] = unified_uf[f * field_offset + 8 * */
+        /*                         // iii0 + oct_index]; */
+        /*                         U[f][iiir] = unified_uf[f * field_offset + iii0 + */
+        /*                             oct_index * HS_N3 + slice_id * nfields * HS_N3 * 8]; */
+        /*                     } */
+        /*                 } */
+        /*             } */
+        /*         } */
+
+        /*         // std::copy(unified_u.begin() + f * H_N3, unified_u.begin() + f * H_N3 + H_N3, */
+        /*         // U[f].begin()); */
+        /*     } */ 
+        /* } */ 
+
+        recycler::cuda_aggregated_device_buffer<double, decltype(alloc_device_double)> device_u(
+            max_slices * nfields * H_N3, 0, alloc_device_double);
+        std::vector<double, decltype(alloc_host_double)> unified_u(
+            max_slices * nfields * H_N3, double{},
+            alloc_host_double);
+
+        dim3 const grid_spec_phase2(number_slices, nfields, H_NX);
+        dim3 const threads_per_block_phase2(1, H_NX, H_NX);
+        bool local_energy_only = energy_only;
+        void* args_phase2[] = {
+            &(device_coarse.device_side_buffer),
+            &(device_uf.device_side_buffer),
+            &(device_u.device_side_buffer),
+            &nfields, &local_energy_only};
+        launch_complete_hydro_amr_boundary_cuda_phase2_post(
+            exec_slice, grid_spec_phase2, threads_per_block_phase2, args_phase2);
+
+        auto ret_fut =
+            exec_slice.async(cudaMemcpyAsync, unified_u.data(), device_u.device_side_buffer,
+                number_slices * (nfields * H_N3) * sizeof(double),
+                cudaMemcpyDeviceToHost);
         ret_fut.get();
 
         constexpr int field_offset = HS_N3 * 8;
@@ -157,30 +215,16 @@ __host__ void launch_complete_hydro_amr_boundary_cuda(stream_interface<hpx::cuda
                             const int iii0 = hSindex(i0, j0, k0);
                             const int iiir = hindex(i, j, k);
                             if (coarse[iii0 + slice_id * HS_N3]) {
-                                int ir, jr, kr;
-                                if HOST_CONSTEXPR (H_BW % 2 == 0) {
-                                    ir = i % 2;
-                                    jr = j % 2;
-                                    kr = k % 2;
-                                } else {
-                                    ir = 1 - (i % 2);
-                                    jr = 1 - (j % 2);
-                                    kr = 1 - (k % 2);
-                                }
-                                const int oct_index = ir * 4 + jr * 2 + kr;
-                                // unified_u[f * H_N3 + iiir] = unified_uf[f * field_offset + 8 *
-                                // iii0 + oct_index];
-                                U[f][iiir] = unified_uf[f * field_offset + iii0 +
-                                    oct_index * HS_N3 + slice_id * nfields * HS_N3 * 8];
+                                U[f][iiir] = unified_u[f * H_N3 + iiir + slice_id * nfields * H_N3];
                             }
                         }
                     }
                 }
-
                 // std::copy(unified_u.begin() + f * H_N3, unified_u.begin() + f * H_N3 + H_N3,
                 // U[f].begin());
             } 
         } 
+
     }); 
     ret_fut.get(); 
 } 

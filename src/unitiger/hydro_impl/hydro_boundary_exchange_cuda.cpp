@@ -1,3 +1,4 @@
+#include <__clang_cuda_builtin_vars.h>
 #ifdef OCTOTIGER_HAVE_CUDA
 #include "octotiger/util/vec_scalar_device_wrapper.hpp"
 #include "octotiger/unitiger/hydro_impl/hydro_boundary_exchange.hpp"
@@ -43,6 +44,50 @@ complete_hydro_amr_cuda_kernel(const double *dx_global, const int *energy_only_g
         }
     }
 }
+__global__ void
+__launch_bounds__((H_NX) * (H_NX), 1)
+complete_hydro_amr_cuda_kernel_phase2(
+    const const int* coarse_global,
+    const double* unified_uf_global,
+    double* unified_u_global,
+    const int nfields, const bool energy_only) {
+    const int field_offset = HS_N3 * 8;
+
+    int i = blockIdx.z;
+    int j = threadIdx.y;
+    int k = threadIdx.z;
+    int f = blockIdx.y;
+    if (!energy_only || f == egas_i) {
+      const int slice_id = blockIdx.x;
+
+      // Map arrays to slices
+      const int * coarse = coarse_global + slice_id * HS_N3;
+      const double * unified_uf = unified_uf_global + slice_id * nfields * HS_N3 * 8;
+      double * unified_u = unified_u_global + slice_id * nfields * H_N3;
+
+
+      const int i0 = (i + H_BW) / 2;
+      const int j0 = (j + H_BW) / 2;
+      const int k0 = (k + H_BW) / 2;
+      const int iii0 = hSindex(i0, j0, k0);
+      const int iiir = hindex(i, j, k);
+
+      if (coarse[iii0]) {
+          int ir, jr, kr;
+          if (H_BW % 2 == 0) {
+              ir = i % 2;
+              jr = j % 2;
+              kr = k % 2;
+          } else {
+              ir = 1 - (i % 2);
+              jr = 1 - (j % 2);
+              kr = 1 - (k % 2);
+          }
+          const int oct_index = ir * 4 + jr * 2 + kr;
+          unified_u[f * H_N3 + iiir] = unified_uf[f * field_offset + iii0 + oct_index * HS_N3];
+      }
+    }
+}
 
 void launch_complete_hydro_amr_boundary_cuda_post(
     aggregated_executor_t& executor,
@@ -50,6 +95,13 @@ void launch_complete_hydro_amr_boundary_cuda_post(
     executor.post(
     cudaLaunchKernel<decltype(complete_hydro_amr_cuda_kernel)>,
     complete_hydro_amr_cuda_kernel, grid_spec, threads_per_block, args, 0);
+}
+void launch_complete_hydro_amr_boundary_cuda_phase2_post(
+    aggregated_executor_t& executor,
+    dim3 const grid_spec, dim3 const threads_per_block, void *args[]) {
+    executor.post(
+    cudaLaunchKernel<decltype(complete_hydro_amr_cuda_kernel_phase2)>,
+    complete_hydro_amr_cuda_kernel_phase2, grid_spec, threads_per_block, args, 0);
 }
 
 #endif
