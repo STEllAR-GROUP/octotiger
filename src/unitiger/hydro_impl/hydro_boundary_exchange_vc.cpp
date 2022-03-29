@@ -34,7 +34,7 @@ void complete_hydro_amr_boundary_vc(const double dx, const bool energy_only,
     }
     constexpr int field_offset = HS_N3 * 8;
 
-    constexpr int uf_max = 15;
+    constexpr int uf_max = OCTOTIGER_MAX_NUMBER_FIELDS;
     vc_type uf_local[uf_max * 8];
     const vc_type zindices = vc_type::IndexesFromZero();
     for (int i0 = 1; i0 < HS_NX - 1; i0++) {

@@ -11,7 +11,7 @@ complete_hydro_amr_cuda_kernel(const double *dx_global, const int *energy_only_g
     double* unified_ushad_global, int* coarse_global,
     double* xmin_global, double* unified_uf_global,
     const int nfields) {
-    constexpr int max_nf = 15;
+    constexpr int max_nf = OCTOTIGER_MAX_NUMBER_FIELDS;
     const int field_offset = HS_N3 * 8;
     double uf_local[max_nf * 8];
     const int iii0 = (blockIdx.z + 1) * HS_DNX + (threadIdx.y + 1) * HS_DNY + (threadIdx.z + 1) * HS_DNZ;

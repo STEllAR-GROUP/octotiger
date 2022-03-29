@@ -260,7 +260,7 @@ void complete_hydro_amr_boundary_cpu(const double dx, const bool energy_only,
     // constexpr int field_offset = HS_N3 * 8;
 
     // Phase 1: From UShad to Uf
-    constexpr int uf_max = 15;
+    constexpr int uf_max = OCTOTIGER_MAX_NUMBER_FIELDS;
     double uf_local[uf_max * 8];
     for (int i0 = 1; i0 < HS_NX - 1; i0++) {
         for (int j0 = 1; j0 < HS_NX - 1; j0++) {
