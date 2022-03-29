@@ -44,7 +44,7 @@ void hydro_pre_recon_cpu_kernel(const double* __restrict__ X, safe_real omega,
 void reconstruct_experimental(const safe_real omega, const size_t nf_, const int angmom_index_,
     const int* __restrict__ smooth_field_, const int* __restrict__ disc_detect_ ,
     double* __restrict__ combined_q, double* __restrict__ combined_x,
-    double* __restrict__ combined_u, double* __restrict__ AM, const double dx,
+    double* __restrict__ combined_u, double* __restrict__ AM, const double* __restrict__ dx,
     const double* __restrict__ cdiscs);
 // Vc kernel
 #ifdef __x86_64__
@@ -70,7 +70,7 @@ void launch_reconstruct_cuda(
     double omega, int nf_, int angmom_index_,
     int* smooth_field_, int* disc_detect_ ,
     double* combined_q, double* combined_x,
-    double* combined_u, double* AM, double dx,
+    double* combined_u, double* AM, double *dx,
     double* cdiscs, int n_species_);
 void convert_find_contact_discs(const double* __restrict__ combined_u, double* __restrict__ disc, const double A_, const double B_, const double fgamma_, const double de_switch_1);
 void launch_find_contact_discs_cuda(aggregated_executor_t& executor, double* combined_u, double *device_P, double* disc, double A_, double B_, double fgamma_, double de_switch_1, const int nf);

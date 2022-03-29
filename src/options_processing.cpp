@@ -164,7 +164,7 @@ bool options::process_options(int argc, char *argv[]) {
 	("cuda_number_gpus", po::value<size_t>(&(opts().cuda_number_gpus))->default_value(size_t(0)), "cuda streams per HPX locality") //
 	("cuda_streams_per_gpu", po::value<size_t>(&(opts().cuda_streams_per_gpu))->default_value(size_t(0)), "cuda streams per GPU (per locality)") //
 	("cuda_buffer_capacity", po::value<size_t>(&(opts().cuda_buffer_capacity))->default_value(size_t(5)), "How many launches should be buffered before using the CPU") //
-	("max_executor_slices", po::value<size_t>(&(opts().max_executor_slices))->default_value(size_t(1)), "Can be aggregated?") //
+	("max_executor_slices", po::value<size_t>(&(opts().max_executor_slices))->default_value(size_t(8)), "Can be aggregated?") //
 	("root_node_on_device", po::value<bool>(&(opts().root_node_on_device))->default_value(true), "Offload root node gravity kernels to the GPU? May degrade performance given weak GPUs") //
 	("input_file", po::value<std::string>(&(opts().input_file))->default_value(""), "input file for test problems") //
 	("config_file", po::value<std::string>(&(opts().config_file))->default_value(""), "configuration file") //
@@ -312,6 +312,7 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(cuda_number_gpus);
 		SHOW(cuda_streams_per_gpu);
 		SHOW(cuda_buffer_capacity);
+		SHOW(max_executor_slices);
 		SHOW(amr_boundary_kernel_type);
 		SHOW(root_node_on_device);
 		SHOW(multipole_device_kernel_type);

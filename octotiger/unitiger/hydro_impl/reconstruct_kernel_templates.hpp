@@ -383,7 +383,7 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p1(const size_t nf_, 
         if (d < ndir / 2) {
             for (int f = 0; f < s_start; f++) {
                 cell_reconstruct_ppm(combined_q, combined_u,
-                    smooth_field_[f + nf_ * slice_id], disc_detect_[f + nf_ * slice_id], cdiscs, d, f, i, q_i, i + disc_slice_offset);
+                    smooth_field_[f + nf_ * slice_id], disc_detect_[f + nf_ * slice_id], cdiscs, d, f, i + u_slice_offset, q_i + q_slice_offset, i + disc_slice_offset);
             }
             for (int f = s_start; f < l_start; f++) {
                 cell_reconstruct_ppm(

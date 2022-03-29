@@ -78,7 +78,7 @@ __host__ void launch_complete_hydro_amr_boundary_cuda(double dx, bool
         std::vector<int, decltype(alloc_host_int)> energy_only_host(
             max_slices * 1, int{}, alloc_host_int);
         std::vector<double, decltype(alloc_host_double)> dx_host(
-            max_slices * 1, double{}, alloc_host_double);    // TODO Why *8 ?!
+            max_slices * 1, double{}, alloc_host_double);    
 
         // Create device buffers
         recycler::cuda_aggregated_device_buffer<double, decltype(alloc_device_double)> device_uf(

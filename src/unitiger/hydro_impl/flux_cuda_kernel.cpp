@@ -29,7 +29,7 @@
 __global__ void __launch_bounds__(128, 2) flux_cuda_kernel(const double* __restrict__ q_combined,
     const double* __restrict__ x_combined, double* __restrict__ f_combined, double* amax,
     int* amax_indices, int* amax_d, const bool* __restrict__ masks, const double omega,
-    const double dx, const double A_, const double B_, const int nf, const double fgamma,
+    const double *dx, const double A_, const double B_, const int nf, const double fgamma,
     const double de_switch_1, const int number_blocks) {
     __shared__ double sm_amax[128];
     __shared__ int sm_d[128];
@@ -73,14 +73,14 @@ __global__ void __launch_bounds__(128, 2) flux_cuda_kernel(const double* __restr
                 const int d = faces[dim][fi];
                 const int flipped_dim = flip_dim(d, dim);
                 for (int dim = 0; dim < 3; dim++) {
-                    local_x[dim] = x_combined[dim * q_inx3 + index + x_slice_offset] + (0.5 * xloc[d][dim] * dx);
+                    local_x[dim] = x_combined[dim * q_inx3 + index + x_slice_offset] + (0.5 * xloc[d][dim] * dx[slice_id]);
                 }
-                local_vg[0] = -omega * (x_combined[q_inx3 + index + x_slice_offset] + 0.5 * xloc[d][1] * dx);
-                local_vg[1] = +omega * (x_combined[index + x_slice_offset] + 0.5 * xloc[d][0] * dx);
+                local_vg[0] = -omega * (x_combined[q_inx3 + index + x_slice_offset] + 0.5 * xloc[d][1] * dx[slice_id]);
+                local_vg[1] = +omega * (x_combined[index + x_slice_offset] + 0.5 * xloc[d][0] * dx[slice_id]);
                 local_vg[2] = 0.0;
                 const double *q_with_offset = q_combined + q_slice_offset;
                 cell_inner_flux_loop<double>(omega, nf, A_, B_, q_with_offset, local_f, local_x,
-                    local_vg, this_ap, this_am, dim, d, dx, fgamma, de_switch_1,
+                    local_vg, this_ap, this_am, dim, d, dx[slice_id], fgamma, de_switch_1,
                     dim_offset * d + index, dim_offset * flipped_dim - compressedH_DN[dim] + index,
                     face_offset);
                 this_ap *= mask;

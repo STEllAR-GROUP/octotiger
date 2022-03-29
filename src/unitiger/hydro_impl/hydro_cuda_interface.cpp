@@ -300,16 +300,24 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
           hydro.get_angmom_index() != -1, device_u.device_side_buffer, hydro.get_nf(),
           opts().n_species);
 
+      const double dx = X[0][geo.H_DNX] - X[0][0];
+      std::vector<double, decltype(alloc_host_double)> dx_host(
+          max_slices * 1, double{}, alloc_host_double);    
+      aggregated_device_buffer_t<double, decltype(alloc_device_double)> dx_device(max_slices, device_id, alloc_device_double);
+      dx_host[slice_id] = dx;
+      exec_slice.post(cudaMemcpyAsync, dx_device.device_side_buffer, dx_host.data(),
+          number_slices * sizeof(double), cudaMemcpyHostToDevice);
+
       launch_reconstruct_cuda(exec_slice, omega, hydro.get_nf(), hydro.get_angmom_index(),
           device_smooth_field.device_side_buffer, device_disc_detect.device_side_buffer,
           device_q.device_side_buffer, device_x.device_side_buffer, device_u.device_side_buffer,
-          device_AM.device_side_buffer, X[0][geo.H_DNX] - X[0][0],
+          device_AM.device_side_buffer, dx_device.device_side_buffer,
           device_unified_discs.device_side_buffer, opts().n_species);
 
       // Call Flux kernel
       timestep_t ts;
       size_t nf_ = hydro.get_nf();
-      double dx = X[0][geo.H_DNX] - X[0][0];
+
       int number_blocks = (q_inx3 / 128 + 1);
 
       const bool* masks = get_gpu_masks();
@@ -335,7 +343,7 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
       void* args[] = {&(device_q.device_side_buffer), &(device_x.device_side_buffer),
           &(device_f.device_side_buffer), &(device_amax.device_side_buffer),
           &(device_amax_indices.device_side_buffer), &(device_amax_d.device_side_buffer), &masks,
-          &omega_local, &dx, &A_, &B_, &nf_local, &fgamma, &de_switch_1, &number_blocks};
+          &omega_local, &(dx_device.device_side_buffer), &A_, &B_, &nf_local, &fgamma, &de_switch_1, &number_blocks};
       launch_flux_cuda_kernel_post(exec_slice, grid_spec, threads_per_block,
           args);
 #elif defined(OCTOTIGER_HAVE_HIP)
@@ -343,7 +351,7 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
       launch_flux_hip_kernel_post(exec_slice, grid_spec, threads_per_block,
           device_q.device_side_buffer, device_x.device_side_buffer, device_f.device_side_buffer,
           device_amax.device_side_buffer, device_amax_indices.device_side_buffer,
-          device_amax_d.device_side_buffer, masks, omega_local, dx, A_, B_,
+          device_amax_d.device_side_buffer, masks, omega_local, &(dx_device.device_side_buffer), A_, B_,
           nf_local, fgamma,
           de_switch_1, number_blocks);
 #endif
