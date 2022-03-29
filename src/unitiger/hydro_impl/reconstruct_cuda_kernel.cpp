@@ -54,13 +54,18 @@ __global__ void reconstruct_cuda_kernel(const double omega, const int nf_,
     const int sx_i = angmom_index_;
     const int zx_i = sx_i + NDIM;
 
+
     const int q_i = (blockIdx.z * 1 + threadIdx.x) * 64 + (threadIdx.y) * 8 + (threadIdx.z);
     const int i = ((q_i / q_inx2) + 2) * inx_large * inx_large +
         (((q_i % q_inx2) / q_inx) + 2) * inx_large + (((q_i % q_inx2) % q_inx) + 2);
     const int slice_id = blockIdx.x;
+    const int u_slice_offset = (nf_ * H_N3 + 128) * slice_id;
+    const int am_slice_offset = (NDIM * q_inx3 + 128) * slice_id;
     if (q_i < q_inx3) {
         for (int n = 0; n < nangmom; n++) {
-            AM[n * am_offset + q_i] = combined_u[(zx_i + n) * u_face_offset + i] * combined_u[i];
+            AM[n * am_offset + q_i + am_slice_offset] =
+                combined_u[(zx_i + n) * u_face_offset + i + u_slice_offset] *
+                combined_u[i + u_slice_offset];
         }
         for (int d = 0; d < ndir; d++) {
             cell_reconstruct_inner_loop_p1(nf_, angmom_index_, smooth_field_, disc_detect_,
