@@ -16,8 +16,8 @@ using amr_cuda_agg_executor_pool = aggregation_pool<amr_cuda_kernel_identifier, 
                                        pool_strategy>;
 hpx::lcos::local::once_flag init_pool_flag;
 
-constexpr size_t max_slices = 32;
 void init_aggregation_pool(void) {
+    const size_t max_slices = opts().max_executor_slices;
     constexpr size_t number_aggregation_executors = 16;
     constexpr Aggregated_Executor_Modes executor_mode = Aggregated_Executor_Modes::EAGER;
     amr_cuda_agg_executor_pool::init(number_aggregation_executors, max_slices, executor_mode);
@@ -63,6 +63,7 @@ __host__ void launch_complete_hydro_amr_boundary_cuda(double dx, bool
             exec_slice.template make_allocator<int, recycler::detail::cuda_device_allocator<int>>();
         int nfields = opts().n_fields;
 
+        const size_t max_slices = opts().max_executor_slices;
         // Create host buffers
         std::vector<double, decltype(alloc_host_double)> unified_uf(
             max_slices * opts().n_fields * HS_N3 * 8, double{},

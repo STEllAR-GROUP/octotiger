@@ -55,8 +55,8 @@ using executor_t = hpx::cuda::experimental::cuda_executor;
 
 #endif
 
-constexpr size_t max_slices = 16;
 void init_hydro_aggregation_pool(void) {
+    const size_t max_slices = opts().max_executor_slices;
     constexpr size_t number_aggregation_executors = 16;
     constexpr Aggregated_Executor_Modes executor_mode = Aggregated_Executor_Modes::EAGER;
     hydro_cuda_agg_executor_pool::init(number_aggregation_executors, max_slices, executor_mode);
@@ -205,6 +205,7 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
 
       static const cell_geometry<NDIM, INX> geo;
 
+      const size_t max_slices = opts().max_executor_slices;
       // Device buffers
       aggregated_device_buffer_t<double, decltype(alloc_device_double)>
         device_q(
