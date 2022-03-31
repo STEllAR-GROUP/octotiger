@@ -35,7 +35,7 @@ timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux
     hydro::x_type& X, safe_real omega, const size_t nf_);
 #endif
 
-#if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_CUDA)
+#if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)
 #include <aggregation_manager.hpp>
 using aggregated_executor_t = Aggregated_Executor<hpx::cuda::experimental::cuda_executor>::Executor_Slice;
 #endif
@@ -60,8 +60,8 @@ void launch_flux_hip_kernel_post(
     aggregated_executor_t& executor,
     dim3 const grid_spec, dim3 const threads_per_block, double* device_q, double* device_x,
     double* device_f, double* device_amax, int* device_amax_indices, int* device_amax_d,
-    const bool* masks, const double omega, const double dx, const double A_, const double B_,
-    const size_t nf_, const double fgamma, const double de_switch_1);
+    const bool* masks, const double omega, const double *dx, const double A_, const double B_,
+    const size_t nf_, const double fgamma, const double de_switch_1, const int number_blocks);
 #endif
 
 // helpers for using vectortype specialization functions

@@ -188,21 +188,24 @@ __global__ void __launch_bounds__(128, 2) flux_cuda_kernel(const double* __restr
 void flux_hip_kernel_ggl_wrapper(dim3 const grid_spec, dim3 const threads_per_block,
     double* device_q, double* device_x, double* device_f, double* device_amax,
     int* device_amax_indices, int* device_amax_d, const bool* masks, const double omega,
-    const double dx, const double A_, const double B_, const size_t nf_, const double fgamma,
-    const double de_switch_1, cudaStream_t &stream) {
-    hipLaunchKernelGGL(flux_cuda_kernel, grid_spec, threads_per_block, 0, stream, device_q,
-       device_x, device_f, device_amax, device_amax_indices, device_amax_d, masks, omega, dx, A_, B_, nf_,
-       fgamma, de_switch_1);
+    const double *dx, const double A_, const double B_, const size_t nf_, const double fgamma,
+    const double de_switch_1, const int number_blocks, cudaStream_t &stream) {
+    hipLaunchKernelGGL(flux_cuda_kernel, grid_spec, threads_per_block, 0,
+        stream, device_q, device_x, device_f, device_amax, device_amax_indices,
+        device_amax_d, masks, omega, dx, A_, B_, nf_, fgamma, de_switch_1,
+        number_blocks);
 }
 
 void launch_flux_hip_kernel_post(
     aggregated_executor_t& executor,
     dim3 const grid_spec, dim3 const threads_per_block, double* device_q, double* device_x,
     double* device_f, double* device_amax, int* device_amax_indices, int* device_amax_d,
-    const bool* masks, const double omega, const double dx, const double A_, const double B_,
-    const size_t nf_, const double fgamma, const double de_switch_1) {
-    executor.post(flux_hip_kernel_ggl_wrapper, grid_spec, threads_per_block, device_q, device_x,
-        device_f, device_amax, device_amax_indices, device_amax_d, masks, omega, dx, A_, B_, nf_, fgamma, de_switch_1);
+    const bool* masks, const double omega, const double *dx, const double A_, const double B_,
+    const size_t nf_, const double fgamma, const double de_switch_1, const int number_blocks) {
+    executor.post(flux_hip_kernel_ggl_wrapper, grid_spec, threads_per_block,
+        device_q, device_x, device_f, device_amax, device_amax_indices,
+        device_amax_d, masks, omega, dx, A_, B_, nf_, fgamma, de_switch_1,
+        number_blocks);
 }
 #else
 void launch_flux_cuda_kernel_post(

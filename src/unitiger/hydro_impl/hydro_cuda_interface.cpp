@@ -32,6 +32,10 @@ hpx::lcos::local::once_flag init_hydro_pool_flag;
 
 #if defined(OCTOTIGER_HAVE_CUDA)
 template <typename T>
+using host_pinned_allocator = recycler::detail::cuda_pinned_allocator<T>;
+template <typename T>
+using device_allocator = recycler::detail::cuda_device_allocator<T>;
+template <typename T>
 using device_buffer_t = recycler::cuda_device_buffer<T>;
 template <typename T, typename Alloc>
 using aggregated_device_buffer_t = recycler::cuda_aggregated_device_buffer<T, Alloc>;
@@ -42,10 +46,18 @@ template <typename T, typename Alloc>
 using aggregated_host_buffer_t = std::vector<T, Alloc>;
 #elif defined(OCTOTIGER_HAVE_HIP)
 template <typename T>
+using host_pinned_allocator = recycler::detail::hip_pinned_allocator<T>;
+template <typename T>
+using device_allocator = recycler::detail::hip_device_allocator<T>;
+template <typename T>
 using device_buffer_t = recycler::hip_device_buffer<T>;
 template <typename T>
 using host_buffer_t = std::vector<T, recycler::recycle_allocator_hip_host<T>>;
 using executor_t = hpx::cuda::experimental::cuda_executor;
+template <typename T, typename Alloc>
+using aggregated_device_buffer_t = recycler::hip_aggregated_device_buffer<T, Alloc>;
+template <typename T, typename Alloc>
+using aggregated_host_buffer_t = std::vector<T, Alloc>;
 
 #define cudaLaunchKernel hipLaunchKernel
 #define cudaMemcpy hipMemcpy
@@ -192,16 +204,16 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
       // Get allocators of all the executors working together
       auto alloc_host_double =
           exec_slice
-              .template make_allocator<double, recycler::detail::cuda_pinned_allocator<double>>();
+              .template make_allocator<double, host_pinned_allocator<double>>();
       auto alloc_device_double =
           exec_slice
-              .template make_allocator<double, recycler::detail::cuda_device_allocator<double>>();
+              .template make_allocator<double, device_allocator<double>>();
       auto alloc_host_int =
           exec_slice
-              .template make_allocator<int, recycler::detail::cuda_pinned_allocator<int>>();
+              .template make_allocator<int, host_pinned_allocator<int>>();
       auto alloc_device_int =
           exec_slice
-              .template make_allocator<int, recycler::detail::cuda_device_allocator<int>>();
+              .template make_allocator<int, device_allocator<int>>();
 
       static const cell_geometry<NDIM, INX> geo;
 
@@ -351,7 +363,7 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
       launch_flux_hip_kernel_post(exec_slice, grid_spec, threads_per_block,
           device_q.device_side_buffer, device_x.device_side_buffer, device_f.device_side_buffer,
           device_amax.device_side_buffer, device_amax_indices.device_side_buffer,
-          device_amax_d.device_side_buffer, masks, omega_local, &(dx_device.device_side_buffer), A_, B_,
+          device_amax_d.device_side_buffer, masks, omega_local, dx_device.device_side_buffer, A_, B_,
           nf_local, fgamma,
           de_switch_1, number_blocks);
 #endif

@@ -1,4 +1,4 @@
-#include <__clang_cuda_builtin_vars.h>
+//#include <__clang_cuda_builtin_vars.h>
 #if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)
 #include <hpx/modules/async_cuda.hpp>
 
@@ -161,10 +161,10 @@ __global__ void discs_phase2(
 
 #if defined(OCTOTIGER_HAVE_HIP)
 void disc1_hip_kernel_ggl_wrapper(dim3 const grid_spec, dim3 const threads_per_block,
-    double* device_P, double* device_u, double A_, double B_, double fgamma_, double de_switch_1,
+    double* device_P, double* device_u, double A_, double B_, double fgamma_, double de_switch_1, int nf,
     cudaStream_t& stream) {
     hipLaunchKernelGGL(discs_phase1, grid_spec, threads_per_block, 0, stream, device_P, device_u,
-        A_, B_, fgamma_, de_switch_1);
+        A_, B_, fgamma_, de_switch_1, nf);
 }
 void disc2_hip_kernel_ggl_wrapper(dim3 const grid_spec, dim3 const threads_per_block,
     double* device_disc, double* device_P, double fgamma_, int ndir, cudaStream_t& stream) {
@@ -187,7 +187,7 @@ void launch_find_contact_discs_cuda(
         threads_per_block_phase1, args_phase1, 0);
 #elif defined(OCTOTIGER_HAVE_HIP)
     executor.post(disc1_hip_kernel_ggl_wrapper, grid_spec_phase1, threads_per_block_phase1,
-        device_P, device_u, A_, B_, fgamma_, de_switch_1);
+        device_P, device_u, A_, B_, fgamma_, de_switch_1, nf);
 #endif
     int ndir = geo.NDIR;
     const int blocks2 = (q_inx * q_inx * q_inx) / 64 + 1;

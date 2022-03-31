@@ -11,6 +11,7 @@
 #include <hpx/synchronization/once.hpp>
 
 
+#ifdef OCTOTIGER_HAVE_CUDA
 static const char amr_cuda_kernel_identifier[] = "amr_kernel_aggregator_cuda";
 using amr_cuda_agg_executor_pool = aggregation_pool<amr_cuda_kernel_identifier, hpx::cuda::experimental::cuda_executor,
                                        pool_strategy>;
@@ -23,7 +24,6 @@ void init_aggregation_pool(void) {
     amr_cuda_agg_executor_pool::init(number_aggregation_executors, max_slices, executor_mode);
 }
 
-#ifdef OCTOTIGER_HAVE_CUDA
 __host__ void launch_complete_hydro_amr_boundary_cuda(double dx, bool
     energy_only,
     const std::vector<std::vector<real>>& Ushad, const std::vector<std::atomic<int>>& is_coarse,
