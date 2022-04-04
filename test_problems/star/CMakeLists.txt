@@ -23,7 +23,7 @@ function(test_star_scenario test_name test_log_file kernel_parameters)
   add_test(NAME ${test_name}.TS10_regex COMMAND cat ${test_log_file})
   set_tests_properties(${test_name}.TS10_regex PROPERTIES
   FIXTURES_REQUIRED ${test_name}
-  PASS_REGULAR_EXPRESSION "TS 10:: t: 7.352407e.00, dt: 6.715325e-01, time_elapsed: .+, rotational_time: 7.352407e.00, x: 2.343750e.00, y: 7.812500e-01, z: 7.812500e-01, a: 9.307070e-01, ur: 1.680614e-02, ul: 1.365091e-02, vr: 6.075061e-02, vl: 2.912973e-02, dim: 0, ngrids: 201, leafs: 176, amr_boundaries: 312")
+  PASS_REGULAR_EXPRESSION "TS 10:: t: 7.352407e.00, dt: 6.715325e-01, time_elapsed: .+, rotational_time: 7.352407e.00, x: .+, y: .+, z: .+, a: 9.307070e-01, ur: 1.680614e-02, ul: 1.365091e-02, vr: 6.075061e-02, vl: 2.912973e-02, dim: 0, ngrids: 201, leafs: 176, amr_boundaries: 312")
   
   # Analyze test log file: silodiff 
   add_test(NAME ${test_name}.diff
