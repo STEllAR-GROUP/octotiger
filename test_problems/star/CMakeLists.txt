@@ -20,11 +20,41 @@ function(test_star_scenario test_name test_log_file kernel_parameters)
     FIXTURES_SETUP ${test_name})
 
   # Analyze test log file: Timestep output needs to match
-  add_test(NAME ${test_name}.TS10_regex COMMAND cat ${test_log_file})
-  set_tests_properties(${test_name}.TS10_regex PROPERTIES
+  add_test(NAME ${test_name}.TS10_dt_regex COMMAND cat ${test_log_file})
+  set_tests_properties(${test_name}.TS10_dt_regex PROPERTIES
   FIXTURES_REQUIRED ${test_name}
-  PASS_REGULAR_EXPRESSION "TS 10:: t: 7.352407e.00, dt: 6.715325e-01, time_elapsed: .+, rotational_time: 7.352407e.00, x: .+, y: .+, z: .+, a: 9.307070e-01, ur: 1.680614e-02, ul: 1.365091e-02, vr: 6.075061e-02, vl: 2.912973e-02, dim: 0, ngrids: 201, leafs: 176, amr_boundaries: 312")
-  
+  PASS_REGULAR_EXPRESSION "TS 10:: t: 7.352407e.00, dt: 6.715325e-01")
+
+  add_test(NAME ${test_name}.TS10_a_regex COMMAND cat ${test_log_file})
+  set_tests_properties(${test_name}.TS10_a_regex PROPERTIES
+  FIXTURES_REQUIRED ${test_name}
+  PASS_REGULAR_EXPRESSION "a: 9.307070e-01")
+
+  add_test(NAME ${test_name}.TS10_ur_regex COMMAND cat ${test_log_file})
+  set_tests_properties(${test_name}.TS10_ur_regex PROPERTIES
+  FIXTURES_REQUIRED ${test_name}
+  PASS_REGULAR_EXPRESSION "ur: 1.680614e-02")
+
+  add_test(NAME ${test_name}.TS10_ul_regex COMMAND cat ${test_log_file})
+  set_tests_properties(${test_name}.TS10_ul_regex PROPERTIES
+  FIXTURES_REQUIRED ${test_name}
+  PASS_REGULAR_EXPRESSION "ul: 1.365091e-02")
+
+  add_test(NAME ${test_name}.TS10_vr_regex COMMAND cat ${test_log_file})
+  set_tests_properties(${test_name}.TS10_vr_regex PROPERTIES
+  FIXTURES_REQUIRED ${test_name}
+  PASS_REGULAR_EXPRESSION "vr: 6.075061e-02")
+
+  add_test(NAME ${test_name}.TS10_vl_regex COMMAND cat ${test_log_file})
+  set_tests_properties(${test_name}.TS10_vl_regex PROPERTIES
+  FIXTURES_REQUIRED ${test_name}
+  PASS_REGULAR_EXPRESSION "vl: 2.912973e-02")
+
+  add_test(NAME ${test_name}.TS10_boundaries_regex COMMAND cat ${test_log_file})
+  set_tests_properties(${test_name}.TS10_boundaries_regex PROPERTIES
+  FIXTURES_REQUIRED ${test_name}
+  PASS_REGULAR_EXPRESSION "amr_boundaries: 312")
+
   # Analyze test log file: silodiff 
   add_test(NAME ${test_name}.diff
     COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-11
