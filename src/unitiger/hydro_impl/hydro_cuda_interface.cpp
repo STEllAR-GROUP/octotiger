@@ -35,6 +35,7 @@ template <typename T>
 using host_pinned_allocator = recycler::detail::cuda_pinned_allocator<T>;
 template <typename T>
 using device_allocator = recycler::detail::cuda_device_allocator<T>;
+
 template <typename T>
 using device_buffer_t = recycler::cuda_device_buffer<T>;
 template <typename T, typename Alloc>
@@ -46,14 +47,15 @@ template <typename T, typename Alloc>
 using aggregated_host_buffer_t = std::vector<T, Alloc>;
 #elif defined(OCTOTIGER_HAVE_HIP)
 template <typename T>
-using host_pinned_allocator = recycler::detail::hip_pinned_allocator<T>;
-template <typename T>
-using device_allocator = recycler::detail::hip_device_allocator<T>;
-template <typename T>
 using device_buffer_t = recycler::hip_device_buffer<T>;
 template <typename T>
 using host_buffer_t = std::vector<T, recycler::recycle_allocator_hip_host<T>>;
 using executor_t = hpx::cuda::experimental::cuda_executor;
+
+template <typename T>
+using host_pinned_allocator = recycler::detail::hip_pinned_allocator<T>;
+template <typename T>
+using device_allocator = recycler::detail::hip_device_allocator<T>;
 template <typename T, typename Alloc>
 using aggregated_device_buffer_t = recycler::hip_aggregated_device_buffer<T, Alloc>;
 template <typename T, typename Alloc>
@@ -218,6 +220,14 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
       static const cell_geometry<NDIM, INX> geo;
 
       const size_t max_slices = opts().max_executor_slices;
+
+      // Move input to device
+      aggregated_host_buffer_t<double, decltype(alloc_host_double)> combined_u(
+          (hydro.get_nf() * H_N3 + 128) * max_slices, double{}, alloc_host_double);
+      aggregated_device_buffer_t<double, decltype(alloc_device_double)> device_u(
+          (hydro.get_nf() * H_N3 + 128) * max_slices, device_id, alloc_device_double);
+
+
       // Device buffers
       aggregated_device_buffer_t<double, decltype(alloc_device_double)>
         device_q(
@@ -228,8 +238,6 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
           (NDIM * H_N3 + 128) * max_slices, device_id, alloc_device_double);
       aggregated_device_buffer_t<double, decltype(alloc_device_double)> device_f(
           (NDIM * hydro.get_nf() * q_inx3 + 128) * max_slices, device_id, alloc_device_double);
-      aggregated_device_buffer_t<double, decltype(alloc_device_double)> device_u(
-          (hydro.get_nf() * H_N3 + 128) * max_slices, device_id, alloc_device_double);
       aggregated_device_buffer_t<double, decltype(alloc_device_double)>
         device_unified_discs(
           (geo.NDIR / 2 * H_N3 + 128) * max_slices, device_id, alloc_device_double);
@@ -248,8 +256,6 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
           (NDIM * q_inx3 + 128) * max_slices, double{}, alloc_host_double);
       aggregated_host_buffer_t<double, decltype(alloc_host_double)> combined_large_x(
           (NDIM * H_N3 + 128) * max_slices, double{}, alloc_host_double);
-      aggregated_host_buffer_t<double, decltype(alloc_host_double)> combined_u(
-          (hydro.get_nf() * H_N3 + 128) * max_slices, double{}, alloc_host_double);
       aggregated_host_buffer_t<double, decltype(alloc_host_double)> f(
           (NDIM * hydro.get_nf() * q_inx3 + 128) * max_slices, double{}, alloc_host_double);
       aggregated_host_buffer_t<int, decltype(alloc_host_int)> disc_detect(
@@ -258,8 +264,8 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
           (hydro.get_nf()) * max_slices, int{}, alloc_host_int);
 
       // Slice offsets
-      constexpr int x_slice_offset = NDIM * q_inx3 + 128;
       const int u_slice_offset = hydro.get_nf() * H_N3 + 128;
+      constexpr int x_slice_offset = NDIM * q_inx3 + 128;
       const int disc_detect_slice_offset = hydro.get_nf();
       const int smooth_slice_offset = hydro.get_nf();
       constexpr int large_x_slice_offset = (H_N3 * NDIM + 128); 
@@ -280,7 +286,6 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
           smooth_field[f + smooth_slice_offset * slice_id] = smooth_bool[f];
       }
 
-      // Move input to device
       exec_slice.post(cudaMemcpyAsync,
           device_u.device_side_buffer, combined_u.data(),
           (hydro.get_nf() * H_N3 + 128) * sizeof(double) * number_slices, cudaMemcpyHostToDevice);
@@ -293,6 +298,7 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
       exec_slice.post(cudaMemcpyAsync,
           device_smooth_field.device_side_buffer, smooth_field.data(), (hydro.get_nf()) * sizeof(int) * number_slices,
           cudaMemcpyHostToDevice);
+
 
 
 
