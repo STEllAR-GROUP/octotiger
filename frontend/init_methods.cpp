@@ -178,12 +178,16 @@ void init_executors(void) {
     std::cout << "HIP is enabled!" << std::endl;
 #if HPX_KOKKOS_CUDA_FUTURE_TYPE == 0  // cuda in the name is correct
     std::cout << "HIP with polling futures enabled!" << std::endl;
+    /*stream_pool::init<hpx::cuda::experimental::cuda_executor, pool_strategy>(
+        opts().cuda_streams_per_gpu, opts().cuda_number_gpus, true);*/
     stream_pool::init<hpx::cuda::experimental::cuda_executor, pool_strategy>(
-        opts().cuda_streams_per_gpu, opts().cuda_number_gpus, true);
+        opts().cuda_streams_per_gpu, 0, true);
 #else
     std::cout << "HIP with callback futures enabled!" << std::endl;
+    /*stream_pool::init<hpx::cuda::experimental::cuda_executor, pool_strategy>(
+        opts().cuda_streams_per_gpu, opts().cuda_number_gpus, false);*/
     stream_pool::init<hpx::cuda::experimental::cuda_executor, pool_strategy>(
-        opts().cuda_streams_per_gpu, opts().cuda_number_gpus, false);
+        opts().cuda_streams_per_gpu, 0, false);
 #endif
     octotiger::fmm::kernel_scheduler::init_constants();
 #endif
