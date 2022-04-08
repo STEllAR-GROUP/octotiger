@@ -84,9 +84,11 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
 #endif
         if (device_type == interaction_device_kernel_type::HIP) {
 #ifdef OCTOTIGER_HAVE_HIP
-            bool avail = false;
-            avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
-                pool_strategy>(cuda_buffer_capacity);
+            bool avail = true;
+            if (host_type != interaction_host_kernel_type::DEVICE_ONLY) {
+              avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
+                  pool_strategy>(cuda_buffer_capacity);
+            }
             if (avail) {
                 size_t device_id = 0;
                 max_lambda = launch_hydro_cuda_kernels(hydro, U, X, omega, device_id, F);
