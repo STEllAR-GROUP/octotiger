@@ -70,8 +70,8 @@ For more publications, refer to Octo-Tigers' [documentation](https://stellar-gro
 
 ## Allocations
  
-* Merger-Simulations using High-Level Abstractions, Production, Piz Daint, CSCS Swiss National Supercomputing Centre
 * Porting Octo-Tiger, an astrophysics program simulating the evolution of star systems based on the fast multipole method on adaptive Octrees, Testbed, Ookami, Stony Brook University
+* Porting Octo-Tiger, an astrophysics program simulating the evolution of star systems based on the fast multipole method on adaptive Octrees, Testbed, Fugaku, RIKEN Center for Computational Science 
 
 
 ## License
