@@ -79,9 +79,14 @@ pipeline {
     }
     post {
         success {
-            sh '''
-            echo " HIP Aggregation Performance Test finished! Pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger HIP Aggregation Perofrmance Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} finished! See attachments" -a performance_results.log -a executors_scaling.pdf -a slices_scaling.pdf "${MAINTAINER_MAIL}"
-            '''
+            steps {
+                dir('octotiger') {
+		    sh '''
+                    cd "../octo-buildscripts-aggregation-test-HIP"
+		    echo " HIP Aggregation Performance Test finished! Pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger HIP Aggregation Perofrmance Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} finished! See attachments" -a performance_results.log -a executors_scaling.pdf -a slices_scaling.pdf "${MAINTAINER_MAIL}"
+		    '''
+                }
+            }
         }
         failure {
             sh '''
