@@ -21,9 +21,6 @@ pipeline {
     stages {
         stage('checkout') {
             steps {
-                script {
-                    buildbadge.setStatus('running')
-                }
                 dir('octotiger') {
                     checkout scm
                     sh '''
