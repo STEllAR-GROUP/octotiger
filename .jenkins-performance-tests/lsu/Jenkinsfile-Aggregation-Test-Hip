@@ -38,53 +38,44 @@ pipeline {
         }
         stage('configure') {
             steps {
-                dir('octotiger') {
                     sh '''
-                        #!/bin/bash -l
-                        cd ..
-                        #rm -rf octo-buildscripts/src/octotiger
-                        rm -rf "octo-buildscripts-aggregation-test-HIP" #remove line for dependency caching
-                        if [[ -d "octo-buildscripts-aggregation-test-HIP" ]]
-                        then
-                            cd "octo-buildscripts-aggregation-test-HIP"
-                            git reset --hard # reset griddim modification in case of unclean directory
-                            git checkout jenkins-kamand
-                            git pull
-                            rm -rf build/octotiger
-                            rm -rf src/octotiger
-                        else
-                            git clone https://github.com/diehlpk/PowerTiger.git "octo-buildscripts-aggregation-test-HIP"
-                            cd "octo-buildscripts-aggregation-test-HIP"
-                            git checkout jenkins-aggregation-test-kamand
-                            mkdir src
-                        fi
+                    #!/bin/bash -l
+                    rm -rf "octo-buildscripts-aggregation-test-HIP" #remove line for dependency caching
+                    if [[ -d "octo-buildscripts-aggregation-test-HIP" ]] # handle with cache dependencies
+                    then
+                        cd "octo-buildscripts-aggregation-test-HIP"
+                        git reset --hard # reset griddim modification in case of unclean directory
+                        git checkout jenkins-aggregation-test-kamand
+                        git pull
+                        rm -rf build/octotiger
+                        rm -rf src/octotiger
+                    else #handle fresh build
+                        git clone https://github.com/diehlpk/PowerTiger.git "octo-buildscripts-aggregation-test-HIP"
+                        cd "octo-buildscripts-aggregation-test-HIP"
+                        git checkout jenkins-aggregation-test-kamand
+                        mkdir src
+                    fi
 
-                        cd ..
-                        cp -r octotiger "octo-buildscripts-aggregation-test-HIP/src/octotiger"
-                    '''
-                }
+                    cd ..
+                    cp -r octotiger "octo-buildscripts-aggregation-test-HIP/src/octotiger"
+                '''
             }
         }
         stage('build-and-test') {
             steps {
-                dir('octotiger') {
-                    sh '''
-                    #!/bin/bash -l
-                    cd "../octo-buildscripts-aggregation-test-HIP"
-                    #src/octotiger/.jenkins-performance-tests/lsu/hip-aggregation-test-entry.sh
-                    '''
-                }
+                sh '''
+                #!/bin/bash -l
+                cd "octo-buildscripts-aggregation-test-HIP"
+                src/octotiger/.jenkins-performance-tests/lsu/hip-aggregation-test-entry.sh
+                '''
             }
         }
     }
     post {
         success {
 		    sh '''
-                    echo "SUCCESS"
-                    echo "Dir: $(pwd)"
                     cd "octo-buildscripts-aggregation-test-HIP"
-                    echo "Dir: $(pwd)"
-		    #echo " HIP Aggregation Performance Test finished! Pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger HIP Aggregation Perofrmance Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} finished! See attachments" -a performance_results.log -a executors_scaling.pdf -a slices_scaling.pdf "${MAINTAINER_MAIL}"
+		    echo " HIP Aggregation Performance Test finished! Pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger HIP Aggregation Perofrmance Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} finished! See attachments" -a performance_results.log -a executors_scaling.pdf -a slices_scaling.pdf "${MAINTAINER_MAIL}"
 		    '''
         }
         failure {
