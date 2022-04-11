@@ -4,6 +4,8 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --partition=cuda-A100
+#SBATCH -e aggregation_test_cuda.out
+#SBATCH -o aggregation_test_cuda.out
 
 module load llvm/12.0.1 cuda hwloc
 pip3 install --upgrade matplotlib pandas 

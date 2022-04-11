@@ -4,6 +4,8 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --partition=mi100
+#SBATCH -e aggregation_test_hip.out
+#SBATCH -o aggregation_test_hip.out
 
 module load gcc/9.4.0 rocm/4.3.1 hwloc
 pip3 install --upgrade matplotlib pandas

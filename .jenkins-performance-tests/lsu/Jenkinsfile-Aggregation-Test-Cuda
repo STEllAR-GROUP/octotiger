@@ -62,6 +62,7 @@ pipeline {
                 #!/bin/bash -l
                 cd "octo-buildscripts-aggregation-test-CUDA"
                 sbatch --wait src/octotiger/.jenkins-performance-tests/lsu/cuda-aggregation-test.sbatch
+                cat aggregation_test_cuda.out
                 '''
             }
         }
