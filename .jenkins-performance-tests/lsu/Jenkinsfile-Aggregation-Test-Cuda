@@ -1,0 +1,97 @@
+#!groovy
+
+pipeline {
+    agent any
+
+    options {
+        buildDiscarder(
+            logRotator(
+                daysToKeepStr: "28",
+                numToKeepStr: "100",
+                artifactDaysToKeepStr: "28",
+                artifactNumToKeepStr: "100"
+            )
+        )
+        disableConcurrentBuilds()
+    }
+    environment {
+        GITHUB_TOKEN = credentials('GITHUB_TOKEN_OCTOTIGER')
+        MAINTAINER_MAIL = credentials('OCTOTIGER_MAINTAINER_EMAIL')
+    }
+    stages {
+        stage('checkout') {
+            steps {
+                dir('octotiger') {
+                    checkout scm
+                    sh '''
+                        cd octotiger
+                        git submodule update --init --recursive
+                        cd ..
+                    '''
+                }
+                dir('octotiger') {
+                    sh '''
+                      echo "CUDA Aggregation Test started! Pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger CUDA Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} started" "${MAINTAINER_MAIL}"
+                    '''
+                }
+            }
+        }
+        stage('configure') {
+            steps {
+                dir('octotiger') {
+                    sh '''
+                        #!/bin/bash -l
+                        cd ..
+                        #rm -rf octo-buildscripts/src/octotiger
+                        rm -rf "octo-buildscripts-aggregation-test-CUDA" #remove line for dependency caching
+                        if [[ -d "octo-buildscripts-aggregation-test-CUDA" ]]
+                        then
+                            cd "octo-buildscripts-aggregation-test-CUDA"
+                            git reset --hard # reset griddim modification in case of unclean directory
+                            git checkout jenkins-kamand
+                            git pull
+                            rm -rf build/octotiger
+                            rm -rf src/octotiger
+                        else
+                            git clone https://github.com/diehlpk/PowerTiger.git "octo-buildscripts-aggregation-test-CUDA"
+                            cd "octo-buildscripts-aggregation-test-CUDA"
+                            git checkout jenkins-aggregation-test-cuda
+                            mkdir src
+                        fi
+
+                        cd ..
+                        cp -r octotiger "octo-buildscripts-aggregation-test-CUDA/src/octotiger"
+                    '''
+                }
+            }
+        }
+        stage('build-and-test') {
+            steps {
+                dir('octotiger') {
+                    sh '''
+                    #!/bin/bash -l
+                    cd "../octo-buildscripts-aggregation-test-CUDA"
+                    src/octotiger/.jenkins-performance-tests/lsu/cuda-aggregation-test-entry.sh
+                    '''
+                }
+            }
+        }
+    }
+    post {
+        success {
+            sh '''
+            echo " CUDA Aggregation Performance Test finished! Pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger CUDA Aggregation Perofrmance Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} finished! See attachments" -a performance_results.log -a executors_scaling.pdf -a slices_scaling.pdf "${MAINTAINER_MAIL}"
+            '''
+        }
+        failure {
+            sh '''
+            echo "CUDA Aggregation Performance Test failed! Pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger CUDA Aggregation Performance Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} failed" "${MAINTAINER_MAIL}"
+            '''
+        }
+        aborted {
+            sh '''
+            echo "CUDA Aggregation Performance Test aborted on pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger CUDA Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} aborted" "${MAINTAINER_MAIL}"
+            '''
+        }
+    }
+}
