@@ -1,0 +1,100 @@
+#!groovy
+
+pipeline {
+    agent any
+
+    options {
+        buildDiscarder(
+            logRotator(
+                daysToKeepStr: "28",
+                numToKeepStr: "100",
+                artifactDaysToKeepStr: "28",
+                artifactNumToKeepStr: "100"
+            )
+        )
+        disableConcurrentBuilds()
+    }
+    environment {
+        GITHUB_TOKEN = credentials('GITHUB_TOKEN_OCTOTIGER')
+        MAINTAINER_MAIL = credentials('OCTOTIGER_MAINTAINER_EMAIL')
+    }
+    stages {
+        stage('checkout') {
+            steps {
+                script {
+                    buildbadge.setStatus('running')
+                }
+                dir('octotiger') {
+                    checkout scm
+                    sh '''
+                        cd octotiger
+                        git submodule update --init --recursive
+                        cd ..
+                    '''
+                }
+                dir('octotiger') {
+                    sh '''
+                      echo "HIP Aggregation Test started! Pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger HIP Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} started" "${MAINTAINER_MAIL}"
+                    '''
+                }
+            }
+        }
+        stage('configure') {
+            steps {
+                dir('octotiger') {
+                    sh '''
+                        #!/bin/bash -l
+                        cd ..
+                        #rm -rf octo-buildscripts/src/octotiger
+                        rm -rf "octo-buildscripts-aggregation-test-HIP" #remove line for dependency caching
+                        if [[ -d "octo-buildscripts-aggregation-test-HIP" ]]
+                        then
+                            cd "octo-buildscripts-aggregation-test-HIP"
+                            git reset --hard # reset griddim modification in case of unclean directory
+                            git checkout jenkins-kamand
+                            git pull
+                            rm -rf build/octotiger
+                            rm -rf src/octotiger
+                        else
+                            git clone https://github.com/diehlpk/PowerTiger.git "octo-buildscripts-aggregation-test-HIP"
+                            cd "octo-buildscripts-aggregation-test-HIP"
+                            git checkout jenkins-aggregation-test-kamand
+                            mkdir src
+                        fi
+
+                        cd ..
+                        cp -r octotiger "octo-buildscripts-aggregation-test-HIP/src/octotiger"
+                    '''
+                }
+            }
+        }
+        stage('build-and-test') {
+            steps {
+                dir('octotiger') {
+                    sh '''
+                    #!/bin/bash -l
+                    cd "../octo-buildscripts-aggregation-test-HIP"
+                    src/octotiger/.jenkins-performance-tests/lsu/hip-aggregation-test-entry.sh
+                    '''
+                }
+            }
+        }
+    }
+    post {
+        success {
+            sh '''
+            echo " HIP Aggregation Performance Test finished! Pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger HIP Aggregation Perofrmance Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} finished! See attachments" -a performance_results.log -a executors_scaling.pdf -a slices_scaling.pdf "${MAINTAINER_MAIL}"
+            '''
+        }
+        failure {
+            sh '''
+            echo "HIP Aggregation Performance Test failed! Pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger HIP Aggregation Performance Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} failed" "${MAINTAINER_MAIL}"
+            '''
+        }
+        aborted {
+            sh '''
+            echo "HIP Aggregation Performance Test aborted on pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger HIP Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} aborted" "${MAINTAINER_MAIL}"
+            '''
+        }
+    }
+}
