@@ -29,9 +29,6 @@ pipeline {
                         cd ..
                     '''
                 }
-                sh '''
-                  echo "CUDA Aggregation Test started! Pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger CUDA Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} started" "${MAINTAINER_MAIL}"
-                '''
             }
         }
         stage('configure') {
@@ -73,7 +70,7 @@ pipeline {
         success {
             sh '''
             cd "octo-buildscripts-aggregation-test-CUDA"
-            echo " CUDA Aggregation Performance Test finished! Pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger CUDA Aggregation Perofrmance Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} finished! See attachments" -a performance_results.log -a executors_scaling.pdf -a slices_scaling.pdf "${MAINTAINER_MAIL}"
+            echo " CUDA Aggregation Performance Test finished! Pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger CUDA Aggregation Perofrmance Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} finished! See attachments" -a performance_results.log -a cpu-gpu-nodelevel-scaling.pdf -a gpu-only-nodelevel-scaling.pdf -a slices_scaling.pdf -a executors_scaling.pdf -a cpu-only-nodelevel-scaling.pdf -a Reconstruct-Runtime-Per-Launch.pdf-a Reconstruct-Runtime-Per-Subgrid.pdf -a Reconstruct-Speedup-Per-Subgrid.pdf -a Flux-Runtime-Per-Launch.pdf-a Flux-Runtime-Per-Subgrid.pdf -a Flux-Speedup-Per-Subgrid.pdf -a Discs1-Runtime-Per-Launch.pdf-a Discs1-Runtime-Per-Subgrid.pdf -a Discs1-Speedup-Per-Subgrid.pdf -a Discs2-Runtime-Per-Launch.pdf-a Discs2-Runtime-Per-Subgrid.pdf -a Discs2-Speedup-Per-Subgrid.pdf -a Pre_Recon-Runtime-Per-Launch.pdf-a Pre_Recon-Runtime-Per-Subgrid.pdf -a Pre_Recon-Speedup-Per-Subgrid.pdf "${MAINTAINER_MAIL}"
             '''
         }
         failure {
