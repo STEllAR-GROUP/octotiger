@@ -21,7 +21,7 @@
 
 using multipole_pass_type = std::pair<std::vector<multipole>, std::vector<space_vector>>;
 using expansion_pass_type = std::pair<std::vector<expansion>, std::vector<space_vector>>;
-using semaphore = hpx::lcos::local::counting_semaphore;
+using semaphore = hpx::counting_semaphore_var<>;
 
 struct gravity_boundary_type
 {
