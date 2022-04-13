@@ -196,7 +196,7 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
     // Get executor (-slice if aggregated with max_slices > 1) future
     auto executor_slice_fut = hydro_cuda_agg_executor_pool::request_executor_slice();
     // Add continuation to executor future to execute the hydro kernels as soon as it's ready
-    auto ret_fut = executor_slice_fut.value().then([&](auto && fut) {
+    auto ret_fut = executor_slice_fut.value().then(hpx::util::annotated_function([&](auto && fut) {
       // Unwrap executor from ready future
       aggregated_executor_t exec_slice = fut.get();
       // How many executor slices are working together and what's our ID?
@@ -448,7 +448,7 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
           }
       }
       return max_lambda;
-    });
+    }, "cuda_hydro_solver"));
     return ret_fut.get();
 }
 #endif
