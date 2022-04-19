@@ -105,6 +105,7 @@ public:
         std::size_t cycle) const;
     void send_hydro_boundary(std::vector<real>&&, const geo::direction& dir,
         std::size_t cycle) const;
+    const std::vector<std::vector<safe_real>>* recv_hydro_boundary_local() const;
     void send_hydro_amr_boundary(std::vector<real>&&, const geo::direction& dir,
         std::size_t cycle) const;
     void send_rad_amr_boundary(std::vector<real>&&, const geo::direction& dir,

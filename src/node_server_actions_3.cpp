@@ -76,11 +76,24 @@ void node_server::recv_hydro_boundary(std::vector<real> &&bdata, const geo::dire
 	sibling_hydro_channels[dir].set_value(std::move(tmp), cycle);
 }
 
+using send_hydro_boundary_action_local_type = node_server::send_hydro_boundary_action_local;
+HPX_REGISTER_ACTION (send_hydro_boundary_action_local_type);
+
+const std::vector<std::vector<safe_real>>* node_client::recv_hydro_boundary_local() const {
+  node_server::send_hydro_boundary_action_local action_instance;
+	const std::vector<std::vector<safe_real>>* u_p = action_instance(get_unmanaged_gid());
+  return u_p;
+}
+
+const std::vector<std::vector<safe_real>>* node_server::send_hydro_boundary_local() {
+  return &(grid_ptr->U);
+}
+
 using send_hydro_amr_boundary_action_type = node_server::send_hydro_amr_boundary_action;
 HPX_REGISTER_ACTION (send_hydro_amr_boundary_action_type);
 
 void node_client::send_hydro_amr_boundary(std::vector<real> &&data, const geo::direction &dir, std::size_t cycle) const {
-	hpx::apply<typename node_server::send_hydro_amr_boundary_action>(get_unmanaged_gid(), std::move(data), dir, cycle);
+  hpx::apply<typename node_server::send_hydro_amr_boundary_action>(get_unmanaged_gid(), std::move(data), dir, cycle);
 }
 
 void node_server::recv_hydro_amr_boundary(std::vector<real> &&bdata, const geo::direction &dir, std::size_t cycle) {
@@ -573,7 +586,7 @@ future<void> node_server::nonrefined_step() {
 		hpx::util::annotated_function(
 				[rk, cfl0, this, dt_fut](future<void> f) {
 					GET(f);
-					timestep_t a = grid_ptr->compute_fluxes();
+					timestep_t a = grid_ptr->compute_fluxes(); // hydro kernels
 					future<void> fut_flux = exchange_flux_corrections();
 					fut_flux.get();
 //					a = std::max(a, grid_ptr->compute_positivity_speed_limit());

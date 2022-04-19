@@ -187,28 +187,68 @@ void node_server::exchange_interlevel_hydro_data() {
 
 void node_server::collect_hydro_boundaries(bool energy_only) {
 	grid_ptr->clear_amr();
+  const bool use_local_optimization = true;
+
+
 	for (auto const &dir : geo::direction::full_set()) {
 		if (!neighbors[dir].empty()) {
+      bool is_local = neighbors[dir].is_local();
 			const integer width = H_BW;
-			auto bdata = grid_ptr->get_hydro_boundary(dir, energy_only);
-			neighbors[dir].send_hydro_boundary(std::move(bdata), dir.flip(), hcycle);
-		}
+      if (is_local && use_local_optimization) {
+        const auto *uneighbor = neighbors[dir].recv_hydro_boundary_local();
+        std::array<integer, NDIM> lb_orig, ub_orig;
+        std::array<integer, NDIM> lb_target, ub_target;
+
+        const auto& bw = energy_only ? grid_ptr->energy_bw : grid_ptr->field_bw;
+        for (integer field = 0; field != opts().n_fields; ++field) {
+            get_boundary_size(lb_orig, ub_orig, dir.flip(), INNER, INX, H_BW, bw[field]);
+            get_boundary_size(lb_target, ub_target, dir, OUTER, INX, H_BW, bw[field]);
+            for (integer i = 0; i < ub_target[XDIM] - lb_target[XDIM]; ++i) {
+              const int i_orig = i + lb_orig[XDIM];
+              const int i_target = i + lb_target[XDIM];
+              for (integer j = 0; j < ub_target[YDIM] - lb_target[YDIM]; ++j) {
+                const int j_orig = j + lb_orig[YDIM];
+                const int j_target = j + lb_target[YDIM];
+                for (integer k = 0; k < ub_target[ZDIM] - lb_target[ZDIM]; ++k) {
+                  const int k_orig = k + lb_orig[ZDIM];
+                  const int k_target = k + lb_target[ZDIM];
+                  (grid_ptr->U)[field][hindex(i_target, j_target, k_target)] =
+                    (*uneighbor)[field][hindex(i_orig, j_orig, k_orig)];
+                }
+              }
+            }
+        }
+      } else {
+          auto bdata = grid_ptr->get_hydro_boundary(dir, energy_only);
+          neighbors[dir].send_hydro_boundary(std::move(bdata), dir.flip(), hcycle);
+      }
+        }
 	}
 
-	std::array<future<void>, geo::direction::count()> results;
+	std::array<future<void>, geo::direction::count()> results; // 27 
 	integer index = 0;
 	for (auto const &dir : geo::direction::full_set()) {
 		if (!(neighbors[dir].empty() && my_location.level() == 0)) {
-			results[index++] = sibling_hydro_channels[dir].get_future(hcycle).then(
-			hpx::util::annotated_function([this, energy_only, dir](future<sibling_hydro_type> &&f) -> void {
-				auto &&tmp = GET(f);
-				if (!neighbors[dir].empty()) {
-					grid_ptr->set_hydro_boundary(tmp.data, tmp.direction, energy_only);
-				} else {
-					grid_ptr->set_hydro_amr_boundary(tmp.data, tmp.direction, energy_only);
+      // receive data from neighbor via sibling_hydro_channels
+      bool is_local = neighbors[dir].is_local();
+      if (is_local && use_local_optimization) {
+        // TODO Create neighbor method that returns the U data pointer auf neighbor for local operations
+        // TODO call neighbor method to gain pointer data directly
+        // TODO Manually copy (add offset manually to ub and lb...)
+        // TODO Check performance
+        // TODO Add synchronization mechanism for U pot... (probably some sort of promise future for the actual node_sever method)
+      } else {
+        results[index++] = sibling_hydro_channels[dir].get_future(hcycle).then( // 3s?
+        hpx::util::annotated_function([this, energy_only, dir](future<sibling_hydro_type> &&f) -> void {
+          auto &&tmp = GET(f);
+          if (!neighbors[dir].empty()) {
+            grid_ptr->set_hydro_boundary(tmp.data, tmp.direction, energy_only); // 1.5s
+          } else {
+            grid_ptr->set_hydro_amr_boundary(tmp.data, tmp.direction, energy_only); // 1.5s
 
-				}
-			}, "node_server::collect_hydro_boundaries::set_hydro_boundary"));
+          }
+        }, "node_server::collect_hydro_boundaries::set_hydro_boundary"));
+      }
 		}
 	}
 	while (index < geo::direction::count()) {
