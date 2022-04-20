@@ -45,6 +45,7 @@ private:
     bool local;
 
 public:
+    const std::vector<std::vector<double>> *u_local = nullptr;
     bool is_local() const;
     template <class Arc>
     void load(Arc& arc, unsigned)
