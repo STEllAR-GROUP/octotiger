@@ -83,13 +83,17 @@ namespace octotiger { namespace radiation {
             real kp = kappa_p(rho, e0, mmw, X, Z);
             real kr = kappa_R(rho, e0, mmw, X, Z);
             real const rhoc2 = rho * c * c;
-
             E0 /= rhoc2;
             F0 = F0 / (rhoc2 * c);
             e0 /= rhoc2;
             u0 = u0 / c;
             kp *= dt * c;
             kr *= dt * c;
+            for( int dim = 0; dim < NDIM; dim++) {
+            	if( std::abs(u0[dim]) > c ) {
+//            	   printf( "%e %e %e %e\n", u0[dim]/c, u0[dim]/c, kp/(c*dt), kr/(c*dt));
+            	}
+            }
 
             auto const B = [rho, mmw, c, rhoc2](real e) {
                 return (4.0 * M_PI / c) * B_p(rho, e * rhoc2, mmw) / rhoc2;
@@ -133,7 +137,6 @@ namespace octotiger { namespace radiation {
                 eg_t = eg_t0 + E0 - E;
                 return f;
             };
-
             abort_if_solver_not_converged(eg_t0, E0, test, E, eg_t);
 
             ei = eg_t - 0.5 * (u[0] * u[0] + u[1] * u[1] + u[2] * u[2]);
@@ -197,6 +200,7 @@ namespace octotiger { namespace radiation {
                     u0[0] = vx;
                     u0[1] = vy;
                     u0[2] = vz;
+                    real const c = physcon().c;
                     real E1 = E0;
                     space_vector F1 = F0;
                     space_vector u1 = u0;

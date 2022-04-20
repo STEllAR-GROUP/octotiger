@@ -1811,7 +1811,7 @@ void grid::init_z_field() {
 void grid::rad_init() {
 	rad_grid_ptr->set_dx(dx);
 	rad_grid_ptr->compute_mmw(U);
-	rad_grid_ptr->initialize_erad(U[rho_i], U[tau_i]);
+	rad_grid_ptr->initialize_erad(U[rho_i], U[tau_i], X);
 }
 
 timestep_t grid::compute_fluxes() {

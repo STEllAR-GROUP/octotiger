@@ -133,6 +133,7 @@ struct pair_hash {
 static std::unordered_map<std::pair<double,double>, solution, pair_hash > sol_dir;
 static hpx::lcos::local::mutex mtx_;
 
+
 // NOTE: Why are y0 and z0 are unused?
 std::vector<double> marshak_wave_analytic(double x0, double y0, double z0, double t) {
 	std::vector<double> U(opts().n_fields + NRF, 0.0);

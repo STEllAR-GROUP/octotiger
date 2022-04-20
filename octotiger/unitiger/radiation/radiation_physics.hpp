@@ -13,17 +13,13 @@
 template<int NDIM>
 struct radiation_physics {
 
-	static constexpr char const *field_names3[] = { "er", "fx", "fy", "fz", "wx", "wy", "wz" };
-	static constexpr char const *field_names2[] = { "er", "fx", "fy", "wz" };
+	static constexpr char const *field_names3[] = { "er", "fx", "fy", "fz"};
+	static constexpr char const *field_names2[] = { "er", "fx", "fy" };
 	static constexpr char const *field_names1[] = { "er", "fx" };
 	static constexpr int er_i = 0;
 	static constexpr int fx_i = 1;
 	static constexpr int fy_i = 2;
 	static constexpr int fz_i = 3;
-	static constexpr int wx_i = 1 + NDIM;
-	static constexpr int wy_i = 1 + NDIM;
-	static constexpr int wz_i = 1 + NDIM;
-	static bool angmom_;
 	static bool diffusion_limit_;
 
 	enum test_type {
@@ -66,17 +62,9 @@ struct radiation_physics {
 	static void source(hydro::state_type &dudt, const hydro::state_type &U, const hydro::flux_type &F, const hydro::x_type X, safe_real omega, safe_real dx);
 
 	/*** Reconstruct uses this - GPUize****/
-	template<int INX>
-	static void pre_angmom(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, std::array<safe_real, cell_geometry<NDIM, INX>::NANGMOM> &Z,
-			std::array<std::array<safe_real, cell_geometry<NDIM, INX>::NDIR>, NDIM> &S, int i, safe_real dx);
 
 	template<int INX>
 	static void enforce_outflows(hydro::state_type &U, const hydro::x_type &X, int face);
-
-	/*** Reconstruct uses this - GPUize****/
-	template<int INX>
-	static void post_angmom(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, std::array<safe_real, cell_geometry<NDIM, INX>::NANGMOM> &Z,
-			std::array<std::array<safe_real, cell_geometry<NDIM, INX>::NDIR>, NDIM> &S, int i, safe_real dx);
 
 	/*** Reconstruct uses this - GPUize****/
 	template<int INX>
@@ -115,6 +103,6 @@ template<int NDIM>
 bool radiation_physics<NDIM>::diffusion_limit_ = false;
 
 template<int NDIM>
-int radiation_physics<NDIM>::nf_ = (1 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2)));
+int radiation_physics<NDIM>::nf_ = (1 + NDIM);
 
 #endif /* OCTOTIGER_UNITIGER_radiation_physics_HPP_ */

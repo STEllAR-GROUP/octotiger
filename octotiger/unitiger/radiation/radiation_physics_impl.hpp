@@ -76,13 +76,6 @@ void radiation_physics<NDIM>::physical_flux(const std::vector<safe_real> &U, std
 	for (int d = 0; d < NDIM; d++) {
 		F[fx_i + d] = er * T[d] - vg[dim] * fr[d];
 	}
-	for (int n = 0; n < geo.NANGMOM; n++) {
-#pragma ivdep
-		for (int m = 0; m < NDIM; m++) {
-			F[wx_i + n] += levi_civita[n][m][dim] * x[m] * F[fx_i + m];
-		}
-	}
-
 }
 
 template<int NDIM>
@@ -100,50 +93,6 @@ void radiation_physics<NDIM>::source(hydro::state_type &dudt, const hydro::state
 }
 
 /*** Reconstruct uses this - GPUize****/
-
-template<int NDIM>
-template<int INX>
-void radiation_physics<NDIM>::pre_angmom(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q,
-		std::array<safe_real, cell_geometry<NDIM, INX>::NANGMOM> &Z,
-		std::array<std::array<safe_real, cell_geometry<NDIM, INX>::NDIR>, NDIM> &S, int i, safe_real dx) {
-	static const cell_geometry<NDIM, INX> geo;
-	for (int d = 0; d < geo.NDIR; d++) {
-		if (d != geo.NDIR / 2) {
-			const auto er = Q[er_i][i][d];
-			for (int f = 0; f < NDIM; f++) {
-				S[f][d] *= er;
-			}
-		}
-	}
-	for (int f = 0; f < geo.NANGMOM; f++) {
-		const auto er = U[er_i][i];
-		Z[f] *= er;
-	}
-
-}
-
-/*** Reconstruct uses this - GPUize****/
-
-template<int NDIM>
-template<int INX>
-void radiation_physics<NDIM>::post_angmom(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q,
-		std::array<safe_real, cell_geometry<NDIM, INX>::NANGMOM> &Z,
-		std::array<std::array<safe_real, cell_geometry<NDIM, INX>::NDIR>, NDIM> &S, int i, safe_real dx) {
-	static const cell_geometry<NDIM, INX> geo;
-	for (int d = 0; d < geo.NDIR; d++) {
-		if (d != geo.NDIR / 2) {
-			const auto er = Q[er_i][i][d];
-			for (int f = 0; f < NDIM; f++) {
-				S[f][d] /= er;
-			}
-		}
-	}
-	for (int f = 0; f < geo.NANGMOM; f++) {
-		const auto er = U[er_i][i];
-		Z[f] /= er;
-	}
-
-}
 
 /*** Reconstruct uses this - GPUize****/
 
@@ -164,15 +113,6 @@ const hydro::state_type& radiation_physics<NDIM>::pre_recon(const hydro::state_t
 				const auto erinv = 1.0 / er;
 				for (int dim = 0; dim < NDIM; dim++) {
 					V[fx_i + dim][i] *= erinv;
-				}
-				static constexpr auto lc = geo.levi_civita();
-				for (int n = 0; n < geo.NANGMOM; n++) {
-					V[wx_i + n][i] *= erinv;
-					for (int m = 0; m < NDIM; m++) {
-						for (int l = 0; l < NDIM; l++) {
-							V[wx_i + n][i] -= lc[n][m][l] * X[m][i] * V[fx_i + l][i];
-						}
-					}
 				}
 			}
 		}
@@ -196,15 +136,6 @@ void radiation_physics<NDIM>::post_recon(std::vector<std::vector<std::vector<saf
 					for (int l = 0; l < geo.H_NX_ZM4; l++) {
 						const int i = geo.to_index(j + 2, k + 2, l + 2);
 						const auto er = Q[er_i][d][i];
-						static constexpr auto lc = geo.levi_civita();
-						for (int n = 0; n < geo.NANGMOM; n++) {
-							for (int m = 0; m < NDIM; m++) {
-								for (int l = 0; l < NDIM; l++) {
-									Q[wx_i + n][d][i] += lc[n][m][l] * (X[m][i] + 0.5 * xloc[d][m] * dx) * Q[fx_i + l][d][i];
-								}
-							}
-							Q[wx_i + n][d][i] *= er;
-						}
 						for (int dim = 0; dim < NDIM; dim++) {
 							Q[fx_i + dim][d][i] *= er;
 						}

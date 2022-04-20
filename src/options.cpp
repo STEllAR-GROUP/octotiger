@@ -222,6 +222,13 @@ bool options::process_options(int argc, char *argv[]) {
 	if (opts().problem == DWD) {
 		opts().n_species = std::max(int(5), int(opts().n_species));
 	}
+	if( opts().problem == RADIATION_DIFFUSION) {
+		opts().rad_implicit = false;
+		opts().hydro = false;
+		opts().radiation = true;
+		opts().rad_diffusion_limit = true;
+		opts().gravity = false;
+	}
 	if (opts().problem == MOVING_STAR || opts().problem == ROTATING_STAR) {
 		opts().n_species = std::max(int(2), int(opts().n_species));
 	}

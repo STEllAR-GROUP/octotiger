@@ -225,6 +225,12 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 		set_analytic(marshak_wave_analytic);
 		set_problem(marshak_wave);
 		set_refine_test(refine_test_marshak);
+	} else if (opts().problem == RADIATION_DIFFUSION) {
+		grid::set_fgamma(5.0 / 3.0);
+		set_analytic(nullptr);
+//		set_analytic(marshak_wave_analytic);
+		set_problem(radiation_diffusion_test_problem);
+		set_refine_test(radiation_test_refine);
 	} else if (opts().problem == SOLID_SPHERE) {
 	//	opts().hydro = false;
 		set_analytic([](real x, real y, real z, real dx) {
