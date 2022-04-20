@@ -188,6 +188,11 @@ void node_server::exchange_interlevel_hydro_data() {
 void node_server::collect_hydro_boundaries(bool energy_only) {
 	grid_ptr->clear_amr();
   const bool use_local_optimization = true;
+	/* for (auto const &dir : geo::direction::full_set()) { */
+	/* 	if (!neighbors[dir].empty() && use_local_optimization) { */
+          /* auto bdata = grid_ptr->get_hydro_boundary(dir, energy_only); */
+          /* neighbors[dir].send_hydro_boundary(std::move(bdata), dir.flip(), hcycle); */
+    /* }} */
 
 
 	for (auto const &dir : geo::direction::full_set()) {
@@ -195,28 +200,39 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
       bool is_local = neighbors[dir].is_local();
 			const integer width = H_BW;
       if (is_local && use_local_optimization) {
-        const auto *uneighbor = neighbors[dir].recv_hydro_boundary_local();
+        /* auto fut = sibling_hydro_channels[dir].get_future(hcycle); */
+        /* fut.get(); */
+        const auto *uneighbor = neighbors[dir].u_local;
+        // TODO check if correct...
+        // TODO Two way racing:
+        // 1. Are results ready for communication? (late enough)
+        // 2. Are results not being overwritten already (early enough)
+        // Have pointer of promise of neighbor to check if it got the results ready!
+        // --> when_all fut in here before continuing!
+        // Have pointer to promise of neighbor about whether the result is set!
+        // --> set promise once we are done copying results, signaling that the neighbor can overwrite U (done after gpu? or after complete AMR?)
+
+        // TODO: Set AMR boundary! That's still missing...
         std::array<integer, NDIM> lb_orig, ub_orig;
         std::array<integer, NDIM> lb_target, ub_target;
-
         const auto& bw = energy_only ? grid_ptr->energy_bw : grid_ptr->field_bw;
         for (integer field = 0; field != opts().n_fields; ++field) {
-            get_boundary_size(lb_orig, ub_orig, dir.flip(), INNER, INX, H_BW, bw[field]);
-            get_boundary_size(lb_target, ub_target, dir, OUTER, INX, H_BW, bw[field]);
-            for (integer i = 0; i < ub_target[XDIM] - lb_target[XDIM]; ++i) {
-              const int i_orig = i + lb_orig[XDIM];
-              const int i_target = i + lb_target[XDIM];
-              for (integer j = 0; j < ub_target[YDIM] - lb_target[YDIM]; ++j) {
-                const int j_orig = j + lb_orig[YDIM];
-                const int j_target = j + lb_target[YDIM];
-                for (integer k = 0; k < ub_target[ZDIM] - lb_target[ZDIM]; ++k) {
-                  const int k_orig = k + lb_orig[ZDIM];
-                  const int k_target = k + lb_target[ZDIM];
-                  (grid_ptr->U)[field][hindex(i_target, j_target, k_target)] =
-                    (*uneighbor)[field][hindex(i_orig, j_orig, k_orig)];
-                }
+          get_boundary_size(lb_orig, ub_orig, dir.flip(), INNER, INX, H_BW, bw[field]);
+          get_boundary_size(lb_target, ub_target, dir, OUTER, INX, H_BW, bw[field]);
+          for (integer i = 0; i < ub_target[XDIM] - lb_target[XDIM]; ++i) {
+            const int i_orig = i + lb_orig[XDIM];
+            const int i_target = i + lb_target[XDIM];
+            for (integer j = 0; j < ub_target[YDIM] - lb_target[YDIM]; ++j) {
+              const int j_orig = j + lb_orig[YDIM];
+              const int j_target = j + lb_target[YDIM];
+              for (integer k = 0; k < ub_target[ZDIM] - lb_target[ZDIM]; ++k) {
+                const int k_orig = k + lb_orig[ZDIM];
+                const int k_target = k + lb_target[ZDIM];
+                (grid_ptr->U)[field][hindex(i_target, j_target, k_target)] =
+                  (*uneighbor)[field][hindex(i_orig, j_orig, k_orig)];
               }
             }
+          }
         }
       } else {
           auto bdata = grid_ptr->get_hydro_boundary(dir, energy_only);
@@ -232,10 +248,6 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
       // receive data from neighbor via sibling_hydro_channels
       bool is_local = neighbors[dir].is_local();
       if (is_local && use_local_optimization) {
-        // TODO Create neighbor method that returns the U data pointer auf neighbor for local operations
-        // TODO call neighbor method to gain pointer data directly
-        // TODO Manually copy (add offset manually to ub and lb...)
-        // TODO Check performance
         // TODO Add synchronization mechanism for U pot... (probably some sort of promise future for the actual node_sever method)
       } else {
         results[index++] = sibling_hydro_channels[dir].get_future(hcycle).then( // 3s?
