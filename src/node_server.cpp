@@ -187,19 +187,26 @@ void node_server::exchange_interlevel_hydro_data() {
 
 void node_server::collect_hydro_boundaries(bool energy_only) {
 	grid_ptr->clear_amr();
+  ready_for_hydro_exchange[hcycle].set_value();
   const bool use_local_optimization = true;
-	/* for (auto const &dir : geo::direction::full_set()) { */
-	/* 	if (!neighbors[dir].empty() && use_local_optimization) { */
-          /* auto bdata = grid_ptr->get_hydro_boundary(dir, energy_only); */
-          /* neighbors[dir].send_hydro_boundary(std::move(bdata), dir.flip(), hcycle); */
-    /* }} */
 
+	std::vector<hpx::lcos::shared_future<void>> neighbors_ready; // 27 
+	for (auto const &dir : geo::direction::full_set()) {
+		if (!neighbors[dir].empty()) {
+        std::vector<hpx::lcos::local::promise<void>> *neighbor_promises = neighbors[dir].hydro_ready_vec;
+        neighbors_ready.emplace_back((*neighbor_promises)[hcycle].get_shared_future());
+    }
+  }
+  auto get_neighbors = hpx::when_all(neighbors_ready);
+  /* std::cerr << "launched get neighbors " << hcycle << std::endl; */
+  get_neighbors.get();
+  /* std::cerr << "got neighbors" << hcycle << std::endl; */
 
 	for (auto const &dir : geo::direction::full_set()) {
 		if (!neighbors[dir].empty()) {
       bool is_local = neighbors[dir].is_local();
 			const integer width = H_BW;
-      if (is_local && use_local_optimization) {
+      if (is_local && use_local_optimization && !neighbors[dir].empty()) {
         /* auto fut = sibling_hydro_channels[dir].get_future(hcycle); */
         /* fut.get(); */
         const auto *uneighbor = neighbors[dir].u_local;
@@ -238,8 +245,9 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
           auto bdata = grid_ptr->get_hydro_boundary(dir, energy_only);
           neighbors[dir].send_hydro_boundary(std::move(bdata), dir.flip(), hcycle);
       }
-        }
+    }
 	}
+  /* std::cerr << hcycle << " " << std::endl; */
 
 	std::array<future<void>, geo::direction::count()> results; // 27 
 	integer index = 0;
@@ -247,7 +255,7 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
 		if (!(neighbors[dir].empty() && my_location.level() == 0)) {
       // receive data from neighbor via sibling_hydro_channels
       bool is_local = neighbors[dir].is_local();
-      if (is_local && use_local_optimization) {
+      if (is_local && use_local_optimization && !neighbors[dir].empty()) {
         // TODO Add synchronization mechanism for U pot... (probably some sort of promise future for the actual node_sever method)
       } else {
         results[index++] = sibling_hydro_channels[dir].get_future(hcycle).then( // 3s?
@@ -411,6 +419,11 @@ void node_server::initialize(real t, real rt) {
 		grid_ptr->set_root();
 	}
 	aunts.resize(NFACE);
+
+
+  ready_for_hydro_exchange.clear();
+  for (int i = 0; i < 10000; i++)
+    ready_for_hydro_exchange.emplace_back();
 }
 
 node_server::~node_server() {

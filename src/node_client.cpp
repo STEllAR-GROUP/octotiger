@@ -33,6 +33,8 @@ node_client& node_client::operator=(hpx::future<hpx::id_type>&& fut) {
         if (local) {
           node_server::send_hydro_boundary_action_local action_instance;
           u_local = action_instance(get_unmanaged_gid());
+          node_server::send_hydro_boundary_promises_action_local action_instance_promises;
+          hydro_ready_vec = action_instance_promises(get_unmanaged_gid());
         }
 
 // 		local = bool(hpx::get_colocation_id(id).get() == hpx::find_here());
@@ -48,6 +50,8 @@ node_client& node_client::operator=(const hpx::id_type& _id) {
         if (local) {
           node_server::send_hydro_boundary_action_local action_instance;
           u_local = action_instance(get_unmanaged_gid());
+          node_server::send_hydro_boundary_promises_action_local action_instance_promises;
+          hydro_ready_vec = action_instance_promises(get_unmanaged_gid());
         }
 // 		local = bool(hpx::get_colocation_id(id).get() == hpx::find_here());
 	}
@@ -62,6 +66,8 @@ node_client::node_client(hpx::future<hpx::id_type>&& fut) {
         if (local) {
           node_server::send_hydro_boundary_action_local action_instance;
           u_local = action_instance(get_unmanaged_gid());
+          node_server::send_hydro_boundary_promises_action_local action_instance_promises;
+          hydro_ready_vec = action_instance_promises(get_unmanaged_gid());
         }
 // 		local = bool(hpx::get_colocation_id(id).get() == hpx::find_here());
 	}
@@ -75,6 +81,8 @@ node_client::node_client(const hpx::id_type& _id) {
         if (local) {
           node_server::send_hydro_boundary_action_local action_instance;
           u_local = action_instance(get_unmanaged_gid());
+          node_server::send_hydro_boundary_promises_action_local action_instance_promises;
+          hydro_ready_vec = action_instance_promises(get_unmanaged_gid());
         }
 	}
 }

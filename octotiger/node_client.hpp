@@ -16,6 +16,7 @@
 #include "octotiger/grid.hpp"
 #include "octotiger/node_location.hpp"
 
+#include <hpx/futures/promise.hpp>
 #include <hpx/include/naming.hpp>
 
 //#include <boost/mpi/packed_iarchive.hpp>
@@ -46,6 +47,7 @@ private:
 
 public:
     const std::vector<std::vector<double>> *u_local = nullptr;
+    std::vector<hpx::lcos::local::promise<void>> *hydro_ready_vec = nullptr;
     bool is_local() const;
     template <class Arc>
     void load(Arc& arc, unsigned)
@@ -107,6 +109,7 @@ public:
     void send_hydro_boundary(std::vector<real>&&, const geo::direction& dir,
         std::size_t cycle) const;
     const std::vector<std::vector<safe_real>>* recv_hydro_boundary_local() const;
+    std::vector<hpx::lcos::local::promise<void>>* recv_hydro_boundary_promises_local() const;
     void send_hydro_amr_boundary(std::vector<real>&&, const geo::direction& dir,
         std::size_t cycle) const;
     void send_rad_amr_boundary(std::vector<real>&&, const geo::direction& dir,

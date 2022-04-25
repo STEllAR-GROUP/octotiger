@@ -89,6 +89,21 @@ const std::vector<std::vector<safe_real>>* node_server::send_hydro_boundary_loca
   return &(grid_ptr->U);
 }
 
+
+
+using send_hydro_boundary_promises_action_local_type = node_server::send_hydro_boundary_promises_action_local;
+HPX_REGISTER_ACTION (send_hydro_boundary_promises_action_local_type);
+
+std::vector<hpx::lcos::local::promise<void>>* node_client::recv_hydro_boundary_promises_local() const {
+  node_server::send_hydro_boundary_promises_action_local action_instance;
+	std::vector<hpx::lcos::local::promise<void>>* vec = action_instance(get_unmanaged_gid());
+  return vec;
+}
+
+std::vector<hpx::lcos::local::promise<void>>* node_server::send_hydro_boundary_promises_local() {
+  return &(ready_for_hydro_exchange);
+}
+
 using send_hydro_amr_boundary_action_type = node_server::send_hydro_amr_boundary_action;
 HPX_REGISTER_ACTION (send_hydro_amr_boundary_action_type);
 
@@ -570,6 +585,7 @@ future<void> node_server::nonrefined_step() {
 
 	timings::scope ts(timings_, timings::time_computation);
 
+
 	real cfl0 = opts().cfl;
 	dt_.dt = ZERO;
 
@@ -586,6 +602,7 @@ future<void> node_server::nonrefined_step() {
 		hpx::util::annotated_function(
 				[rk, cfl0, this, dt_fut](future<void> f) {
 					GET(f);
+          size_t current_hydro_promise = hcycle % (NRK + 1);
 					timestep_t a = grid_ptr->compute_fluxes(); // hydro kernels
 					future<void> fut_flux = exchange_flux_corrections();
 					fut_flux.get();
@@ -612,9 +629,16 @@ future<void> node_server::nonrefined_step() {
 				}, "node_server::nonrefined_step::compute_fluxes"));
 	}
 
+  // TODO Reset last steps hydro futures here! We had one tree traversal back to root since
+  // Need NRK + 1 promises
+
 	return fut.then(hpx::launch::sync, hpx::util::annotated_function( [this](future<void> &&f) {
 
 		GET(f);
+
+    /* for (int i = 0; i < NRK + 1; i++) */
+    /*   ready_for_hydro_exchange.emplace_back(); */
+
 		update();
 		if (opts().radiation) {
 			compute_radiation(dt_.dt, grid_ptr->get_omega());
