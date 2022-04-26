@@ -187,22 +187,23 @@ void node_server::exchange_interlevel_hydro_data() {
 
 void node_server::collect_hydro_boundaries(bool energy_only) {
 	grid_ptr->clear_amr();
-  ready_for_hydro_exchange[hcycle].set_value();
+  ready_for_hydro_exchange[hcycle%number_hydro_exchange_promises].set_value();
   const bool use_local_optimization = true;
+  const bool use_local_amr_optimization = true;
 
 	std::vector<hpx::lcos::shared_future<void>> neighbors_ready; // 27 
   bool local_amr_handling = false;
 	for (auto const &dir : geo::direction::full_set()) {
 		if (!neighbors[dir].empty() && neighbors[dir].is_local()) {
         std::vector<hpx::lcos::local::promise<void>> *neighbor_promises = neighbors[dir].hydro_ready_vec;
-        neighbors_ready.emplace_back((*neighbor_promises)[hcycle].get_shared_future());
-    } else if (neighbors[dir].empty() && parent.is_local()) {
+        neighbors_ready.emplace_back((*neighbor_promises)[hcycle%number_hydro_exchange_promises].get_shared_future());
+    } else if (neighbors[dir].empty() && parent.is_local() && use_local_amr_optimization) {
       local_amr_handling = true;
     }
   }
   if (local_amr_handling && my_location.level() != 0) {
     std::vector<hpx::lcos::local::promise<void>> *parent_promise = parent.amr_hydro_ready_vec;
-    neighbors_ready.emplace_back((*parent_promise)[hcycle].get_shared_future());
+    neighbors_ready.emplace_back((*parent_promise)[hcycle%number_hydro_exchange_promises].get_shared_future());
   }
   auto get_neighbors = hpx::when_all(neighbors_ready);
   /* std::cerr << "launched get neighbors " << hcycle << std::endl; */
@@ -239,7 +240,7 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
             }
           }
         }
-      } else if (is_local && use_local_optimization && neighbors[dir].empty() && my_location.level() != 0) { 
+      } else if (is_local && use_local_amr_optimization && neighbors[dir].empty() && my_location.level() != 0) { 
         // Get neighbor data and the required boundaries for copying the ghostlayer
         const auto *uneighbor = parent.u_local;
         std::array<integer, NDIM> lb_orig, ub_orig;
@@ -311,8 +312,9 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
 		if (!(neighbors[dir].empty() && my_location.level() == 0)) {
       // receive data from neighbor via sibling_hydro_channels
       bool is_local = neighbors[dir].is_local();
-      if (is_local && use_local_optimization) {
+      if (is_local && use_local_optimization && !neighbors[dir].empty()) {
         // TODO Add synchronization mechanism for U pot... (probably some sort of promise future for the actual node_sever method)
+      } else if (is_local && use_local_amr_optimization && neighbors[dir].empty()){
       } else {
         results[index++] = sibling_hydro_channels[dir].get_future(hcycle).then( // 3s?
         hpx::util::annotated_function([this, energy_only, dir](future<sibling_hydro_type> &&f) -> void {
@@ -378,14 +380,15 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
 void node_server::send_hydro_amr_boundaries(bool energy_only) {
 	if (is_refined) {
     // set promise 
-    ready_for_amr_hydro_exchange[hcycle].set_value();
+    ready_for_amr_hydro_exchange[hcycle%number_hydro_exchange_promises].set_value();
+    const bool use_local_optimization = true;
     // TODO only set if at least one of the children is local?
 		constexpr auto full_set = geo::octant::full_set();
 		for (auto &ci : full_set) {
 			const auto &flags = amr_flags[ci]; // does that nephew exist and need our values?
 			for (auto &dir : geo::direction::full_set()) {
         // TODO If flags and children_ci is_local, then set child amr_hydro_parent_ready_promise
-				if (flags[dir] && !children[ci].is_local()) { 
+				if (flags[dir] && (!children[ci].is_local() || !use_local_optimization)) { 
 					std::array<integer, NDIM> lb, ub;
 					std::vector<real> data;
 					get_boundary_size(lb, ub, dir, OUTER, INX / 2, H_BW);
@@ -481,11 +484,13 @@ void node_server::initialize(real t, real rt) {
 	aunts.resize(NFACE);
 
 
+  number_hydro_exchange_promises = (refinement_freq() + 1) * (NRK + 1 + static_cast<int>(opts().radiation));
+  /* std::cout << "promises:" << number_hydro_exchange_promises << std::endl; */
   ready_for_hydro_exchange.clear();
-  for (int i = 0; i < 1000; i++)
+  for (int i = 0; i < number_hydro_exchange_promises; i++)
     ready_for_hydro_exchange.emplace_back();
   ready_for_amr_hydro_exchange.clear();
-  for (int i = 0; i < 1000; i++)
+  for (int i = 0; i < number_hydro_exchange_promises; i++)
     ready_for_amr_hydro_exchange.emplace_back();
 }
 

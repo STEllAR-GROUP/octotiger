@@ -649,9 +649,6 @@ future<void> node_server::nonrefined_step() {
 
 		GET(f);
 
-    /* for (int i = 0; i < NRK + 1; i++) */
-    /*   ready_for_hydro_exchange.emplace_back(); */
-
 		update();
 		if (opts().radiation) {
 			compute_radiation(dt_.dt, grid_ptr->get_omega());

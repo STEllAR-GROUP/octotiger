@@ -222,6 +222,13 @@ void node_server::regrid_scatter(integer a_, integer total) {
 		}
 	}
 	clear_family();
+  // Renew promises
+  ready_for_hydro_exchange.clear();
+  for (int i = 0; i < number_hydro_exchange_promises; i++)
+    ready_for_hydro_exchange.emplace_back();
+  ready_for_amr_hydro_exchange.clear();
+  for (int i = 0; i < number_hydro_exchange_promises; i++)
+    ready_for_amr_hydro_exchange.emplace_back();
 }
 
 node_count_type node_server::regrid(const hpx::id_type &root_gid, real omega, real new_floor, bool rb, bool grav_energy_comp) {

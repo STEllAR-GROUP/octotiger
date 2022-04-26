@@ -75,6 +75,7 @@ private:
 
   /* hpx::lcos::local::promise<void> *ready_for_hydro_exchange = nullptr; */
   /* hpx::lcos::local::promise<void> *boundaries_exchanged = nullptr; */
+  size_t number_hydro_exchange_promises;
   std::vector<hpx::lcos::local::promise<void>> ready_for_hydro_exchange;
   std::vector<hpx::lcos::local::promise<void>> ready_for_amr_hydro_exchange;
   std::vector<hpx::lcos::local::promise<void>> boundaries_exchanged;
