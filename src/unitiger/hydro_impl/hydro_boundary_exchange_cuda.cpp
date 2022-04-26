@@ -47,7 +47,7 @@ complete_hydro_amr_cuda_kernel(const double *dx_global, const int *energy_only_g
 __global__ void
 __launch_bounds__((H_NX) * (H_NX), 1)
 complete_hydro_amr_cuda_kernel_phase2(
-    const const int* coarse_global,
+    const int* coarse_global,
     const double* unified_uf_global,
     double* unified_u_global,
     const int nfields, const bool energy_only) {

@@ -12,7 +12,7 @@
 #include "octotiger/util/vec_vc_wrapper.hpp"
 
 void complete_hydro_amr_boundary_vc(const double dx, const bool energy_only,
-    const std::vector<std::vector<real>>& Ushad, const std::vector<std::atomic<int>>& is_coarse,
+    const std::vector<std::vector<real>>& Ushad, const std::vector<int>& is_coarse,
     const std::array<double, NDIM>& xmin, std::vector<std::vector<double>>& U) {
 
     std::vector<double, recycler::aggressive_recycle_aligned<double, 32>> unified_u(
@@ -72,6 +72,14 @@ void complete_hydro_amr_boundary_vc(const double dx, const bool energy_only,
                                 kr = 1;
                             for (;kr < 2 && k + kr < H_NX; kr++) {
                                 const int iiir = hindex(i + ir, j + jr, k + kr);
+                                // Note: Accessing outer grid only it seems!
+                                if (i + ir >= H_BW && i + ir < INX + H_BW && j + jr >= H_BW &&
+                                    j + jr < INX + H_BW && k + kr >= H_BW && k + kr < INX + H_BW) {
+                                    std::cout << "Accessing inner grid!" << std::endl;
+                                    std::cout << i + ir << " " << j + jr << " " << k + kr
+                                              << std::endl;
+                                    std::cin.get();
+                                }
                                 const int oct_index = ir * 4 + jr * 2 + kr;
                                 for (int f = 0; f < opts().n_fields; f++) {
                                     if (!energy_only || f == egas_i)

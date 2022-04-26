@@ -26,7 +26,7 @@ void init_aggregation_pool(void) {
 
 __host__ void launch_complete_hydro_amr_boundary_cuda(double dx, bool
     energy_only,
-    const std::vector<std::vector<real>>& Ushad, const std::vector<std::atomic<int>>& is_coarse,
+    const std::vector<std::vector<real>>& Ushad, const std::vector<int>& is_coarse,
     const std::array<double, NDIM>& xmin, std::vector<std::vector<real>>& U) {
     bool early_exit = true;
     for (int i = 0; i < HS_N3; i++) {
@@ -236,7 +236,7 @@ __host__ void launch_complete_hydro_amr_boundary_cuda(double dx, bool
 #endif
 
 void complete_hydro_amr_boundary_cpu(const double dx, const bool energy_only,
-    const std::vector<std::vector<real>>& Ushad, const std::vector<std::atomic<int>>& is_coarse,
+    const std::vector<std::vector<real>>& Ushad, const std::vector<int>& is_coarse,
     const std::array<double, NDIM>& xmin, std::vector<std::vector<double>>& U) {
     // std::cout << "Calling hydro cpu version!" << std::endl;
 

@@ -11,10 +11,10 @@
 #include "octotiger/util/vec_base_wrapper.hpp"
 
 void complete_hydro_amr_boundary_cpu(const double dx, const bool energy_only,
-    const std::vector<std::vector<real>>& ushad, const std::vector<std::atomic<int>>& is_coarse,
+    const std::vector<std::vector<real>>& ushad, const std::vector<int>& is_coarse,
     const std::array<double, NDIM>& xmin, std::vector<std::vector<real>>& u);
 void complete_hydro_amr_boundary_vc(const double dx, const bool energy_only,
-    const std::vector<std::vector<real>>& Ushad, const std::vector<std::atomic<int>>& is_coarse,
+    const std::vector<std::vector<real>>& Ushad, const std::vector<int>& is_coarse,
     const std::array<double, NDIM>& xmin, std::vector<std::vector<double>>& U);
 #ifdef OCTOTIGER_HAVE_CUDA
 
@@ -28,7 +28,7 @@ complete_hydro_amr_cuda_kernel(const double dx, const bool energy_only,
 void launch_complete_hydro_amr_boundary_cuda(
     double dx,
     bool energy_only, const std::vector<std::vector<real>>& ushad,
-    const std::vector<std::atomic<int>>& is_coarse, const std::array<double, NDIM>& xmin,
+    const std::vector<int>& is_coarse, const std::array<double, NDIM>& xmin,
     std::vector<std::vector<real>>& u);
 void launch_complete_hydro_amr_boundary_cuda_post(
     aggregated_executor_t& executor,
