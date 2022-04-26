@@ -48,6 +48,9 @@ private:
 public:
     const std::vector<std::vector<double>> *u_local = nullptr;
     std::vector<hpx::lcos::local::promise<void>> *hydro_ready_vec = nullptr;
+
+    std::vector<hpx::lcos::local::promise<void>> *amr_hydro_ready_vec = nullptr;
+
     bool is_local() const;
     template <class Arc>
     void load(Arc& arc, unsigned)
@@ -110,6 +113,7 @@ public:
         std::size_t cycle) const;
     const std::vector<std::vector<safe_real>>* recv_hydro_boundary_local() const;
     std::vector<hpx::lcos::local::promise<void>>* recv_hydro_boundary_promises_local() const;
+    std::vector<hpx::lcos::local::promise<void>>* recv_amr_hydro_boundary_promises_local() const;
     void send_hydro_amr_boundary(std::vector<real>&&, const geo::direction& dir,
         std::size_t cycle) const;
     void send_rad_amr_boundary(std::vector<real>&&, const geo::direction& dir,

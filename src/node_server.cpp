@@ -191,11 +191,18 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
   const bool use_local_optimization = true;
 
 	std::vector<hpx::lcos::shared_future<void>> neighbors_ready; // 27 
+  bool local_amr_handling = false;
 	for (auto const &dir : geo::direction::full_set()) {
-		if (!neighbors[dir].empty()) {
+		if (!neighbors[dir].empty() && neighbors[dir].is_local()) {
         std::vector<hpx::lcos::local::promise<void>> *neighbor_promises = neighbors[dir].hydro_ready_vec;
         neighbors_ready.emplace_back((*neighbor_promises)[hcycle].get_shared_future());
+    } else if (neighbors[dir].empty() && parent.is_local()) {
+      local_amr_handling = true;
     }
+  }
+  if (local_amr_handling && my_location.level() != 0) {
+    std::vector<hpx::lcos::local::promise<void>> *parent_promise = parent.amr_hydro_ready_vec;
+    neighbors_ready.emplace_back((*parent_promise)[hcycle].get_shared_future());
   }
   auto get_neighbors = hpx::when_all(neighbors_ready);
   /* std::cerr << "launched get neighbors " << hcycle << std::endl; */
@@ -203,23 +210,14 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
   /* std::cerr << "got neighbors" << hcycle << std::endl; */
 
 	for (auto const &dir : geo::direction::full_set()) {
-		if (!neighbors[dir].empty()) {
+		if (true) {
       bool is_local = neighbors[dir].is_local();
 			const integer width = H_BW;
       if (is_local && use_local_optimization && !neighbors[dir].empty()) {
         /* auto fut = sibling_hydro_channels[dir].get_future(hcycle); */
         /* fut.get(); */
         const auto *uneighbor = neighbors[dir].u_local;
-        // TODO check if correct...
-        // TODO Two way racing:
-        // 1. Are results ready for communication? (late enough)
-        // 2. Are results not being overwritten already (early enough)
-        // Have pointer of promise of neighbor to check if it got the results ready!
-        // --> when_all fut in here before continuing!
-        // Have pointer to promise of neighbor about whether the result is set!
-        // --> set promise once we are done copying results, signaling that the neighbor can overwrite U (done after gpu? or after complete AMR?)
 
-        // TODO: Set AMR boundary! That's still missing...
         std::array<integer, NDIM> lb_orig, ub_orig;
         std::array<integer, NDIM> lb_target, ub_target;
         const auto& bw = energy_only ? grid_ptr->energy_bw : grid_ptr->field_bw;
@@ -241,7 +239,65 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
             }
           }
         }
-      } else {
+      } else if (is_local && use_local_optimization && neighbors[dir].empty() && my_location.level() != 0) { 
+        // Get neighbor data and the required boundaries for copying the ghostlayer
+        const auto *uneighbor = parent.u_local;
+        std::array<integer, NDIM> lb_orig, ub_orig;
+        std::array<integer, NDIM> lb_target, ub_target;
+        get_boundary_size(lb_target, ub_target, dir, OUTER, INX / 2, H_BW);
+        // Set is_coarse 
+        for (integer i = 0; i < ub_target[XDIM] - lb_target[XDIM]; ++i) {
+          const int i_target = i + lb_target[XDIM];
+          for (integer j = 0; j < ub_target[YDIM] - lb_target[YDIM]; ++j) {
+            const int j_target = j + lb_target[YDIM];
+            for (integer k = 0; k < ub_target[ZDIM] - lb_target[ZDIM]; ++k) {
+              const int k_target = k + lb_target[ZDIM];
+              grid_ptr->is_coarse[hSindex(i_target, j_target, k_target)]++;
+              assert(i_target < H_BW || i_target >= HS_NX - H_BW || j_target <
+                  H_BW || j_target >= HS_NX - H_BW || k_target < H_BW ||
+                  k_target >= HS_NX - H_BW);
+            }
+          }
+        }
+        // Adjust target region
+        /* std::cout << "target:" << std::endl; */
+        for (int dim = 0; dim < NDIM; dim++) {
+          lb_target[dim] = std::max(lb_target[dim] - 1, integer(0));
+          ub_target[dim] = std::min(ub_target[dim] + 1, integer(HS_NX));
+          /* std::cout <<  lb_target[dim] << "..." << ub_target[dim] << std::endl; */
+        }
+        // Get orig region
+        get_boundary_size(lb_orig, ub_orig, dir, OUTER, INX / 2, H_BW);
+        for (integer dim = 0; dim != NDIM; ++dim) {
+          lb_orig[dim] = std::max(lb_orig[dim] - 1, integer(0));
+          ub_orig[dim] = std::min(ub_orig[dim] + 1, integer(HS_NX));
+          // TODO ci correct?
+          /* lb_orig[dim] = lb_orig[dim] + ci.get_side(dim) * (INX / 2); */
+          /* ub_orig[dim] = ub_orig[dim] + ci.get_side(dim) * (INX / 2); */
+          lb_orig[dim] = lb_orig[dim] + my_location.get_child_side(dim) * (INX / 2);
+          ub_orig[dim] = ub_orig[dim] + my_location.get_child_side(dim) * (INX / 2);
+        }
+        // Set has_coarse 
+        for (integer field = 0; field != opts().n_fields; ++field) {
+          if (!energy_only || field == egas_i) {
+            for (integer i = 0; i < ub_target[XDIM] - lb_target[XDIM]; ++i) {
+              const int i_orig = i + lb_orig[XDIM];
+              const int i_target = i + lb_target[XDIM];
+              for (integer j = 0; j < ub_target[YDIM] - lb_target[YDIM]; ++j) {
+                const int j_orig = j + lb_orig[YDIM];
+                const int j_target = j + lb_target[YDIM];
+                for (integer k = 0; k < ub_target[ZDIM] - lb_target[ZDIM]; ++k) {
+                  const int k_orig = k + lb_orig[ZDIM];
+                  const int k_target = k + lb_target[ZDIM];
+                  grid_ptr->has_coarse[hSindex(i_target, j_target, k_target)]++;
+                  (grid_ptr->Ushad)[field][hSindex(i_target, j_target, k_target)] =
+                    (*uneighbor)[field][hindex(i_orig, j_orig, k_orig)];
+                }
+              }
+            }
+          }
+        }
+      } else if (!neighbors[dir].empty()) {
           auto bdata = grid_ptr->get_hydro_boundary(dir, energy_only);
           neighbors[dir].send_hydro_boundary(std::move(bdata), dir.flip(), hcycle);
       }
@@ -255,7 +311,7 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
 		if (!(neighbors[dir].empty() && my_location.level() == 0)) {
       // receive data from neighbor via sibling_hydro_channels
       bool is_local = neighbors[dir].is_local();
-      if (is_local && use_local_optimization && !neighbors[dir].empty()) {
+      if (is_local && use_local_optimization) {
         // TODO Add synchronization mechanism for U pot... (probably some sort of promise future for the actual node_sever method)
       } else {
         results[index++] = sibling_hydro_channels[dir].get_future(hcycle).then( // 3s?
@@ -321,11 +377,15 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
 
 void node_server::send_hydro_amr_boundaries(bool energy_only) {
 	if (is_refined) {
+    // set promise 
+    ready_for_amr_hydro_exchange[hcycle].set_value();
+    // TODO only set if at least one of the children is local?
 		constexpr auto full_set = geo::octant::full_set();
 		for (auto &ci : full_set) {
-			const auto &flags = amr_flags[ci];
+			const auto &flags = amr_flags[ci]; // does that nephew exist and need our values?
 			for (auto &dir : geo::direction::full_set()) {
-				if (flags[dir]) {
+        // TODO If flags and children_ci is_local, then set child amr_hydro_parent_ready_promise
+				if (flags[dir] && !children[ci].is_local()) { 
 					std::array<integer, NDIM> lb, ub;
 					std::vector<real> data;
 					get_boundary_size(lb, ub, dir, OUTER, INX / 2, H_BW);
@@ -422,8 +482,11 @@ void node_server::initialize(real t, real rt) {
 
 
   ready_for_hydro_exchange.clear();
-  for (int i = 0; i < 10000; i++)
+  for (int i = 0; i < 1000; i++)
     ready_for_hydro_exchange.emplace_back();
+  ready_for_amr_hydro_exchange.clear();
+  for (int i = 0; i < 1000; i++)
+    ready_for_amr_hydro_exchange.emplace_back();
 }
 
 node_server::~node_server() {

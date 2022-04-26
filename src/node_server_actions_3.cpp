@@ -104,6 +104,19 @@ std::vector<hpx::lcos::local::promise<void>>* node_server::send_hydro_boundary_p
   return &(ready_for_hydro_exchange);
 }
 
+using send_amr_hydro_boundary_promises_action_local_type = node_server::send_amr_hydro_boundary_promises_action_local;
+HPX_REGISTER_ACTION (send_amr_hydro_boundary_promises_action_local_type);
+
+std::vector<hpx::lcos::local::promise<void>>* node_client::recv_amr_hydro_boundary_promises_local() const {
+  node_server::send_amr_hydro_boundary_promises_action_local action_instance;
+	std::vector<hpx::lcos::local::promise<void>>* vec = action_instance(get_unmanaged_gid());
+  return vec;
+}
+
+std::vector<hpx::lcos::local::promise<void>>* node_server::send_amr_hydro_boundary_promises_local() {
+  return &(ready_for_amr_hydro_exchange);
+}
+
 using send_hydro_amr_boundary_action_type = node_server::send_hydro_amr_boundary_action;
 HPX_REGISTER_ACTION (send_hydro_amr_boundary_action_type);
 
