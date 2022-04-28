@@ -18,6 +18,7 @@
 
 #include "octotiger/unitiger/hydro_impl/hydro_boundary_exchange.hpp"
 
+#include <hpx/async_combinators/when_all.hpp>
 #include <hpx/include/performance_counters.hpp>
 #include <hpx/include/lcos.hpp>
 #include <hpx/include/util.hpp>
@@ -150,9 +151,9 @@ future<void> node_server::exchange_flux_corrections() {
 }
 
 void node_server::all_hydro_bounds() {
-	exchange_interlevel_hydro_data();
-	collect_hydro_boundaries();
-	send_hydro_amr_boundaries();
+	exchange_interlevel_hydro_data(); // bottom up step
+	collect_hydro_boundaries(); // interlevel step
+	send_hydro_amr_boundaries(); // up-down step
 	++hcycle;
 }
 
@@ -191,7 +192,7 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
   const bool use_local_optimization = true;
   const bool use_local_amr_optimization = true;
 
-	std::vector<hpx::lcos::shared_future<void>> neighbors_ready; // 27 
+	std::vector<hpx::lcos::shared_future<void>> neighbors_ready; 
   bool local_amr_handling = false;
 	for (auto const &dir : geo::direction::full_set()) {
 		if (!neighbors[dir].empty() && neighbors[dir].is_local()) {
@@ -206,25 +207,85 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
     neighbors_ready.emplace_back((*parent_promise)[hcycle%number_hydro_exchange_promises].get_shared_future());
   }
   auto get_neighbors = hpx::when_all(neighbors_ready);
-  /* std::cerr << "launched get neighbors " << hcycle << std::endl; */
   get_neighbors.get();
-  /* std::cerr << "got neighbors" << hcycle << std::endl; */
 
+  std::vector<hpx::lcos::shared_future<void>> neighbors_finished_reading;
 	for (auto const &dir : geo::direction::full_set()) {
-		if (true) {
-      bool is_local = neighbors[dir].is_local();
-			const integer width = H_BW;
-      if (is_local && use_local_optimization && !neighbors[dir].empty()) {
-        /* auto fut = sibling_hydro_channels[dir].get_future(hcycle); */
-        /* fut.get(); */
-        const auto *uneighbor = neighbors[dir].u_local;
+    bool is_local = neighbors[dir].is_local();
+    const integer width = H_BW;
+    if (is_local && use_local_optimization && !neighbors[dir].empty()) {
+      /* auto fut = sibling_hydro_channels[dir].get_future(hcycle); */
+      /* fut.get(); */
+      const auto *uneighbor = neighbors[dir].u_local;
 
-        std::array<integer, NDIM> lb_orig, ub_orig;
-        std::array<integer, NDIM> lb_target, ub_target;
-        const auto& bw = energy_only ? grid_ptr->energy_bw : grid_ptr->field_bw;
-        for (integer field = 0; field != opts().n_fields; ++field) {
-          get_boundary_size(lb_orig, ub_orig, dir.flip(), INNER, INX, H_BW, bw[field]);
-          get_boundary_size(lb_target, ub_target, dir, OUTER, INX, H_BW, bw[field]);
+      std::array<integer, NDIM> lb_orig, ub_orig;
+      std::array<integer, NDIM> lb_target, ub_target;
+      const auto& bw = energy_only ? grid_ptr->energy_bw : grid_ptr->field_bw;
+      for (integer field = 0; field != opts().n_fields; ++field) {
+        get_boundary_size(lb_orig, ub_orig, dir.flip(), INNER, INX, H_BW, bw[field]);
+        get_boundary_size(lb_target, ub_target, dir, OUTER, INX, H_BW, bw[field]);
+        for (integer i = 0; i < ub_target[XDIM] - lb_target[XDIM]; ++i) {
+          const int i_orig = i + lb_orig[XDIM];
+          const int i_target = i + lb_target[XDIM];
+          for (integer j = 0; j < ub_target[YDIM] - lb_target[YDIM]; ++j) {
+            const int j_orig = j + lb_orig[YDIM];
+            const int j_target = j + lb_target[YDIM];
+            for (integer k = 0; k < ub_target[ZDIM] - lb_target[ZDIM]; ++k) {
+              const int k_orig = k + lb_orig[ZDIM];
+              const int k_target = k + lb_target[ZDIM];
+              (grid_ptr->U)[field][hindex(i_target, j_target, k_target)] =
+                (*uneighbor)[field][hindex(i_orig, j_orig, k_orig)];
+            }
+          }
+        }
+      }
+
+      if (!opts().gravity && !is_refined) {
+        auto neighbor_promises_p = neighbors[dir].ready_for_hydro_update;
+        neighbors_finished_reading.emplace_back((*neighbor_promises_p)[hcycle%number_hydro_exchange_promises].get_shared_future());
+      }
+      //neighbors_finished_reading
+    } else if (is_local && use_local_amr_optimization && neighbors[dir].empty() && my_location.level() != 0) { 
+      // Get neighbor data and the required boundaries for copying the ghostlayer
+      const auto *uneighbor = parent.u_local;
+      std::array<integer, NDIM> lb_orig, ub_orig;
+      std::array<integer, NDIM> lb_target, ub_target;
+      get_boundary_size(lb_target, ub_target, dir, OUTER, INX / 2, H_BW);
+      // Set is_coarse 
+      for (integer i = 0; i < ub_target[XDIM] - lb_target[XDIM]; ++i) {
+        const int i_target = i + lb_target[XDIM];
+        for (integer j = 0; j < ub_target[YDIM] - lb_target[YDIM]; ++j) {
+          const int j_target = j + lb_target[YDIM];
+          for (integer k = 0; k < ub_target[ZDIM] - lb_target[ZDIM]; ++k) {
+            const int k_target = k + lb_target[ZDIM];
+            grid_ptr->is_coarse[hSindex(i_target, j_target, k_target)]++;
+            assert(i_target < H_BW || i_target >= HS_NX - H_BW || j_target <
+                H_BW || j_target >= HS_NX - H_BW || k_target < H_BW ||
+                k_target >= HS_NX - H_BW);
+          }
+        }
+      }
+      // Adjust target region
+      /* std::cout << "target:" << std::endl; */
+      for (int dim = 0; dim < NDIM; dim++) {
+        lb_target[dim] = std::max(lb_target[dim] - 1, integer(0));
+        ub_target[dim] = std::min(ub_target[dim] + 1, integer(HS_NX));
+        /* std::cout <<  lb_target[dim] << "..." << ub_target[dim] << std::endl; */
+      }
+      // Get orig region
+      get_boundary_size(lb_orig, ub_orig, dir, OUTER, INX / 2, H_BW);
+      for (integer dim = 0; dim != NDIM; ++dim) {
+        lb_orig[dim] = std::max(lb_orig[dim] - 1, integer(0));
+        ub_orig[dim] = std::min(ub_orig[dim] + 1, integer(HS_NX));
+        // TODO ci correct?
+        /* lb_orig[dim] = lb_orig[dim] + ci.get_side(dim) * (INX / 2); */
+        /* ub_orig[dim] = ub_orig[dim] + ci.get_side(dim) * (INX / 2); */
+        lb_orig[dim] = lb_orig[dim] + my_location.get_child_side(dim) * (INX / 2);
+        ub_orig[dim] = ub_orig[dim] + my_location.get_child_side(dim) * (INX / 2);
+      }
+      // Set has_coarse 
+      for (integer field = 0; field != opts().n_fields; ++field) {
+        if (!energy_only || field == egas_i) {
           for (integer i = 0; i < ub_target[XDIM] - lb_target[XDIM]; ++i) {
             const int i_orig = i + lb_orig[XDIM];
             const int i_target = i + lb_target[XDIM];
@@ -234,79 +295,26 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
               for (integer k = 0; k < ub_target[ZDIM] - lb_target[ZDIM]; ++k) {
                 const int k_orig = k + lb_orig[ZDIM];
                 const int k_target = k + lb_target[ZDIM];
-                (grid_ptr->U)[field][hindex(i_target, j_target, k_target)] =
+                grid_ptr->has_coarse[hSindex(i_target, j_target, k_target)]++;
+                (grid_ptr->Ushad)[field][hSindex(i_target, j_target, k_target)] =
                   (*uneighbor)[field][hindex(i_orig, j_orig, k_orig)];
               }
             }
           }
         }
-      } else if (is_local && use_local_amr_optimization && neighbors[dir].empty() && my_location.level() != 0) { 
-        // Get neighbor data and the required boundaries for copying the ghostlayer
-        const auto *uneighbor = parent.u_local;
-        std::array<integer, NDIM> lb_orig, ub_orig;
-        std::array<integer, NDIM> lb_target, ub_target;
-        get_boundary_size(lb_target, ub_target, dir, OUTER, INX / 2, H_BW);
-        // Set is_coarse 
-        for (integer i = 0; i < ub_target[XDIM] - lb_target[XDIM]; ++i) {
-          const int i_target = i + lb_target[XDIM];
-          for (integer j = 0; j < ub_target[YDIM] - lb_target[YDIM]; ++j) {
-            const int j_target = j + lb_target[YDIM];
-            for (integer k = 0; k < ub_target[ZDIM] - lb_target[ZDIM]; ++k) {
-              const int k_target = k + lb_target[ZDIM];
-              grid_ptr->is_coarse[hSindex(i_target, j_target, k_target)]++;
-              assert(i_target < H_BW || i_target >= HS_NX - H_BW || j_target <
-                  H_BW || j_target >= HS_NX - H_BW || k_target < H_BW ||
-                  k_target >= HS_NX - H_BW);
-            }
-          }
-        }
-        // Adjust target region
-        /* std::cout << "target:" << std::endl; */
-        for (int dim = 0; dim < NDIM; dim++) {
-          lb_target[dim] = std::max(lb_target[dim] - 1, integer(0));
-          ub_target[dim] = std::min(ub_target[dim] + 1, integer(HS_NX));
-          /* std::cout <<  lb_target[dim] << "..." << ub_target[dim] << std::endl; */
-        }
-        // Get orig region
-        get_boundary_size(lb_orig, ub_orig, dir, OUTER, INX / 2, H_BW);
-        for (integer dim = 0; dim != NDIM; ++dim) {
-          lb_orig[dim] = std::max(lb_orig[dim] - 1, integer(0));
-          ub_orig[dim] = std::min(ub_orig[dim] + 1, integer(HS_NX));
-          // TODO ci correct?
-          /* lb_orig[dim] = lb_orig[dim] + ci.get_side(dim) * (INX / 2); */
-          /* ub_orig[dim] = ub_orig[dim] + ci.get_side(dim) * (INX / 2); */
-          lb_orig[dim] = lb_orig[dim] + my_location.get_child_side(dim) * (INX / 2);
-          ub_orig[dim] = ub_orig[dim] + my_location.get_child_side(dim) * (INX / 2);
-        }
-        // Set has_coarse 
-        for (integer field = 0; field != opts().n_fields; ++field) {
-          if (!energy_only || field == egas_i) {
-            for (integer i = 0; i < ub_target[XDIM] - lb_target[XDIM]; ++i) {
-              const int i_orig = i + lb_orig[XDIM];
-              const int i_target = i + lb_target[XDIM];
-              for (integer j = 0; j < ub_target[YDIM] - lb_target[YDIM]; ++j) {
-                const int j_orig = j + lb_orig[YDIM];
-                const int j_target = j + lb_target[YDIM];
-                for (integer k = 0; k < ub_target[ZDIM] - lb_target[ZDIM]; ++k) {
-                  const int k_orig = k + lb_orig[ZDIM];
-                  const int k_target = k + lb_target[ZDIM];
-                  grid_ptr->has_coarse[hSindex(i_target, j_target, k_target)]++;
-                  (grid_ptr->Ushad)[field][hSindex(i_target, j_target, k_target)] =
-                    (*uneighbor)[field][hindex(i_orig, j_orig, k_orig)];
-                }
-              }
-            }
-          }
-        }
-      } else if (!neighbors[dir].empty()) {
-          auto bdata = grid_ptr->get_hydro_boundary(dir, energy_only);
-          neighbors[dir].send_hydro_boundary(std::move(bdata), dir.flip(), hcycle);
       }
+    } else if (!neighbors[dir].empty()) {
+        auto bdata = grid_ptr->get_hydro_boundary(dir, energy_only);
+        neighbors[dir].send_hydro_boundary(std::move(bdata), dir.flip(), hcycle);
     }
 	}
-  /* std::cerr << hcycle << " " << std::endl; */
-
-	std::array<future<void>, geo::direction::count()> results; // 27 
+  if (!opts().gravity) {
+    ready_for_hydro_update[hcycle%number_hydro_exchange_promises].set_value();
+    if (!is_refined)
+      all_neighbors_got_hydro[hcycle%number_hydro_exchange_promises] = hpx::when_all(neighbors_finished_reading);
+    /* all_neighbors_got_hydro[hcycle%number_hydro_exchange_promises].get(); */
+  }
+	std::array<future<void>, geo::direction::count()> results; 
 	integer index = 0;
 	for (auto const &dir : geo::direction::full_set()) {
 		if (!(neighbors[dir].empty() && my_location.level() == 0)) {
@@ -492,6 +500,14 @@ void node_server::initialize(real t, real rt) {
   ready_for_amr_hydro_exchange.clear();
   for (int i = 0; i < number_hydro_exchange_promises; i++)
     ready_for_amr_hydro_exchange.emplace_back();
+  if (!opts().gravity) {
+    ready_for_hydro_update.clear();
+    for (int i = 0; i < number_hydro_exchange_promises; i++)
+      ready_for_hydro_update.emplace_back();
+    all_neighbors_got_hydro.clear();
+    for (int i = 0; i < number_hydro_exchange_promises; i++)
+      all_neighbors_got_hydro.emplace_back(hpx::make_ready_future());
+  }
 }
 
 node_server::~node_server() {

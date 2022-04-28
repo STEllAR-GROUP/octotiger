@@ -229,6 +229,14 @@ void node_server::regrid_scatter(integer a_, integer total) {
   ready_for_amr_hydro_exchange.clear();
   for (int i = 0; i < number_hydro_exchange_promises; i++)
     ready_for_amr_hydro_exchange.emplace_back();
+  if (!opts().gravity) {
+    ready_for_hydro_update.clear();
+    for (int i = 0; i < number_hydro_exchange_promises; i++)
+      ready_for_hydro_update.emplace_back();
+    all_neighbors_got_hydro.clear();
+    for (int i = 0; i < number_hydro_exchange_promises; i++)
+      all_neighbors_got_hydro.emplace_back(hpx::make_ready_future());
+  }
 }
 
 node_count_type node_server::regrid(const hpx::id_type &root_gid, real omega, real new_floor, bool rb, bool grav_energy_comp) {
