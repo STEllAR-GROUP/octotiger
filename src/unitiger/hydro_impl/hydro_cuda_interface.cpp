@@ -273,11 +273,13 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
       const int f_slice_offset = (NDIM* hydro.get_nf() *  q_inx3 + 128);
       constexpr int disc_offset = geo.NDIR / 2 * H_N3 + 128;
 
-      // Convert input
-      convert_x_structure(X, combined_x.data() + x_slice_offset * slice_id);
-      for (int f = 0; f < hydro.get_nf(); f++) {
-          std::copy(U[f].begin(), U[f].end(), combined_u.data() + f * H_N3 + u_slice_offset * slice_id);
-      }
+      hpx::util::annotated_function([&]() {
+        // Convert input
+        convert_x_structure(X, combined_x.data() + x_slice_offset * slice_id);
+        for (int f = 0; f < hydro.get_nf(); f++) {
+            std::copy(U[f].begin(), U[f].end(), combined_u.data() + f * H_N3 + u_slice_offset * slice_id);
+        }
+      }, "cuda_hydro_solver::convert_input")();
 
       const auto& disc_detect_bool = hydro.get_disc_detect();
       const auto& smooth_bool = hydro.get_smooth_field();
@@ -365,7 +367,6 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
       launch_flux_cuda_kernel_post(exec_slice, grid_spec, threads_per_block,
           args);
 #elif defined(OCTOTIGER_HAVE_HIP)
-      // TODO Probably won't compile..
       launch_flux_hip_kernel_post(exec_slice, grid_spec, threads_per_block,
           device_q.device_side_buffer, device_x.device_side_buffer, device_f.device_side_buffer,
           device_amax.device_side_buffer, device_amax_indices.device_side_buffer,
@@ -429,25 +430,27 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
       /* auto max_lambda = launch_flux_cuda(executor, device_q.device_side_buffer, f, combined_x, */
       /*     device_x.device_side_buffer, omega, hydro.get_nf(), X[0][geo.H_DNX] - X[0][0], device_id); */
 
-      // TODO Update indexing to slice indexing
       // Convert output
-      for (int dim = 0; dim < NDIM; dim++) {
-          for (integer field = 0; field != opts().n_fields; ++field) {
-              const auto dim_offset = dim * opts().n_fields * q_inx3 + field * q_inx3;
-              for (integer i = 0; i <= INX; ++i) {
-                  for (integer j = 0; j <= INX; ++j) {
-                      for (integer k = 0; k <= INX; ++k) {
-                          const auto i0 = findex(i, j, k);
-                          const auto input_index =
-                              (i + 1) * q_inx * q_inx + (j + 1) * q_inx + (k + 1);
-                          F[dim][field][i0] = f[dim_offset + input_index + f_slice_offset * slice_id];
-                          // std::cout << F[dim][field][i0] << " ";
-                      }
-                  }
-              }
-          }
-      }
+      hpx::util::annotated_function([&]() {
+        for (int dim = 0; dim < NDIM; dim++) {
+            for (integer field = 0; field != opts().n_fields; ++field) {
+                const auto dim_offset = dim * opts().n_fields * q_inx3 + field * q_inx3;
+                for (integer i = 0; i <= INX; ++i) {
+                    for (integer j = 0; j <= INX; ++j) {
+                        for (integer k = 0; k <= INX; ++k) {
+                            const auto i0 = findex(i, j, k);
+                            const auto input_index =
+                                (i + 1) * q_inx * q_inx + (j + 1) * q_inx + (k + 1);
+                            F[dim][field][i0] = f[dim_offset + input_index + f_slice_offset * slice_id];
+                            // std::cout << F[dim][field][i0] << " ";
+                        }
+                    }
+                }
+            }
+        }
+      }, "cuda_hydro_solver::convert_output")();
       return max_lambda;
+
     }, "cuda_hydro_solver"));
     return ret_fut.get();
 }
