@@ -232,12 +232,18 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
           for (integer j = 0; j < ub_target[YDIM] - lb_target[YDIM]; ++j) {
             const int j_orig = j + lb_orig[YDIM];
             const int j_target = j + lb_target[YDIM];
-            for (integer k = 0; k < ub_target[ZDIM] - lb_target[ZDIM]; ++k) {
-              const int k_orig = k + lb_orig[ZDIM];
-              const int k_target = k + lb_target[ZDIM];
-              (grid_ptr->U)[field][hindex(i_target, j_target, k_target)] =
-                (*uneighbor)[field][hindex(i_orig, j_orig, k_orig)];
-            }
+            const int k_orig = lb_orig[ZDIM];
+            const int k_target = lb_target[ZDIM];
+            std::copy((*uneighbor)[field].begin() + hindex(i_orig, j_orig, k_orig),
+                (*uneighbor)[field].begin() + hindex(i_orig, j_orig, k_orig) + ub_target[ZDIM] - lb_target[ZDIM],
+                (grid_ptr->U)[field].begin() + hindex(i_target, j_target, k_target));
+
+            /* for (integer k = 0; k < ub_target[ZDIM] - lb_target[ZDIM]; ++k) { */
+            /*   const int k_orig = k + lb_orig[ZDIM]; */
+            /*   const int k_target = k + lb_target[ZDIM]; */
+            /*   (grid_ptr->U)[field][hindex(i_target, j_target, k_target)] = */
+            /*     (*uneighbor)[field][hindex(i_orig, j_orig, k_orig)]; */
+            /* } */
           }
         }
       }
@@ -268,11 +274,9 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
         }
       }
       // Adjust target region
-      /* std::cout << "target:" << std::endl; */
       for (int dim = 0; dim < NDIM; dim++) {
         lb_target[dim] = std::max(lb_target[dim] - 1, integer(0));
         ub_target[dim] = std::min(ub_target[dim] + 1, integer(HS_NX));
-        /* std::cout <<  lb_target[dim] << "..." << ub_target[dim] << std::endl; */
       }
       // Get orig region
       get_boundary_size(lb_orig, ub_orig, dir, OUTER, INX / 2, H_BW);
@@ -294,12 +298,18 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
             for (integer j = 0; j < ub_target[YDIM] - lb_target[YDIM]; ++j) {
               const int j_orig = j + lb_orig[YDIM];
               const int j_target = j + lb_target[YDIM];
+              const int k_orig = lb_orig[ZDIM];
+              const int k_target = lb_target[ZDIM];
+              std::copy((*uneighbor)[field].begin() + hindex(i_orig, j_orig, k_orig),
+                  (*uneighbor)[field].begin() + hindex(i_orig, j_orig, k_orig) + ub_target[ZDIM] - lb_target[ZDIM],
+                  (grid_ptr->Ushad)[field].begin() + hSindex(i_target, j_target, k_target));
+
               for (integer k = 0; k < ub_target[ZDIM] - lb_target[ZDIM]; ++k) {
                 const int k_orig = k + lb_orig[ZDIM];
                 const int k_target = k + lb_target[ZDIM];
                 grid_ptr->has_coarse[hSindex(i_target, j_target, k_target)]++;
-                (grid_ptr->Ushad)[field][hSindex(i_target, j_target, k_target)] =
-                  (*uneighbor)[field][hindex(i_orig, j_orig, k_orig)];
+                /* (grid_ptr->Ushad)[field][hSindex(i_target, j_target, k_target)] = */
+                /*   (*uneighbor)[field][hindex(i_orig, j_orig, k_orig)]; */
               }
             }
           }
@@ -314,7 +324,6 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
     ready_for_hydro_update[hcycle%number_hydro_exchange_promises].set_value();
     if (!is_refined)
       all_neighbors_got_hydro[hcycle%number_hydro_exchange_promises] = hpx::when_all(neighbors_finished_reading);
-    /* all_neighbors_got_hydro[hcycle%number_hydro_exchange_promises].get(); */
   }
 	std::array<future<void>, geo::direction::count()> results; 
 	integer index = 0;
