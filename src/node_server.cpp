@@ -304,13 +304,13 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
                   (*uneighbor)[field].begin() + hindex(i_orig, j_orig, k_orig) + ub_target[ZDIM] - lb_target[ZDIM],
                   (grid_ptr->Ushad)[field].begin() + hSindex(i_target, j_target, k_target));
 
-              for (integer k = 0; k < ub_target[ZDIM] - lb_target[ZDIM]; ++k) {
-                const int k_orig = k + lb_orig[ZDIM];
-                const int k_target = k + lb_target[ZDIM];
-                grid_ptr->has_coarse[hSindex(i_target, j_target, k_target)]++;
-                /* (grid_ptr->Ushad)[field][hSindex(i_target, j_target, k_target)] = */
-                /*   (*uneighbor)[field][hindex(i_orig, j_orig, k_orig)]; */
-              }
+              /* for (integer k = 0; k < ub_target[ZDIM] - lb_target[ZDIM]; ++k) { */
+              /*   const int k_orig = k + lb_orig[ZDIM]; */
+              /*   const int k_target = k + lb_target[ZDIM]; */
+              /*   grid_ptr->has_coarse[hSindex(i_target, j_target, k_target)]++; */
+              /*   /1* (grid_ptr->Ushad)[field][hSindex(i_target, j_target, k_target)] = *1/ */
+              /*   /1*   (*uneighbor)[field][hindex(i_orig, j_orig, k_orig)]; *1/ */
+              /* } */
             }
           }
         }
