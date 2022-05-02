@@ -1,5 +1,7 @@
 #pragma once
 
+#include <hpx/futures/future.hpp>
+#include <hpx/kokkos/executors.hpp>
 #ifdef OCTOTIGER_HAVE_KOKKOS
 #include "octotiger/common_kernel/kokkos_util.hpp"
 #include "octotiger/unitiger/hydro_impl/flux_kernel_interface.hpp"    // required for wrappers
@@ -7,6 +9,11 @@
 #include "octotiger/unitiger/hydro_impl/flux_kernel_templates.hpp"
 #include "octotiger/unitiger/hydro_impl/hydro_kernel_interface.hpp"
 #include "octotiger/unitiger/hydro_impl/reconstruct_kernel_templates.hpp"
+
+static const char hydro_kokkos_kernel_identifier[] = "hydro_kernel_aggregator_kokkos";
+template<typename executor_t>
+using hydro_kokkos_agg_executor_pool = aggregation_pool<hydro_kokkos_kernel_identifier, executor_t,
+                                       pool_strategy>;
 
 constexpr int padding = 128;
 
@@ -435,13 +442,15 @@ void find_contact_discs_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
 
 template <typename executor_t,
     std::enable_if_t<is_kokkos_device_executor<executor_t>::value, int> = 0>
-timestep_t device_interface_kokkos_hydro(executor_t& exec, const host_buffer<double>& combined_x,
-    const host_buffer<double>& combined_large_x, host_buffer<double>& combined_u,
-    const host_buffer<int>& disc_detect, const host_buffer<int>& smooth_field,
-    host_buffer<double>& host_f, const size_t ndir, const size_t nf, const bool angmom,
+timestep_t device_interface_kokkos_hydro(executor_t& exec, const aggregated_host_buffer<double, executor_t>& combined_x,
+    const aggregated_host_buffer<double, executor_t>& combined_large_x, aggregated_host_buffer<double, executor_t>& combined_u,
+    const aggregated_host_buffer<int, executor_t>& disc_detect, const aggregated_host_buffer<int, executor_t>& smooth_field,
+    aggregated_host_buffer<double, executor_t>& host_f, const size_t ndir, const size_t nf, const bool angmom,
     const size_t n_species, const double omega, const int angmom_index, const int nangmom,
     const double dx, const double A_, const double B_, const double fgamma,
-    const double de_switch_1) {
+    const double de_switch_1,
+    Allocator_Slice<double, kokkos_host_allocator<double>, executor_t> &alloc_host_double,
+    Allocator_Slice<int, kokkos_host_allocator<int>, executor_t> &alloc_host_int) {
     // Find contact discs
     device_buffer<double> u(nf * H_N3 + padding);
     Kokkos::deep_copy(exec.instance(), u, combined_u);
@@ -537,16 +546,18 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec, const host_buffer<dou
 
 template <typename executor_t,
     std::enable_if_t<is_kokkos_host_executor<executor_t>::value, int> = 0>
-timestep_t device_interface_kokkos_hydro(executor_t& exec, const host_buffer<double>& combined_x,
-    const host_buffer<double>& combined_large_x, host_buffer<double>& combined_u,
-    const host_buffer<int>& disc_detect, const host_buffer<int>& smooth_field,
-    host_buffer<double>& f, const size_t ndir, const size_t nf, const bool angmom,
+timestep_t device_interface_kokkos_hydro(executor_t& exec, const aggregated_host_buffer<double, executor_t>& combined_x,
+    const aggregated_host_buffer<double, executor_t>& combined_large_x,aggregated_host_buffer<double, executor_t>& combined_u,
+    const aggregated_host_buffer<int, executor_t>& disc_detect, const aggregated_host_buffer<int, executor_t>& smooth_field,
+    aggregated_host_buffer<double, executor_t>& f, const size_t ndir, const size_t nf, const bool angmom,
     const size_t n_species, const double omega, const int angmom_index, const int nangmom,
     const double dx, const double A_, const double B_, const double fgamma,
-    const double de_switch_1) {
+    const double de_switch_1,
+    Allocator_Slice<double, kokkos_host_allocator<double>, executor_t> &alloc_host_double,
+    Allocator_Slice<int, kokkos_host_allocator<int>, executor_t> &alloc_host_int) {
     // Find contact discs
-    host_buffer<double> P(H_N3 + padding);
-    host_buffer<double> disc(ndir / 2 * H_N3 + padding);
+    aggregated_host_buffer<double, executor_t> P(alloc_host_double, H_N3 + padding);
+    aggregated_host_buffer<double, executor_t> disc(alloc_host_double, ndir / 2 * H_N3 + padding);
     find_contact_discs_impl(exec, combined_u, P, disc, physics<NDIM>::A_, physics<NDIM>::B_,
         physics<NDIM>::fgamma_, physics<NDIM>::de_switch_1, ndir, nf,
         {inx_normal, inx_normal, inx_normal}, {q_inx, q_inx, q_inx});
@@ -556,17 +567,17 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec, const host_buffer<dou
         {inx_large, inx_large, inx_large});
 
     // Reconstruct
-    host_buffer<double> q(nf * 27 * q_inx3 + padding);
-    host_buffer<double> AM(NDIM * q_inx3 + padding);
+    aggregated_host_buffer<double, executor_t> q(alloc_host_double, nf * 27 * q_inx3 + padding);
+    aggregated_host_buffer<double, executor_t> AM(alloc_host_double, NDIM * q_inx3 + padding);
     reconstruct_impl(exec, omega, nf, angmom_index, smooth_field, disc_detect, q, combined_x,
         combined_u, AM, dx, disc, n_species, ndir, nangmom, {INX, INX, INX});
 
     // Flux
     const int blocks = NDIM * (q_inx3 / 128 + 1) * 128;
     const host_buffer<bool>& masks = get_flux_host_masks<host_buffer<bool>>();
-    host_buffer<double> amax(blocks * (1 + 2 * nf));
-    host_buffer<int> amax_indices(blocks);
-    host_buffer<int> amax_d(blocks);
+    aggregated_host_buffer<double, executor_t> amax(alloc_host_double, blocks * (1 + 2 * nf));
+    aggregated_host_buffer<int, executor_t> amax_indices(alloc_host_int, blocks);
+    aggregated_host_buffer<int, executor_t> amax_d(alloc_host_int, blocks);
     flux_impl_teamless(exec, q, combined_x, f, amax, amax_indices, amax_d, masks, omega, dx, A_, B_,
         nf, fgamma, de_switch_1, blocks, 1);
 
@@ -624,53 +635,67 @@ timestep_t launch_hydro_kokkos_kernels(const hydro_computer<NDIM, INX, physics<N
     std::vector<hydro_state_t<std::vector<safe_real>>>& F) {
     static const cell_geometry<NDIM, INX> geo;
 
-    // Host buffers
-    host_buffer<double> combined_x(NDIM * q_inx3 + padding);
-    host_buffer<double> combined_large_x(NDIM * H_N3 + padding);
-    host_buffer<double> combined_u(hydro.get_nf() * H_N3 + padding);
-    host_buffer<int> disc_detect(hydro.get_nf());
-    host_buffer<int> smooth_field(hydro.get_nf());
-    host_buffer<double> f(NDIM * hydro.get_nf() * q_inx3 + padding);
+    auto executor_slice_fut = hydro_kokkos_agg_executor_pool<executor_t>::request_executor_slice();
+    auto ret_fut = executor_slice_fut.value().then(hpx::util::annotated_function([&](auto && fut) {
+      auto exec_slice = fut.get();
+      // Get allocators of all the executors working together
+      // Allocator_Slice<double, kokkos_host_allocator<double>, executor_t>
+      Allocator_Slice<double, kokkos_host_allocator<double>, executor_t> alloc_host_double =
+          exec_slice
+              .template make_allocator<double, kokkos_host_allocator<double>>();
+      Allocator_Slice<int, kokkos_host_allocator<int>, executor_t> alloc_host_int =
+          exec_slice
+              .template make_allocator<int, kokkos_host_allocator<int>>();
 
-    // Convert input
-    convert_x_structure(X, combined_x.data());
-    for (int n = 0; n < NDIM; n++) {
-        std::copy(X[n].begin(), X[n].end(), combined_large_x.data() + n * H_N3);
-    }
-    for (int f = 0; f < hydro.get_nf(); f++) {
-        std::copy(U[f].begin(), U[f].end(), combined_u.data() + f * H_N3);
-    }
-    const auto& disc_detect_bool = hydro.get_disc_detect();
-    const auto& smooth_bool = hydro.get_smooth_field();
-    for (auto f = 0; f < hydro.get_nf(); f++) {
-        disc_detect[f] = disc_detect_bool[f];
-        smooth_field[f] = smooth_bool[f];
-    }
+      // Host buffers
+      aggregated_host_buffer<double, executor_t> combined_x(alloc_host_double, NDIM * q_inx3 + padding);
+      aggregated_host_buffer<double, executor_t> combined_large_x(alloc_host_double, NDIM * H_N3 + padding);
+      aggregated_host_buffer<double, executor_t> combined_u(alloc_host_double, hydro.get_nf() * H_N3 + padding);
+      aggregated_host_buffer<int, executor_t> disc_detect(alloc_host_int, hydro.get_nf());
+      aggregated_host_buffer<int, executor_t> smooth_field(alloc_host_int, hydro.get_nf());
+      aggregated_host_buffer<double, executor_t> f(alloc_host_double, NDIM * hydro.get_nf() * q_inx3 + padding);
 
-    // Either handles the launches on the CPU or on the GPU depending on the passed executor
-    auto max_lambda = device_interface_kokkos_hydro(executor, combined_x, combined_large_x,
-        combined_u, disc_detect, smooth_field, f, geo.NDIR, hydro.get_nf(),
-        hydro.get_angmom_index() != -1, n_species, omega, hydro.get_angmom_index(), geo.NANGMOM,
-        X[0][geo.H_DNX] - X[0][0], physics<NDIM>::A_, physics<NDIM>::B_, physics<NDIM>::fgamma_,
-        physics<NDIM>::de_switch_1);
+      // Convert input
+      convert_x_structure(X, combined_x.data());
+      for (int n = 0; n < NDIM; n++) {
+          std::copy(X[n].begin(), X[n].end(), combined_large_x.data() + n * H_N3);
+      }
+      for (int f = 0; f < hydro.get_nf(); f++) {
+          std::copy(U[f].begin(), U[f].end(), combined_u.data() + f * H_N3);
+      }
+      const auto& disc_detect_bool = hydro.get_disc_detect();
+      const auto& smooth_bool = hydro.get_smooth_field();
+      for (auto f = 0; f < hydro.get_nf(); f++) {
+          disc_detect[f] = disc_detect_bool[f];
+          smooth_field[f] = smooth_bool[f];
+      }
 
-    // Convert output
-    for (int dim = 0; dim < NDIM; dim++) {
-        for (integer field = 0; field != opts().n_fields; ++field) {
-            const auto dim_offset = dim * opts().n_fields * q_inx3 + field * q_inx3;
-            for (integer i = 0; i <= INX; ++i) {
-                for (integer j = 0; j <= INX; ++j) {
-                    for (integer k = 0; k <= INX; ++k) {
-                        const auto i0 = findex(i, j, k);
-                        const auto input_index =
-                            (i + 1) * q_inx * q_inx + (j + 1) * q_inx + (k + 1);
-                        F[dim][field][i0] = f[dim_offset + input_index];
-                    }
-                }
-            }
-        }
-    }
-    // std::cout << max_lambda.a << std::endl;
-    return max_lambda;
+      // Either handles the launches on the CPU or on the GPU depending on the passed executor
+      auto max_lambda = device_interface_kokkos_hydro(executor, combined_x, combined_large_x,
+          combined_u, disc_detect, smooth_field, f, geo.NDIR, hydro.get_nf(),
+          hydro.get_angmom_index() != -1, n_species, omega, hydro.get_angmom_index(), geo.NANGMOM,
+          X[0][geo.H_DNX] - X[0][0], physics<NDIM>::A_, physics<NDIM>::B_, physics<NDIM>::fgamma_,
+          physics<NDIM>::de_switch_1, alloc_host_double, alloc_host_int);
+
+      // Convert output
+      for (int dim = 0; dim < NDIM; dim++) {
+          for (integer field = 0; field != opts().n_fields; ++field) {
+              const auto dim_offset = dim * opts().n_fields * q_inx3 + field * q_inx3;
+              for (integer i = 0; i <= INX; ++i) {
+                  for (integer j = 0; j <= INX; ++j) {
+                      for (integer k = 0; k <= INX; ++k) {
+                          const auto i0 = findex(i, j, k);
+                          const auto input_index =
+                              (i + 1) * q_inx * q_inx + (j + 1) * q_inx + (k + 1);
+                          F[dim][field][i0] = f[dim_offset + input_index];
+                      }
+                  }
+              }
+          }
+      }
+      // std::cout << max_lambda.a << std::endl;
+      return max_lambda;
+          }));
+    return ret_fut.get();
 }
 #endif

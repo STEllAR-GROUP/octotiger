@@ -8,18 +8,19 @@
 #include "octotiger/unitiger/hydro.hpp"
 #include "octotiger/unitiger/safe_real.hpp"
 
-#include <buffer_manager.hpp>
 #ifdef OCTOTIGER_HAVE_CUDA
+#include "octotiger/cuda_util/cuda_helper.hpp"
+#include <buffer_manager.hpp>
 #include <cuda_buffer_util.hpp>
 #include <cuda_runtime.h>
 #include <stream_manager.hpp>
-#include "octotiger/cuda_util/cuda_helper.hpp"
 #endif
 #ifdef OCTOTIGER_HAVE_HIP
+#include "octotiger/cuda_util/cuda_helper.hpp"
+#include <buffer_manager.hpp>
 #include <hip_buffer_util.hpp>
 #include <hip/hip_runtime.h>
 #include <stream_manager.hpp>
-#include "octotiger/cuda_util/cuda_helper.hpp"
 #endif
 
 #include <boost/container/vector.hpp>    // to get non-specialized vector<bool>
