@@ -1,4 +1,6 @@
 #pragma once
+#include <aggregation_manager.hpp>
+#include <hpx/kokkos/executors.hpp>
 #ifdef OCTOTIGER_HAVE_KOKKOS
 //#define KOKKOS_OPT_RANGE_AGGRESSIVE_VECTORIZATION
 #include <Kokkos_Core.hpp>
@@ -98,6 +100,8 @@ using recycled_host_view = recycler::recycled_view<kokkos_um_array<T>, recycler:
 
 // NOTE: Must use the same layout to be able to use e.g. cudaMemcpyAsync
 #if defined(KOKKOS_ENABLE_CUDA)
+template <typename T>
+using kokkos_host_allocator = recycler::detail::cuda_pinned_allocator<T>;
 template <class T>
 using kokkos_um_pinned_array = Kokkos::View<T*, typename kokkos_um_device_array<T>::array_layout,
     Kokkos::CudaHostPinnedSpace, Kokkos::MemoryUnmanaged>;
@@ -105,6 +109,8 @@ template <class T>
 using recycled_pinned_view =
     recycler::recycled_view<kokkos_um_pinned_array<T>, recycler::recycle_allocator_cuda_host<T>, T>;
 #elif defined(KOKKOS_ENABLE_HIP)
+template <typename T>
+using kokkos_host_allocator = recycler::detail::hip_pinned_allocator<T>;
 template <class T>
 using kokkos_um_pinned_array = Kokkos::View<T*, typename kokkos_um_device_array<T>::array_layout,
     Kokkos::Experimental::HIPHostPinnedSpace, Kokkos::MemoryUnmanaged>;
@@ -112,6 +118,8 @@ template <class T>
 using recycled_pinned_view =
     recycler::recycled_view<kokkos_um_pinned_array<T>, recycler::recycle_allocator_hip_host<T>, T>;
 #else
+template <typename T>
+using kokkos_host_allocator = std::allocator<T>;
 template <class T>
 using kokkos_um_pinned_array = Kokkos::View<T*, typename kokkos_um_device_array<T>::array_layout,
     Kokkos::HostSpace, Kokkos::MemoryUnmanaged>;
@@ -135,6 +143,12 @@ inline void sync_kokkos_host_kernel(hpx::kokkos::hpx_executor& exec) {
     //auto fut = exec.instance().impl_get_future();
     //fut.get();
 }
+
+template <class T, typename executor_t>
+using agg_recycled_host_view =
+    recycler::aggregated_recycled_view<kokkos_um_pinned_array<T>, Allocator_Slice<T, kokkos_host_allocator<T>, executor_t>, T>;
+template <typename T, typename executor_t>
+using aggregated_host_buffer = agg_recycled_host_view<T, executor_t>;
 
 template <typename T>
 using host_buffer = recycled_pinned_view<T>;

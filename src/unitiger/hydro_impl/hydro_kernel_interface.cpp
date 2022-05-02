@@ -1,4 +1,5 @@
 #include "octotiger/unitiger/hydro_impl/hydro_kernel_interface.hpp"
+#include <hpx/kokkos/executors.hpp>
 #include "octotiger/unitiger/hydro_impl/flux_kernel_interface.hpp"
 #ifdef OCTOTIGER_HAVE_KOKKOS
 #include <hpx/kokkos.hpp>
@@ -6,6 +7,7 @@
 #endif
 
 #if defined(OCTOTIGER_HAVE_KOKKOS)
+hpx::lcos::local::once_flag init_hydro_kokkos_pool_flag;
 #if defined(KOKKOS_ENABLE_CUDA)
 using device_executor = hpx::kokkos::cuda_executor;
 using device_pool_strategy = round_robin_pool<device_executor>;
@@ -20,7 +22,20 @@ using executor_interface_t = stream_interface<device_executor, device_pool_strat
 //#else
 using host_executor = hpx::kokkos::serial_executor;
 //#endif
+void init_hydro_kokkos_aggregation_pool(void) {
+    const size_t max_slices = opts().max_executor_slices;
+    constexpr size_t number_aggregation_executors = 128;
+    constexpr Aggregated_Executor_Modes executor_mode = Aggregated_Executor_Modes::EAGER;
+#if defined(KOKKOS_ENABLE_CUDA)
+    hydro_kokkos_agg_executor_pool<hpx::kokkos::cuda_executor>::init(number_aggregation_executors, max_slices, executor_mode);
+#elif defined(KOKKOS_ENABLE_HIP)
+    hydro_kokkos_agg_executor_pool<hpx::kokkos::hip_executor>::init(number_aggregation_executors, max_slices, executor_mode);
 #endif
+    hydro_kokkos_agg_executor_pool<host_executor>::init(number_aggregation_executors, max_slices, executor_mode);
+}
+#endif
+
+
 
 timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
     const std::vector<std::vector<safe_real>>& U, std::vector<std::vector<safe_real>>& X,
@@ -40,6 +55,8 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
         if (device_type == interaction_device_kernel_type::KOKKOS_CUDA ||
             device_type == interaction_device_kernel_type::KOKKOS_HIP) {
 #if defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_CUDA) || defined(KOKKOS_ENABLE_HIP))
+            // Init local kernel pool if not done already
+            hpx::lcos::local::call_once(init_hydro_kokkos_pool_flag, init_hydro_kokkos_aggregation_pool);
             bool avail = true; 
             // Host execution is possible: Check if there is a launch slot for device - if not 
             // we will execute the kernel on the CPU instead
