@@ -9,8 +9,15 @@
 #define cudaError_t hipError_t
 #endif
 
-#include <buffer_manager.hpp>
 #include <hpx/modules/async_cuda.hpp>
+#include "octotiger/cuda_util/cuda_helper.hpp"
+#include "octotiger/options.hpp"
+
+#include "octotiger/unitiger/hydro_impl/flux_kernel_interface.hpp"
+#include "octotiger/unitiger/hydro_impl/flux_kernel_templates.hpp"
+#include "octotiger/unitiger/hydro_impl/reconstruct_kernel_templates.hpp"    // required for xloc definition
+
+#include <buffer_manager.hpp>
 #if defined(OCTOTIGER_HAVE_CUDA)
 #include <cuda_buffer_util.hpp>
 #include <cuda_runtime.h>
@@ -19,12 +26,6 @@
 #include <hip_buffer_util.hpp>
 #endif
 #include <stream_manager.hpp>
-#include "octotiger/cuda_util/cuda_helper.hpp"
-#include "octotiger/options.hpp"
-
-#include "octotiger/unitiger/hydro_impl/flux_kernel_interface.hpp"
-#include "octotiger/unitiger/hydro_impl/flux_kernel_templates.hpp"
-#include "octotiger/unitiger/hydro_impl/reconstruct_kernel_templates.hpp"    // required for xloc definition
 
 __global__ void __launch_bounds__(128, 2) flux_cuda_kernel(const double* __restrict__ q_combined,
     const double* __restrict__ x_combined, double* __restrict__ f_combined, double* amax,
