@@ -1,5 +1,6 @@
 #pragma once
 
+#include <aggregation_manager.hpp>
 #include <hpx/futures/future.hpp>
 #include <hpx/kokkos/executors.hpp>
 #ifdef OCTOTIGER_HAVE_KOKKOS
@@ -449,30 +450,39 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec, const aggregated_host
     const size_t n_species, const double omega, const int angmom_index, const int nangmom,
     const double dx, const double A_, const double B_, const double fgamma,
     const double de_switch_1,
+    typename Aggregated_Executor<executor_t>::Executor_Slice &agg_exec,
     Allocator_Slice<double, kokkos_host_allocator<double>, executor_t> &alloc_host_double,
     Allocator_Slice<int, kokkos_host_allocator<int>, executor_t> &alloc_host_int) {
+
+    auto alloc_device_int =
+        agg_exec
+            .template make_allocator<int, kokkos_device_allocator<int>>();
+    auto alloc_device_double =
+        agg_exec
+            .template make_allocator<double, kokkos_device_allocator<double>>();
+
     // Find contact discs
-    device_buffer<double> u(nf * H_N3 + padding);
+    aggregated_device_buffer<double, executor_t> u(alloc_device_double, nf * H_N3 + padding);
     Kokkos::deep_copy(exec.instance(), u, combined_u);
-    device_buffer<double> P(H_N3 + padding);
-    device_buffer<double> disc(ndir / 2 * H_N3 + padding);
+    aggregated_device_buffer<double, executor_t> P(alloc_device_double, H_N3 + padding);
+    aggregated_device_buffer<double, executor_t> disc(alloc_device_double, ndir / 2 * H_N3 + padding);
     find_contact_discs_impl(exec, u, P, disc, physics<NDIM>::A_, physics<NDIM>::B_,
         physics<NDIM>::fgamma_, physics<NDIM>::de_switch_1, ndir, nf, {1, 12, 12}, {1, 10, 10});
 
     // Pre recon
-    device_buffer<double> large_x(NDIM * H_N3 + padding);
+    aggregated_device_buffer<double, executor_t> large_x(alloc_device_double, NDIM * H_N3 + padding);
     Kokkos::deep_copy(exec.instance(), large_x, combined_large_x);
     hydro_pre_recon_impl(exec, large_x, omega, angmom, u, nf, n_species, {1, 14, 14});
 
     // Reconstruct
-    device_buffer<double> x(NDIM * q_inx3 + padding);
+    aggregated_device_buffer<double, executor_t> x(alloc_device_double, NDIM * q_inx3 + padding);
     Kokkos::deep_copy(exec.instance(), x, combined_x);
-    device_buffer<int> device_disc_detect(nf);
+    aggregated_device_buffer<int, executor_t> device_disc_detect(alloc_device_int, nf);
     Kokkos::deep_copy(exec.instance(), device_disc_detect, disc_detect);
-    device_buffer<int> device_smooth_field(nf);
+    aggregated_device_buffer<int, executor_t> device_smooth_field(alloc_device_int, nf);
     Kokkos::deep_copy(exec.instance(), device_smooth_field, smooth_field);
-    device_buffer<double> q(nf * 27 * q_inx3 + padding);
-    device_buffer<double> AM(NDIM * q_inx3 + padding);
+    aggregated_device_buffer<double, executor_t> q(alloc_device_double, nf * 27 * q_inx3 + padding);
+    aggregated_device_buffer<double, executor_t> AM(alloc_device_double, NDIM * q_inx3 + padding);
 
     if (angmom_index > -1) {
         reconstruct_impl(exec, omega, nf, angmom_index, device_smooth_field, device_disc_detect, q,
@@ -486,15 +496,15 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec, const aggregated_host
     const device_buffer<bool>& masks =
         get_flux_device_masks<device_buffer<bool>, host_buffer<bool>, executor_t>(exec);
     const int number_blocks = (q_inx3 / 128 + 1) * 1;
-    device_buffer<double> amax(number_blocks * NDIM * (1 + 2 * nf));
-    device_buffer<int> amax_indices(number_blocks * NDIM);
-    device_buffer<int> amax_d(number_blocks * NDIM);
-    device_buffer<double> f(NDIM * nf * q_inx3 + padding);
+    aggregated_device_buffer<double, executor_t> amax(alloc_device_double, number_blocks * NDIM * (1 + 2 * nf));
+    aggregated_device_buffer<int, executor_t> amax_indices(alloc_device_int, number_blocks * NDIM);
+    aggregated_device_buffer<int, executor_t> amax_d(alloc_device_int, number_blocks * NDIM);
+    aggregated_device_buffer<double, executor_t> f(alloc_device_double, NDIM * nf * q_inx3 + padding);
     flux_impl(exec, q, x, f, amax, amax_indices, amax_d, masks, omega, dx, A_, B_, nf, fgamma,
         de_switch_1, NDIM * number_blocks, 128);
-    host_buffer<double> host_amax(number_blocks * NDIM * (1 + 2 * nf));
-    host_buffer<int> host_amax_indices(number_blocks * NDIM);
-    host_buffer<int> host_amax_d(number_blocks * NDIM);
+    aggregated_host_buffer<double, executor_t> host_amax(alloc_host_double, number_blocks * NDIM * (1 + 2 * nf));
+    aggregated_host_buffer<int, executor_t> host_amax_indices(alloc_host_int, number_blocks * NDIM);
+    aggregated_host_buffer<int, executor_t> host_amax_d(alloc_host_int, number_blocks * NDIM);
     Kokkos::deep_copy(exec.instance(), host_amax, amax);
     Kokkos::deep_copy(exec.instance(), host_amax_indices, amax_indices);
     Kokkos::deep_copy(exec.instance(), host_amax_d, amax_d);
@@ -553,6 +563,7 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec, const aggregated_host
     const size_t n_species, const double omega, const int angmom_index, const int nangmom,
     const double dx, const double A_, const double B_, const double fgamma,
     const double de_switch_1,
+    typename Aggregated_Executor<executor_t>::Executor_Slice &agg_exec,
     Allocator_Slice<double, kokkos_host_allocator<double>, executor_t> &alloc_host_double,
     Allocator_Slice<int, kokkos_host_allocator<int>, executor_t> &alloc_host_int) {
     // Find contact discs
@@ -637,7 +648,7 @@ timestep_t launch_hydro_kokkos_kernels(const hydro_computer<NDIM, INX, physics<N
 
     auto executor_slice_fut = hydro_kokkos_agg_executor_pool<executor_t>::request_executor_slice();
     auto ret_fut = executor_slice_fut.value().then(hpx::util::annotated_function([&](auto && fut) {
-      auto exec_slice = fut.get();
+      typename Aggregated_Executor<executor_t>::Executor_Slice exec_slice = fut.get();
       // Get allocators of all the executors working together
       // Allocator_Slice<double, kokkos_host_allocator<double>, executor_t>
       Allocator_Slice<double, kokkos_host_allocator<double>, executor_t> alloc_host_double =
@@ -675,7 +686,7 @@ timestep_t launch_hydro_kokkos_kernels(const hydro_computer<NDIM, INX, physics<N
           combined_u, disc_detect, smooth_field, f, geo.NDIR, hydro.get_nf(),
           hydro.get_angmom_index() != -1, n_species, omega, hydro.get_angmom_index(), geo.NANGMOM,
           X[0][geo.H_DNX] - X[0][0], physics<NDIM>::A_, physics<NDIM>::B_, physics<NDIM>::fgamma_,
-          physics<NDIM>::de_switch_1, alloc_host_double, alloc_host_int);
+          physics<NDIM>::de_switch_1, exec_slice, alloc_host_double, alloc_host_int);
 
       // Convert output
       for (int dim = 0; dim < NDIM; dim++) {

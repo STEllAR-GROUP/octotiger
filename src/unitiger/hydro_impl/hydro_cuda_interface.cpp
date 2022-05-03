@@ -117,15 +117,15 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
       auto alloc_host_double =
           exec_slice
               .template make_allocator<double, host_pinned_allocator<double>>();
-      auto alloc_device_double =
-          exec_slice
-              .template make_allocator<double, device_allocator<double>>();
       auto alloc_host_int =
           exec_slice
               .template make_allocator<int, host_pinned_allocator<int>>();
       auto alloc_device_int =
           exec_slice
               .template make_allocator<int, device_allocator<int>>();
+      auto alloc_device_double =
+          exec_slice
+              .template make_allocator<double, device_allocator<double>>();
 
       static const cell_geometry<NDIM, INX> geo;
 
