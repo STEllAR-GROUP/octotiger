@@ -122,6 +122,7 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
 
     // Nothing is available or device execution is disabled - fallback to host execution
     if (host_type == interaction_host_kernel_type::KOKKOS) {
+        hpx::lcos::local::call_once(init_hydro_kokkos_pool_flag, init_hydro_kokkos_aggregation_pool);
 #ifdef OCTOTIGER_HAVE_KOKKOS
         host_executor executor(hpx::kokkos::execution_space_mode::independent);
         // host_executor executor{};
