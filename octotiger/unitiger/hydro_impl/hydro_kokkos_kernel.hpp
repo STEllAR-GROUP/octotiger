@@ -82,6 +82,8 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
     // with the serial kokkos backend:
     assert((team_size == 1));
     if (agg_exec.sync_aggregation_slices()) {
+        const int number_slices = agg_exec.number_slices;
+        assert(number_slices == 1); // not implemented yet
         auto policy = Kokkos::Experimental::require(
             Kokkos::RangePolicy<decltype(executor.instance())>(
                 agg_exec.get_underlying_executor().instance(), 0, number_blocks),
@@ -196,9 +198,9 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
         (team_size == 1));
 
     if (agg_exec.sync_aggregation_slices()) {
+        const int number_slices = agg_exec.number_slices;
         // Set policy via executor and allocate enough scratch memory:
         using policytype = Kokkos::TeamPolicy<decltype(executor.instance())>;
-        const int number_slices = 1;
         auto policy =
             policytype(agg_exec.get_underlying_executor().instance(), number_blocks * number_slices, team_size);
         using membertype = typename policytype::member_type;
@@ -222,20 +224,20 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                 const int block_id = unsliced_team_league;
 
                 // todo insert reconstruct index
-                const int q_slice_offset = (nf * 27 * q_inx3 + 128) * slice_id;
-                const int f_slice_offset = (NDIM * nf * q_inx3 + 128) * slice_id;
-                const int x_slice_offset = (NDIM * q_inx3 + 128) * slice_id;
-                const int amax_slice_offset = NDIM * (1 + 2 * nf) * number_blocks * slice_id;
-                const int max_indices_slice_offset = NDIM * number_blocks * slice_id;
+                const int q_slice_offset = (nf * 27 * q_inx3 + padding) * slice_id;
+                const int f_slice_offset = (NDIM * nf * q_inx3 + padding) * slice_id;
+                const int x_slice_offset = (NDIM * q_inx3 + padding) * slice_id;
+                const int amax_slice_offset = (1 + 2 * nf) * number_blocks * slice_id;
+                const int max_indices_slice_offset = number_blocks * slice_id;
                 // Default values for relevant buffers/variables:
                 auto q_combined_slice = Kokkos::subview(
-                    q_combined, std::make_pair(q_slice_offset, (nf * 27 * q_inx3 + 128) *
+                    q_combined, std::make_pair(q_slice_offset, (nf * 27 * q_inx3 + padding) *
                     (slice_id + 1)));
                 auto x_combined_slice = Kokkos::subview(
-                    x_combined, std::make_pair(x_slice_offset, (NDIM * q_inx3 + 128) *
+                    x_combined, std::make_pair(x_slice_offset, (NDIM * q_inx3 + padding) *
                     (slice_id + 1)));
                 auto f_combined_slice = Kokkos::subview(
-                    f_combined, std::make_pair(f_slice_offset, (NDIM * nf * q_inx3 + 128) *
+                    f_combined, std::make_pair(f_slice_offset, (NDIM * nf * q_inx3 + padding) *
                     (slice_id + 1)));
 
                 // Set during cmake step with
@@ -250,19 +252,19 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                 double local_x[3] = {0.0, 0.0, 0.0};
                 double local_vg[3] = {0.0, 0.0, 0.0};
                 for (int f = 0; f < nf; f++) {
-                    f_combined[dim * nf * q_inx3 + f * q_inx3 + index] = 0.0;
+                    f_combined_slice[dim * nf * q_inx3 + f * q_inx3 + index] = 0.0;
                 }
                 if (tid == 0) {
-                    amax[block_id] = 0.0;
-                    amax_indices[block_id] = 0;
-                    amax_d[block_id] = 0;
+                    amax[block_id + amax_slice_offset] = 0.0;
+                    amax_indices[block_id + max_indices_slice_offset] = 0;
+                    amax_d[block_id + max_indices_slice_offset] = 0;
                 }
                 double current_amax = 0.0;
                 int current_d = 0;
 
                 // Calculate the flux:
                 if (index > q_inx * q_inx + q_inx && index < q_inx3) {
-                    double mask = masks[index + dim * dim_offset];
+                    const double mask = masks[index + dim * dim_offset];
                     if (mask != 0.0) {
                         for (int fi = 0; fi < 9; fi++) {            
                             double this_ap = 0.0, this_am = 0.0;   
@@ -357,9 +359,9 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                         }
                     }
                     if (tid == 0) {
-                        amax[block_id] = sm_amax[0];
-                        amax_indices[block_id] = sm_i[0];
-                        amax_d[block_id] = sm_d[0];
+                        amax[block_id + amax_slice_offset] = sm_amax[0];
+                        amax_indices[block_id + max_indices_slice_offset] = sm_i[0];
+                        amax_d[block_id + max_indices_slice_offset] = sm_d[0];
                     }
                 }
 
@@ -373,17 +375,17 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                     if (team_handle.team_size() == 1) {
                         amax[block_id + amax_slice_offset] = current_amax;
                         amax_indices[block_id + max_indices_slice_offset] = index;
-                        amax_d[block_id + max_indices_slice_offset] = current_d;
+                        amax_d[block_id + max_indices_slice_offset + max_indices_slice_offset] = current_d;
                     }
                     // Save face to the end of the amax buffer This avoids putting combined_q back
                     // on the host side just to read those few values
-                    const int flipped_dim = flip_dim(amax_d[block_id], dim);
+                    const int flipped_dim = flip_dim(amax_d[block_id + max_indices_slice_offset], dim);
                     for (int f = 0; f < nf; f++) {
                         amax[number_blocks + block_id * 2 * nf + f + amax_slice_offset] =
-                            q_combined_slice[amax_indices[block_id] + f * face_offset +
-                                dim_offset * amax_d[block_id]];
+                            q_combined_slice[amax_indices[block_id + max_indices_slice_offset] + f * face_offset +
+                                dim_offset * amax_d[block_id + max_indices_slice_offset]];
                         amax[number_blocks + block_id * 2 * nf + nf + f + amax_slice_offset] =
-                            q_combined_slice[amax_indices[block_id] -
+                            q_combined_slice[amax_indices[block_id + max_indices_slice_offset] -
                             compressedH_DN[dim] +
                                 f * face_offset + dim_offset * flipped_dim];
                     }
@@ -401,26 +403,29 @@ void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
     const kokkos_int_buffer_t& disc_detect_, kokkos_buffer_t& combined_q,
     const kokkos_buffer_t& combined_x, kokkos_buffer_t& combined_u, kokkos_buffer_t& AM,
     const kokkos_buffer_t& dx, const kokkos_buffer_t& cdiscs, const int n_species_, const int ndir,
-    const int nangmom, const Kokkos::Array<long, 3>&& tiling_config) {
+    const int nangmom, const Kokkos::Array<long, 4>&& tiling_config) {
     const int blocks = q_inx3 / 64 + 1;
+    const int number_slices = agg_exec.number_slices;
     if (agg_exec.sync_aggregation_slices()) {
         auto policy = Kokkos::Experimental::require(
-            Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<3>>(
-                agg_exec.get_underlying_executor().instance(), {0, 0, 0}, {blocks, 8, 8},
+            Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<4>>(
+                agg_exec.get_underlying_executor().instance(), {0, 0, 0, 0}, {number_slices, blocks, 8, 8},
                 tiling_config),
             Kokkos::Experimental::WorkItemProperty::HintLightWeight);
         Kokkos::parallel_for(
-            "kernel hydro reconstruct", policy, KOKKOS_LAMBDA(int idx, int idy, int idz) {
-            const int slice_id = 0;
+            "kernel hydro reconstruct", policy, KOKKOS_LAMBDA(int slice_id, int idx, int idy, int idz) {
                 const int sx_i = angmom_index_;
                 const int zx_i = sx_i + NDIM;
                 const int q_i = (idx) * 64 + (idy) * 8 + (idz);
                 const int i = ((q_i / q_inx2) + 2) * inx_large * inx_large +
                     (((q_i % q_inx2) / q_inx) + 2) * inx_large + (((q_i % q_inx2) % q_inx) + 2);
+
+                const int u_slice_offset = (nf_ * H_N3 + padding) * slice_id;
+                const int am_slice_offset = (NDIM * q_inx3 + padding) * slice_id;
                 if (q_i < q_inx3) {
                     for (int n = 0; n < nangmom; n++) {
-                        AM[n * am_offset + q_i] =
-                            combined_u[(zx_i + n) * u_face_offset + i] * combined_u[i];
+                        AM[n * am_offset + q_i + am_slice_offset] =
+                            combined_u[(zx_i + n) * u_face_offset + i + u_slice_offset] * combined_u[i + u_slice_offset];
                     }
                     for (int d = 0; d < ndir; d++) {
                         cell_reconstruct_inner_loop_p1(nf_, angmom_index_, smooth_field_,
@@ -446,18 +451,16 @@ void reconstruct_no_amc_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
     const kokkos_int_buffer_t& disc_detect_, kokkos_buffer_t& combined_q,
     const kokkos_buffer_t& combined_x, kokkos_buffer_t& combined_u, kokkos_buffer_t& AM,
     const kokkos_buffer_t& dx, const kokkos_buffer_t& cdiscs, const int n_species_, const int ndir,
-    const int nangmom, const Kokkos::Array<long, 3>&& tiling_config) {
+    const int nangmom, const Kokkos::Array<long, 4>&& tiling_config) {
     const int blocks = q_inx3 / 64 + 1;
+    const int number_slices = agg_exec.number_slices;
     if (agg_exec.sync_aggregation_slices()) {
         auto policy = Kokkos::Experimental::require(
-            Kokkos::MDRangePolicy<decltype(agg_exec.get_underlying_executor().instance()), Kokkos::Rank<3>>(
-                agg_exec.get_underlying_executor().instance(), {0, 0, 0}, {blocks, 8, 8}, tiling_config),
+            Kokkos::MDRangePolicy<decltype(agg_exec.get_underlying_executor().instance()), Kokkos::Rank<4>>(
+                agg_exec.get_underlying_executor().instance(), {0, 0, 0, 0}, {number_slices, blocks, 8, 8}, tiling_config),
             Kokkos::Experimental::WorkItemProperty::HintLightWeight);
         Kokkos::parallel_for(
-            "kernel hydro reconstruct", policy, KOKKOS_LAMBDA(int idx, int idy, int idz) {
-
-            const int slice_id = 0;
-
+            "kernel hydro reconstruct", policy, KOKKOS_LAMBDA(int slice_id, int idx, int idy, int idz) {
                 const int q_i = (idx) *64 + (idy) *8 + (idz);
                 const int i = ((q_i / q_inx2) + 2) * inx_large * inx_large +
                     (((q_i % q_inx2) / q_inx) + 2) * inx_large + (((q_i % q_inx2) % q_inx) + 2);
@@ -481,16 +484,17 @@ template <typename kokkos_backend_t, typename kokkos_buffer_t>
 void hydro_pre_recon_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
     typename Aggregated_Executor<hpx::kokkos::executor<kokkos_backend_t>>::Executor_Slice &agg_exec,
     const kokkos_buffer_t& large_x, const double omega, const bool angmom, kokkos_buffer_t& u,
-    const int nf, const int n_species, const Kokkos::Array<long, 3>&& tiling_config) {
+    const int nf, const int n_species, const Kokkos::Array<long, 4>&& tiling_config) {
+    const int number_slices = agg_exec.number_slices;
 
     if (agg_exec.sync_aggregation_slices()) {
       auto policy = Kokkos::Experimental::require(
-          Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<3>>(
-              agg_exec.get_underlying_executor().instance(), {0, 0, 0}, {inx_large, inx_large, inx_large}),
+          Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<4>>(
+              agg_exec.get_underlying_executor().instance(), {0, 0, 0, 0}, {number_slices, inx_large, inx_large, inx_large}),
           Kokkos::Experimental::WorkItemProperty::HintLightWeight);
       Kokkos::parallel_for(
-          "kernel hydro pre recon", policy, KOKKOS_LAMBDA(int idx, int idy, int idz) {
-              cell_hydro_pre_recon(large_x, omega, angmom, u, nf, n_species, idx, idy, idz, 0); // TODO add slice id
+          "kernel hydro pre recon", policy, KOKKOS_LAMBDA(int slice_id, int idx, int idy, int idz) {
+              cell_hydro_pre_recon(large_x, omega, angmom, u, nf, n_species, idx, idy, idz, slice_id); // TODO add slice id
         });
     }
 }
@@ -502,8 +506,7 @@ void find_contact_discs_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
     const double B_, const double fgamma_, const double de_switch_1, const size_t ndir, const size_t nf,
     const Kokkos::Array<long, 4>&& tiling_config_phase1,
     const Kokkos::Array<long, 4>&& tiling_config_phase2) {
-
-  const int number_slices = 1;
+    const int number_slices = agg_exec.number_slices;
     if (agg_exec.sync_aggregation_slices()) {
         auto policy_phase_1 = Kokkos::Experimental::require(
             Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<4>>(
@@ -582,7 +585,7 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     aggregated_device_buffer<double, executor_t> large_x(
         alloc_device_double, (NDIM * H_N3 + padding) * max_slices);
     aggregated_deep_copy(agg_exec, large_x, combined_large_x);
-    hydro_pre_recon_impl(exec, agg_exec, large_x, omega, angmom, u, nf, n_species, {1,
+    hydro_pre_recon_impl(exec, agg_exec, large_x, omega, angmom, u, nf, n_species, {1, 1,
         14, 14});
 
     // Reconstruct
@@ -605,15 +608,15 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
 
     if (angmom_index > -1) {
         reconstruct_impl(exec, agg_exec, omega, nf, angmom_index, device_smooth_field, device_disc_detect, q,
-            x, u, AM, dx_device, disc, n_species, ndir, nangmom, {1, 8, 8});
+            x, u, AM, dx_device, disc, n_species, ndir, nangmom, {1, 1, 8, 8});
     } else {
         reconstruct_no_amc_impl(exec, agg_exec, omega, nf, angmom_index, device_smooth_field,
-            device_disc_detect, q, x, u, AM, dx_device, disc, n_species, ndir, nangmom, {1, 8, 8});
+            device_disc_detect, q, x, u, AM, dx_device, disc, n_species, ndir, nangmom, {1, 1, 8, 8});
     }
 
     // Flux
     const device_buffer<bool>& masks =
-        get_flux_device_masks<device_buffer<bool>, host_buffer<bool>, executor_t>(exec);
+        get_flux_device_masks<device_buffer<bool>, host_buffer<bool>, executor_t>(agg_exec.get_underlying_executor());
     const int number_blocks = (q_inx3 / 128 + 1) * 1;
     aggregated_device_buffer<double, executor_t> amax(
         alloc_device_double, number_blocks * NDIM * (1 + 2 * nf) * max_slices);
@@ -664,7 +667,7 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     ts.a = host_amax[current_max_slot + amax_slice_offset];
     ts.x = combined_x[current_max_index + x_slice_offset * slice_id];
     ts.y = combined_x[current_max_index + q_inx3 + x_slice_offset * slice_id];
-    ts.z = combined_x[current_max_index + 2 * q_inx3];
+    ts.z = combined_x[current_max_index + 2 * q_inx3+ x_slice_offset * slice_id];
     ts.z = combined_x[current_max_index + 2 * q_inx3 + x_slice_offset * slice_id];
     const size_t current_i = current_max_slot;
     const size_t current_dim = current_max_slot / number_blocks;
@@ -718,7 +721,7 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec, const aggregated_host
 
     // Pre recon
     hydro_pre_recon_impl(exec, agg_exec, combined_large_x, omega, angmom, combined_u, nf, n_species,
-        {inx_large, inx_large, inx_large});
+        {1, inx_large, inx_large, inx_large});
 
     // Reconstruct
     aggregated_host_buffer<double, executor_t> q(
@@ -726,7 +729,7 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec, const aggregated_host
     aggregated_host_buffer<double, executor_t> AM(
         alloc_host_double, (NDIM * q_inx3 + padding) * max_slices);
     reconstruct_impl(exec, agg_exec, omega, nf, angmom_index, smooth_field, disc_detect, q, combined_x,
-        combined_u, AM, dx, disc, n_species, ndir, nangmom, {INX, INX, INX});
+        combined_u, AM, dx, disc, n_species, ndir, nangmom, {1, INX, INX, INX});
 
     // Flux
     const int blocks = NDIM * (q_inx3 / 128 + 1) * 128;
