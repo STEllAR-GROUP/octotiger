@@ -91,7 +91,7 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
         const int number_slices = agg_exec.number_slices;
         auto policy = Kokkos::Experimental::require(
             Kokkos::RangePolicy<decltype(executor.instance())>(
-                agg_exec.get_underlying_executor().instance(), 0, number_blocks * number_slices),
+                agg_exec.get_underlying_executor().instance(), 0, number_blocks * number_slices, Kokkos::ChunkSize(128)),
             Kokkos::Experimental::WorkItemProperty::HintLightWeight);
 
         Kokkos::parallel_for(
@@ -293,8 +293,8 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
         const int number_slices = agg_exec.number_slices;
         // Set policy via executor and allocate enough scratch memory:
         using policytype = Kokkos::TeamPolicy<decltype(executor.instance())>;
-        auto policy =
-            policytype(agg_exec.get_underlying_executor().instance(), number_blocks * number_slices, team_size);
+        auto policy = Kokkos::Experimental::require(
+            Kokkos::TeamPolicy<decltype(executor.instance())>(agg_exec.get_underlying_executor().instance(), number_blocks * number_slices, team_size), Kokkos::Experimental::WorkItemProperty::HintLightWeight);
         using membertype = typename policytype::member_type;
         if (team_size > 1)
             policy.set_scratch_size(
@@ -582,7 +582,7 @@ void hydro_pre_recon_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
     if (agg_exec.sync_aggregation_slices()) {
       auto policy = Kokkos::Experimental::require(
           Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<4>>(
-              agg_exec.get_underlying_executor().instance(), {0, 0, 0, 0}, {number_slices, inx_large, inx_large, inx_large}),
+              agg_exec.get_underlying_executor().instance(), {0, 0, 0, 0}, {number_slices, inx_large, inx_large, inx_large}, tiling_config),
           Kokkos::Experimental::WorkItemProperty::HintLightWeight);
       Kokkos::parallel_for(
           "kernel hydro pre recon", policy, KOKKOS_LAMBDA(int slice_id, int idx, int idy, int idz) {
@@ -603,7 +603,7 @@ void find_contact_discs_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
         auto policy_phase_1 = Kokkos::Experimental::require(
             Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<4>>(
                 agg_exec.get_underlying_executor().instance(), {0, 0, 0, 0},
-                {number_slices, inx_normal, inx_normal, inx_normal}),
+                {number_slices, inx_normal, inx_normal, inx_normal}, tiling_config_phase1),
             Kokkos::Experimental::WorkItemProperty::HintLightWeight);
         Kokkos::parallel_for(
             "kernel find contact discs 1", policy_phase_1,
@@ -614,7 +614,7 @@ void find_contact_discs_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
 
         auto policy_phase_2 = Kokkos::Experimental::require(
             Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<4>>(
-                agg_exec.get_underlying_executor().instance(), {0, 0, 0, 0}, {number_slices, q_inx, q_inx, q_inx}),
+                agg_exec.get_underlying_executor().instance(), {0, 0, 0, 0}, {number_slices, q_inx, q_inx, q_inx}, tiling_config_phase2),
             Kokkos::Experimental::WorkItemProperty::HintLightWeight);
         Kokkos::parallel_for(
             "kernel find contact discs 2", policy_phase_2,
@@ -713,12 +713,12 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     const int number_blocks = (q_inx3 / 128 + 1) * 128;
     const int number_blocks_small = (q_inx3 / 128 + 1) * 1;
 
-    aggregated_device_buffer<double, executor_t> amax_large(
-        alloc_device_double, number_blocks * NDIM * (1 + 2 * nf) * max_slices);
-    aggregated_device_buffer<int, executor_t> amax_indices_large(
-        alloc_device_int, number_blocks * NDIM * max_slices);
-    aggregated_device_buffer<int, executor_t> amax_d_large(
-        alloc_device_int, number_blocks * NDIM * max_slices);
+    /* aggregated_device_buffer<double, executor_t> amax_large( */
+    /*     alloc_device_double, number_blocks * NDIM * (1 + 2 * nf) * max_slices); */
+    /* aggregated_device_buffer<int, executor_t> amax_indices_large( */
+    /*     alloc_device_int, number_blocks * NDIM * max_slices); */
+    /* aggregated_device_buffer<int, executor_t> amax_d_large( */
+    /*     alloc_device_int, number_blocks * NDIM * max_slices); */
 
     aggregated_device_buffer<double, executor_t> amax(
         alloc_device_double, number_blocks_small * NDIM * (1 + 2 * nf) * max_slices);
@@ -729,10 +729,12 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
 
     aggregated_device_buffer<double, executor_t> f(
         alloc_device_double, (NDIM * nf * q_inx3 + padding) * max_slices);
-    flux_impl_teamless(exec, agg_exec, q, x, f, amax, amax_indices, amax_d, amax_large,
-        amax_indices_large, amax_d_large, masks, omega, dx_device, A_, B_, nf,
-        fgamma, de_switch_1,
-        NDIM * number_blocks_small, NDIM * number_blocks, 1, 128);
+    /* flux_impl_teamless(exec, agg_exec, q, x, f, amax, amax_indices, amax_d, amax_large, */
+    /*     amax_indices_large, amax_d_large, masks, omega, dx_device, A_, B_, nf, */
+    /*     fgamma, de_switch_1, */
+    /*     NDIM * number_blocks_small, NDIM * number_blocks, 1, 128); */
+    flux_impl(exec, agg_exec, q, x, f, amax, amax_indices, amax_d, masks, omega, dx_device, A_, B_, nf, fgamma,
+        de_switch_1, NDIM * number_blocks_small, 128);
     aggregated_host_buffer<double, executor_t> host_amax(
         alloc_host_double, number_blocks_small * NDIM * (1 + 2 * nf) * max_slices);
     aggregated_host_buffer<int, executor_t> host_amax_indices(
