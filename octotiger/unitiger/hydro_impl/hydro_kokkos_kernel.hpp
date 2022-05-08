@@ -75,12 +75,11 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
     typename Aggregated_Executor<hpx::kokkos::executor<kokkos_backend_t>>::Executor_Slice &agg_exec,
     const kokkos_buffer_t& q_combined, const kokkos_buffer_t& x_combined,
     kokkos_buffer_t& f_combined,
-    kokkos_buffer_t& amax_small, kokkos_int_buffer_t& amax_indices_small, kokkos_int_buffer_t& amax_d_small,
     kokkos_buffer_t& amax, kokkos_int_buffer_t& amax_indices, kokkos_int_buffer_t& amax_d,
     const kokkos_mask_t& masks, const double omega, const kokkos_buffer_t& dx,
     const double A_, const double B_, const int nf, const double fgamma, const double de_switch_1,
-    const int number_blocks_small, const int number_blocks, const int team_size,
-    const int workitems_per_small_block) {
+    const int number_blocks, const int team_size
+    ) {
     // Supported team_sizes need to be the power of two! Team size of 1 is a special case for usage
     // with the serial kokkos backend:
     assert((team_size == 1));
@@ -91,7 +90,7 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
         const int number_slices = agg_exec.number_slices;
         auto policy = Kokkos::Experimental::require(
             Kokkos::RangePolicy<decltype(executor.instance())>(
-                agg_exec.get_underlying_executor().instance(), 0, number_blocks * number_slices, Kokkos::ChunkSize(128)),
+                agg_exec.get_underlying_executor().instance(), 0, number_blocks * number_slices),
             Kokkos::Experimental::WorkItemProperty::HintLightWeight);
 
         Kokkos::parallel_for(
@@ -205,7 +204,7 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
                 }
             });
 
-        const auto workitems =
+        /*const auto workitems =
             number_blocks_small + (64 - number_blocks_small % 64);    // padd until wavefront size
         auto policy_max = Kokkos::Experimental::require(
             Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<2>>(
@@ -259,19 +258,19 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
                     for (int f = 0; f < nf; f++) {
                         amax_small[number_blocks_small + block_id * 2 * nf + f +
                             amax_slice_offset_small] =
-                            q_combined[amax_indices_small[block_id +
+                            q_combined_slice[amax_indices_small[block_id +
                                            max_indices_slice_offset_small] +
                                 f * face_offset +
                                 dim_offset *
                                     amax_d_small[block_id + max_indices_slice_offset_small]];
                         amax_small[number_blocks_small + block_id * 2 * nf + nf + f +
                             amax_slice_offset_small] =
-                            q_combined[amax_indices_small[block_id +
+                            q_combined_slice[amax_indices_small[block_id +
                                            max_indices_slice_offset_small] -
                                 compressedH_DN[dim] + f * face_offset + dim_offset * flipped_dim];
                     }
                 }
-            });
+            });*/
     }
 }
 
@@ -710,7 +709,6 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     // Flux
     const device_buffer<bool>& masks =
         get_flux_device_masks<device_buffer<bool>, host_buffer<bool>, executor_t>(agg_exec.get_underlying_executor());
-    const int number_blocks = (q_inx3 / 128 + 1) * 128;
     const int number_blocks_small = (q_inx3 / 128 + 1) * 1;
 
     /* aggregated_device_buffer<double, executor_t> amax_large( */
@@ -842,30 +840,24 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
 
     // Flux
     const int blocks = NDIM * (q_inx3 / 128 + 1) * 128;
-    const int blocks_small = NDIM * (q_inx3 / 128 + 1) * 1;
     const host_buffer<bool>& masks = get_flux_host_masks<host_buffer<bool>>();
 
-    aggregated_host_buffer<double, executor_t> amax_large(
-        alloc_host_double, blocks * (1 + 2 * nf) * max_slices);
-    aggregated_host_buffer<int, executor_t> amax_indices_large(alloc_host_int, blocks * max_slices);
-    aggregated_host_buffer<int, executor_t> amax_d_large(alloc_host_int, blocks * max_slices);
-
     aggregated_host_buffer<double, executor_t> amax(
-        alloc_host_double, blocks_small * (1 + 2 * nf) * max_slices);
-    aggregated_host_buffer<int, executor_t> amax_indices(alloc_host_int, blocks_small * max_slices);
-    aggregated_host_buffer<int, executor_t> amax_d(alloc_host_int, blocks_small * max_slices);
+        alloc_host_double, blocks * (1 + 2 * nf) * max_slices);
+    aggregated_host_buffer<int, executor_t> amax_indices(alloc_host_int, blocks * max_slices);
+    aggregated_host_buffer<int, executor_t> amax_d(alloc_host_int, blocks * max_slices);
 
-    flux_impl_teamless(exec, agg_exec, q, combined_x, f, amax, amax_indices, amax_d, amax_large, amax_indices_large, amax_d_large, masks, omega, dx, A_, B_,
-        nf, fgamma, de_switch_1, blocks_small, blocks, 1, 128);
+    flux_impl_teamless(exec, agg_exec, q, combined_x, f, amax, amax_indices, amax_d, masks, omega,
+        dx, A_, B_, nf, fgamma, de_switch_1, blocks, 1);
 
     sync_kokkos_host_kernel(exec);
 
-    const int amax_slice_offset = (1 + 2 * nf) * blocks_small * slice_id;
-    const int max_indices_slice_offset = blocks_small * slice_id;
+    const int amax_slice_offset = (1 + 2 * nf) * blocks * slice_id;
+    const int max_indices_slice_offset = blocks * slice_id;
 
     // Find Maximum
     size_t current_max_slot = 0;
-    for (size_t dim_i = 1; dim_i < blocks_small; dim_i++) {
+    for (size_t dim_i = 1; dim_i < blocks; dim_i++) {
         if (amax[dim_i + amax_slice_offset] > amax[current_max_slot + amax_slice_offset]) {
             current_max_slot = dim_i;
         } else if (amax[dim_i + amax_slice_offset] == amax[current_max_slot + amax_slice_offset]) {
@@ -879,7 +871,7 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     std::vector<double> URs(nf), ULs(nf);
     const size_t current_max_index = amax_indices[current_max_slot + max_indices_slice_offset];
     /* const size_t current_d = amax_d[current_max_slot]; */
-    const auto current_dim = current_max_slot / (blocks_small / NDIM);
+    const auto current_dim = current_max_slot / (blocks / NDIM);
     timestep_t ts;
     ts.a = amax[current_max_slot + amax_slice_offset];
     ts.x = combined_x[current_max_index + x_slice_offset * slice_id];
@@ -889,8 +881,8 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     /* const auto flipped_dim = flip_dim(current_d, current_dim); */
     constexpr int compressedH_DN[3] = {q_inx2, q_inx, 1};
     for (int f = 0; f < nf; f++) {
-        URs[f] = amax[blocks_small + current_i * 2 * nf + f + amax_slice_offset];
-        ULs[f] = amax[blocks_small + current_i * 2 * nf + nf + f + amax_slice_offset];
+        URs[f] = amax[blocks + current_i * 2 * nf + f + amax_slice_offset];
+        ULs[f] = amax[blocks + current_i * 2 * nf + nf + f + amax_slice_offset];
     }
     ts.ul = std::move(URs);
     ts.ur = std::move(ULs);
