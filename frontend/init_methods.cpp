@@ -129,7 +129,7 @@ void init_executors(void) {
 
 #if defined(OCTOTIGER_HAVE_KOKKOS)
     stream_pool::init<hpx::kokkos::serial_executor, round_robin_pool<hpx::kokkos::serial_executor>>(
-        opts().cuda_streams_per_gpu, hpx::kokkos::execution_space_mode::independent);
+        256, hpx::kokkos::execution_space_mode::independent);
 #if defined(KOKKOS_ENABLE_CUDA)
     // initialize stencils / executor pool in kokkos device
     std::cout << "KOKKOS/CUDA is enabled!" << std::endl;
