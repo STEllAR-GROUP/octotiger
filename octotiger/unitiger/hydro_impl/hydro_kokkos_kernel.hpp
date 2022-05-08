@@ -4,6 +4,7 @@
 #include <aggregation_manager.hpp>
 #include <hpx/futures/future.hpp>
 #include <hpx/kokkos/executors.hpp>
+#include <utility>
 #ifdef OCTOTIGER_HAVE_KOKKOS
 #include "octotiger/common_kernel/kokkos_util.hpp"
 #include "octotiger/unitiger/hydro_impl/flux_kernel_interface.hpp"    // required for wrappers
@@ -53,14 +54,49 @@ void aggregated_deep_copy(
     }
 }
 
-template<typename executor_t, typename TargetView_t, typename SourceView_t>
+template <typename Agg_executor_t, typename TargetView_t, typename SourceView_t>
+void aggregated_deep_copy(
+    Agg_executor_t& agg_exec, TargetView_t& target, SourceView_t& source, int elements_per_slice) {
+    if (agg_exec.sync_aggregation_slices()) {
+        const size_t number_slices = agg_exec.number_slices;
+        auto target_slices = Kokkos::subview(
+            target, std::make_pair<size_t, size_t>(0, number_slices * elements_per_slice));
+        auto source_slices = Kokkos::subview(
+            source, std::make_pair<size_t, size_t>(0, number_slices * elements_per_slice));
+        Kokkos::deep_copy(
+            agg_exec.get_underlying_executor().instance(), target_slices, source_slices);
+    }
+}
+
+template <typename executor_t, typename TargetView_t, typename SourceView_t>
 hpx::lcos::shared_future<void> aggregrated_deep_copy_async(
-    typename Aggregated_Executor<executor_t>::Executor_Slice &agg_exec,
-    TargetView_t &target, SourceView_t &source) {
-    auto launch_copy_lambda = [](TargetView_t &target, SourceView_t &source, executor_t &exec) -> hpx::lcos::shared_future<void> {
-      return hpx::kokkos::deep_copy_async(exec.instance(), target, source);
+    typename Aggregated_Executor<executor_t>::Executor_Slice& agg_exec, TargetView_t& target,
+    SourceView_t& source) {
+    auto launch_copy_lambda = [](TargetView_t& target, SourceView_t& source,
+                                  executor_t& exec) -> hpx::lcos::shared_future<void> {
+        return hpx::kokkos::deep_copy_async(exec.instance(), target, source);
     };
-    return agg_exec.wrap_async(launch_copy_lambda, target, source, agg_exec.get_underlying_executor());
+    return agg_exec.wrap_async(
+        launch_copy_lambda, target, source, agg_exec.get_underlying_executor());
+}
+
+template <typename executor_t, typename TargetView_t, typename SourceView_t>
+hpx::lcos::shared_future<void> aggregrated_deep_copy_async(
+    typename Aggregated_Executor<executor_t>::Executor_Slice& agg_exec, TargetView_t& target,
+    SourceView_t& source, int elements_per_slice) {
+    const size_t number_slices = agg_exec.number_slices;
+    auto launch_copy_lambda = [elements_per_slice, number_slices](TargetView_t& target,
+                                  SourceView_t& source,
+                                  executor_t& exec) -> hpx::lcos::shared_future<void> {
+        auto target_slices = Kokkos::subview(
+            target, std::make_pair<size_t, size_t>(0, number_slices * elements_per_slice));
+        auto source_slices = Kokkos::subview(
+            source, std::make_pair<size_t, size_t>(0, number_slices *
+              elements_per_slice));
+        return hpx::kokkos::deep_copy_async(exec.instance(), target_slices, source_slices);
+    };
+    return agg_exec.wrap_async(
+        launch_copy_lambda, target, source, agg_exec.get_underlying_executor());
 }
 
 /// Team-less version of the kokkos flux impl
@@ -664,7 +700,7 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     // Find contact discs
     aggregated_device_buffer<double, executor_t> u(
         alloc_device_double, (nf * H_N3 + padding) * max_slices);
-    aggregated_deep_copy(agg_exec, u, combined_u);
+    aggregated_deep_copy(agg_exec, u, combined_u, (nf * H_N3 + padding));
     aggregated_device_buffer<double, executor_t> P(
         alloc_device_double, (H_N3 + padding) * max_slices);
     aggregated_device_buffer<double, executor_t> disc(
@@ -676,14 +712,14 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     // Pre recon
     aggregated_device_buffer<double, executor_t> large_x(
         alloc_device_double, (NDIM * H_N3 + padding) * max_slices);
-    aggregated_deep_copy(agg_exec, large_x, combined_large_x);
+    aggregated_deep_copy(agg_exec, large_x, combined_large_x, (NDIM * H_N3 + padding));
     hydro_pre_recon_impl(exec, agg_exec, large_x, omega, angmom, u, nf, n_species, {1, 1,
         14, 14});
 
     // Reconstruct
     aggregated_device_buffer<double, executor_t> x(
         alloc_device_double, (NDIM * q_inx3 + padding) * max_slices);
-    aggregated_deep_copy(agg_exec, x, combined_x);
+    aggregated_deep_copy(agg_exec, x, combined_x, (NDIM * q_inx3 + padding));
     aggregated_device_buffer<int, executor_t>
       device_disc_detect(alloc_device_int, nf * max_slices);
     aggregated_deep_copy(agg_exec, device_disc_detect, disc_detect);
@@ -744,7 +780,7 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     aggregated_deep_copy(agg_exec, host_amax_indices, amax_indices);
     aggregated_deep_copy(agg_exec, host_amax_d, amax_d);
 
-    auto fut = aggregrated_deep_copy_async<executor_t>(agg_exec, host_f, f);
+    auto fut = aggregrated_deep_copy_async<executor_t>(agg_exec, host_f, f, (NDIM * nf * q_inx3 + padding));
     fut.get();
 
     const int amax_slice_offset = NDIM * (1 + 2 * nf) * number_blocks_small * slice_id;
