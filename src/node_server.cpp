@@ -191,8 +191,8 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
   hpx::util::annotated_function([&]() {
 	grid_ptr->clear_amr();
   ready_for_hydro_exchange[hcycle%number_hydro_exchange_promises].set_value();
-  const bool use_local_optimization = true;
-  const bool use_local_amr_optimization = true;
+  const bool use_local_optimization = opts().optimize_local_communication;
+  const bool use_local_amr_optimization = opts().optimize_local_communication;
 
 	std::vector<hpx::lcos::shared_future<void>> neighbors_ready; 
   bool local_amr_handling = false;
@@ -345,16 +345,19 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
 
           }
         }, "node_server::collect_hydro_boundaries::set_hydro_boundary"));
+        // sync
+        results[index - 1].get();
       }
 		}
 	}
-	while (index < geo::direction::count()) {
-		results[index++] = hpx::make_ready_future();
-	}
+	/* while (index < geo::direction::count()) { */
+	/* 	results[index++] = hpx::make_ready_future(); */
+	/* } */
 //	wait_all_and_propagate_exceptions(std::move(results));
-	for (auto &f : results) {
-		GET(f);
-	}
+	/* for (auto &f : results) { */
+	/* 	GET(f); */
+	/* } */
+
 	amr_boundary_type kernel_type = opts().amr_boundary_kernel_type;
   hpx::util::annotated_function([&]() {
 	if (kernel_type == AMR_LEGACY) {
@@ -404,7 +407,7 @@ void node_server::send_hydro_amr_boundaries(bool energy_only) {
     if (is_refined) {
       // set promise 
       ready_for_amr_hydro_exchange[hcycle%number_hydro_exchange_promises].set_value();
-      const bool use_local_optimization = true;
+      const bool use_local_optimization = opts().optimize_local_communication;
       // TODO only set if at least one of the children is local?
       constexpr auto full_set = geo::octant::full_set();
       for (auto &ci : full_set) {

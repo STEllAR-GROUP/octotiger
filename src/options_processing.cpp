@@ -166,6 +166,7 @@ bool options::process_options(int argc, char *argv[]) {
 	("cuda_buffer_capacity", po::value<size_t>(&(opts().cuda_buffer_capacity))->default_value(size_t(5)), "How many launches should be buffered before using the CPU") //
 	("max_executor_slices", po::value<size_t>(&(opts().max_executor_slices))->default_value(size_t(1)), "Can be aggregated?") //
 	("root_node_on_device", po::value<bool>(&(opts().root_node_on_device))->default_value(true), "Offload root node gravity kernels to the GPU? May degrade performance given weak GPUs") //
+	("optimize_local_communication", po::value<bool>(&(opts().optimize_local_communication))->default_value(true), "Use pointers of neighbors in local subgrids directly") //
 	("input_file", po::value<std::string>(&(opts().input_file))->default_value(""), "input file for test problems") //
 	("config_file", po::value<std::string>(&(opts().config_file))->default_value(""), "configuration file") //
 	("n_species", po::value<integer>(&(opts().n_species))->default_value(5), "number of mass species") //
@@ -315,6 +316,7 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(max_executor_slices);
 		SHOW(amr_boundary_kernel_type);
 		SHOW(root_node_on_device);
+		SHOW(optimize_local_communication);
 		SHOW(multipole_device_kernel_type);
 		SHOW(multipole_host_kernel_type);
 		SHOW(monopole_device_kernel_type);
