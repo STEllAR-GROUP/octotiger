@@ -615,13 +615,20 @@ void hydro_pre_recon_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
     const int number_slices = agg_exec.number_slices;
 
     if (agg_exec.sync_aggregation_slices()) {
+      const int blocks = (inx_large * inx_large * inx_large) / 64 + 1;
       auto policy = Kokkos::Experimental::require(
           Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<4>>(
-              agg_exec.get_underlying_executor().instance(), {0, 0, 0, 0}, {number_slices, inx_large, inx_large, inx_large}, tiling_config),
+              agg_exec.get_underlying_executor().instance(), {0, 0, 0, 0}, {number_slices, blocks, 8, 8}, tiling_config),
           Kokkos::Experimental::WorkItemProperty::HintLightWeight);
       Kokkos::parallel_for(
-          "kernel hydro pre recon", policy, KOKKOS_LAMBDA(int slice_id, int idx, int idy, int idz) {
-              cell_hydro_pre_recon(large_x, omega, angmom, u, nf, n_species, idx, idy, idz, slice_id); // TODO add slice id
+            "kernel hydro pre recon", policy, KOKKOS_LAMBDA(int slice_id, int idx, int idy, int idz) {
+              const int index = (idx) * 64 + (idy) * 8 + (idz);
+              if (index < inx_large * inx_large * inx_large) {
+                const int grid_x = index / (inx_large * inx_large);
+                const int grid_y = (index % (inx_large * inx_large)) / inx_large;
+                const int grid_z = (index % (inx_large * inx_large)) % inx_large;
+                cell_hydro_pre_recon(large_x, omega, angmom, u, nf, n_species, grid_x, grid_y, grid_z, slice_id); 
+          }
         });
     }
 }
@@ -635,26 +642,40 @@ void find_contact_discs_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
     const Kokkos::Array<long, 4>&& tiling_config_phase2) {
     const int number_slices = agg_exec.number_slices;
     if (agg_exec.sync_aggregation_slices()) {
+        const int blocks = (inx_normal * inx_normal * inx_normal) / 64 + 1;
         auto policy_phase_1 = Kokkos::Experimental::require(
             Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<4>>(
                 agg_exec.get_underlying_executor().instance(), {0, 0, 0, 0},
-                {number_slices, inx_normal, inx_normal, inx_normal}, tiling_config_phase1),
+                {number_slices, blocks, 8, 8}, tiling_config_phase1),
             Kokkos::Experimental::WorkItemProperty::HintLightWeight);
         Kokkos::parallel_for(
             "kernel find contact discs 1", policy_phase_1,
             KOKKOS_LAMBDA(int slice_id, int idx, int idy, int idz) {
-                cell_find_contact_discs_phase1(
-                    P, u, A_, B_, fgamma_, de_switch_1, nf, idx, idy, idz, slice_id);
+                const int index = (idx) * 64 + (idy) * 8 + (idz);
+                if (index < inx_normal * inx_normal * inx_normal) {
+                  const int grid_x = index / (inx_normal * inx_normal);
+                  const int grid_y = (index % (inx_normal * inx_normal)) / inx_normal;
+                  const int grid_z = (index % (inx_normal * inx_normal)) % inx_normal;
+                  cell_find_contact_discs_phase1(
+                      P, u, A_, B_, fgamma_, de_switch_1, nf, grid_x, grid_y, grid_z, slice_id);
+                }
             });
 
+        const int blocks2 = (q_inx * q_inx * q_inx) / 64 + 1;
         auto policy_phase_2 = Kokkos::Experimental::require(
             Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<4>>(
-                agg_exec.get_underlying_executor().instance(), {0, 0, 0, 0}, {number_slices, q_inx, q_inx, q_inx}, tiling_config_phase2),
+                agg_exec.get_underlying_executor().instance(), {0, 0, 0, 0}, {number_slices, blocks2, 8, 8}, tiling_config_phase2),
             Kokkos::Experimental::WorkItemProperty::HintLightWeight);
         Kokkos::parallel_for(
             "kernel find contact discs 2", policy_phase_2,
             KOKKOS_LAMBDA(int slice_id, int idx, int idy, int idz) {
-                cell_find_contact_discs_phase2(disc, P, fgamma_, ndir, idx, idy, idz, slice_id);
+                const int index = (idx) * 64 + (idy) * 8 + (idz);
+                if (index < q_inx3) {
+                  const int grid_x = index / (q_inx * q_inx);
+                  const int grid_y = (index % (q_inx * q_inx)) / q_inx;
+                  const int grid_z = (index % (q_inx * q_inx)) % q_inx;
+                  cell_find_contact_discs_phase2(disc, P, fgamma_, ndir, grid_x, grid_y, grid_z, slice_id);
+                }
             });
     }
 }
@@ -706,15 +727,15 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     aggregated_device_buffer<double, executor_t> disc(
         alloc_device_double, (ndir / 2 * H_N3 + padding) * max_slices);
     find_contact_discs_impl(exec, agg_exec, u, P, disc, physics<NDIM>::A_, physics<NDIM>::B_,
-        physics<NDIM>::fgamma_, physics<NDIM>::de_switch_1, ndir, nf, {1, 1, 12,
-        12}, {1, 1, 10, 10});
+        physics<NDIM>::fgamma_, physics<NDIM>::de_switch_1, ndir, nf, {1, 1, 8,
+        8}, {1, 1, 8, 8});
 
     // Pre recon
     aggregated_device_buffer<double, executor_t> large_x(
         alloc_device_double, (NDIM * H_N3 + padding) * max_slices);
     aggregated_deep_copy(agg_exec, large_x, combined_large_x, (NDIM * H_N3 + padding));
     hydro_pre_recon_impl(exec, agg_exec, large_x, omega, angmom, u, nf, n_species, {1, 1,
-        14, 14});
+        8, 8});
 
     // Reconstruct
     aggregated_device_buffer<double, executor_t> x(
@@ -860,11 +881,11 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
         alloc_host_double, (ndir / 2 * H_N3 + padding) * max_slices);
     find_contact_discs_impl(exec, agg_exec, combined_u, P, disc, physics<NDIM>::A_, physics<NDIM>::B_,
         physics<NDIM>::fgamma_, physics<NDIM>::de_switch_1, ndir, nf,
-        {1, inx_normal, inx_normal, inx_normal}, {1, q_inx, q_inx, q_inx});
+        {1, 1, 8, 8}, {1, 1, 8, 8});
 
     // Pre recon
     hydro_pre_recon_impl(exec, agg_exec, combined_large_x, omega, angmom, combined_u, nf, n_species,
-        {1, inx_large, inx_large, inx_large});
+        {1, 1, 8, 8});
 
     // Reconstruct
     aggregated_host_buffer<double, executor_t> q(
@@ -872,7 +893,7 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     aggregated_host_buffer<double, executor_t> AM(
         alloc_host_double, (NDIM * q_inx3 + padding) * max_slices);
     reconstruct_impl(exec, agg_exec, omega, nf, angmom_index, smooth_field, disc_detect, q, combined_x,
-        combined_u, AM, dx, disc, n_species, ndir, nangmom, {1, INX, INX, INX});
+        combined_u, AM, dx, disc, n_species, ndir, nangmom, {1, 1, 8, 8});
 
     // Flux
     const int blocks = NDIM * (q_inx3 / 128 + 1) * 128;
