@@ -98,9 +98,13 @@ void cleanup_puddle_on_this_locality(void) {
 void init_executors(void) {
     std::cout << "Initialize executors and masks..." << std::endl;
 #ifdef OCTOTIGER_HAVE_KOKKOS
-    std::cout << "Initializing Kokkos on this locality..." << std::endl;
-    Kokkos::initialize();
-    Kokkos::print_configuration(std::cout);
+    if (!Kokkos::is_initialized()) { // gets initialized earlier on root locality
+      Kokkos::initialize();
+      Kokkos::print_configuration(std::cout);
+      std::cout << "Initialized Kokkos on this locality..." << std::endl;
+    } else {
+      std::cout << "Kokkos already initialized" << std::endl;
+    }
     
 #ifdef OCTOTIGER_MULTIPOLE_HOST_HPX_EXECUTOR
     std::cout << "Using Kokkos HPX executors for multipole FMM kernels..." << std::endl;
