@@ -86,9 +86,9 @@ std::vector<real> radiation_test_problem(real x, real y, real z, real dx) {
 std::vector<real> radiation_diffusion_test_problem(real x, real y, real z, real dx) {
 
 	std::vector<real> u(opts().n_fields + NRF, real(0));
-	x -= 0.5;
-	y -= 0.5;
-	z -= 0.5;
+	x -= 0.75;
+	y -= 0.75;
+	z -= 0.75;
 	real r = std::max(2.0 * dx, 0.50);
 	real eint;
 	u[rho_i] = 1.0e6;

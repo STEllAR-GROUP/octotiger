@@ -21,7 +21,7 @@ U kappa_R(U rho, U e, U mmw, real X, real Z) {
 	if (opts().problem == MARSHAK) {
 		return MARSHAK_OPAC;
 	} else if( opts().problem == RADIATION_DIFFUSION) {
-		return 1e6*physcon().c;
+		return 100;
 	} else {
 		const U T = temperature(rho, e, mmw);
 		const U f1 = (T * T + U(2.7e+11) * rho);
