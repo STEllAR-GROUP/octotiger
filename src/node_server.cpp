@@ -213,9 +213,8 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
 
   std::vector<hpx::lcos::shared_future<void>> neighbors_finished_reading;
 	for (auto const &dir : geo::direction::full_set()) {
-    bool is_local = neighbors[dir].is_local();
     const integer width = H_BW;
-    if (is_local && use_local_optimization && !neighbors[dir].empty()) {
+    if (neighbors[dir].is_local() && use_local_optimization && !neighbors[dir].empty()) {
       /* auto fut = sibling_hydro_channels[dir].get_future(hcycle); */
       /* fut.get(); */
       const auto *uneighbor = neighbors[dir].u_local;
@@ -253,7 +252,7 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
         neighbors_finished_reading.emplace_back((*neighbor_promises_p)[hcycle%number_hydro_exchange_promises].get_shared_future());
       }
       //neighbors_finished_reading
-    } else if (is_local && use_local_amr_optimization && neighbors[dir].empty() && my_location.level() != 0) { 
+    } else if (use_local_amr_optimization && neighbors[dir].empty() && parent.is_local() && my_location.level() != 0) { 
       // Get neighbor data and the required boundaries for copying the ghostlayer
       const auto *uneighbor = parent.u_local;
       std::array<integer, NDIM> lb_orig, ub_orig;
