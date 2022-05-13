@@ -39,6 +39,7 @@ public:
 	bool bench;
 	bool disable_output;
 	bool disable_analytic;
+	bool debug;
 	bool core_refine;
 	bool gravity;
 	bool hydro;
@@ -216,6 +217,7 @@ public:
 		arc & n_fields;
 		arc & n_species;
 		arc & input_file;
+		arc & debug;
 		arc & config_file;
 		arc & hydro;
 		arc & gravity;
