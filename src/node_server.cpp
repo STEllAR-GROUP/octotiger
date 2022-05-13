@@ -374,6 +374,14 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 		}
 	}
 
+
+
+	if( my_location.level() == 0 && opts().debug ) {
+		printf( "GRAVITY: Computing Multipoles\n");
+		fflush(stdout);
+	}
+
+
 	if (is_refined) {
 		std::array<future<void>, geo::octant::count()> futs;
 		integer index = 0;
@@ -403,6 +411,12 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 		m_out = grid_ptr->compute_multipoles(type);
 	}
 
+	if( my_location.level() == 0 && opts().debug ) {
+		printf( "GRAVITY: Sending Multipoles\n");
+		fflush(stdout);
+	}
+
+
 	if (my_location.level() != 0) {
 		parent.send_gravity_multipoles(std::move(m_out), my_location.get_child_index());
 	}
@@ -426,6 +440,13 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 			}
 		}
 	}
+
+	if( my_location.level() == 0 && opts().debug ) {
+		printf( "GRAVITY: Computing interactions\n");
+		fflush(stdout);
+	}
+
+
 
 	/****************************************************************************/
 	// data managemenet for old and new version of interaction computation
@@ -501,6 +522,13 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 		}
 	}
 
+	if( my_location.level() == 0 && opts().debug ) {
+		printf( "GRAVITY: Signalling neighbors\n");
+		fflush(stdout);
+	}
+
+
+
 	/**************************************************************************/
 	// now that all boundary information has been processed, signal all non-empty neighbors
 	// note that this was done before during boundary calculations
@@ -515,11 +543,23 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 	}
 	/***************************************************************************/
 
+	if( my_location.level() == 0 && opts().debug ) {
+		printf( "GRAVITY: Computing expansions\n");
+		fflush(stdout);
+	}
+
+
 	expansion_pass_type l_in;
 	if (my_location.level() != 0) {
 		l_in = parent_gravity_channel.get_future().get();
 	}
 	const expansion_pass_type ltmp = grid_ptr->compute_expansions(type, my_location.level() == 0 ? nullptr : &l_in);
+
+
+	if( my_location.level() == 0 && opts().debug ) {
+		printf( "GRAVITY: Sending Expansions\n");
+		fflush(stdout);
+	}
 
 	if (is_refined) {
 		for (auto const &ci : geo::octant::full_set()) {
@@ -550,6 +590,13 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 	if (energy_account) {
 		grid_ptr->etot_to_egas();
 	}
+
+	if( my_location.level() == 0 && opts().debug ) {
+		printf( "GRAVITY: DONE!\n");
+		fflush(stdout);
+	}
+
+
 	++gcycle;
 }
 

@@ -91,7 +91,8 @@ bool options::process_options(int argc, char *argv[]) {
 			"total mass enclosed inside the sphere")     //
 	("solid_sphere_rho_min", po::value<real>(&(opts().solid_sphere_rho_min))->default_value(1.0e-12),
 			"minimal density outside (and within) the sphere")     //
-	("star_xcenter", po::value<real>(&(opts().star_xcenter))->default_value(0.0), "x-position of the star center")     //
+			("debug", po::value<bool>(&(opts().debug))->default_value(false), "Add debugging output")     //
+			("star_xcenter", po::value<real>(&(opts().star_xcenter))->default_value(0.0), "x-position of the star center")     //
 	("star_ycenter", po::value<real>(&(opts().star_ycenter))->default_value(0.0), "y-position of the star center")     //
 	("star_zcenter", po::value<real>(&(opts().star_zcenter))->default_value(0.0), "z-position of the star center")     //
 	("star_n", po::value<real>(&(opts().star_n))->default_value(1.5), "polytropic index of the star")     //
