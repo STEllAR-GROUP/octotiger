@@ -98,6 +98,8 @@ hpx::lcos::shared_future<void> aggregrated_deep_copy_async(
     return agg_exec.wrap_async(
         launch_copy_lambda, target, source, agg_exec.get_underlying_executor());
 }
+using host_simd_exp_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>;
+using host_simd_mask_exp_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::scalar>;
 
 /// Team-less version of the kokkos flux impl
 /** Meant to be run on host, though it can be used on both host and device.
@@ -105,8 +107,9 @@ hpx::lcos::shared_future<void> aggregrated_deep_copy_async(
  * (Kokkos serial) when using one execution space per kernel execution (not thread-safe it appears).
  * This is a stop-gap solution until teams work properly on host as well.
  */
-template <typename kokkos_backend_t, typename kokkos_buffer_t, typename kokkos_int_buffer_t,
-    typename kokkos_mask_t>
+template <typename simd_t, typename simd_mask_t, typename kokkos_backend_t,
+         typename kokkos_buffer_t, typename kokkos_int_buffer_t,
+         typename kokkos_mask_t>
 void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
     typename Aggregated_Executor<hpx::kokkos::executor<kokkos_backend_t>>::Executor_Slice &agg_exec,
     const kokkos_buffer_t& q_combined, const kokkos_buffer_t& x_combined,
@@ -159,21 +162,26 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
                 // assumes maximal number (given by cmake) of species in a simulation.  Not the most
                 // elegant solution and rather old-fashion but one that works.  May be changed to a
                 // more flexible sophisticated object.
-                double local_f[OCTOTIGER_MAX_NUMBER_FIELDS];
-                std::array<double, OCTOTIGER_MAX_NUMBER_FIELDS> local_q;
-                std::array<double, OCTOTIGER_MAX_NUMBER_FIELDS> local_q_flipped;
+                std::array<simd_t, OCTOTIGER_MAX_NUMBER_FIELDS> local_f;
+                std::array<simd_t, OCTOTIGER_MAX_NUMBER_FIELDS> local_q;
+                std::array<simd_t, OCTOTIGER_MAX_NUMBER_FIELDS> local_q_flipped;
                 for (int f = 0; f < nf; f++) {
                     local_f[f] = 0.0;
                 }
-                double local_x[3] = {0.0, 0.0, 0.0};
-                double local_vg[3] = {0.0, 0.0, 0.0};
+                // TODO replace those with proper default initialization?
+                std::array<simd_t, NDIM> local_x; 
+                std::array<simd_t, NDIM> local_vg; 
+                for (int dim = 0; dim < NDIM; dim++) {
+                  local_x[dim] = 0.0;
+                  local_vg[dim] = 0.0;
+                }
                 for (int f = 0; f < nf; f++) {
                     f_combined_slice[dim * nf * q_inx3 + f * q_inx3 + index] = 0.0;
                 }
                 amax[block_id + amax_slice_offset] = 0.0;
                 amax_indices[block_id + max_indices_slice_offset] = 0;
                 amax_d[block_id + max_indices_slice_offset] = 0;
-                double current_amax = 0.0;
+                simd_t current_amax = 0.0;
                 int current_d = 0;
 
                 // Calculate the flux:
@@ -181,7 +189,7 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
                     double mask = masks[index + dim * dim_offset];
                     if (mask != 0.0) {
                         for (int fi = 0; fi < 9; fi++) { // TODO replace 9
-                            double this_ap = 0.0, this_am = 0.0;
+                            simd_t this_ap = 0.0, this_am = 0.0;
                             const int d = faces[dim][fi];
                             const int flipped_dim = flip_dim(d, dim);
                             for (int dim = 0; dim < NDIM; dim++) {
@@ -202,28 +210,30 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
                                   compressedH_DN[dim] + index];
                             }
                             // Call the actual compute method
-                            cell_inner_flux_loop_simd<double>(omega, nf, A_, B_, local_q, local_q_flipped,
+                            cell_inner_flux_loop_simd<simd_t>(omega, nf, A_, B_, local_q, local_q_flipped,
                                 local_f, local_x, local_vg, this_ap, this_am, dim, d, dx[slice_id],
                                 fgamma, de_switch_1,
                                 face_offset);
-                            // TODO Preparation for later SIMD masking (not
-                            // supported yet)
-                            this_ap *= mask;
-                            this_am *= mask;
+                            // TODO apply masks
+                            // this_ap *= mask;
+                            // this_am *= mask;
                             // Update maximum values
-                            const double amax_tmp = max_wrapper(this_ap, (-this_am));
-                            if (amax_tmp > current_amax) {
-                                current_amax = amax_tmp;
-                                current_d = d;
-                            }
+                            const simd_t amax_tmp = SIMD_NAMESPACE::max(this_ap, (-this_am));
+                            // TODO do this with mask and choose...
+                            /* if (amax_tmp > current_amax) { */
+                            /*     current_amax = amax_tmp; */
+                            /*     current_d = d; */
+                            /* } */
                             // Add results to the final flux buffer
                             for (int f = 1; f < nf; f++) {
+                              // TODO, load, mask and copy_to
                                 f_combined_slice[dim * nf * q_inx3 + f * q_inx3 + index] +=
                                     quad_weights[fi] * local_f[f];
                             }
                         }
                     }
                     for (int f = 10; f < nf; f++) {
+                              // TODO, load, mask and copy_to
                         f_combined_slice[dim * nf * q_inx3 + index] +=
                             f_combined_slice[dim * nf * q_inx3 + f * q_inx3 + index];
                     }
@@ -912,7 +922,7 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     aggregated_host_buffer<int, executor_t> amax_indices(alloc_host_int, blocks * max_slices);
     aggregated_host_buffer<int, executor_t> amax_d(alloc_host_int, blocks * max_slices);
 
-    flux_impl_teamless(exec, agg_exec, q, combined_x, f, amax, amax_indices, amax_d, masks, omega,
+    flux_impl_teamless<host_simd_exp_t, host_simd_mask_exp_t>(exec, agg_exec, q, combined_x, f, amax, amax_indices, amax_d, masks, omega,
         dx, A_, B_, nf, fgamma, de_switch_1, blocks, 1);
 
     sync_kokkos_host_kernel(exec);

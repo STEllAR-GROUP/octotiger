@@ -275,12 +275,12 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop(const double omega, cons
 }
 
 
-template <typename double_t, typename container_t>
+template <typename double_t>
 CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop_simd(const double omega, const size_t nf_,
     const double A_, const double B_, const std::array<double_t, OCTOTIGER_MAX_NUMBER_FIELDS>& local_q,
     const std::array<double_t, OCTOTIGER_MAX_NUMBER_FIELDS>& local_q_flipped,
-    container_t& this_flux, const double_t* __restrict__ x,
-    const double_t* __restrict__ vg, double_t& ap, double_t& am, const size_t dim, const size_t d,
+    std::array<double_t, OCTOTIGER_MAX_NUMBER_FIELDS> &this_flux, const std::array<double_t, NDIM>& x,
+    const std::array<double_t, NDIM>& vg, double_t& ap, double_t& am, const size_t dim, const size_t d,
     const double dx, const double fgamma, const double de_switch_1,
     const size_t face_offset) {
     double_t amr, apr, aml, apl;
@@ -293,23 +293,25 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop_simd(const double omega,
 
     // all workitems choose the same path
     if (A_ != 0.0) {
-        const auto Binv = 1.0 / B_;
-        const auto x = pow_wrapper(rho * Binv, 1.0 / 3.0);
-        const auto x_sqr = x * x;
-        const auto x_sqr_sqrt = sqrt_wrapper(x_sqr + 1.0);
-        const auto x_pow_5 = x_sqr * x_sqr * x;
-        const double_t hdeg = 8.0 * A_ * Binv * (x_sqr_sqrt - 1.0);
+      // TODO Renable support for different EoS
+      // probaly by adding serial fallback for the missing math functins
+        /* const auto Binv = 1.0 / B_; */
+        /* const auto x = pow_wrapper(rho * Binv, 1.0 / 3.0); */
+        /* const auto x_sqr = x * x; */
+        /* const auto x_sqr_sqrt = sqrt_wrapper(x_sqr + 1.0); */
+        /* const auto x_pow_5 = x_sqr * x_sqr * x; */
+        /* const double_t hdeg = 8.0 * A_ * Binv * (x_sqr_sqrt - 1.0); */
 
 
-        const double_t pdeg_tmp1 = A_ * (x * (2 * x_sqr - 3) * x_sqr_sqrt + 3 * asinh_wrapper(x));
-        const double_t pdeg_tmp2 = 1.6 * A_ * x_pow_5;
-        select_wrapper(pdeg, (x < 0.001), pdeg_tmp2, pdeg_tmp1);
+        /* const double_t pdeg_tmp1 = A_ * (x * (2 * x_sqr - 3) * x_sqr_sqrt + 3 * asinh_wrapper(x)); */
+        /* const double_t pdeg_tmp2 = 1.6 * A_ * x_pow_5; */
+        /* select_wrapper(pdeg, (x < 0.001), pdeg_tmp2, pdeg_tmp1); */
 
-        const double_t edeg_tmp1 = rho * hdeg - pdeg;
-        const double_t edeg_tmp2 = 2.4 * A_ * x_pow_5;
-        select_wrapper(edeg, (x > 0.001), edeg_tmp1, edeg_tmp2);
+        /* const double_t edeg_tmp1 = rho * hdeg - pdeg; */
+        /* const double_t edeg_tmp2 = 2.4 * A_ * x_pow_5; */
+        /* select_wrapper(edeg, (x > 0.001), edeg_tmp1, edeg_tmp2); */
 
-        dpdeg_drho = 8.0 / 3.0 * A_ * Binv * x_sqr / x_sqr_sqrt;
+        /* dpdeg_drho = 8.0 / 3.0 * A_ * Binv * x_sqr / x_sqr_sqrt; */
     }
     double_t ek = 0.0;
     double_t ein;
@@ -320,9 +322,11 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop_simd(const double omega,
     const auto ein1_tmp2 = local_q[egas_i] - ek - edeg;
     const auto ein1_mask =
         (ein1_tmp2 < (de_switch_1 * local_q[egas_i]));
+    // TODO skippable == none_of
     if (!skippable(ein1_mask)) {
         const auto ein1_tmp1 =
             pow_wrapper(local_q[tau_i], fgamma);
+        // TODO select wrapper can be a where
         select_wrapper(ein, ein1_mask, ein1_tmp1, ein1_tmp2);
     } else {
         ein = ein1_tmp2;
@@ -345,23 +349,25 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop_simd(const double omega,
     // all workitems choose the same path
     // from to_prim
     if (A_ != 0.0) {
-        const auto Binv = 1.0 / B_;
-        const auto x = pow_wrapper(rho * Binv, 1.0 / 3.0);
-        const auto x_sqr = x * x;
-        const auto x_sqr_sqrt = sqrt_wrapper(x_sqr + 1.0);
-        const auto x_pow_5 = x_sqr * x_sqr * x;
-        const double_t hdeg = 8.0 * A_ * Binv * (x_sqr_sqrt - 1.0);
+      // TODO Renable support for different EoS
+      // probaly by adding serial fallback for the missing math functins
+        /* const auto Binv = 1.0 / B_; */
+        /* const auto x = pow_wrapper(rho * Binv, 1.0 / 3.0); */
+        /* const auto x_sqr = x * x; */
+        /* const auto x_sqr_sqrt = sqrt_wrapper(x_sqr + 1.0); */
+        /* const auto x_pow_5 = x_sqr * x_sqr * x; */
+        /* const double_t hdeg = 8.0 * A_ * Binv * (x_sqr_sqrt - 1.0); */
 
 
-        const double_t pdeg_tmp1 = A_ * (x * (2 * x_sqr - 3) * x_sqr_sqrt + 3 * asinh_wrapper(x));
-        const double_t pdeg_tmp2 = 1.6 * A_ * x_pow_5;
-        select_wrapper(pdeg, (x < 0.001), pdeg_tmp2, pdeg_tmp1);
+        /* const double_t pdeg_tmp1 = A_ * (x * (2 * x_sqr - 3) * x_sqr_sqrt + 3 * asinh_wrapper(x)); */
+        /* const double_t pdeg_tmp2 = 1.6 * A_ * x_pow_5; */
+        /* select_wrapper(pdeg, (x < 0.001), pdeg_tmp2, pdeg_tmp1); */
 
-        const double_t edeg_tmp1 = rho * hdeg - pdeg;
-        const double_t edeg_tmp2 = 2.4 * A_ * x_pow_5;
-        select_wrapper(edeg, (x > 0.001), edeg_tmp1, edeg_tmp2);
+        /* const double_t edeg_tmp1 = rho * hdeg - pdeg; */
+        /* const double_t edeg_tmp2 = 2.4 * A_ * x_pow_5; */
+        /* select_wrapper(edeg, (x > 0.001), edeg_tmp1, edeg_tmp2); */
 
-        dpdeg_drho = 8.0 / 3.0 * A_ * Binv * x_sqr / x_sqr_sqrt;
+        /* dpdeg_drho = 8.0 / 3.0 * A_ * Binv * x_sqr / x_sqr_sqrt; */
     }
     ek = 0.0;
     for (int dim = 0; dim < NDIM; dim++) {
@@ -370,8 +376,10 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop_simd(const double omega,
     }
     const auto ein2_tmp2 =
         local_q_flipped[egas_i] - ek - edeg;
+    // TODO create proper mask
     const auto ein2_mask =
         (ein2_tmp2 < (de_switch_1 * local_q_flipped[egas_i]));
+    // TODO Skippable to none_of
     if (!skippable(ein2_mask)) {
         const auto ein2_tmp1 =
             pow_wrapper(local_q_flipped[tau_i], fgamma);
