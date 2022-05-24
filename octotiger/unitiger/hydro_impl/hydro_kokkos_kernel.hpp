@@ -156,10 +156,12 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
 
                 // Set during cmake step with
                 // -DOCTOTIGER_WITH_MAX_NUMBER_FIELDS
-                double local_f[OCTOTIGER_MAX_NUMBER_FIELDS];
                 // assumes maximal number (given by cmake) of species in a simulation.  Not the most
                 // elegant solution and rather old-fashion but one that works.  May be changed to a
                 // more flexible sophisticated object.
+                double local_f[OCTOTIGER_MAX_NUMBER_FIELDS];
+                std::array<double, OCTOTIGER_MAX_NUMBER_FIELDS> local_q;
+                std::array<double, OCTOTIGER_MAX_NUMBER_FIELDS> local_q_flipped;
                 for (int f = 0; f < nf; f++) {
                     local_f[f] = 0.0;
                 }
@@ -178,11 +180,11 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
                 if (index > q_inx * q_inx + q_inx && index < q_inx3) {
                     double mask = masks[index + dim * dim_offset];
                     if (mask != 0.0) {
-                        for (int fi = 0; fi < 9; fi++) {
+                        for (int fi = 0; fi < 9; fi++) { // TODO replace 9
                             double this_ap = 0.0, this_am = 0.0;
                             const int d = faces[dim][fi];
                             const int flipped_dim = flip_dim(d, dim);
-                            for (int dim = 0; dim < 3; dim++) {
+                            for (int dim = 0; dim < NDIM; dim++) {
                                 local_x[dim] = x_combined_slice[dim * q_inx3 + index] +
                                     (0.5 * xloc[d][dim] * dx[slice_id]);
                             }
@@ -192,11 +194,17 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
                             local_vg[1] = +omega *
                                 (x_combined_slice[index] + 0.5 * xloc[d][0] * dx[slice_id]);
                             local_vg[2] = 0.0;
+
+                            for (int f = 0; f < nf; f++) {
+                                local_q[f] = q_combined_slice[f * face_offset + dim_offset * d + index];
+                                local_q_flipped[f] = q_combined_slice[f * face_offset
+                                  + dim_offset * flipped_dim -
+                                  compressedH_DN[dim] + index];
+                            }
                             // Call the actual compute method
-                            cell_inner_flux_loop<double>(omega, nf, A_, B_, q_combined_slice,
+                            cell_inner_flux_loop_simd<double>(omega, nf, A_, B_, local_q, local_q_flipped,
                                 local_f, local_x, local_vg, this_ap, this_am, dim, d, dx[slice_id],
-                                fgamma, de_switch_1, dim_offset * d + index,
-                                dim_offset * flipped_dim - compressedH_DN[dim] + index,
+                                fgamma, de_switch_1,
                                 face_offset);
                             // TODO Preparation for later SIMD masking (not
                             // supported yet)
