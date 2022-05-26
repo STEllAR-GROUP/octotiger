@@ -203,7 +203,7 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
                         mask_helper2_array.data(), SIMD_NAMESPACE::element_aligned_tag{});
                     const simd_mask_t mask = mask_helper1 == mask_helper2;
                     /* double mask = masks[index + dim * dim_offset]; */
-                    if (!SIMD_NAMESPACE::any_of(mask)) {
+                    if (SIMD_NAMESPACE::any_of(mask)) {
                         for (int fi = 0; fi < 9; fi++) { // TODO replace 9
                             simd_t this_ap = 0.0, this_am = 0.0;
                             const int d = faces[dim][fi];
@@ -233,10 +233,10 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
                                     SIMD_NAMESPACE::element_aligned_tag{});
                             }
                             // Call the actual compute method
-                            /* cell_inner_flux_loop_simd<simd_t>(omega, nf, A_, B_, local_q, local_q_flipped, */
-                            /*     local_f, local_x, local_vg, this_ap, this_am, dim, d, dx[slice_id], */
-                            /*     fgamma, de_switch_1, */
-                            /*     face_offset); */
+                            cell_inner_flux_loop_simd<simd_t>(omega, nf, A_, B_, local_q, local_q_flipped,
+                                local_f, local_x, local_vg, this_ap, this_am, dim, d, dx[slice_id],
+                                fgamma, de_switch_1,
+                                face_offset);
 
                             // Update maximum values
                             this_ap = SIMD_NAMESPACE::choose(mask, this_ap, simd_t(0.0));

@@ -1,4 +1,6 @@
 #pragma once
+#include <cmath>
+#include "simd_common.hpp"
 #if defined(__clang__)
 constexpr int faces[3][9] = {{12, 0, 3, 6, 9, 15, 18, 21, 24}, {10, 0, 1, 2, 9, 11, 18, 19, 20},
     {4, 0, 1, 2, 3, 5, 6, 7, 8}};
@@ -275,6 +277,8 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop(const double omega, cons
 }
 
 
+
+#include <simd.hpp>
 template <typename double_t>
 CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop_simd(const double omega, const size_t nf_,
     const double A_, const double B_, const std::array<double_t, OCTOTIGER_MAX_NUMBER_FIELDS>& local_q,
@@ -322,12 +326,17 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop_simd(const double omega,
     const auto ein1_tmp2 = local_q[egas_i] - ek - edeg;
     const auto ein1_mask =
         (ein1_tmp2 < (de_switch_1 * local_q[egas_i]));
-    // TODO skippable == none_of
-    if (!skippable(ein1_mask)) {
-        const auto ein1_tmp1 =
-            pow_wrapper(local_q[tau_i], fgamma);
-        // TODO select wrapper can be a where
-        select_wrapper(ein, ein1_mask, ein1_tmp1, ein1_tmp2);
+    if (SIMD_NAMESPACE::any_of(ein1_mask)) {
+        std::array<double, double_t::size()> pow_helper;
+        std::array<double, double_t::size()> pow_helper_input;
+        local_q[tau_i].copy_to(pow_helper_input.data(), SIMD_NAMESPACE::element_aligned_tag{});
+        for (auto i = 0; i < double_t::size(); i++) {
+          pow_helper[i] = std::pow(pow_helper_input[i], fgamma);
+        }
+        const double_t ein1_tmp1(pow_helper.data(), SIMD_NAMESPACE::element_aligned_tag{});
+        /* const auto ein1_tmp1 = */
+        /*     SIMD_NAMESPACE::pow(local_q[tau_i], fgamma); */
+        ein = SIMD_NAMESPACE::choose(ein1_mask, ein1_tmp1, ein1_tmp2);
     } else {
         ein = ein1_tmp2;
     }
@@ -335,7 +344,7 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop_simd(const double omega,
     const auto dp_deps = (fgamma - 1.0) * rho;
     const auto v0 = local_q[(sx_i + dim)] * rhoinv;
     const auto p = (fgamma - 1.0) * ein + pdeg;
-    const auto c = sqrt_wrapper(p * rhoinv * rhoinv * dp_deps + dp_drho);
+    const auto c = SIMD_NAMESPACE::sqrt(p * rhoinv * rhoinv * dp_deps + dp_drho);
     const auto v = v0 - vg[dim];
     amr = v - c;
     apr = v + c;
@@ -379,11 +388,18 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop_simd(const double omega,
     // TODO create proper mask
     const auto ein2_mask =
         (ein2_tmp2 < (de_switch_1 * local_q_flipped[egas_i]));
-    // TODO Skippable to none_of
-    if (!skippable(ein2_mask)) {
-        const auto ein2_tmp1 =
-            pow_wrapper(local_q_flipped[tau_i], fgamma);
-        select_wrapper(ein, ein2_mask, ein2_tmp1, ein2_tmp2);
+    if (SIMD_NAMESPACE::any_of(ein2_mask)) {
+        std::array<double, double_t::size()> pow_helper;
+        std::array<double, double_t::size()> pow_helper_input;
+        local_q_flipped[tau_i].copy_to(pow_helper_input.data(), SIMD_NAMESPACE::element_aligned_tag{});
+        for (auto i = 0; i < double_t::size(); i++) {
+          pow_helper[i] = std::pow(pow_helper_input[i], fgamma);
+        }
+        const double_t ein2_tmp1(pow_helper.data(), SIMD_NAMESPACE::element_aligned_tag{});
+        /* const auto ein2_tmp1 = */
+        /*     pow_wrapper(local_q_flipped[tau_i], fgamma); */
+
+        ein = SIMD_NAMESPACE::choose(ein2_mask, ein2_tmp1, ein2_tmp2);
     } else {
         ein = ein2_tmp2;
     }
@@ -391,14 +407,14 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop_simd(const double omega,
     const auto dp_deps2 = (fgamma - 1.0) * rho;
     const auto v02 = local_q_flipped[(sx_i + dim)] * rhoinv;
     const auto p2 = (fgamma - 1.0) * ein + pdeg;
-    const auto c2 = sqrt_wrapper(p2 * rhoinv * rhoinv * dp_deps2 + dp_drho2);
+    const auto c2 = SIMD_NAMESPACE::sqrt(p2 * rhoinv * rhoinv * dp_deps2 + dp_drho2);
     const auto v2 = v02 - vg[dim];
     aml = v2 - c2;
     apl = v2 + c2;
 
-    this_ap = max_wrapper(max_wrapper(apr, apl), double_t(0.0));
-    this_am = min_wrapper(min_wrapper(amr, aml), double_t(0.0));
-    const auto amp_mask = (this_ap - this_am == 0.0);
+    this_ap = SIMD_NAMESPACE::max(SIMD_NAMESPACE::max(apr, apl), double_t(0.0));
+    this_am = SIMD_NAMESPACE::min(SIMD_NAMESPACE::min(amr, aml), double_t(0.0));
+    const auto amp_mask = (this_ap - this_am == double_t(0.0));
     for (int f = 0; f < nf_; f++) {
         double_t fr = v * local_q[f];
         double_t fl = v2 * local_q_flipped[f];
@@ -442,7 +458,7 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop_simd(const double omega,
             }
         }
 
-        if (!skippable(amp_mask)) {
+        if (!SIMD_NAMESPACE::any_of(amp_mask)) {
             const double_t flux_tmp1 =
                 (this_ap * fl - this_am * fr +
                     this_ap * this_am *
@@ -450,7 +466,8 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop_simd(const double omega,
                             local_q_flipped[f])) /
                 (this_ap - this_am);
             const double_t flux_tmp2 = (fl + fr) / 2.0;
-            select_wrapper(this_flux[f], amp_mask, flux_tmp2, flux_tmp1);
+            /* select_wrapper(this_flux[f], amp_mask, flux_tmp2, flux_tmp1); */
+            this_flux[f] = SIMD_NAMESPACE::choose(amp_mask, flux_tmp2, flux_tmp1);
         } else {
             this_flux[f] = (this_ap * fl - this_am * fr +
                                this_ap * this_am *
@@ -460,9 +477,11 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop_simd(const double omega,
         }
     }
 
-    am = min_wrapper(am, this_am);
-    ap = max_wrapper(ap, this_ap);
-    return max_wrapper(ap, double_t(-am));
+    /* am = min_wrapper(am, this_am); */
+    /* ap = max_wrapper(ap, this_ap); */
+    am = SIMD_NAMESPACE::min(am, this_am);
+    ap = SIMD_NAMESPACE::max(ap, this_ap);
+    return SIMD_NAMESPACE::max(ap, double_t(-am));
 }
 
 /// Fills masks required for the flux kernel. Container needs to be able to hold NDIM * 1000 elements
