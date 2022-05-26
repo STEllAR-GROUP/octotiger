@@ -181,62 +181,109 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
                 amax[block_id + amax_slice_offset] = 0.0;
                 amax_indices[block_id + max_indices_slice_offset] = 0;
                 amax_d[block_id + max_indices_slice_offset] = 0;
-                simd_t current_amax = 0.0;
+                double current_amax = 0.0;
                 int current_d = 0;
 
                 // Calculate the flux:
                 if (index > q_inx * q_inx + q_inx && index < q_inx3) {
-                    double mask = masks[index + dim * dim_offset];
-                    if (mask != 0.0) {
+                    // Need: Workaround to set the mask - usually I'd like to set it
+                    // component-wise but kokkos-simd currently does not support this!
+                    // hence the mask_helpers
+                    // => TODO Insert array with 1.0 and one with the masks
+                    // => compare via ==
+                    // done
+
+                    const simd_t mask_helper1(1.0);
+                    std::array<double, simd_t::size()> mask_helper2_array;
+                    // TODO make masks double and load directly
+                    for (int i = 0; i < simd_t::size(); i++) {
+                        mask_helper2_array[i] = masks[index + dim * dim_offset + i];
+                    }
+                    const simd_t mask_helper2(
+                        mask_helper2_array.data(), SIMD_NAMESPACE::element_aligned_tag{});
+                    const simd_mask_t mask = mask_helper1 == mask_helper2;
+                    /* double mask = masks[index + dim * dim_offset]; */
+                    if (!SIMD_NAMESPACE::any_of(mask)) {
                         for (int fi = 0; fi < 9; fi++) { // TODO replace 9
                             simd_t this_ap = 0.0, this_am = 0.0;
                             const int d = faces[dim][fi];
                             const int flipped_dim = flip_dim(d, dim);
                             for (int dim = 0; dim < NDIM; dim++) {
-                                local_x[dim] = x_combined_slice[dim * q_inx3 + index] +
-                                    (0.5 * xloc[d][dim] * dx[slice_id]);
-                            }
-                            local_vg[0] = -omega *
-                                (x_combined_slice[q_inx3 + index] +
-                                    0.5 * xloc[d][1] * dx[slice_id]);
-                            local_vg[1] = +omega *
-                                (x_combined_slice[index] + 0.5 * xloc[d][0] * dx[slice_id]);
-                            local_vg[2] = 0.0;
+                                local_x[dim] =
+                                    simd_t(x_combined_slice.data() + dim * q_inx3 + index,
+                                        SIMD_NAMESPACE::element_aligned_tag{}) +
+                                    simd_t(0.5 * xloc[d][dim] * dx[slice_id]);
+                            } local_vg[0] = -omega *
+                            (simd_t(x_combined_slice.data() + q_inx3 + index,
+                                    SIMD_NAMESPACE::element_aligned_tag{}) +
+                                    simd_t(0.5 * xloc[d][1] * dx[slice_id]));
+                             local_vg[1] = +omega *
+                             (simd_t(x_combined_slice.data() + index,
+                                     SIMD_NAMESPACE::element_aligned_tag{}) +
+                              simd_t(0.5 * xloc[d][0] * dx[slice_id]));
+                            local_vg[2] = simd_t(0.0);
 
                             for (int f = 0; f < nf; f++) {
-                                local_q[f] = q_combined_slice[f * face_offset + dim_offset * d + index];
-                                local_q_flipped[f] = q_combined_slice[f * face_offset
-                                  + dim_offset * flipped_dim -
-                                  compressedH_DN[dim] + index];
+                                local_q[f].copy_from(q_combined_slice.data() + f * face_offset +
+                                        dim_offset * d + index,
+                                    SIMD_NAMESPACE::element_aligned_tag{});
+                                local_q_flipped[f].copy_from(q_combined_slice.data() +
+                                        f * face_offset + dim_offset * flipped_dim -
+                                        compressedH_DN[dim] + index,
+                                    SIMD_NAMESPACE::element_aligned_tag{});
                             }
                             // Call the actual compute method
-                            cell_inner_flux_loop_simd<simd_t>(omega, nf, A_, B_, local_q, local_q_flipped,
-                                local_f, local_x, local_vg, this_ap, this_am, dim, d, dx[slice_id],
-                                fgamma, de_switch_1,
-                                face_offset);
-                            // TODO apply masks
-                            // this_ap *= mask;
-                            // this_am *= mask;
+                            /* cell_inner_flux_loop_simd<simd_t>(omega, nf, A_, B_, local_q, local_q_flipped, */
+                            /*     local_f, local_x, local_vg, this_ap, this_am, dim, d, dx[slice_id], */
+                            /*     fgamma, de_switch_1, */
+                            /*     face_offset); */
+
                             // Update maximum values
+                            this_ap = SIMD_NAMESPACE::choose(mask, this_ap, simd_t(0.0));
+                            this_am = SIMD_NAMESPACE::choose(mask, this_am, simd_t(0.0));
                             const simd_t amax_tmp = SIMD_NAMESPACE::max(this_ap, (-this_am));
-                            // TODO do this with mask and choose...
-                            /* if (amax_tmp > current_amax) { */
-                            /*     current_amax = amax_tmp; */
-                            /*     current_d = d; */
-                            /* } */
+                            // Reduce
+                            // TODO Reduce outside of inner loop?
+                            std::array<double, simd_t::size()> max_helper;
+                            amax_tmp.copy_to(max_helper.data(), SIMD_NAMESPACE::element_aligned_tag{});
+                            for (int i = 0; i < simd_t::size(); i++) {
+                              if (max_helper[i] > current_amax) {
+                                  current_amax = max_helper[i];
+                                  current_d = d;
+                              }
+                            }
                             // Add results to the final flux buffer
                             for (int f = 1; f < nf; f++) {
-                              // TODO, load, mask and copy_to
-                                f_combined_slice[dim * nf * q_inx3 + f * q_inx3 + index] +=
-                                    quad_weights[fi] * local_f[f];
+                              // TODO Mask required after setting the input accordingly?
+                              simd_t current_val(
+                                  f_combined_slice.data() + dim * nf * q_inx3 + f * q_inx3 + index,
+                                  SIMD_NAMESPACE::element_aligned_tag{});
+                              current_val = current_val +
+                                SIMD_NAMESPACE::choose(mask, quad_weights[fi] * local_f[f],
+                                    simd_t(0.0));
+                              current_val.copy_to(f_combined_slice.data() + dim
+                                * nf * q_inx3 + f * q_inx3 + index,
+                                SIMD_NAMESPACE::element_aligned_tag{});
+
+                              /* f_combined_slice[dim * nf * q_inx3 + f * q_inx3 + index] += */
+                              /*     quad_weights[fi] * local_f[f]; */
                             }
                         }
                     }
+                    simd_t current_val(
+                      f_combined_slice.data() + dim * nf * q_inx3 + index,
+                      SIMD_NAMESPACE::element_aligned_tag{});
                     for (int f = 10; f < nf; f++) {
-                              // TODO, load, mask and copy_to
-                        f_combined_slice[dim * nf * q_inx3 + index] +=
-                            f_combined_slice[dim * nf * q_inx3 + f * q_inx3 + index];
+                        simd_t current_field_val(
+                            f_combined_slice.data() + dim * nf * q_inx3 + f * q_inx3 + index,
+                            SIMD_NAMESPACE::element_aligned_tag{});
+                        current_val = current_val +
+                          SIMD_NAMESPACE::choose(mask, current_field_val,
+                              simd_t(0.0));
                     }
+                    current_val.copy_to(
+                      f_combined_slice.data() + dim * nf * q_inx3 + index,
+                      SIMD_NAMESPACE::element_aligned_tag{});
                 }
 
                 // Write Maximum of local team to amax:
