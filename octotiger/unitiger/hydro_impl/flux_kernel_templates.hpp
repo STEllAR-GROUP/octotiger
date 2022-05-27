@@ -1,5 +1,6 @@
 #pragma once
 #include <cmath>
+#include "octotiger/hydro_defs.hpp"
 #include "simd_common.hpp"
 #if defined(__clang__)
 constexpr int faces[3][9] = {{12, 0, 3, 6, 9, 15, 18, 21, 24}, {10, 0, 1, 2, 9, 11, 18, 19, 20},
@@ -277,77 +278,140 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop(const double omega, cons
 }
 
 
-
 #include <simd.hpp>
 #include <avx512.hpp>
 #include <avx.hpp>
-template <typename double_t>
-CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop_simd(const double omega, const size_t nf_,
-    const double A_, const double B_, const std::array<double_t, OCTOTIGER_MAX_NUMBER_FIELDS>& local_q,
-    const std::array<double_t, OCTOTIGER_MAX_NUMBER_FIELDS>& local_q_flipped,
-    std::array<double_t, OCTOTIGER_MAX_NUMBER_FIELDS> &this_flux, const std::array<double_t, NDIM>& x,
-    const std::array<double_t, NDIM>& vg, double_t& ap, double_t& am, const size_t dim, const size_t d,
+namespace simd_fallbacks {
+namespace detail {
+// traits that check for overloads using the current simd_t
+
+// should consider the SIMD_NAMESPACE for overloads due to Argument-dependent name lookup
+template <class simd_t, class = void>
+struct has_simd_sqrt : std::false_type
+{
+};
+template <class simd_t>
+struct has_simd_sqrt<simd_t, std::void_t<decltype(sqrt(std::declval<simd_t>()))>>
+  : std::true_type
+{
+};
+template <class simd_t, class = void>
+struct has_simd_pow : std::false_type
+{
+};
+template<class simd_t>
+struct has_simd_pow<simd_t,
+  std::void_t<decltype(pow(std::declval<simd_t>(),std::declval<double>()))>>
+  : std::true_type
+{
+};
+template<class simd_t, class=void>
+struct has_simd_asinh : std::false_type {};
+template <class simd_t>
+struct has_simd_asinh<simd_t, std::void_t<decltype(asinh(std::declval<simd_t>()))>>
+  : std::true_type
+{
+};
+} // end namespace detail
+
+template <typename simd_t>
+inline simd_t sqrt_with_serial_fallback(const simd_t input) {
+  if constexpr (detail::has_simd_sqrt<simd_t>::value) {
+    // should consider the SIMD_NAMESPACE for overloads due to Argument-dependent name lookup
+    return sqrt(input);
+  } else {
+    static_assert(!std::is_same<simd_t, simd_t>::value, "Using sqrt serial fallback!"
+        "This will impact If this is intentional please remove this static assert for your build");
+    std::array<double, simd_t::size()> sqrt_helper;
+    std::array<double, simd_t::size()> sqrt_helper_input;
+    input.copy_to(sqrt_helper_input.data(), SIMD_NAMESPACE::element_aligned_tag{});
+    for (auto i = 0; i < simd_t::size(); i++) {
+      sqrt_helper[i] = std::sqrt(sqrt_helper_input[i]);
+    }
+    return simd_t{sqrt_helper.data(), SIMD_NAMESPACE::element_aligned_tag{}};
+  }
+}
+template <typename simd_t>
+inline simd_t pow_with_serial_fallback(const simd_t input, const double exponent) {
+  if constexpr (detail::has_simd_pow<simd_t>::value) {
+    // should consider the SIMD_NAMESPACE for overloads due to Argument-dependent name lookup
+    return pow(input, exponent);
+  } else {
+    /* static_assert(!std::is_same<simd_t, simd_t>::value, "Using pow serial fallback! " */
+    /*     "If this is intentional please remove this static assert for your build"); */
+    std::array<double, simd_t::size()> pow_helper;
+    std::array<double, simd_t::size()> pow_helper_input;
+    input.copy_to(pow_helper_input.data(), SIMD_NAMESPACE::element_aligned_tag{});
+    for (auto i = 0; i < simd_t::size(); i++) {
+      pow_helper[i] = std::pow(pow_helper_input[i], exponent);
+    }
+    return simd_t{pow_helper.data(), SIMD_NAMESPACE::element_aligned_tag{}};
+  }
+}
+template <typename simd_t>
+inline simd_t asinh_with_serial_fallback(const simd_t input) {
+  if constexpr (detail::has_simd_asinh<simd_t>::value) {
+    // should consider the SIMD_NAMESPACE for overloads due to Argument-dependent name lookup
+    return asinh(input);
+  } else {
+    /* static_assert(!std::is_same<simd_t, simd_t>::value, "Using asinh serial fallback!" */
+    /*     "If this is intentional please remove this static assert for your build"); */
+    std::array<double, simd_t::size()> asinh_helper;
+    std::array<double, simd_t::size()> asinh_helper_input;
+    input.copy_to(asinh_helper_input.data(), SIMD_NAMESPACE::element_aligned_tag{});
+    for (auto i = 0; i < simd_t::size(); i++) {
+      asinh_helper[i] = std::asinh(asinh_helper_input[i]);
+    }
+    return simd_t{asinh_helper.data(), SIMD_NAMESPACE::element_aligned_tag{}};
+  }
+}
+} // end namespace simd_fallbacks
+
+template <typename simd_t>
+CUDA_GLOBAL_METHOD inline simd_t cell_inner_flux_loop_simd(const double omega, const size_t nf_,
+    const double A_, const double B_, const std::array<simd_t, OCTOTIGER_MAX_NUMBER_FIELDS>& local_q,
+    const std::array<simd_t, OCTOTIGER_MAX_NUMBER_FIELDS>& local_q_flipped,
+    std::array<simd_t, OCTOTIGER_MAX_NUMBER_FIELDS> &this_flux, const std::array<simd_t, NDIM>& x,
+    const std::array<simd_t, NDIM>& vg, simd_t& ap, simd_t& am, const size_t dim, const size_t d,
     const double dx, const double fgamma, const double de_switch_1,
     const size_t face_offset) {
-    double_t amr, apr, aml, apl;
-    double_t this_ap, this_am;    // tmps
+    simd_t amr, apr, aml, apl;
+    simd_t this_ap, this_am;    // tmps
 
     auto rho = local_q[rho_i];
     auto rhoinv = (1.) / rho;
-    double_t pdeg = static_cast<double_t>(0.0), edeg = static_cast<double_t>(0.0),
-     dpdeg_drho = static_cast<double_t>(0.0);
+    simd_t pdeg = static_cast<simd_t>(0.0), edeg = static_cast<simd_t>(0.0),
+     dpdeg_drho = static_cast<simd_t>(0.0);
 
     // all workitems choose the same path
     if (A_ != 0.0) {
       // TODO Renable support for different EoS
       // probaly by adding serial fallback for the missing math functins
         const auto Binv = 1.0 / B_;
-        const auto Binv_pow_input = rho * Binv;
-
-
-        // Pow serial fallback
-        std::array<double, double_t::size()> pow_helper;
-        std::array<double, double_t::size()> pow_helper_input;
-        Binv_pow_input.copy_to(pow_helper_input.data(), SIMD_NAMESPACE::element_aligned_tag{});
-        for (auto i = 0; i < double_t::size(); i++) {
-          pow_helper[i] = std::pow(pow_helper_input[i], 1.0 / 3.0);
-        }
-        const double_t x(pow_helper.data(), SIMD_NAMESPACE::element_aligned_tag{});
-        /* const auto x = pow_wrapper(rho * Binv, 1.0 / 3.0); */
-
+        const auto x = simd_fallbacks::pow_with_serial_fallback(rho * Binv, 1.0 / 3.0);
 
         const auto x_sqr = x * x;
-        const auto x_sqr_sqrt = SIMD_NAMESPACE::sqrt(x_sqr + double_t(1.0));
+        const auto x_sqr_sqrt = simd_fallbacks::sqrt_with_serial_fallback(x_sqr + simd_t(1.0));
         const auto x_pow_5 = x_sqr * x_sqr * x;
-        const double_t hdeg = 8.0 * A_ * Binv * (x_sqr_sqrt - 1.0);
+        const simd_t hdeg = 8.0 * A_ * Binv * (x_sqr_sqrt - 1.0);
 
-        // Asinh serial fallback
-        std::array<double, double_t::size()> asinh_helper;
-        std::array<double, double_t::size()> asinh_helper_input;
-        x.copy_to(asinh_helper_input.data(), SIMD_NAMESPACE::element_aligned_tag{});
-        for (auto i = 0; i < double_t::size(); i++) {
-          asinh_helper[i] = std::asinh(asinh_helper_input[i]);
-        }
-        const double_t asinh_result(asinh_helper.data(), SIMD_NAMESPACE::element_aligned_tag{});
+        const simd_t pdeg_tmp1 =
+            A_ * (x * (2.0 * x_sqr - 3.0) * x_sqr_sqrt + 3.0 *
+                simd_fallbacks::asinh_with_serial_fallback(x));
+        const simd_t pdeg_tmp2 = 1.6 * A_ * x_pow_5;
 
-
-        const double_t pdeg_tmp1 = A_ * (x * (2.0 * x_sqr - 3.0) * x_sqr_sqrt + 3.0 * asinh_result);
-        const double_t pdeg_tmp2 = 1.6 * A_ * x_pow_5;
-
-        const auto pdeg_mask = x < double_t(0.001);
+        const auto pdeg_mask = x < simd_t(0.001);
         pdeg = SIMD_NAMESPACE::choose(pdeg_mask, pdeg_tmp2, pdeg_tmp1);
-        /* select_wrapper(pdeg, (x < 0.001), pdeg_tmp2, pdeg_tmp1); */
 
-        const double_t edeg_tmp1 = rho * hdeg - pdeg;
-        const double_t edeg_tmp2 = 2.4 * A_ * x_pow_5;
-        const auto edeg_mask = double_t(0.001) < x;
+        const simd_t edeg_tmp1 = rho * hdeg - pdeg;
+        const simd_t edeg_tmp2 = 2.4 * A_ * x_pow_5;
+        const auto edeg_mask = simd_t(0.001) < x;
         edeg = SIMD_NAMESPACE::choose(edeg_mask, edeg_tmp1, edeg_tmp2);
-        /* select_wrapper(edeg, (x > 0.001), edeg_tmp1, edeg_tmp2); */
 
         dpdeg_drho = 8.0 / 3.0 * A_ * Binv * x_sqr / x_sqr_sqrt;
     }
-    double_t ek = 0.0;
-    double_t ein;
+    simd_t ek = 0.0;
+    simd_t ein;
     for (int dim = 0; dim < NDIM; dim++) {
         ek += local_q[(sx_i + dim)] *
             local_q[(sx_i + dim)] * rhoinv * 0.5;
@@ -357,16 +421,8 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop_simd(const double omega,
         (ein1_tmp2 < (de_switch_1 * local_q[egas_i]));
 
     if (SIMD_NAMESPACE::any_of(ein1_mask)) {
-        // Pow serial fallback
-        std::array<double, double_t::size()> pow_helper;
-        std::array<double, double_t::size()> pow_helper_input;
-        local_q[tau_i].copy_to(pow_helper_input.data(), SIMD_NAMESPACE::element_aligned_tag{});
-        for (auto i = 0; i < double_t::size(); i++) {
-          pow_helper[i] = std::pow(pow_helper_input[i], fgamma);
-        }
-        const double_t ein1_tmp1(pow_helper.data(), SIMD_NAMESPACE::element_aligned_tag{});
-        /* const auto ein1_tmp1 = */
-        /*     SIMD_NAMESPACE::pow(local_q[tau_i], fgamma); */
+        const auto ein1_tmp1 =
+            simd_fallbacks::pow_with_serial_fallback(local_q[tau_i], fgamma);
         ein = SIMD_NAMESPACE::choose(ein1_mask, ein1_tmp1, ein1_tmp2);
     } else {
         ein = ein1_tmp2;
@@ -375,61 +431,38 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop_simd(const double omega,
     const auto dp_deps = (fgamma - 1.0) * rho;
     const auto v0 = local_q[(sx_i + dim)] * rhoinv;
     const auto p = (fgamma - 1.0) * ein + pdeg;
-    const auto c = SIMD_NAMESPACE::sqrt(p * rhoinv * rhoinv * dp_deps + dp_drho);
+    const auto c = simd_fallbacks::sqrt_with_serial_fallback(p * rhoinv * rhoinv * dp_deps + dp_drho);
     const auto v = v0 - vg[dim];
     amr = v - c;
     apr = v + c;
 
     rho = local_q_flipped[rho_i];
     rhoinv = (1.) / rho;
-    pdeg = static_cast<double_t>(0.0);
-    edeg = static_cast<double_t>(0.0);
-    dpdeg_drho = static_cast<double_t>(0.0);
+    pdeg = static_cast<simd_t>(0.0);
+    edeg = static_cast<simd_t>(0.0);
+    dpdeg_drho = static_cast<simd_t>(0.0);
 
     // all workitems choose the same path
     // from to_prim
     if (A_ != 0.0) {
-      // TODO Renable support for different EoS
-      // probaly by adding serial fallback for the missing math functins
         const auto Binv = 1.0 / B_;
-        const auto Binv_pow_input = rho * Binv;
-
-
-        // Pow serial fallback
-        std::array<double, double_t::size()> pow_helper;
-        std::array<double, double_t::size()> pow_helper_input;
-        Binv_pow_input.copy_to(pow_helper_input.data(), SIMD_NAMESPACE::element_aligned_tag{});
-        for (auto i = 0; i < double_t::size(); i++) {
-          pow_helper[i] = std::pow(pow_helper_input[i], 1.0 / 3.0);
-        }
-        const double_t x(pow_helper.data(), SIMD_NAMESPACE::element_aligned_tag{});
-        /* const auto x = pow_wrapper(rho * Binv, 1.0 / 3.0); */
+        const auto x = simd_fallbacks::pow_with_serial_fallback(rho * Binv, 1.0 / 3.0);
 
         const auto x_sqr = x * x;
-        const auto x_sqr_sqrt = SIMD_NAMESPACE::sqrt(x_sqr + 1.0);
+        const auto x_sqr_sqrt = simd_fallbacks::sqrt_with_serial_fallback(x_sqr + 1.0);
         const auto x_pow_5 = x_sqr * x_sqr * x;
-        const double_t hdeg = 8.0 * A_ * Binv * (x_sqr_sqrt - 1.0);
+        const simd_t hdeg = 8.0 * A_ * Binv * (x_sqr_sqrt - 1.0);
 
-        // Asinh serial fallback
-        std::array<double, double_t::size()> asinh_helper;
-        std::array<double, double_t::size()> asinh_helper_input;
-        x.copy_to(asinh_helper_input.data(), SIMD_NAMESPACE::element_aligned_tag{});
-        for (auto i = 0; i < double_t::size(); i++) {
-          asinh_helper[i] = std::asinh(asinh_helper_input[i]);
-        }
-        const double_t asinh_result(asinh_helper.data(), SIMD_NAMESPACE::element_aligned_tag{});
-
-        const double_t pdeg_tmp1 = A_ * (x * (2.0 * x_sqr - 3.0) * x_sqr_sqrt + 3.0 * asinh_result);
-        const double_t pdeg_tmp2 = 1.6 * A_ * x_pow_5;
-        const auto pdeg_mask = x < double_t(0.001);
+        const simd_t pdeg_tmp1 =
+            A_ * (x * (2.0 * x_sqr - 3.0) * x_sqr_sqrt + 3.0 * simd_fallbacks::asinh_with_serial_fallback(x));
+        const simd_t pdeg_tmp2 = 1.6 * A_ * x_pow_5;
+        const auto pdeg_mask = x < simd_t(0.001);
         pdeg = SIMD_NAMESPACE::choose(pdeg_mask, pdeg_tmp2, pdeg_tmp1);
-        /* select_wrapper(pdeg, (x < 0.001), pdeg_tmp2, pdeg_tmp1); */
 
-        const double_t edeg_tmp1 = rho * hdeg - pdeg;
-        const double_t edeg_tmp2 = 2.4 * A_ * x_pow_5;
-        const auto edeg_mask = double_t(0.001) < x;
+        const simd_t edeg_tmp1 = rho * hdeg - pdeg;
+        const simd_t edeg_tmp2 = 2.4 * A_ * x_pow_5;
+        const auto edeg_mask = simd_t(0.001) < x;
         edeg = SIMD_NAMESPACE::choose(edeg_mask, edeg_tmp1, edeg_tmp2);
-        /* select_wrapper(edeg, (x > 0.001), edeg_tmp1, edeg_tmp2); */
 
         dpdeg_drho = 8.0 / 3.0 * A_ * Binv * x_sqr / x_sqr_sqrt;
     }
@@ -440,19 +473,10 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop_simd(const double omega,
     }
     const auto ein2_tmp2 =
         local_q_flipped[egas_i] - ek - edeg;
-    // TODO create proper mask
     const auto ein2_mask =
         (ein2_tmp2 < (de_switch_1 * local_q_flipped[egas_i]));
     if (SIMD_NAMESPACE::any_of(ein2_mask)) {
-        // Pow serial fallback
-        std::array<double, double_t::size()> pow_helper;
-        std::array<double, double_t::size()> pow_helper_input;
-        local_q_flipped[tau_i].copy_to(pow_helper_input.data(), SIMD_NAMESPACE::element_aligned_tag{});
-        for (auto i = 0; i < double_t::size(); i++) {
-          pow_helper[i] = std::pow(pow_helper_input[i], fgamma);
-        }
-        const double_t ein2_tmp1(pow_helper.data(), SIMD_NAMESPACE::element_aligned_tag{});
-
+        const auto ein2_tmp1 = simd_fallbacks::pow_with_serial_fallback(local_q_flipped[tau_i], fgamma);
         ein = SIMD_NAMESPACE::choose(ein2_mask, ein2_tmp1, ein2_tmp2);
     } else {
         ein = ein2_tmp2;
@@ -461,17 +485,17 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop_simd(const double omega,
     const auto dp_deps2 = (fgamma - 1.0) * rho;
     const auto v02 = local_q_flipped[(sx_i + dim)] * rhoinv;
     const auto p2 = (fgamma - 1.0) * ein + pdeg;
-    const auto c2 = SIMD_NAMESPACE::sqrt(p2 * rhoinv * rhoinv * dp_deps2 + dp_drho2);
+    const auto c2 = simd_fallbacks::sqrt_with_serial_fallback(p2 * rhoinv * rhoinv * dp_deps2 + dp_drho2);
     const auto v2 = v02 - vg[dim];
     aml = v2 - c2;
     apl = v2 + c2;
 
-    this_ap = SIMD_NAMESPACE::max(SIMD_NAMESPACE::max(apr, apl), double_t(0.0));
-    this_am = SIMD_NAMESPACE::min(SIMD_NAMESPACE::min(amr, aml), double_t(0.0));
-    const auto amp_mask = (this_ap - this_am == double_t(0.0));
+    this_ap = SIMD_NAMESPACE::max(SIMD_NAMESPACE::max(apr, apl), simd_t(0.0));
+    this_am = SIMD_NAMESPACE::min(SIMD_NAMESPACE::min(amr, aml), simd_t(0.0));
+    const auto amp_mask = (this_ap - this_am == simd_t(0.0));
     for (int f = 0; f < nf_; f++) {
-        double_t fr = v * local_q[f];
-        double_t fl = v2 * local_q_flipped[f];
+        simd_t fr = v * local_q[f];
+        simd_t fl = v2 * local_q_flipped[f];
 
         if (f == sx_i + dim) {
             fr += p;
@@ -513,13 +537,13 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop_simd(const double omega,
         }
 
         if (SIMD_NAMESPACE::any_of(amp_mask)) {
-            const double_t flux_tmp1 =
+            const simd_t flux_tmp1 =
                 (this_ap * fl - this_am * fr +
                     this_ap * this_am *
                         (local_q[f] -
                             local_q_flipped[f])) /
                 (this_ap - this_am);
-            const double_t flux_tmp2 = (fl + fr) / 2.0;
+            const simd_t flux_tmp2 = (fl + fr) / 2.0;
             this_flux[f] = SIMD_NAMESPACE::choose(amp_mask, flux_tmp2, flux_tmp1);
         } else {
             this_flux[f] = (this_ap * fl - this_am * fr +
@@ -532,7 +556,7 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop_simd(const double omega,
 
     am = SIMD_NAMESPACE::min(am, this_am);
     ap = SIMD_NAMESPACE::max(ap, this_ap);
-    return SIMD_NAMESPACE::max(ap, double_t(-am));
+    return SIMD_NAMESPACE::max(ap, simd_t(-am));
 }
 
 /// Fills masks required for the flux kernel. Container needs to be able to hold NDIM * 1000 elements
