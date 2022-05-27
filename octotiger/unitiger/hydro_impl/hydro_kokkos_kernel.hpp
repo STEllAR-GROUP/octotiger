@@ -98,8 +98,12 @@ hpx::lcos::shared_future<void> aggregrated_deep_copy_async(
     return agg_exec.wrap_async(
         launch_copy_lambda, target, source, agg_exec.get_underlying_executor());
 }
-using host_simd_exp_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>;
-using host_simd_mask_exp_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::scalar>;
+#include <avx512.hpp>
+#include <avx.hpp>
+using host_simd_exp_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::avx512>;
+using host_simd_mask_exp_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::avx512>;
+/* using host_simd_exp_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>; */
+/* using host_simd_mask_exp_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::scalar>; */
 
 /// Team-less version of the kokkos flux impl
 /** Meant to be run on host, though it can be used on both host and device.
@@ -127,26 +131,28 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
     /* kokkos_int_buffer_t amax_d(number_blocks * number_slices); */
     if (agg_exec.sync_aggregation_slices()) {
         const int number_slices = agg_exec.number_slices;
-        auto policy = Kokkos::Experimental::require(
-            Kokkos::RangePolicy<decltype(executor.instance())>(
-                agg_exec.get_underlying_executor().instance(), 0, number_blocks * number_slices),
-            Kokkos::Experimental::WorkItemProperty::HintLightWeight);
+        auto policy =
+            Kokkos::Experimental::require(Kokkos::RangePolicy<decltype(executor.instance())>(
+                                              agg_exec.get_underlying_executor().instance(),
+                                              0,
+                                              (number_blocks) * number_slices),
+                Kokkos::Experimental::WorkItemProperty::HintLightWeight);
 
         Kokkos::parallel_for(
             "kernel hydro flux", policy, KOKKOS_LAMBDA(int idx) {
                 // Index helpers:
-                const int slice_idx = idx % number_blocks;
-                const int slice_id = idx / number_blocks;
-                const int blocks_per_dim = number_blocks / NDIM;
+                const int slice_idx = idx % (number_blocks);
+                const int slice_id = idx / (number_blocks);
+                const int blocks_per_dim = (number_blocks) / NDIM;
                 const int dim = (slice_idx / blocks_per_dim);
-                const int index = (slice_idx % blocks_per_dim) * team_size;
+                const int index = (slice_idx % blocks_per_dim) * team_size * simd_t::size();
                 const int block_id = slice_idx;
 
                 const int q_slice_offset = (nf * 27 * q_inx3 + padding) * slice_id;
                 const int f_slice_offset = (NDIM * nf * q_inx3 + padding) * slice_id;
                 const int x_slice_offset = (NDIM * q_inx3 + padding) * slice_id;
-                const int amax_slice_offset = (1 + 2 * nf) * number_blocks * slice_id;
-                const int max_indices_slice_offset = number_blocks * slice_id;
+                const int amax_slice_offset = (1 + 2 * nf) * (number_blocks) * slice_id;
+                const int max_indices_slice_offset = (number_blocks) * slice_id;
                 // Default values for relevant buffers/variables:
                 auto q_combined_slice = Kokkos::subview(q_combined,
                     std::make_pair(q_slice_offset, (nf * 27 * q_inx3 + padding) * (slice_id + 1)));
@@ -166,33 +172,33 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
                 std::array<simd_t, OCTOTIGER_MAX_NUMBER_FIELDS> local_q;
                 std::array<simd_t, OCTOTIGER_MAX_NUMBER_FIELDS> local_q_flipped;
                 for (int f = 0; f < nf; f++) {
-                    local_f[f] = 0.0;
+                    local_f[f] = simd_t(0.0);
                 }
                 // TODO replace those with proper default initialization?
                 std::array<simd_t, NDIM> local_x; 
                 std::array<simd_t, NDIM> local_vg; 
                 for (int dim = 0; dim < NDIM; dim++) {
-                  local_x[dim] = 0.0;
-                  local_vg[dim] = 0.0;
+                  local_x[dim] = simd_t(0.0);
+                  local_vg[dim] = simd_t(0.0);
                 }
+                // Reset (as we only add to the results...)
                 for (int f = 0; f < nf; f++) {
-                    f_combined_slice[dim * nf * q_inx3 + f * q_inx3 + index] = 0.0;
+                    for (int i = 0; i < simd_t::size(); i++) {
+                      f_combined_slice[dim * nf * q_inx3 + f * q_inx3 + index + i] = 0.0;
+                    }
                 }
                 amax[block_id + amax_slice_offset] = 0.0;
                 amax_indices[block_id + max_indices_slice_offset] = 0;
                 amax_d[block_id + max_indices_slice_offset] = 0;
                 double current_amax = 0.0;
                 int current_d = 0;
+                int current_i = index;
 
                 // Calculate the flux:
-                if (index > q_inx * q_inx + q_inx && index < q_inx3) {
-                    // Need: Workaround to set the mask - usually I'd like to set it
+                if (index + simd_t::size() > q_inx * q_inx + q_inx && index < q_inx3) {
+                    // Workaround to set the mask - usually I'd like to set it
                     // component-wise but kokkos-simd currently does not support this!
                     // hence the mask_helpers
-                    // => TODO Insert array with 1.0 and one with the masks
-                    // => compare via ==
-                    // done
-
                     const simd_t mask_helper1(1.0);
                     std::array<double, simd_t::size()> mask_helper2_array;
                     // TODO make masks double and load directly
@@ -213,24 +219,28 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
                                     simd_t(x_combined_slice.data() + dim * q_inx3 + index,
                                         SIMD_NAMESPACE::element_aligned_tag{}) +
                                     simd_t(0.5 * xloc[d][dim] * dx[slice_id]);
-                            } local_vg[0] = -omega *
-                            (simd_t(x_combined_slice.data() + q_inx3 + index,
-                                    SIMD_NAMESPACE::element_aligned_tag{}) +
-                                    simd_t(0.5 * xloc[d][1] * dx[slice_id]));
-                             local_vg[1] = +omega *
-                             (simd_t(x_combined_slice.data() + index,
+                            }
+                            local_vg[0] = -omega *
+                                (simd_t(x_combined_slice.data() + q_inx3 + index,
                                      SIMD_NAMESPACE::element_aligned_tag{}) +
-                              simd_t(0.5 * xloc[d][0] * dx[slice_id]));
+                                    simd_t(0.5 * xloc[d][1] * dx[slice_id]));
+                            local_vg[1] = +omega *
+                                (simd_t(x_combined_slice.data() + index,
+                                     SIMD_NAMESPACE::element_aligned_tag{}) +
+                                    simd_t(0.5 * xloc[d][0] * dx[slice_id]));
                             local_vg[2] = simd_t(0.0);
 
                             for (int f = 0; f < nf; f++) {
                                 local_q[f].copy_from(q_combined_slice.data() + f * face_offset +
                                         dim_offset * d + index,
                                     SIMD_NAMESPACE::element_aligned_tag{});
+                                local_q[f] = SIMD_NAMESPACE::choose(mask, local_q[f], simd_t(1.0));
                                 local_q_flipped[f].copy_from(q_combined_slice.data() +
                                         f * face_offset + dim_offset * flipped_dim -
                                         compressedH_DN[dim] + index,
                                     SIMD_NAMESPACE::element_aligned_tag{});
+                                local_q_flipped[f] = SIMD_NAMESPACE::choose(mask, local_q_flipped[f],
+                                    simd_t(1.0));
                             }
                             // Call the actual compute method
                             cell_inner_flux_loop_simd<simd_t>(omega, nf, A_, B_, local_q, local_q_flipped,
@@ -250,6 +260,7 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
                               if (max_helper[i] > current_amax) {
                                   current_amax = max_helper[i];
                                   current_d = d;
+                                  current_i = index + i;
                               }
                             }
                             // Add results to the final flux buffer
@@ -288,17 +299,17 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
 
                 // Write Maximum of local team to amax:
                 amax[block_id + amax_slice_offset] = current_amax;
-                amax_indices[block_id + max_indices_slice_offset] = index;
+                amax_indices[block_id + max_indices_slice_offset] = current_i;
                 amax_d[block_id + max_indices_slice_offset] = current_d;
                 // Save face to the end of the amax buffer This avoids putting combined_q back on
                 // the host side just to read those few values
                 const int flipped_dim = flip_dim(amax_d[block_id + max_indices_slice_offset], dim);
                 for (int f = 0; f < nf; f++) {
-                    amax[number_blocks + block_id * 2 * nf + f + amax_slice_offset] =
+                    amax[(number_blocks) + block_id * 2 * nf + f + amax_slice_offset] =
                         q_combined_slice[amax_indices[block_id + max_indices_slice_offset] +
                             f * face_offset +
                             dim_offset * amax_d[block_id + max_indices_slice_offset]];
-                    amax[number_blocks + block_id * 2 * nf + nf + f + amax_slice_offset] =
+                    amax[(number_blocks) + block_id * 2 * nf + nf + f + amax_slice_offset] =
                         q_combined_slice[amax_indices[block_id +
                         max_indices_slice_offset] -
                             compressedH_DN[dim] + f * face_offset + dim_offset * flipped_dim];
@@ -961,7 +972,8 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
         combined_u, AM, dx, disc, n_species, ndir, nangmom, {1, 1, 8, 8});
 
     // Flux
-    const int blocks = NDIM * (q_inx3 / 128 + 1) * 128;
+    // TODO Add offset block +1?
+    const int blocks = NDIM * (q_inx3 / host_simd_exp_t::size()) * 1;
     const host_buffer<bool>& masks = get_flux_host_masks<host_buffer<bool>>();
 
     aggregated_host_buffer<double, executor_t> amax(
@@ -969,8 +981,9 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     aggregated_host_buffer<int, executor_t> amax_indices(alloc_host_int, blocks * max_slices);
     aggregated_host_buffer<int, executor_t> amax_d(alloc_host_int, blocks * max_slices);
 
-    flux_impl_teamless<host_simd_exp_t, host_simd_mask_exp_t>(exec, agg_exec, q, combined_x, f, amax, amax_indices, amax_d, masks, omega,
-        dx, A_, B_, nf, fgamma, de_switch_1, blocks, 1);
+    flux_impl_teamless<host_simd_exp_t, host_simd_mask_exp_t>(exec, agg_exec, q, combined_x, f,
+        amax, amax_indices, amax_d, masks, omega, dx, A_, B_, nf, fgamma,
+        de_switch_1, blocks, 1);
 
     sync_kokkos_host_kernel(exec);
 
@@ -1106,7 +1119,6 @@ timestep_t launch_hydro_kokkos_kernels(const hydro_computer<NDIM, INX, physics<N
               }
           }
       }
-      // std::cout << max_lambda.a << std::endl;
       return max_lambda;
           }, "kokkos_hydro_solver"));
     return ret_fut.get();

@@ -279,6 +279,8 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop(const double omega, cons
 
 
 #include <simd.hpp>
+#include <avx512.hpp>
+#include <avx.hpp>
 template <typename double_t>
 CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop_simd(const double omega, const size_t nf_,
     const double A_, const double B_, const std::array<double_t, OCTOTIGER_MAX_NUMBER_FIELDS>& local_q,
@@ -458,7 +460,7 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop_simd(const double omega,
             }
         }
 
-        if (!SIMD_NAMESPACE::any_of(amp_mask)) {
+        if (SIMD_NAMESPACE::any_of(amp_mask)) {
             const double_t flux_tmp1 =
                 (this_ap * fl - this_am * fr +
                     this_ap * this_am *
