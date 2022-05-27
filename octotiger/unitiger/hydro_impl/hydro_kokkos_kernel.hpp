@@ -5,6 +5,7 @@
 #include <hpx/futures/future.hpp>
 #include <hpx/kokkos/executors.hpp>
 #include <utility>
+#include "simd_common.hpp"
 #ifdef OCTOTIGER_HAVE_KOKKOS
 #include "octotiger/common_kernel/kokkos_util.hpp"
 #include "octotiger/unitiger/hydro_impl/flux_kernel_interface.hpp"    // required for wrappers
@@ -174,7 +175,6 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
                 for (int f = 0; f < nf; f++) {
                     local_f[f] = simd_t(0.0);
                 }
-                // TODO replace those with proper default initialization?
                 std::array<simd_t, NDIM> local_x; 
                 std::array<simd_t, NDIM> local_vg; 
                 for (int dim = 0; dim < NDIM; dim++) {
@@ -311,86 +311,19 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
                             compressedH_DN[dim] + f * face_offset + dim_offset * flipped_dim];
                 }
             });
-
-        /*const auto workitems =
-            number_blocks_small + (64 - number_blocks_small % 64);    // padd until wavefront size
-        auto policy_max = Kokkos::Experimental::require(
-            Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<2>>(
-                agg_exec.get_underlying_executor().instance(), {0, 0}, {number_slices, workitems},
-                {1, workitems}),
-            Kokkos::Experimental::WorkItemProperty::HintLightWeight);
-
-        Kokkos::parallel_for(
-            "kernel hydro flux max", policy_max, KOKKOS_LAMBDA(int slice_id, int block_id) {
-                if (block_id < number_blocks_small) {
-                    const int q_slice_offset = (nf * 27 * q_inx3 + padding) * slice_id;
-                    const int amax_slice_offset = (1 + 2 * nf) * number_blocks * slice_id;
-                    const int max_indices_slice_offset = number_blocks * slice_id;
-
-                    const int amax_slice_offset_small =
-                        (1 + 2 * nf) * number_blocks_small * slice_id;
-                    const int max_indices_slice_offset_small =
-                    number_blocks_small * slice_id;
-
-                    auto q_combined_slice = Kokkos::subview(q_combined,
-                        std::make_pair(q_slice_offset, (nf * 27 * q_inx3 + padding) * (slice_id + 1)));
-
-                    const int block_start_index = block_id * workitems_per_small_block;
-                    size_t current_block_max_slot = block_start_index;
-                    for (int i = block_start_index + 1;
-                         i < block_start_index + workitems_per_small_block && i < number_blocks;
-                         i++) {
-                        if (amax[i + amax_slice_offset] >
-                            amax[current_block_max_slot + amax_slice_offset]) {
-                            current_block_max_slot = i;
-                        } else if (amax[i + amax_slice_offset] ==
-                            amax[current_block_max_slot + amax_slice_offset]) {
-                            if (amax_indices[i + max_indices_slice_offset] <
-                                amax_indices[current_block_max_slot + max_indices_slice_offset])
-                                current_block_max_slot = i;
-                        }
-                    }
-                    const int blocks_per_dim = number_blocks_small / NDIM;
-                    const int dim = (block_id / blocks_per_dim);
-
-                    amax_small[block_id + amax_slice_offset_small] =
-                        amax[current_block_max_slot + amax_slice_offset];
-                    amax_indices_small[block_id + max_indices_slice_offset_small] =
-                        amax_indices[current_block_max_slot + max_indices_slice_offset];
-                    amax_d_small[block_id + max_indices_slice_offset_small] =
-                        amax_d[current_block_max_slot +
-                        max_indices_slice_offset];
-
-                    const int flipped_dim =
-                        flip_dim(amax_d_small[block_id + max_indices_slice_offset_small], dim);
-                    for (int f = 0; f < nf; f++) {
-                        amax_small[number_blocks_small + block_id * 2 * nf + f +
-                            amax_slice_offset_small] =
-                            q_combined_slice[amax_indices_small[block_id +
-                                           max_indices_slice_offset_small] +
-                                f * face_offset +
-                                dim_offset *
-                                    amax_d_small[block_id + max_indices_slice_offset_small]];
-                        amax_small[number_blocks_small + block_id * 2 * nf + nf + f +
-                            amax_slice_offset_small] =
-                            q_combined_slice[amax_indices_small[block_id +
-                                           max_indices_slice_offset_small] -
-                                compressedH_DN[dim] + f * face_offset + dim_offset * flipped_dim];
-                    }
-                }
-            });*/
     }
 }
 
-template <typename kokkos_backend_t, typename kokkos_buffer_t, typename kokkos_int_buffer_t,
-    typename kokkos_mask_t>
+template <typename kokkos_backend_t,
+    typename kokkos_buffer_t, typename kokkos_int_buffer_t, typename
+    kokkos_mask_t>
 void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
-    typename Aggregated_Executor<hpx::kokkos::executor<kokkos_backend_t>>::Executor_Slice &agg_exec,
-    const kokkos_buffer_t& q_combined,
-    const kokkos_buffer_t& x_combined, kokkos_buffer_t& f_combined, kokkos_buffer_t& amax,
-    kokkos_int_buffer_t& amax_indices, kokkos_int_buffer_t& amax_d, const kokkos_mask_t& masks,
-    const double omega, const kokkos_buffer_t& dx, const double A_, const double B_, const int nf,
-    const double fgamma, const double de_switch_1, const int number_blocks, const int team_size) {
+    typename Aggregated_Executor<hpx::kokkos::executor<kokkos_backend_t>>::Executor_Slice& agg_exec,
+    const kokkos_buffer_t& q_combined, const kokkos_buffer_t& x_combined,
+    kokkos_buffer_t& f_combined, kokkos_buffer_t& amax, kokkos_int_buffer_t& amax_indices,
+    kokkos_int_buffer_t& amax_d, const kokkos_mask_t& masks, const double omega,
+    const kokkos_buffer_t& dx, const double A_, const double B_, const int nf, const double fgamma,
+    const double de_switch_1, const int number_blocks, const int team_size) {
     // Supported team_sizes need to be the power of two! Team size of 1 is a special case for usage
     // with the serial kokkos backend:
     assert((team_size == 256) || (team_size == 128) || (team_size == 64) || (team_size == 32) ||
@@ -400,14 +333,23 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
         const int number_slices = agg_exec.number_slices;
         // Set policy via executor and allocate enough scratch memory:
         using policytype = Kokkos::TeamPolicy<decltype(executor.instance())>;
-        auto policy = Kokkos::Experimental::require(
-            Kokkos::TeamPolicy<decltype(executor.instance())>(agg_exec.get_underlying_executor().instance(), number_blocks * number_slices, team_size), Kokkos::Experimental::WorkItemProperty::HintLightWeight);
+        auto policy =
+            Kokkos::Experimental::require(Kokkos::TeamPolicy<decltype(executor.instance())>(
+                                              agg_exec.get_underlying_executor().instance(),
+                                              number_blocks * number_slices, team_size),
+                Kokkos::Experimental::WorkItemProperty::HintLightWeight);
         using membertype = typename policytype::member_type;
         if (team_size > 1)
             policy.set_scratch_size(
                 0, Kokkos::PerTeam(team_size * (sizeof(double) + sizeof(int) *
                     2)));
 
+        // TODO This method does not contain full simd support yet, mostly because neither the
+        // HPX backend nor the Serial backend in Kokkos offer support for team sizes > 1
+        // If they ever the we can replace the remaining doubles in the following parallel_for by
+        // the proper simd_t types and subsequently turn these simd_t to avx or other instruction sets
+        using simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>;
+        using simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::scalar>;
 
         // Start kernel using policy (and through it the passed executor):
         Kokkos::parallel_for(
@@ -441,17 +383,25 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
 
                 // Set during cmake step with
                 // -DOCTOTIGER_WITH_MAX_NUMBER_FIELDS
-                double local_f[OCTOTIGER_MAX_NUMBER_FIELDS];
+                std::array<simd_t, OCTOTIGER_MAX_NUMBER_FIELDS> local_f;
+                std::array<simd_t, OCTOTIGER_MAX_NUMBER_FIELDS> local_q;
+                std::array<simd_t, OCTOTIGER_MAX_NUMBER_FIELDS> local_q_flipped;
                 // assumes maximal number (given by cmake) of species in a simulation.  Not the most
                 // elegant solution and rather old-fashion but one that works.  May be changed to a
                 // more flexible sophisticated object.
                 for (int f = 0; f < nf; f++) {
                     local_f[f] = 0.0;
                 }
-                double local_x[3] = {0.0, 0.0, 0.0};
-                double local_vg[3] = {0.0, 0.0, 0.0};
+                std::array<simd_t, NDIM> local_x; 
+                std::array<simd_t, NDIM> local_vg; 
+                for (int dim = 0; dim < NDIM; dim++) {
+                  local_x[dim] = simd_t(0.0);
+                  local_vg[dim] = simd_t(0.0);
+                }
                 for (int f = 0; f < nf; f++) {
-                    f_combined_slice[dim * nf * q_inx3 + f * q_inx3 + index] = 0.0;
+                    for (int i = 0; i < simd_t::size(); i++) {
+                      f_combined_slice[dim * nf * q_inx3 + f * q_inx3 + index + i] = 0.0;
+                    }
                 }
                 if (tid == 0) {
                     amax[block_id + amax_slice_offset] = 0.0;
@@ -460,49 +410,105 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                 }
                 double current_amax = 0.0;
                 int current_d = 0;
+                int current_i = index;
 
                 // Calculate the flux:
-                if (index > q_inx * q_inx + q_inx && index < q_inx3) {
-                    const double mask = masks[index + dim * dim_offset];
-                    if (mask != 0.0) {
-                        for (int fi = 0; fi < 9; fi++) {            
-                            double this_ap = 0.0, this_am = 0.0;   
+                if (index + simd_t::size() > q_inx * q_inx + q_inx && index < q_inx3) {
+                    // Workaround to set the mask - usually I'd like to set it
+                    // component-wise but kokkos-simd currently does not support this!
+                    // hence the mask_helpers
+                    const simd_t mask_helper1(1.0);
+                    std::array<double, simd_t::size()> mask_helper2_array;
+                    // TODO make masks double and load directly
+                    for (int i = 0; i < simd_t::size(); i++) {
+                        mask_helper2_array[i] = masks[index + dim * dim_offset + i];
+                    }
+                    const simd_t mask_helper2(
+                        mask_helper2_array.data(), SIMD_NAMESPACE::element_aligned_tag{});
+                    const simd_mask_t mask = mask_helper1 == mask_helper2;
+                    if (SIMD_NAMESPACE::any_of(mask)) {
+                        for (int fi = 0; fi < 9; fi++) { // TODO replace 9
+                            simd_t this_ap = 0.0, this_am = 0.0;
                             const int d = faces[dim][fi];
                             const int flipped_dim = flip_dim(d, dim);
-                            for (int dim = 0; dim < 3; dim++) {
+                            for (int dim = 0; dim < NDIM; dim++) {
                                 local_x[dim] =
-                                    x_combined_slice[dim * q_inx3 + index] + (0.5 * xloc[d][dim] * dx[slice_id]);
+                                    simd_t(x_combined_slice.data() + dim * q_inx3 + index,
+                                        SIMD_NAMESPACE::element_aligned_tag{}) +
+                                    simd_t(0.5 * xloc[d][dim] * dx[slice_id]);
                             }
-                            local_vg[0] = -omega * (x_combined_slice[q_inx3 + index] + 0.5 * xloc[d][1] * dx[slice_id]);
-                            local_vg[1] = +omega * (x_combined_slice[index] + 0.5 * xloc[d][0] * dx[slice_id]);
-                            local_vg[2] = 0.0;
+                            local_vg[0] = -omega *
+                                (simd_t(x_combined_slice.data() + q_inx3 + index,
+                                     SIMD_NAMESPACE::element_aligned_tag{}) +
+                                    simd_t(0.5 * xloc[d][1] * dx[slice_id]));
+                            local_vg[1] = +omega *
+                                (simd_t(x_combined_slice.data() + index,
+                                     SIMD_NAMESPACE::element_aligned_tag{}) +
+                                    simd_t(0.5 * xloc[d][0] * dx[slice_id]));
+                            local_vg[2] = simd_t(0.0);
+
+                            for (int f = 0; f < nf; f++) {
+                                local_q[f].copy_from(q_combined_slice.data() + f * face_offset +
+                                        dim_offset * d + index,
+                                    SIMD_NAMESPACE::element_aligned_tag{});
+                                local_q_flipped[f].copy_from(q_combined_slice.data() +
+                                        f * face_offset + dim_offset * flipped_dim -
+                                        compressedH_DN[dim] + index,
+                                    SIMD_NAMESPACE::element_aligned_tag{});
+                                // Results get masked, no need to mask the input:
+                                /* local_q[f] = SIMD_NAMESPACE::choose(mask, local_q[f], simd_t(1.0)); */
+                                /* local_q_flipped[f] = SIMD_NAMESPACE::choose(mask, local_q_flipped[f], */
+                                /*     simd_t(1.0)); */
+                            }
                             // Call the actual compute method
-                            cell_inner_flux_loop<double>(omega, nf, A_, B_, q_combined_slice, local_f,
-                                local_x, local_vg, this_ap, this_am, dim, d, dx[slice_id], fgamma,
-                                de_switch_1, dim_offset * d + index,
-                                dim_offset * flipped_dim - compressedH_DN[dim] + index,
+                            cell_inner_flux_loop_simd<simd_t>(omega, nf, A_, B_, local_q, local_q_flipped,
+                                local_f, local_x, local_vg, this_ap, this_am, dim, d, dx[slice_id],
+                                fgamma, de_switch_1,
                                 face_offset);
-                            // TODO Preparation for later SIMD masking (not
-                            // supported yet)
-                            this_ap *= mask;
-                            this_am *= mask;
+
                             // Update maximum values
-                            const double amax_tmp = max_wrapper(this_ap, (-this_am));
-                            if (amax_tmp > current_amax) {
-                                current_amax = amax_tmp;
-                                current_d = d;
+                            this_ap = SIMD_NAMESPACE::choose(mask, this_ap, simd_t(0.0));
+                            this_am = SIMD_NAMESPACE::choose(mask, this_am, simd_t(0.0));
+                            const simd_t amax_tmp = SIMD_NAMESPACE::max(this_ap, (-this_am));
+                            // Reduce
+                            // TODO Reduce outside of inner loop?
+                            std::array<double, simd_t::size()> max_helper;
+                            amax_tmp.copy_to(max_helper.data(), SIMD_NAMESPACE::element_aligned_tag{});
+                            for (int i = 0; i < simd_t::size(); i++) {
+                              if (max_helper[i] > current_amax) {
+                                  current_amax = max_helper[i];
+                                  current_d = d;
+                                  current_i = index + i;
+                              }
                             }
                             // Add results to the final flux buffer
                             for (int f = 1; f < nf; f++) {
-                                f_combined_slice[dim * nf * q_inx3 + f * q_inx3 + index] +=
-                                    quad_weights[fi] * local_f[f];
+                              simd_t current_val(
+                                  f_combined_slice.data() + dim * nf * q_inx3 + f * q_inx3 + index,
+                                  SIMD_NAMESPACE::element_aligned_tag{});
+                              current_val = current_val +
+                                SIMD_NAMESPACE::choose(mask, quad_weights[fi] * local_f[f],
+                                    simd_t(0.0));
+                              current_val.copy_to(f_combined_slice.data() + dim
+                                * nf * q_inx3 + f * q_inx3 + index,
+                                SIMD_NAMESPACE::element_aligned_tag{});
                             }
                         }
                     }
+                    simd_t current_val(
+                      f_combined_slice.data() + dim * nf * q_inx3 + index,
+                      SIMD_NAMESPACE::element_aligned_tag{});
                     for (int f = 10; f < nf; f++) {
-                        f_combined_slice[dim * nf * q_inx3 + index] +=
-                            f_combined_slice[dim * nf * q_inx3 + f * q_inx3 + index];
+                        simd_t current_field_val(
+                            f_combined_slice.data() + dim * nf * q_inx3 + f * q_inx3 + index,
+                            SIMD_NAMESPACE::element_aligned_tag{});
+                        current_val = current_val +
+                          SIMD_NAMESPACE::choose(mask, current_field_val,
+                              simd_t(0.0));
                     }
+                    current_val.copy_to(
+                      f_combined_slice.data() + dim * nf * q_inx3 + index,
+                      SIMD_NAMESPACE::element_aligned_tag{});
                 }
 
                 // Parallel maximum search within workgroup: Kokkos serial backend does not seem to
@@ -519,7 +525,7 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                         sm_d(team_handle.team_scratch(0), team_size);
                     sm_amax[tid] = current_amax;
                     sm_d[tid] = current_d;
-                    sm_i[tid] = index;
+                    sm_i[tid] = current_i;
                     team_handle.team_barrier();
                     int tid_border = team_handle.team_size() / 2;
                     if (tid_border >= 32) {
@@ -581,12 +587,13 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                     const int flipped_dim = flip_dim(amax_d[block_id + max_indices_slice_offset], dim);
                     for (int f = 0; f < nf; f++) {
                         amax[number_blocks + block_id * 2 * nf + f + amax_slice_offset] =
-                            q_combined_slice[amax_indices[block_id + max_indices_slice_offset] + f * face_offset +
+                            q_combined_slice[amax_indices[block_id + max_indices_slice_offset] +
+                                f * face_offset +
                                 dim_offset * amax_d[block_id + max_indices_slice_offset]];
                         amax[number_blocks + block_id * 2 * nf + nf + f + amax_slice_offset] =
                             q_combined_slice[amax_indices[block_id + max_indices_slice_offset] -
-                            compressedH_DN[dim] +
-                                f * face_offset + dim_offset * flipped_dim];
+                                compressedH_DN[dim] + f * face_offset +
+                                dim_offset * flipped_dim];
                     }
                 }
             });

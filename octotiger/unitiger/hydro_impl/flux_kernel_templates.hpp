@@ -1,5 +1,6 @@
 #pragma once
 #include <cmath>
+#include "octotiger/cuda_util/cuda_global_def.hpp"
 #include "octotiger/hydro_defs.hpp"
 #include "simd_common.hpp"
 #if defined(__clang__)
@@ -315,7 +316,7 @@ struct has_simd_asinh<simd_t, std::void_t<decltype(asinh(std::declval<simd_t>())
 } // end namespace detail
 
 template <typename simd_t>
-inline simd_t sqrt_with_serial_fallback(const simd_t input) {
+CUDA_GLOBAL_METHOD inline simd_t sqrt_with_serial_fallback(const simd_t input) {
   if constexpr (detail::has_simd_sqrt<simd_t>::value) {
     // should consider the SIMD_NAMESPACE for overloads due to Argument-dependent name lookup
     return sqrt(input);
@@ -332,7 +333,7 @@ inline simd_t sqrt_with_serial_fallback(const simd_t input) {
   }
 }
 template <typename simd_t>
-inline simd_t pow_with_serial_fallback(const simd_t input, const double exponent) {
+CUDA_GLOBAL_METHOD inline simd_t pow_with_serial_fallback(const simd_t input, const double exponent) {
   if constexpr (detail::has_simd_pow<simd_t>::value) {
     // should consider the SIMD_NAMESPACE for overloads due to Argument-dependent name lookup
     return pow(input, exponent);
@@ -349,7 +350,7 @@ inline simd_t pow_with_serial_fallback(const simd_t input, const double exponent
   }
 }
 template <typename simd_t>
-inline simd_t asinh_with_serial_fallback(const simd_t input) {
+CUDA_GLOBAL_METHOD inline simd_t asinh_with_serial_fallback(const simd_t input) {
   if constexpr (detail::has_simd_asinh<simd_t>::value) {
     // should consider the SIMD_NAMESPACE for overloads due to Argument-dependent name lookup
     return asinh(input);
