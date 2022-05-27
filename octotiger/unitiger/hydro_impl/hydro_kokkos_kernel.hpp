@@ -208,7 +208,6 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
                     const simd_t mask_helper2(
                         mask_helper2_array.data(), SIMD_NAMESPACE::element_aligned_tag{});
                     const simd_mask_t mask = mask_helper1 == mask_helper2;
-                    /* double mask = masks[index + dim * dim_offset]; */
                     if (SIMD_NAMESPACE::any_of(mask)) {
                         for (int fi = 0; fi < 9; fi++) { // TODO replace 9
                             simd_t this_ap = 0.0, this_am = 0.0;
@@ -234,13 +233,14 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
                                 local_q[f].copy_from(q_combined_slice.data() + f * face_offset +
                                         dim_offset * d + index,
                                     SIMD_NAMESPACE::element_aligned_tag{});
-                                local_q[f] = SIMD_NAMESPACE::choose(mask, local_q[f], simd_t(1.0));
                                 local_q_flipped[f].copy_from(q_combined_slice.data() +
                                         f * face_offset + dim_offset * flipped_dim -
                                         compressedH_DN[dim] + index,
                                     SIMD_NAMESPACE::element_aligned_tag{});
-                                local_q_flipped[f] = SIMD_NAMESPACE::choose(mask, local_q_flipped[f],
-                                    simd_t(1.0));
+                                // Results get masked, no need to mask the input:
+                                /* local_q[f] = SIMD_NAMESPACE::choose(mask, local_q[f], simd_t(1.0)); */
+                                /* local_q_flipped[f] = SIMD_NAMESPACE::choose(mask, local_q_flipped[f], */
+                                /*     simd_t(1.0)); */
                             }
                             // Call the actual compute method
                             cell_inner_flux_loop_simd<simd_t>(omega, nf, A_, B_, local_q, local_q_flipped,
@@ -265,7 +265,6 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
                             }
                             // Add results to the final flux buffer
                             for (int f = 1; f < nf; f++) {
-                              // TODO Mask required after setting the input accordingly?
                               simd_t current_val(
                                   f_combined_slice.data() + dim * nf * q_inx3 + f * q_inx3 + index,
                                   SIMD_NAMESPACE::element_aligned_tag{});
@@ -275,9 +274,6 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
                               current_val.copy_to(f_combined_slice.data() + dim
                                 * nf * q_inx3 + f * q_inx3 + index,
                                 SIMD_NAMESPACE::element_aligned_tag{});
-
-                              /* f_combined_slice[dim * nf * q_inx3 + f * q_inx3 + index] += */
-                              /*     quad_weights[fi] * local_f[f]; */
                             }
                         }
                     }
@@ -301,7 +297,7 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
                 amax[block_id + amax_slice_offset] = current_amax;
                 amax_indices[block_id + max_indices_slice_offset] = current_i;
                 amax_d[block_id + max_indices_slice_offset] = current_d;
-                // Save face to the end of the amax buffer This avoids putting combined_q back on
+                // Save faces to the end of the amax buffer This avoids putting combined_q back on
                 // the host side just to read those few values
                 const int flipped_dim = flip_dim(amax_d[block_id + max_indices_slice_offset], dim);
                 for (int f = 0; f < nf; f++) {
@@ -1080,10 +1076,12 @@ timestep_t launch_hydro_kokkos_kernels(const hydro_computer<NDIM, INX, physics<N
       // Convert input
       convert_x_structure(X, combined_x.data() + x_slice_offset * slice_id);
       for (int n = 0; n < NDIM; n++) {
-          std::copy(X[n].begin(), X[n].end(), combined_large_x.data() + n * H_N3 + large_x_slice_offset * slice_id);
+          std::copy(X[n].begin(), X[n].end(),
+              combined_large_x.data() + n * H_N3 + large_x_slice_offset * slice_id);
       }
       for (int f = 0; f < hydro.get_nf(); f++) {
-          std::copy(U[f].begin(), U[f].end(), combined_u.data() + f * H_N3 + u_slice_offset * slice_id);
+          std::copy(
+              U[f].begin(), U[f].end(), combined_u.data() + f * H_N3 + u_slice_offset * slice_id);
       }
       const auto& disc_detect_bool = hydro.get_disc_detect();
       const auto& smooth_bool = hydro.get_smooth_field();
