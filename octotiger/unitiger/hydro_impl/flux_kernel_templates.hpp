@@ -301,23 +301,50 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop_simd(const double omega,
     if (A_ != 0.0) {
       // TODO Renable support for different EoS
       // probaly by adding serial fallback for the missing math functins
-        /* const auto Binv = 1.0 / B_; */
+        const auto Binv = 1.0 / B_;
+        const auto Binv_pow_input = rho * Binv;
+
+
+        // Pow serial fallback
+        std::array<double, double_t::size()> pow_helper;
+        std::array<double, double_t::size()> pow_helper_input;
+        Binv_pow_input.copy_to(pow_helper_input.data(), SIMD_NAMESPACE::element_aligned_tag{});
+        for (auto i = 0; i < double_t::size(); i++) {
+          pow_helper[i] = std::pow(pow_helper_input[i], 1.0 / 3.0);
+        }
+        const double_t x(pow_helper.data(), SIMD_NAMESPACE::element_aligned_tag{});
         /* const auto x = pow_wrapper(rho * Binv, 1.0 / 3.0); */
-        /* const auto x_sqr = x * x; */
-        /* const auto x_sqr_sqrt = sqrt_wrapper(x_sqr + 1.0); */
-        /* const auto x_pow_5 = x_sqr * x_sqr * x; */
-        /* const double_t hdeg = 8.0 * A_ * Binv * (x_sqr_sqrt - 1.0); */
 
 
-        /* const double_t pdeg_tmp1 = A_ * (x * (2 * x_sqr - 3) * x_sqr_sqrt + 3 * asinh_wrapper(x)); */
-        /* const double_t pdeg_tmp2 = 1.6 * A_ * x_pow_5; */
+        const auto x_sqr = x * x;
+        const auto x_sqr_sqrt = SIMD_NAMESPACE::sqrt(x_sqr + double_t(1.0));
+        const auto x_pow_5 = x_sqr * x_sqr * x;
+        const double_t hdeg = 8.0 * A_ * Binv * (x_sqr_sqrt - 1.0);
+
+        // Asinh serial fallback
+        std::array<double, double_t::size()> asinh_helper;
+        std::array<double, double_t::size()> asinh_helper_input;
+        x.copy_to(asinh_helper_input.data(), SIMD_NAMESPACE::element_aligned_tag{});
+        for (auto i = 0; i < double_t::size(); i++) {
+          asinh_helper[i] = std::asinh(asinh_helper_input[i]);
+        }
+        const double_t asinh_result(asinh_helper.data(), SIMD_NAMESPACE::element_aligned_tag{});
+
+
+        const double_t pdeg_tmp1 = A_ * (x * (2.0 * x_sqr - 3.0) * x_sqr_sqrt + 3.0 * asinh_result);
+        const double_t pdeg_tmp2 = 1.6 * A_ * x_pow_5;
+
+        const auto pdeg_mask = x < double_t(0.001);
+        pdeg = SIMD_NAMESPACE::choose(pdeg_mask, pdeg_tmp2, pdeg_tmp1);
         /* select_wrapper(pdeg, (x < 0.001), pdeg_tmp2, pdeg_tmp1); */
 
-        /* const double_t edeg_tmp1 = rho * hdeg - pdeg; */
-        /* const double_t edeg_tmp2 = 2.4 * A_ * x_pow_5; */
+        const double_t edeg_tmp1 = rho * hdeg - pdeg;
+        const double_t edeg_tmp2 = 2.4 * A_ * x_pow_5;
+        const auto edeg_mask = double_t(0.001) < x;
+        edeg = SIMD_NAMESPACE::choose(edeg_mask, edeg_tmp1, edeg_tmp2);
         /* select_wrapper(edeg, (x > 0.001), edeg_tmp1, edeg_tmp2); */
 
-        /* dpdeg_drho = 8.0 / 3.0 * A_ * Binv * x_sqr / x_sqr_sqrt; */
+        dpdeg_drho = 8.0 / 3.0 * A_ * Binv * x_sqr / x_sqr_sqrt;
     }
     double_t ek = 0.0;
     double_t ein;
@@ -328,7 +355,9 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop_simd(const double omega,
     const auto ein1_tmp2 = local_q[egas_i] - ek - edeg;
     const auto ein1_mask =
         (ein1_tmp2 < (de_switch_1 * local_q[egas_i]));
+
     if (SIMD_NAMESPACE::any_of(ein1_mask)) {
+        // Pow serial fallback
         std::array<double, double_t::size()> pow_helper;
         std::array<double, double_t::size()> pow_helper_input;
         local_q[tau_i].copy_to(pow_helper_input.data(), SIMD_NAMESPACE::element_aligned_tag{});
@@ -362,23 +391,47 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop_simd(const double omega,
     if (A_ != 0.0) {
       // TODO Renable support for different EoS
       // probaly by adding serial fallback for the missing math functins
-        /* const auto Binv = 1.0 / B_; */
+        const auto Binv = 1.0 / B_;
+        const auto Binv_pow_input = rho * Binv;
+
+
+        // Pow serial fallback
+        std::array<double, double_t::size()> pow_helper;
+        std::array<double, double_t::size()> pow_helper_input;
+        Binv_pow_input.copy_to(pow_helper_input.data(), SIMD_NAMESPACE::element_aligned_tag{});
+        for (auto i = 0; i < double_t::size(); i++) {
+          pow_helper[i] = std::pow(pow_helper_input[i], 1.0 / 3.0);
+        }
+        const double_t x(pow_helper.data(), SIMD_NAMESPACE::element_aligned_tag{});
         /* const auto x = pow_wrapper(rho * Binv, 1.0 / 3.0); */
-        /* const auto x_sqr = x * x; */
-        /* const auto x_sqr_sqrt = sqrt_wrapper(x_sqr + 1.0); */
-        /* const auto x_pow_5 = x_sqr * x_sqr * x; */
-        /* const double_t hdeg = 8.0 * A_ * Binv * (x_sqr_sqrt - 1.0); */
 
+        const auto x_sqr = x * x;
+        const auto x_sqr_sqrt = SIMD_NAMESPACE::sqrt(x_sqr + 1.0);
+        const auto x_pow_5 = x_sqr * x_sqr * x;
+        const double_t hdeg = 8.0 * A_ * Binv * (x_sqr_sqrt - 1.0);
 
-        /* const double_t pdeg_tmp1 = A_ * (x * (2 * x_sqr - 3) * x_sqr_sqrt + 3 * asinh_wrapper(x)); */
-        /* const double_t pdeg_tmp2 = 1.6 * A_ * x_pow_5; */
+        // Asinh serial fallback
+        std::array<double, double_t::size()> asinh_helper;
+        std::array<double, double_t::size()> asinh_helper_input;
+        x.copy_to(asinh_helper_input.data(), SIMD_NAMESPACE::element_aligned_tag{});
+        for (auto i = 0; i < double_t::size(); i++) {
+          asinh_helper[i] = std::asinh(asinh_helper_input[i]);
+        }
+        const double_t asinh_result(asinh_helper.data(), SIMD_NAMESPACE::element_aligned_tag{});
+
+        const double_t pdeg_tmp1 = A_ * (x * (2.0 * x_sqr - 3.0) * x_sqr_sqrt + 3.0 * asinh_result);
+        const double_t pdeg_tmp2 = 1.6 * A_ * x_pow_5;
+        const auto pdeg_mask = x < double_t(0.001);
+        pdeg = SIMD_NAMESPACE::choose(pdeg_mask, pdeg_tmp2, pdeg_tmp1);
         /* select_wrapper(pdeg, (x < 0.001), pdeg_tmp2, pdeg_tmp1); */
 
-        /* const double_t edeg_tmp1 = rho * hdeg - pdeg; */
-        /* const double_t edeg_tmp2 = 2.4 * A_ * x_pow_5; */
+        const double_t edeg_tmp1 = rho * hdeg - pdeg;
+        const double_t edeg_tmp2 = 2.4 * A_ * x_pow_5;
+        const auto edeg_mask = double_t(0.001) < x;
+        edeg = SIMD_NAMESPACE::choose(edeg_mask, edeg_tmp1, edeg_tmp2);
         /* select_wrapper(edeg, (x > 0.001), edeg_tmp1, edeg_tmp2); */
 
-        /* dpdeg_drho = 8.0 / 3.0 * A_ * Binv * x_sqr / x_sqr_sqrt; */
+        dpdeg_drho = 8.0 / 3.0 * A_ * Binv * x_sqr / x_sqr_sqrt;
     }
     ek = 0.0;
     for (int dim = 0; dim < NDIM; dim++) {
@@ -391,6 +444,7 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop_simd(const double omega,
     const auto ein2_mask =
         (ein2_tmp2 < (de_switch_1 * local_q_flipped[egas_i]));
     if (SIMD_NAMESPACE::any_of(ein2_mask)) {
+        // Pow serial fallback
         std::array<double, double_t::size()> pow_helper;
         std::array<double, double_t::size()> pow_helper_input;
         local_q_flipped[tau_i].copy_to(pow_helper_input.data(), SIMD_NAMESPACE::element_aligned_tag{});
@@ -398,8 +452,6 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop_simd(const double omega,
           pow_helper[i] = std::pow(pow_helper_input[i], fgamma);
         }
         const double_t ein2_tmp1(pow_helper.data(), SIMD_NAMESPACE::element_aligned_tag{});
-        /* const auto ein2_tmp1 = */
-        /*     pow_wrapper(local_q_flipped[tau_i], fgamma); */
 
         ein = SIMD_NAMESPACE::choose(ein2_mask, ein2_tmp1, ein2_tmp2);
     } else {
@@ -468,7 +520,6 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop_simd(const double omega,
                             local_q_flipped[f])) /
                 (this_ap - this_am);
             const double_t flux_tmp2 = (fl + fr) / 2.0;
-            /* select_wrapper(this_flux[f], amp_mask, flux_tmp2, flux_tmp1); */
             this_flux[f] = SIMD_NAMESPACE::choose(amp_mask, flux_tmp2, flux_tmp1);
         } else {
             this_flux[f] = (this_ap * fl - this_am * fr +
@@ -479,8 +530,6 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop_simd(const double omega,
         }
     }
 
-    /* am = min_wrapper(am, this_am); */
-    /* ap = max_wrapper(ap, this_ap); */
     am = SIMD_NAMESPACE::min(am, this_am);
     ap = SIMD_NAMESPACE::max(ap, this_ap);
     return SIMD_NAMESPACE::max(ap, double_t(-am));
