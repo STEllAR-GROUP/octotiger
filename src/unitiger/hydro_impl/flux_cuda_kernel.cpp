@@ -1,3 +1,4 @@
+#include "simd_common.hpp"
 #if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)
 
 #if defined(OCTOTIGER_HAVE_HIP)
@@ -27,6 +28,12 @@
 #endif
 #include <stream_manager.hpp>
 
+// TODO include kokkos simd?
+#include <simd.hpp>
+#include <scalar.hpp>
+using simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>;
+using simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::scalar>;
+
 __global__ void __launch_bounds__(128, 2) flux_cuda_kernel(const double* __restrict__ q_combined,
     const double* __restrict__ x_combined, double* __restrict__ f_combined, double* amax,
     int* amax_indices, int* amax_d, const bool* __restrict__ masks, const double omega,
@@ -42,96 +49,141 @@ __global__ void __launch_bounds__(128, 2) flux_cuda_kernel(const double* __restr
     const int x_slice_offset = (NDIM * q_inx3 + 128) * slice_id;
     const int amax_slice_offset = NDIM * (1 + 2 * nf) * number_blocks * slice_id;
     const int max_indices_slice_offset = NDIM * number_blocks * slice_id;
-
-    // Set during cmake step with -DOCTOTIGER_WITH_MAX_NUMBER_FIELDS
-    double local_f[OCTOTIGER_MAX_NUMBER_FIELDS];
-    // assumes maximal number (given by cmake) of species in a simulation.
-    // Not the most elegant solution and rather old-fashion but one that works.
-    // May be changed to a more flexible sophisticated object.
-    for (int f = 0; f < nf; f++) {
-        local_f[f] = 0.0;
-    }
-    double local_x[3] = {0.0, 0.0, 0.0};
-    double local_vg[3] = {0.0, 0.0, 0.0};
-
-    double current_amax = 0.0;
-    int current_d = 0;
-
     // 3 dim 1000 i workitems
     const int number_dims = gridDim.z;
     const int blocks_per_dim = gridDim.y;
     const int dim = blockIdx.z;
     const int tid = threadIdx.x * 64 + threadIdx.y * 8 + threadIdx.z;
     const int index = blockIdx.y * 128 + tid;    // + 104;
+
+    // Set during cmake step with -DOCTOTIGER_WITH_MAX_NUMBER_FIELDS
+    std::array<simd_t, OCTOTIGER_MAX_NUMBER_FIELDS> local_f;
+    std::array<simd_t, OCTOTIGER_MAX_NUMBER_FIELDS> local_q;
+    std::array<simd_t, OCTOTIGER_MAX_NUMBER_FIELDS> local_q_flipped;
+    // assumes maximal number (given by cmake) of species in a simulation.
+    // Not the most elegant solution and rather old-fashion but one that works.
+    // May be changed to a more flexible sophisticated object.
     for (int f = 0; f < nf; f++) {
-        f_combined[dim * nf * q_inx3 + f * q_inx3 + index + f_slice_offset] = 0.0;
+        local_f[f] = 0.0;
     }
-    if (index > q_inx * q_inx + q_inx && index < q_inx3) {
-        double mask = masks[index + dim * dim_offset];
-        if (mask != 0.0) {
+    std::array<simd_t, NDIM> local_x; 
+    std::array<simd_t, NDIM> local_vg; 
+    for (int dim = 0; dim < NDIM; dim++) {
+        local_x[dim] = simd_t(0.0);
+        local_vg[dim] = simd_t(0.0);
+    }
+
+    double current_amax = 0.0;
+    int current_d = 0;
+    int current_i = index;
+
+    for (int f = 0; f < nf; f++) {
+        for (int i = 0; i < simd_t::size(); i++) {
+            f_combined[dim * nf * q_inx3 + f * q_inx3 + index + i + f_slice_offset] = 0.0;
+        }
+    }
+    if (index + simd_t::size() > q_inx * q_inx + q_inx && index < q_inx3) {
+        // Workaround to set the mask - usually I'd like to set it
+        // component-wise but kokkos-simd currently does not support this!
+        // hence the mask_helpers
+        const simd_t mask_helper1(1.0);
+        std::array<double, simd_t::size()> mask_helper2_array;
+        // TODO make masks double and load directly
+        for (int i = 0; i < simd_t::size(); i++) {
+            mask_helper2_array[i] = masks[index + dim * dim_offset + i];
+        }
+        const simd_t mask_helper2(
+            mask_helper2_array.data(), SIMD_NAMESPACE::element_aligned_tag{});
+        const simd_mask_t mask = mask_helper1 == mask_helper2;
+        if (SIMD_NAMESPACE::any_of(mask)) {
             for (int fi = 0; fi < 9; fi++) {            // 9
-                double this_ap = 0.0, this_am = 0.0;    // tmps
+                simd_t this_ap = 0.0, this_am = 0.0;    // tmps
                 const int d = faces[dim][fi];
                 const int flipped_dim = flip_dim(d, dim);
                 for (int dim = 0; dim < 3; dim++) {
-                    local_x[dim] = x_combined[dim * q_inx3 + index + x_slice_offset] + (0.5 * xloc[d][dim] * dx[slice_id]);
+                    local_x[dim] = simd_t(x_combined + dim * q_inx3 + index + x_slice_offset,
+                                       SIMD_NAMESPACE::element_aligned_tag{}) +
+                        simd_t(0.5 * xloc[d][dim] * dx[slice_id]);
                 }
-                local_vg[0] = -omega * (x_combined[q_inx3 + index + x_slice_offset] + 0.5 * xloc[d][1] * dx[slice_id]);
-                local_vg[1] = +omega * (x_combined[index + x_slice_offset] + 0.5 * xloc[d][0] * dx[slice_id]);
+                local_vg[0] = -omega *
+                    (simd_t(x_combined + q_inx3 + index + x_slice_offset,
+                         SIMD_NAMESPACE::element_aligned_tag{}) +
+                        simd_t(0.5 * xloc[d][1] * dx[slice_id]));
+                local_vg[1] = +omega *
+                    (simd_t(x_combined + index + x_slice_offset,
+                         SIMD_NAMESPACE::element_aligned_tag{}) +
+                        simd_t(0.5 * xloc[d][0] * dx[slice_id]));
                 local_vg[2] = 0.0;
-                const double *q_with_offset = q_combined + q_slice_offset;
-                cell_inner_flux_loop<double>(omega, nf, A_, B_, q_with_offset, local_f, local_x,
-                    local_vg, this_ap, this_am, dim, d, dx[slice_id], fgamma, de_switch_1,
-                    dim_offset * d + index, dim_offset * flipped_dim - compressedH_DN[dim] + index,
+                const double* q_with_offset = q_combined + q_slice_offset;
+                for (int f = 0; f < nf; f++) {
+                    local_q[f].copy_from(q_with_offset + f * face_offset +
+                            dim_offset * d + index,
+                        SIMD_NAMESPACE::element_aligned_tag{});
+                    local_q_flipped[f].copy_from(q_with_offset +
+                            f * face_offset + dim_offset * flipped_dim -
+                            compressedH_DN[dim] + index,
+                        SIMD_NAMESPACE::element_aligned_tag{});
+                    // Results get masked, no need to mask the input:
+                    /* local_q[f] = SIMD_NAMESPACE::choose(mask, local_q[f], simd_t(1.0)); */
+                    /* local_q_flipped[f] = SIMD_NAMESPACE::choose(mask, local_q_flipped[f], */
+                    /*     simd_t(1.0)); */
+                }
+                /* cell_inner_flux_loop<double>(omega, nf, A_, B_, q_with_offset, local_f, local_x, */
+                /*     local_vg, this_ap, this_am, dim, d, dx[slice_id], fgamma, de_switch_1, */
+                /*     dim_offset * d + index, dim_offset * flipped_dim - compressedH_DN[dim] + index, */
+                /*     face_offset); */
+                cell_inner_flux_loop_simd<simd_t>(omega, nf, A_, B_, local_q, local_q_flipped,
+                    local_f, local_x, local_vg, this_ap, this_am, dim, d, dx[slice_id],
+                    fgamma, de_switch_1,
                     face_offset);
-                this_ap *= mask;
-                this_am *= mask;
-                const double amax_tmp = max_wrapper(this_ap, (-this_am));
-                if (amax_tmp > current_amax) {
-                    current_amax = amax_tmp;
-                    current_d = d;
+                this_ap = SIMD_NAMESPACE::choose(mask, this_ap, simd_t(0.0));
+                this_am = SIMD_NAMESPACE::choose(mask, this_am, simd_t(0.0));
+                const simd_t amax_tmp = SIMD_NAMESPACE::max(this_ap, (-this_am));
+                // Reduce
+                // TODO Reduce outside of inner loop?
+                std::array<double, simd_t::size()> max_helper;
+                amax_tmp.copy_to(max_helper.data(), SIMD_NAMESPACE::element_aligned_tag{});
+                for (int i = 0; i < simd_t::size(); i++) {
+                  if (max_helper[i] > current_amax) {
+                      current_amax = max_helper[i];
+                      current_d = d;
+                      current_i = index + i;
+                  }
                 }
                 for (int f = 1; f < nf; f++) {
-                    f_combined[dim * nf * q_inx3 + f * q_inx3 + index + f_slice_offset] +=
-                        quad_weights[fi] * local_f[f];
+                    simd_t current_val(
+                        f_combined + dim * nf * q_inx3 + f * q_inx3 + index + f_slice_offset,
+                        SIMD_NAMESPACE::element_aligned_tag{});
+                    current_val = current_val +
+                      SIMD_NAMESPACE::choose(mask, quad_weights[fi] * local_f[f],
+                          simd_t(0.0));
+                    current_val.copy_to(f_combined + dim
+                      * nf * q_inx3 + f * q_inx3 + index + f_slice_offset,
+                      SIMD_NAMESPACE::element_aligned_tag{});
+                    /* f_combined[dim * nf * q_inx3 + f * q_inx3 + index + f_slice_offset] += */
+                    /*     quad_weights[fi] * local_f[f]; */
                 }
             }
         }
+        simd_t current_val(
+          f_combined + dim * nf * q_inx3 + index + f_slice_offset,
+          SIMD_NAMESPACE::element_aligned_tag{});
         for (int f = 10; f < nf; f++) {
-            f_combined[dim * nf * q_inx3 + index + f_slice_offset] +=
-                f_combined[dim * nf * q_inx3 + f * q_inx3 + index + f_slice_offset];
+            simd_t current_field_val(
+                f_combined + dim * nf * q_inx3 + f * q_inx3 + index + f_slice_offset,
+                SIMD_NAMESPACE::element_aligned_tag{});
+            current_val = current_val +
+              SIMD_NAMESPACE::choose(mask, current_field_val,
+                  simd_t(0.0));
         }
+        current_val.copy_to(
+          f_combined + dim * nf * q_inx3 + index + f_slice_offset,
+          SIMD_NAMESPACE::element_aligned_tag{});
     }
     // Find maximum:
     sm_amax[tid] = current_amax;
     sm_d[tid] = current_d;
-    sm_i[tid] = index;
-    __syncthreads();
-    // Max reduction with multiple warps
-    /*for (int tid_border = 64; tid_border >= 32; tid_border /= 2) {
-        if (tid < tid_border) {
-            if (sm_amax[tid + tid_border] > sm_amax[tid]) {
-                sm_amax[tid] = sm_amax[tid + tid_border];
-                sm_d[tid] = sm_d[tid + tid_border];
-                sm_i[tid] = sm_i[tid + tid_border];
-            }
-        }
-        __syncthreads();
-    }
-    // Max reduction within one warps
-    for (int tid_border = 16; tid_border >= 1; tid_border /= 2) {
-        if (tid < tid_border) {
-            if (sm_amax[tid + tid_border] > sm_amax[tid]) {
-                sm_amax[tid] = sm_amax[tid + tid_border];
-                sm_d[tid] = sm_d[tid + tid_border];
-                sm_i[tid] = sm_i[tid + tid_border];
-            }
-        }
-    }*/
-    // Find maximum:
-    sm_amax[tid] = current_amax;
-    sm_d[tid] = current_d;
-    sm_i[tid] = index;
+    sm_i[tid] = current_i;
     __syncthreads();
     // Max reduction with multiple warps
     for (int tid_border = 64; tid_border >= 32; tid_border /= 2) {
@@ -178,8 +230,9 @@ __global__ void __launch_bounds__(128, 2) flux_cuda_kernel(const double* __restr
         for (int f = 0; f < nf; f++) {
             amax[blocks_per_dim * number_dims + block_id * 2 * nf + f + amax_slice_offset] =
                 q_combined[sm_i[0] + f * face_offset + dim_offset * sm_d[0] + q_slice_offset];
-            amax[blocks_per_dim * number_dims + block_id * 2 * nf + nf + f + amax_slice_offset] = q_combined[sm_i[0] -
-                compressedH_DN[dim] + f * face_offset + dim_offset * flipped_dim + q_slice_offset];
+            amax[blocks_per_dim * number_dims + block_id * 2 * nf + nf + f + amax_slice_offset] =
+                q_combined[sm_i[0] - compressedH_DN[dim] + f * face_offset +
+                    dim_offset * flipped_dim + q_slice_offset];
         }
     }
     return;
