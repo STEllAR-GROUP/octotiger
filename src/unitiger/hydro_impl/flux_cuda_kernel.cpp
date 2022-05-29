@@ -128,10 +128,6 @@ __global__ void __launch_bounds__(128, 2) flux_cuda_kernel(const double* __restr
                     /* local_q_flipped[f] = SIMD_NAMESPACE::choose(mask, local_q_flipped[f], */
                     /*     simd_t(1.0)); */
                 }
-                /* cell_inner_flux_loop<double>(omega, nf, A_, B_, q_with_offset, local_f, local_x, */
-                /*     local_vg, this_ap, this_am, dim, d, dx[slice_id], fgamma, de_switch_1, */
-                /*     dim_offset * d + index, dim_offset * flipped_dim - compressedH_DN[dim] + index, */
-                /*     face_offset); */
                 cell_inner_flux_loop_simd<simd_t>(omega, nf, A_, B_, local_q, local_q_flipped,
                     local_f, local_x, local_vg, this_ap, this_am, dim, d, dx[slice_id],
                     fgamma, de_switch_1,
