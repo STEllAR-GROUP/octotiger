@@ -136,39 +136,6 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
                   << std::endl;
         abort();
 #endif
-    } else if (host_type == interaction_host_kernel_type::VC) {
-        // Vc implementation
-        static thread_local auto f = std::vector<std::vector<std::vector<safe_real>>>(NDIM,
-            std::vector<std::vector<safe_real>>(opts().n_fields, std::vector<safe_real>(H_N3)));
-        // TODO Vc reconstruct?
-        const auto& q = hydro.reconstruct(U, X, omega);
-#if defined __x86_64__ && defined OCTOTIGER_HAVE_VC
-        max_lambda = flux_cpu_kernel(q, f, X, omega, hydro.get_nf());
-#else
-        max_lambda = hydro.flux(U, q, f, X, omega);
-#endif
-        // Slightly more efficient conversion
-        for (int dim = 0; dim < NDIM; dim++) {
-            for (integer field = 0; field != opts().n_fields; ++field) {
-                for (integer i = 0; i <= INX; ++i) {
-                    for (integer j = 0; j <= INX; ++j) {
-                        for (integer k = 0; k <= INX; ++k) {
-                            const auto i0 = findex(i, j, k);
-                            F[dim][field][i0] = f[dim][field][hindex(i + H_BW, j + H_BW, k + H_BW)];
-                            if (field == opts().n_fields - 1) {
-                                real rho_tot = 0.0;
-                                for (integer field = spc_i; field != spc_i + opts().n_species;
-                                     ++field) {
-                                    rho_tot += F[dim][field][i0];
-                                }
-                                F[dim][rho_i][i0] = rho_tot;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return max_lambda;
     } else if (host_type == interaction_host_kernel_type::LEGACY) {
         // Legacy implementation
         static thread_local auto f = std::vector<std::vector<std::vector<safe_real>>>(NDIM,
@@ -194,21 +161,6 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
                 }
             }
         }
-        /*std::cout << "legacy" << max_lambda.x << " " <<max_lambda.y << " " <<max_lambda.z << std::endl;
-        std::cin.get();
-        std::cout << "start output legacy x!" << std::endl;
-        for(int i = 0; i < inx_large * inx_large * inx_large; i++)
-          std::cout << X[0][i] << " ";
-        std::cout << "finish output legacy x!" << std::endl;
-        std::cout << "start output legacy! y" << std::endl;
-        for(int i = 0; i < inx_large * inx_large * inx_large; i++)
-          std::cout << X[1][i] << " ";
-        std::cout << "finish output legacy y!" << std::endl;
-        std::cout << "start output legacy! z" << std::endl;
-        for(int i = 0; i < inx_large * inx_large * inx_large; i++)
-          std::cout << X[2][i] << " ";
-        std::cout << "finish output legacy! z" << std::endl;
-        std::cin.get();*/
         return max_lambda;
     } else {
         std::cerr << "No valid hydro kernel type given! " << std::endl;
