@@ -335,8 +335,6 @@ set(hydro_header_files
 set(hydro_source_files
    src/unitiger/hydro.cpp
    src/unitiger/hydro_impl/hydro_kernel_interface.cpp
-   src/unitiger/hydro_impl/flux_kernel_interface.cpp
-   src/unitiger/hydro_impl/flux_cpu_kernel.cpp
    src/unitiger/hydro_impl/flux_cuda_kernel.cpp
    src/unitiger/hydro_impl/reconstruct_cuda_kernel.cpp
    src/unitiger/hydro_impl/reconstruct_kernel_interface.cpp
@@ -488,7 +486,6 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/multipole_interactions/legacy/multipole_cpu_kernel.cpp
     src/multipole_interactions/legacy/multipole_interaction_interface.cpp
     src/unitiger/hydro_impl/reconstruct_cpu_kernel.cpp
-    src/unitiger/hydro_impl/flux_cpu_kernel.cpp
     src/unitiger/hydro_impl/hydro_boundary_exchange_vc.cpp
     # Quadmath
     src/test_problems/blast/sedov.cpp
@@ -506,7 +503,7 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/node_server_actions_1.cpp
     src/node_server_actions_2.cpp
     src/node_server_actions_3.cpp
-    src/physcon.cpp # TODO(daissgr) Check if actions can be made to work with Kokkos
+    src/physcon.cpp 
     src/io/silo_out.cpp
     src/io/silo_in.cpp
     src/radiation/rad_grid.cpp
@@ -515,7 +512,6 @@ if(OCTOTIGER_WITH_KOKKOS)
 
     #misc
     src/cuda_util/cuda_scheduler.cpp
-    src/unitiger/hydro_impl/flux_kernel_interface.cpp
     src/unitiger/hydro_impl/hydro_cuda_interface.cpp
     src/unitiger/hydro_impl/reconstruct_kernel_interface.cpp
   )

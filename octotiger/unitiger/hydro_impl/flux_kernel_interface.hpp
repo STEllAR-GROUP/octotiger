@@ -93,5 +93,3 @@ CUDA_GLOBAL_METHOD inline void store_value(
     container_t &data, const size_t index, const T& value) {
     data[index] = value;
 }
-
-boost::container::vector<bool> create_masks();
