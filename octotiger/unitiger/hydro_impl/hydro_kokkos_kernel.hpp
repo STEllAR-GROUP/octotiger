@@ -99,12 +99,6 @@ hpx::lcos::shared_future<void> aggregrated_deep_copy_async(
     return agg_exec.wrap_async(
         launch_copy_lambda, target, source, agg_exec.get_underlying_executor());
 }
-#include <avx512.hpp>
-#include <avx.hpp>
-using host_simd_exp_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::avx512>;
-using host_simd_mask_exp_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::avx512>;
-/* using host_simd_exp_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>; */
-/* using host_simd_mask_exp_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::scalar>; */
 
 /// Team-less version of the kokkos flux impl
 /** Meant to be run on host, though it can be used on both host and device.
@@ -976,7 +970,8 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
 
     // Flux
     // TODO Add offset block +1?
-    const int blocks = NDIM * (q_inx3 / host_simd_exp_t::size()) * 1;
+    assert(q_inx3 % host_simd_t::size() == 0);
+    const int blocks = NDIM * (q_inx3 / host_simd_t::size()) * 1;
     const host_buffer<bool>& masks = get_flux_host_masks<host_buffer<bool>>();
 
     aggregated_host_buffer<double, executor_t> amax(
@@ -984,7 +979,7 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     aggregated_host_buffer<int, executor_t> amax_indices(alloc_host_int, blocks * max_slices);
     aggregated_host_buffer<int, executor_t> amax_d(alloc_host_int, blocks * max_slices);
 
-    flux_impl_teamless<host_simd_exp_t, host_simd_mask_exp_t>(exec, agg_exec, q, combined_x, f,
+    flux_impl_teamless<host_simd_t, host_simd_mask_t>(exec, agg_exec, q, combined_x, f,
         amax, amax_indices, amax_d, masks, omega, dx, A_, B_, nf, fgamma,
         de_switch_1, blocks, 1);
 

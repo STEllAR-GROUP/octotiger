@@ -3,6 +3,8 @@
 #include "octotiger/cuda_util/cuda_global_def.hpp"
 #include "octotiger/hydro_defs.hpp"
 #include "simd_common.hpp"
+#include "octotiger/common_kernel/kokkos_simd.hpp"
+
 #if defined(__clang__)
 constexpr int faces[3][9] = {{12, 0, 3, 6, 9, 15, 18, 21, 24}, {10, 0, 1, 2, 9, 11, 18, 19, 20},
     {4, 0, 1, 2, 3, 5, 6, 7, 8}};
@@ -46,95 +48,6 @@ CUDA_GLOBAL_METHOD inline int flip_dim(const int d, const int flip_dim) {
     }
     return k;
 }
-
-#include <simd.hpp>
-#include <avx512.hpp>
-#include <avx.hpp>
-namespace simd_fallbacks {
-namespace detail {
-// traits that check for overloads using the current simd_t
-
-// should consider the SIMD_NAMESPACE for overloads due to Argument-dependent name lookup
-template <class simd_t, class = void>
-struct has_simd_sqrt : std::false_type
-{
-};
-template <class simd_t>
-struct has_simd_sqrt<simd_t, std::void_t<decltype(sqrt(std::declval<simd_t>()))>>
-  : std::true_type
-{
-};
-template <class simd_t, class = void>
-struct has_simd_pow : std::false_type
-{
-};
-template<class simd_t>
-struct has_simd_pow<simd_t,
-  std::void_t<decltype(pow(std::declval<simd_t>(),std::declval<double>()))>>
-  : std::true_type
-{
-};
-template<class simd_t, class=void>
-struct has_simd_asinh : std::false_type {};
-template <class simd_t>
-struct has_simd_asinh<simd_t, std::void_t<decltype(asinh(std::declval<simd_t>()))>>
-  : std::true_type
-{
-};
-} // end namespace detail
-
-template <typename simd_t>
-CUDA_GLOBAL_METHOD inline simd_t sqrt_with_serial_fallback(const simd_t input) {
-  if constexpr (detail::has_simd_sqrt<simd_t>::value) {
-    // should consider the SIMD_NAMESPACE for overloads due to Argument-dependent name lookup
-    return sqrt(input);
-  } else {
-    static_assert(!std::is_same<simd_t, simd_t>::value, "Using sqrt serial fallback!"
-        "This will impact If this is intentional please remove this static assert for your build");
-    std::array<double, simd_t::size()> sqrt_helper;
-    std::array<double, simd_t::size()> sqrt_helper_input;
-    input.copy_to(sqrt_helper_input.data(), SIMD_NAMESPACE::element_aligned_tag{});
-    for (auto i = 0; i < simd_t::size(); i++) {
-      sqrt_helper[i] = std::sqrt(sqrt_helper_input[i]);
-    }
-    return simd_t{sqrt_helper.data(), SIMD_NAMESPACE::element_aligned_tag{}};
-  }
-}
-template <typename simd_t>
-CUDA_GLOBAL_METHOD inline simd_t pow_with_serial_fallback(const simd_t input, const double exponent) {
-  if constexpr (detail::has_simd_pow<simd_t>::value) {
-    // should consider the SIMD_NAMESPACE for overloads due to Argument-dependent name lookup
-    return pow(input, exponent);
-  } else {
-    /* static_assert(!std::is_same<simd_t, simd_t>::value, "Using pow serial fallback! " */
-    /*     "If this is intentional please remove this static assert for your build"); */
-    std::array<double, simd_t::size()> pow_helper;
-    std::array<double, simd_t::size()> pow_helper_input;
-    input.copy_to(pow_helper_input.data(), SIMD_NAMESPACE::element_aligned_tag{});
-    for (auto i = 0; i < simd_t::size(); i++) {
-      pow_helper[i] = std::pow(pow_helper_input[i], exponent);
-    }
-    return simd_t{pow_helper.data(), SIMD_NAMESPACE::element_aligned_tag{}};
-  }
-}
-template <typename simd_t>
-CUDA_GLOBAL_METHOD inline simd_t asinh_with_serial_fallback(const simd_t input) {
-  if constexpr (detail::has_simd_asinh<simd_t>::value) {
-    // should consider the SIMD_NAMESPACE for overloads due to Argument-dependent name lookup
-    return asinh(input);
-  } else {
-    /* static_assert(!std::is_same<simd_t, simd_t>::value, "Using asinh serial fallback!" */
-    /*     "If this is intentional please remove this static assert for your build"); */
-    std::array<double, simd_t::size()> asinh_helper;
-    std::array<double, simd_t::size()> asinh_helper_input;
-    input.copy_to(asinh_helper_input.data(), SIMD_NAMESPACE::element_aligned_tag{});
-    for (auto i = 0; i < simd_t::size(); i++) {
-      asinh_helper[i] = std::asinh(asinh_helper_input[i]);
-    }
-    return simd_t{asinh_helper.data(), SIMD_NAMESPACE::element_aligned_tag{}};
-  }
-}
-} // end namespace simd_fallbacks
 
 template <typename simd_t>
 CUDA_GLOBAL_METHOD inline simd_t cell_inner_flux_loop_simd(const double omega, const size_t nf_,

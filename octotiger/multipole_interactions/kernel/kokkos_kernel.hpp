@@ -8,6 +8,7 @@
 
 #ifdef OCTOTIGER_HAVE_KOKKOS
 #include "octotiger/common_kernel/kokkos_util.hpp"
+#include "octotiger/common_kernel/kokkos_simd.hpp"
 
 namespace octotiger {
 namespace fmm {
