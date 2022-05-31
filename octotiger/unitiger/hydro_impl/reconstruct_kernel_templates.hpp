@@ -695,17 +695,33 @@ template <typename simd_t>
 CUDA_GLOBAL_METHOD inline simd_t minmod_cuda_theta_simd(simd_t a, simd_t b, simd_t c) {
     return minmod_cuda_simd(c * minmod_cuda_simd(a, b), 0.5 * (a + b));
 }
-template <typename simd_t, typename container_t, typename const_container_t>
+template <typename simd_t, typename simd_mask_t, typename container_t, typename const_container_t>
 CUDA_GLOBAL_METHOD inline void cell_reconstruct_minmod_simd(
-    container_t& combined_q, const_container_t& combined_u_face, int d, int f, int i, int q_i) {
+    container_t& combined_q, const_container_t& combined_u_face, int d, int f, int i, int q_i,
+    const simd_mask_t &mask) {
     const auto di = dir[d];
     const int start_index = f * q_face_offset + d * q_dir_offset;
-    combined_q[q_i + start_index] = combined_u_face[f * u_face_offset + i] +
+    /* combined_q[q_i + start_index] = combined_u_face[f * u_face_offset + i] + */
+    /*     0.5 * */
+    /*         minmod_cuda(combined_u_face[f * u_face_offset + i + di] - */
+    /*                 combined_u_face[f * u_face_offset + i], */
+    /*             combined_u_face[f * u_face_offset + i] - */
+    /*                 combined_u_face[f * u_face_offset + i - di]); */
+    simd_t result;
+    result.copy_from(combined_q.data() + q_i + start_index, SIMD_NAMESPACE::element_aligned_tag{});
+    const simd_t tmp_result = simd_t(combined_u_face.data() + f * u_face_offset + i,
+                              SIMD_NAMESPACE::element_aligned_tag{}) +
         0.5 *
-            minmod_cuda(combined_u_face[f * u_face_offset + i + di] -
-                    combined_u_face[f * u_face_offset + i],
-                combined_u_face[f * u_face_offset + i] -
-                    combined_u_face[f * u_face_offset + i - di]);
+            minmod_cuda_simd(simd_t(combined_u_face.data() + f * u_face_offset + i + di,
+                                 SIMD_NAMESPACE::element_aligned_tag{}) -
+                    simd_t(combined_u_face.data() + f * u_face_offset + i,
+                        SIMD_NAMESPACE::element_aligned_tag{}),
+                simd_t(combined_u_face.data() + f * u_face_offset + i,
+                    SIMD_NAMESPACE::element_aligned_tag{}) -
+                    simd_t(combined_u_face.data() + f * u_face_offset + i - di,
+                        SIMD_NAMESPACE::element_aligned_tag{}));
+    result = SIMD_NAMESPACE::choose(mask, tmp_result, results;
+    result.copy_to(combined_q.data() + q_i + start_index, SIMD_NAMESPACE::element_aligned_tag{});
 }
 
 template <typename simd_t, typename simd_mask_t, typename container_t, typename const_container_t>
@@ -815,7 +831,9 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_ppm_simd(container_t &combined_q
         make_monotone_simd(current_q_results, u_zero,
             current_q_results_flipped);
     }
-    // TODO apply masks
+    // TODO compatibility with HPX backend? Might overwrite stuff from other tasks using AVX512...
+    // Hotfix variant 1: element-wise adding in case of not when_all...
+    // Hotfix variant 2: Pick task sizes that have more padding (aka 2D border with 2*qinx)
     current_q_results = SIMD_NAMESPACE::choose(mask. current_q_results, old_results);
     current_q_results.copy_to(combined_q.data() + start_index + q_i, SIMD_NAMESPACE::element_aligned_tag{});
     current_q_results_flipped = SIMD_NAMESPACE::choose(mask, current_q_results_flipped, old_results_flipped);
@@ -859,7 +877,7 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p1_simd(const size_t 
             }
         }
         for (int f = l_start; f < l_start + nangmom; f++) {
-            cell_reconstruct_minmod(
+            cell_reconstruct_minmod_simd(
                 combined_q, combined_u, d, f, i + u_slice_offset, q_i + q_slice_offset);
         }
         if (d < ndir / 2) {
@@ -879,7 +897,7 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p1_simd(const size_t 
                         mask);
                 }
             } else {
-                cell_reconstruct_minmod(
+                cell_reconstruct_minmod_simd(
                     combined_q, combined_u, d, f, i + u_slice_offset, q_i + q_slice_offset);
             }
         }
