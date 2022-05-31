@@ -663,7 +663,7 @@ CUDA_GLOBAL_METHOD inline void make_monotone_simd(simd_t& ql, simd_t q0, simd_t&
     const simd_t tmp1 = qr - ql;
     const simd_t tmp2 = qr + ql;
 
-    const simd_mask_t mask1 = (qr < q0) == (q0 < ql);
+    const simd_mask_t mask1 = (qr < q0) && (q0 < ql);
     const simd_mask_t mask2 = !mask1;
     qr = SIMD_NAMESPACE::choose(mask2, q0, qr);
     ql = SIMD_NAMESPACE::choose(mask2, q0, ql);
@@ -687,13 +687,14 @@ CUDA_GLOBAL_METHOD inline void make_monotone_simd(simd_t& ql, simd_t q0, simd_t&
 }
 
 template <typename simd_t>
-CUDA_GLOBAL_METHOD inline simd_t minmod_cuda_simd(simd_t a, simd_t b) {
-    return (SIMD_NAMESPACE::copysign(0.5, a) + SIMD_NAMESPACE::copysign(0.5, b)) *
+CUDA_GLOBAL_METHOD inline simd_t minmod_simd(simd_t a, simd_t b) {
+    return (simd_fallbacks::copysign_with_serial_fallback<simd_t>(0.5, a) +
+               simd_fallbacks::copysign_with_serial_fallback<simd_t>(0.5, b)) *
         SIMD_NAMESPACE::min(SIMD_NAMESPACE::abs(a), SIMD_NAMESPACE::abs(b));
 }
 template <typename simd_t>
-CUDA_GLOBAL_METHOD inline simd_t minmod_cuda_theta_simd(simd_t a, simd_t b, simd_t c) {
-    return minmod_cuda_simd(c * minmod_cuda_simd(a, b), 0.5 * (a + b));
+CUDA_GLOBAL_METHOD inline simd_t minmod_theta_simd(simd_t a, simd_t b, simd_t c) {
+    return minmod_simd(c * minmod_simd(a, b), 0.5 * (a + b));
 }
 template <typename simd_t, typename simd_mask_t, typename container_t, typename const_container_t>
 CUDA_GLOBAL_METHOD inline void cell_reconstruct_minmod_simd(
@@ -712,7 +713,7 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_minmod_simd(
     const simd_t tmp_result = simd_t(combined_u_face.data() + f * u_face_offset + i,
                               SIMD_NAMESPACE::element_aligned_tag{}) +
         0.5 *
-            minmod_cuda_simd(simd_t(combined_u_face.data() + f * u_face_offset + i + di,
+            minmod_simd(simd_t(combined_u_face.data() + f * u_face_offset + i + di,
                                  SIMD_NAMESPACE::element_aligned_tag{}) -
                     simd_t(combined_u_face.data() + f * u_face_offset + i,
                         SIMD_NAMESPACE::element_aligned_tag{}),
@@ -752,9 +753,9 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_ppm_simd(container_t &combined_q
 
     const simd_t diff_u_minus = u_zero - u_minus_di;
     const simd_t diff_u_2minus = u_minus_di - u_minus_2di;
-    const simd_t d1 = minmod_theta_wrapper_cuda_simd(diff_u_plus, diff_u_minus, simd_t(2.0));
-    const simd_t d1_plus = minmod_theta_wrapper_cuda_simd(diff_u_2plus, diff_u_plus, simd_t(2.0));
-    const simd_t d1_minus = minmod_theta_wrapper_cuda_simd(diff_u_minus, diff_u_2minus, simd_t(2.0));
+    const simd_t d1 = minmod_theta_simd(diff_u_plus, diff_u_minus, simd_t(2.0));
+    const simd_t d1_plus = minmod_theta_simd(diff_u_2plus, diff_u_plus, simd_t(2.0));
+    const simd_t d1_minus = minmod_theta_simd(diff_u_minus, diff_u_2minus, simd_t(2.0));
 
     const simd_t results = 0.5 * (u_zero + u_plus_di) + (1.0 / 6.0) * (d1 - d1_plus);
     const simd_t results_flipped = 0.5 * (u_minus_di + u_zero) + (1.0 / 6.0) * (d1_minus - d1);
@@ -784,7 +785,7 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_ppm_simd(container_t &combined_q
         if (SIMD_NAMESPACE::any_of(criterias)) {
             const simd_t mask_helper2 = SIMD_NAMESPACE::min(SIMD_NAMESPACE::abs(u_plus_di),
                                           SIMD_NAMESPACE::abs(u_minus_di)) /
-                SIMD_NAMESPACE::max(std::abs(u_plus_di), SIMD_NAMESPACE::abs(u_minus_di));
+                SIMD_NAMESPACE::max(SIMD_NAMESPACE::abs(u_plus_di), SIMD_NAMESPACE::abs(u_minus_di));
             criterias = (simd_t(eps2) < mask_helper2) && criterias;
             /* if (std::min(std::abs(u_plus_di), std::abs(u_minus_di)) / */
             /*         std::max(std::abs(u_plus_di), std::abs(u_minus_di)) > */
@@ -810,11 +811,11 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_ppm_simd(container_t &combined_q
                     /* if (eta > 0.0) { */
                     auto ul = u_minus_di +
                         0.5 *
-                            minmod_cuda_theta_simd(
+                            minmod_theta_simd(
                                 u_zero - u_minus_di, u_minus_di - u_minus_2di, simd_t(2.0));
                     auto ur = u_plus_di -
                         0.5 *
-                            minmod_cuda_theta_simd(u_plus_2di - u_plus_di,
+                            minmod_theta_simd(u_plus_2di - u_plus_di,
                                 u_plus_di - u_zero, simd_t(2.0));
                     current_q_results = current_q_results +
                         SIMD_NAMESPACE::choose(
@@ -834,7 +835,7 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_ppm_simd(container_t &combined_q
     // TODO compatibility with HPX backend? Might overwrite stuff from other tasks using AVX512...
     // Hotfix variant 1: element-wise adding in case of not when_all...
     // Hotfix variant 2: Pick task sizes that have more padding (aka 2D border with 2*qinx)
-    current_q_results = SIMD_NAMESPACE::choose(mask. current_q_results, old_results);
+    current_q_results = SIMD_NAMESPACE::choose(mask, current_q_results, old_results);
     current_q_results.copy_to(combined_q.data() + start_index + q_i, SIMD_NAMESPACE::element_aligned_tag{});
     current_q_results_flipped = SIMD_NAMESPACE::choose(mask, current_q_results_flipped, old_results_flipped);
     current_q_results_flipped.copy_to(
@@ -877,7 +878,7 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p1_simd(const size_t 
             }
         }
         for (int f = l_start; f < l_start + nangmom; f++) {
-            cell_reconstruct_minmod_simd(
+            cell_reconstruct_minmod_simd<simd_t, simd_mask_t>(
                 combined_q, combined_u, d, f, i + u_slice_offset, q_i + q_slice_offset, mask);
         }
         if (d < ndir / 2) {
@@ -897,7 +898,7 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p1_simd(const size_t 
                         mask);
                 }
             } else {
-                cell_reconstruct_minmod_simd(
+                cell_reconstruct_minmod_simd<simd_t, simd_mask_t>(
                     combined_q, combined_u, d, f, i + u_slice_offset, q_i + q_slice_offset, mask);
             }
         }
