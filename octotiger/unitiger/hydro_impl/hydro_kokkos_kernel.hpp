@@ -668,8 +668,10 @@ void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                     }
                     // Phase 2
                     for (int d = 0; d < ndir; d++) {
-                        cell_reconstruct_inner_loop_p2(omega, angmom_index_, combined_q, combined_x,
-                            combined_u, AM, dx[slice_id], d, i, q_i, ndir, nangmom, n_species_, nf_, slice_id);
+                        cell_reconstruct_inner_loop_p2_simd<simd_t, simd_mask_t>(omega,
+                            angmom_index_, combined_q, combined_x, combined_u,
+                            AM, dx[slice_id], d,
+                            i, q_i, ndir, nangmom, n_species_, nf_, slice_id, mask);
                     }
                 }
             });

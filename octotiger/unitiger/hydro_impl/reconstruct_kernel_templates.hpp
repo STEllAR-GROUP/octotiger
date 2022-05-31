@@ -993,173 +993,298 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p1_simd(const size_t 
     }
 }
 
-template <typename container_t, typename const_container_t>
+template <typename simd_t, typename simd_mask_t, typename container_t, typename const_container_t>
 CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p2_simd(const safe_real omega,
     const int angmom_index_, container_t& combined_q, const_container_t& combined_x,
     container_t& combined_u, const_container_t& AM, const double dx, const int d, const int i,
     const int q_i, const int ndir, const int nangmom, const int n_species_, const int nf_,
-    const int slice_id) {
+    const int slice_id, const simd_mask_t &mask) {
     const int q_slice_offset = (nf_ * 27 * q_inx3 + 128) * slice_id;
     const int u_slice_offset = (nf_ * H_N3 + 128) * slice_id;
     const int am_slice_offset = (NDIM * q_inx3 + 128) * slice_id;
     const int x_slice_offset = (NDIM * q_inx3 + 128) * slice_id;
 
-    if (d < ndir / 2 && angmom_index_ > -1) {
-        const auto di = dir[d];
+    /* if (d < ndir / 2 && angmom_index_ > -1) { */
+    /*     const auto di = dir[d]; */
 
-        for (int q = 0; q < NDIM; q++) {
-            const auto f = sx_i + q;
-            const int start_index_f = f * q_face_offset + d * q_dir_offset;
-            const int start_index_flipped = f * q_face_offset + flip(d) * q_dir_offset;
-            const int start_index_zero = 0 * q_face_offset + d * q_dir_offset;
-            const int start_index_zero_flipped = 0 * q_face_offset + flip(d) * q_dir_offset;
-            // const auto& rho_r = Q[0][d][i];
-            // const auto& rho_l = Q[0][geo.flip(d)][i];
-            const auto& rho_r = combined_q[start_index_zero + q_i + q_slice_offset];
-            const auto& rho_l = combined_q[start_index_zero_flipped + q_i + q_slice_offset];
-            auto& qr = combined_q[start_index_f + q_i + q_slice_offset];
-            auto& ql = combined_q[start_index_flipped + q_i + q_slice_offset];
-            // auto& qr = Q[f][d][i];
-            // auto& ql = Q[f][geo.flip(d)][i];
-            const auto& ur = combined_u[f * u_face_offset + i + u_slice_offset + di];
-            const auto& u0 = combined_u[f * u_face_offset + i + u_slice_offset];
-            const auto& ul = combined_u[f * u_face_offset + i + u_slice_offset - di];
-            const auto b0 = qr - ql;
-            auto b = b0;
-            if (q == 0) {
-                // n m q Levi Civita 1 2 0 -> 1
-                b += 12.0 * AM[1 * am_offset + q_i + am_slice_offset] * 1.0 * xloc[d][2] /
-                    (dx * (rho_l + rho_r));
-                // n m q Levi Civita 2 1 0 -> -1
-                b -= 12.0 * AM[2 * am_offset + q_i + am_slice_offset] * 1.0 * xloc[d][1] /
-                    (dx * (rho_l + rho_r));
-            } else if (q == 1) {
-                // n m q Levi Civita 0 2 1 -> -1
-                b -= 12.0 * AM[0 * am_offset + q_i + am_slice_offset] * 1.0 * xloc[d][2] /
-                    (dx * (rho_l + rho_r));
-                // n m q Levi Civita 2 0 1 -> 1
-                b += 12.0 * AM[2 * am_offset + q_i + am_slice_offset] * 1.0 * xloc[d][0] /
-                    (dx * (rho_l + rho_r));
-            } else {
-                // n m q Levi Civita 0 1 2 -> 1
-                b += 12.0 * AM[0 * am_offset + q_i + am_slice_offset] * 1.0 *
-                  xloc[d][1] /
-                    (dx * (rho_l + rho_r));
-                // n m q Levi Civita
-                // 1 0 2 -> -1
-                b -= 12.0 * AM[1 * am_offset + q_i + am_slice_offset] * 1.0 * xloc[d][0] /
-                    (dx * (rho_l + rho_r));
-            }
-            double blim;
-            if ((ur - u0) * (u0 - ul) <= 0.0) {
-                blim = 0.0;
-            } else {
-                blim = b0;
-            }
-            b = minmod_cuda(blim, b);
-            qr += 0.5 * (b - b0);
-            ql -= 0.5 * (b - b0);
-            if (ur > u0 && u0 > ul) {
-                if (qr > ur) {
-                    ql -= (qr - ur);
-                    qr = ur;
-                } else if (ql < ul) {
-                    qr -= (ql - ul);
-                    ql = ul;
-                }
-            } else if (ur < u0 && u0 < ul) {
-                if (qr < ur) {
-                    ql -= (qr - ur);
-                    qr = ur;
-                } else if (ql > ul) {
-                    qr -= (ql - ul);
-                    ql = ul;
-                }
-            }
-            make_monotone(qr, u0, ql);
-        }
-    }
+    /*     for (int q = 0; q < NDIM; q++) { */
+    /*         const auto f = sx_i + q; */
+    /*         const int start_index_f = f * q_face_offset + d * q_dir_offset; */
+    /*         const int start_index_flipped = f * q_face_offset + flip(d) * q_dir_offset; */
+    /*         const int start_index_zero = 0 * q_face_offset + d * q_dir_offset; */
+    /*         const int start_index_zero_flipped = 0 * q_face_offset + flip(d) * q_dir_offset; */
+    /*         // const auto& rho_r = Q[0][d][i]; */
+    /*         // const auto& rho_l = Q[0][geo.flip(d)][i]; */
+    /*         const auto& rho_r = combined_q[start_index_zero + q_i + q_slice_offset]; */
+    /*         const auto& rho_l = combined_q[start_index_zero_flipped + q_i + q_slice_offset]; */
+    /*         auto& qr = combined_q[start_index_f + q_i + q_slice_offset]; */
+    /*         auto& ql = combined_q[start_index_flipped + q_i + q_slice_offset]; */
+    /*         // auto& qr = Q[f][d][i]; */
+    /*         // auto& ql = Q[f][geo.flip(d)][i]; */
+    /*         const auto& ur = combined_u[f * u_face_offset + i + u_slice_offset + di]; */
+    /*         const auto& u0 = combined_u[f * u_face_offset + i + u_slice_offset]; */
+    /*         const auto& ul = combined_u[f * u_face_offset + i + u_slice_offset - di]; */
+    /*         const auto b0 = qr - ql; */
+    /*         auto b = b0; */
+    /*         if (q == 0) { */
+    /*             // n m q Levi Civita 1 2 0 -> 1 */
+    /*             b += 12.0 * AM[1 * am_offset + q_i + am_slice_offset] * 1.0 * xloc[d][2] / */
+    /*                 (dx * (rho_l + rho_r)); */
+    /*             // n m q Levi Civita 2 1 0 -> -1 */
+    /*             b -= 12.0 * AM[2 * am_offset + q_i + am_slice_offset] * 1.0 * xloc[d][1] / */
+    /*                 (dx * (rho_l + rho_r)); */
+    /*         } else if (q == 1) { */
+    /*             // n m q Levi Civita 0 2 1 -> -1 */
+    /*             b -= 12.0 * AM[0 * am_offset + q_i + am_slice_offset] * 1.0 * xloc[d][2] / */
+    /*                 (dx * (rho_l + rho_r)); */
+    /*             // n m q Levi Civita 2 0 1 -> 1 */
+    /*             b += 12.0 * AM[2 * am_offset + q_i + am_slice_offset] * 1.0 * xloc[d][0] / */
+    /*                 (dx * (rho_l + rho_r)); */
+    /*         } else { */
+    /*             // n m q Levi Civita 0 1 2 -> 1 */
+    /*             b += 12.0 * AM[0 * am_offset + q_i + am_slice_offset] * 1.0 * */
+    /*               xloc[d][1] / */
+    /*                 (dx * (rho_l + rho_r)); */
+    /*             // n m q Levi Civita */
+    /*             // 1 0 2 -> -1 */
+    /*             b -= 12.0 * AM[1 * am_offset + q_i + am_slice_offset] * 1.0 * xloc[d][0] / */
+    /*                 (dx * (rho_l + rho_r)); */
+    /*         } */
+    /*         double blim; */
+    /*         if ((ur - u0) * (u0 - ul) <= 0.0) { */
+    /*             blim = 0.0; */
+    /*         } else { */
+    /*             blim = b0; */
+    /*         } */
+    /*         b = minmod_cuda(blim, b); */
+    /*         qr += 0.5 * (b - b0); */
+    /*         ql -= 0.5 * (b - b0); */
+    /*         if (ur > u0 && u0 > ul) { */
+    /*             if (qr > ur) { */
+    /*                 ql -= (qr - ur); */
+    /*                 qr = ur; */
+    /*             } else if (ql < ul) { */
+    /*                 qr -= (ql - ul); */
+    /*                 ql = ul; */
+    /*             } */
+    /*         } else if (ur < u0 && u0 < ul) { */
+    /*             if (qr < ur) { */
+    /*                 ql -= (qr - ur); */
+    /*                 qr = ur; */
+    /*             } else if (ql > ul) { */
+    /*                 qr -= (ql - ul); */
+    /*                 ql = ul; */
+    /*             } */
+    /*         } */
+    /*         make_monotone(qr, u0, ql); */
+    /*     } */
+    /* } */
 
     // Phase 3 - post-reconstruct
     const int start_index_rho = rho_i * q_face_offset + d * q_dir_offset;
     if (d != ndir / 2) {
         const int start_index_sx = sx_i * q_face_offset + d * q_dir_offset;
         const int start_index_sy = sy_i * q_face_offset + d * q_dir_offset;
-        combined_q[start_index_sx + q_i + q_slice_offset] -=
-            omega * (combined_x[1 * q_inx3 + q_i + x_slice_offset] + 0.5 * xloc[d][1] * dx);
-        combined_q[start_index_sy + q_i + q_slice_offset] +=
-            omega * (combined_x[q_i + x_slice_offset] + 0.5 * xloc[d][0] * dx);
-        // Q[sx_i][d][i] -= omega * (X[1][i] + 0.5 * xloc[d][1] * dx);
-        // Q[sy_i][d][i] += omega * (X[0][i] + 0.5 * xloc[d][0] * dx);
-        const double rho = combined_q[start_index_rho + q_i + q_slice_offset];
+
+        simd_t q_sx(combined_q.data() + start_index_sx + q_i + q_slice_offset,
+            SIMD_NAMESPACE::element_aligned_tag{});
+        simd_t q_sy(combined_q.data() + start_index_sy + q_i + q_slice_offset,
+            SIMD_NAMESPACE::element_aligned_tag{});
+        q_sx = SIMD_NAMESPACE::choose(mask,
+            q_sx -
+                omega *
+                    (simd_t(combined_x.data() + 1 * q_inx3 + q_i + x_slice_offset,
+                         SIMD_NAMESPACE::element_aligned_tag{}) +
+                        0.5 * xloc[d][1] * dx),
+            q_sx);
+        q_sy = SIMD_NAMESPACE::choose(mask,
+            q_sy +
+                omega *
+                    (simd_t(combined_x.data() + q_i + x_slice_offset,
+                         SIMD_NAMESPACE::element_aligned_tag{}) +
+                        0.5 * xloc[d][0] * dx),
+            q_sy);
+        q_sx.copy_to(combined_q.data() + start_index_sx + q_i + q_slice_offset,
+            SIMD_NAMESPACE::element_aligned_tag{});
+        q_sy.copy_to(combined_q.data() + start_index_sy + q_i + q_slice_offset,
+            SIMD_NAMESPACE::element_aligned_tag{});
+        /* combined_q[start_index_sx + q_i + q_slice_offset] -= */
+        /*     omega * (combined_x[1 * q_inx3 + q_i + x_slice_offset] + 0.5 * xloc[d][1] * dx); */
+        /* combined_q[start_index_sy + q_i + q_slice_offset] += */
+        /*     omega * (combined_x[q_i + x_slice_offset] + 0.5 * xloc[d][0] * dx); */
+
+        const simd_t rho(combined_q.data() + start_index_rho + q_i +
+            q_slice_offset,
+            SIMD_NAMESPACE::element_aligned_tag{});
 
         // n m q Levi Civita
         // 0 1 2 -> 1
         const double xloc_tmp1 = 0.5 * xloc[d][1] * dx;
-        const double q_lx_val0 =
-            combined_q[(lx_i + 0) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset];
-        double result0 = q_lx_val0 +
-            (1.0) * (combined_x[q_inx3 + q_i + x_slice_offset] + xloc_tmp1) *
-                combined_q[(sx_i + 2) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset];
+        const simd_t q_lx_val0(combined_q.data() + (lx_i + 0) * q_face_offset + d * q_dir_offset +
+                q_i + q_slice_offset,
+            SIMD_NAMESPACE::element_aligned_tag{});
+        simd_t result0 = q_lx_val0 +
+            (1.0) *
+                (simd_t(combined_x.data() + q_inx3 + q_i + x_slice_offset,
+                     SIMD_NAMESPACE::element_aligned_tag{}) +
+                    xloc_tmp1) *
+                simd_t(combined_q.data() + (sx_i + 2) * q_face_offset + d * q_dir_offset + q_i +
+                        q_slice_offset,
+                    SIMD_NAMESPACE::element_aligned_tag{});
 
         // n m q Levi Civita
         // 0 2 1 -> -1
         const double xloc_tmp2 = 0.5 * xloc[d][2] * dx;
-        result0 += (-1.0) * (combined_x[2 * q_inx3 + q_i + x_slice_offset] + xloc_tmp2) *
-            combined_q[(sx_i + 1) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset];
-        combined_q[(lx_i + 0) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset] = result0;
+        result0 = result0 +
+            (-1.0) *
+                (simd_t(combined_x.data() + 2 * q_inx3 + q_i + x_slice_offset,
+                     SIMD_NAMESPACE::element_aligned_tag{}) +
+                    xloc_tmp2) *
+                simd_t(combined_q.data() + (sx_i + 1) * q_face_offset + d * q_dir_offset + q_i +
+                        q_slice_offset,
+                    SIMD_NAMESPACE::element_aligned_tag{});
+        const simd_t q_lx_result = SIMD_NAMESPACE::choose(mask, result0,
+            simd_t(combined_q.data() + (lx_i + 0) * q_face_offset + d *
+              q_dir_offset + q_i +
+                    q_slice_offset,
+                SIMD_NAMESPACE::element_aligned_tag{}));
+        q_lx_result.copy_to(combined_q.data() + (lx_i + 0) * q_face_offset + d * q_dir_offset +
+                q_i + q_slice_offset,
+            SIMD_NAMESPACE::element_aligned_tag{});
 
         // n m q Levi Civita
         // 1 0 2 -> -1
         const double xloc_tmp0 = 0.5 * xloc[d][0] * dx;
-        const double q_lx_val1 =
-            combined_q[(lx_i + 1) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset];
-        double result1 = q_lx_val1 +
-            (-1.0) * (combined_x[q_i + x_slice_offset] + xloc_tmp0) *
-                combined_q[(sx_i + 2) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset];
+        const simd_t q_lx_val1(combined_q.data() + (lx_i + 1) * q_face_offset + d * q_dir_offset +
+                q_i + q_slice_offset,
+            SIMD_NAMESPACE::element_aligned_tag{});
+        simd_t result1 = q_lx_val1 +
+            (-1.0) *
+                (simd_t(combined_x.data() + q_i + x_slice_offset,
+                     SIMD_NAMESPACE::element_aligned_tag{}) +
+                    xloc_tmp0) *
+                simd_t(combined_q.data() + (sx_i + 2) * q_face_offset + d * q_dir_offset + q_i +
+                        q_slice_offset,
+                    SIMD_NAMESPACE::element_aligned_tag{});
 
         // n m q Levi Civita
         // 1 2 0 -> 1
-        result1 += (1.0) * (combined_x[2 * q_inx3 + q_i + x_slice_offset] + xloc_tmp2) *
-            combined_q[(sx_i + 0) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset];
-        combined_q[(lx_i + 1) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset] = result1;
+        result1 = result1 +
+            (1.0) *
+                (simd_t(combined_x.data() + 2 * q_inx3 + q_i + x_slice_offset,
+                     SIMD_NAMESPACE::element_aligned_tag{}) +
+                    xloc_tmp2) *
+                simd_t(combined_q.data() + (sx_i + 0) * q_face_offset + d * q_dir_offset + q_i +
+                        q_slice_offset,
+                    SIMD_NAMESPACE::element_aligned_tag{});
+        const simd_t q_ly_result = SIMD_NAMESPACE::choose(mask, result1,
+            simd_t(combined_q.data() + (lx_i + 1) * q_face_offset + d *
+              q_dir_offset + q_i +
+                    q_slice_offset,
+                SIMD_NAMESPACE::element_aligned_tag{}));
+        q_ly_result.copy_to(combined_q.data() + (lx_i + 1) * q_face_offset + d * q_dir_offset +
+                q_i + q_slice_offset,
+            SIMD_NAMESPACE::element_aligned_tag{});
+        /* combined_q[(lx_i + 1) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset] =
+         * result1; */
 
         // n m q Levi Civita
         // 2 0 1 -> 1
-        const double q_lx_val2 =
-            combined_q[(lx_i + 2) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset];
+        const simd_t q_lx_val2(combined_q.data() + (lx_i + 2) * q_face_offset + d * q_dir_offset +
+                q_i + q_slice_offset,
+            SIMD_NAMESPACE::element_aligned_tag{});
         auto result2 = q_lx_val2 +
-            (1.0) * (combined_x[q_i + x_slice_offset] + xloc_tmp0) *
-                combined_q[(sx_i + 1) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset];
+            (1.0) *
+                (simd_t(combined_x.data() + q_i + x_slice_offset,
+                     SIMD_NAMESPACE::element_aligned_tag{}) +
+                    xloc_tmp0) *
+                simd_t(combined_q.data() + (sx_i + 1) * q_face_offset + d * q_dir_offset + q_i +
+                        q_slice_offset,
+                    SIMD_NAMESPACE::element_aligned_tag{});
 
         // n m q Levi Civita
         // 2 1 0 -> -1
-        result2 += (-1.0) * (combined_x[q_inx3 + q_i + x_slice_offset] + xloc_tmp1) *
-            combined_q[(sx_i + 0) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset];
-        combined_q[(lx_i + 2) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset] = result2;
+        result2 = result2 + (-1.0) *
+            (simd_t(combined_x.data() + q_inx3 + q_i + x_slice_offset,
+                 SIMD_NAMESPACE::element_aligned_tag{}) +
+                xloc_tmp1) *
+            simd_t(combined_q.data() + (sx_i + 0) * q_face_offset + d * q_dir_offset + q_i +
+                    q_slice_offset,
+                SIMD_NAMESPACE::element_aligned_tag{});
+        const simd_t q_lz_result = SIMD_NAMESPACE::choose(mask, result2,
+            simd_t(combined_q.data() + (lx_i + 2) * q_face_offset + d *
+              q_dir_offset + q_i +
+                    q_slice_offset,
+                SIMD_NAMESPACE::element_aligned_tag{}));
+        q_lz_result.copy_to(combined_q.data() + (lx_i + 2) * q_face_offset + d * q_dir_offset +
+                q_i + q_slice_offset,
+            SIMD_NAMESPACE::element_aligned_tag{});
+        /* combined_q[(lx_i + 2) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset] =
+         * result2; */
+
         const int start_index_egas = egas_i * q_face_offset + d * q_dir_offset;
         const int start_index_pot = pot_i * q_face_offset + d * q_dir_offset;
         for (int n = 0; n < nangmom; n++) {
             const int start_index_lx_n = (lx_i + n) * q_face_offset + d * q_dir_offset;
-            combined_q[start_index_lx_n + q_i + q_slice_offset] *= rho;
+            simd_t current_lx_n(combined_q.data() + start_index_lx_n + q_i + q_slice_offset,
+                SIMD_NAMESPACE::element_aligned_tag{});
+            current_lx_n = SIMD_NAMESPACE::choose(mask, current_lx_n * rho,
+                current_lx_n);
+            current_lx_n.copy_to(combined_q.data() + start_index_lx_n + q_i + q_slice_offset,
+                SIMD_NAMESPACE::element_aligned_tag{});
+            /* combined_q[start_index_lx_n + q_i + q_slice_offset] *= rho; */
         }
+
         for (int dim = 0; dim < NDIM; dim++) {
             const int start_index_sx_d = (sx_i + dim) * q_face_offset + d * q_dir_offset;
-            auto& v = combined_q[start_index_sx_d + q_i + q_slice_offset];
-            combined_q[start_index_egas + q_i + q_slice_offset] += 0.5 * v * v * rho;
-            v *= rho;
+            simd_t v(combined_q.data() + start_index_sx_d + q_i + q_slice_offset,
+                SIMD_NAMESPACE::element_aligned_tag{});
+            /* auto& v = combined_q[start_index_sx_d + q_i + q_slice_offset];
+             * */
+            const simd_t current_egas(combined_q.data() + start_index_egas + q_i + q_slice_offset,
+                SIMD_NAMESPACE::element_aligned_tag{});
+            simd_t egas_result =
+                SIMD_NAMESPACE::choose(mask, current_egas + 0.5 * v * v * rho, current_egas);
+            ;
+            egas_result.copy_to(combined_q.data() + start_index_egas + q_i +
+                q_slice_offset,
+                SIMD_NAMESPACE::element_aligned_tag{});
+            /* combined_q[start_index_egas + q_i + q_slice_offset] += 0.5 * v * v * rho; */
+            v = SIMD_NAMESPACE::choose(mask, v * rho, v);
+            /* v *= rho; */
+            v.copy_to(combined_q.data() + start_index_sx_d + q_i + q_slice_offset,
+                SIMD_NAMESPACE::element_aligned_tag{});
         }
-        combined_q[start_index_pot + q_i + q_slice_offset] *= rho;
-        safe_real w = 0.0;
+
+        simd_t pot_result(combined_q.data() + start_index_pot + q_i + q_slice_offset,
+            SIMD_NAMESPACE::element_aligned_tag{});
+        pot_result = SIMD_NAMESPACE::choose(mask, pot_result * rho,
+            pot_result);
+        pot_result.copy_to(combined_q.data() + start_index_pot + q_i + q_slice_offset,
+            SIMD_NAMESPACE::element_aligned_tag{});
+        /* combined_q[start_index_pot + q_i + q_slice_offset] *= rho; */
+        simd_t w = 0.0;
         for (int si = 0; si < n_species_; si++) {
             const int start_index_sp_i = (spc_i + si) * q_face_offset + d * q_dir_offset;
-            w += combined_q[start_index_sp_i + q_i + q_slice_offset];
-            combined_q[start_index_sp_i + q_i + q_slice_offset] *= rho;
+            simd_t current_sp_field(combined_q.data() + start_index_sp_i + q_i + q_slice_offset,
+                SIMD_NAMESPACE::element_aligned_tag{});
+            w = w + current_sp_field;
+            current_sp_field =
+                SIMD_NAMESPACE::choose(mask, current_sp_field * rho, current_sp_field);
+            current_sp_field.copy_to(combined_q.data() + start_index_sp_i + q_i + q_slice_offset,
+                SIMD_NAMESPACE::element_aligned_tag{});
+            /* combined_q[start_index_sp_i + q_i + q_slice_offset] *= rho; */
         }
         w = 1.0 / w;
         for (int si = 0; si < n_species_; si++) {
             const int start_index_sp_i = (spc_i + si) * q_face_offset + d * q_dir_offset;
-            combined_q[start_index_sp_i + q_i + q_slice_offset] *= w;
+            simd_t current_sp_field(combined_q.data() + start_index_sp_i + q_i + q_slice_offset,
+                SIMD_NAMESPACE::element_aligned_tag{});
+            current_sp_field =
+                SIMD_NAMESPACE::choose(mask, current_sp_field * w, current_sp_field);
+            current_sp_field.copy_to(combined_q.data() + start_index_sp_i + q_i + q_slice_offset,
+                SIMD_NAMESPACE::element_aligned_tag{});
+            /* combined_q[start_index_sp_i + q_i + q_slice_offset] *= w; */
         }
     }
 }
