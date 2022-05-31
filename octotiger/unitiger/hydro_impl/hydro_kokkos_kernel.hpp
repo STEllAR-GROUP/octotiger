@@ -604,7 +604,11 @@ void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
     const kokkos_buffer_t& combined_x, kokkos_buffer_t& combined_u, kokkos_buffer_t& AM,
     const kokkos_buffer_t& dx, const kokkos_buffer_t& cdiscs, const int n_species_, const int ndir,
     const int nangmom, const Kokkos::Array<long, 4>&& tiling_config) {
-    const int blocks = q_inx3 / 64 + 1;
+    using simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>;
+    using simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::scalar>;
+    const size_t z_number_workitems = (q_inx / simd_t::size() + (q_inx % simd_t::size() > 0 ? 1 : 0));
+    const int blocks =
+        (q_inx * q_inx * z_number_workitems) / 64 + 1;
     const int number_slices = agg_exec.number_slices;
     if (agg_exec.sync_aggregation_slices()) {
         auto policy = Kokkos::Experimental::require(
@@ -616,21 +620,51 @@ void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
             "kernel hydro reconstruct", policy, KOKKOS_LAMBDA(int slice_id, int idx, int idy, int idz) {
                 const int sx_i = angmom_index_;
                 const int zx_i = sx_i + NDIM;
-                const int q_i = (idx) * 64 + (idy) * 8 + (idz);
+                const int index = (idx) * 64 + (idy) * 8 + (idz);
+                const int z_row_id = index / z_number_workitems;
+                const int z_id = index % z_number_workitems;
+                const int q_i = z_row_id * q_inx + z_id * simd_t::size();
+                std::array<double, simd_t::size()> mask_helper;
+                for (int i = 0; i < simd_t::size(); i++) {
+                    if ((z_id * simd_t::size() + i) < q_inx) {
+                        mask_helper[i] = 1.0;
+                    } else {
+                        mask_helper[i] = 0.0;
+                    }
+                }
+                const simd_mask_t mask = simd_t(1.0) ==
+                    simd_t(mask_helper.data(),
+                        SIMD_NAMESPACE::element_aligned_tag{});
+                // TODO Main vectorization problem: Mapping q_i (vectorized) to i. Cannot load
+                // consecutive chunks at the linebreaks
+                /* const int q_i = (idx) * 64 + (idy) * 8 + (idz); */
+                // 3 Methods to solve this:
+                // 1. Map to z index and set mask? (easiest)
+                // 2. Gather load? There is an element-wise constructor...
+                // 3. Set di directions as a vector?
+                // Combination of 1 and 2
+                // if q_i % q_inx + simd_t::size < q_inx 
+                // -> efficient load
+                // else
+                // inefficient load via me putting values into an array and loading from there...
+                // Also note: memory blocking? I touch a huge amount of memory twice I think...
                 const int i = ((q_i / q_inx2) + 2) * inx_large * inx_large +
                     (((q_i % q_inx2) / q_inx) + 2) * inx_large + (((q_i % q_inx2) % q_inx) + 2);
+
 
                 const int u_slice_offset = (nf_ * H_N3 + padding) * slice_id;
                 const int am_slice_offset = (NDIM * q_inx3 + padding) * slice_id;
                 if (q_i < q_inx3) {
                     for (int n = 0; n < nangmom; n++) {
                         AM[n * am_offset + q_i + am_slice_offset] =
-                            combined_u[(zx_i + n) * u_face_offset + i + u_slice_offset] * combined_u[i + u_slice_offset];
+                            combined_u[(zx_i + n) * u_face_offset + i +
+                            u_slice_offset] *
+                            combined_u[i + u_slice_offset];
                     }
                     for (int d = 0; d < ndir; d++) {
-                        cell_reconstruct_inner_loop_p1(nf_, angmom_index_, smooth_field_,
-                            disc_detect_, combined_q, combined_u, AM, dx[slice_id], cdiscs, d, i, q_i, ndir,
-                            nangmom, slice_id);
+                        cell_reconstruct_inner_loop_p1_simd<simd_t, simd_mask_t>(nf_, angmom_index_,
+                            smooth_field_, disc_detect_, combined_q, combined_u, AM, dx[slice_id],
+                            cdiscs, d, i, q_i, ndir, nangmom, slice_id, mask);
                     }
                     // Phase 2
                     for (int d = 0; d < ndir; d++) {

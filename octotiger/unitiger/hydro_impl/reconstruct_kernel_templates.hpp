@@ -1,4 +1,7 @@
 #pragma once
+#include "octotiger/common_kernel/kokkos_simd.hpp"
+#include "scalar.hpp"
+#include "simd_common.hpp"
 #if defined(__clang__)
 constexpr int number_dirs = 27;
 constexpr int inx_large = INX + 6;
@@ -132,38 +135,9 @@ CUDA_GLOBAL_METHOD inline int to_q_index(const int j, const int k, const int l) 
 CUDA_GLOBAL_METHOD inline int flip(const int d) {
     return NDIR - 1 - d;
 }
-CUDA_GLOBAL_METHOD inline void make_monotone(double& ql, double q0, double& qr) {
-    const double tmp1 = qr - ql;
-    const double tmp2 = qr + ql;
-
-    if (bool(qr < q0) != bool(q0 < ql)) {
-        qr = ql = q0;
-        return;
-    }
-    const double tmp3 = tmp1 * tmp1 / 6.0;
-    const double tmp4 = tmp1 * (q0 - 0.5 * tmp2);
-    if (tmp4 > tmp3) {
-        ql = (3.0 * q0 - 2.0 * qr);
-    } else if (-tmp3 > tmp4) {
-        qr = (3.0 * q0 - 2.0 * ql);
-    }
-}
-CUDA_GLOBAL_METHOD inline double minmod_cuda(double a, double b) {
-    return (copysign(0.5, a) + copysign(0.5, b)) * std::min(std::abs(a), abs(b));
-}
-CUDA_GLOBAL_METHOD inline double minmod_cuda_theta(double a, double b, double c) {
-    return minmod_cuda(c * minmod_cuda(a, b), 0.5 * (a + b));
-}
-template <typename container_t, typename const_container_t>
-CUDA_GLOBAL_METHOD inline void cell_reconstruct_minmod(container_t &combined_q,
-    const_container_t &combined_u_face, int d, int f, int i, int q_i) {
-    const auto di = dir[d];
-    const int start_index = f * q_face_offset + d * q_dir_offset;
-    combined_q[q_i + start_index] = combined_u_face[f * u_face_offset + i] +
-        0.5 *
-            minmod_cuda(combined_u_face[f * u_face_offset + i + di] - combined_u_face[f * u_face_offset + i],
-                combined_u_face[f * u_face_offset + i] - combined_u_face[f * u_face_offset + i - di]);
-}
+// =================================================================================================
+// Find contact discs kernel methods
+// =================================================================================================
 
 template <typename container_t, typename const_container_t>
 CUDA_GLOBAL_METHOD inline void cell_find_contact_discs_phase1(container_t &P,
@@ -221,6 +195,10 @@ CUDA_GLOBAL_METHOD inline void cell_find_contact_discs_phase2(
     }
 }
 
+// =================================================================================================
+// Pre Recon Methods
+// =================================================================================================
+
 template <typename container_t, typename const_container_t>
 CUDA_GLOBAL_METHOD inline void cell_hydro_pre_recon(const_container_t& X, safe_real omega, bool angmom,
         container_t &u, const int nf, const int n_species_, const unsigned int x, const unsigned int y, const unsigned int z, const int slice_id) {
@@ -272,6 +250,45 @@ CUDA_GLOBAL_METHOD inline void cell_hydro_pre_recon(const_container_t& X, safe_r
     u[u_slice_offset + sx_i * u_face_offset + i] += omega * X[large_x_slice_offset + 1 * x_offset + i];
     u[u_slice_offset + sy_i * u_face_offset + i] -= omega * X[large_x_slice_offset + 0 * x_offset + i];
 }
+// =================================================================================================
+// Reconstruct methods
+// =================================================================================================
+
+CUDA_GLOBAL_METHOD inline void make_monotone(double& ql, double q0, double& qr) {
+    const double tmp1 = qr - ql;
+    const double tmp2 = qr + ql;
+
+    if (bool(qr < q0) != bool(q0 < ql)) {
+        qr = ql = q0;
+        return;
+    }
+    const double tmp3 = tmp1 * tmp1 / 6.0;
+    const double tmp4 = tmp1 * (q0 - 0.5 * tmp2);
+    if (tmp4 > tmp3) {
+        ql = (3.0 * q0 - 2.0 * qr);
+    } else if (-tmp3 > tmp4) {
+        qr = (3.0 * q0 - 2.0 * ql);
+    }
+}
+
+
+CUDA_GLOBAL_METHOD inline double minmod_cuda(double a, double b) {
+    return (copysign(0.5, a) + copysign(0.5, b)) * std::min(std::abs(a), abs(b));
+}
+CUDA_GLOBAL_METHOD inline double minmod_cuda_theta(double a, double b, double c) {
+    return minmod_cuda(c * minmod_cuda(a, b), 0.5 * (a + b));
+}
+template <typename container_t, typename const_container_t>
+CUDA_GLOBAL_METHOD inline void cell_reconstruct_minmod(container_t &combined_q,
+    const_container_t &combined_u_face, int d, int f, int i, int q_i) {
+    const auto di = dir[d];
+    const int start_index = f * q_face_offset + d * q_dir_offset;
+    combined_q[q_i + start_index] = combined_u_face[f * u_face_offset + i] +
+        0.5 *
+            minmod_cuda(combined_u_face[f * u_face_offset + i + di] - combined_u_face[f * u_face_offset + i],
+                combined_u_face[f * u_face_offset + i] - combined_u_face[f * u_face_offset + i - di]);
+}
+
 
 template <typename container_t, typename const_container_t>
 CUDA_GLOBAL_METHOD inline void cell_reconstruct_ppm(container_t &combined_q,
@@ -320,9 +337,11 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_ppm(container_t &combined_q,
             if (std::min(std::abs(up), std::abs(um)) / std::max(std::abs(up), std::abs(um)) >
                 eps2) {
                 const auto d2p = (1.0 / 6.0) *
-                    (combined_u_face[f * u_face_offset + i + 2 * di] + u0 - 2.0 * combined_u_face[f * u_face_offset + i + di]);
+                    (combined_u_face[f * u_face_offset + i + 2 * di] + u0 -
+                        2.0 * combined_u_face[f * u_face_offset + i + di]);
                 const auto d2m = (1.0 / 6.0) *
-                    (u0 + combined_u_face[f * u_face_offset + i - 2 * di] - 2.0 * combined_u_face[f * u_face_offset + i - di]);
+                    (u0 + combined_u_face[f * u_face_offset + i - 2 * di] -
+                        2.0 * combined_u_face[f * u_face_offset + i - di]);
                 if (d2p * d2m < 0.0) {
                     double eta = 0.0;
                     if (std::abs(dif) > eps * std::min(std::abs(up), std::abs(um))) {
@@ -332,14 +351,15 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_ppm(container_t &combined_q,
                     if (eta > 0.0) {
                         auto ul = um +
                             0.5 *
-                                minmod_cuda_theta(
-                                    combined_u_face[f * u_face_offset + i] - um, um - combined_u_face[f * u_face_offset + i - 2 * di], 2.0);
+                                minmod_cuda_theta(combined_u_face[f * u_face_offset + i] - um,
+                                    um - combined_u_face[f * u_face_offset + i - 2 * di], 2.0);
                         auto ur = up -
                             0.5 *
                                 minmod_cuda_theta(
-                                    combined_u_face[f * u_face_offset + i + 2 * di] - up, up - combined_u_face[f * u_face_offset + i], 2.0);
-                        // auto& qp = q[d][i];
-                        // auto& qm = q[geo.flip(d)][i];
+                                    combined_u_face[f * u_face_offset + i + 2 * di] - up,
+                                    up - combined_u_face[f * u_face_offset +
+                                    i], 2.0);
+                        // auto& qp = q[d][i]; auto& qm = q[geo.flip(d)][i];
                         auto& qp = combined_q[start_index + q_i];
                         auto& qm = combined_q[start_index_flipped + q_i];
                         qp += eta * (ur - qp);
@@ -382,32 +402,37 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p1(const size_t nf_, 
     if (angmom_index_ > -1) {
         if (d < ndir / 2) {
             for (int f = 0; f < s_start; f++) {
-                cell_reconstruct_ppm(combined_q, combined_u,
-                    smooth_field_[f + nf_ * slice_id], disc_detect_[f + nf_ * slice_id], cdiscs, d, f, i + u_slice_offset, q_i + q_slice_offset, i + disc_slice_offset);
+                cell_reconstruct_ppm(combined_q, combined_u, smooth_field_[f + nf_ * slice_id],
+                    disc_detect_[f + nf_ * slice_id], cdiscs, d, f, i + u_slice_offset,
+                    q_i + q_slice_offset, i + disc_slice_offset);
             }
             for (int f = s_start; f < l_start; f++) {
-                cell_reconstruct_ppm(
-                    combined_q, combined_u, true, false, cdiscs, d, f, i + u_slice_offset, q_i + q_slice_offset, i + disc_slice_offset);
+                cell_reconstruct_ppm(combined_q, combined_u, true, false, cdiscs, d, f,
+                    i + u_slice_offset, q_i + q_slice_offset, i + disc_slice_offset);
             }
         }
         for (int f = l_start; f < l_start + nangmom; f++) {
-            cell_reconstruct_minmod(combined_q, combined_u, d, f, i + u_slice_offset, q_i + q_slice_offset);
+            cell_reconstruct_minmod(
+                combined_q, combined_u, d, f, i + u_slice_offset, q_i + q_slice_offset);
         }
         if (d < ndir / 2) {
             for (int f = l_start + nangmom; f < nf_; f++) {
-                cell_reconstruct_ppm(combined_q, combined_u,
-                    smooth_field_[f + nf_ * slice_id], disc_detect_[f + nf_ * slice_id], cdiscs, d, f, i + u_slice_offset, q_i + q_slice_offset, i + disc_slice_offset);
+                cell_reconstruct_ppm(combined_q, combined_u, smooth_field_[f + nf_ * slice_id],
+                    disc_detect_[f + nf_ * slice_id], cdiscs, d, f, i + u_slice_offset,
+                    q_i + q_slice_offset, i + disc_slice_offset);
             }
         }
     } else {
         for (int f = 0; f < nf_; f++) {
-            if (f < lx_i || f > lx_i + nangmom ) {
+            if (f < lx_i || f > lx_i + nangmom) {
                 if (d < ndir / 2) {
-                    cell_reconstruct_ppm(combined_q, combined_u,
-                        smooth_field_[f + nf_ * slice_id], disc_detect_[f + nf_ * slice_id], cdiscs, d, f, i + u_slice_offset, q_i + q_slice_offset, i + disc_slice_offset);
+                    cell_reconstruct_ppm(combined_q, combined_u, smooth_field_[f + nf_ * slice_id],
+                        disc_detect_[f + nf_ * slice_id], cdiscs, d, f, i + u_slice_offset,
+                        q_i + q_slice_offset, i + disc_slice_offset);
                 }
             } else {
-                cell_reconstruct_minmod(combined_q, combined_u, d, f, i + u_slice_offset, q_i + q_slice_offset);
+                cell_reconstruct_minmod(
+                    combined_q, combined_u, d, f, i + u_slice_offset, q_i + q_slice_offset);
             }
         }
     }
@@ -460,11 +485,11 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p1(const size_t nf_, 
 }
 
 template <typename container_t, typename const_container_t>
-CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p2(const safe_real omega, const int angmom_index_,
-    container_t& combined_q, const_container_t& combined_x,
-    container_t& combined_u, const_container_t& AM, const double dx, const int d,
-    const int i, const int q_i, const int ndir, const int nangmom, const int n_species_, const int nf_, const int slice_id) {
-
+CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p2(const safe_real omega,
+    const int angmom_index_, container_t& combined_q, const_container_t& combined_x,
+    container_t& combined_u, const_container_t& AM, const double dx, const int d, const int i,
+    const int q_i, const int ndir, const int nangmom, const int n_species_, const int nf_,
+    const int slice_id) {
     const int q_slice_offset = (nf_ * 27 * q_inx3 + 128) * slice_id;
     const int u_slice_offset = (nf_ * H_N3 + 128) * slice_id;
     const int am_slice_offset = (NDIM * q_inx3 + 128) * slice_id;
@@ -493,26 +518,28 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p2(const safe_real om
             const auto b0 = qr - ql;
             auto b = b0;
             if (q == 0) {
-                // n m q Levi Civita
-                // 1 2 0 -> 1
-                b += 12.0 * AM[1 * am_offset + q_i + am_slice_offset] * 1.0 * xloc[d][2] / (dx * (rho_l + rho_r));
-                // n m q Levi Civita
-                // 2 1 0 -> -1
-                b -= 12.0 * AM[2 * am_offset + q_i + am_slice_offset] * 1.0 * xloc[d][1] / (dx * (rho_l + rho_r));
+                // n m q Levi Civita 1 2 0 -> 1
+                b += 12.0 * AM[1 * am_offset + q_i + am_slice_offset] * 1.0 * xloc[d][2] /
+                    (dx * (rho_l + rho_r));
+                // n m q Levi Civita 2 1 0 -> -1
+                b -= 12.0 * AM[2 * am_offset + q_i + am_slice_offset] * 1.0 * xloc[d][1] /
+                    (dx * (rho_l + rho_r));
             } else if (q == 1) {
-                // n m q Levi Civita
-                // 0 2 1 -> -1
-                b -= 12.0 * AM[0 * am_offset + q_i + am_slice_offset] * 1.0 * xloc[d][2] / (dx * (rho_l + rho_r));
-                // n m q Levi Civita
-                // 2 0 1 -> 1
-                b += 12.0 * AM[2 * am_offset + q_i + am_slice_offset] * 1.0 * xloc[d][0] / (dx * (rho_l + rho_r));
+                // n m q Levi Civita 0 2 1 -> -1
+                b -= 12.0 * AM[0 * am_offset + q_i + am_slice_offset] * 1.0 * xloc[d][2] /
+                    (dx * (rho_l + rho_r));
+                // n m q Levi Civita 2 0 1 -> 1
+                b += 12.0 * AM[2 * am_offset + q_i + am_slice_offset] * 1.0 * xloc[d][0] /
+                    (dx * (rho_l + rho_r));
             } else {
-                // n m q Levi Civita
-                // 0 1 2 -> 1
-                b += 12.0 * AM[0 * am_offset + q_i + am_slice_offset] * 1.0 * xloc[d][1] / (dx * (rho_l + rho_r));
+                // n m q Levi Civita 0 1 2 -> 1
+                b += 12.0 * AM[0 * am_offset + q_i + am_slice_offset] * 1.0 *
+                  xloc[d][1] /
+                    (dx * (rho_l + rho_r));
                 // n m q Levi Civita
                 // 1 0 2 -> -1
-                b -= 12.0 * AM[1 * am_offset + q_i + am_slice_offset] * 1.0 * xloc[d][0] / (dx * (rho_l + rho_r));
+                b -= 12.0 * AM[1 * am_offset + q_i + am_slice_offset] * 1.0 * xloc[d][0] /
+                    (dx * (rho_l + rho_r));
             }
             double blim;
             if ((ur - u0) * (u0 - ul) <= 0.0) {
@@ -551,7 +578,8 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p2(const safe_real om
         const int start_index_sy = sy_i * q_face_offset + d * q_dir_offset;
         combined_q[start_index_sx + q_i + q_slice_offset] -=
             omega * (combined_x[1 * q_inx3 + q_i + x_slice_offset] + 0.5 * xloc[d][1] * dx);
-        combined_q[start_index_sy + q_i + q_slice_offset] += omega * (combined_x[q_i + x_slice_offset] + 0.5 * xloc[d][0] * dx);
+        combined_q[start_index_sy + q_i + q_slice_offset] +=
+            omega * (combined_x[q_i + x_slice_offset] + 0.5 * xloc[d][0] * dx);
         // Q[sx_i][d][i] -= omega * (X[1][i] + 0.5 * xloc[d][1] * dx);
         // Q[sy_i][d][i] += omega * (X[0][i] + 0.5 * xloc[d][0] * dx);
         const double rho = combined_q[start_index_rho + q_i + q_slice_offset];
@@ -559,7 +587,8 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p2(const safe_real om
         // n m q Levi Civita
         // 0 1 2 -> 1
         const double xloc_tmp1 = 0.5 * xloc[d][1] * dx;
-        const double q_lx_val0 = combined_q[(lx_i + 0) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset];
+        const double q_lx_val0 =
+            combined_q[(lx_i + 0) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset];
         double result0 = q_lx_val0 +
             (1.0) * (combined_x[q_inx3 + q_i + x_slice_offset] + xloc_tmp1) *
                 combined_q[(sx_i + 2) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset];
@@ -574,7 +603,8 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p2(const safe_real om
         // n m q Levi Civita
         // 1 0 2 -> -1
         const double xloc_tmp0 = 0.5 * xloc[d][0] * dx;
-        const double q_lx_val1 = combined_q[(lx_i + 1) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset];
+        const double q_lx_val1 =
+            combined_q[(lx_i + 1) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset];
         double result1 = q_lx_val1 +
             (-1.0) * (combined_x[q_i + x_slice_offset] + xloc_tmp0) *
                 combined_q[(sx_i + 2) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset];
@@ -587,7 +617,456 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p2(const safe_real om
 
         // n m q Levi Civita
         // 2 0 1 -> 1
-        const double q_lx_val2 = combined_q[(lx_i + 2) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset];
+        const double q_lx_val2 =
+            combined_q[(lx_i + 2) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset];
+        auto result2 = q_lx_val2 +
+            (1.0) * (combined_x[q_i + x_slice_offset] + xloc_tmp0) *
+                combined_q[(sx_i + 1) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset];
+
+        // n m q Levi Civita
+        // 2 1 0 -> -1
+        result2 += (-1.0) * (combined_x[q_inx3 + q_i + x_slice_offset] + xloc_tmp1) *
+            combined_q[(sx_i + 0) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset];
+        combined_q[(lx_i + 2) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset] = result2;
+        const int start_index_egas = egas_i * q_face_offset + d * q_dir_offset;
+        const int start_index_pot = pot_i * q_face_offset + d * q_dir_offset;
+        for (int n = 0; n < nangmom; n++) {
+            const int start_index_lx_n = (lx_i + n) * q_face_offset + d * q_dir_offset;
+            combined_q[start_index_lx_n + q_i + q_slice_offset] *= rho;
+        }
+        for (int dim = 0; dim < NDIM; dim++) {
+            const int start_index_sx_d = (sx_i + dim) * q_face_offset + d * q_dir_offset;
+            auto& v = combined_q[start_index_sx_d + q_i + q_slice_offset];
+            combined_q[start_index_egas + q_i + q_slice_offset] += 0.5 * v * v * rho;
+            v *= rho;
+        }
+        combined_q[start_index_pot + q_i + q_slice_offset] *= rho;
+        safe_real w = 0.0;
+        for (int si = 0; si < n_species_; si++) {
+            const int start_index_sp_i = (spc_i + si) * q_face_offset + d * q_dir_offset;
+            w += combined_q[start_index_sp_i + q_i + q_slice_offset];
+            combined_q[start_index_sp_i + q_i + q_slice_offset] *= rho;
+        }
+        w = 1.0 / w;
+        for (int si = 0; si < n_species_; si++) {
+            const int start_index_sp_i = (spc_i + si) * q_face_offset + d * q_dir_offset;
+            combined_q[start_index_sp_i + q_i + q_slice_offset] *= w;
+        }
+    }
+}
+// =================================================================================================
+// Reconstruct simd methods
+// =================================================================================================
+
+template<typename simd_t, typename simd_mask_t>
+CUDA_GLOBAL_METHOD inline void make_monotone_simd(simd_t& ql, simd_t q0, simd_t& qr) {
+    const simd_t tmp1 = qr - ql;
+    const simd_t tmp2 = qr + ql;
+
+    const simd_mask_t mask1 = (qr < q0) == (q0 < ql);
+    const simd_mask_t mask2 = !mask1;
+    qr = SIMD_NAMESPACE::choose(mask2, q0, qr)
+    ql = SIMD_NAMESPACE::choose(mask2, q0, ql)
+    if (SIMD_NAMESPACE::all_of(mask2))
+      return;
+    /* if (bool(qr < q0) != bool(q0 < ql)) { */
+    /*     qr = ql = q0; */
+    /*     return; */
+    /* } */
+    const simd_t tmp3 = tmp1 * tmp1 / 6.0;
+    const simd_t tmp4 = tmp1 * (q0 - 0.5 * tmp2);
+    const mask3 = (tmp3 < tmp4) && mask1;
+    const mask4 = (tmp4 < -tmp3) && mask1;
+    ql = SIMD_NAMESPACE::choose(mask3, (3.0 * q0 - 2.0 * qr), ql)
+    qr = SIMD_NAMESPACE::choose(mask4, (3.0 * q0 - 2.0 * ql), qr)
+    /* if (tmp4 > tmp3) { */
+    /*     ql = (3.0 * q0 - 2.0 * qr); */
+    /* } else if (-tmp3 > tmp4) { */
+    /*     qr = (3.0 * q0 - 2.0 * ql); */
+    /* } */
+}
+
+template <typename simd_t>
+CUDA_GLOBAL_METHOD inline simd_t minmod_cuda_simd(simd_t a, simd_t b) {
+    return (SIMD_NAMESPACE::copysign(0.5, a) + SIMD_NAMESPACE::copysign(0.5, b)) *
+        SIMD_NAMESPACE::min(SIMD_NAMESPACE::abs(a), SIMD_NAMESPACE::abs(b));
+}
+template <typename simd_t>
+CUDA_GLOBAL_METHOD inline simd_t minmod_cuda_theta_simd(simd_t a, simd_t b, simd_t c) {
+    return minmod_cuda_simd(c * minmod_cuda_simd(a, b), 0.5 * (a + b));
+}
+template <typename simd_t, typename container_t, typename const_container_t>
+CUDA_GLOBAL_METHOD inline void cell_reconstruct_minmod_simd(
+    container_t& combined_q, const_container_t& combined_u_face, int d, int f, int i, int q_i) {
+    const auto di = dir[d];
+    const int start_index = f * q_face_offset + d * q_dir_offset;
+    combined_q[q_i + start_index] = combined_u_face[f * u_face_offset + i] +
+        0.5 *
+            minmod_cuda(combined_u_face[f * u_face_offset + i + di] -
+                    combined_u_face[f * u_face_offset + i],
+                combined_u_face[f * u_face_offset + i] -
+                    combined_u_face[f * u_face_offset + i - di]);
+}
+
+template <typename simd_t, typename simd_mask_t, typename container_t, typename const_container_t>
+CUDA_GLOBAL_METHOD inline void cell_reconstruct_ppm_simd(container_t &combined_q,
+    container_t &combined_u_face, bool smooth, bool disc_detect,
+    const_container_t &disc, const int d, const int f, int i, int q_i, int d_i, const simd_mask_t &mask) {
+    // const vc_type zindices = vc_type::IndexesFromZero() + 1;
+    // static thread_local auto D1 = std::vector<safe_real>(geo.H_N3, 0.0);
+    const auto di = dir[d];
+    const auto flipped_di = flip(d);
+
+    const int start_index = f * q_face_offset + d * q_dir_offset;
+    const int start_index_flipped = f * q_face_offset + flipped_di * q_dir_offset;
+
+    const simd_t u_plus_2di(combined_u_face.data() + f * u_face_offset + i + 2 * di,
+        SIMD_NAMESPACE::element_aligned_tag{});
+    const simd_t u_plus_di(combined_u_face.data() + f * u_face_offset + i + di,
+        SIMD_NAMESPACE::element_aligned_tag{});
+    const simd_t u_zero(combined_u_face.data() + f * u_face_offset + i,
+        SIMD_NAMESPACE::element_aligned_tag{});
+    const simd_t u_minus_di(combined_u_face.data() + f * u_face_offset + i - di,
+        SIMD_NAMESPACE::element_aligned_tag{});
+    const simd_t u_minus_2di(combined_u_face.data() + f * u_face_offset + i - 2 * di,
+        SIMD_NAMESPACE::element_aligned_tag{});
+
+    const simd_t diff_u_plus = u_plus_di - u_zero;
+    const simd_t diff_u_2plus = u_plus_2di - u_plus_di;
+
+    const simd_t diff_u_minus = u_zero - u_minus_di;
+    const simd_t diff_u_2minus = u_minus_di - u_minus_2di;
+    const simd_t d1 = minmod_theta_wrapper_cuda_simd(diff_u_plus, diff_u_minus, 2.0);
+    const simd_t d1_plus = minmod_theta_wrapper_cuda_simd(diff_u_2plus, diff_u_plus, 2.0);
+    const simd_t d1_minus = minmod_theta_wrapper_cuda_simd(diff_u_minus, diff_u_2minus, 2.0);
+
+    const simd_t results = 0.5 * (u_zero + u_plus_di) + (1.0 / 6.0) * (d1 - d1_plus);
+    const simd_t results_flipped = 0.5 * (u_minus_di + u_zero) + (1.0 / 6.0) * (d1_minus - d1);
+
+    simd_t current_q_results(combined_q.data() + start_index + q_i,
+        SIMD_NAMESPACE::element_aligned_tag{});
+    simd_t current_q_results_flipped(combined_q.data() + start_index_flipped + q_i,
+        SIMD_NAMESPACE::element_aligned_tag{});
+    const simd_t old_results = current_q_results;
+    const simd_t old_results_flipped = current_q_results_flipped;
+
+    current_q_results = results;
+    current_q_results_flipped = results_flipped;
+
+    if (disc_detect) {
+        constexpr auto eps = 0.01;
+        constexpr auto eps2 = 0.001;
+        constexpr auto eta1 = 20.0;
+        constexpr auto eta2 = 0.05;
+        const auto dif = u_plus_di - u_minus_di;
+        const simd mask_helper1 =
+            simd_t(disc.data() + d * disc_offset + d_i, element_aligned_tag{}) *
+            SIMD_NAMESPACE::min(SIMD_NAMESPACE::abs(u_plus_di), SIMD_NAMESPACE::abs(u_minus_di));
+        simd_mask_t criterias = mask && (mask_helper < (SIMD_NAMESPACE::abs(dif)));
+        /* if (std::abs(dif) > */
+        /*     disc[d * disc_offset + d_i] * std::min(std::abs(u_plus_di), std::abs(u_minus_di))) { */
+        if (SIMD_NAMESPACE::any_of(criteria1) {
+            const simd mask_helper2 = SIMD_NAMESPACE::min(SIMD_NAMESPACE::abs(u_plus_di),
+                                          SIMD_NAMESPACE::abs(u_minus_di)) /
+                SIMD_NAMESPACE::max(std::abs(u_plus_di), SIMD_NAMESPACE::abs(u_minus_di));
+            criterias = (simd_t(eps2) < mask_helper2) && criterias;
+            /* if (std::min(std::abs(u_plus_di), std::abs(u_minus_di)) / */
+            /*         std::max(std::abs(u_plus_di), std::abs(u_minus_di)) > */
+            /*     eps2) { */
+            if (SIMD_NAMESPACE::any_of(criterias) {
+                const auto d2p = (1.0 / 6.0) * (u_plus_2di + u_zero - 2.0 * u_plus_di);
+                const auto d2m = (1.0 / 6.0) * (u_zero + u_minus_2di - 2.0 * u_minus_di);
+                criterias = criterias && ((d2p * d2m) < simd_t(0.0));
+                if (SIMD_NAMESPACE::any_of(criterias) {
+                /* if (d2p * d2m < 0.0) { */
+                    simd_t eta = 0.0;
+                    const simd_mask_t eta_mask =
+                        (eps *
+                            SIMD_NAMESPACE::min(SIMD_NAMESPACE::abs(u_plus_di),
+                                SIMD_NAMESPACE::abs(u_minus_di))) < SIMD_NAMESPACE::abs(dif);
+                    eta = SIMD_NAMESPACE::choose(eta_mask, -(d2p - d2m) / dif, eta);
+                    /* if (std::abs(dif) > eps * std::min(std::abs(u_plus_di), std::abs(u_minus_di))) { */
+                    /*     eta = -(d2p - d2m) / dif; */
+                    /* } */
+                    eta = SIMD_NAMESPACE::max(simd_t(0.0),
+                        SIMD_NAMESPACE::min(simd_t(eta1) * (eta - simd_t(eta2)), simd_t(1.0)));
+                    criterias = criterias && (simd_t(0.0) < eta);
+                    /* if (eta > 0.0) { */
+                    auto ul = u_minus_di +
+                        0.5 *
+                            minmod_cuda_theta_simd(
+                                u_zero - u_minus_di, u_minus_di - u_minus_2di, 2.0);
+                    auto ur = u_plus_di -
+                        0.5 *
+                            minmod_cuda_theta_simd(u_plus_2di - u_plus_di,
+                                u_plus_di - u_zero, 2.0);
+                    current_q_results = current_q_results +
+                        SIMD_NAMESPACE::choose(
+                            criterias, eta * (ur - current_q_results), simd_t(0.0));
+                    current_q_results_flipped = current_q_results_flipped +
+                        SIMD_NAMESPACE::choose(
+                            criterias, eta * (ul - current_q_results_flipped), simd_t(0.0));
+                    /* } */
+                }
+            }
+        }
+    }
+    if (!smooth) {
+        make_monotone_simd(current_q_results, u_zero,
+            current_q_results_flipped);
+    }
+    // TODO apply masks
+    current_q_results = SIMD_NAMESPACE::choose(mask. current_q_results, old_results);
+    current_q_results.copy_to(combined_q.data() + start_index + q_i, SIMD_NAMESPACE::element_aligned_tag{});
+    current_q_results_flipped = SIMD_NAMESPACE::choose(mask, current_q_results_flipped, old_results_flipped);
+    current_q_results_flipped.copy_to(
+        combined_q.data() + start_index_flipped + q_i, SIMD_NAMESPACE::element_aligned_tag{});
+}
+
+// Phase 1 and 2
+template <typename simd_t, typename simd_mask_t, typename container_t, typename const_container_t,
+    typename const_int_container_t>
+CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p1_simd(const size_t nf_,
+    const int angmom_index_, const_int_container_t& smooth_field_,
+    const_int_container_t& disc_detect_, container_t& combined_q, container_t& combined_u,
+    container_t& AM, const double dx, const_container_t& cdiscs, const int d, const int i,
+    const int q_i, const int ndir, const int nangmom, const int slice_id, const simd_mask_t &mask) {
+    const int q_slice_offset = (nf_ * 27 * q_inx3 + 128) * slice_id;
+    const int u_slice_offset = (nf_ * H_N3 + 128) * slice_id;
+    const int am_slice_offset = (NDIM * q_inx3 + 128) * slice_id;
+    const int disc_slice_offset = (ndir / 2 * H_N3 + 128) * slice_id; 
+
+    int l_start;
+    int s_start;
+    if (angmom_index_ > -1) {
+        s_start = angmom_index_;
+        l_start = angmom_index_ + NDIM;
+    } else {
+        s_start = lx_i;
+        l_start = lx_i;
+    }
+    if (angmom_index_ > -1) {
+        if (d < ndir / 2) {
+            for (int f = 0; f < s_start; f++) {
+                cell_reconstruct_ppm_simd<simd_t, simd_mask_t>(combined_q, combined_u,
+                    smooth_field_[f + nf_ * slice_id], disc_detect_[f + nf_ * slice_id], cdiscs, d,
+                    f, i + u_slice_offset, q_i + q_slice_offset, i + disc_slice_offset, mask);
+            }
+            for (int f = s_start; f < l_start; f++) {
+                cell_reconstruct_ppm_simd<simd_t, simd_mask_t>(combined_q, combined_u, true, false,
+                    cdiscs, d, f, i + u_slice_offset, q_i + q_slice_offset, i + disc_slice_offset,
+                    mask);
+            }
+        }
+        for (int f = l_start; f < l_start + nangmom; f++) {
+            cell_reconstruct_minmod(
+                combined_q, combined_u, d, f, i + u_slice_offset, q_i + q_slice_offset);
+        }
+        if (d < ndir / 2) {
+            for (int f = l_start + nangmom; f < nf_; f++) {
+                cell_reconstruct_ppm_simd<simd_t, simd_mask_t>(combined_q, combined_u,
+                    smooth_field_[f + nf_ * slice_id], disc_detect_[f + nf_ * slice_id], cdiscs, d,
+                    f, i + u_slice_offset, q_i + q_slice_offset, i + disc_slice_offset, mask);
+            }
+        }
+    } else {
+        for (int f = 0; f < nf_; f++) {
+            if (f < lx_i || f > lx_i + nangmom) {
+                if (d < ndir / 2) {
+                    cell_reconstruct_ppm_simd<simd_t, simd_mask_t>(combined_q, combined_u,
+                        smooth_field_[f + nf_ * slice_id], disc_detect_[f + nf_ * slice_id], cdiscs,
+                        d, f, i + u_slice_offset, q_i + q_slice_offset, i + disc_slice_offset,
+                        mask);
+                }
+            } else {
+                cell_reconstruct_minmod(
+                    combined_q, combined_u, d, f, i + u_slice_offset, q_i + q_slice_offset);
+            }
+        }
+    }
+
+    if (d != ndir / 2 && angmom_index_ > -1) {
+        const int start_index_rho = d * q_dir_offset;
+
+        // n m q Levi Civita
+        // 0 1 2 -> 1
+        double results0 = AM[q_i + am_slice_offset] -
+            vw[d] * 1.0 * 0.5 * xloc[d][1] *
+                combined_q[(sx_i + 2) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset] *
+                combined_q[start_index_rho + q_i + q_slice_offset] * dx;
+
+        // n m q Levi Civita
+        // 0 2 1 -> -1
+        results0 -= vw[d] * (-1.0) * 0.5 * xloc[d][2] *
+            combined_q[(sx_i + 1) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset] *
+            combined_q[start_index_rho + q_i + q_slice_offset] * dx;
+        AM[q_i + am_slice_offset] = results0;
+
+        // n m q Levi Civita
+        // 1 0 2 -> -1
+        double results1 = AM[am_offset + q_i + am_slice_offset] -
+            vw[d] * (-1.0) * 0.5 * xloc[d][0] *
+                combined_q[(sx_i + 2) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset] *
+                combined_q[start_index_rho + q_i + q_slice_offset] * dx;
+
+        // n m q Levi Civita
+        // 1 2 0 -> 1
+        results1 -= vw[d] * (1.0) * 0.5 * xloc[d][2] *
+            combined_q[(sx_i + 0) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset] *
+            combined_q[start_index_rho + q_i + q_slice_offset] * dx;
+        AM[am_offset + q_i + am_slice_offset] = results1;
+
+        // n m q Levi Civita
+        // 2 0 1 -> 1
+        double results2 = AM[2 * am_offset + q_i + am_slice_offset] -
+            vw[d] * (1.0) * 0.5 * xloc[d][0] *
+                combined_q[(sx_i + 1) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset] *
+                combined_q[start_index_rho + q_i + q_slice_offset] * dx;
+
+        // n m q Levi Civita
+        // 2 1 0 -> -1
+        results2 -= vw[d] * (-1.0) * 0.5 * xloc[d][1] *
+            combined_q[(sx_i + 0) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset] *
+            combined_q[start_index_rho + q_i + q_slice_offset] * dx;
+        AM[2 * am_offset + q_i + am_slice_offset] = results2;
+    }
+}
+
+template <typename container_t, typename const_container_t>
+CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p2_simd(const safe_real omega,
+    const int angmom_index_, container_t& combined_q, const_container_t& combined_x,
+    container_t& combined_u, const_container_t& AM, const double dx, const int d, const int i,
+    const int q_i, const int ndir, const int nangmom, const int n_species_, const int nf_,
+    const int slice_id) {
+    const int q_slice_offset = (nf_ * 27 * q_inx3 + 128) * slice_id;
+    const int u_slice_offset = (nf_ * H_N3 + 128) * slice_id;
+    const int am_slice_offset = (NDIM * q_inx3 + 128) * slice_id;
+    const int x_slice_offset = (NDIM * q_inx3 + 128) * slice_id;
+
+    if (d < ndir / 2 && angmom_index_ > -1) {
+        const auto di = dir[d];
+
+        for (int q = 0; q < NDIM; q++) {
+            const auto f = sx_i + q;
+            const int start_index_f = f * q_face_offset + d * q_dir_offset;
+            const int start_index_flipped = f * q_face_offset + flip(d) * q_dir_offset;
+            const int start_index_zero = 0 * q_face_offset + d * q_dir_offset;
+            const int start_index_zero_flipped = 0 * q_face_offset + flip(d) * q_dir_offset;
+            // const auto& rho_r = Q[0][d][i];
+            // const auto& rho_l = Q[0][geo.flip(d)][i];
+            const auto& rho_r = combined_q[start_index_zero + q_i + q_slice_offset];
+            const auto& rho_l = combined_q[start_index_zero_flipped + q_i + q_slice_offset];
+            auto& qr = combined_q[start_index_f + q_i + q_slice_offset];
+            auto& ql = combined_q[start_index_flipped + q_i + q_slice_offset];
+            // auto& qr = Q[f][d][i];
+            // auto& ql = Q[f][geo.flip(d)][i];
+            const auto& ur = combined_u[f * u_face_offset + i + u_slice_offset + di];
+            const auto& u0 = combined_u[f * u_face_offset + i + u_slice_offset];
+            const auto& ul = combined_u[f * u_face_offset + i + u_slice_offset - di];
+            const auto b0 = qr - ql;
+            auto b = b0;
+            if (q == 0) {
+                // n m q Levi Civita 1 2 0 -> 1
+                b += 12.0 * AM[1 * am_offset + q_i + am_slice_offset] * 1.0 * xloc[d][2] /
+                    (dx * (rho_l + rho_r));
+                // n m q Levi Civita 2 1 0 -> -1
+                b -= 12.0 * AM[2 * am_offset + q_i + am_slice_offset] * 1.0 * xloc[d][1] /
+                    (dx * (rho_l + rho_r));
+            } else if (q == 1) {
+                // n m q Levi Civita 0 2 1 -> -1
+                b -= 12.0 * AM[0 * am_offset + q_i + am_slice_offset] * 1.0 * xloc[d][2] /
+                    (dx * (rho_l + rho_r));
+                // n m q Levi Civita 2 0 1 -> 1
+                b += 12.0 * AM[2 * am_offset + q_i + am_slice_offset] * 1.0 * xloc[d][0] /
+                    (dx * (rho_l + rho_r));
+            } else {
+                // n m q Levi Civita 0 1 2 -> 1
+                b += 12.0 * AM[0 * am_offset + q_i + am_slice_offset] * 1.0 *
+                  xloc[d][1] /
+                    (dx * (rho_l + rho_r));
+                // n m q Levi Civita
+                // 1 0 2 -> -1
+                b -= 12.0 * AM[1 * am_offset + q_i + am_slice_offset] * 1.0 * xloc[d][0] /
+                    (dx * (rho_l + rho_r));
+            }
+            double blim;
+            if ((ur - u0) * (u0 - ul) <= 0.0) {
+                blim = 0.0;
+            } else {
+                blim = b0;
+            }
+            b = minmod_cuda(blim, b);
+            qr += 0.5 * (b - b0);
+            ql -= 0.5 * (b - b0);
+            if (ur > u0 && u0 > ul) {
+                if (qr > ur) {
+                    ql -= (qr - ur);
+                    qr = ur;
+                } else if (ql < ul) {
+                    qr -= (ql - ul);
+                    ql = ul;
+                }
+            } else if (ur < u0 && u0 < ul) {
+                if (qr < ur) {
+                    ql -= (qr - ur);
+                    qr = ur;
+                } else if (ql > ul) {
+                    qr -= (ql - ul);
+                    ql = ul;
+                }
+            }
+            make_monotone(qr, u0, ql);
+        }
+    }
+
+    // Phase 3 - post-reconstruct
+    const int start_index_rho = rho_i * q_face_offset + d * q_dir_offset;
+    if (d != ndir / 2) {
+        const int start_index_sx = sx_i * q_face_offset + d * q_dir_offset;
+        const int start_index_sy = sy_i * q_face_offset + d * q_dir_offset;
+        combined_q[start_index_sx + q_i + q_slice_offset] -=
+            omega * (combined_x[1 * q_inx3 + q_i + x_slice_offset] + 0.5 * xloc[d][1] * dx);
+        combined_q[start_index_sy + q_i + q_slice_offset] +=
+            omega * (combined_x[q_i + x_slice_offset] + 0.5 * xloc[d][0] * dx);
+        // Q[sx_i][d][i] -= omega * (X[1][i] + 0.5 * xloc[d][1] * dx);
+        // Q[sy_i][d][i] += omega * (X[0][i] + 0.5 * xloc[d][0] * dx);
+        const double rho = combined_q[start_index_rho + q_i + q_slice_offset];
+
+        // n m q Levi Civita
+        // 0 1 2 -> 1
+        const double xloc_tmp1 = 0.5 * xloc[d][1] * dx;
+        const double q_lx_val0 =
+            combined_q[(lx_i + 0) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset];
+        double result0 = q_lx_val0 +
+            (1.0) * (combined_x[q_inx3 + q_i + x_slice_offset] + xloc_tmp1) *
+                combined_q[(sx_i + 2) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset];
+
+        // n m q Levi Civita
+        // 0 2 1 -> -1
+        const double xloc_tmp2 = 0.5 * xloc[d][2] * dx;
+        result0 += (-1.0) * (combined_x[2 * q_inx3 + q_i + x_slice_offset] + xloc_tmp2) *
+            combined_q[(sx_i + 1) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset];
+        combined_q[(lx_i + 0) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset] = result0;
+
+        // n m q Levi Civita
+        // 1 0 2 -> -1
+        const double xloc_tmp0 = 0.5 * xloc[d][0] * dx;
+        const double q_lx_val1 =
+            combined_q[(lx_i + 1) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset];
+        double result1 = q_lx_val1 +
+            (-1.0) * (combined_x[q_i + x_slice_offset] + xloc_tmp0) *
+                combined_q[(sx_i + 2) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset];
+
+        // n m q Levi Civita
+        // 1 2 0 -> 1
+        result1 += (1.0) * (combined_x[2 * q_inx3 + q_i + x_slice_offset] + xloc_tmp2) *
+            combined_q[(sx_i + 0) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset];
+        combined_q[(lx_i + 1) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset] = result1;
+
+        // n m q Levi Civita
+        // 2 0 1 -> 1
+        const double q_lx_val2 =
+            combined_q[(lx_i + 2) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset];
         auto result2 = q_lx_val2 +
             (1.0) * (combined_x[q_i + x_slice_offset] + xloc_tmp0) *
                 combined_q[(sx_i + 1) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset];
