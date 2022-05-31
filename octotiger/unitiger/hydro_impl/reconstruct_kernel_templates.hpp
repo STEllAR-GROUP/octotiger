@@ -663,7 +663,7 @@ CUDA_GLOBAL_METHOD inline void make_monotone_simd(simd_t& ql, simd_t q0, simd_t&
     const simd_t tmp1 = qr - ql;
     const simd_t tmp2 = qr + ql;
 
-    const simd_mask_t mask1 = (qr < q0) && (q0 < ql);
+    const simd_mask_t mask1 = ((qr < q0) && (q0 < ql)) || (!(qr < q0) && !(q0 < ql));
     const simd_mask_t mask2 = !mask1;
     qr = SIMD_NAMESPACE::choose(mask2, q0, qr);
     ql = SIMD_NAMESPACE::choose(mask2, q0, ql);
@@ -867,14 +867,13 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p1_simd(const size_t 
     if (angmom_index_ > -1) {
         if (d < ndir / 2) {
             for (int f = 0; f < s_start; f++) {
-                cell_reconstruct_ppm_simd<simd_t, simd_mask_t>(combined_q, combined_u,
+                cell_reconstruct_ppm(combined_q, combined_u,
                     smooth_field_[f + nf_ * slice_id], disc_detect_[f + nf_ * slice_id], cdiscs, d,
-                    f, i + u_slice_offset, q_i + q_slice_offset, i + disc_slice_offset, mask);
+                    f, i + u_slice_offset, q_i + q_slice_offset, i + disc_slice_offset);
             }
             for (int f = s_start; f < l_start; f++) {
-                cell_reconstruct_ppm_simd<simd_t, simd_mask_t>(combined_q, combined_u, true, false,
-                    cdiscs, d, f, i + u_slice_offset, q_i + q_slice_offset, i + disc_slice_offset,
-                    mask);
+                cell_reconstruct_ppm(combined_q, combined_u, true, false,
+                    cdiscs, d, f, i + u_slice_offset, q_i + q_slice_offset, i + disc_slice_offset);
             }
         }
         for (int f = l_start; f < l_start + nangmom; f++) {
@@ -883,19 +882,24 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p1_simd(const size_t 
         }
         if (d < ndir / 2) {
             for (int f = l_start + nangmom; f < nf_; f++) {
-                cell_reconstruct_ppm_simd<simd_t, simd_mask_t>(combined_q, combined_u,
+                cell_reconstruct_ppm(combined_q, combined_u,
                     smooth_field_[f + nf_ * slice_id], disc_detect_[f + nf_ * slice_id], cdiscs, d,
-                    f, i + u_slice_offset, q_i + q_slice_offset, i + disc_slice_offset, mask);
+                    f, i + u_slice_offset, q_i + q_slice_offset, i + disc_slice_offset);
             }
         }
     } else {
         for (int f = 0; f < nf_; f++) {
             if (f < lx_i || f > lx_i + nangmom) {
                 if (d < ndir / 2) {
+                  if (!disc_detect_[f + nf_ * slice_id] && !smooth_field_[f + nf_ * slice_id]) {
                     cell_reconstruct_ppm_simd<simd_t, simd_mask_t>(combined_q, combined_u,
                         smooth_field_[f + nf_ * slice_id], disc_detect_[f + nf_ * slice_id], cdiscs,
-                        d, f, i + u_slice_offset, q_i + q_slice_offset, i + disc_slice_offset,
-                        mask);
+                        d, f, i + u_slice_offset, q_i + q_slice_offset, i + disc_slice_offset, mask);
+                  } else {
+                    cell_reconstruct_ppm(combined_q, combined_u,
+                        smooth_field_[f + nf_ * slice_id], disc_detect_[f + nf_ * slice_id], cdiscs,
+                        d, f, i + u_slice_offset, q_i + q_slice_offset, i + disc_slice_offset);
+                  }
                 }
             } else {
                 cell_reconstruct_minmod_simd<simd_t, simd_mask_t>(
