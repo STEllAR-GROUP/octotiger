@@ -908,45 +908,89 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p1_simd(const size_t 
 
         // n m q Levi Civita
         // 0 1 2 -> 1
-        double results0 = AM[q_i + am_slice_offset] -
+        simd_t results0 =
+            simd_t(AM.data() + q_i + am_slice_offset, SIMD_NAMESPACE::element_aligned_tag{}) -
             vw[d] * 1.0 * 0.5 * xloc[d][1] *
-                combined_q[(sx_i + 2) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset] *
-                combined_q[start_index_rho + q_i + q_slice_offset] * dx;
+                simd_t(combined_q.data() + (sx_i + 2) * q_face_offset + d *
+                    q_dir_offset + q_i +
+                        q_slice_offset,
+                    SIMD_NAMESPACE::element_aligned_tag{}) *
+                simd_t(combined_q.data() + start_index_rho + q_i + q_slice_offset,
+                    SIMD_NAMESPACE::element_aligned_tag{}) *
+                dx;
 
         // n m q Levi Civita
         // 0 2 1 -> -1
-        results0 -= vw[d] * (-1.0) * 0.5 * xloc[d][2] *
-            combined_q[(sx_i + 1) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset] *
-            combined_q[start_index_rho + q_i + q_slice_offset] * dx;
-        AM[q_i + am_slice_offset] = results0;
+        results0 = results0 -
+            vw[d] * (-1.0) * 0.5 * xloc[d][2] *
+                simd_t(combined_q.data() + (sx_i + 1) * q_face_offset + d * q_dir_offset + q_i +
+                        q_slice_offset,
+                    SIMD_NAMESPACE::element_aligned_tag{}) *
+                simd_t(combined_q.data() + start_index_rho + q_i + q_slice_offset,
+                    SIMD_NAMESPACE::element_aligned_tag{}) *
+                dx;
+        // copy results 0 back
+        results0 = SIMD_NAMESPACE::choose(mask, results0,
+            simd_t(AM.data() + q_i + am_slice_offset, SIMD_NAMESPACE::element_aligned_tag{}));
+        results0.copy_to(AM.data() + q_i + am_slice_offset,
+            SIMD_NAMESPACE::element_aligned_tag{});
+        /* AM[q_i + am_slice_offset] = results0; */
 
         // n m q Levi Civita
         // 1 0 2 -> -1
-        double results1 = AM[am_offset + q_i + am_slice_offset] -
+        simd_t results1 = simd_t(AM.data() + am_offset + q_i + am_slice_offset,
+                              SIMD_NAMESPACE::element_aligned_tag{}) -
             vw[d] * (-1.0) * 0.5 * xloc[d][0] *
-                combined_q[(sx_i + 2) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset] *
-                combined_q[start_index_rho + q_i + q_slice_offset] * dx;
+                simd_t(combined_qldata() + (sx_i + 2) * q_face_offset + d * q_dir_offset + q_i +
+                        q_slice_offset,
+                    SIMD_NAMESPACE::element_aligned_tag{}) *
+                simd_t(combined_q.data() + start_index_rho + q_i + q_slice_offset,
+                    SIMD_NAMESPACE::element_aligned_tag{}) *
+                dx;
 
-        // n m q Levi Civita
-        // 1 2 0 -> 1
+        // n m q Levi Civita 1 2 0 -> 1
         results1 -= vw[d] * (1.0) * 0.5 * xloc[d][2] *
-            combined_q[(sx_i + 0) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset] *
-            combined_q[start_index_rho + q_i + q_slice_offset] * dx;
-        AM[am_offset + q_i + am_slice_offset] = results1;
+            simd_t(combined_q.data() + (sx_i + 0) * q_face_offset + d * q_dir_offset + q_i +
+                    q_slice_offset,
+                SIMD_NAMESPACE::element_aligned_tag{}) *
+            simd_t(combined_q.data() + start_index_rho + q_i + q_slice_offset,
+                SIMD_NAMESPACE::element_aligned_tag{}) *
+            dx;
+        // copy results 1 back
+        results1 = SIMD_NAMESPACE::choose(mask, results1,
+            simd_t(AM.data() + am_offset + q_i + am_slice_offset,
+                SIMD_NAMESPACE::element_aligned_tag{}));
+        results1.copy_to(
+            AM.data() + am_offset + q_i + am_slice_offset, SIMD_NAMESPACE::element_aligned_tag{});
+        /* AM[am_offset + q_i + am_slice_offset] = results1; */
 
         // n m q Levi Civita
         // 2 0 1 -> 1
-        double results2 = AM[2 * am_offset + q_i + am_slice_offset] -
+        simd_t results2 = simd_t(AM.data() + 2 * am_offset + q_i + am_slice_offset,
+                              SIMD_NAMESPACE::element_aligned_tag{}) -
             vw[d] * (1.0) * 0.5 * xloc[d][0] *
-                combined_q[(sx_i + 1) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset] *
-                combined_q[start_index_rho + q_i + q_slice_offset] * dx;
+                simd_t(combined_q.data() + (sx_i + 1) * q_face_offset + d * q_dir_offset + q_i +
+                        q_slice_offset,
+                    element_aligned_tag{}) *
+                simd_t(combined_q.data() + start_index_rho + q_i + q_slice_offset,
+                    element_aligned_tag{}) *
+                dx;
 
-        // n m q Levi Civita
-        // 2 1 0 -> -1
+        // n m q Levi Civita 2 1 0 -> -1
         results2 -= vw[d] * (-1.0) * 0.5 * xloc[d][1] *
-            combined_q[(sx_i + 0) * q_face_offset + d * q_dir_offset + q_i + q_slice_offset] *
-            combined_q[start_index_rho + q_i + q_slice_offset] * dx;
-        AM[2 * am_offset + q_i + am_slice_offset] = results2;
+            simd_t(combined_q.data() + (sx_i + 0) * q_face_offset + d * q_dir_offset + q_i +
+                    q_slice_offset,
+                SIMD_NAMESPACE::element_aligned_tag{}) *
+            simd_t(combined_q.data() + start_index_rho + q_i + q_slice_offset,
+                SIMD_NAMESPACE::element_aligned_tag{}) *
+            dx;
+        // copy results 2 back
+        results2 = SIMD_NAMESPACE::choose(mask, results1,
+            simd_t(AM.data() + 2 * am_offset + q_i + am_slice_offset,
+                SIMD_NAMESPACE::element_aligned_tag{}));
+        results2.copy_to(AM.data() + 2 * am_offset + q_i + am_slice_offset,
+            SIMD_NAMESPACE::element_aligned_tag{});
+        /* AM[2 * am_offset + q_i + am_slice_offset] = results2; */
     }
 }
 
