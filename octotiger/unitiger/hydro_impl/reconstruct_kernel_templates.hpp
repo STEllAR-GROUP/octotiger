@@ -984,7 +984,7 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p1_simd(const size_t 
                 SIMD_NAMESPACE::element_aligned_tag{}) *
             dx;
         // copy results 2 back
-        results2 = SIMD_NAMESPACE::choose(mask, results1,
+        results2 = SIMD_NAMESPACE::choose(mask, results2,
             simd_t(AM.data() + 2 * am_offset + q_i + am_slice_offset,
                 SIMD_NAMESPACE::element_aligned_tag{}));
         results2.copy_to(AM.data() + 2 * am_offset + q_i + am_slice_offset,
