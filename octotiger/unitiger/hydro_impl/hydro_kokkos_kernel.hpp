@@ -595,17 +595,19 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
 }
 
 /// Reconstruct with or without am
-template <typename kokkos_backend_t, typename kokkos_buffer_t, typename kokkos_int_buffer_t>
-void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor, 
-    typename Aggregated_Executor<hpx::kokkos::executor<kokkos_backend_t>>::Executor_Slice &agg_exec,
-    const double omega,
-    const int nf_, const int angmom_index_, const kokkos_int_buffer_t& smooth_field_,
-    const kokkos_int_buffer_t& disc_detect_, kokkos_buffer_t& combined_q,
-    const kokkos_buffer_t& combined_x, kokkos_buffer_t& combined_u, kokkos_buffer_t& AM,
-    const kokkos_buffer_t& dx, const kokkos_buffer_t& cdiscs, const int n_species_, const int ndir,
-    const int nangmom, const Kokkos::Array<long, 4>&& tiling_config) {
-    using simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>;
-    using simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::scalar>;
+template <typename simd_t, typename simd_mask_t, typename kokkos_backend_t,
+    typename kokkos_buffer_t, typename kokkos_int_buffer_t>
+void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
+    typename Aggregated_Executor<hpx::kokkos::executor<kokkos_backend_t>>::Executor_Slice& agg_exec,
+    const double omega, const int nf_, const int angmom_index_,
+    const kokkos_int_buffer_t& smooth_field_, const kokkos_int_buffer_t& disc_detect_,
+    kokkos_buffer_t& combined_q, const kokkos_buffer_t& combined_x, kokkos_buffer_t& combined_u,
+    kokkos_buffer_t& AM, const kokkos_buffer_t& dx, const kokkos_buffer_t& cdiscs,
+    const int n_species_, const int ndir, const int nangmom,
+    const Kokkos::Array<long, 4>&& tiling_config) {
+    // TODO Add to function template args to make sure device compilation is not pulling in avx
+    /* using simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>; */
+    /* using simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::scalar>; */
     const size_t z_number_workitems = (q_inx / simd_t::size() + (q_inx % simd_t::size() > 0 ? 1 : 0));
     const int blocks =
         (q_inx * q_inx * z_number_workitems) / 64 + 1;
@@ -865,16 +867,26 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     aggregated_deep_copy(agg_exec, dx_device, dx);
 
     if (angmom_index > -1) {
-        reconstruct_impl(exec, agg_exec, omega, nf, angmom_index, device_smooth_field, device_disc_detect, q,
-            x, u, AM, dx_device, disc, n_species, ndir, nangmom, {1, 1, 8, 8});
+        reconstruct_impl<device_simd_t, device_simd_mask_t>(exec, agg_exec, omega, nf, angmom_index,
+            device_smooth_field, device_disc_detect, q, x, u, AM, dx_device,
+            disc, n_species, ndir,
+            nangmom, {1, 1, 8, 8});
     } else {
-        reconstruct_no_amc_impl(exec, agg_exec, omega, nf, angmom_index, device_smooth_field,
-            device_disc_detect, q, x, u, AM, dx_device, disc, n_species, ndir, nangmom, {1, 1, 8, 8});
+        reconstruct_impl<device_simd_t, device_simd_mask_t>(exec, agg_exec, omega, nf, angmom_index,
+            device_smooth_field, device_disc_detect, q, x, u, AM, dx_device,
+            disc, n_species, ndir,
+            nangmom, {1, 1, 8, 8});
+        // TODO reactivate this...
+        /* reconstruct_no_amc_impl(exec, agg_exec, omega, nf, angmom_index, device_smooth_field, */
+        /*     device_disc_detect, q, x, u, AM, dx_device, disc, n_species, ndir, nangmom, {1, 1, 8,
+         * 8}); */
     }
 
     // Flux
     const device_buffer<bool>& masks =
-        get_flux_device_masks<device_buffer<bool>, host_buffer<bool>, executor_t>(agg_exec.get_underlying_executor());
+        get_flux_device_masks<device_buffer<bool>, host_buffer<bool>,
+      executor_t>(
+            agg_exec.get_underlying_executor());
     const int number_blocks_small = (q_inx3 / 128 + 1) * 1;
 
     /* aggregated_device_buffer<double, executor_t> amax_large( */
@@ -897,8 +909,8 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     /*     amax_indices_large, amax_d_large, masks, omega, dx_device, A_, B_, nf, */
     /*     fgamma, de_switch_1, */
     /*     NDIM * number_blocks_small, NDIM * number_blocks, 1, 128); */
-    flux_impl(exec, agg_exec, q, x, f, amax, amax_indices, amax_d, masks, omega, dx_device, A_, B_, nf, fgamma,
-        de_switch_1, NDIM * number_blocks_small, 128);
+    flux_impl(exec, agg_exec, q, x, f, amax, amax_indices, amax_d, masks, omega, dx_device, A_, B_,
+        nf, fgamma, de_switch_1, NDIM * number_blocks_small, 128);
     aggregated_host_buffer<double, executor_t> host_amax(
         alloc_host_double, number_blocks_small * NDIM * (1 + 2 * nf) * max_slices);
     aggregated_host_buffer<int, executor_t> host_amax_indices(
@@ -1001,8 +1013,10 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
         alloc_host_double, (nf * 27 * q_inx3 + padding) * max_slices);
     aggregated_host_buffer<double, executor_t> AM(
         alloc_host_double, (NDIM * q_inx3 + padding) * max_slices);
-    reconstruct_impl(exec, agg_exec, omega, nf, angmom_index, smooth_field, disc_detect, q, combined_x,
-        combined_u, AM, dx, disc, n_species, ndir, nangmom, {1, 1, 8, 8});
+    // TODO add host simd types...
+    reconstruct_impl<host_simd_t, host_simd_mask_t>(exec, agg_exec, omega, nf, angmom_index,
+        smooth_field, disc_detect, q, combined_x, combined_u, AM, dx, disc, n_species, ndir,
+        nangmom, {1, 1, 8, 8});
 
     // Flux
     // TODO Add offset block +1?

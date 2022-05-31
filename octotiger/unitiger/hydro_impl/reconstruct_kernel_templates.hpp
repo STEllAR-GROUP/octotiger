@@ -1,6 +1,5 @@
 #pragma once
 #include "octotiger/common_kernel/kokkos_simd.hpp"
-#include "scalar.hpp"
 #include "simd_common.hpp"
 #if defined(__clang__)
 constexpr int number_dirs = 27;
