@@ -658,10 +658,14 @@ void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                 const int am_slice_offset = (NDIM * q_inx3 + padding) * slice_id;
                 if (q_i < q_inx3) {
                     for (int n = 0; n < nangmom; n++) {
-                        AM[n * am_offset + q_i + am_slice_offset] =
-                            combined_u[(zx_i + n) * u_face_offset + i +
-                            u_slice_offset] *
-                            combined_u[i + u_slice_offset];
+                        // TODO remove loop and do this via simd and masking
+                        for (int simd_i = 0;
+                             simd_i < simd_t::size() && (z_id * simd_t::size() + simd_i) < q_inx;
+                             simd_i++) {
+                            AM[n * am_offset + q_i + simd_i + am_slice_offset] =
+                                combined_u[(zx_i + n) * u_face_offset + i + simd_i + u_slice_offset] *
+                                combined_u[i + simd_i + u_slice_offset];
+                        }
                     }
                     for (int d = 0; d < ndir; d++) {
                         cell_reconstruct_inner_loop_p1_simd<simd_t, simd_mask_t>(nf_, angmom_index_,

@@ -1003,81 +1003,132 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p2_simd(const safe_re
     const int am_slice_offset = (NDIM * q_inx3 + 128) * slice_id;
     const int x_slice_offset = (NDIM * q_inx3 + 128) * slice_id;
 
-    /* if (d < ndir / 2 && angmom_index_ > -1) { */
-    /*     const auto di = dir[d]; */
+    // TODO Port this
+    if (d < ndir / 2 && angmom_index_ > -1) {
+        const auto di = dir[d];
 
-    /*     for (int q = 0; q < NDIM; q++) { */
-    /*         const auto f = sx_i + q; */
-    /*         const int start_index_f = f * q_face_offset + d * q_dir_offset; */
-    /*         const int start_index_flipped = f * q_face_offset + flip(d) * q_dir_offset; */
-    /*         const int start_index_zero = 0 * q_face_offset + d * q_dir_offset; */
-    /*         const int start_index_zero_flipped = 0 * q_face_offset + flip(d) * q_dir_offset; */
-    /*         // const auto& rho_r = Q[0][d][i]; */
-    /*         // const auto& rho_l = Q[0][geo.flip(d)][i]; */
-    /*         const auto& rho_r = combined_q[start_index_zero + q_i + q_slice_offset]; */
-    /*         const auto& rho_l = combined_q[start_index_zero_flipped + q_i + q_slice_offset]; */
-    /*         auto& qr = combined_q[start_index_f + q_i + q_slice_offset]; */
-    /*         auto& ql = combined_q[start_index_flipped + q_i + q_slice_offset]; */
-    /*         // auto& qr = Q[f][d][i]; */
-    /*         // auto& ql = Q[f][geo.flip(d)][i]; */
-    /*         const auto& ur = combined_u[f * u_face_offset + i + u_slice_offset + di]; */
-    /*         const auto& u0 = combined_u[f * u_face_offset + i + u_slice_offset]; */
-    /*         const auto& ul = combined_u[f * u_face_offset + i + u_slice_offset - di]; */
-    /*         const auto b0 = qr - ql; */
-    /*         auto b = b0; */
-    /*         if (q == 0) { */
-    /*             // n m q Levi Civita 1 2 0 -> 1 */
-    /*             b += 12.0 * AM[1 * am_offset + q_i + am_slice_offset] * 1.0 * xloc[d][2] / */
-    /*                 (dx * (rho_l + rho_r)); */
-    /*             // n m q Levi Civita 2 1 0 -> -1 */
-    /*             b -= 12.0 * AM[2 * am_offset + q_i + am_slice_offset] * 1.0 * xloc[d][1] / */
-    /*                 (dx * (rho_l + rho_r)); */
-    /*         } else if (q == 1) { */
-    /*             // n m q Levi Civita 0 2 1 -> -1 */
-    /*             b -= 12.0 * AM[0 * am_offset + q_i + am_slice_offset] * 1.0 * xloc[d][2] / */
-    /*                 (dx * (rho_l + rho_r)); */
-    /*             // n m q Levi Civita 2 0 1 -> 1 */
-    /*             b += 12.0 * AM[2 * am_offset + q_i + am_slice_offset] * 1.0 * xloc[d][0] / */
-    /*                 (dx * (rho_l + rho_r)); */
-    /*         } else { */
-    /*             // n m q Levi Civita 0 1 2 -> 1 */
-    /*             b += 12.0 * AM[0 * am_offset + q_i + am_slice_offset] * 1.0 * */
-    /*               xloc[d][1] / */
-    /*                 (dx * (rho_l + rho_r)); */
-    /*             // n m q Levi Civita */
-    /*             // 1 0 2 -> -1 */
-    /*             b -= 12.0 * AM[1 * am_offset + q_i + am_slice_offset] * 1.0 * xloc[d][0] / */
-    /*                 (dx * (rho_l + rho_r)); */
-    /*         } */
-    /*         double blim; */
-    /*         if ((ur - u0) * (u0 - ul) <= 0.0) { */
-    /*             blim = 0.0; */
-    /*         } else { */
-    /*             blim = b0; */
-    /*         } */
-    /*         b = minmod_cuda(blim, b); */
-    /*         qr += 0.5 * (b - b0); */
-    /*         ql -= 0.5 * (b - b0); */
-    /*         if (ur > u0 && u0 > ul) { */
-    /*             if (qr > ur) { */
-    /*                 ql -= (qr - ur); */
-    /*                 qr = ur; */
-    /*             } else if (ql < ul) { */
-    /*                 qr -= (ql - ul); */
-    /*                 ql = ul; */
-    /*             } */
-    /*         } else if (ur < u0 && u0 < ul) { */
-    /*             if (qr < ur) { */
-    /*                 ql -= (qr - ur); */
-    /*                 qr = ur; */
-    /*             } else if (ql > ul) { */
-    /*                 qr -= (ql - ul); */
-    /*                 ql = ul; */
-    /*             } */
-    /*         } */
-    /*         make_monotone(qr, u0, ql); */
-    /*     } */
-    /* } */
+        for (int q = 0; q < NDIM; q++) {
+            const auto f = sx_i + q;
+            const int start_index_f = f * q_face_offset + d * q_dir_offset;
+            const int start_index_flipped = f * q_face_offset + flip(d) * q_dir_offset;
+            const int start_index_zero = 0 * q_face_offset + d * q_dir_offset;
+            const int start_index_zero_flipped = 0 * q_face_offset + flip(d) *
+              q_dir_offset;
+
+            const simd_t rho_r(combined_q.data() + start_index_zero + q_i + q_slice_offset,
+                SIMD_NAMESPACE::element_aligned_tag{});
+            const simd_t rho_l(combined_q.data() + start_index_zero_flipped + q_i + q_slice_offset,
+                SIMD_NAMESPACE::element_aligned_tag{});
+            const simd_t ur(combined_u.data() + f * u_face_offset + i + u_slice_offset + di,
+                SIMD_NAMESPACE::element_aligned_tag{});
+            const simd_t u0(combined_u.data() + f * u_face_offset + i + u_slice_offset,
+                SIMD_NAMESPACE::element_aligned_tag{});
+            const simd_t ul(combined_u.data() + f * u_face_offset + i + u_slice_offset - di,
+                SIMD_NAMESPACE::element_aligned_tag{});
+
+            const simd_t old_qr(combined_q.data() + start_index_f + q_i + q_slice_offset,
+                SIMD_NAMESPACE::element_aligned_tag{});
+            const simd_t old_ql(combined_q.data() + start_index_flipped + q_i + q_slice_offset,
+                SIMD_NAMESPACE::element_aligned_tag{});
+            simd_t qr = old_qr;
+            simd_t ql = old_ql;
+            /* auto& qr = combined_q[start_index_f + q_i + q_slice_offset]; */
+            /* auto& ql = combined_q[start_index_flipped + q_i +
+             * q_slice_offset]; */
+
+            const auto b0 = qr - ql;
+            auto b = b0;
+            if (q == 0) {
+                // n m q Levi Civita 1 2 0 -> 1
+                b += 12.0 *
+                    simd_t(AM.data() + 1 * am_offset + q_i + am_slice_offset,
+                        SIMD_NAMESPACE::element_aligned_tag{}) *
+                    1.0 * xloc[d][2] / (dx * (rho_l + rho_r));
+                // n m q Levi Civita 2 1 0 -> -1
+                b -= 12.0 *
+                    simd_t(AM.data() + 2 * am_offset + q_i + am_slice_offset,
+                        SIMD_NAMESPACE::element_aligned_tag{}) *
+                    1.0 * xloc[d][1] / (dx * (rho_l + rho_r));
+            } else if (q == 1) {
+                // n m q Levi Civita 0 2 1 -> -1
+                b -= 12.0 *
+                    simd_t(AM.data() + 0 * am_offset + q_i + am_slice_offset,
+                        SIMD_NAMESPACE::element_aligned_tag{}) *
+                    1.0 * xloc[d][2] / (dx * (rho_l + rho_r));
+                // n m q Levi Civita 2 0 1 -> 1
+                b += 12.0 *
+                    simd_t(AM.data() + 2 * am_offset + q_i + am_slice_offset,
+                        SIMD_NAMESPACE::element_aligned_tag{}) *
+                    1.0 * xloc[d][0] / (dx * (rho_l + rho_r));
+            } else {
+                // n m q Levi Civita 0 1 2 -> 1
+                b += 12.0 *
+                    simd_t(AM.data() + 0 * am_offset + q_i + am_slice_offset,
+                        SIMD_NAMESPACE::element_aligned_tag{}) *
+                    1.0 * xloc[d][1] / (dx * (rho_l + rho_r));
+                // n m q Levi Civita 1 0 2 -> -1
+                b -= 12.0 *
+                    simd_t(AM.data() + 1 * am_offset + q_i + am_slice_offset,
+                        SIMD_NAMESPACE::element_aligned_tag{}) *
+                    1.0 * xloc[d][0] / (dx * (rho_l + rho_r));
+            }
+
+            // TODO needs masking:
+            const simd_mask_t blim_mask = simd_t(0.0) < ((ur - u0) * (u0 - ul));
+            /* if ((ur - u0) * (u0 - ul) <= 0.0) { */
+            /*     blim = 0.0; */
+            /* } else { */
+            /*     blim = b0; */
+            /* } */
+            const simd_t blim = SIMD_NAMESPACE::choose(blim_mask, b0, simd_t(0.0));
+            b = minmod_simd(blim, b);
+            qr += 0.5 * (b - b0);
+            ql -= 0.5 * (b - b0);
+
+            // TODO should be possible to combine the masks and get rid of some
+            // of the statements
+            const simd_mask_t u_mask1 = (u0 < ur) && (ul < u0);
+            const simd_mask_t u_mask2 = (ur < u0) && (u0 < ul);
+            const simd_mask_t qr_larger_mask = (ur < qr) && u_mask1;
+            const simd_mask_t ql_smaller_mask = (ql < ul) && u_mask1;
+            ql = SIMD_NAMESPACE::choose(qr_larger_mask, ql - (qr - ur), ql);
+            qr = SIMD_NAMESPACE::choose(qr_larger_mask, ur, qr);
+            qr = SIMD_NAMESPACE::choose(ql_smaller_mask, qr - (ql - ul), qr);
+            ql = SIMD_NAMESPACE::choose(ql_smaller_mask, ul, ql);
+            const simd_mask_t qr_smaller_mask = (qr < ur) && u_mask2;
+            const simd_mask_t ql_larger_mask = (ul < ql) && u_mask2;
+            ql = SIMD_NAMESPACE::choose(qr_smaller_mask, ql - (qr - ur), ql);
+            qr = SIMD_NAMESPACE::choose(qr_smaller_mask, ur, qr);
+            qr = SIMD_NAMESPACE::choose(ql_larger_mask, qr - (ql - ul), qr);
+            ql = SIMD_NAMESPACE::choose(ql_larger_mask, ul, ql);
+
+            /* if (ur > u0 && u0 > ul) { */
+            /*     if (qr > ur) { */
+            /*         ql -= (qr - ur); */
+            /*         qr = ur; */
+            /*     } else if (ql < ul) { */
+            /*         qr -= (ql - ul); */
+            /*         ql = ul; */
+            /*     } */
+            /* } else if (ur < u0 && u0 < ul) { */
+            /*     if (qr < ur) { */
+            /*         ql -= (qr - ur); */
+            /*         qr = ur; */
+            /*     } else if (ql > ul) { */
+            /*         qr -= (ql - ul); */
+            /*         ql = ul; */
+            /*     } */
+            /* } */
+            make_monotone_simd<simd_t, simd_mask_t>(qr, u0, ql);
+            // Write back results
+            qr = SIMD_NAMESPACE::choose(mask, qr, old_qr);
+            ql = SIMD_NAMESPACE::choose(mask, ql, old_ql);
+            qr.copy_to(combined_q.data() + start_index_f + q_i + q_slice_offset,
+                SIMD_NAMESPACE::element_aligned_tag{});
+            ql.copy_to(combined_q.data() + start_index_flipped + q_i + q_slice_offset,
+                SIMD_NAMESPACE::element_aligned_tag{});
+        }
+    }
 
     // Phase 3 - post-reconstruct
     const int start_index_rho = rho_i * q_face_offset + d * q_dir_offset;
