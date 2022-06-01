@@ -62,7 +62,7 @@ option(OCTOTIGER_WITH_FORCE_SCALAR_KOKKOS_SIMD
 option(OCTOTIGER_WITH_POLLING_EXECUTORS  
   "Use the polling executors, not the callback ones" ON)
 
-option(eCTOTIGER_ARCH_FLAG
+option(OCTOTIGER_ARCH_FLAG
   "Arch flag for compilations" "-march=native")
 option(OCTOTIGER_CUDA_ARCH
   "Compile for this CUDA arch" sm_50)
