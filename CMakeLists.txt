@@ -337,8 +337,6 @@ set(hydro_source_files
    src/unitiger/hydro_impl/hydro_kernel_interface.cpp
    src/unitiger/hydro_impl/flux_cuda_kernel.cpp
    src/unitiger/hydro_impl/reconstruct_cuda_kernel.cpp
-   src/unitiger/hydro_impl/reconstruct_kernel_interface.cpp
-   src/unitiger/hydro_impl/reconstruct_cpu_kernel.cpp
    src/unitiger/hydro_impl/hydro_kernel_interface.cpp
    src/unitiger/hydro_impl/hydro_cuda_interface.cpp
    src/test_problems/sod/exact_sod.cpp)
@@ -485,7 +483,6 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/monopole_interactions/legacy/monopole_interaction_interface.cpp
     src/multipole_interactions/legacy/multipole_cpu_kernel.cpp
     src/multipole_interactions/legacy/multipole_interaction_interface.cpp
-    src/unitiger/hydro_impl/reconstruct_cpu_kernel.cpp
     src/unitiger/hydro_impl/hydro_boundary_exchange_vc.cpp
     # Quadmath
     src/test_problems/blast/sedov.cpp
@@ -513,7 +510,6 @@ if(OCTOTIGER_WITH_KOKKOS)
     #misc
     src/cuda_util/cuda_scheduler.cpp
     src/unitiger/hydro_impl/hydro_cuda_interface.cpp
-    src/unitiger/hydro_impl/reconstruct_kernel_interface.cpp
   )
   set(host_only_header_files
     octotiger/simd.hpp

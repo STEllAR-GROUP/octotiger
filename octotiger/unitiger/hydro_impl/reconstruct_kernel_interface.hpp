@@ -39,21 +39,7 @@ template <typename T>
 CUDA_GLOBAL_METHOD inline T minmod_theta_wrapper(const T& a, const T& b, const T& c) {
     return minmod_wrapper<T>(c * minmod_wrapper<T>(a, b), 0.5 * (a + b));
 }
-void hydro_pre_recon_cpu_kernel(const double* __restrict__ X, safe_real omega,
-    bool angmom, double* __restrict__ combined_u, const int nf, const int n_species_);
-void reconstruct_experimental(const safe_real omega, const size_t nf_, const int angmom_index_,
-    const int* __restrict__ smooth_field_, const int* __restrict__ disc_detect_ ,
-    double* __restrict__ combined_q, double* __restrict__ combined_x,
-    double* __restrict__ combined_u, double* __restrict__ AM, const double* __restrict__ dx,
-    const double* __restrict__ cdiscs);
 // Vc kernel
-#ifdef __x86_64__
-void reconstruct_cpu_kernel(const safe_real omega, const size_t nf_, const int angmom_index_,
-    const std::vector<bool>& smooth_field_, const std::vector<bool>& disc_detect_,
-    double* __restrict__ combined_q, double* __restrict__ combined_x,
-    double* __restrict__ combined_u, const double dx,
-    const std::vector<std::vector<safe_real>>& cdiscs);
-#endif
 #if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)
 __global__ void discs_phase1(double* __restrict__ P, double* __restrict__ combined_u,
     const double A_, const double B_, const double fgamma_, const double
@@ -72,7 +58,6 @@ void launch_reconstruct_cuda(
     double* combined_q, double* combined_x,
     double* combined_u, double* AM, double *dx,
     double* cdiscs, int n_species_);
-void convert_find_contact_discs(const double* __restrict__ combined_u, double* __restrict__ disc, const double A_, const double B_, const double fgamma_, const double de_switch_1);
 void launch_find_contact_discs_cuda(aggregated_executor_t& executor, double* combined_u, double *device_P, double* disc, double A_, double B_, double fgamma_, double de_switch_1, const int nf);
 void launch_hydro_pre_recon_cuda(aggregated_executor_t& executor, 
     double* device_X, double omega, bool angmom, double* device_u, int nf, int n_species_);
