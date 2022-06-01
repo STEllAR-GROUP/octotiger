@@ -122,7 +122,7 @@ CUDA_GLOBAL_METHOD inline simd_t sqrt_with_serial_fallback(const simd_t input) {
 template <typename simd_t>
 CUDA_GLOBAL_METHOD inline simd_t pow_with_serial_fallback(const simd_t input, const double exponent) {
   if constexpr (detail::has_simd_pow<simd_t>::value) {
-    // should consider the SIMD_NAMESPACE for overloads due to Argument-dependent name lookup
+    // should consider the SIMD_NAMESPACE for overloads due to argument-dependent name lookup
     return pow(input, exponent);
   } else {
     /* static_assert(!std::is_same<simd_t, simd_t>::value, "Using pow serial fallback! " */
@@ -139,7 +139,7 @@ CUDA_GLOBAL_METHOD inline simd_t pow_with_serial_fallback(const simd_t input, co
 template <typename simd_t>
 CUDA_GLOBAL_METHOD inline simd_t asinh_with_serial_fallback(const simd_t input) {
   if constexpr (detail::has_simd_asinh<simd_t>::value) {
-    // should consider the SIMD_NAMESPACE for overloads due to Argument-dependent name lookup
+    // should consider the SIMD_NAMESPACE for overloads due to argument-dependent name lookup
     return asinh(input);
   } else {
     /* static_assert(!std::is_same<simd_t, simd_t>::value, "Using asinh serial fallback!" */
@@ -156,7 +156,7 @@ CUDA_GLOBAL_METHOD inline simd_t asinh_with_serial_fallback(const simd_t input) 
 template <typename simd_t>
 CUDA_GLOBAL_METHOD inline simd_t copysign_with_serial_fallback(const simd_t input1, const simd_t input2) {
   if constexpr (detail::has_simd_copysign<simd_t>::value) {
-    // should consider the SIMD_NAMESPACE for overloads due to Argument-dependent name lookup
+    // should consider the SIMD_NAMESPACE for overloads due to argument-dependent name lookup
     return copysign(input1, input2);
   } else {
     /* static_assert(!std::is_same<simd_t, simd_t>::value, "Using asinh serial fallback!" */

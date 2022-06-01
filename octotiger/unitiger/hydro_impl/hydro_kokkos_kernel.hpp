@@ -195,7 +195,6 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
                     // hence the mask_helpers
                     const simd_t mask_helper1(1.0);
                     std::array<double, simd_t::size()> mask_helper2_array;
-                    // TODO make masks double and load directly
                     for (int i = 0; i < simd_t::size(); i++) {
                         mask_helper2_array[i] = masks[index + dim * dim_offset + i];
                     }
@@ -605,9 +604,6 @@ void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
     kokkos_buffer_t& AM, const kokkos_buffer_t& dx, const kokkos_buffer_t& cdiscs,
     const int n_species_, const int ndir, const int nangmom,
     const Kokkos::Array<long, 4>&& tiling_config) {
-    // TODO Add to function template args to make sure device compilation is not pulling in avx
-    /* using simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>; */
-    /* using simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::scalar>; */
     const size_t z_number_workitems = (q_inx / simd_t::size() + (q_inx % simd_t::size() > 0 ? 1 : 0));
     const int blocks =
         (q_inx * q_inx * z_number_workitems) / 64 + 1;
@@ -626,6 +622,17 @@ void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                 const int z_row_id = index / z_number_workitems;
                 const int z_id = index % z_number_workitems;
                 const int q_i = z_row_id * q_inx + z_id * simd_t::size();
+
+                // TODO Optimization ideas
+                // -- Block memory - if should iterate of sub-grids to keep values in L1 cache
+                // -- Get rid of the mask - right now we are vectorizing of z lines which usually
+                // have 10 elements (meaning we need 2 steps using 8 elements
+                // per AVX512 register,
+                // wasting most elements in the second step as the masked out)
+                // Reason for moving line-wise is the larger u array -- meaning
+                // at q linebreaks the
+                // u array continues, making loading consecutive memory into simd registers at the
+                // end of a line impossible.
                 std::array<double, simd_t::size()> mask_helper;
                 for (int i = 0; i < simd_t::size(); i++) {
                     if ((z_id * simd_t::size() + i) < q_inx) {
@@ -637,19 +644,6 @@ void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                 const simd_mask_t mask = simd_t(1.0) ==
                     simd_t(mask_helper.data(),
                         SIMD_NAMESPACE::element_aligned_tag{});
-                // TODO Main vectorization problem: Mapping q_i (vectorized) to i. Cannot load
-                // consecutive chunks at the linebreaks
-                /* const int q_i = (idx) * 64 + (idy) * 8 + (idz); */
-                // 3 Methods to solve this:
-                // 1. Map to z index and set mask? (easiest)
-                // 2. Gather load? There is an element-wise constructor...
-                // 3. Set di directions as a vector?
-                // Combination of 1 and 2
-                // if q_i % q_inx + simd_t::size < q_inx 
-                // -> efficient load
-                // else
-                // inefficient load via me putting values into an array and loading from there...
-                // Also note: memory blocking? I touch a huge amount of memory twice I think...
                 const int i = ((q_i / q_inx2) + 2) * inx_large * inx_large +
                     (((q_i % q_inx2) / q_inx) + 2) * inx_large + (((q_i % q_inx2) % q_inx) + 2);
 
@@ -658,14 +652,17 @@ void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                 const int am_slice_offset = (NDIM * q_inx3 + padding) * slice_id;
                 if (q_i < q_inx3) {
                     for (int n = 0; n < nangmom; n++) {
-                        // TODO remove loop and do this via simd and masking
-                        for (int simd_i = 0;
-                             simd_i < simd_t::size() && (z_id * simd_t::size() + simd_i) < q_inx;
-                             simd_i++) {
-                            AM[n * am_offset + q_i + simd_i + am_slice_offset] =
-                                combined_u[(zx_i + n) * u_face_offset + i + simd_i + u_slice_offset] *
-                                combined_u[i + simd_i + u_slice_offset];
-                        }
+                        const simd_t old_AM(AM.data() + n * am_offset + q_i + am_slice_offset,
+                            SIMD_NAMESPACE::element_aligned_tag{});
+                        const simd_t current_am = SIMD_NAMESPACE::choose(mask,
+                            simd_t(
+                                combined_u.data() + (zx_i + n) * u_face_offset + i + u_slice_offset,
+                                SIMD_NAMESPACE::element_aligned_tag{}) *
+                                simd_t(combined_u.data() + i + u_slice_offset,
+                                    SIMD_NAMESPACE::element_aligned_tag{}),
+                            old_AM);
+                        current_am.copy_to(AM.data() + n * am_offset + q_i + am_slice_offset,
+                            SIMD_NAMESPACE::element_aligned_tag{});
                     }
                     for (int d = 0; d < ndir; d++) {
                         cell_reconstruct_inner_loop_p1_simd<simd_t, simd_mask_t>(nf_, angmom_index_,
@@ -685,37 +682,58 @@ void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
 }
 
 /// Optimized for reconstruct without am correction
-template <typename kokkos_backend_t, typename kokkos_buffer_t, typename kokkos_int_buffer_t>
-void reconstruct_no_amc_impl(hpx::kokkos::executor<kokkos_backend_t>& executor, 
-    typename Aggregated_Executor<hpx::kokkos::executor<kokkos_backend_t>>::Executor_Slice &agg_exec,
-    const double omega,
-    const int nf_, const int angmom_index_, const kokkos_int_buffer_t& smooth_field_,
-    const kokkos_int_buffer_t& disc_detect_, kokkos_buffer_t& combined_q,
-    const kokkos_buffer_t& combined_x, kokkos_buffer_t& combined_u, kokkos_buffer_t& AM,
-    const kokkos_buffer_t& dx, const kokkos_buffer_t& cdiscs, const int n_species_, const int ndir,
-    const int nangmom, const Kokkos::Array<long, 4>&& tiling_config) {
-    const int blocks = q_inx3 / 64 + 1;
+template <typename simd_t, typename simd_mask_t, typename kokkos_backend_t,
+    typename kokkos_buffer_t, typename kokkos_int_buffer_t>
+void reconstruct_no_amc_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
+    typename Aggregated_Executor<hpx::kokkos::executor<kokkos_backend_t>>::Executor_Slice& agg_exec,
+    const double omega, const int nf_, const int angmom_index_,
+    const kokkos_int_buffer_t& smooth_field_, const kokkos_int_buffer_t& disc_detect_,
+    kokkos_buffer_t& combined_q, const kokkos_buffer_t& combined_x, kokkos_buffer_t& combined_u,
+    kokkos_buffer_t& AM, const kokkos_buffer_t& dx, const kokkos_buffer_t& cdiscs,
+    const int n_species_, const int ndir, const int nangmom,
+    const Kokkos::Array<long, 4>&& tiling_config) {
+    const size_t z_number_workitems = (q_inx / simd_t::size() + (q_inx % simd_t::size() > 0 ? 1 : 0));
+    const int blocks =
+        (q_inx * q_inx * z_number_workitems) / 64 + 1;
     const int number_slices = agg_exec.number_slices;
     if (agg_exec.sync_aggregation_slices()) {
         auto policy = Kokkos::Experimental::require(
-            Kokkos::MDRangePolicy<decltype(agg_exec.get_underlying_executor().instance()), Kokkos::Rank<4>>(
-                agg_exec.get_underlying_executor().instance(), {0, 0, 0, 0}, {number_slices, blocks, 8, 8}, tiling_config),
+            Kokkos::MDRangePolicy<decltype(agg_exec.get_underlying_executor().instance()),
+                Kokkos::Rank<4>>(agg_exec.get_underlying_executor().instance(), {0, 0, 0, 0},
+                {number_slices, blocks, 8, 8}, tiling_config),
             Kokkos::Experimental::WorkItemProperty::HintLightWeight);
         Kokkos::parallel_for(
-            "kernel hydro reconstruct", policy, KOKKOS_LAMBDA(int slice_id, int idx, int idy, int idz) {
-                const int q_i = (idx) *64 + (idy) *8 + (idz);
+            "kernel hydro reconstruct_no_amc", policy,
+            KOKKOS_LAMBDA(int slice_id, int idx, int idy, int idz) {
+                const int index = (idx) *64 + (idy) *8 + (idz);
+                const int z_row_id = index / z_number_workitems;
+                const int z_id = index % z_number_workitems;
+                const int q_i = z_row_id * q_inx + z_id * simd_t::size();
+
+                // TODO Optimization ideas -- see reconstruct_impl method...
+                std::array<double, simd_t::size()> mask_helper;
+                for (int i = 0; i < simd_t::size(); i++) {
+                    if ((z_id * simd_t::size() + i) < q_inx) {
+                        mask_helper[i] = 1.0;
+                    } else {
+                        mask_helper[i] = 0.0;
+                    }
+                }
+                const simd_mask_t mask = simd_t(1.0) ==
+                    simd_t(mask_helper.data(), SIMD_NAMESPACE::element_aligned_tag{});
                 const int i = ((q_i / q_inx2) + 2) * inx_large * inx_large +
                     (((q_i % q_inx2) / q_inx) + 2) * inx_large + (((q_i % q_inx2) % q_inx) + 2);
                 if (q_i < q_inx3) {
                     for (int d = 0; d < ndir; d++) {
-                        cell_reconstruct_inner_loop_p1(nf_, angmom_index_, smooth_field_,
-                            disc_detect_, combined_q, combined_u, AM, dx[slice_id], cdiscs, d, i, q_i, ndir,
-                            nangmom, slice_id);
+                        cell_reconstruct_inner_loop_p1_simd<simd_t, simd_mask_t>(nf_, angmom_index_,
+                            smooth_field_, disc_detect_, combined_q, combined_u, AM, dx[slice_id],
+                            cdiscs, d, i, q_i, ndir, nangmom, slice_id, mask);
                     }
                     // Phase 2
                     for (int d = 0; d < ndir; d++) {
-                        cell_reconstruct_inner_loop_p2(omega, angmom_index_, combined_q, combined_x,
-                            combined_u, AM, dx[slice_id], d, i, q_i, ndir, nangmom, n_species_, nf_, slice_id);
+                        cell_reconstruct_inner_loop_p2_simd<simd_t, simd_mask_t>(omega, angmom_index_,
+                            combined_q, combined_x, combined_u, AM, dx[slice_id], d, i, q_i, ndir,
+                            nangmom, n_species_, nf_, slice_id, mask);
                     }
                 }
             });
@@ -872,18 +890,12 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
 
     if (angmom_index > -1) {
         reconstruct_impl<device_simd_t, device_simd_mask_t>(exec, agg_exec, omega, nf, angmom_index,
-            device_smooth_field, device_disc_detect, q, x, u, AM, dx_device,
-            disc, n_species, ndir,
+            device_smooth_field, device_disc_detect, q, x, u, AM, dx_device, disc, n_species, ndir,
             nangmom, {1, 1, 8, 8});
     } else {
-        reconstruct_impl<device_simd_t, device_simd_mask_t>(exec, agg_exec, omega, nf, angmom_index,
-            device_smooth_field, device_disc_detect, q, x, u, AM, dx_device,
-            disc, n_species, ndir,
-            nangmom, {1, 1, 8, 8});
-        // TODO reactivate this...
-        /* reconstruct_no_amc_impl(exec, agg_exec, omega, nf, angmom_index, device_smooth_field, */
-        /*     device_disc_detect, q, x, u, AM, dx_device, disc, n_species, ndir, nangmom, {1, 1, 8,
-         * 8}); */
+        reconstruct_no_amc_impl<device_simd_t, device_simd_mask_t>(exec, agg_exec, omega, nf,
+            angmom_index, device_smooth_field, device_disc_detect, q, x, u, AM, dx_device, disc,
+            n_species, ndir, nangmom, {1, 1, 8, 8});
     }
 
     // Flux
@@ -1017,14 +1029,20 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
         alloc_host_double, (nf * 27 * q_inx3 + padding) * max_slices);
     aggregated_host_buffer<double, executor_t> AM(
         alloc_host_double, (NDIM * q_inx3 + padding) * max_slices);
-    // TODO add host simd types...
-    reconstruct_impl<host_simd_t, host_simd_mask_t>(exec, agg_exec, omega, nf, angmom_index,
-        smooth_field, disc_detect, q, combined_x, combined_u, AM, dx, disc, n_species, ndir,
-        nangmom, {1, 1, 8, 8});
+    if (angmom_index > -1) {
+        reconstruct_impl<host_simd_t, host_simd_mask_t>(exec, agg_exec, omega, nf, angmom_index,
+            smooth_field, disc_detect, q, combined_x, combined_u, AM, dx, disc, n_species, ndir,
+            nangmom, {1, 1, 8, 8});
+    } else {
+        reconstruct_no_amc_impl<host_simd_t, host_simd_mask_t>(exec, agg_exec, omega, nf,
+            angmom_index, smooth_field, disc_detect, q, combined_x, combined_u, AM, dx, disc,
+            n_species, ndir, nangmom, {1, 1, 8, 8});
+    }
 
     // Flux
-    // TODO Add offset block +1?
-    assert(q_inx3 % host_simd_t::size() == 0);
+    static_assert(q_inx3 % host_simd_t::size() == 0,
+        "q_inx3 size is not evenly divisible by simd size! This simd width would require some "
+        "further changes to the masking in the flux kernel!");
     const int blocks = NDIM * (q_inx3 / host_simd_t::size()) * 1;
     const host_buffer<bool>& masks = get_flux_host_masks<host_buffer<bool>>();
 
