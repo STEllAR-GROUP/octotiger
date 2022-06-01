@@ -22,24 +22,6 @@
 #include "octotiger/cuda_util/cuda_helper.hpp"
 #endif
 
-template <typename T>
-CUDA_GLOBAL_METHOD inline T copysign_wrapper(const T& tmp1, const T& tmp2) {
-    return std::copysign(tmp1, tmp2);
-}
-template <typename T>
-CUDA_GLOBAL_METHOD inline T abs_wrapper(const T& tmp1) {
-    return std::abs(tmp1);
-}
-template <typename T>
-CUDA_GLOBAL_METHOD inline T minmod_wrapper(const T& a, const T& b) {
-    return (copysign_wrapper<T>(0.5, a) + copysign_wrapper<T>(0.5, b)) *
-        min_wrapper<T>(abs_wrapper<T>(a), abs_wrapper<T>(b));
-}
-template <typename T>
-CUDA_GLOBAL_METHOD inline T minmod_theta_wrapper(const T& a, const T& b, const T& c) {
-    return minmod_wrapper<T>(c * minmod_wrapper<T>(a, b), 0.5 * (a + b));
-}
-// Vc kernel
 #if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)
 __global__ void discs_phase1(double* __restrict__ P, double* __restrict__ combined_u,
     const double A_, const double B_, const double fgamma_, const double
