@@ -615,7 +615,8 @@ void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                 tiling_config),
             Kokkos::Experimental::WorkItemProperty::HintLightWeight);
         Kokkos::parallel_for(
-            "kernel hydro reconstruct", policy, KOKKOS_LAMBDA(int slice_id, int idx, int idy, int idz) {
+            "kernel hydro reconstruct", policy,
+            KOKKOS_LAMBDA(int slice_id, int idx, int idy, int idz) {
                 const int sx_i = angmom_index_;
                 const int zx_i = sx_i + NDIM;
                 const int index = (idx) * 64 + (idy) * 8 + (idz);
@@ -666,15 +667,16 @@ void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                     }
                     for (int d = 0; d < ndir; d++) {
                         cell_reconstruct_inner_loop_p1_simd<simd_t, simd_mask_t>(nf_, angmom_index_,
-                            smooth_field_, disc_detect_, combined_q, combined_u, AM, dx[slice_id],
-                            cdiscs, d, i, q_i, ndir, nangmom, slice_id, mask);
+                            smooth_field_.data(), disc_detect_.data(), combined_q.data(),
+                            combined_u.data(), AM.data(), dx[slice_id], cdiscs.data(), d, i, q_i,
+                            ndir, nangmom, slice_id, mask);
                     }
                     // Phase 2
                     for (int d = 0; d < ndir; d++) {
                         cell_reconstruct_inner_loop_p2_simd<simd_t, simd_mask_t>(omega,
-                            angmom_index_, combined_q, combined_x, combined_u,
-                            AM, dx[slice_id], d,
-                            i, q_i, ndir, nangmom, n_species_, nf_, slice_id, mask);
+                            angmom_index_, combined_q.data(), combined_x.data(), combined_u.data(),
+                            AM.data(), dx[slice_id], d, i, q_i, ndir, nangmom, n_species_, nf_,
+                            slice_id, mask);
                     }
                 }
             });
@@ -726,14 +728,16 @@ void reconstruct_no_amc_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                 if (q_i < q_inx3) {
                     for (int d = 0; d < ndir; d++) {
                         cell_reconstruct_inner_loop_p1_simd<simd_t, simd_mask_t>(nf_, angmom_index_,
-                            smooth_field_, disc_detect_, combined_q, combined_u, AM, dx[slice_id],
-                            cdiscs, d, i, q_i, ndir, nangmom, slice_id, mask);
+                            smooth_field_.data(), disc_detect_.data(), combined_q.data(),
+                            combined_u.data(), AM.data(), dx[slice_id], cdiscs.data(), d, i, q_i, ndir,
+                            nangmom, slice_id, mask);
                     }
                     // Phase 2
                     for (int d = 0; d < ndir; d++) {
-                        cell_reconstruct_inner_loop_p2_simd<simd_t, simd_mask_t>(omega, angmom_index_,
-                            combined_q, combined_x, combined_u, AM, dx[slice_id], d, i, q_i, ndir,
-                            nangmom, n_species_, nf_, slice_id, mask);
+                        cell_reconstruct_inner_loop_p2_simd<simd_t, simd_mask_t>(omega,
+                            angmom_index_, combined_q.data(), combined_x.data(), combined_u.data(),
+                            AM.data(), dx[slice_id], d, i, q_i, ndir, nangmom, n_species_, nf_, slice_id,
+                            mask);
                     }
                 }
             });
