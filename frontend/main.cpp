@@ -100,6 +100,13 @@ int hpx_main(int argc, char* argv[]) {
 #else
     printf("Not compiled for a known SIMD architecture.\n");
 #endif
+#ifdef OCTOTIGER_HAVE_KOKKOS
+#if defined(OCTOTIGER_HAVE_STD_EXPERIMENTAL_SIMD)
+    printf("Using std::experimential::simd SIMD types.\n");
+#else
+    printf("Using Kokkos SIMD types.\n");
+#endif
+#endif
 #if defined(OCTOTIGER_FORCE_SCALAR_KOKKOS_SIMD)
     printf("Note: OCTOTIGER_FORCE_SCALAR_KOKKOS_SIMD is on! Kokkos kernel will not use SIMD!\n");
 #endif

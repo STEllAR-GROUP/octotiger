@@ -5,7 +5,6 @@
 #include <hpx/futures/future.hpp>
 #include <stream_manager.hpp>
 #include <utility>
-#include "simd_common.hpp"
 #ifdef OCTOTIGER_HAVE_KOKKOS
 #include <hpx/kokkos/executors.hpp>
 #include "octotiger/common_kernel/kokkos_util.hpp"

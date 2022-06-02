@@ -2,7 +2,6 @@
 #include <cmath>
 #include "octotiger/cuda_util/cuda_global_def.hpp"
 #include "octotiger/hydro_defs.hpp"
-#include "simd_common.hpp"
 #include "octotiger/common_kernel/kokkos_simd.hpp"
 
 #if defined(__clang__)

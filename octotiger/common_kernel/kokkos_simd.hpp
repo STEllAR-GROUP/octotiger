@@ -2,7 +2,6 @@
 #include <array>
 #include <cmath>
 #include "octotiger/cuda_util/cuda_global_def.hpp"
-#include "simd_common.hpp"
 
 // =================================================================================================
 // SIMD types
@@ -16,6 +15,7 @@
 #include "octotiger/common_kernel/std_simd.hpp"
 #pragma message "Using std-experimental-simd SIMD types"
 #else
+#include "simd_common.hpp"
 #include <simd.hpp>
 using device_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>;
 using device_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::scalar>;

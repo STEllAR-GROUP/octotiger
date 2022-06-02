@@ -1,4 +1,3 @@
-#include "simd_common.hpp"
 #if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)
 
 #if defined(OCTOTIGER_HAVE_HIP)
@@ -28,9 +27,7 @@
 #endif
 #include <stream_manager.hpp>
 
-// TODO include kokkos simd?
-#include <simd.hpp>
-#include <scalar.hpp>
+#include "octotiger/common_kernel/kokkos_simd.hpp"
 using simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>;
 using simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::scalar>;
 
