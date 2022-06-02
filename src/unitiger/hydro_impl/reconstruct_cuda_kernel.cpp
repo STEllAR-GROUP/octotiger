@@ -7,6 +7,9 @@
 #include "octotiger/unitiger/hydro_impl/reconstruct_kernel_interface.hpp"
 #include "octotiger/unitiger/hydro_impl/reconstruct_kernel_templates.hpp"
 
+// TODO include kokkos simd?
+#include "octotiger/common_kernel/kokkos_simd.hpp"
+
 #if defined(OCTOTIGER_HAVE_HIP)
 #define cudaLaunchKernel hipLaunchKernel
 #define cudaMemcpy hipMemcpy
@@ -16,41 +19,44 @@
 #endif
 
 #if defined(OCTOTIGER_HAVE_CUDA)
-__global__ void __launch_bounds__(64, 4) reconstruct_cuda_kernel_no_amc(const double omega,
+__global__ void __launch_bounds__(64, 4) reconstruct_cuda_kernel_no_amc(double omega,
 #elif defined(OCTOTIGER_HAVE_HIP)
-__global__ void reconstruct_cuda_kernel_no_amc(const double omega,
+__global__ void reconstruct_cuda_kernel_no_amc(double omega,
 #endif
-    const int nf_, const int angmom_index_, int* __restrict__ smooth_field_,
-    int* __restrict__ disc_detect_, double* __restrict__ combined_q,
-    double* __restrict__ combined_x, double* __restrict__ combined_u, double* __restrict__ AM,
-    const double *dx, const double* __restrict__ cdiscs, const int n_species_, const int ndir,
-    const int nangmom) {
+     int nf_,  int angmom_index_,  int* __restrict__ smooth_field_,
+     int* __restrict__ disc_detect_, double* __restrict__ combined_q,
+     double* __restrict__ combined_x,  double* __restrict__ combined_u, double* __restrict__ AM,
+     double *dx,  double* __restrict__ cdiscs,  int n_species_,  int ndir,
+     int nangmom) {
     const int q_i = (blockIdx.z * 1 + threadIdx.x) * 64 + (threadIdx.y) * 8 + (threadIdx.z);
     const int i = ((q_i / q_inx2) + 2) * inx_large * inx_large +
         (((q_i % q_inx2) / q_inx) + 2) * inx_large + (((q_i % q_inx2) % q_inx) + 2);
     const int slice_id = blockIdx.x;
+    device_simd_mask_t mask(true); // placeholder to make it work with the simd methods
     if (q_i < q_inx3) {
         for (int d = 0; d < ndir; d++) {
-            cell_reconstruct_inner_loop_p1(nf_, angmom_index_, smooth_field_, disc_detect_,
-                combined_q, combined_u, AM, dx[slice_id], cdiscs, d, i, q_i, ndir, nangmom, slice_id);
+            cell_reconstruct_inner_loop_p1_simd<device_simd_t, device_simd_mask_t>(nf_, angmom_index_,
+                smooth_field_, disc_detect_, combined_q, combined_u, AM, dx[slice_id], cdiscs, d, i,
+                q_i, ndir, nangmom, slice_id, mask);
         }
         // Phase 2
         for (int d = 0; d < ndir; d++) {
-            cell_reconstruct_inner_loop_p2(omega, angmom_index_, combined_q, combined_x, combined_u,
-                AM, dx[slice_id], d, i, q_i, ndir, nangmom, n_species_, nf_, slice_id);
+            cell_reconstruct_inner_loop_p2_simd<device_simd_t, device_simd_mask_t>(omega, angmom_index_,
+                combined_q, combined_x, combined_u, AM, dx[slice_id], d, i, q_i, ndir, nangmom,
+                n_species_, nf_, slice_id, mask);
         }
     }
 }
 
 #if defined(OCTOTIGER_HAVE_CUDA)
-__global__ void __launch_bounds__(64, 4) reconstruct_cuda_kernel(const double omega, const int nf_,
+__global__ void __launch_bounds__(64, 4) reconstruct_cuda_kernel(double omega, int nf_,
 #elif defined(OCTOTIGER_HAVE_HIP)
 __global__ void reconstruct_cuda_kernel(const double omega, const int nf_,
 #endif
-    const int angmom_index_, int* __restrict__ smooth_field_, int* __restrict__ disc_detect_,
-    double* __restrict__ combined_q, double* __restrict__ combined_x,
-    double* __restrict__ combined_u, double* __restrict__ AM, const double *dx,
-    const double* __restrict__ cdiscs, const int n_species_, const int ndir, const int nangmom) {
+     int angmom_index_,  int* __restrict__ smooth_field_,  int* __restrict__ disc_detect_,
+    double* __restrict__ combined_q,  double* __restrict__ combined_x,
+     double* __restrict__ combined_u, double* __restrict__ AM,  double *dx,
+     double* __restrict__ cdiscs,  int n_species_,  int ndir,  int nangmom) {
     const int sx_i = angmom_index_;
     const int zx_i = sx_i + NDIM;
 
@@ -61,6 +67,9 @@ __global__ void reconstruct_cuda_kernel(const double omega, const int nf_,
     const int slice_id = blockIdx.x;
     const int u_slice_offset = (nf_ * H_N3 + 128) * slice_id;
     const int am_slice_offset = (NDIM * q_inx3 + 128) * slice_id;
+    using simd_t = device_simd_t;
+    using simd_mask_t = device_simd_mask_t;
+    device_simd_mask_t mask(true); // placeholder to make it work with the simd methods
     if (q_i < q_inx3) {
         for (int n = 0; n < nangmom; n++) {
             AM[n * am_offset + q_i + am_slice_offset] =
@@ -68,13 +77,153 @@ __global__ void reconstruct_cuda_kernel(const double omega, const int nf_,
                 combined_u[i + u_slice_offset];
         }
         for (int d = 0; d < ndir; d++) {
-            cell_reconstruct_inner_loop_p1(nf_, angmom_index_, smooth_field_, disc_detect_,
-                combined_q, combined_u, AM, dx[slice_id], cdiscs, d, i, q_i, ndir, nangmom, slice_id);
+            /* cell_reconstruct_inner_loop_p1_simd<device_simd_t, device_simd_mask_t>(nf_, angmom_index_, */
+            /*     smooth_field_, disc_detect_, combined_q, combined_u, AM, dx[slice_id], cdiscs, d, i, */
+            /*     q_i, ndir, nangmom, slice_id, mask); */
+    const int q_slice_offset = (nf_ * 27 * q_inx3 + 128) * slice_id;
+    const int u_slice_offset = (nf_ * H_N3 + 128) * slice_id;
+    const int am_slice_offset = (NDIM * q_inx3 + 128) * slice_id;
+    const int disc_slice_offset = (ndir / 2 * H_N3 + 128) * slice_id; 
+
+    int l_start;
+    int s_start;
+    if (angmom_index_ > -1) {
+        s_start = angmom_index_;
+        l_start = angmom_index_ + NDIM;
+    } else {
+        s_start = lx_i;
+        l_start = lx_i;
+    }
+    if (angmom_index_ > -1) {
+        if (d < ndir / 2) {
+            for (int f = 0; f < s_start; f++) {
+                cell_reconstruct_ppm_simd<simd_t, simd_mask_t>(combined_q, combined_u,
+                    smooth_field_[f + nf_ * slice_id], disc_detect_[f + nf_ * slice_id], cdiscs, d,
+                    f, i + u_slice_offset, q_i + q_slice_offset, i + disc_slice_offset, mask);
+            }
+            for (int f = s_start; f < l_start; f++) {
+                cell_reconstruct_ppm_simd<simd_t, simd_mask_t>(combined_q, combined_u, true, false,
+                    cdiscs, d, f, i + u_slice_offset, q_i + q_slice_offset, i + disc_slice_offset, mask);
+            }
+        }
+        for (int f = l_start; f < l_start + nangmom; f++) {
+            cell_reconstruct_minmod_simd<simd_t, simd_mask_t>(
+                combined_q, combined_u, d, f, i + u_slice_offset, q_i + q_slice_offset, mask);
+        }
+        if (d < ndir / 2) {
+            for (int f = l_start + nangmom; f < nf_; f++) {
+                cell_reconstruct_ppm_simd<simd_t, simd_mask_t>(combined_q, combined_u,
+                    smooth_field_[f + nf_ * slice_id], disc_detect_[f + nf_ * slice_id], cdiscs, d,
+                    f, i + u_slice_offset, q_i + q_slice_offset, i + disc_slice_offset, mask);
+            }
+        }
+    } else {
+        for (int f = 0; f < nf_; f++) {
+            if (f < lx_i || f > lx_i + nangmom) {
+                if (d < ndir / 2) {
+                  cell_reconstruct_ppm_simd<simd_t, simd_mask_t>(combined_q, combined_u,
+                      smooth_field_[f + nf_ * slice_id], disc_detect_[f + nf_ * slice_id], cdiscs,
+                      d, f, i + u_slice_offset, q_i + q_slice_offset, i + disc_slice_offset, mask);
+                }
+            } else {
+                cell_reconstruct_minmod_simd<simd_t, simd_mask_t>(
+                    combined_q, combined_u, d, f, i + u_slice_offset, q_i + q_slice_offset, mask);
+            }
+        }
+    }
+
+    if (d != ndir / 2 && angmom_index_ > -1) {
+        const int start_index_rho = d * q_dir_offset;
+
+        // n m q Levi Civita
+        // 0 1 2 -> 1
+        simd_t results0 =
+            simd_t(AM + q_i + am_slice_offset, SIMD_NAMESPACE::element_aligned_tag{}) -
+            vw[d] * 1.0 * 0.5 * xloc[d][1] *
+                simd_t(combined_q + (sx_i + 2) * q_face_offset + d *
+                    q_dir_offset + q_i +
+                        q_slice_offset,
+                    SIMD_NAMESPACE::element_aligned_tag{}) *
+                simd_t(combined_q + start_index_rho + q_i + q_slice_offset,
+                    SIMD_NAMESPACE::element_aligned_tag{}) *
+                dx[slice_id];
+
+        // n m q Levi Civita
+        // 0 2 1 -> -1
+        results0 = results0 -
+            vw[d] * (-1.0) * 0.5 * xloc[d][2] *
+                simd_t(combined_q + (sx_i + 1) * q_face_offset + d * q_dir_offset + q_i +
+                        q_slice_offset,
+                    SIMD_NAMESPACE::element_aligned_tag{}) *
+                simd_t(combined_q + start_index_rho + q_i + q_slice_offset,
+                    SIMD_NAMESPACE::element_aligned_tag{}) *
+                dx[slice_id];
+        // copy results 0 back
+        results0 = SIMD_NAMESPACE::choose(mask, results0,
+            simd_t(AM + q_i + am_slice_offset, SIMD_NAMESPACE::element_aligned_tag{}));
+        results0.copy_to(AM + q_i + am_slice_offset,
+            SIMD_NAMESPACE::element_aligned_tag{});
+
+        // n m q Levi Civita
+        // 1 0 2 -> -1
+        simd_t results1 = simd_t(AM + am_offset + q_i + am_slice_offset,
+                              SIMD_NAMESPACE::element_aligned_tag{}) -
+            vw[d] * (-1.0) * 0.5 * xloc[d][0] *
+                simd_t(combined_q + (sx_i + 2) * q_face_offset + d * q_dir_offset + q_i +
+                        q_slice_offset,
+                    SIMD_NAMESPACE::element_aligned_tag{}) *
+                simd_t(combined_q + start_index_rho + q_i + q_slice_offset,
+                    SIMD_NAMESPACE::element_aligned_tag{}) *
+                dx[slice_id];
+
+        // n m q Levi Civita 1 2 0 -> 1
+        results1 -= vw[d] * (1.0) * 0.5 * xloc[d][2] *
+            simd_t(combined_q + (sx_i + 0) * q_face_offset + d * q_dir_offset + q_i +
+                    q_slice_offset,
+                SIMD_NAMESPACE::element_aligned_tag{}) *
+            simd_t(combined_q + start_index_rho + q_i + q_slice_offset,
+                SIMD_NAMESPACE::element_aligned_tag{}) *
+            dx[slice_id];
+        // copy results 1 back
+        results1 = SIMD_NAMESPACE::choose(mask, results1,
+            simd_t(AM + am_offset + q_i + am_slice_offset,
+                SIMD_NAMESPACE::element_aligned_tag{}));
+        results1.copy_to(
+            AM + am_offset + q_i + am_slice_offset, SIMD_NAMESPACE::element_aligned_tag{});
+
+        // n m q Levi Civita
+        // 2 0 1 -> 1
+        simd_t results2 = simd_t(AM + 2 * am_offset + q_i + am_slice_offset,
+                              SIMD_NAMESPACE::element_aligned_tag{}) -
+            vw[d] * (1.0) * 0.5 * xloc[d][0] *
+                simd_t(combined_q + (sx_i + 1) * q_face_offset + d * q_dir_offset + q_i +
+                        q_slice_offset,
+                    SIMD_NAMESPACE::element_aligned_tag{}) *
+                simd_t(combined_q + start_index_rho + q_i + q_slice_offset,
+                    SIMD_NAMESPACE::element_aligned_tag{}) *
+                dx[slice_id];
+
+        // n m q Levi Civita 2 1 0 -> -1
+        results2 -= vw[d] * (-1.0) * 0.5 * xloc[d][1] *
+            simd_t(combined_q + (sx_i + 0) * q_face_offset + d * q_dir_offset + q_i +
+                    q_slice_offset,
+                SIMD_NAMESPACE::element_aligned_tag{}) *
+            simd_t(combined_q + start_index_rho + q_i + q_slice_offset,
+                SIMD_NAMESPACE::element_aligned_tag{}) *
+            dx[slice_id];
+        // copy results 2 back
+        results2 = SIMD_NAMESPACE::choose(mask, results2,
+            simd_t(AM + 2 * am_offset + q_i + am_slice_offset,
+                SIMD_NAMESPACE::element_aligned_tag{}));
+        results2.copy_to(AM + 2 * am_offset + q_i + am_slice_offset,
+            SIMD_NAMESPACE::element_aligned_tag{});
+    }
         }
         // Phase 2
         for (int d = 0; d < ndir; d++) {
-            cell_reconstruct_inner_loop_p2(omega, angmom_index_, combined_q, combined_x, combined_u,
-                AM, dx[slice_id], d, i, q_i, ndir, nangmom, n_species_, nf_, slice_id);
+            cell_reconstruct_inner_loop_p2_simd<device_simd_t, device_simd_mask_t>(omega, angmom_index_,
+                combined_q, combined_x, combined_u, AM, dx[slice_id], d, i, q_i, ndir, nangmom,
+                n_species_, nf_, slice_id, mask);
         }
     }
 }
@@ -102,7 +251,10 @@ void launch_reconstruct_cuda(
     double* combined_x, double* combined_u, double* AM, double *dx, double* cdiscs, int n_species_) {
     static const cell_geometry<NDIM, INX> geo;
 
-    assert(geo.NDIR == 27);
+    static_assert(device_simd_t::size() == 1, "CUDA/HIP kernels expect scalar SIMD types");
+    static_assert(NDIM == 3);
+    static_assert(geo.NANGMOM == 3);
+    static_assert(geo.NDIR == 27);
 
     constexpr int blocks = q_inx3 / 64 + 1;
     dim3 const grid_spec(executor.number_slices, 1, blocks);
