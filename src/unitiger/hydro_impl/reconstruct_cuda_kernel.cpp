@@ -7,7 +7,6 @@
 #include "octotiger/unitiger/hydro_impl/reconstruct_kernel_interface.hpp"
 #include "octotiger/unitiger/hydro_impl/reconstruct_kernel_templates.hpp"
 
-// TODO include kokkos simd?
 #include "octotiger/common_kernel/kokkos_simd.hpp"
 
 #if defined(OCTOTIGER_HAVE_HIP)
