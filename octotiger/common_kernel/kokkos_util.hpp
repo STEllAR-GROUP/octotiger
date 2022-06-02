@@ -124,6 +124,8 @@ using recycled_pinned_view =
 #else
 template <typename T>
 using kokkos_host_allocator = std::allocator<T>;
+template <typename T>
+using kokkos_device_allocator = std::allocator<T>;
 template <class T>
 using kokkos_um_pinned_array = Kokkos::View<T*, typename kokkos_um_device_array<T>::array_layout,
     Kokkos::HostSpace, Kokkos::MemoryUnmanaged>;

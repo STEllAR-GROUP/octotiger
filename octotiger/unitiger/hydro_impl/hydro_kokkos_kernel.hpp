@@ -4,6 +4,7 @@
 #include <aggregation_manager.hpp>
 #include <hpx/futures/future.hpp>
 #include <hpx/kokkos/executors.hpp>
+#include <stream_manager.hpp>
 #include <utility>
 #include "simd_common.hpp"
 #ifdef OCTOTIGER_HAVE_KOKKOS
@@ -17,7 +18,7 @@
 static const char hydro_kokkos_kernel_identifier[] = "hydro_kernel_aggregator_kokkos";
 template<typename executor_t>
 using hydro_kokkos_agg_executor_pool = aggregation_pool<hydro_kokkos_kernel_identifier, executor_t,
-                                       pool_strategy>;
+                                       round_robin_pool<executor_t>>;
 
 constexpr int padding = 128;
 
