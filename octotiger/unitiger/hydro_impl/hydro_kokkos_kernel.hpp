@@ -3,11 +3,11 @@
 #include <Kokkos_View.hpp>
 #include <aggregation_manager.hpp>
 #include <hpx/futures/future.hpp>
-#include <hpx/kokkos/executors.hpp>
 #include <stream_manager.hpp>
 #include <utility>
 #include "simd_common.hpp"
 #ifdef OCTOTIGER_HAVE_KOKKOS
+#include <hpx/kokkos/executors.hpp>
 #include "octotiger/common_kernel/kokkos_util.hpp"
 #include "octotiger/unitiger/hydro_impl/flux_kernel_interface.hpp"    // required for wrappers
 
