@@ -26,6 +26,9 @@ pipeline {
                 script {
                     buildbadge.setStatus('running')
                 }
+                sh '''
+                    echo "Build success! Pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger Node-Level Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} succeded" "${MAINTAINER_MAIL}"
+                '''
                 dir('octotiger') {
                     checkout scm
                     sh '''
@@ -73,7 +76,6 @@ pipeline {
                                         \\"description\\": \\"Jenkins CI Job: ${compiler_config}-${cuda_config}-${kokkos_config}\\",
                                         \\"target_url\\": \\"https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger%20Node-Level/job/$JOB_BASE_NAME/$BUILD_NUMBER/console\\"
                                     }"
-                                echo "Build started! Pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger Node-Level Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} started" "${MAINTAINER_MAIL}"
                                 '''
                             }
                         }
