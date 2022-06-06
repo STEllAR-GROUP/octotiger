@@ -285,7 +285,7 @@ void physics<NDIM>::post_process(hydro::state_type &U, const hydro::x_type &X, s
 			}
 			r = std::sqrt(r);
 			if (r < rho_sink_radius_) {
-				for (int s = 0; s < spc_i; s++) {
+				for (int s = 0; s < n_species_; s++) {
 					U[spc_i + s][i] = rho_sink_floor_ / n_species_;
 				}
 				U[rho_i][i] = rho_sink_floor_;
@@ -307,11 +307,11 @@ void physics<NDIM>::source(hydro::state_type &dudt, const hydro::state_type &U, 
 	static const cell_geometry<NDIM, INX> geo;
 	static constexpr auto levi_civita = geo.levi_civita();
 	for (const auto &i : geo.find_indices(geo.H_BW, geo.H_NX - geo.H_BW)) {
-		if HOST_CONSTEXPR (NDIM == 3) {
+		if  (NDIM == 3) {
 			dudt[lx_i][i] += U[ly_i][i] * omega;
 			dudt[ly_i][i] -= U[lx_i][i] * omega;
 		}
-		if HOST_CONSTEXPR (NDIM >= 2) {
+		if  (NDIM >= 2) {
 			dudt[sx_i][i] += U[sy_i][i] * omega;
 			dudt[sy_i][i] -= U[sx_i][i] * omega;
 		}
@@ -825,10 +825,10 @@ std::vector<typename hydro_computer<NDIM, INX, physics<NDIM>>::bc_type> physics<
 //				rho = 1.0;
 //				/**************/
 			vx = v * X[0][i] / r;
-			if constexpr (NDIM >= 2) {
+			if(NDIM >= 2) {
 				vy = v * X[1][i] / r;
 			}
-			if constexpr (NDIM == 3) {
+			if(NDIM == 3) {
 				vz = v * X[2][i] / r;
 			}
 			U[rho_i][i] += rho;
@@ -870,11 +870,11 @@ std::vector<typename hydro_computer<NDIM, INX, physics<NDIM>>::bc_type> physics<
 		U[sx_i][i] += (rho * vx);
 		U[egas_i][i] += (p / (fgamma_ - 1.0) + 0.5 * rho * vx * vx);
 		U[tau_i][i] += (std::pow(p / (fgamma_ - 1.0), 1.0 / fgamma_));
-		if HOST_CONSTEXPR (NDIM >= 2) {
+		if(NDIM >= 2) {
 			U[sy_i][i] += rho * vy;
 			U[egas_i][i] += 0.5 * rho * vy * vy;
 		}
-		if HOST_CONSTEXPR (NDIM >= 3) {
+		if(NDIM >= 3) {
 			U[sz_i][i] += rho * vz;
 			U[egas_i][i] += 0.5 * rho * vz * vz;
 		}

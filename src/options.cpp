@@ -15,4 +15,5 @@ options& opts() {
 	static options opts_;
 	return opts_;
 }
+
 std::vector<hpx::id_type> options::all_localities = { };

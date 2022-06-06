@@ -40,6 +40,7 @@ class analytic_t {
 public:
 	std::vector<real> l1, l2, linf;
 	integer nfields_;
+	std::vector<std::pair<double,std::pair<double,double>>> xline;
 	template<class Arc>
 	void serialize(Arc& a, unsigned) {
 		a & nfields_;
@@ -49,6 +50,7 @@ public:
 		a & l1;
 		a & l2;
 		a & linf;
+		a & xline;
 	}
 	analytic_t() {
 		nfields_ = 0;
@@ -70,6 +72,7 @@ public:
 			l2[field] += other.l2[field];
 			linf[field] = std::max(linf[field], other.linf[field]);
 		}
+		xline.insert(xline.end(),other.xline.begin(),other.xline.end());
 		return *this;
 	}
 };

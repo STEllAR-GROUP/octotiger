@@ -12,6 +12,8 @@
 
 //#define FACE_ONLY_HYDRO
 
+//#define FACE_ONLY_HYDRO
+
 template<int NDIM, int INX, class PHYS>
 timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X,	safe_real omega) {
 
@@ -66,10 +68,17 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, con
 				for (int dim = 0; dim < NDIM; dim++) {
 					x[dim] = X[dim][i] + 0.5 * xloc[d][dim] * dx;
 				}
+<<<<<<< HEAD
 				if HOST_CONSTEXPR (NDIM > 1) {
 					vg[0] = -omega * (X[1][i] + 0.5 * xloc[d][1] * dx);
 					vg[1] = +omega * (X[0][i] + 0.5 * xloc[d][0] * dx);
 					if HOST_CONSTEXPR (NDIM == 3) {
+=======
+				if (NDIM > 1) {
+					vg[0] = -omega * (X[1][i] + 0.5 * xloc[d][1] * dx);
+					vg[1] = +omega * (X[0][i] + 0.5 * xloc[d][0] * dx);
+					if (NDIM == 3) {
+>>>>>>> FLD
 						vg[2] = 0.0;
 					}
 				} else {

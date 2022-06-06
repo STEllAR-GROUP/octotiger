@@ -188,7 +188,11 @@ void grid::complete_hydro_amr_boundary(bool energy_only) {
 						const int iiir = hindex(i, j, k);
 						if (is_coarse[iii0]) {
 							int ir, jr, kr;
+<<<<<<< HEAD
 							if HOST_CONSTEXPR (H_BW % 2 == 0) {
+=======
+							if (H_BW % 2 == 0) {
+>>>>>>> FLD
 								ir = i % 2;
 								jr = j % 2;
 								kr = k % 2;

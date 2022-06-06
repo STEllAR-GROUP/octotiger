@@ -83,6 +83,28 @@ std::vector<real> radiation_test_problem(real x, real y, real z, real dx) {
 	return u;
 }
 
+
+std::vector<real> radiation_diffusion_test_problem(real x, real y, real z, real dx) {
+
+	std::vector<real> u(opts().n_fields + NRF, real(0));
+	x -= 0.75;
+	y -= 0.75;
+	z -= 0.75;
+	real r = std::max(2.0 * dx, 0.50);
+	real eint;
+	u[rho_i] = 1.0e6;
+	eint = exp(-r*r/4.0);
+	u[tau_i] = POWER(eint * u[rho_i], 1.0 / grid::get_fgamma());
+	const real fgamma = grid::get_fgamma();
+	u[egas_i] = POWER(u[tau_i], fgamma);
+	const real rhoinv = INVERSE(u[rho_i]);
+	u[egas_i] += u[sx_i] * u[sx_i] * rhoinv / 2.0;
+	u[egas_i] += u[sy_i] * u[sy_i] * rhoinv / 2.0;
+	u[egas_i] += u[sz_i] * u[sz_i] * rhoinv / 2.0;
+	u[spc_ac_i] = u[rho_i];
+	return u;
+}
+
 bool refine_sod(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U,
 		std::array<std::vector<real>, NDIM> const& dudx) {
 	for (integer i = 0; i != NDIM; ++i) {

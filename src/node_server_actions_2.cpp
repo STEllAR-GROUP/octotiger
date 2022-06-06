@@ -152,7 +152,7 @@ future<analytic_t> node_client::compare_analytic() const {
 }
 
 analytic_t node_server::compare_analytic() {
-	analytic_t a(opts().n_fields);
+	analytic_t a(opts().n_fields + (opts().radiation ? NRF : 0));
 	if (!is_refined) {
 		a = grid_ptr->compute_analytic(current_time);
 	} else {
@@ -166,13 +166,31 @@ analytic_t node_server::compare_analytic() {
 		}
 	}
 	if (my_location.level() == 0) {
+<<<<<<< HEAD
 		print("L1, L2\n");
+=======
+		if (opts().problem == MARSHAK) {
+			std::sort(a.xline.begin(), a.xline.end(),
+					[](std::pair<double, std::pair<double, double>> a, std::pair<double, std::pair<double, double>> b) {
+						return a.first < b.first;
+					});
+			FILE *fp = fopen("lineout.dat", "wt");
+			for (int i = 0; i < a.xline.size(); i++) {
+				fprintf(fp, "%e %e %e\n", a.xline[i].first, a.xline[i].second.first, a.xline[i].second.second);
+			}
+			fclose(fp);
+		}
+		printf("L1, L2\n");
+>>>>>>> FLD
 		real vol = 1.0;
 		for (int d = 0; d < NDIM; d++) {
 			vol *= 2.0 * opts().xscale;
 		}
 		for (integer field = 0; field != opts().n_fields; ++field) {
 			print("%16s %e %e\n", physics<3>::field_names3[field], a.l1[field] / vol, std::sqrt(a.l2[field] / vol));
+		}
+		for (integer field = opts().n_fields; field != opts().n_fields + (opts().radiation ? NRF : 0); ++field) {
+			printf("%16s %e %e\n", "",  a.l1[field] / vol, std::sqrt(a.l2[field] / vol));
 		}
 
 		const auto ml = opts().max_level;
@@ -182,6 +200,11 @@ analytic_t node_server::compare_analytic() {
 		for (integer field = 0; field != opts().n_fields; ++field) {
 			fprintf(fp, "%e ", a.l1[field] / vol);
 		}
+		if( opts().radiation) {
+			for (integer field = opts().n_fields; field != opts().n_fields + NRF; ++field) {
+				fprintf(fp, "%e ", a.l1[field] / vol);
+			}
+		}
 		fprintf(fp, "\n");
 		fclose(fp);
 
@@ -190,6 +213,11 @@ analytic_t node_server::compare_analytic() {
 		for (integer field = 0; field != opts().n_fields; ++field) {
 			fprintf(fp, "%e ", std::sqrt(a.l2[field] / vol));
 		}
+		if( opts().radiation) {
+			for (integer field = opts().n_fields; field != opts().n_fields + NRF; ++field) {
+				fprintf(fp, "%e ", a.l2[field] / vol);
+			}
+		}
 		fprintf(fp, "\n");
 		fclose(fp);
 
@@ -197,6 +225,11 @@ analytic_t node_server::compare_analytic() {
 		fprintf(fp, "%e %i ", dxmin, int(ml));
 		for (integer field = 0; field != opts().n_fields; ++field) {
 			fprintf(fp, "%e ", a.linf[field]);
+		}
+		if( opts().radiation) {
+			for (integer field = opts().n_fields; field != opts().n_fields + NRF; ++field) {
+				fprintf(fp, "%e ", a.linf[field] / vol);
+			}
 		}
 		fprintf(fp, "\n");
 		fclose(fp);

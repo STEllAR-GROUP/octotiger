@@ -30,9 +30,6 @@ public:
 	static constexpr integer fx_i = 1;
 	static constexpr integer fy_i = 2;
 	static constexpr integer fz_i = 3;
-	static constexpr integer wx_i = 4;
-	static constexpr integer wy_i = 5;
-	static constexpr integer wz_i = 6;
 private:
 	static constexpr integer DX = RAD_NX * RAD_NX;
 	static constexpr integer DY = RAD_NX;
@@ -68,10 +65,14 @@ public:
 	void change_units(real m, real l, real t, real k);
 	real rad_imp_comoving(real& E, real& e, real rho, real mmw, real X, real Z, real dt);
 	void sanity_check();
-	void compute_flux(real);
-	void initialize_erad(const std::vector<safe_real> rho, const std::vector<safe_real> tau);
+	void compute_flux(real,const std::vector<real> &egas, const std::vector<real> &tau,
+			const std::vector<real> &sx, const std::vector<real> &sy, const std::vector<real> &sz,
+			const std::vector<real> &rho);
+	void initialize_erad(const std::vector<safe_real> rho, const std::vector<safe_real> tau, const std::vector<std::vector<safe_real>>& X);
 	void set_dx(real dx);
 	//void compute_fEdd();
+	void set_fluxes(std::vector<real>& egas, std::vector<real>& tau, std::vector<real>& sx, std::vector<real>& sy, std::vector<real>& sz,
+			const std::vector<real>& rho);
 	void compute_fluxes();
 	void advance(real dt, real beta);
 	void rad_imp(std::vector<real>& egas, std::vector<real>& tau, std::vector<real>& sx, std::vector<real>& sy, std::vector<real>& sz,
@@ -87,6 +88,7 @@ public:
 	void allocate();
 	rad_grid(real dx);
 	rad_grid();
+	std::vector<real> radiation_diffusion_analytic(real x, real y, real z, real t);
 	void set_boundary(const std::vector<real>& data, const geo::direction& dir);
 	real get_field(integer f, integer i, integer j, integer k) const;
 	void set_field(real v, integer f, integer i, integer j, integer k);

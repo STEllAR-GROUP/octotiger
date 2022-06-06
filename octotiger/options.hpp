@@ -24,7 +24,7 @@
  COMMAND_LINE_ENUM(eos_type,IDEAL,WD);
  */
 
-COMMAND_LINE_ENUM(problem_type, DWD, SOD, BLAST, NONE, SOLID_SPHERE, STAR, MOVING_STAR, RADIATION_TEST, ROTATING_STAR, MARSHAK, AMR_TEST, ADVECTION);
+COMMAND_LINE_ENUM(problem_type, DWD, SOD, BLAST, NONE, SOLID_SPHERE, STAR, MOVING_STAR, RADIATION_TEST, ROTATING_STAR, MARSHAK, AMR_TEST, ADVECTION, RADIATION_DIFFUSION);
 
 COMMAND_LINE_ENUM(eos_type, IDEAL, WD, IPR);
 
@@ -53,6 +53,7 @@ public:
 	bool rotating_star_amr;
 	bool idle_rates;
 	bool ipr_test;
+	bool rad_diffusion_limit;
 
 	integer scf_output_frequency;
 	integer silo_num_groups;
@@ -158,6 +159,7 @@ public:
 
 	template<class Arc>
 	void serialize(Arc &arc, unsigned) {
+		arc & rad_diffusion_limit;
 		arc & eblast0;
 		arc & rho_floor;
 		arc & tau_floor;

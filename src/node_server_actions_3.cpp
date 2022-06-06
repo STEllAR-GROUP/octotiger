@@ -573,7 +573,11 @@ future<void> node_server::nonrefined_step() {
 
 	for (integer rk = 0; rk < NRK; ++rk) {
 
+<<<<<<< HEAD
 		fut = fut.then(hpx::launch::async_policy(hpx::threads::thread_priority::boost),
+=======
+		fut = fut.then(hpx::launch::async(hpx::threads::thread_priority_boost),
+>>>>>>> FLD
 		hpx::util::annotated_function(
 				[rk, cfl0, this, dt_fut](future<void> f) {
 					GET(f);

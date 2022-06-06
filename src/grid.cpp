@@ -1705,7 +1705,7 @@ std::vector<std::pair<std::string, std::string>> grid::get_vector_expressions() 
 
 analytic_t grid::compute_analytic(real t) {
 	analytic_t a;
-	if (opts().hydro) {
+	if (!opts().radiation) {
 		a = analytic_t(opts().n_fields);
 	} else {
 		a = analytic_t(opts().n_fields + NRF);
@@ -1723,7 +1723,7 @@ analytic_t grid::compute_analytic(real t) {
 					if (last_rho == nrho) {
 						break;
 					}
-					for (int f = 0; f < opts().n_fields; f++) {
+					for (int f = 0; f < opts().n_fields + (opts().radiation ? NRF : 0); f++) {
 						A[f] = 0.0;
 					}
 					for (int i0 = 0; i0 < M; i0++) {
@@ -1733,7 +1733,7 @@ analytic_t grid::compute_analytic(real t) {
 							for (int k0 = 0; k0 < M; k0++) {
 								const auto z = X[ZDIM][iii] + ((real(k0) + 0.5) / real(M) - 0.5) * dx;
 								const auto a = func(x, y, z, t);
-								for (int f0 = 0; f0 < opts().n_fields; f0++) {
+								for (int f0 = 0; f0 < opts().n_fields +  (opts().radiation ? NRF : 0); f0++) {
 									A[f0] += a[f0] / (M * M * M);
 								}
 							}
@@ -1746,6 +1746,15 @@ analytic_t grid::compute_analytic(real t) {
 					}
 					if (err < 0.1) {
 						break;
+					}
+				}
+				if( opts().radiation && opts().problem==MARSHAK ) {
+					if( X[YDIM][iii] > 0.0 && X[YDIM][iii] < dx &&X[ZDIM][iii] > 0.0 && X[ZDIM][iii] < dx ) {
+						std::pair<double,std::pair<double,double>> entry;
+						entry.first = X[XDIM][iii];
+						entry.second.first = rad_grid_ptr->get_field(0, i - H_BW + R_BW, j - H_BW + R_BW, k - H_BW + R_BW);
+						entry.second.second = A[opts().n_fields];
+						a.xline.push_back(entry);
 					}
 				}
 				for (integer field = 0; field != opts().n_fields; ++field) {
@@ -1883,7 +1892,7 @@ void grid::init_z_field() {
 void grid::rad_init() {
 	rad_grid_ptr->set_dx(dx);
 	rad_grid_ptr->compute_mmw(U);
-	rad_grid_ptr->initialize_erad(U[rho_i], U[tau_i]);
+	rad_grid_ptr->initialize_erad(U[rho_i], U[tau_i], X);
 }
 
 timestep_t grid::compute_fluxes() {
