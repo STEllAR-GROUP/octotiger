@@ -522,11 +522,19 @@ void node_server::refined_step() {
 //	hpx::util::itt::task t(hpx::get_thread_itt_domain(), sh);
 //#endif
 
+	if( my_location.level() == 0 && opts().debug ) {
+		printf( "ENTERING TIMESTEP. time = %li\n", time(NULL));
+		fflush(stdout);
+	}
 	timings::scope ts(timings_, timings::time_computation);
 	const real dx = TWO * grid::get_scaling_factor() / real(INX << my_location.level());
 	real cfl0 = opts().cfl;
 
 	real a = std::numeric_limits<real>::min();
+	if( my_location.level() == 0 && opts().debug ) {
+		printf( "BOUNDARIES. time = %li\n", time(NULL));
+		fflush(stdout);
+	}
 	all_hydro_bounds();
 	timestep_t tstep;
 	tstep.dt = std::numeric_limits<real>::max();
@@ -534,21 +542,40 @@ void node_server::refined_step() {
 	auto dt_fut = global_timestep_channel.get_future();
 
 	for (integer rk = 0; rk < NRK; ++rk) {
-
+		if( my_location.level() == 0 && opts().debug ) {
+			printf( "RK %i: START. time = %li\n", rk, time(NULL));
+			fflush(stdout);
+		}
 		{
 			timings::scope ts(timings_, timings::time_fmm);
 			compute_fmm(DRHODT, false);
 			compute_fmm(RHO, true);
 		}
+		if( my_location.level() == 0 && opts().debug ) {
+			printf( "RK %i: BOUNDARIES. time = %li\n", rk, time(NULL));
+			fflush(stdout);
+		}
 		rk == NRK - 1 ? energy_hydro_bounds() : all_hydro_bounds();
+		if( my_location.level() == 0 && opts().debug ) {
+			printf( "RK %i: END. time = %li\n", rk, time(NULL));
+			fflush(stdout);
+		}
 
 	}
 
 	dt_ = GET(dt_fut);
+	if( my_location.level() == 0 && opts().debug ) {
+		printf( "TIMESTEP FINAL UPDATE. time = %li\n", time(NULL));
+		fflush(stdout);
+	}
 	update();
 	if (opts().radiation) {
 		compute_radiation(dt_.dt, grid_ptr->get_omega());
 		all_hydro_bounds();
+	}
+	if( my_location.level() == 0 && opts().debug ) {
+		printf( "LEAVING TIMESTEP. time = %li\n", time(NULL));
+		fflush(stdout);
 	}
 
 }

@@ -417,7 +417,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 
 
 	if( my_location.level() == 0 && opts().debug ) {
-		printf( "GRAVITY: Computing Multipoles\n");
+		printf( "GRAVITY: Computing Multipoles. time = %li\n", time(NULL));
 		fflush(stdout);
 	}
 
@@ -452,7 +452,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 	}
 
 	if( my_location.level() == 0 && opts().debug ) {
-		printf( "GRAVITY: Sending Multipoles\n");
+		printf( "GRAVITY: Sending Multipoles. time = %li\n", time(NULL));
 		fflush(stdout);
 	}
 
@@ -482,7 +482,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 	}
 
 	if( my_location.level() == 0 && opts().debug ) {
-		printf( "GRAVITY: Computing interactions\n");
+		printf( "GRAVITY: Computing interactions. time = %li\n", time(NULL));
 		fflush(stdout);
 	}
 
@@ -552,7 +552,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 	} */
 
 	if( my_location.level() == 0 && opts().debug ) {
-		printf( "GRAVITY: Signalling neighbors\n");
+		printf( "GRAVITY: Signalling neighbors. time = %li\n", time(NULL));
 		fflush(stdout);
 	}
 
@@ -573,7 +573,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 	/***************************************************************************/
 
 	if( my_location.level() == 0 && opts().debug ) {
-		printf( "GRAVITY: Computing expansions\n");
+		printf( "GRAVITY: Computing expansions. time = %li\n", time(NULL));
 		fflush(stdout);
 	}
 
@@ -586,7 +586,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 
 
 	if( my_location.level() == 0 && opts().debug ) {
-		printf( "GRAVITY: Sending Expansions\n");
+		printf( "GRAVITY: Sending Expansions. time = %li\n", time(NULL));
 		fflush(stdout);
 	}
 
@@ -621,7 +621,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 	}
 
 	if( my_location.level() == 0 && opts().debug ) {
-		printf( "GRAVITY: DONE!\n");
+		printf( "GRAVITY: DONE!. time = %li\n", time(NULL));
 		fflush(stdout);
 	}
 
