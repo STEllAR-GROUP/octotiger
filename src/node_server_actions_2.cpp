@@ -166,9 +166,6 @@ analytic_t node_server::compare_analytic() {
 		}
 	}
 	if (my_location.level() == 0) {
-<<<<<<< HEAD
-		print("L1, L2\n");
-=======
 		if (opts().problem == MARSHAK) {
 			std::sort(a.xline.begin(), a.xline.end(),
 					[](std::pair<double, std::pair<double, double>> a, std::pair<double, std::pair<double, double>> b) {
@@ -181,7 +178,6 @@ analytic_t node_server::compare_analytic() {
 			fclose(fp);
 		}
 		printf("L1, L2\n");
->>>>>>> FLD
 		real vol = 1.0;
 		for (int d = 0; d < NDIM; d++) {
 			vol *= 2.0 * opts().xscale;

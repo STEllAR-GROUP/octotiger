@@ -103,11 +103,6 @@ template<int NDIM>
 bool radiation_physics<NDIM>::diffusion_limit_ = false;
 
 template<int NDIM>
-<<<<<<< HEAD
-int radiation_physics<NDIM>::nf_ = (1 + NDIM + (NDIM == 1 ? 0 : (NDIM == 3 ? 3 : (NDIM == 2 ? 1 : 0)) ));
-//int radiation_physics<NDIM>::nf_ = (1 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2)));
-=======
 int radiation_physics<NDIM>::nf_ = (1 + NDIM);
->>>>>>> FLD
 
 #endif /* OCTOTIGER_UNITIGER_radiation_physics_HPP_ */

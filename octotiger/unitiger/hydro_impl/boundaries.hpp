@@ -27,11 +27,7 @@ void hydro_computer<NDIM, INX, PHYS>::boundaries(hydro::state_type &U, const hyd
 	}
 
 	for (int f = 0; f < nf_; f++) {
-<<<<<<< HEAD
 		if HOST_CONSTEXPR (NDIM == 1) {
-=======
-		if(NDIM == 1) {
->>>>>>> FLD
 			for (int i = 0; i < geo::H_BW; i++) {
 				if (bc_[0] == OUTFLOW) {
 					U[f][i] = U[f][geo::H_BW];
@@ -47,11 +43,7 @@ void hydro_computer<NDIM, INX, PHYS>::boundaries(hydro::state_type &U, const hyd
 
 			}
 
-<<<<<<< HEAD
 		} else if HOST_CONSTEXPR (NDIM == 2) {
-=======
-		} else if(NDIM == 2) {
->>>>>>> FLD
 
 			const auto index = [](int i, int j) {
 				return j + geo::H_NX * i;

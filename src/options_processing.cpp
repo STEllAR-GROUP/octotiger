@@ -144,6 +144,7 @@ bool options::process_options(int argc, char *argv[]) {
 	("disable_output", po::value<bool>(&(opts().disable_output))->default_value(false), "disable silo output") //
 	("disable_analytic", po::value<bool>(&(opts().disable_analytic))->default_value(false), "disable analytic step") //
 	("disable_diagnostics", po::value<bool>(&(opts().disable_diagnostics))->default_value(false), "disable diagnostics") //
+	("rad_diffusion_limit", po::value<bool>(&(opts().rad_diffusion_limit))->default_value(false), "force radiation to diffusion limit") //
 	("problem", po::value<problem_type>(&(opts().problem))->default_value(NONE), "problem type")                            //
 	("restart_filename", po::value<std::string>(&(opts().restart_filename))->default_value(""), "restart filename")         //
 	("stop_time", po::value<real>(&(opts().stop_time))->default_value(std::numeric_limits<real>::max()), "time to end simulation") //
@@ -298,6 +299,7 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(output_filename);
 		SHOW(problem);
 		SHOW(rad_implicit);
+		SHOW(rad_diffusion_limit);
 		SHOW(radiation);
 		SHOW(refinement_floor);
 		SHOW(reflect_bc);

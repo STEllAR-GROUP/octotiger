@@ -85,11 +85,7 @@ void run_test(typename PHYS::test_type problem, bool with_correction, bool writi
 		dt = std::min(double(dt), tmax - t + 1.0e-20);
 		computer.advance(U0, U, F, X, dx, dt, 1.0, omega);
 		computer.boundaries(U, X);
-<<<<<<< HEAD
 		if HOST_CONSTEXPR (RK == 3) {
-=======
-		if(RK == 3) {
->>>>>>> FLD
 			q = computer.reconstruct(U, X, omega);
 			computer.flux(U, q, F, X, omega);
 			computer.advance(U0, U, F, X, dx, dt, 0.25, omega);
@@ -98,11 +94,7 @@ void run_test(typename PHYS::test_type problem, bool with_correction, bool writi
 			computer.flux(U, q, F, X, omega);
 			computer.advance(U0, U, F, X, dx, dt, 2.0 / 3.0, omega);
 			computer.boundaries(U, X);
-<<<<<<< HEAD
 		} else if HOST_CONSTEXPR (RK == 2) {
-=======
-		} else if(RK == 2) {
->>>>>>> FLD
 			q = computer.reconstruct(U, X, omega);
 			computer.flux(U, q, F, X, omega);
 			computer.advance(U0, U, F, X, dx, dt, 0.5, omega);
