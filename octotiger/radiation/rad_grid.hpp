@@ -43,7 +43,7 @@ private:
 	std::vector<std::vector<real>> U;
 	std::array<std::vector<real>, NRF> U0;
 	std::vector<std::vector<std::vector<real>>> flux;
-	std::array<std::array<std::vector<real>*, NDIM>, NDIM> P;
+	std::array<std::array<std::vector<real>,NDIM>,NDIM> P;
 	std::vector<std::vector<real>> X;
 	std::vector<real> mmw, X_spc, Z_spc;
 	hydro_computer<NDIM,INX,radiation_physics<NDIM>> hydro;
@@ -74,7 +74,8 @@ public:
 	void set_fluxes(std::vector<real>& egas, std::vector<real>& tau, std::vector<real>& sx, std::vector<real>& sy, std::vector<real>& sz,
 			const std::vector<real>& rho);
 	void compute_fluxes();
-	void advance(real dt, real beta);
+	void advance(real dt, real beta, std::vector<real>& sx, std::vector<real>& sy, std::vector<real>& sz,
+			const std::vector<real>& rho);
 	void rad_imp(std::vector<real>& egas, std::vector<real>& tau, std::vector<real>& sx, std::vector<real>& sy, std::vector<real>& sz,
 			const std::vector<real>& rho, real dt);
 	std::vector<real> get_restrict() const;

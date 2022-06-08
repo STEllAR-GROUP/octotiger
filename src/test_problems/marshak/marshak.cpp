@@ -172,10 +172,7 @@ std::vector<double> marshak_wave_analytic(double x0, double y0, double z0, doubl
 	assert(!std::isnan(fx));
 	assert(!std::isnan(fy));
 	assert(!std::isnan(fz));
-	U[opts().n_fields + rad_grid::er_i] = erad;
-	U[opts().n_fields + rad_grid::fx_i] = fx;
-	U[opts().n_fields + rad_grid::fy_i] = fy;
-	U[opts().n_fields + rad_grid::fz_i] = fz;
+	U[opts().n_fields] = erad;
 	return std::move(U);
 }
 
