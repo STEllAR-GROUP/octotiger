@@ -42,6 +42,8 @@ struct diagnostics_t {
 	std::array<safe_real, nspec> ekin;
 	std::array<safe_real, nspec> epot;
 	std::array<safe_real, nspec> eint;
+        std::array<safe_real, nspec> edeg;
+	std::array<safe_real, nspec> pint;
 	std::array<safe_real, nspec> lz1;
 	std::array<safe_real, nspec> lz2;
 	std::array<safe_real, nspec> rL;
@@ -82,6 +84,8 @@ struct diagnostics_t {
 			ekin[s] = 0.0;
 			epot[s] = 0.0;
 			eint[s] = 0.0;
+			edeg[s] = 0.0;
+			pint[s] = 0.0;
 			js[s] = 0.0;
 			Ts[s] = 0.0;
 			g[s] = 0.0;
@@ -140,6 +144,8 @@ struct diagnostics_t {
 				ekin[s] += other.ekin[s];
 				epot[s] += other.epot[s];
 				eint[s] += other.eint[s];
+				edeg[s] += other.edeg[s];
+				pint[s] += other.pint[s];
 				lz1[s] += other.lz1[s];
 				lz2[s] += other.lz2[s];
 				js[s] += other.js[s];
@@ -175,6 +181,8 @@ struct diagnostics_t {
 		arc & ekin;
 		arc & epot;
 		arc & eint;
+		arc & edeg;
+		arc & pint;
 		arc & failed;
 		arc & lsum;
 		arc & l1_phi;

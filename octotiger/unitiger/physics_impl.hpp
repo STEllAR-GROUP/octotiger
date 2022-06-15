@@ -25,7 +25,7 @@ int physics<NDIM>::field_count() {
 template<int NDIM>
 safe_real physics<NDIM>::deg_pres(safe_real x) {
 	safe_real p;
-	if (x < 0.001) {
+	if (x < 0.01) {
 		p = 1.6 * A_ * std::pow(x, 5);
 	} else {
 		p = A_ * (x * (2 * x * x - 3) * std::sqrt(x * x + 1) + 3 * asinh(x));
@@ -42,7 +42,7 @@ void physics<NDIM>::to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v
 		const auto x = std::pow(rho / B_, 1.0 / 3.0);
 		hdeg = 8.0 * A_ / B_ * (std::sqrt(x * x + 1.0) - 1.0);
 		pdeg = deg_pres(x);
-		if (x > 0.001) {
+		if (x > 0.01) {
 			edeg = rho * hdeg - pdeg;
 		} else {
 			edeg = 2.4 * A_ * std::pow(x, 5);
@@ -53,10 +53,10 @@ void physics<NDIM>::to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v
 	for (int dim = 0; dim < NDIM; dim++) {
 		ek += pow(u[sx_i + dim], 2) * rhoinv * safe_real(0.5);
 	}
-	auto ein = u[egas_i] - ek - edeg;
-	if (ein <= de_switch_1 * u[egas_i]) {
-		ein = POWER(u[tau_i], fgamma_);
-	}
+	auto ein = std::max(u[egas_i] - ek - edeg, 0.0);
+	//if ((ein <= de_switch_1 * u[egas_i]) || (edeg > 0.5 * u[egas_i])) { deactivating the dual energy fomalism
+	//	ein = POWER(u[tau_i], fgamma_);
+	//}
 	const double dp_drho = dpdeg_drho + (fgamma_ - 1.0) * ein * rhoinv;
 	const double dp_deps = (fgamma_ - 1.0) * rho;
 	v = u[sx_i + dim] * rhoinv;
@@ -106,7 +106,12 @@ void physics<NDIM>::post_process(hydro::state_type &U, const hydro::x_type &X, s
 			const auto x = std::pow(U[rho_i][i] / B_, 1.0 / 3.0);
 			hdeg = 8.0 * A_ / B_ * (std::sqrt(x * x + 1.0) - 1.0);
 			pdeg = deg_pres(x);
-			edeg = U[rho_i][i] * hdeg - pdeg;
+                        if (x > 0.01) {
+                                edeg = U[rho_i][i] * hdeg - pdeg;
+                        } else {
+                                edeg = 2.4 * A_ * std::pow(x, 5);
+                        }
+                        //      edeg = U[rho_i][i] * hdeg - pdeg;
 		}
 
 		safe_real ek = 0.0;
@@ -119,9 +124,11 @@ void physics<NDIM>::post_process(hydro::state_type &U, const hydro::x_type &X, s
 			egas_max = std::max(egas_max, U[egas_i][i + dir[d]]);
 		}
 		safe_real ein = U[egas_i][i] - ek - edeg;
-		if (ein > de_switch_2 * egas_max) {
-			U[tau_i][i] = POWER(ein, 1.0 / fgamma_);
-		}
+		//if ((ein <= 0) && (U[egas_i][i] > 0)) { deactivating the dual energy formalism
+		//	U[tau_i][i] = POWER(1.0e-20, 1.0 / fgamma_);
+		//} else if (ein > de_switch_2 * egas_max) {
+		//	U[tau_i][i] = POWER(ein, 1.0 / fgamma_);
+		//}
 		if (rho_sink_radius_ > 0.0) {
 			double r = 0.0;
 			for (int dim = 0; dim < NDIM; dim++) {
@@ -295,17 +302,22 @@ const std::vector<std::vector<safe_real>>& physics<NDIM>::find_contact_discs(con
 					const auto x = std::pow(rho / B_, 1.0 / 3.0);
 					hdeg = 8.0 * A_ / B_ * (std::sqrt(x * x + 1.0) - 1.0);
 					pdeg = deg_pres(x);
-					edeg = rho * hdeg - pdeg;
+                                        if (x > 0.01) {
+                                                edeg = rho * hdeg - pdeg;
+                                        } else {
+                                                edeg = 2.4 * A_ * std::pow(x, 5);
+                                        }
+                                        //edeg = rho * hdeg - pdeg;
 				}
 				safe_real ek = 0.0;
 				for (int dim = 0; dim < NDIM; dim++) {
 					ek += pow(U[sx_i + dim][i], 2) * rhoinv * safe_real(0.5);
 				}
-				auto ein = U[egas_i][i] - ek - edeg;
-				if (ein < de_switch_1 * U[egas_i][i]) {
+				auto ein = std::max(U[egas_i][i] - ek - edeg, 0.0);
+				//if ((ein < de_switch_1 * U[egas_i][i]) || (edeg > 0.5 * U[egas_i][i])) { deactivating the dual-energy formalism
 					//	printf( "%e\n", U[tau_i][i]);
-					ein = pow(U[tau_i][i], fgamma_);
-				}
+				//	ein = pow(U[tau_i][i], fgamma_);
+				//}
 				P[i] = (fgamma_ - 1.0) * ein + pdeg;
 			}
 		}

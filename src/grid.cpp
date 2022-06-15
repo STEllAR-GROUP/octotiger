@@ -388,9 +388,9 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 						ei = U[egas_i][iii] - ek;
 					}
 					real et = U[egas_i][iii];
-					if (ei < de_switch2 * et) {
-						ei = POWER(U[tau_i][iii], fgamma);
-					}
+					//if (ei < de_switch2 * et) {
+					//	ei = POWER(U[tau_i][iii], fgamma);
+					//}
 					real p = (fgamma - 1.0) * ei;
 					if (opts().eos == WD) {
 						p += ztwd_pressure(U[rho_i][iii]);
@@ -580,14 +580,25 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 						rc.g[i][0] += G[iiig][gx_i] * dV * rho0;
 						rc.g[i][1] += G[iiig][gy_i] * dV * rho0;
 						rc.g[i][2] += G[iiig][gz_i] * dV * rho0;
-						auto eint = U[egas_i][iii] * dV - ekin;
-						const auto epot = 0.5 * U[pot_i][iii] * dV;
-						if (eint < de_switch2 * U[egas_i][iii] * dV) {
-							eint = POWER(U[tau_i][iii], fgamma) * dV;
+						safe_real eint;
+						if (opts().eos == WD) {
+						    eint = std::max(U[egas_i][iii] * dV - ekin - ztwd_energy(rho0) * dV, 0.0);
+						    rc.edeg[i] += ztwd_energy(rho0) * dV;
+						} else {
+						    eint = U[egas_i][iii] * dV - ekin;
 						}
+						const auto epot = 0.5 * U[pot_i][iii] * dV;
+						//if (eint < de_switch2 * U[egas_i][iii] * dV) {
+						//	eint = POWER(U[tau_i][iii], fgamma) * dV;
+						//}
+                                        	real p = (fgamma - 1.0) * eint;
+                                        	if (opts().eos == WD) {
+                                                	p += ztwd_pressure(U[rho_i][iii]) * dV;
+                                        	}
 						rc.ekin[i] += ekin;
 						rc.epot[i] += epot;
 						rc.eint[i] += eint;
+						rc.pint[i] += p;
 						const real r = SQRT(dX[0] * dX[0] + dX[1] * dX[1] + dX[2] * dX[2]);
 						for (integer n = 0; n != NDIM; ++n) {
 							for (integer m = 0; m <= n; ++m) {
@@ -599,7 +610,7 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 						if (phi_eff < diags.l1_phi) {
 							rc.roche_vol[i] += dV;
 						}
-						if (U[rho_i][iii] > 10.0 * rho_floor) {
+						if (U[rho_i][iii] > 10.0 * opts().scf_rho_floor) {
 							rc.stellar_vol[i] += dV;
 						}
 						rc.rho_max[i] = std::max(rc.rho_max[i], safe_real(rho0));
@@ -642,14 +653,14 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 					ek += HALF * pow(U[sz_i][iii], 2) * INVERSE(U[rho_i][iii]);
 					real ei;
 					if (opts().eos == WD) {
-						ei = U[egas_i][iii] - ek - ztwd_energy(U[rho_i][iii]);
+						ei = td::max([egas_i][iii] - ek - ztwd_energy(U[rho_i][iii]), 0.0);
 					} else {
 						ei = U[egas_i][iii] - ek;
 					}
 					real et = U[egas_i][iii];
-					if (ei < de_switch2 * et) {
-						ei = POWER(U[tau_i][iii], fgamma);
-					}
+					//if (ei < de_switch2 * et) {
+					//	ei = POWER(U[tau_i][iii], fgamma);
+					//}
 					real p = (fgamma - 1.0) * ei;
 					if (opts().eos == WD) {
 						p += ztwd_pressure(U[rho_i][iii]);
@@ -1475,7 +1486,7 @@ void grid::rho_move(real x) {
 				for (integer si = 0; si != opts().n_species; ++si) {
 					U[rho_i][hindex(i, j, k)] += U[spc_i + si][hindex(i, j, k)];
 				}
-				U[rho_i][hindex(i, j, k)] = std::max((double) U[rho_i][hindex(i, j, k)], rho_floor);
+				U[rho_i][hindex(i, j, k)] = std::max((double) U[rho_i][hindex(i, j, k)], opts().scf_rho_floor);
 			}
 		}
 	}
@@ -1551,8 +1562,8 @@ std::vector<std::pair<std::string, std::string>> grid::get_scalar_expressions() 
 	}
 	rho += '0';
 	rc.push_back(std::make_pair(std::string("rho"), std::move(rho)));
-	rc.push_back(std::make_pair(std::string("vx"), hpx::util::format("sx / rho + {:e} * coord(quadmesh)[0]", omega)));
-	rc.push_back(std::make_pair(std::string("vy"), hpx::util::format("sy / rho - {:e} * coord(quadmesh)[1]", omega)));
+	rc.push_back(std::make_pair(std::string("vx"), hpx::util::format("sx / rho + {:e} * coord(quadmesh)[1]", omega)));
+	rc.push_back(std::make_pair(std::string("vy"), hpx::util::format("sy / rho - {:e} * coord(quadmesh)[0]", omega)));
 	rc.push_back(std::make_pair(std::string("vz"), std::string("sz / rho")));
 	rc.push_back(std::make_pair(std::string("zx"), "lx - coord(quadmesh)[1]*sz + coord(quadmesh)[2]*sy"));
 	rc.push_back(std::make_pair(std::string("zy"), "ly + coord(quadmesh)[0]*sz - coord(quadmesh)[2]*sx"));
@@ -1595,9 +1606,9 @@ std::vector<std::pair<std::string, std::string>> grid::get_scalar_expressions() 
 		rc.push_back(std::make_pair(std::string("A"), "6.00228e+22"));
 		rc.push_back(std::make_pair(std::string("B"), "(2 * 9.81011e+5)"));
 		rc.push_back(std::make_pair(std::string("x"), "(rho/B)^(1.0/3.0)"));
-		rc.push_back(std::make_pair(std::string("Pdeg"), "A*(x*(2.0*x*x-3.0)*sqrt(x*x+1.0)+3.0*ln(x+sqrt(x*x+1)))"));
-		rc.push_back(std::make_pair(std::string("hdeg"), "8.0*A/B*(sqrt(x*x+1)-1)"));
-		rc.push_back(std::make_pair(std::string("Edeg"), "rho*hdeg - Pdeg"));
+		rc.push_back(std::make_pair(std::string("Pdeg"), "if( gt(x,0.01),A*(x*(2.0*x*x-3.0)*sqrt(x*x+1.0)+3.0*ln(x+sqrt(x*x+1))), A*1.6*x^5)"));
+		rc.push_back(std::make_pair(std::string("hdeg"), "if( gt(x,0.01),8.0*A/B*(sqrt(x*x+1)-1), (8.0 * A / B) * (0.5 * x * x))"));
+		rc.push_back(std::make_pair(std::string("Edeg"), "if ( gt(x,0.01), rho*hdeg - Pdeg, A*2.4*x^5)"));
 	}
 	if (opts().problem == MARSHAK) {
 		rc.push_back(std::make_pair(std::string("T"), std::string("(ei/rho)^(1.0/3.0)")));
@@ -1606,9 +1617,7 @@ std::vector<std::pair<std::string, std::string>> grid::get_scalar_expressions() 
 		rc.push_back(std::make_pair(std::string("P"), hpx::util::format("{:e} * ei", (fgamma - 1.0))));
 		rc.push_back(std::make_pair(std::string("T"), hpx::util::format("{:e} * ei / n", 1.0 / (kb / (fgamma - 1.0)))));
 	} else {
-		rc.push_back(
-				std::make_pair(std::string("ei"),
-						hpx::util::format("if( gt(egas-ek-Edeg,{:e}*egas), egas-ek-Edeg, tau^{:e})", opts().dual_energy_sw1, fgamma)));
+		rc.push_back(std::make_pair(std::string("ei"), "max(egas-ek-Edeg,0.0)"));
 		rc.push_back(std::make_pair(std::string("P"), hpx::util::format("Pdeg + {:e} * ei", (fgamma - 1.0))));
 		rc.push_back(std::make_pair(std::string("T"), hpx::util::format("{:e} * ei / n", 1.0 / (kb / (fgamma - 1.0)))));
 	}
@@ -2388,14 +2397,14 @@ std::pair<real, real> grid::virial() const {
 				ek += HALF * pow(U[sz_i][iii], 2) / U[rho_i][iii];
 				real ei;
 				if (opts().eos == WD) {
-					ei = U[egas_i][iii] - ek - ztwd_energy(U[rho_i][iii]);
+					ei = std::max(U[egas_i][iii] - ek - ztwd_energy(U[rho_i][iii]), 0.0);
 				} else {
 					ei = U[egas_i][iii] - ek;
 				}
 				real et = U[egas_i][iii];
-				if (ei < de_switch2 * et) {
-					ei = std::pow(U[tau_i][iii], fgamma);
-				}
+				//if (ei < de_switch2 * et) {
+				//	ei = std::pow(U[tau_i][iii], fgamma);
+				//}
 				real p = (fgamma - 1.0) * ei;
 				if (opts().eos == WD) {
 					p += ztwd_pressure(U[rho_i][iii]);

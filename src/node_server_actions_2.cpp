@@ -283,31 +283,34 @@ diagnostics_t node_server::diagnostics() {
 			fprintf(fp, "%13e ", (double) diags.jorb);
 			for (integer s = 0; s != 2; ++s) {
 				const auto radius = std::pow(diags.roche_vol[s] / (4.0 / 3.0 * M_PI), 1. / 3.);
-				fprintf(fp, "%13e ", (double) diags.m[s]);				// 5 // 19
+				fprintf(fp, "%13e ", (double) diags.m[s]);				// 5 // 22
 				fprintf(fp, "%13e ", (double) diags.js[s]);
 				fprintf(fp, "%13e ", (double) diags.lz1[s]);
 				fprintf(fp, "%13e ", (double) diags.lz2[s]);
-				fprintf(fp, "%13e ", (double) diags.ekin[s]);           // 9  // 23
-				fprintf(fp, "%13e ", (double) diags.epot[s]);           // 10 // 24
-				fprintf(fp, "%13e ", (double) diags.eint[s]);           // 11 // 25
-				fprintf(fp, "%13e ", (double) diags.com[s][0]);			// 12 // 26
-				fprintf(fp, "%13e ", (double) diags.com[s][1]);			// 13 // 27
+				fprintf(fp, "%13e ", (double) diags.ekin[s]);           // 9  // 26
+				fprintf(fp, "%13e ", (double) diags.epot[s]);           // 10 // 27
+				fprintf(fp, "%13e ", (double) diags.eint[s]);           // 11 // 28
+				fprintf(fp, "%13e ", (double) diags.edeg[s]);		// 12 // 29
+				fprintf(fp, "%13e ", (double) diags.pint[s]);		// 13 // 30
+				fprintf(fp, "%13e ", (double) diags.com[s][0]);			// 14 // 31
+				fprintf(fp, "%13e ", (double) diags.com[s][1]);			// 15 // 32
 				fprintf(fp, "%13e ", (double) diags.com_dot[s][0]);
 				fprintf(fp, "%13e ", (double) diags.com_dot[s][1]);
-				fprintf(fp, "%13e ", (double) radius);					// 16 // 30
+				fprintf(fp, "%13e ", (double) radius);					// 18 // 35
+				fprintf(fp, "%13e ", (double) diags.stellar_vol[s]);	// 19 // 36
 				fprintf(fp, "%13e ", (double) diags.Ts[s]);
-				fprintf(fp, "%13e ", (double) diags.z_moment[s]);       // 18  // 32
+				fprintf(fp, "%13e ", (double) diags.z_moment[s]);       // 21  // 38
 			}
-			fprintf(fp, "%13e ", (double) diags.rho_max[0]); // 33
-			fprintf(fp, "%13e ", (double) diags.rho_max[1]); // 34
-			fprintf(fp, "%13e ", (double) diags.grid_com[0]); // 35
-			fprintf(fp, "%13e ", (double) diags.grid_com[1]); // 36
-			fprintf(fp, "%13e ", (double) diags.nonvacj); // 37
-			fprintf(fp, "%13e ", (double) diags.nonvacjlz); // 38
-			fprintf(fp, "%13e ", (double) diags.Torb); //39
-			fprintf(fp, "%13e ", (double) diags.grid_sum[rho_i]); //40
-			fprintf(fp, "%13e ", (double) diags.munbound1); //41
-			fprintf(fp, "%13e ", (double) diags.munbound2); //4@
+			fprintf(fp, "%13e ", (double) diags.rho_max[0]); // 39
+			fprintf(fp, "%13e ", (double) diags.rho_max[1]); // 40
+			fprintf(fp, "%13e ", (double) diags.grid_com[0]); // 41
+			fprintf(fp, "%13e ", (double) diags.grid_com[1]); // 42
+			fprintf(fp, "%13e ", (double) diags.nonvacj); // 43
+			fprintf(fp, "%13e ", (double) diags.nonvacjlz); // 44
+			fprintf(fp, "%13e ", (double) diags.Torb); //45
+			fprintf(fp, "%13e ", (double) diags.grid_sum[rho_i]); //46
+			fprintf(fp, "%13e ", (double) diags.munbound1); //47
+			fprintf(fp, "%13e ", (double) diags.munbound2); //48
 			fprintf(fp, "\n");
 			fclose(fp);
 			fp = fopen((opts().data_dir + "sums.dat").c_str(), "at");
