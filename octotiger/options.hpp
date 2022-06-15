@@ -88,6 +88,8 @@ public:
 	real cfl;
 	real rho_floor;
 	real tau_floor;
+	real scf_rho_floor;
+	real scf_pout_factor;
 
 	real sod_rhol;
 	real sod_rhor;
@@ -149,6 +151,8 @@ public:
 		arc & eblast0;
 		arc & rho_floor;
 		arc & tau_floor;
+		arc & scf_rho_floor;
+		arc & scf_pout_factor;
 		arc & sod_rhol;
 		arc & sod_rhor;
 		arc & sod_pl;

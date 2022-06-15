@@ -273,7 +273,7 @@ struct scf_parameters {
 		R1 = POWER(V1 / c, 1.0 / 3.0) * POWER(fill1, 5);
 		R2 = POWER(V2 / c, 1.0 / 3.0) * POWER(fill2, 5);
 		if (opts().eos == WD) {
-			//	printf( "!\n");
+				printf( "R2: %e!\n", R2);
 			struct_eos2 = std::make_shared<struct_eos>(scf_options::M2, R2);
 			struct_eos1 = std::make_shared<struct_eos>(scf_options::M1, *struct_eos2);
 		} else {
@@ -281,6 +281,7 @@ struct scf_parameters {
 				struct_eos2 = std::make_shared<struct_eos>(scf_options::M2, R2, scf_options::nc2, scf_options::ne2, scf_options::core_frac2, scf_options::mu2);
 				struct_eos1 = std::make_shared<struct_eos>(scf_options::M1, scf_options::nc1, *struct_eos2);
 			} else {
+				printf("R1: %e, M1: %e, nc1: %e, ne1: %e, core_frac1: %e, mu1: %e\n", R1, scf_options::M1, scf_options::nc1, scf_options::ne1, scf_options::core_frac1, scf_options::mu1);
 				struct_eos1 = std::make_shared<struct_eos>(scf_options::M1, R1, scf_options::nc1, scf_options::ne1, scf_options::core_frac1, scf_options::mu1);
 
 				if (contact > 0.0 && !opts().v1309) {
@@ -309,6 +310,7 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 		printf("OMEGA <= 0.0\n");
 		abort();
 	}
+	real rho_floor = opts().scf_rho_floor;
 	real rho_int = 10.0 * rho_floor;
 	rho_int = SQRT(rho_int * rho_floor);
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
@@ -414,7 +416,7 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 				U[sz_i][iiih] = 0.0;
 				if (rho == rho_floor) {
 					sx = sy = 0.0;
-					eint = -0.5 * rho_floor * G[iiig][phi_i];
+					eint = -0.5 * opts().scf_pout_factor * rho_floor * G[iiig][phi_i];
 					if (opts().eos == WD) {
 						eint -= 3.0 * ztwd_pressure(rho);
 					}
@@ -713,7 +715,7 @@ std::vector<real> scf_binary(real x, real y, real z, real dx) {
 		}
 	}
 //	grid::set_AB(this_struct_eos->A, this_struct_eos->B());
-	rho = std::max(rho / nsamp, rho_floor);
+	rho = std::max(rho / nsamp, opts().scf_rho_floor);
 	if (opts().eos == WD) {
 		ei = this_struct_eos->energy(rho);
 	} else {
