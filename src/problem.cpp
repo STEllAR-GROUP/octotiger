@@ -338,15 +338,15 @@ std::vector<real> star(real x, real y, real z, real) {
 	std::vector<real> u(opts().n_fields, real(0));
 	if (opts().eos == WD) {
 		const real r = std::sqrt(x * x + y * y + z * z);
-		static struct_eos eos(1.0, 1.0);
+		static struct_eos eos(opts().star_rho_center, opts().star_rmax);
 		physcon().A = eos.A;
 		physcon().B = eos.B();
 		normalize_constants();
 		const real rho = std::max(eos.density_at(r, 0.01), rho_out);
 		const real ei = eos.energy(rho);
 		u[rho_i] = rho;
-		u[egas_i] = ei;
-		u[tau_i] = std::pow(std::max(ei - ztwd_energy(rho), 0.0), 1.0 / fgamma);
+	        u[egas_i] = std::max(ei, opts().star_egas_out);
+        	u[tau_i] = std::pow(std::max(u[egas_i] - ztwd_energy(rho), 1.0e-20), 1.0 / fgamma);
 		u[spc_i] = rho;
 		return u;
 	} else {
