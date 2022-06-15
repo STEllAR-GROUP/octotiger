@@ -22,7 +22,6 @@ constexpr double MARSHAK_OPAC = 1.0e+2;
 
 //#define OCTOTIGER_FLUX_CHECK
 
-constexpr real rho_floor = 1.0e-12;
 constexpr int REFINE_BW = 2;
 
 //#define FIND_AXIS_V2
