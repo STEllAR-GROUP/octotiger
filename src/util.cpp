@@ -65,18 +65,26 @@ int file_copy(const char* fin, const char* fout) {
 bool find_root(std::function<double(double)>& func, double xmin, double xmax,
 		double& root, double toler) {
 	double xmid;
+	const int max_iter = 200;
+	int iter = 0;
 	const auto error = [](const double _xmax, const double _xmin) {
 		return (_xmax - _xmin) / (std::abs(_xmax) + std::abs(_xmin))*2.0;
 	};
 	double xmin0 = xmin;
 	double xmax0 = xmax;
 	while (error(xmax,xmin) > toler) {
+		printf("iter num: %d\n", iter); 
+		if (iter >= max_iter) {
+			printf("exceeded max iterations in find_root!\n");
+			return false;
+		}
 		xmid = (xmax + xmin) / 2.0;
 		if (func(xmid) * func(xmax) < 0.0) {
 			xmin = xmid;
 		} else {
 			xmax = xmid;
 		}
+		iter++;
 	}
 	root = xmid;
 	if( error(root,xmin0) < 10.0*toler || error(xmax0,root) < 10.0*toler ) {
