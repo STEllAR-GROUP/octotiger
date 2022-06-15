@@ -25,11 +25,6 @@
 #include <vector>
 
 class rad_grid {
-public:
-	static constexpr integer er_i = 0;
-	static constexpr integer fx_i = 1;
-	static constexpr integer fy_i = 2;
-	static constexpr integer fz_i = 3;
 private:
 	static constexpr integer DX = RAD_NX * RAD_NX;
 	static constexpr integer DY = RAD_NX;
@@ -39,10 +34,10 @@ private:
 	real dx;
 	std::vector<std::atomic<int>> is_coarse;
 	std::vector<std::atomic<int>> has_coarse;
-	std::vector<std::vector<real>> Ushad;
-	std::vector<std::vector<real>> U;
-	std::array<std::vector<real>, NRF> U0;
-	std::vector<std::vector<std::vector<real>>> flux;
+	std::vector<real> Ushad;
+	std::vector<real> U;
+	std::vector<real> U0;
+	std::vector<std::vector<real>> flux;
 	std::array<std::array<std::vector<real>,NDIM>,NDIM> P;
 	std::vector<std::vector<real>> X;
 	std::vector<real> mmw, X_spc, Z_spc;
@@ -91,8 +86,8 @@ public:
 	rad_grid();
 	std::vector<real> radiation_diffusion_analytic(real x, real y, real z, real t);
 	void set_boundary(const std::vector<real>& data, const geo::direction& dir);
-	real get_field(integer f, integer i, integer j, integer k) const;
-	void set_field(real v, integer f, integer i, integer j, integer k);
+	real get_er(integer i, integer j, integer k) const;
+	void set_er(real v, integer i, integer j, integer k);
 	void set_physical_boundaries(geo::face f, real t);
 	std::vector<real> get_boundary(const geo::direction& dir);
 	using kappa_type = std::function<real(real)>;

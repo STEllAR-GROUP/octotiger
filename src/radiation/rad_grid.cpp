@@ -32,13 +32,7 @@ std::unordered_map<std::string, int> rad_grid::str_to_index;
 std::unordered_map<int, std::string> rad_grid::index_to_str;
 
 void rad_grid::static_init() {
-	str_to_index["er"] = er_i;
-	str_to_index["fx"] = fx_i;
-	str_to_index["fy"] = fy_i;
-	str_to_index["fz"] = fz_i;
-	for (const auto &s : str_to_index) {
-		index_to_str[s.second] = s.first;
-	}
+	str_to_index["er"] = 0;
 }
 
 std::vector<std::string> rad_grid::get_field_names() {
@@ -56,9 +50,6 @@ void rad_grid::set(const std::string name, real *data) {
 					1 :
 					opts().code_to_g / std::pow(opts().code_to_s, 2)
 							/ opts().code_to_cm;
-	real funit =
-			opts().problem == MARSHAK ?
-					1 : eunit * opts().code_to_cm / opts().code_to_s;
 	if (iter != str_to_index.end()) {
 		int f = iter->second;
 		int jjj = 0;
@@ -66,8 +57,8 @@ void rad_grid::set(const std::string name, real *data) {
 			for (int j = 0; j < INX; j++) {
 				for (int k = 0; k < INX; k++) {
 					const int iii = rindex(k + RAD_BW, j + RAD_BW, i + RAD_BW);
-					data[jjj] /= f == er_i ? eunit : funit;
-					U[f][iii] = data[jjj];
+					data[jjj] /= eunit;
+					U[iii] = data[jjj];
 					jjj++;
 				}
 			}
@@ -95,8 +86,8 @@ std::vector<silo_var_t> rad_grid::var_data() const {
 			for (int j = 0; j < INX; j++) {
 				for (int k = 0; k < INX; k++) {
 					const int iii = rindex(k + RAD_BW, j + RAD_BW, i + RAD_BW);
-					this_s(jjj) = U[f][iii];
-					this_s(jjj) *= f == er_i ? eunit : funit;
+					this_s(jjj) = U[iii];
+					this_s(jjj) *= eunit;
 					this_s.set_range(this_s(jjj));
 					jjj++;
 				}
@@ -182,8 +173,8 @@ void rad_grid::rad_imp(std::vector<real> &egas, std::vector<real> &tau,
 	const real clight = physcon().c / opts().clight_retard;
 	const real clightinv = INVERSE(clight);
 	const real fgamma = grid::get_fgamma();
-	octotiger::radiation::radiation_kernel<er_i, fx_i, fy_i, fz_i>(d, rho, sx,
-			sy, sz, egas, tau, fgamma, U, mmw, X_spc, Z_spc, dt, clightinv);
+	/*	octotiger::radiation::radiation_kernel<er_i, fx_i, fy_i, fz_i>(d, rho, sx,
+	 sy, sz, egas, tau, fgamma, U, mmw, X_spc, Z_spc, dt, clightinv);*/
 }
 
 void rad_grid::set_dx(real _dx) {
@@ -235,7 +226,7 @@ real rad_grid::hydro_signal_speed(const std::vector<real> &egas,
 					e0 = std::pow(tau[iiih], fgamma);
 				}
 
-				real this_a = (4.0 / 9.0) * U[er_i][iiir] * rhoinv;
+				real this_a = (4.0 / 9.0) * U[iiir] * rhoinv;
 				//		printf( "%e %e %e %e\n",rho[iiih], e0, mmw[iiir],dx );
 				if (!opts().rad_diffusion_limit) {
 					const real cons = kappa_R(rho[iiih], e0, mmw[iiir],
@@ -359,29 +350,23 @@ void rad_grid::allocate() {
 			P[dim][dim1].resize(RAD_N3);
 		}
 	}
-	for (integer f = 0; f != NRF; ++f) {
-		U0[f].resize(RAD_N3);
-		U[f].resize(RAD_N3);
-		Ushad[f].resize(RAD_N3);
-		for (integer d = 0; d != NDIM; ++d) {
-			flux[d][f].resize(RAD_N3);
-		}
+	U0.resize(RAD_N3);
+	U.resize(RAD_N3);
+	Ushad.resize(RAD_N3);
+	for (integer d = 0; d != NDIM; ++d) {
+		flux[d].resize(RAD_N3);
 	}
 }
 
 void rad_grid::store() {
-	for (integer f = 0; f != NRF; ++f) {
-		for (integer i = 0; i != RAD_N3; ++i) {
-			U0[f][i] = U[f][i];
-		}
+	for (integer i = 0; i != RAD_N3; ++i) {
+		U0[i] = U[i];
 	}
 }
 
 void rad_grid::restore() {
-	for (integer f = 0; f != NRF; ++f) {
-		for (integer i = 0; i != RAD_N3; ++i) {
-			U[f][i] = U0[f][i];
-		}
+	for (integer i = 0; i != RAD_N3; ++i) {
+		U[i] = U0[i];
 	}
 }
 
@@ -390,7 +375,7 @@ void rad_grid::sanity_check() {
 		for (integer yi = RAD_BW; yi != RAD_NX - RAD_BW; ++yi) {
 			for (integer zi = RAD_BW; zi != RAD_NX - RAD_BW; ++zi) {
 				const integer iiir = rindex(xi, yi, zi);
-				if (U[er_i][iiir] <= 0.0) {
+				if (U[iiir] <= 0.0) {
 					print("INSANE\n");
 					//		print("%e %i %i %i\n", U[er_i][iiir], xi, yi, zi);
 					abort();
@@ -417,13 +402,13 @@ void rad_grid::compute_flux(real omega, const std::vector<real> &egas,
 				const auto D = H_BW - RAD_BW;
 				const integer iii = rindex(xi, yi, zi);
 				const integer iiih = hindex(xi + D, yi + D, zi + D);
-				const real erxp = U[er_i][iii + DX];
-				const real erxm = U[er_i][iii - DX];
-				const real eryp = U[er_i][iii + DY];
-				const real erym = U[er_i][iii - DY];
-				const real erzp = U[er_i][iii + DZ];
-				const real erzm = U[er_i][iii - DZ];
-				const real er0 = U[er_i][iii];
+				const real erxp = U[iii + DX];
+				const real erxm = U[iii - DX];
+				const real eryp = U[iii + DY];
+				const real erym = U[iii - DY];
+				const real erzp = U[iii + DZ];
+				const real erzm = U[iii - DZ];
+				const real er0 = U[iii];
 				const real gradx = (erxp - erxm) / (2.0 * dx);
 				const real grady = (eryp - erym) / (2.0 * dx);
 				const real gradz = (erzp - erzm) / (2.0 * dx);
@@ -484,13 +469,13 @@ void rad_grid::compute_flux(real omega, const std::vector<real> &egas,
 						/ (difco_l + difco_ry + 1e-100);
 				const real difco_z = 2.0 * (difco_l * difco_rz)
 						/ (difco_l + difco_rz + 1e-100);
-				const real erxp = U[er_i][iii - DX];
-				const real eryp = U[er_i][iii - DY];
-				const real erzp = U[er_i][iii - DZ];
-				const real er0 = U[er_i][iii];
-				flux[XDIM][er_i][iii] = clight * difco_x * (erxp - er0) / dx;
-				flux[YDIM][er_i][iii] = clight * difco_y * (eryp - er0) / dx;
-				flux[ZDIM][er_i][iii] = clight * difco_z * (erzp - er0) / dx;
+				const real erxp = U[iii - DX];
+				const real eryp = U[iii - DY];
+				const real erzp = U[iii - DZ];
+				const real er0 = U[iii];
+				flux[XDIM][iii] = clight * difco_x * (erxp - er0) / dx;
+				flux[YDIM][iii] = clight * difco_y * (eryp - er0) / dx;
+				flux[ZDIM][iii] = clight * difco_z * (erzp - er0) / dx;
 			}
 		}
 	}
@@ -504,10 +489,7 @@ void rad_grid::change_units(real m, real l, real t, real k) {
 	const real l3 = l2 * l;
 	const real l3inv = 1.0 * INVERSE(l3);
 	for (integer i = 0; i != RAD_N3; ++i) {
-		U[er_i][i] *= (m * l2 * t2inv) * l3inv;
-		U[fx_i][i] *= tinv * (m * t2inv);
-		U[fy_i][i] *= tinv * (m * t2inv);
-		U[fz_i][i] *= tinv * (m * t2inv);
+		U[i] *= (m * l2 * t2inv) * l3inv;
 	}
 }
 
@@ -557,13 +539,13 @@ void rad_grid::advance(real dt, real beta, std::vector<real> &sx,
 				dvP += dvzx * P[ZDIM][XDIM][iii];
 				dvP += dvzy * P[ZDIM][YDIM][iii];
 				dvP += dvzz * P[ZDIM][ZDIM][iii];
-				const real &u0 = U0[er_i][iii];
-				real u1 = U[er_i][iii];
+				const real &u0 = U0[iii];
+				real u1 = U[iii];
 				for (integer d = 0; d != NDIM; ++d) {
-					u1 -= l * (flux[d][er_i][iii + D[d]] - flux[d][er_i][iii]);
+					u1 -= l * (flux[d][iii + D[d]] - flux[d][iii]);
 					u1 -= dvP * dt;
 				}
-				U[er_i][iii] = u0 * (1.0 - beta) + beta * u1;
+				U[iii] = u0 * (1.0 - beta) + beta * u1;
 			}
 		}
 	}
@@ -579,10 +561,7 @@ void rad_grid::set_physical_boundaries(geo::face face, real t) {
 					const double y = X[YDIM][iiir];
 					const double z = X[ZDIM][iiir];
 					const auto u = radiation_diffusion_analytic(x, y, z, t);
-					U[er_i][iiir] = u[er_i];
-					U[fx_i][iiir] = u[fx_i];
-					U[fy_i][iiir] = u[fy_i];
-					U[fz_i][iiir] = u[fz_i];
+					U[iiir] = u[0];
 				}
 			}
 		}
@@ -617,42 +596,7 @@ void rad_grid::set_physical_boundaries(geo::face face, real t) {
 						iii1 = rindex(i, j, RAD_NX - 1 - k);
 						iii0 = rindex(i, j, RAD_NX - 1 - RAD_BW);
 					}
-					for (integer f = 0; f != NRF; ++f) {
-						U[f][iii1] = U[f][iii0];
-					}
-					switch (face) {
-					case 0:
-						if (opts().problem == MARSHAK) {
-							if (t > 0) {
-								auto u = marshak_wave_analytic(-opts().xscale,
-										0, 0, t);
-								U[fx_i][iii1] = u[opts().n_fields + fx_i];
-								U[er_i][iii1] = std::max(
-										u[opts().n_fields + er_i], 1.0e-10);
-							} else {
-								U[fx_i][iii1] = 0.0;
-								U[er_i][iii1] = 1.0e-10;
-							}
-						} else {
-							U[fx_i][iii1] = std::min(U[fx_i][iii1], 0.0);
-						}
-						break;
-					case 1:
-						U[fx_i][iii1] = std::max(U[fx_i][iii1], 0.0);
-						break;
-					case 2:
-						U[fy_i][iii1] = std::min(U[fy_i][iii1], 0.0);
-						break;
-					case 3:
-						U[fy_i][iii1] = std::max(U[fy_i][iii1], 0.0);
-						break;
-					case 4:
-						U[fz_i][iii1] = std::min(U[fz_i][iii1], 0.0);
-						break;
-					case 5:
-						U[fz_i][iii1] = std::max(U[fz_i][iii1], 0.0);
-						break;
-					}
+					U[iii1] = U[iii0];
 				}
 			}
 		}
@@ -753,14 +697,12 @@ void rad_grid::set_flux_restrict(const std::vector<real> &data,
 		const std::array<integer, NDIM> &ub, const geo::dimension &dim) {
 
 	integer index = 0;
-	for (integer field = 0; field != NRF; ++field) {
-		for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
-			for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
-				for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
-					const integer iii = rindex(i, j, k);
-					flux[dim][field][iii] = data[index];
-					++index;
-				}
+	for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
+		for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
+			for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
+				const integer iii = rindex(i, j, k);
+				flux[dim][iii] = data[index];
+				++index;
 			}
 		}
 	}
@@ -780,22 +722,20 @@ std::vector<real> rad_grid::get_flux_restrict(
 	data.reserve(size);
 	const integer stride1 = (dim == XDIM) ? (RAD_NX) : (RAD_NX) * (RAD_NX);
 	const integer stride2 = (dim == ZDIM) ? (RAD_NX) : 1;
-	for (integer field = 0; field != NRF; ++field) {
-		for (integer i = lb[XDIM]; i < ub[XDIM]; i += 2) {
-			for (integer j = lb[YDIM]; j < ub[YDIM]; j += 2) {
-				for (integer k = lb[ZDIM]; k < ub[ZDIM]; k += 2) {
-					const integer i00 = rindex(i, j, k);
-					const integer i10 = i00 + stride1;
-					const integer i01 = i00 + stride2;
-					const integer i11 = i00 + stride1 + stride2;
-					real value = ZERO;
-					value += flux[dim][field][i00];
-					value += flux[dim][field][i10];
-					value += flux[dim][field][i01];
-					value += flux[dim][field][i11];
-					value /= real(4);
-					data.push_back(value);
-				}
+	for (integer i = lb[XDIM]; i < ub[XDIM]; i += 2) {
+		for (integer j = lb[YDIM]; j < ub[YDIM]; j += 2) {
+			for (integer k = lb[ZDIM]; k < ub[ZDIM]; k += 2) {
+				const integer i00 = rindex(i, j, k);
+				const integer i10 = i00 + stride1;
+				const integer i01 = i00 + stride2;
+				const integer i11 = i00 + stride1 + stride2;
+				real value = ZERO;
+				value += flux[dim][i00];
+				value += flux[dim][i10];
+				value += flux[dim][i01];
+				value += flux[dim][i11];
+				value /= real(4);
+				data.push_back(value);
 			}
 		}
 	}
@@ -900,10 +840,7 @@ std::vector<real> rad_grid::radiation_diffusion_analytic(real x, real y, real z,
 	 fy = -derdr * y / r * D0;
 	 fz = -derdr * z / r * D0;
 	 }*/
-	U[er_i] = er;
-	U[fx_i] = fx;
-	U[fy_i] = fy;
-	U[fz_i] = fz;
+	U[0] = er;
 	return U;
 
 }
@@ -922,14 +859,10 @@ void rad_grid::initialize_erad(const std::vector<safe_real> rho,
 				if (opts().problem == RADIATION_DIFFUSION) {
 					auto u = radiation_diffusion_analytic(X[XDIM][iiih],
 							X[YDIM][iiih], X[ZDIM][iiih], 0.0);
-					U[er_i][iiir] = u[er_i];
-					U[fx_i][iiir] = u[fx_i];
-					U[fy_i][iiir] = u[fy_i];
-					U[fz_i][iiir] = u[fz_i];
+					U[iiir] = u[0];
 				} else {
-					U[er_i][iiir] = B_p((double) rho[iiih], (double) ei,
+					U[iiir] = B_p((double) rho[iiih], (double) ei,
 							(double) mmw[iiir]) * (4.0 * M_PI / physcon().c);
-					U[fx_i][iiir] = U[fy_i][iiir] = U[fz_i][iiir] = 0.0;
 				}
 			}
 		}
@@ -953,14 +886,11 @@ void rad_grid::set_boundary(const std::vector<real> &data,
 	get_boundary_size(lb, ub, dir, OUTER, INX, RAD_BW);
 	integer iter = 0;
 
-	for (integer field = 0; field != NRF; ++field) {
-		auto &Ufield = U[field];
-		for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
-			for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
-				for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
-					Ufield[rindex(i, j, k)] = data[iter];
-					++iter;
-				}
+	for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
+		for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
+			for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
+				U[rindex(i, j, k)] = data[iter];
+				++iter;
 			}
 		}
 	}
@@ -974,14 +904,11 @@ std::vector<real> rad_grid::get_boundary(const geo::direction &dir) {
 	data.resize(size);
 	integer iter = 0;
 
-	for (integer field = 0; field != NRF; ++field) {
-		auto &Ufield = U[field];
-		for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
-			for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
-				for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
-					data[iter] = Ufield[rindex(i, j, k)];
-					++iter;
-				}
+	for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
+		for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
+			for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
+				data[iter] = U[rindex(i, j, k)];
+				++iter;
 			}
 		}
 	}
@@ -989,24 +916,22 @@ std::vector<real> rad_grid::get_boundary(const geo::direction &dir) {
 	return data;
 }
 
-void rad_grid::set_field(real v, integer f, integer i, integer j, integer k) {
-	U[f][rindex(i, j, k)] = v;
+void rad_grid::set_er(real v, integer i, integer j, integer k) {
+	U[rindex(i, j, k)] = v;
 }
 
-real rad_grid::get_field(integer f, integer i, integer j, integer k) const {
-	return U[f][rindex(i, j, k)];
+real rad_grid::get_er(integer i, integer j, integer k) const {
+	return U[rindex(i, j, k)];
 }
 
 void rad_grid::set_prolong(const std::vector<real> &data) {
 	integer index = 0;
-	for (integer f = 0; f != NRF; ++f) {
-		for (integer i = RAD_BW; i != RAD_NX - RAD_BW; ++i) {
-			for (integer j = RAD_BW; j != RAD_NX - RAD_BW; ++j) {
-				for (integer k = RAD_BW; k != RAD_NX - RAD_BW; ++k) {
-					const integer iii = rindex(i, j, k);
-					U[f][iii] = data[index];
-					++index;
-				}
+	for (integer i = RAD_BW; i != RAD_NX - RAD_BW; ++i) {
+		for (integer j = RAD_BW; j != RAD_NX - RAD_BW; ++j) {
+			for (integer k = RAD_BW; k != RAD_NX - RAD_BW; ++k) {
+				const integer iii = rindex(i, j, k);
+				U[iii] = data[index];
+				++index;
 			}
 		}
 	}
@@ -1026,14 +951,12 @@ std::vector<real> rad_grid::get_prolong(const std::array<integer, NDIM> &lb,
 		ub0[d] /= 2;
 	}
 
-	for (integer f = 0; f != NRF; ++f) {
-		for (integer i = lb[XDIM]; i != ub[XDIM]; ++i) {
-			for (integer j = lb[YDIM]; j != ub[YDIM]; ++j) {
-				for (integer k = lb[ZDIM]; k != ub[ZDIM]; ++k) {
-					const integer iii = rindex(i / 2, j / 2, k / 2);
-					real value = U[f][iii];
-					data.push_back(value);
-				}
+	for (integer i = lb[XDIM]; i != ub[XDIM]; ++i) {
+		for (integer j = lb[YDIM]; j != ub[YDIM]; ++j) {
+			for (integer k = lb[ZDIM]; k != ub[ZDIM]; ++k) {
+				const integer iii = rindex(i / 2, j / 2, k / 2);
+				real value = U[iii];
+				data.push_back(value);
 			}
 		}
 	}
@@ -1042,24 +965,22 @@ std::vector<real> rad_grid::get_prolong(const std::array<integer, NDIM> &lb,
 
 std::vector<real> rad_grid::get_restrict() const {
 	std::vector<real> data;
-	for (integer f = 0; f != NRF; ++f) {
-		for (integer i = RAD_BW; i < RAD_NX - RAD_BW; i += 2) {
-			for (integer j = RAD_BW; j < RAD_NX - RAD_BW; j += 2) {
-				for (integer k = RAD_BW; k < RAD_NX - RAD_BW; k += 2) {
-					const integer iii = rindex(i, j, k);
-					real v = ZERO;
-					for (integer x = 0; x != 2; ++x) {
-						for (integer y = 0; y != 2; ++y) {
-							for (integer z = 0; z != 2; ++z) {
-								const integer jjj = iii + x * RAD_NX * RAD_NX
-										+ y * RAD_NX + z;
-								v += U[f][jjj];
-							}
+	for (integer i = RAD_BW; i < RAD_NX - RAD_BW; i += 2) {
+		for (integer j = RAD_BW; j < RAD_NX - RAD_BW; j += 2) {
+			for (integer k = RAD_BW; k < RAD_NX - RAD_BW; k += 2) {
+				const integer iii = rindex(i, j, k);
+				real v = ZERO;
+				for (integer x = 0; x != 2; ++x) {
+					for (integer y = 0; y != 2; ++y) {
+						for (integer z = 0; z != 2; ++z) {
+							const integer jjj = iii + x * RAD_NX * RAD_NX
+									+ y * RAD_NX + z;
+							v += U[jjj];
 						}
 					}
-					v /= real(NCHILD);
-					data.push_back(v);
 				}
+				v /= real(NCHILD);
+				data.push_back(v);
 			}
 		}
 	}
@@ -1072,17 +993,15 @@ void rad_grid::set_restrict(const std::vector<real> &data,
 	const integer i0 = octant.get_side(XDIM) * (INX / 2);
 	const integer j0 = octant.get_side(YDIM) * (INX / 2);
 	const integer k0 = octant.get_side(ZDIM) * (INX / 2);
-	for (integer f = 0; f != NRF; ++f) {
-		for (integer i = RAD_BW; i != RAD_NX / 2; ++i) {
-			for (integer j = RAD_BW; j != RAD_NX / 2; ++j) {
-				for (integer k = RAD_BW; k != RAD_NX / 2; ++k) {
-					const integer iii = rindex(i + i0, j + j0, k + k0);
-					U[f][iii] = data[index];
-					++index;
-					if (index > int(data.size())) {
-						print("rad_grid::set_restrict error %i %i\n",
-								int(index), int(data.size()));
-					}
+	for (integer i = RAD_BW; i != RAD_NX / 2; ++i) {
+		for (integer j = RAD_BW; j != RAD_NX / 2; ++j) {
+			for (integer k = RAD_BW; k != RAD_NX / 2; ++k) {
+				const integer iii = rindex(i + i0, j + j0, k + k0);
+				U[iii] = data[index];
+				++index;
+				if (index > int(data.size())) {
+					print("rad_grid::set_restrict error %i %i\n", int(index),
+							int(data.size()));
 				}
 			}
 		}
@@ -1167,13 +1086,11 @@ void rad_grid::set_rad_amr_boundary(const std::vector<real> &data,
 		ub[dim] = std::min(ub[dim] + 1, integer(HS_NX));
 	}
 
-	for (int f = 0; f < NRF; f++) {
-		for (int i = lb[0]; i < ub[0]; i++) {
-			for (int j = lb[1]; j < ub[1]; j++) {
-				for (int k = lb[2]; k < ub[2]; k++) {
-					has_coarse[hSindex(i, j, k)]++;
-					Ushad[f][hSindex(i, j, k)] = data[l++];
-				}
+	for (int i = lb[0]; i < ub[0]; i++) {
+		for (int j = lb[1]; j < ub[1]; j++) {
+			for (int k = lb[2]; k < ub[2]; k++) {
+				has_coarse[hSindex(i, j, k)]++;
+				Ushad[hSindex(i, j, k)] = data[l++];
 			}
 		}
 	}
@@ -1184,8 +1101,7 @@ void rad_grid::complete_rad_amr_boundary() {
 	PROFILE();
 
 	using oct_array = std::array<std::array<std::array<double, 2>, 2>, 2>;
-	static thread_local std::vector<std::vector<oct_array>> Uf(NRF,
-			std::vector<oct_array>(HS_N3));
+	static thread_local std::vector<oct_array> Uf(HS_N3);
 
 	std::array<double, NDIM> xmin;
 	for (int dim = 0; dim < NDIM; dim++) {
@@ -1196,61 +1112,58 @@ void rad_grid::complete_rad_amr_boundary() {
 		return minmod_theta(a, b, 64. / 37.);
 	};
 
-	for (int f = 0; f < NRF; f++) {
-
-		for (int i0 = 1; i0 < HS_NX - 1; i0++) {
-			for (int j0 = 1; j0 < HS_NX - 1; j0++) {
-				for (int k0 = 1; k0 < HS_NX - 1; k0++) {
-					const int iii0 = hSindex(i0, j0, k0);
-					if (is_coarse[iii0]) {
-						for (int ir = 0; ir < 2; ir++) {
-							for (int jr = 0; jr < 2; jr++) {
-								for (int kr = 0; kr < 2; kr++) {
-									const auto is = ir % 2 ? +1 : -1;
-									const auto js = jr % 2 ? +1 : -1;
-									const auto ks = kr % 2 ? +1 : -1;
-									const auto &u0 = Ushad[f][iii0];
-									const auto &uc = Ushad[f];
-									const auto s_x = limiter(
-											uc[iii0 + is * HS_DNX] - u0,
-											u0 - uc[iii0 - is * HS_DNX]);
-									const auto s_y = limiter(
-											uc[iii0 + js * HS_DNY] - u0,
-											u0 - uc[iii0 - js * HS_DNY]);
-									const auto s_z = limiter(
-											uc[iii0 + ks * HS_DNZ] - u0,
-											u0 - uc[iii0 - ks * HS_DNZ]);
-									const auto s_xy = limiter(
-											uc[iii0 + is * HS_DNX + js * HS_DNY]
-													- u0,
-											u0
-													- uc[iii0 - is * HS_DNX
-															- js * HS_DNY]);
-									const auto s_xz = limiter(
-											uc[iii0 + is * HS_DNX + ks * HS_DNZ]
-													- u0,
-											u0
-													- uc[iii0 - is * HS_DNX
-															- ks * HS_DNZ]);
-									const auto s_yz = limiter(
-											uc[iii0 + js * HS_DNY + ks * HS_DNZ]
-													- u0,
-											u0
-													- uc[iii0 - js * HS_DNY
-															- ks * HS_DNZ]);
-									const auto s_xyz = limiter(
-											uc[iii0 + is * HS_DNX + js * HS_DNY
-													+ ks * HS_DNZ] - u0,
-											u0
-													- uc[iii0 - is * HS_DNX
-															- js * HS_DNY
-															- ks * HS_DNZ]);
-									auto &uf = Uf[f][iii0][ir][jr][kr];
-									uf = u0;
-									uf += (9.0 / 64.0) * (s_x + s_y + s_z);
-									uf += (3.0 / 64.0) * (s_xy + s_yz + s_xz);
-									uf += (1.0 / 64.0) * s_xyz;
-								}
+	for (int i0 = 1; i0 < HS_NX - 1; i0++) {
+		for (int j0 = 1; j0 < HS_NX - 1; j0++) {
+			for (int k0 = 1; k0 < HS_NX - 1; k0++) {
+				const int iii0 = hSindex(i0, j0, k0);
+				if (is_coarse[iii0]) {
+					for (int ir = 0; ir < 2; ir++) {
+						for (int jr = 0; jr < 2; jr++) {
+							for (int kr = 0; kr < 2; kr++) {
+								const auto is = ir % 2 ? +1 : -1;
+								const auto js = jr % 2 ? +1 : -1;
+								const auto ks = kr % 2 ? +1 : -1;
+								const auto &u0 = Ushad[iii0];
+								const auto &uc = Ushad;
+								const auto s_x = limiter(
+										uc[iii0 + is * HS_DNX] - u0,
+										u0 - uc[iii0 - is * HS_DNX]);
+								const auto s_y = limiter(
+										uc[iii0 + js * HS_DNY] - u0,
+										u0 - uc[iii0 - js * HS_DNY]);
+								const auto s_z = limiter(
+										uc[iii0 + ks * HS_DNZ] - u0,
+										u0 - uc[iii0 - ks * HS_DNZ]);
+								const auto s_xy = limiter(
+										uc[iii0 + is * HS_DNX + js * HS_DNY]
+												- u0,
+										u0
+												- uc[iii0 - is * HS_DNX
+														- js * HS_DNY]);
+								const auto s_xz = limiter(
+										uc[iii0 + is * HS_DNX + ks * HS_DNZ]
+												- u0,
+										u0
+												- uc[iii0 - is * HS_DNX
+														- ks * HS_DNZ]);
+								const auto s_yz = limiter(
+										uc[iii0 + js * HS_DNY + ks * HS_DNZ]
+												- u0,
+										u0
+												- uc[iii0 - js * HS_DNY
+														- ks * HS_DNZ]);
+								const auto s_xyz = limiter(
+										uc[iii0 + is * HS_DNX + js * HS_DNY
+												+ ks * HS_DNZ] - u0,
+										u0
+												- uc[iii0 - is * HS_DNX
+														- js * HS_DNY
+														- ks * HS_DNZ]);
+								auto &uf = Uf[iii0][ir][jr][kr];
+								uf = u0;
+								uf += (9.0 / 64.0) * (s_x + s_y + s_z);
+								uf += (3.0 / 64.0) * (s_xy + s_yz + s_xz);
+								uf += (1.0 / 64.0) * s_xyz;
 							}
 						}
 					}
@@ -1259,28 +1172,26 @@ void rad_grid::complete_rad_amr_boundary() {
 		}
 	}
 
-	for (int f = 0; f < NRF; f++) {
-		for (int i = 0; i < H_NX; i++) {
-			for (int j = 0; j < H_NX; j++) {
-				for (int k = 0; k < H_NX; k++) {
-					const int i0 = (i + H_BW) / 2;
-					const int j0 = (j + H_BW) / 2;
-					const int k0 = (k + H_BW) / 2;
-					const int iii0 = hSindex(i0, j0, k0);
-					const int iiir = hindex(i, j, k);
-					if (is_coarse[iii0]) {
-						int ir, jr, kr;
-						if (H_BW % 2 == 0) {
-							ir = i % 2;
-							jr = j % 2;
-							kr = k % 2;
-						} else {
-							ir = 1 - (i % 2);
-							jr = 1 - (j % 2);
-							kr = 1 - (k % 2);
-						}
-						U[f][iiir] = Uf[f][iii0][ir][jr][kr];
+	for (int i = 0; i < H_NX; i++) {
+		for (int j = 0; j < H_NX; j++) {
+			for (int k = 0; k < H_NX; k++) {
+				const int i0 = (i + H_BW) / 2;
+				const int j0 = (j + H_BW) / 2;
+				const int k0 = (k + H_BW) / 2;
+				const int iii0 = hSindex(i0, j0, k0);
+				const int iiir = hindex(i, j, k);
+				if (is_coarse[iii0]) {
+					int ir, jr, kr;
+					if (H_BW % 2 == 0) {
+						ir = i % 2;
+						jr = j % 2;
+						kr = k % 2;
+					} else {
+						ir = 1 - (i % 2);
+						jr = 1 - (j % 2);
+						kr = 1 - (k % 2);
 					}
+					U[iiir] = Uf[iii0][ir][jr][kr];
 				}
 			}
 		}
@@ -1292,12 +1203,10 @@ std::vector<real> rad_grid::get_subset(const std::array<integer, NDIM> &lb,
 		const std::array<integer, NDIM> &ub) {
 	PROFILE();
 	std::vector<real> data;
-	for (int f = 0; f < NRF; f++) {
-		for (int i = lb[0]; i < ub[0]; i++) {
-			for (int j = lb[1]; j < ub[1]; j++) {
-				for (int k = lb[2]; k < ub[2]; k++) {
-					data.push_back(U[f][hindex(i, j, k)]);
-				}
+	for (int i = lb[0]; i < ub[0]; i++) {
+		for (int j = lb[1]; j < ub[1]; j++) {
+			for (int k = lb[2]; k < ub[2]; k++) {
+				data.push_back(U[hindex(i, j, k)]);
 			}
 		}
 	}
