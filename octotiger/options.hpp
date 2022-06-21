@@ -24,7 +24,7 @@
  COMMAND_LINE_ENUM(eos_type,IDEAL,WD);
  */
 
-COMMAND_LINE_ENUM(problem_type, DWD, SOD, BLAST, NONE, SOLID_SPHERE, STAR, MOVING_STAR, RADIATION_TEST, ROTATING_STAR, MARSHAK, AMR_TEST, ADVECTION);
+COMMAND_LINE_ENUM(problem_type, DWD, SOD, BLAST, NONE, SOLID_SPHERE, STAR, MOVING_STAR, RADIATION_TEST, ROTATING_STAR, MARSHAK, AMR_TEST, ADVECTION, MESA_STAR);
 
 COMMAND_LINE_ENUM(eos_type, IDEAL, WD);
 
@@ -126,6 +126,7 @@ public:
 	std::string input_file;
 	std::string config_file;
 	std::string data_dir;
+	std::string mesa_filename;
 	std::string output_filename;
 	std::string restart_filename;
 	integer n_species;
@@ -224,6 +225,7 @@ public:
 		arc & omega;
 		arc & restart_filename;
 		arc & output_filename;
+		arc & mesa_filename;
 		arc & output_dt;
 		arc & stop_step;
 		arc & disable_diagnostics;

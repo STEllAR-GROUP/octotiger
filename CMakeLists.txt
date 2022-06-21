@@ -94,6 +94,7 @@ endif()
 set(source_files
     src/compute_factor.cpp
     src/eos.cpp
+    src/mesa/mesa.cpp
     src/geometry.cpp
     src/grid_amr.cpp
     src/grid.cpp
@@ -184,6 +185,7 @@ set(header_files
     octotiger/state.hpp
     octotiger/struct_eos.hpp
     octotiger/taylor.hpp
+    octotiger/mesa/mesa.hpp
     octotiger/util.hpp
     octotiger/common_kernel/helper.hpp
     octotiger/common_kernel/interaction_constants.hpp

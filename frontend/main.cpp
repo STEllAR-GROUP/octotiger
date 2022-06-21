@@ -14,6 +14,7 @@
 #include "octotiger/physcon.hpp"
 #include "octotiger/problem.hpp"
 #include "octotiger/test_problems/rotating_star.hpp"
+#include "octotiger/mesa/mesa.hpp"
 #include "octotiger/test_problems/blast.hpp"
 #include "octotiger/unitiger/physics.hpp"
 #include "octotiger/unitiger/physics_impl.hpp"
@@ -208,6 +209,10 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 //		grid::set_analytic_func(moving_star_analytic);
 		set_problem(moving_star);
 		set_refine_test(refine_test_moving_star);
+        } else if (opts().problem == MESA_STAR) {
+                grid::set_fgamma(5.0 / 3.0);
+                set_problem(mesa_star);
+                set_refine_test(mesa_refine_test);
 	} else if (opts().problem == ADVECTION) {
 		grid::set_fgamma(5.0 / 3.0);
 		set_analytic(advection_test_analytic);

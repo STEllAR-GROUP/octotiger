@@ -3,8 +3,10 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include "mesa.hpp"
-
+#include "octotiger/mesa/mesa.hpp"
+#include "octotiger/defs.hpp"
+#include "octotiger/options.hpp"
+#include "octotiger/grid.hpp"
 #include <cstdio>
 #include <cmath>
 #include <cstdlib>
@@ -12,7 +14,7 @@
 #include <vector>
 #include <memory>
 
-#define BUFFER_SIZE (1024*1024)
+#define BUFFER_SIZE (1024 * 1024)
 #define HEADER_LINES 6
 #define NCOEF 4
 
@@ -179,6 +181,184 @@ std::function<double(double)> build_rho_of_h_from_mesa(
 	};
 }
 
-int main() {
+class mesa_profiles {
+private:
+        std::vector<double> rho_;
+        std::vector<double> P_;
+	std::vector<double> r_;
+	std::vector<double> omega_;
+        int lines_;
+public:
+	mesa_profiles(
+                const std::string& filename) { //, std::vector<double>& P, std::vector<double>& rho, std::vector<double>& r, std::vector<double>& omega) {
+	// reads the profiles from the mesa file at initialization
+		char line[BUFFER_SIZE];
+		char dummy[BUFFER_SIZE];
+		char log10_P[BUFFER_SIZE];
+		char log10_R[BUFFER_SIZE];
+		char log10_rho[BUFFER_SIZE];
+		char vrot_kms[BUFFER_SIZE];
+		FILE* fp = fopen(filename.c_str(), "rt");
+		if (fp == NULL) {
+			printf("%s not found!\n", filename.c_str());
+			abort();
+		}
+		//std::vector<double> P, rho, h, r, omega;
+		int linenum = 1;
+		while (fgets(line, sizeof line, fp) != NULL) {
+			//printf("%i: %s, %i\n\n\n\n", linenum, line, sizeof(line));  
+			//std::string substr = line.substr(0,100);
+			//printf("%i: %s\n\n\n\n", linenum, substr);
+			if (linenum > HEADER_LINES) {
+				std::sscanf(line,
+//						"%s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %.1000s \n",
+//                                        dummy, dummy, dummy, log10_rho, dummy, 
+//					dummy, log10_P, log10_R, dummy, dummy, 
+//					vrot_kms, dummy, dummy, dummy, dummy, 
+                                                "%s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %.1000s \n",
+                                        dummy, dummy, log10_R, dummy, log10_rho,
+                                        log10_P, dummy, dummy, dummy, dummy,
+                                        dummy, dummy, dummy, dummy, dummy,
+					dummy, dummy, dummy, vrot_kms, dummy);
+				//printf("after read: %s, %s, %s\n\n\n", log10_rho, log10_P, log10_R);
+				P_.push_back(std::pow(10, std::atof(log10_P)) * std::pow(opts().code_to_s, 2) * opts().code_to_cm / opts().code_to_g);
+				const double tmp = std::pow(10, std::atof(log10_R)) * 6.957e+10 / opts().code_to_cm;
+				//printf("rho(%e) = %e\n",tmp, std::pow(10, std::atof(log10_rho)));
+				r_.push_back(tmp);
+				rho_.push_back(std::pow(10, std::atof(log10_rho)) * std::pow(opts().code_to_cm, 3) / opts().code_to_g);
+				omega_.push_back(std::atof(vrot_kms) * 100 * 1000 * opts().code_to_s / opts().code_to_cm / tmp);
+			}
+			linenum++;
+		}
+		lines_ = linenum - HEADER_LINES;
+		//printf("exiting read %i\n", linenum);
+		fclose(fp);
+	}
+	double get_R0() {
+		//printf("lines: %d, size: %d, r0: %e, r(lines-1): %e\n", lines_, sizeof(r_), r_[20], r_[lines_-20]); 
+		return r_[0];
+	}
+	double cubic_hermit_interp(double x, double x0, double x1, double p0, double p1, double m0, double m1) const {
+		// interpolating by an Hermite cubic spline scheme
+		auto const delta = x1 - x0;
+		auto const t = (x - x0) / delta;
+		auto h00 = [] (double t) { return  2 * t * t * t - 3 * t * t + 1; }; // Hermite basis functions
+		auto h10 = [] (double t) { return  t * t * t - 2 * t * t + t; };
+		auto h01 = [] (double t) { return  -2 * t * t * t + 3 * t * t; };
+		auto h11 = [] (double t) { return t * t * t - t * t; };
+		return p0 * h00(t) + delta * m0 * h10(t) + p1 * h01(t) + delta * m1 * h11(t);
+	}
+        void state_at(double& rho, double& p, double& omega, double r) const {
+                rho = interpolate_mono(rho_, r);
+                p = interpolate_mono(P_, r);
+		omega = interpolate_mono(omega_, r);
+        }
+	double interpolate_mono(std::vector<double> y, double r) const {		
+	// interpolating by a monotonic cubic interpolation scheme that conserves monotonicity
+		auto i = find_i(r);
+		if (i == 0) {
+	                printf("could not find r = %, at the mesa profile. Aborting ...\n", r);
+        	        abort();
+			return 0;
+		}
+		double m0, m1;
+		if (i == lines_ - 1) {
+			m1 = (y[i] - y[i-1]) / (r_[i] - r_[i-1]); // adjusting the slopes at the edges to conserve monotonicity
+		} else {
+			m1 = 0.5 * (((y[i] - y[i-1]) / (r_[i] - r_[i-1])) + ((y[i+1] - y[i]) / (r_[i+1] - r_[i])));
+		}
+		i--;
+		if (i == 0) {
+			m0 = (y[i+1] - y[i]) / (r_[i+1] - r_[i]);
+		} else {
+			m0 = 0.5 * (((y[i] - y[i-1]) / (r_[i] - r_[i-1])) + ((y[i+1] - y[i]) / (r_[i+1] - r_[i])));
+		}
+		return cubic_hermit_interp(r, r_[i], r_[i+1], y[i], y[i+1], m0, m1);
+	}
+	int find_i(double r) const {
+		for (int i = 1; i < lines_; i++) {
+			if (r_[i] < r) {
+				return i;
+			}
+		}
+		return 0;
+	}
+};
 
+std::vector<real> mesa_star(real x, real y, real z, real dx) {
+        std::vector<real> u(opts().n_fields, real(0));
+        const real fgamma = grid::get_fgamma();
+        static mesa_profiles mesa_p(opts().mesa_filename);
+        real R0 = mesa_p.get_R0();
+	//printf(" R0: %e, f: %e\n", mesa_p.get_R0(), opts().code_to_cm);
+        real rho = 0.0;
+	real p = 0.0;
+        const int M = 1;
+        int nsamp = 0;
+        for (double x0 = x - dx / 2.0 + dx / 2.0 / M; x0 < x + dx / 2.0; x0 += dx / M) {
+                for (double y0 = y - dx / 2.0 + dx / 2.0 / M; y0 < y + dx / 2.0; y0 += dx / M) {
+                        for (double z0 = z - dx / 2.0 + dx / 2.0 / M; z0 < z + dx / 2.0; z0 += dx / M) {
+                                auto r = SQRT(x0 * x0 + y0 * y0 + z0 * z0);
+                                ++nsamp;
+                                if (r <= R0) {
+					real rho_t, p_t, omega_t;
+                                 //       printf("rho(%e) = %e\n", r, R0);
+					mesa_p.state_at(rho_t, p_t, omega_t, r);
+        //                                printf("rho(%e) = %e, p = %e, omega = %e, (x,y,z) = (%e,%e,%e)\n", r, rho_t, p_t, omega_t, x, y, z);
+                                        rho += rho_t;
+                                        p += p_t;
+					auto sx_t = -y0 * rho_t * omega_t;
+					auto sy_t = x0 * rho_t * omega_t;
+                                }
+                        }
+                }
+        }
+//      grid::set_AB(this_struct_eos->A, this_struct_eos->B());
+//	printf("rho floor: %e, egas floor: %e\n", opts().rho_floor, std::pow(opts().tau_floor, fgamma));
+        rho = std::max(rho / nsamp, opts().rho_floor);
+        auto ene = std::max(p / (fgamma - 1.0) / nsamp, std::pow(opts().tau_floor, fgamma));
+        u[rho_i] = rho;
+        u[spc_i] = rho; //u[spc_i + 1] = u[spc_i + 2] = u[spc_i + 3] = u[spc_i + 4] = rho / 5.0;
+        u[egas_i] = ene;
+	u[tau_i] = std::pow(ene, 1.0 / fgamma);
+        return u;
 }
+
+bool mesa_refine_test(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U,
+                std::array<std::vector<real>, NDIM> const& dudx) {
+        bool rc = false;
+        real dx = (opts().xscale / INX) / real(1 << level);
+        if (level < max_level / 2) {
+                return std::sqrt(x * x + y * y + z * z) < 10.0 * dx;
+        }
+        int test_level = max_level;
+        //bool enuf_core = U[spc_ac_i] + U[spc_dc_i] > 0.25 * U[rho_i];
+        //bool majority_accretor = U[spc_ae_i] + U[spc_ac_i] > 0.5 * U[rho_i];
+        //bool majority_donor = U[spc_de_i] + U[spc_dc_i] > 0.5 * U[rho_i];
+        //if (opts().core_refine) {
+        //        if (!enuf_core) {
+        //                test_level -= 1;
+        //        }
+        //}
+        //if (!majority_donor) {
+        //        test_level -= opts().donor_refine;
+        //}
+        //if (!majority_accretor) {
+        //        test_level -= opts().accretor_refine;
+        //}
+        real den_floor = opts().refinement_floor;
+        for (integer this_test_level = test_level; this_test_level >= 1; --this_test_level) {
+                if (U[rho_i] > den_floor) {
+                        rc = rc || (level < this_test_level);
+                }
+                if (rc) {
+                        break;
+                }
+                den_floor /= 8.0;
+        }
+        return rc;
+}
+
+//int main() {
+//
+//}
