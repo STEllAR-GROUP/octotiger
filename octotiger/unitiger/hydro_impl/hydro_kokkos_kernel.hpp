@@ -5,6 +5,7 @@
 #include <hpx/futures/future.hpp>
 #include <stream_manager.hpp>
 #include <utility>
+#include <apex_api.hpp>
 #ifdef OCTOTIGER_HAVE_KOKKOS
 #include <hpx/kokkos/executors.hpp>
 #include "octotiger/common_kernel/kokkos_util.hpp"
@@ -665,12 +666,10 @@ void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                         current_am.copy_to(AM.data() + n * am_offset + q_i + am_slice_offset,
                             SIMD_NAMESPACE::element_aligned_tag{});
                     }
-                    for (int d = 0; d < ndir; d++) {
-                        cell_reconstruct_inner_loop_p1_simd<simd_t, simd_mask_t>(nf_, angmom_index_,
-                            smooth_field_.data(), disc_detect_.data(), combined_q.data(),
-                            combined_u.data(), AM.data(), dx[slice_id], cdiscs.data(), d, i, q_i,
-                            ndir, nangmom, slice_id, mask);
-                    }
+                    cell_reconstruct_inner_loop_p1_simd<simd_t, simd_mask_t>(nf_, angmom_index_,
+                        smooth_field_.data(), disc_detect_.data(), combined_q.data(),
+                        combined_u.data(), AM.data(), dx[slice_id], cdiscs.data(), i, q_i,
+                        ndir, nangmom, slice_id, mask);
                     // Phase 2
                     for (int d = 0; d < ndir; d++) {
                         cell_reconstruct_inner_loop_p2_simd<simd_t, simd_mask_t>(omega,
@@ -726,13 +725,11 @@ void reconstruct_no_amc_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                 const int i = ((q_i / q_inx2) + 2) * inx_large * inx_large +
                     (((q_i % q_inx2) / q_inx) + 2) * inx_large + (((q_i % q_inx2) % q_inx) + 2);
                 if (q_i < q_inx3) {
-                    for (int d = 0; d < ndir; d++) {
-                        cell_reconstruct_inner_loop_p1_simd<simd_t, simd_mask_t>(nf_, angmom_index_,
-                            smooth_field_.data(), disc_detect_.data(), combined_q.data(),
-                            combined_u.data(), AM.data(), dx[slice_id], cdiscs.data(), d, i, q_i, ndir,
-                            nangmom, slice_id, mask);
-                    }
-                    // Phase 2
+                    cell_reconstruct_inner_loop_p1_simd<simd_t, simd_mask_t>(nf_, angmom_index_,
+                        smooth_field_.data(), disc_detect_.data(), combined_q.data(),
+                        combined_u.data(), AM.data(), dx[slice_id], cdiscs.data(), i, q_i, ndir,
+                        nangmom, slice_id, mask);
+                    /* // Phase 2 */
                     for (int d = 0; d < ndir; d++) {
                         cell_reconstruct_inner_loop_p2_simd<simd_t, simd_mask_t>(omega,
                             angmom_index_, combined_q.data(), combined_x.data(), combined_u.data(),
@@ -1033,6 +1030,8 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
         alloc_host_double, (nf * 27 * q_inx3 + padding) * max_slices);
     aggregated_host_buffer<double, executor_t> AM(
         alloc_host_double, (NDIM * q_inx3 + padding) * max_slices);
+
+    auto reconstruct_timer = apex::start("hydro_reconstruct");
     if (angmom_index > -1) {
         reconstruct_impl<host_simd_t, host_simd_mask_t>(exec, agg_exec, omega, nf, angmom_index,
             smooth_field, disc_detect, q, combined_x, combined_u, AM, dx, disc, n_species, ndir,
@@ -1042,6 +1041,7 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
             angmom_index, smooth_field, disc_detect, q, combined_x, combined_u, AM, dx, disc,
             n_species, ndir, nangmom, {1, 1, 8, 8});
     }
+    apex::stop(reconstruct_timer);
 
     // Flux
     static_assert(q_inx3 % host_simd_t::size() == 0,
@@ -1055,9 +1055,11 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     aggregated_host_buffer<int, executor_t> amax_indices(alloc_host_int, blocks * max_slices);
     aggregated_host_buffer<int, executor_t> amax_d(alloc_host_int, blocks * max_slices);
 
+    auto flux_timer = apex::start("hydro_flux");
     flux_impl_teamless<host_simd_t, host_simd_mask_t>(exec, agg_exec, q, combined_x, f,
         amax, amax_indices, amax_d, masks, omega, dx, A_, B_, nf, fgamma,
         de_switch_1, blocks, 1);
+    apex::stop(flux_timer);
 
     sync_kokkos_host_kernel(exec);
 
