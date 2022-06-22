@@ -33,6 +33,12 @@ inline real ztwd_pressure(real d, real A = physcon().A, real B = physcon().B) {
 	return p;
 }
 
+inline real ipr_pressure(real t, real rho, real mu) {
+        const real cg = physcon().kb / (mu * physcon().mh);
+        const real cr = (4.0 * physcon().sigma) / (3.0 * physcon().c);
+        return cg * rho * t + cr * POWER(t, 4);
+}
+
 inline real ztwd_enthalpy(real d, real A = physcon().A, real B = physcon().B) {
 #ifndef NDEBUG
 	if (d < 0.0) {

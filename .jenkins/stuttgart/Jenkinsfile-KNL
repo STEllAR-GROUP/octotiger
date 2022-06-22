@@ -56,7 +56,7 @@ pipeline {
                     mkdir -p jenkins && cd jenkins && \
                     mkdir -p octotiger-${JOB_BASE_NAME} && cd octotiger-${JOB_BASE_NAME} && \
                     rm -rf octotiger && \
-                    rm -rf OctoTigerBuildChain/build/octotiger && \
+                    rm -rf OctoTigerBuildChain/build && \
                     rm -rf OctoTigerBuildChain/src/boost && \
                     rm -rf OctoTigerBuildChain/src/octotiger && \
                     rm -rf OctoTigerBuildChain/src/silo && \

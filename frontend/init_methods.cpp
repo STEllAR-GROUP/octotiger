@@ -205,6 +205,7 @@ void init_problem(void) {
     std::cout << "Initialize problem..." << std::endl;
     physics<NDIM>::set_n_species(opts().n_species);
     physics<NDIM>::update_n_field();
+    physics<NDIM>::set_mu(opts().atomic_mass, opts().atomic_number);
     grid::get_omega() = opts().omega;
 #if !defined(_MSC_VER) && !defined(__APPLE__)
     //feenableexcept(FE_DIVBYZERO);
