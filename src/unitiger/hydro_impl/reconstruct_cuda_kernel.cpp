@@ -39,11 +39,9 @@ __global__ void reconstruct_cuda_kernel_no_amc(double omega,
     const int slice_id = blockIdx.x;
     device_simd_mask_t mask(true); // placeholder to make it work with the simd methods
     if (q_i < q_inx3) {
-        for (int d = 0; d < ndir; d++) {
-            cell_reconstruct_inner_loop_p1_simd<device_simd_t, device_simd_mask_t>(nf_, angmom_index_,
-                smooth_field_, disc_detect_, combined_q, combined_u, AM, dx[slice_id], cdiscs, d, i,
-                q_i, ndir, nangmom, slice_id, mask);
-        }
+        cell_reconstruct_inner_loop_p1_simd<device_simd_t, device_simd_mask_t>(nf_, angmom_index_,
+            smooth_field_, disc_detect_, combined_q, combined_u, AM, dx[slice_id], cdiscs, i,
+            q_i, ndir, nangmom, slice_id, mask);
         // Phase 2
         for (int d = 0; d < ndir; d++) {
             cell_reconstruct_inner_loop_p2_simd<device_simd_t, device_simd_mask_t>(omega, angmom_index_,
@@ -81,11 +79,9 @@ __global__ void reconstruct_cuda_kernel(const double omega, const int nf_,
                 combined_u[(zx_i + n) * u_face_offset + i + u_slice_offset] *
                 combined_u[i + u_slice_offset];
         }
-        for (int d = 0; d < ndir; d++) {
-            cell_reconstruct_inner_loop_p1_simd<device_simd_t, device_simd_mask_t>(nf_, angmom_index_,
-                smooth_field_, disc_detect_, combined_q, combined_u, AM, dx[slice_id], cdiscs, d, i,
-                q_i, ndir, nangmom, slice_id, mask);
-        }
+        cell_reconstruct_inner_loop_p1_simd<device_simd_t, device_simd_mask_t>(nf_, angmom_index_,
+            smooth_field_, disc_detect_, combined_q, combined_u, AM, dx[slice_id], cdiscs, i,
+            q_i, ndir, nangmom, slice_id, mask);
         // Phase 2
         for (int d = 0; d < ndir; d++) {
             cell_reconstruct_inner_loop_p2_simd<device_simd_t, device_simd_mask_t>(omega, angmom_index_,
