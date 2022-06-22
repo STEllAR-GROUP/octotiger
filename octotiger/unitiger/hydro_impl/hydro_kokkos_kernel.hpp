@@ -202,7 +202,7 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
                         mask_helper2_array.data(), SIMD_NAMESPACE::element_aligned_tag{});
                     const simd_mask_t mask = mask_helper1 == mask_helper2;
                     if (SIMD_NAMESPACE::any_of(mask)) {
-                        for (int fi = 0; fi < 9; fi++) { // TODO replace 9
+                        for (int fi = 0; fi < 9; fi++) { // TODO replace 9 with the actual constexpr
                             simd_t this_ap = 0.0, this_am = 0.0;
                             const int d = faces[dim][fi];
                             const int flipped_dim = flip_dim(d, dim);
@@ -624,16 +624,6 @@ void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                 const int z_id = index % z_number_workitems;
                 const int q_i = z_row_id * q_inx + z_id * simd_t::size();
 
-                // TODO Optimization ideas
-                // -- Block memory - if should iterate of sub-grids to keep values in L1 cache
-                // -- Get rid of the mask - right now we are vectorizing of z lines which usually
-                // have 10 elements (meaning we need 2 steps using 8 elements
-                // per AVX512 register,
-                // wasting most elements in the second step as the masked out)
-                // Reason for moving line-wise is the larger u array -- meaning
-                // at q linebreaks the
-                // u array continues, making loading consecutive memory into simd registers at the
-                // end of a line impossible.
                 std::array<double, simd_t::size()> mask_helper;
                 for (int i = 0; i < simd_t::size(); i++) {
                     if ((z_id * simd_t::size() + i) < q_inx) {
@@ -712,7 +702,6 @@ void reconstruct_no_amc_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                 const int z_id = index % z_number_workitems;
                 const int q_i = z_row_id * q_inx + z_id * simd_t::size();
 
-                // TODO Optimization ideas -- see reconstruct_impl method...
                 std::array<double, simd_t::size()> mask_helper;
                 for (int i = 0; i < simd_t::size(); i++) {
                     if ((z_id * simd_t::size() + i) < q_inx) {

@@ -99,25 +99,6 @@ CUDA_CALLABLE_METHOD const int xloc[27][3] = {
 #endif
 // Utility functions
 
-// TODO Replace those wrappers
-template <typename T>
-CUDA_GLOBAL_METHOD inline T copysign_wrapper_cuda(const T& tmp1, const T& tmp2) {
-    return std::copysign(tmp1, tmp2);
-}
-template <typename T>
-CUDA_GLOBAL_METHOD inline T abs_wrapper_cuda(const T& tmp1) {
-    return std::abs(tmp1);
-}
-template <typename T>
-CUDA_GLOBAL_METHOD inline T minmod_wrapper_cuda(const T& a, const T& b) {
-    return (copysign_wrapper_cuda<T>(0.5, a) + copysign_wrapper_cuda<T>(0.5, b)) *
-        std::min(abs_wrapper_cuda<T>(a), abs_wrapper_cuda<T>(b));
-}
-template <typename T>
-CUDA_GLOBAL_METHOD inline T minmod_theta_wrapper_cuda(const T& a, const T& b, const T& c) {
-    return minmod_wrapper_cuda<T>(c * minmod_wrapper_cuda<T>(a, b), 0.5 * (a + b));
-}
-
 CUDA_GLOBAL_METHOD inline double deg_pres(double x, double A_) {
     double p;
     if (x < 0.001) {
@@ -400,7 +381,7 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_ppm_simd(double *__restrict__ co
         make_monotone_simd<simd_t, simd_mask_t>(current_q_results, u_zero,
             current_q_results_flipped);
     }
-    // TODO compatibility with HPX backend? Might overwrite stuff from other tasks using AVX512...
+    // TODO compatibility when moving to KOKKOS HPX backend? Might overwrite stuff from other tasks using AVX512...
     // Hotfix variant 1: element-wise adding in case of not when_all...
     // Hotfix variant 2: Pick task sizes that have more padding (aka 2D border with 2*qinx)
     current_q_results = SIMD_NAMESPACE::choose(mask, current_q_results, old_results);
@@ -570,7 +551,6 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p2_simd(const safe_re
     const int am_slice_offset = (NDIM * q_inx3 + 128) * slice_id;
     const int x_slice_offset = (NDIM * q_inx3 + 128) * slice_id;
 
-    // TODO Port this
     if (d < ndir / 2 && angmom_index_ > -1) {
         const auto di = dir[d];
 
