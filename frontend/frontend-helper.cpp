@@ -65,13 +65,14 @@
 
 
 void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
-    std::cerr << "Started initialize method" << std::endl;
 
     scf_options::read_option_file();
-    std::cerr << "Finished reading options" << std::endl;
 
     options::all_localities = localities;
     opts() = _opts;
+
+    init_executors();
+    std::cerr << "Finished executor init and read options" << std::endl;
 
     init_problem();
     std::cerr << "Finished initializing options" << std::endl;
@@ -96,8 +97,6 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
     compute_factor();
     std::cerr << "Finished computing factors" << std::endl;
 
-    init_executors();
-    std::cerr << "Finished executor init" << std::endl;
 
     grid::static_init();
     std::cerr << "Finished static_init" << std::endl;

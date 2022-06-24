@@ -1,4 +1,11 @@
+//  Copyright (c) 2020-2022 Gregor Daiß
+//
+//  Distributed under the Boost Software License, Version 1.0. (See accompanying
+//  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+//
 #pragma once
+#include <aggregation_manager.hpp>
+#include <hpx/kokkos/executors.hpp>
 #ifdef OCTOTIGER_HAVE_KOKKOS
 //#define KOKKOS_OPT_RANGE_AGGRESSIVE_VECTORIZATION
 #include <Kokkos_Core.hpp>
@@ -98,6 +105,10 @@ using recycled_host_view = recycler::recycled_view<kokkos_um_array<T>, recycler:
 
 // NOTE: Must use the same layout to be able to use e.g. cudaMemcpyAsync
 #if defined(KOKKOS_ENABLE_CUDA)
+template <typename T>
+using kokkos_host_allocator = recycler::detail::cuda_pinned_allocator<T>;
+template <typename T>
+using kokkos_device_allocator = recycler::detail::cuda_device_allocator<T>;
 template <class T>
 using kokkos_um_pinned_array = Kokkos::View<T*, typename kokkos_um_device_array<T>::array_layout,
     Kokkos::CudaHostPinnedSpace, Kokkos::MemoryUnmanaged>;
@@ -105,6 +116,10 @@ template <class T>
 using recycled_pinned_view =
     recycler::recycled_view<kokkos_um_pinned_array<T>, recycler::recycle_allocator_cuda_host<T>, T>;
 #elif defined(KOKKOS_ENABLE_HIP)
+template <typename T>
+using kokkos_host_allocator = recycler::detail::hip_pinned_allocator<T>;
+template <typename T>
+using kokkos_device_allocator = recycler::detail::hip_device_allocator<T>;
 template <class T>
 using kokkos_um_pinned_array = Kokkos::View<T*, typename kokkos_um_device_array<T>::array_layout,
     Kokkos::Experimental::HIPHostPinnedSpace, Kokkos::MemoryUnmanaged>;
@@ -112,6 +127,10 @@ template <class T>
 using recycled_pinned_view =
     recycler::recycled_view<kokkos_um_pinned_array<T>, recycler::recycle_allocator_hip_host<T>, T>;
 #else
+template <typename T>
+using kokkos_host_allocator = std::allocator<T>;
+template <typename T>
+using kokkos_device_allocator = std::allocator<T>;
 template <class T>
 using kokkos_um_pinned_array = Kokkos::View<T*, typename kokkos_um_device_array<T>::array_layout,
     Kokkos::HostSpace, Kokkos::MemoryUnmanaged>;
@@ -136,6 +155,18 @@ inline void sync_kokkos_host_kernel(hpx::kokkos::hpx_executor& exec) {
     //fut.get();
 }
 
+template <class T, typename executor_t>
+using agg_recycled_host_view =
+    recycler::aggregated_recycled_view<kokkos_um_pinned_array<T>, Allocator_Slice<T, kokkos_host_allocator<T>, executor_t>, T>;
+template <typename T, typename executor_t>
+using aggregated_host_buffer = agg_recycled_host_view<T, executor_t>;
+
+template <class T, typename executor_t>
+using agg_recycled_device_view =
+    recycler::aggregated_recycled_view<kokkos_um_device_array<T>, Allocator_Slice<T, kokkos_device_allocator<T>, executor_t>, T>;
+template <typename T, typename executor_t>
+using aggregated_device_buffer = agg_recycled_device_view<T, executor_t>;
+
 template <typename T>
 using host_buffer = recycled_pinned_view<T>;
 template <typename T>
@@ -144,59 +175,5 @@ template <typename T>
 using normal_host_buffer = kokkos_host_array<T>;
 template <typename T>
 using normal_device_buffer = kokkos_device_array<T>;
-
-// =================================================================================================
-// SIMD types
-// =================================================================================================
-
-// defines HPX_COMPUTE_HOST_CODE and HPX_COMPUTE_DEVICE_CODE accordingly for the device passes
-// useful for picking the correct simd type!
-#include <hpx/config/compiler_specific.hpp> 
-// SIMD settings
-#if defined(OCTOTIGER_HAVE_STD_EXPERIMENTAL_SIMD)
-#include "octotiger/common_kernel/std_simd.hpp"
-#pragma message "Using std-experimental-simd SIMD types"
-#else
-#include <simd.hpp>
-using device_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>;
-using device_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::scalar>;
-#if !defined(HPX_COMPUTE_DEVICE_CODE) && !defined(OCTOTIGER_FORCE_SCALAR_KOKKOS_SIMD)
-#if defined(__VSX__)
-// NVCC does not play fair with Altivec! See another project with similar issues:
-// See https://github.com/dealii/dealii/issues/7328
-#ifdef __CUDACC__ // hence: Use scalar when using nvcc
-using host_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>;
-using host_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::scalar>;
-#warning "Using scalar SIMD types"
-#else // no nvcc: We can try to use the altivec vectorization
-#include <vsx.hpp>
-// TODO Actually test with a non-cuda kokkos build and/or clang
-// as it should get around the vsx problem
-using host_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::vsx>;
-using host_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::vsx>;
-#warning "Using VSX SIMD types"
-#endif
-#elif defined(__AVX512F__)
-#include <avx512.hpp>
-using host_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::avx512>;
-using host_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::avx512>;
-#warning "Using AVX512 SIMD types"
-#elif defined(__AVX2__) || defined(__AVX__)
-#include <avx.hpp>
-using host_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::avx>;
-using host_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::avx>;
-#warning "Using AVX SIMD types"
-#else
-#error "Could not detect any supported SIMD instruction set. Define OCTOTIGER_FORCE_SCALAR_KOKKOS_SIMD to continue anyway (or fix your arch flags if your platform supports AVX)!"
-#endif
-#else
-// drop in for nvcc device pass - is used on host side if FORCE_SCALAR_KOKKOS_SIMD is on
-// otherwise only used for compilation
-using host_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>;
-using host_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::scalar>;
-#warning "Using scalar SIMD types"
-#endif
-
-#endif
 
 #endif

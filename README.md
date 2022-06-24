@@ -12,12 +12,6 @@ From <https://doi.org/10.1145/3204919.3204938>:
 
 ## Build Status [master]
 
-#### CircleCI - Basic tests:
-
-|   	|   	|
-|---	|---	|
-|  Simple build- and legacy tests &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | [![link](https://circleci.com/gh/STEllAR-GROUP/octotiger/tree/master.svg?style=shield)](https://circleci.com/gh/STEllAR-GROUP/octotiger/tree/master)  	|
-
 
 #### Jenkins - All CPU / GPU node-level tests for the 8 major build configurations:
 |   	|   	|
@@ -33,11 +27,6 @@ From <https://doi.org/10.1145/3204919.3204938>:
 |  KNL Kokkos HPX Backend / SIMD tests 	| [![Build Status](https://simsgs.informatik.uni-stuttgart.de/jenkins/buildStatus/icon?job=Octo-Tiger+KNL%2Fmaster&config=knlbuild)](https://simsgs.informatik.uni-stuttgart.de/jenkins/view/Octo-Tiger%20and%20Dependencies/job/Octo-Tiger%20KNL/job/master/)  	|
 | Development environment tests 	|  [![Build Status](https://simsgs.informatik.uni-stuttgart.de/jenkins/buildStatus/icon?job=Octo-Tiger+DEV%2Fmaster&config=devbuild)](https://simsgs.informatik.uni-stuttgart.de/jenkins/view/Octo-Tiger%20and%20Dependencies/job/Octo-Tiger%20DEV/job/master/)
  | HIP Development environment tests 	|  [![Build Status](https://simsgs.informatik.uni-stuttgart.de/jenkins/buildStatus/icon?job=Octo-Tiger+HIP+DEV%2Fmaster&config=hip-devbuild)](https://simsgs.informatik.uni-stuttgart.de/jenkins/view/Octo-Tiger%20and%20Dependencies/job/Octo-Tiger%20HIP%20DEV/job/master/)
-#### Notes:
-> **CircleCI note for maintainers**: The base Docker image used by CircleCI needs to be built
-> and updated manually. Neither HPX nor any of the other dependencies update
-> automatically. Relevant files are under
-> [`tools/docker/base_image`](tools/docker/base_image).
 
 ## Quick Reference
 

@@ -1,5 +1,10 @@
 #!groovy
 
+//  Copyright (c) 2021-2022 Gregor Daiß
+//
+//  Distributed under the Boost Software License, Version 1.0. (See accompanying
+//  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+
 def buildbadge = addEmbeddableBadgeConfiguration(id: "HIP", subject: "HIP+KOKKOS Kernel Tests", status: "skipped")
 
 pipeline {
@@ -64,14 +69,14 @@ pipeline {
                         then
                             cd "octo-buildscripts-HIP"
                             git reset --hard # reset griddim modification in case of unclean directory
-                            git checkout jenkins-kamand
+                            git checkout jenkins-aggregation-test-kamand
                             git pull
                             rm -rf build/octotiger
                             rm -rf src/octotiger
                         else
                             git clone https://github.com/diehlpk/PowerTiger.git "octo-buildscripts-HIP"
                             cd "octo-buildscripts-HIP"
-                            git checkout jenkins-kamand
+                            git checkout jenkins-aggregation-test-kamand
                             mkdir src
                         fi
 

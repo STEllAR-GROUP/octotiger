@@ -89,6 +89,7 @@ void cleanup_puddle_on_this_locality(void) {
     hpx::cuda::experimental::detail::unregister_polling(hpx::resource::get_thread_pool(0));
 #endif
 #ifdef OCTOTIGER_HAVE_KOKKOS
+    stream_pool::cleanup<hpx::kokkos::serial_executor, round_robin_pool<hpx::kokkos::serial_executor>>();
     Kokkos::finalize();
 #endif
     
@@ -97,9 +98,13 @@ void cleanup_puddle_on_this_locality(void) {
 void init_executors(void) {
     std::cout << "Initialize executors and masks..." << std::endl;
 #ifdef OCTOTIGER_HAVE_KOKKOS
-    std::cout << "Initializing Kokkos on this locality..." << std::endl;
-    Kokkos::initialize();
-    Kokkos::print_configuration(std::cout);
+    if (!Kokkos::is_initialized()) { // gets initialized earlier on root locality
+      Kokkos::initialize();
+      Kokkos::print_configuration(std::cout);
+      std::cout << "Initialized Kokkos on this locality..." << std::endl;
+    } else {
+      std::cout << "Kokkos already initialized" << std::endl;
+    }
     
 #ifdef OCTOTIGER_MULTIPOLE_HOST_HPX_EXECUTOR
     std::cout << "Using Kokkos HPX executors for multipole FMM kernels..." << std::endl;
@@ -127,6 +132,8 @@ void init_executors(void) {
 #endif
 
 #if defined(OCTOTIGER_HAVE_KOKKOS)
+    stream_pool::init<hpx::kokkos::serial_executor, round_robin_pool<hpx::kokkos::serial_executor>>(
+        256, hpx::kokkos::execution_space_mode::independent);
 #if defined(KOKKOS_ENABLE_CUDA)
     // initialize stencils / executor pool in kokkos device
     std::cout << "KOKKOS/CUDA is enabled!" << std::endl;
@@ -160,26 +167,34 @@ void init_executors(void) {
     std::cout << "CUDA is enabled!" << std::endl;
 #if HPX_KOKKOS_CUDA_FUTURE_TYPE == 0 
     std::cout << "CUDA with polling futures enabled!" << std::endl;
+
+    /* stream_pool::init<hpx::cuda::experimental::cuda_executor, pool_strategy>( */
+    /*     opts().cuda_streams_per_gpu, opts().cuda_number_gpus, true); */
     stream_pool::init<hpx::cuda::experimental::cuda_executor, pool_strategy>(
-        opts().cuda_streams_per_gpu, opts().cuda_number_gpus, true);
+        opts().cuda_streams_per_gpu, 0, true);
 #else
     std::cout << "CUDA with callback futures enabled!" << std::endl;
     stream_pool::init<hpx::cuda::experimental::cuda_executor, pool_strategy>(
-        opts().cuda_streams_per_gpu, opts().cuda_number_gpus, false);
+        opts().cuda_streams_per_gpu, 0, false);
 #endif
     octotiger::fmm::kernel_scheduler::init_constants();
+
 #endif
 
 #if defined(OCTOTIGER_HAVE_HIP)
     std::cout << "HIP is enabled!" << std::endl;
 #if HPX_KOKKOS_CUDA_FUTURE_TYPE == 0  // cuda in the name is correct
     std::cout << "HIP with polling futures enabled!" << std::endl;
+    /*stream_pool::init<hpx::cuda::experimental::cuda_executor, pool_strategy>(
+        opts().cuda_streams_per_gpu, opts().cuda_number_gpus, true);*/
     stream_pool::init<hpx::cuda::experimental::cuda_executor, pool_strategy>(
-        opts().cuda_streams_per_gpu, opts().cuda_number_gpus, true);
+        opts().cuda_streams_per_gpu, 0, true);
 #else
     std::cout << "HIP with callback futures enabled!" << std::endl;
+    /*stream_pool::init<hpx::cuda::experimental::cuda_executor, pool_strategy>(
+        opts().cuda_streams_per_gpu, opts().cuda_number_gpus, false);*/
     stream_pool::init<hpx::cuda::experimental::cuda_executor, pool_strategy>(
-        opts().cuda_streams_per_gpu, opts().cuda_number_gpus, false);
+        opts().cuda_streams_per_gpu, 0, false);
 #endif
     octotiger::fmm::kernel_scheduler::init_constants();
 #endif

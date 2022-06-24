@@ -1,4 +1,9 @@
-
+//  Copyright (c) 2020-2021 Gregor Daiß
+//
+//  Distributed under the Boost Software License, Version 1.0. (See accompanying
+//  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+//
+//
 #include "octotiger/multipole_interactions/multipole_kernel_interface.hpp"
 #include "octotiger/multipole_interactions/legacy/cuda_multipole_interaction_interface.hpp"
 #include "octotiger/options.hpp"

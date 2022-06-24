@@ -1,8 +1,8 @@
 # Copyright (c) 2015 Thomas Heller
 # Copyright (c) 2015 Dominic Marcello
 # Copyright (c) 2018-2019 Parsa Amini
-# Copyright (c) 2018-2020 Gregor Daiß
-# Copyright (c) 2018-2020 Theresa Pollinger
+# Copyright (c) 2018-2022 Gregor Daiß
+# Copyright (c) 2019-2020 Theresa Pollinger
 
 #
 # Distributed under the Boost Software License, Version 1.0. (See accompanying
@@ -62,7 +62,7 @@ option(OCTOTIGER_WITH_FORCE_SCALAR_KOKKOS_SIMD
 option(OCTOTIGER_WITH_POLLING_EXECUTORS  
   "Use the polling executors, not the callback ones" ON)
 
-option(eCTOTIGER_ARCH_FLAG
+option(OCTOTIGER_ARCH_FLAG
   "Arch flag for compilations" "-march=native")
 option(OCTOTIGER_CUDA_ARCH
   "Compile for this CUDA arch" sm_50)
@@ -335,12 +335,8 @@ set(hydro_header_files
 set(hydro_source_files
    src/unitiger/hydro.cpp
    src/unitiger/hydro_impl/hydro_kernel_interface.cpp
-   src/unitiger/hydro_impl/flux_kernel_interface.cpp
-   src/unitiger/hydro_impl/flux_cpu_kernel.cpp
    src/unitiger/hydro_impl/flux_cuda_kernel.cpp
    src/unitiger/hydro_impl/reconstruct_cuda_kernel.cpp
-   src/unitiger/hydro_impl/reconstruct_kernel_interface.cpp
-   src/unitiger/hydro_impl/reconstruct_cpu_kernel.cpp
    src/unitiger/hydro_impl/hydro_kernel_interface.cpp
    src/unitiger/hydro_impl/hydro_cuda_interface.cpp
    src/test_problems/sod/exact_sod.cpp)
@@ -487,8 +483,6 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/monopole_interactions/legacy/monopole_interaction_interface.cpp
     src/multipole_interactions/legacy/multipole_cpu_kernel.cpp
     src/multipole_interactions/legacy/multipole_interaction_interface.cpp
-    src/unitiger/hydro_impl/reconstruct_cpu_kernel.cpp
-    src/unitiger/hydro_impl/flux_cpu_kernel.cpp
     src/unitiger/hydro_impl/hydro_boundary_exchange_vc.cpp
     # Quadmath
     src/test_problems/blast/sedov.cpp
@@ -506,7 +500,7 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/node_server_actions_1.cpp
     src/node_server_actions_2.cpp
     src/node_server_actions_3.cpp
-    src/physcon.cpp # TODO(daissgr) Check if actions can be made to work with Kokkos
+    src/physcon.cpp 
     src/io/silo_out.cpp
     src/io/silo_in.cpp
     src/radiation/rad_grid.cpp
@@ -515,9 +509,7 @@ if(OCTOTIGER_WITH_KOKKOS)
 
     #misc
     src/cuda_util/cuda_scheduler.cpp
-    src/unitiger/hydro_impl/flux_kernel_interface.cpp
     src/unitiger/hydro_impl/hydro_cuda_interface.cpp
-    src/unitiger/hydro_impl/reconstruct_kernel_interface.cpp
   )
   set(host_only_header_files
     octotiger/simd.hpp
