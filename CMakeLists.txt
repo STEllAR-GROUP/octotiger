@@ -1,8 +1,8 @@
 # Copyright (c) 2015 Thomas Heller
 # Copyright (c) 2015 Dominic Marcello
 # Copyright (c) 2018-2019 Parsa Amini
-# Copyright (c) 2018-2020 Gregor Daiß
-# Copyright (c) 2018-2020 Theresa Pollinger
+# Copyright (c) 2018-2022 Gregor Daiß
+# Copyright (c) 2019-2020 Theresa Pollinger
 
 #
 # Distributed under the Boost Software License, Version 1.0. (See accompanying

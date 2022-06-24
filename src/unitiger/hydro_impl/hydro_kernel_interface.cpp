@@ -1,3 +1,9 @@
+//  Copyright (c) 2021-2022 Gregor Daiß
+//
+//  Distributed under the Boost Software License, Version 1.0. (See accompanying
+//  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+//
+
 #include "octotiger/unitiger/hydro_impl/hydro_kernel_interface.hpp"
 #include "octotiger/unitiger/hydro_impl/flux_kernel_interface.hpp"
 #ifdef OCTOTIGER_HAVE_KOKKOS
