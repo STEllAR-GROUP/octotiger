@@ -1,3 +1,9 @@
+//  Copyright (c) 2020-2022 Gregor Daiß
+//
+//  Distributed under the Boost Software License, Version 1.0. (See accompanying
+//  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+//
+
 #include "octotiger/grid.hpp"
 
 #include <aligned_buffer_util.hpp>
@@ -11,24 +17,30 @@
 #include "octotiger/util/vec_base_wrapper.hpp"
 
 void complete_hydro_amr_boundary_cpu(const double dx, const bool energy_only,
-    const std::vector<std::vector<real>>& ushad, const std::vector<std::atomic<int>>& is_coarse,
+    const std::vector<std::vector<real>>& ushad, const std::vector<int>& is_coarse,
     const std::array<double, NDIM>& xmin, std::vector<std::vector<real>>& u);
 void complete_hydro_amr_boundary_vc(const double dx, const bool energy_only,
-    const std::vector<std::vector<real>>& Ushad, const std::vector<std::atomic<int>>& is_coarse,
+    const std::vector<std::vector<real>>& Ushad, const std::vector<int>& is_coarse,
     const std::array<double, NDIM>& xmin, std::vector<std::vector<double>>& U);
 #ifdef OCTOTIGER_HAVE_CUDA
+
+#include <aggregation_manager.hpp>
+using aggregated_executor_t = Aggregated_Executor<hpx::cuda::experimental::cuda_executor>::Executor_Slice;
 /*__global__ void
 complete_hydro_amr_cuda_kernel(const double dx, const bool energy_only,
     double* __restrict__ unified_ushad, int* __restrict__ coarse,
     double* __restrict__ xmin, double* __restrict__ unified_uf,
     const int nfields);*/
 void launch_complete_hydro_amr_boundary_cuda(
-    stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor, double dx,
+    double dx,
     bool energy_only, const std::vector<std::vector<real>>& ushad,
-    const std::vector<std::atomic<int>>& is_coarse, const std::array<double, NDIM>& xmin,
+    const std::vector<int>& is_coarse, const std::array<double, NDIM>& xmin,
     std::vector<std::vector<real>>& u);
 void launch_complete_hydro_amr_boundary_cuda_post(
-    stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+    aggregated_executor_t& executor,
+    dim3 const grid_spec, dim3 const threads_per_block, void *args[]);
+void launch_complete_hydro_amr_boundary_cuda_phase2_post(
+    aggregated_executor_t& executor,
     dim3 const grid_spec, dim3 const threads_per_block, void *args[]);
 #endif
 

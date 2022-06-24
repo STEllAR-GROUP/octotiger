@@ -21,6 +21,7 @@
 #include "octotiger/io/silo.hpp"
 //#include "octotiger/struct_eos.hpp"
 
+#include <hpx/futures/future.hpp>
 #include <hpx/include/components.hpp>
 #include <hpx/include/serialization.hpp>
 #include <hpx/mutex.hpp>
@@ -72,6 +73,14 @@ private:
 	std::array<integer, NVERTEX> child_descendant_count;
 	std::array<real, NDIM> xmin;
 	real dx;
+
+  size_t number_hydro_exchange_promises;
+  std::vector<hpx::lcos::local::promise<void>> ready_for_hydro_exchange;
+  std::vector<hpx::lcos::local::promise<void>> ready_for_amr_hydro_exchange;
+  std::vector<hpx::lcos::local::promise<void>> boundaries_exchanged;
+
+  std::vector<hpx::lcos::local::promise<void>> ready_for_hydro_update;
+  std::vector<hpx::lcos::future<void>> all_neighbors_got_hydro;
 
 	/* this node*/
 	node_client me;
@@ -193,6 +202,21 @@ public:
 
 	void recv_hydro_boundary(std::vector<real>&&, const geo::direction&, std::size_t cycle);
 	/**/HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_hydro_boundary, send_hydro_boundary_action);
+
+	const std::vector<std::vector<safe_real>>* send_hydro_boundary_local();
+	/**/HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, send_hydro_boundary_local, send_hydro_boundary_action_local);
+
+	std::vector<hpx::lcos::local::promise<void>>* send_hydro_boundary_promises_local();
+	/**/HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, send_hydro_boundary_promises_local,
+      send_hydro_boundary_promises_action_local);
+
+	std::vector<hpx::lcos::local::promise<void>>* send_amr_hydro_boundary_promises_local();
+	/**/HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, send_amr_hydro_boundary_promises_local,
+      send_amr_hydro_boundary_promises_action_local);
+	std::vector<hpx::lcos::local::promise<void>>* send_hydro_update_ready_promises_local();
+	/**/HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, send_hydro_update_ready_promises_local,
+      send_hydro_update_ready_promises_action_local);
+
 
 	void recv_hydro_amr_boundary(std::vector<real>&&, const geo::direction&, std::size_t cycle);
 	/**/HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_hydro_amr_boundary, send_hydro_amr_boundary_action);
@@ -362,6 +386,10 @@ HPX_REGISTER_ACTION_DECLARATION(node_server::regrid_gather_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::regrid_scatter_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_flux_check_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_hydro_boundary_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::send_hydro_boundary_action_local);
+HPX_REGISTER_ACTION_DECLARATION(node_server::send_hydro_boundary_promises_action_local);
+HPX_REGISTER_ACTION_DECLARATION(node_server::send_amr_hydro_boundary_promises_action_local);
+HPX_REGISTER_ACTION_DECLARATION(node_server::send_hydro_update_ready_promises_action_local);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_hydro_amr_boundary_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_rad_amr_boundary_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_gravity_boundary_action);

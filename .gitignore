@@ -5,3 +5,5 @@ cmake-build-*
 cmake-cuda-*
 .spack-env/*
 .clangd/*
+.cache
+compile_commands.json

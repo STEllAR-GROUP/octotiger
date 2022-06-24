@@ -129,7 +129,9 @@ public:
 	size_t cuda_number_gpus;
 	size_t cuda_streams_per_gpu;
 	size_t cuda_buffer_capacity;
+	size_t max_executor_slices;
 	bool root_node_on_device;
+	bool optimize_local_communication;
 
 	std::string input_file;
 	std::string config_file;
@@ -265,7 +267,9 @@ public:
 		arc & cuda_number_gpus;
 		arc & cuda_streams_per_gpu;
 		arc & cuda_buffer_capacity;
+		arc & max_executor_slices;
 	  arc & root_node_on_device;
+	  arc & optimize_local_communication;
 		arc & atomic_mass;
 		arc & atomic_number;
 		arc & X;

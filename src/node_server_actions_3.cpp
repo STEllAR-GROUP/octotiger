@@ -76,11 +76,63 @@ void node_server::recv_hydro_boundary(std::vector<real> &&bdata, const geo::dire
 	sibling_hydro_channels[dir].set_value(std::move(tmp), cycle);
 }
 
+using send_hydro_boundary_action_local_type = node_server::send_hydro_boundary_action_local;
+HPX_REGISTER_ACTION (send_hydro_boundary_action_local_type);
+
+const std::vector<std::vector<safe_real>>* node_client::recv_hydro_boundary_local() const {
+  node_server::send_hydro_boundary_action_local action_instance;
+	const std::vector<std::vector<safe_real>>* u_p = action_instance(get_unmanaged_gid());
+  return u_p;
+}
+
+const std::vector<std::vector<safe_real>>* node_server::send_hydro_boundary_local() {
+  return &(grid_ptr->U);
+}
+
+using send_hydro_boundary_promises_action_local_type = node_server::send_hydro_boundary_promises_action_local;
+HPX_REGISTER_ACTION (send_hydro_boundary_promises_action_local_type);
+
+std::vector<hpx::lcos::local::promise<void>>* node_client::recv_hydro_boundary_promises_local() const {
+  node_server::send_hydro_boundary_promises_action_local action_instance;
+	std::vector<hpx::lcos::local::promise<void>>* vec = action_instance(get_unmanaged_gid());
+  return vec;
+}
+
+std::vector<hpx::lcos::local::promise<void>>* node_server::send_hydro_boundary_promises_local() {
+  return &(ready_for_hydro_exchange);
+}
+
+using send_amr_hydro_boundary_promises_action_local_type = node_server::send_amr_hydro_boundary_promises_action_local;
+HPX_REGISTER_ACTION (send_amr_hydro_boundary_promises_action_local_type);
+
+std::vector<hpx::lcos::local::promise<void>>* node_client::recv_amr_hydro_boundary_promises_local() const {
+  node_server::send_amr_hydro_boundary_promises_action_local action_instance;
+	std::vector<hpx::lcos::local::promise<void>>* vec = action_instance(get_unmanaged_gid());
+  return vec;
+}
+
+std::vector<hpx::lcos::local::promise<void>>* node_server::send_amr_hydro_boundary_promises_local() {
+  return &(ready_for_amr_hydro_exchange);
+}
+
+using send_hydro_update_ready_promises_action_local_type = node_server::send_hydro_update_ready_promises_action_local;
+HPX_REGISTER_ACTION (send_hydro_update_ready_promises_action_local_type);
+
+std::vector<hpx::lcos::local::promise<void>>* node_client::recv_hydro_update_ready_promises_local() const {
+  node_server::send_hydro_update_ready_promises_action_local action_instance;
+	std::vector<hpx::lcos::local::promise<void>>* vec = action_instance(get_unmanaged_gid());
+  return vec;
+}
+
+std::vector<hpx::lcos::local::promise<void>>* node_server::send_hydro_update_ready_promises_local() {
+  return &(ready_for_hydro_update);
+}
+
 using send_hydro_amr_boundary_action_type = node_server::send_hydro_amr_boundary_action;
 HPX_REGISTER_ACTION (send_hydro_amr_boundary_action_type);
 
 void node_client::send_hydro_amr_boundary(std::vector<real> &&data, const geo::direction &dir, std::size_t cycle) const {
-	hpx::apply<typename node_server::send_hydro_amr_boundary_action>(get_unmanaged_gid(), std::move(data), dir, cycle);
+  hpx::apply<typename node_server::send_hydro_amr_boundary_action>(get_unmanaged_gid(), std::move(data), dir, cycle);
 }
 
 void node_server::recv_hydro_amr_boundary(std::vector<real> &&bdata, const geo::direction &dir, std::size_t cycle) {
@@ -561,6 +613,7 @@ future<void> node_server::nonrefined_step() {
 
 	timings::scope ts(timings_, timings::time_computation);
 
+
 	real cfl0 = opts().cfl;
 	dt_.dt = ZERO;
 
@@ -577,7 +630,8 @@ future<void> node_server::nonrefined_step() {
 		hpx::util::annotated_function(
 				[rk, cfl0, this, dt_fut](future<void> f) {
 					GET(f);
-					timestep_t a = grid_ptr->compute_fluxes();
+          size_t current_hydro_promise = hcycle % (NRK + 1);
+					timestep_t a = grid_ptr->compute_fluxes(); // hydro kernels
 					future<void> fut_flux = exchange_flux_corrections();
 					fut_flux.get();
 //					a = std::max(a, grid_ptr->compute_positivity_speed_limit());
@@ -597,6 +651,9 @@ future<void> node_server::nonrefined_step() {
 					if (rk == 0) {
 						dt_ = GET(dt_fut);
 					}
+          if (!opts().gravity) {
+            all_neighbors_got_hydro[(hcycle-1)%number_hydro_exchange_promises].get();
+          }
 					grid_ptr->next_u(rk, current_time, dt_.dt);
 					compute_fmm(RHO, true);
 					rk == NRK - 1 ? energy_hydro_bounds() : all_hydro_bounds();
@@ -606,6 +663,7 @@ future<void> node_server::nonrefined_step() {
 	return fut.then(hpx::launch::sync, hpx::util::annotated_function( [this](future<void> &&f) {
 
 		GET(f);
+
 		update();
 		if (opts().radiation) {
 			compute_radiation(dt_.dt, grid_ptr->get_omega());
