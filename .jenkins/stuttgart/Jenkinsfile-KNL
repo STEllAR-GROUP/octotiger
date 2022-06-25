@@ -58,6 +58,7 @@ pipeline {
                     sh '''
                     srun -p knl -N 1 -n 1 -t 08:00:00 --exclusive bash -c "\
 		    pwd && cd /scratch && \
+                    rm -rf jenkins && \
                     mkdir -p jenkins && cd jenkins && \
                     mkdir -p octotiger-${JOB_BASE_NAME} && cd octotiger-${JOB_BASE_NAME} && \
                     rm -rf octotiger && \
@@ -155,6 +156,8 @@ pipeline {
                 buildbadge.setStatus('success')
             }
             sh '''
+                echo "Deleting cached files..."
+                rm -rf /scratch/jenkins/octotiger-${JOB_BASE_NAME} 
                 github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
                 curl \
                     --request POST \
@@ -174,6 +177,8 @@ pipeline {
                 buildbadge.setStatus('failing')
             }
             sh '''
+                echo "Deleting cached files..."
+                rm -rf /scratch/jenkins/octotiger-${JOB_BASE_NAME} 
                 github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
                 curl \
                     --request POST \
@@ -194,6 +199,8 @@ pipeline {
                 buildbadge.setStatus('aborted')
             }
             sh '''
+                echo "Deleting cached files..."
+                rm -rf /scratch/jenkins/octotiger-${JOB_BASE_NAME} 
                 github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
                 curl \
                     --request POST \
