@@ -74,6 +74,8 @@ pipeline {
                     cd OctoTigerBuildChain/ && \
                     git checkout jenkins-knl && \
                     git pull && \
+                    rm -rf build && \
+                    rm -rf src && \
                     mkdir -p src && \
                     cp -r ../octotiger src/octotiger && \
                     cd src && \
