@@ -485,7 +485,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account,
 												* INX / 2;
 										const integer z0 = ci.get_side(ZDIM)
 												* INX / 2;
-										auto m_in = fut.get();
+										auto m_in = GET(fut);
 										for (integer i = 0; i != INX / 2; ++i) {
 											for (integer j = 0; j != INX / 2;
 													++j) {
@@ -558,7 +558,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account,
 	for (geo::direction const &dir : geo::direction::full_set()) {
 		if (!neighbors[dir].empty()) {
 			all_neighbor_interaction_data.push_back(
-					neighbor_gravity_channels[dir].get_future(gcycle).get());
+					GET(neighbor_gravity_channels[dir].get_future(gcycle)));
 			if (!all_neighbor_interaction_data[dir].is_monopole)
 				contains_multipole = true;
 		} else {
@@ -644,7 +644,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account,
 
 	expansion_pass_type l_in;
 	if (my_location.level() != 0) {
-		l_in = parent_gravity_channel.get_future().get();
+		l_in = GET(parent_gravity_channel.get_future());
 	}
 	const expansion_pass_type ltmp = grid_ptr->compute_expansions(type,
 			my_location.level() == 0 ? nullptr : &l_in);

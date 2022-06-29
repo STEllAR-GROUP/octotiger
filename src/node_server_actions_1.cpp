@@ -46,7 +46,7 @@ std::pair<real, real> node_server::amr_error() {
 		}
 		hpx::wait_all(kfuts);
 		for (int i = 0; i < NCHILD; i++) {
-			auto tmp = kfuts[i].get();
+			auto tmp = GET(kfuts[i]);
 			sum.first += tmp.first;
 			sum.second += tmp.second;
 		}
@@ -91,7 +91,7 @@ node_count_type node_server::regrid_gather(bool rebalance_only) {
 			}
 			auto futi = futs.begin();
 			for (auto const &ci : geo::octant::full_set()) {
-				const auto child_cnt = futi->get();
+				const auto child_cnt = GET(*futi);
 				++futi;
 				child_descendant_count[ci] = child_cnt.total;
 				count.leaf += child_cnt.leaf;
@@ -127,7 +127,7 @@ future<hpx::id_type> node_server::create_child(hpx::id_type const &locality, int
 	return hpx::async(hpx::util::annotated_function([ci, this](hpx::id_type const locality) {
 
 		return hpx::new_<node_server>(locality, my_location.get_child(ci), me, current_time, rotational_time, step_num, hcycle, rcycle, gcycle).then([this, ci](future<hpx::id_type> &&child_idf) {
-		hpx::id_type child_id = child_idf.get();
+		hpx::id_type child_id = GET(child_idf);
 		node_client child = child_id;
 		{
 			std::array<integer, NDIM> lb = {2 * H_BW, 2 * H_BW, 2 * H_BW};
