@@ -1,11 +1,19 @@
+//  Copyright (c) 2021-2022 Gregor Daiß
+//
+//  Distributed under the Boost Software License, Version 1.0. (See accompanying
+//  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+//
+
 #include "octotiger/unitiger/hydro_impl/hydro_kernel_interface.hpp"
 #include "octotiger/unitiger/hydro_impl/flux_kernel_interface.hpp"
 #ifdef OCTOTIGER_HAVE_KOKKOS
+#include <hpx/kokkos/executors.hpp>
 #include <hpx/kokkos.hpp>
 #include "octotiger/unitiger/hydro_impl/hydro_kokkos_kernel.hpp"
 #endif
 
 #if defined(OCTOTIGER_HAVE_KOKKOS)
+hpx::lcos::local::once_flag init_hydro_kokkos_pool_flag;
 #if defined(KOKKOS_ENABLE_CUDA)
 using device_executor = hpx::kokkos::cuda_executor;
 using device_pool_strategy = round_robin_pool<device_executor>;
@@ -20,7 +28,22 @@ using executor_interface_t = stream_interface<device_executor, device_pool_strat
 //#else
 using host_executor = hpx::kokkos::serial_executor;
 //#endif
+void init_hydro_kokkos_aggregation_pool(void) {
+    const size_t max_slices = opts().max_executor_slices;
+    constexpr size_t number_aggregation_executors = 128;
+    constexpr Aggregated_Executor_Modes executor_mode = Aggregated_Executor_Modes::EAGER;
+    if (opts().cuda_streams_per_gpu > 0) {
+#if defined(KOKKOS_ENABLE_CUDA)
+    hydro_kokkos_agg_executor_pool<hpx::kokkos::cuda_executor>::init(number_aggregation_executors, max_slices, executor_mode);
+#elif defined(KOKKOS_ENABLE_HIP)
+    hydro_kokkos_agg_executor_pool<hpx::kokkos::hip_executor>::init(number_aggregation_executors, max_slices, executor_mode);
 #endif
+    }
+    hydro_kokkos_agg_executor_pool<host_executor>::init(number_aggregation_executors, max_slices, executor_mode);
+}
+#endif
+
+
 
 timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
     const std::vector<std::vector<safe_real>>& U, std::vector<std::vector<safe_real>>& X,
@@ -40,6 +63,8 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
         if (device_type == interaction_device_kernel_type::KOKKOS_CUDA ||
             device_type == interaction_device_kernel_type::KOKKOS_HIP) {
 #if defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_CUDA) || defined(KOKKOS_ENABLE_HIP))
+            // Init local kernel pool if not done already
+            hpx::lcos::local::call_once(init_hydro_kokkos_pool_flag, init_hydro_kokkos_aggregation_pool);
             bool avail = true; 
             // Host execution is possible: Check if there is a launch slot for device - if not 
             // we will execute the kernel on the CPU instead
@@ -72,8 +97,7 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
             }
             if (avail) {
                 size_t device_id = 0;
-                stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy> executor;
-                max_lambda = launch_hydro_cuda_kernels(hydro, U, X, omega, device_id, executor, F);
+                max_lambda = launch_hydro_cuda_kernels(hydro, U, X, omega, device_id, F);
                 return max_lambda;
             }
         }
@@ -85,13 +109,14 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
 #endif
         if (device_type == interaction_device_kernel_type::HIP) {
 #ifdef OCTOTIGER_HAVE_HIP
-            bool avail = false;
-            avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
-                pool_strategy>(cuda_buffer_capacity);
+            bool avail = true;
+            if (host_type != interaction_host_kernel_type::DEVICE_ONLY) {
+              avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
+                  pool_strategy>(cuda_buffer_capacity);
+            }
             if (avail) {
                 size_t device_id = 0;
-                stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy> executor;
-                max_lambda = launch_hydro_cuda_kernels(hydro, U, X, omega, device_id, executor, F);
+                max_lambda = launch_hydro_cuda_kernels(hydro, U, X, omega, device_id, F);
                 return max_lambda;
             }
         }
@@ -106,6 +131,7 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
     // Nothing is available or device execution is disabled - fallback to host execution
     if (host_type == interaction_host_kernel_type::KOKKOS) {
 #ifdef OCTOTIGER_HAVE_KOKKOS
+        hpx::lcos::local::call_once(init_hydro_kokkos_pool_flag, init_hydro_kokkos_aggregation_pool);
         host_executor executor(hpx::kokkos::execution_space_mode::independent);
         // host_executor executor{};
         max_lambda = launch_hydro_kokkos_kernels<host_executor>(
@@ -116,39 +142,6 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
                   << std::endl;
         abort();
 #endif
-    } else if (host_type == interaction_host_kernel_type::VC) {
-        // Vc implementation
-        static thread_local auto f = std::vector<std::vector<std::vector<safe_real>>>(NDIM,
-            std::vector<std::vector<safe_real>>(opts().n_fields, std::vector<safe_real>(H_N3)));
-        // TODO Vc reconstruct?
-        const auto& q = hydro.reconstruct(U, X, omega);
-#if defined __x86_64__ && defined OCTOTIGER_HAVE_VC
-        max_lambda = flux_cpu_kernel(q, f, X, omega, hydro.get_nf());
-#else
-        max_lambda = hydro.flux(U, q, f, X, omega);
-#endif
-        // Slightly more efficient conversion
-        for (int dim = 0; dim < NDIM; dim++) {
-            for (integer field = 0; field != opts().n_fields; ++field) {
-                for (integer i = 0; i <= INX; ++i) {
-                    for (integer j = 0; j <= INX; ++j) {
-                        for (integer k = 0; k <= INX; ++k) {
-                            const auto i0 = findex(i, j, k);
-                            F[dim][field][i0] = f[dim][field][hindex(i + H_BW, j + H_BW, k + H_BW)];
-                            if (field == opts().n_fields - 1) {
-                                real rho_tot = 0.0;
-                                for (integer field = spc_i; field != spc_i + opts().n_species;
-                                     ++field) {
-                                    rho_tot += F[dim][field][i0];
-                                }
-                                F[dim][rho_i][i0] = rho_tot;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return max_lambda;
     } else if (host_type == interaction_host_kernel_type::LEGACY) {
         // Legacy implementation
         static thread_local auto f = std::vector<std::vector<std::vector<safe_real>>>(NDIM,
@@ -174,21 +167,6 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
                 }
             }
         }
-        /*std::cout << "legacy" << max_lambda.x << " " <<max_lambda.y << " " <<max_lambda.z << std::endl;
-        std::cin.get();
-        std::cout << "start output legacy x!" << std::endl;
-        for(int i = 0; i < inx_large * inx_large * inx_large; i++)
-          std::cout << X[0][i] << " ";
-        std::cout << "finish output legacy x!" << std::endl;
-        std::cout << "start output legacy! y" << std::endl;
-        for(int i = 0; i < inx_large * inx_large * inx_large; i++)
-          std::cout << X[1][i] << " ";
-        std::cout << "finish output legacy y!" << std::endl;
-        std::cout << "start output legacy! z" << std::endl;
-        for(int i = 0; i < inx_large * inx_large * inx_large; i++)
-          std::cout << X[2][i] << " ";
-        std::cout << "finish output legacy! z" << std::endl;
-        std::cin.get();*/
         return max_lambda;
     } else {
         std::cerr << "No valid hydro kernel type given! " << std::endl;

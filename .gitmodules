@@ -1,3 +1,6 @@
 [submodule "octotiger-testdata"]
 	path = octotiger-testdata
 	url = https://github.com/G-071/octotiger-testdata.git
+[submodule "octotiger-performance-tests"]
+	path = octotiger-performance-tests
+	url = https://github.com/G-071/octotiger-performance-tests

@@ -35,7 +35,13 @@
 
 int hpx_main(int argc, char* argv[]) {
 
-	    // The ascii logo was created by combining, modifying and extending the ascii arts from:
+#ifdef OCTOTIGER_HAVE_KOKKOS
+    // Initialize Kokkos on root
+    std::cout << "Initializing Kokkos on Root locality" << std::endl;
+    Kokkos::initialize();
+    Kokkos::print_configuration(std::cout);
+#endif
+    // The ascii logo was created by combining, modifying and extending the ascii arts from:
     // http://ascii.co.uk/art/octopus (Author "jgs")
     // and
     // http://www.ascii-art.de/ascii/t/tiger.txt (Author "fL")
@@ -93,6 +99,13 @@ int hpx_main(int argc, char* argv[]) {
     printf("Compiled for SSE2 SIMD architectures.\n");
 #else
     printf("Not compiled for a known SIMD architecture.\n");
+#endif
+#ifdef OCTOTIGER_HAVE_KOKKOS
+#if defined(OCTOTIGER_HAVE_STD_EXPERIMENTAL_SIMD)
+    printf("Using std::experimential::simd SIMD types.\n");
+#else
+    printf("Using Kokkos SIMD types.\n");
+#endif
 #endif
 #if defined(OCTOTIGER_FORCE_SCALAR_KOKKOS_SIMD)
     printf("Note: OCTOTIGER_FORCE_SCALAR_KOKKOS_SIMD is on! Kokkos kernel will not use SIMD!\n");

@@ -18,6 +18,7 @@
 
 #include "octotiger/unitiger/hydro_impl/hydro_boundary_exchange.hpp"
 
+#include <hpx/async_combinators/when_all.hpp>
 #include <hpx/include/performance_counters.hpp>
 #include <hpx/include/lcos.hpp>
 #include <hpx/include/util.hpp>
@@ -150,9 +151,9 @@ future<void> node_server::exchange_flux_corrections() {
 }
 
 void node_server::all_hydro_bounds() {
-	exchange_interlevel_hydro_data();
-	collect_hydro_boundaries();
-	send_hydro_amr_boundaries();
+	exchange_interlevel_hydro_data(); // bottom up step
+	collect_hydro_boundaries(); // interlevel step
+	send_hydro_amr_boundaries(); // up-down step
 	++hcycle;
 }
 
@@ -164,61 +165,200 @@ void node_server::energy_hydro_bounds() {
 }
 
 void node_server::exchange_interlevel_hydro_data() {
-
-	if (is_refined) {
-		std::vector<real> outflow(opts().n_fields, ZERO);
-		for (auto const &ci : geo::octant::full_set()) {
-			auto data = GET(child_hydro_channels[ci].get_future(hcycle));
-			grid_ptr->set_restrict(data, ci);
-			integer fi = 0;
-			for (auto i = data.end() - opts().n_fields; i != data.end(); ++i) {
-				outflow[fi] += *i;
-				++fi;
-			}
-		}
-		grid_ptr->set_outflows(std::move(outflow));
-	}
-	auto data = grid_ptr->get_restrict();
-	integer ci = my_location.get_child_index();
-	if (my_location.level() != 0) {
-		parent.send_hydro_children(std::move(data), ci, hcycle);
-	}
+  hpx::util::annotated_function([&]() {
+    if (is_refined) {
+      std::vector<real> outflow(opts().n_fields, ZERO);
+      for (auto const &ci : geo::octant::full_set()) {
+        auto data = GET(child_hydro_channels[ci].get_future(hcycle));
+        grid_ptr->set_restrict(data, ci);
+        integer fi = 0;
+        for (auto i = data.end() - opts().n_fields; i != data.end(); ++i) {
+          outflow[fi] += *i;
+          ++fi;
+        }
+      }
+      grid_ptr->set_outflows(std::move(outflow));
+    }
+    auto data = grid_ptr->get_restrict();
+    integer ci = my_location.get_child_index();
+    if (my_location.level() != 0) {
+      parent.send_hydro_children(std::move(data), ci, hcycle);
+    }
+  }, "all_hydro_bounds::exchange_interlevel_hydro_data")();
 }
 
 void node_server::collect_hydro_boundaries(bool energy_only) {
+  hpx::util::annotated_function([&]() {
 	grid_ptr->clear_amr();
-	for (auto const &dir : geo::direction::full_set()) {
-		if (!neighbors[dir].empty()) {
-			const integer width = H_BW;
-			auto bdata = grid_ptr->get_hydro_boundary(dir, energy_only);
-			neighbors[dir].send_hydro_boundary(std::move(bdata), dir.flip(), hcycle);
-		}
-	}
+  ready_for_hydro_exchange[hcycle%number_hydro_exchange_promises].set_value();
+  const bool use_local_optimization = opts().optimize_local_communication;
+  const bool use_local_amr_optimization = opts().optimize_local_communication;
 
-	std::array<future<void>, geo::direction::count()> results;
+	std::vector<hpx::lcos::shared_future<void>> neighbors_ready; 
+  bool local_amr_handling = false;
+	for (auto const &dir : geo::direction::full_set()) {
+		if (!neighbors[dir].empty() && neighbors[dir].is_local()) {
+        std::vector<hpx::lcos::local::promise<void>> *neighbor_promises = neighbors[dir].hydro_ready_vec;
+        neighbors_ready.emplace_back((*neighbor_promises)[hcycle%number_hydro_exchange_promises].get_shared_future());
+    } else if (neighbors[dir].empty() && parent.is_local() && use_local_amr_optimization) {
+      local_amr_handling = true;
+    }
+  }
+  if (local_amr_handling && my_location.level() != 0) {
+    std::vector<hpx::lcos::local::promise<void>> *parent_promise = parent.amr_hydro_ready_vec;
+    neighbors_ready.emplace_back((*parent_promise)[hcycle%number_hydro_exchange_promises].get_shared_future());
+  }
+  auto get_neighbors = hpx::when_all(neighbors_ready);
+  get_neighbors.get();
+
+  std::vector<hpx::lcos::shared_future<void>> neighbors_finished_reading;
+	for (auto const &dir : geo::direction::full_set()) {
+    const integer width = H_BW;
+    if (neighbors[dir].is_local() && use_local_optimization && !neighbors[dir].empty()) {
+      /* auto fut = sibling_hydro_channels[dir].get_future(hcycle); */
+      /* fut.get(); */
+      const auto *uneighbor = neighbors[dir].u_local;
+
+      std::array<integer, NDIM> lb_orig, ub_orig;
+      std::array<integer, NDIM> lb_target, ub_target;
+      const auto& bw = energy_only ? grid_ptr->energy_bw : grid_ptr->field_bw;
+      for (integer field = 0; field != opts().n_fields; ++field) {
+        get_boundary_size(lb_orig, ub_orig, dir.flip(), INNER, INX, H_BW, bw[field]);
+        get_boundary_size(lb_target, ub_target, dir, OUTER, INX, H_BW, bw[field]);
+        for (integer i = 0; i < ub_target[XDIM] - lb_target[XDIM]; ++i) {
+          const int i_orig = i + lb_orig[XDIM];
+          const int i_target = i + lb_target[XDIM];
+          for (integer j = 0; j < ub_target[YDIM] - lb_target[YDIM]; ++j) {
+            const int j_orig = j + lb_orig[YDIM];
+            const int j_target = j + lb_target[YDIM];
+            const int k_orig = lb_orig[ZDIM];
+            const int k_target = lb_target[ZDIM];
+            std::copy((*uneighbor)[field].begin() + hindex(i_orig, j_orig, k_orig),
+                (*uneighbor)[field].begin() + hindex(i_orig, j_orig, k_orig) + ub_target[ZDIM] - lb_target[ZDIM],
+                (grid_ptr->U)[field].begin() + hindex(i_target, j_target, k_target));
+
+            /* for (integer k = 0; k < ub_target[ZDIM] - lb_target[ZDIM]; ++k) { */
+            /*   const int k_orig = k + lb_orig[ZDIM]; */
+            /*   const int k_target = k + lb_target[ZDIM]; */
+            /*   (grid_ptr->U)[field][hindex(i_target, j_target, k_target)] = */
+            /*     (*uneighbor)[field][hindex(i_orig, j_orig, k_orig)]; */
+            /* } */
+          }
+        }
+      }
+
+      if (!opts().gravity && !is_refined) {
+        auto neighbor_promises_p = neighbors[dir].ready_for_hydro_update;
+        neighbors_finished_reading.emplace_back((*neighbor_promises_p)[hcycle%number_hydro_exchange_promises].get_shared_future());
+      }
+      //neighbors_finished_reading
+    } else if (use_local_amr_optimization && neighbors[dir].empty() && parent.is_local() && my_location.level() != 0) { 
+      // Get neighbor data and the required boundaries for copying the ghostlayer
+      const auto *uneighbor = parent.u_local;
+      std::array<integer, NDIM> lb_orig, ub_orig;
+      std::array<integer, NDIM> lb_target, ub_target;
+      get_boundary_size(lb_target, ub_target, dir, OUTER, INX / 2, H_BW);
+      // Set is_coarse 
+      for (integer i = 0; i < ub_target[XDIM] - lb_target[XDIM]; ++i) {
+        const int i_target = i + lb_target[XDIM];
+        for (integer j = 0; j < ub_target[YDIM] - lb_target[YDIM]; ++j) {
+          const int j_target = j + lb_target[YDIM];
+          for (integer k = 0; k < ub_target[ZDIM] - lb_target[ZDIM]; ++k) {
+            const int k_target = k + lb_target[ZDIM];
+            grid_ptr->is_coarse[hSindex(i_target, j_target, k_target)]++;
+            assert(i_target < H_BW || i_target >= HS_NX - H_BW || j_target <
+                H_BW || j_target >= HS_NX - H_BW || k_target < H_BW ||
+                k_target >= HS_NX - H_BW);
+          }
+        }
+      }
+      // Adjust target region
+      for (int dim = 0; dim < NDIM; dim++) {
+        lb_target[dim] = std::max(lb_target[dim] - 1, integer(0));
+        ub_target[dim] = std::min(ub_target[dim] + 1, integer(HS_NX));
+      }
+      // Get orig region
+      get_boundary_size(lb_orig, ub_orig, dir, OUTER, INX / 2, H_BW);
+      for (integer dim = 0; dim != NDIM; ++dim) {
+        lb_orig[dim] = std::max(lb_orig[dim] - 1, integer(0));
+        ub_orig[dim] = std::min(ub_orig[dim] + 1, integer(HS_NX));
+        // TODO ci correct?
+        /* lb_orig[dim] = lb_orig[dim] + ci.get_side(dim) * (INX / 2); */
+        /* ub_orig[dim] = ub_orig[dim] + ci.get_side(dim) * (INX / 2); */
+        lb_orig[dim] = lb_orig[dim] + my_location.get_child_side(dim) * (INX / 2);
+        ub_orig[dim] = ub_orig[dim] + my_location.get_child_side(dim) * (INX / 2);
+      }
+      // Set has_coarse 
+      for (integer field = 0; field != opts().n_fields; ++field) {
+        if (!energy_only || field == egas_i) {
+          for (integer i = 0; i < ub_target[XDIM] - lb_target[XDIM]; ++i) {
+            const int i_orig = i + lb_orig[XDIM];
+            const int i_target = i + lb_target[XDIM];
+            for (integer j = 0; j < ub_target[YDIM] - lb_target[YDIM]; ++j) {
+              const int j_orig = j + lb_orig[YDIM];
+              const int j_target = j + lb_target[YDIM];
+              const int k_orig = lb_orig[ZDIM];
+              const int k_target = lb_target[ZDIM];
+              std::copy((*uneighbor)[field].begin() + hindex(i_orig, j_orig, k_orig),
+                  (*uneighbor)[field].begin() + hindex(i_orig, j_orig, k_orig) + ub_target[ZDIM] - lb_target[ZDIM],
+                  (grid_ptr->Ushad)[field].begin() + hSindex(i_target, j_target, k_target));
+
+              /* for (integer k = 0; k < ub_target[ZDIM] - lb_target[ZDIM]; ++k) { */
+              /*   const int k_orig = k + lb_orig[ZDIM]; */
+              /*   const int k_target = k + lb_target[ZDIM]; */
+              /*   grid_ptr->has_coarse[hSindex(i_target, j_target, k_target)]++; */
+              /*   /1* (grid_ptr->Ushad)[field][hSindex(i_target, j_target, k_target)] = *1/ */
+              /*   /1*   (*uneighbor)[field][hindex(i_orig, j_orig, k_orig)]; *1/ */
+              /* } */
+            }
+          }
+        }
+      }
+    } else if (!neighbors[dir].empty()) {
+        auto bdata = grid_ptr->get_hydro_boundary(dir, energy_only);
+        neighbors[dir].send_hydro_boundary(std::move(bdata), dir.flip(), hcycle);
+    }
+	}
+  if (!opts().gravity) {
+    ready_for_hydro_update[hcycle%number_hydro_exchange_promises].set_value();
+    if (!is_refined)
+      all_neighbors_got_hydro[hcycle%number_hydro_exchange_promises] = hpx::when_all(neighbors_finished_reading);
+  }
+	std::array<future<void>, geo::direction::count()> results; 
 	integer index = 0;
 	for (auto const &dir : geo::direction::full_set()) {
 		if (!(neighbors[dir].empty() && my_location.level() == 0)) {
-			results[index++] = sibling_hydro_channels[dir].get_future(hcycle).then(
-			hpx::util::annotated_function([this, energy_only, dir](future<sibling_hydro_type> &&f) -> void {
-				auto &&tmp = GET(f);
-				if (!neighbors[dir].empty()) {
-					grid_ptr->set_hydro_boundary(tmp.data, tmp.direction, energy_only);
-				} else {
-					grid_ptr->set_hydro_amr_boundary(tmp.data, tmp.direction, energy_only);
+      // receive data from neighbor via sibling_hydro_channels
+      bool is_local = neighbors[dir].is_local();
+      if (is_local && use_local_optimization && !neighbors[dir].empty()) {
+        // TODO Add synchronization mechanism for U pot... (probably some sort of promise future for the actual node_sever method)
+      } else if (is_local && use_local_amr_optimization && neighbors[dir].empty()){
+      } else {
+        results[index++] = sibling_hydro_channels[dir].get_future(hcycle).then( // 3s?
+        hpx::util::annotated_function([this, energy_only, dir](future<sibling_hydro_type> &&f) -> void {
+          auto &&tmp = GET(f);
+          if (!neighbors[dir].empty()) {
+            grid_ptr->set_hydro_boundary(tmp.data, tmp.direction, energy_only); // 1.5s
+          } else {
+            grid_ptr->set_hydro_amr_boundary(tmp.data, tmp.direction, energy_only); // 1.5s
 
-				}
-			}, "node_server::collect_hydro_boundaries::set_hydro_boundary"));
+          }
+        }, "node_server::collect_hydro_boundaries::set_hydro_boundary"));
+        // sync
+        results[index - 1].get();
+      }
 		}
 	}
-	while (index < geo::direction::count()) {
-		results[index++] = hpx::make_ready_future();
-	}
+	/* while (index < geo::direction::count()) { */
+	/* 	results[index++] = hpx::make_ready_future(); */
+	/* } */
 //	wait_all_and_propagate_exceptions(std::move(results));
-	for (auto &f : results) {
-		GET(f);
-	}
+	/* for (auto &f : results) { */
+	/* 	GET(f); */
+	/* } */
+
 	amr_boundary_type kernel_type = opts().amr_boundary_kernel_type;
+  hpx::util::annotated_function([&]() {
 	if (kernel_type == AMR_LEGACY) {
 		grid_ptr->complete_hydro_amr_boundary(energy_only);
 	} else {
@@ -230,8 +370,9 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
 #ifdef OCTOTIGER_HAVE_CUDA
 		bool avail = false;
 		if (kernel_type == AMR_CUDA)
-			avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
-					pool_strategy>(opts().cuda_buffer_capacity);
+      avail = true;
+			/* avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor, */
+			/* 		pool_strategy>(opts().cuda_buffer_capacity); */
 		if (!avail) { // no stream is available or flag is turned off, proceed with CPU implementations
 	#if defined __x86_64__ && defined OCTOTIGER_HAVE_VC
 			complete_hydro_amr_boundary_vc(dx, energy_only, grid_ptr->Ushad, grid_ptr->is_coarse, xmin, grid_ptr->U);
@@ -239,8 +380,7 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
 			complete_hydro_amr_boundary_cpu(dx, energy_only, grid_ptr->Ushad, grid_ptr->is_coarse, xmin, grid_ptr->U);
 	#endif
 		} else { // Run on GPU
-			stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy> executor;
-			launch_complete_hydro_amr_boundary_cuda(executor, dx, energy_only, grid_ptr->Ushad,
+			launch_complete_hydro_amr_boundary_cuda(dx, energy_only, grid_ptr->Ushad,
 			grid_ptr->is_coarse, xmin, grid_ptr->U);
 		}
 // None GPU build -> run on CPU
@@ -252,35 +392,44 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
 	#endif
 #endif
 	}
+  }, "collect_hydro_boundaries::complete_hydro_amr_boundary")();
 	for (auto &face : geo::face::full_set()) {
 		if (my_location.is_physical_boundary(face)) {
 			grid_ptr->set_physical_boundaries(face, current_time);
 		}
 	}
+  }, "all_hydro_bounds::collect_hydro_boundaries")();
 }
 
 void node_server::send_hydro_amr_boundaries(bool energy_only) {
-	if (is_refined) {
-		constexpr auto full_set = geo::octant::full_set();
-		for (auto &ci : full_set) {
-			const auto &flags = amr_flags[ci];
-			for (auto &dir : geo::direction::full_set()) {
-				if (flags[dir]) {
-					std::array<integer, NDIM> lb, ub;
-					std::vector<real> data;
-					get_boundary_size(lb, ub, dir, OUTER, INX / 2, H_BW);
-					for (integer dim = 0; dim != NDIM; ++dim) {
-						lb[dim] = std::max(lb[dim] - 1, integer(0));
-						ub[dim] = std::min(ub[dim] + 1, integer(HS_NX));
-						lb[dim] = lb[dim] + ci.get_side(dim) * (INX / 2);
-						ub[dim] = ub[dim] + ci.get_side(dim) * (INX / 2);
-					}
-					data = grid_ptr->get_subset(lb, ub, energy_only);
-					children[ci].send_hydro_amr_boundary(std::move(data), dir, hcycle);
-				}
-			}
-		}
-	}
+  hpx::util::annotated_function([&]() {
+    if (is_refined) {
+      // set promise 
+      ready_for_amr_hydro_exchange[hcycle%number_hydro_exchange_promises].set_value();
+      const bool use_local_optimization = opts().optimize_local_communication;
+      // TODO only set if at least one of the children is local?
+      constexpr auto full_set = geo::octant::full_set();
+      for (auto &ci : full_set) {
+        const auto &flags = amr_flags[ci]; // does that nephew exist and need our values?
+        for (auto &dir : geo::direction::full_set()) {
+          // TODO If flags and children_ci is_local, then set child amr_hydro_parent_ready_promise
+          if (flags[dir] && (!children[ci].is_local() || !use_local_optimization)) { 
+            std::array<integer, NDIM> lb, ub;
+            std::vector<real> data;
+            get_boundary_size(lb, ub, dir, OUTER, INX / 2, H_BW);
+            for (integer dim = 0; dim != NDIM; ++dim) {
+              lb[dim] = std::max(lb[dim] - 1, integer(0));
+              ub[dim] = std::min(ub[dim] + 1, integer(HS_NX));
+              lb[dim] = lb[dim] + ci.get_side(dim) * (INX / 2);
+              ub[dim] = ub[dim] + ci.get_side(dim) * (INX / 2);
+            }
+            data = grid_ptr->get_subset(lb, ub, energy_only);
+            children[ci].send_hydro_amr_boundary(std::move(data), dir, hcycle);
+          }
+        }
+      }
+    }
+  }, "all_hydro_bounds::send_hydro_amr_boundaries")();
 }
 
 template<class T>
@@ -359,6 +508,24 @@ void node_server::initialize(real t, real rt) {
 		grid_ptr->set_root();
 	}
 	aunts.resize(NFACE);
+
+
+  number_hydro_exchange_promises = (refinement_freq() + 1) * (NRK + 1 + static_cast<int>(opts().radiation));
+  /* std::cout << "promises:" << number_hydro_exchange_promises << std::endl; */
+  ready_for_hydro_exchange.clear();
+  for (int i = 0; i < number_hydro_exchange_promises; i++)
+    ready_for_hydro_exchange.emplace_back();
+  ready_for_amr_hydro_exchange.clear();
+  for (int i = 0; i < number_hydro_exchange_promises; i++)
+    ready_for_amr_hydro_exchange.emplace_back();
+  if (!opts().gravity) {
+    ready_for_hydro_update.clear();
+    for (int i = 0; i < number_hydro_exchange_promises; i++)
+      ready_for_hydro_update.emplace_back();
+    all_neighbors_got_hydro.clear();
+    for (int i = 0; i < number_hydro_exchange_promises; i++)
+      all_neighbors_got_hydro.emplace_back(hpx::make_ready_future());
+  }
 }
 
 node_server::~node_server() {

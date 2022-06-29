@@ -1,5 +1,10 @@
 #!groovy
 
+//  Copyright (c) 2021-2022 Gregor Daiß
+//
+//  Distributed under the Boost Software License, Version 1.0. (See accompanying
+//  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+
 def buildbadge = addEmbeddableBadgeConfiguration(id: "nodelevel", subject: "CPU / GPU Kernel Tests", status: "skipped")
 
 pipeline {
@@ -26,6 +31,9 @@ pipeline {
                 script {
                     buildbadge.setStatus('running')
                 }
+                sh '''
+                    echo "Build success! Pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger Node-Level Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} succeded" "${MAINTAINER_MAIL}"
+                '''
                 dir('octotiger') {
                     checkout scm
                     sh '''
@@ -89,7 +97,7 @@ pipeline {
                                 then
                                     cd "octo-buildscripts-${compiler_config}-${cuda_config}-${kokkos_config}"
                                     git reset --hard # reset griddim modification in case of unclean directory
-                                    git checkout main
+                                    git checkout jenkins-aggregation-test-cuda
                                     git pull
                                     rm -rf build/octotiger
                                     rm -rf build/kokkos
@@ -97,7 +105,7 @@ pipeline {
                                 else
                                     git clone https://github.com/diehlpk/PowerTiger.git "octo-buildscripts-${compiler_config}-${cuda_config}-${kokkos_config}"
                                     cd "octo-buildscripts-${compiler_config}-${cuda_config}-${kokkos_config}"
-                                    git checkout main # change to different branch if needed for target machine
+                                    git checkout jenkins-aggregation-test-cuda # change to different branch if needed for target machine
                                     mkdir src
                                     rm -rf build/octotiger
                                     rm -rf build/kokkos
@@ -180,6 +188,9 @@ pipeline {
             script {
                 buildbadge.setStatus('success')
             }
+            sh '''
+                echo "Build success! Pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger Node-Level Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} succeded" "${MAINTAINER_MAIL}"
+            '''
         }
         failure {
             script {

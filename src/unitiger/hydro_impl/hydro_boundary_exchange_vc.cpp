@@ -1,3 +1,9 @@
+//  Copyright (c) 2020-2022 Gregor Daiß
+//
+//  Distributed under the Boost Software License, Version 1.0. (See accompanying
+//  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+//
+
 #include <hpx/config/compiler_specific.hpp> 
 #ifndef HPX_COMPUTE_DEVICE_CODE
 
@@ -12,15 +18,13 @@
 #include "octotiger/util/vec_vc_wrapper.hpp"
 
 void complete_hydro_amr_boundary_vc(const double dx, const bool energy_only,
-    const std::vector<std::vector<real>>& Ushad, const std::vector<std::atomic<int>>& is_coarse,
+    const std::vector<std::vector<real>>& Ushad, const std::vector<int>& is_coarse,
     const std::array<double, NDIM>& xmin, std::vector<std::vector<double>>& U) {
 
     std::vector<double, recycler::aggressive_recycle_aligned<double, 32>> unified_u(
         opts().n_fields * H_N3);
     std::vector<double, recycler::aggressive_recycle_aligned<double, 32>> unified_ushad(
         opts().n_fields * HS_N3);
-    // Create non-atomic copy
-    std::vector<int, recycler::aggressive_recycle_aligned<int, 32>> coarse(HS_N3);
 
     for (int f = 0; f < opts().n_fields; f++) {
         if (!energy_only || f == egas_i) {
@@ -29,12 +33,9 @@ void complete_hydro_amr_boundary_vc(const double dx, const bool energy_only,
         }
     }
 
-    for (int i = 0; i < HS_N3; i++) {
-        coarse[i] = is_coarse[i];
-    }
     constexpr int field_offset = HS_N3 * 8;
 
-    constexpr int uf_max = 15;
+    constexpr int uf_max = OCTOTIGER_MAX_NUMBER_FIELDS;
     vc_type uf_local[uf_max * 8];
     const vc_type zindices = vc_type::IndexesFromZero();
     for (int i0 = 1; i0 < HS_NX - 1; i0++) {
@@ -43,7 +44,7 @@ void complete_hydro_amr_boundary_vc(const double dx, const bool energy_only,
             for (int k0 = 1; k0 < HS_NX - 1; k0 += vc_type::size()) {
                 const int iii0 = i0 * HS_DNX + j0 * HS_DNY + k0 * HS_DNZ;
                 for (int mi = 0; mi < vc_type::size(); mi++)
-                    mask_coarse[mi] = coarse[mi + iii0];
+                    mask_coarse[mi] = is_coarse[mi + iii0];
                 const int border = HS_NX - 1 - k0;
                 const mask_type mask1 = (zindices < border);
                 const mask_type mask2(mask_coarse);
@@ -51,11 +52,11 @@ void complete_hydro_amr_boundary_vc(const double dx, const bool energy_only,
                 if (Vc::none_of(mask))
                     continue;
                 complete_hydro_amr_boundary_inner_loop<vc_type>(dx, energy_only,
-                    unified_ushad.data(), coarse.data(), xmin.data(), i0, j0, k0,
+                    unified_ushad.data(), is_coarse.data(), xmin.data(), i0, j0, k0,
                     opts().n_fields, mask, zindices, iii0, uf_local);
 
                 for (int mi = 0; mi < vc_type::size(); mi++) {
-                if (coarse[iii0 + mi] && k0 + mi < HS_NX -1) {
+                if (is_coarse[iii0 + mi] && k0 + mi < HS_NX -1) {
                     const int i = 2 * i0 - H_BW ;
                     const int j = 2 * j0 - H_BW ;
                     const int k = 2 * (k0 + mi) - H_BW ;
@@ -72,6 +73,14 @@ void complete_hydro_amr_boundary_vc(const double dx, const bool energy_only,
                                 kr = 1;
                             for (;kr < 2 && k + kr < H_NX; kr++) {
                                 const int iiir = hindex(i + ir, j + jr, k + kr);
+                                // Note: Accessing outer grid only it seems!
+                                if (i + ir >= H_BW && i + ir < INX + H_BW && j + jr >= H_BW &&
+                                    j + jr < INX + H_BW && k + kr >= H_BW && k + kr < INX + H_BW) {
+                                    std::cout << "Accessing inner grid!" << std::endl;
+                                    std::cout << i + ir << " " << j + jr << " " << k + kr
+                                              << std::endl;
+                                    std::cin.get();
+                                }
                                 const int oct_index = ir * 4 + jr * 2 + kr;
                                 for (int f = 0; f < opts().n_fields; f++) {
                                     if (!energy_only || f == egas_i)
