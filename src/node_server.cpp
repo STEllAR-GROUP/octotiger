@@ -427,7 +427,6 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 
 	if (is_refined) {
 		std::array<future<multipole_pass_type>, geo::octant::count()> m_in_futures;
-		std::array<future<void>, geo::octant::count()> futs;
 		integer index = 0;
 		for (auto &ci : geo::octant::full_set()) {
 			m_in_futures[index++] = child_gravity_channels[ci].get_future();
@@ -449,9 +448,6 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 				}
 			}
 			index++;
-		}
-		for (auto &fut : futs) {
-			GET(fut);
 		}
 		m_out = grid_ptr->compute_multipoles(type, &m_out);
 	} else {
