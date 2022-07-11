@@ -138,6 +138,7 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
                                               0,
                                               (number_blocks) * number_slices),
                 Kokkos::Experimental::WorkItemProperty::HintLightWeight);
+        policy.set_chunk_size(number_blocks);
 
         Kokkos::parallel_for(
             "kernel hydro flux", policy, KOKKOS_LAMBDA(int idx) {
@@ -1017,11 +1018,11 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
         alloc_host_double, (ndir / 2 * H_N3 + padding) * max_slices);
     find_contact_discs_impl(exec, agg_exec, combined_u, P, disc, physics<NDIM>::A_, physics<NDIM>::B_,
         physics<NDIM>::fgamma_, physics<NDIM>::de_switch_1, ndir, nf,
-        {1, 1, 8, 8}, {1, 1, 8, 8});
+        {1, 32, 8, 8}, {1, 32, 8, 8});
 
     // Pre recon
     hydro_pre_recon_impl(exec, agg_exec, combined_large_x, omega, angmom, combined_u, nf, n_species,
-        {1, 1, 8, 8});
+        {1, 64, 8, 8});
 
     // Reconstruct
     aggregated_host_buffer<double, executor_t> q(
@@ -1031,11 +1032,11 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     if (angmom_index > -1) {
         reconstruct_impl<host_simd_t, host_simd_mask_t>(exec, agg_exec, omega, nf, angmom_index,
             smooth_field, disc_detect, q, combined_x, combined_u, AM, dx, disc, n_species, ndir,
-            nangmom, {1, 1, 8, 8});
+            nangmom, {1, 32, 8, 8});
     } else {
         reconstruct_no_amc_impl<host_simd_t, host_simd_mask_t>(exec, agg_exec, omega, nf,
             angmom_index, smooth_field, disc_detect, q, combined_x, combined_u, AM, dx, disc,
-            n_species, ndir, nangmom, {1, 1, 8, 8});
+            n_species, ndir, nangmom, {1, 32, 8, 8});
     }
 
     // Flux
@@ -1054,7 +1055,7 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
         amax, amax_indices, amax_d, masks, omega, dx, A_, B_, nf, fgamma,
         de_switch_1, blocks, 1);
 
-    sync_kokkos_host_kernel(exec);
+    sync_kokkos_host_kernel(agg_exec.get_underlying_executor());
 
     const int amax_slice_offset = (1 + 2 * nf) * blocks * slice_id;
     const int max_indices_slice_offset = blocks * slice_id;
