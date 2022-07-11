@@ -611,71 +611,116 @@ void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
     kokkos_buffer_t& AM, const kokkos_buffer_t& dx, const kokkos_buffer_t& cdiscs,
     const int n_species_, const int ndir, const int nangmom,
     const Kokkos::Array<long, 4>&& tiling_config) {
+    constexpr size_t workgroup_size = 16;
+    constexpr size_t team_size = 1;
+    static_assert(team_size <= workgroup_size);
+
     const size_t z_number_workitems = (q_inx / simd_t::size() + (q_inx % simd_t::size() > 0 ? 1 : 0));
     const int blocks =
-        (q_inx * q_inx * z_number_workitems) / 64 + 1;
+        (q_inx * q_inx * z_number_workitems) / workgroup_size + 1;
     const int number_slices = agg_exec.number_slices;
+    
     if (agg_exec.sync_aggregation_slices()) {
-        auto policy = Kokkos::Experimental::require(
-            Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<4>>(
-                agg_exec.get_underlying_executor().instance(), {0, 0, 0, 0}, {number_slices, blocks, 8, 8},
-                tiling_config),
-            Kokkos::Experimental::WorkItemProperty::HintLightWeight);
+        using policytype = Kokkos::TeamPolicy<decltype(agg_exec.get_underlying_executor().instance())>;
+        using membertype = typename policytype::member_type;
+        policytype policy =
+            Kokkos::Experimental::require(Kokkos::TeamPolicy<decltype(executor.instance())>(
+                                              executor.instance(),
+                                              blocks * number_slices, team_size),
+                Kokkos::Experimental::WorkItemProperty::HintLightWeight);
+
+        policy.set_chunk_size(blocks * 2);
+
         Kokkos::parallel_for(
-            "kernel hydro reconstruct", policy,
-            KOKKOS_LAMBDA(int slice_id, int idx, int idy, int idz) {
+            "kernel hydro reconstruct", policy, KOKKOS_LAMBDA(const membertype& team_handle) {
+                const int slice_id = (team_handle.league_rank() / blocks);
+                const int index_base = (team_handle.league_rank() % blocks) * workgroup_size;
                 const int sx_i = angmom_index_;
                 const int zx_i = sx_i + NDIM;
-                const int index = (idx) * 64 + (idy) * 8 + (idz);
-                const int z_row_id = index / z_number_workitems;
-                const int z_id = index % z_number_workitems;
-                const int q_i = z_row_id * q_inx + z_id * simd_t::size();
 
-                std::array<double, simd_t::size()> mask_helper;
-                for (int i = 0; i < simd_t::size(); i++) {
-                    if ((z_id * simd_t::size() + i) < q_inx) {
-                        mask_helper[i] = 1.0;
-                    } else {
-                        mask_helper[i] = 0.0;
-                    }
-                }
-                const simd_mask_t mask = simd_t(1.0) ==
-                    simd_t(mask_helper.data(),
-                        SIMD_NAMESPACE::element_aligned_tag{});
-                const int i = ((q_i / q_inx2) + 2) * inx_large * inx_large +
-                    (((q_i % q_inx2) / q_inx) + 2) * inx_large + (((q_i % q_inx2) % q_inx) + 2);
+                Kokkos::parallel_for(Kokkos::TeamThreadRange(team_handle, workgroup_size),
+                    [&](const int& work_elem) {
+                        const int index = index_base + work_elem;
+                        const int z_row_id = index / z_number_workitems;
+                        const int z_id = index % z_number_workitems;
+                        const int q_i = z_row_id * q_inx + z_id *
+                        simd_t::size();
 
+                        std::array<double, simd_t::size()> mask_helper;
+                        for (int i = 0; i < simd_t::size(); i++) {
+                            if ((z_id * simd_t::size() + i) < q_inx) {
+                                mask_helper[i] = 1.0;
+                            } else {
+                                mask_helper[i] = 0.0;
+                            }
+                        }
+                        const simd_mask_t mask = simd_t(1.0) ==
+                            simd_t(mask_helper.data(), SIMD_NAMESPACE::element_aligned_tag{});
+                        const int i = ((q_i / q_inx2) + 2) * inx_large * inx_large +
+                            (((q_i % q_inx2) / q_inx) + 2) * inx_large +
+                            (((q_i % q_inx2) % q_inx) + 2);
 
-                const int u_slice_offset = (nf_ * H_N3 + padding) * slice_id;
-                const int am_slice_offset = (NDIM * q_inx3 + padding) * slice_id;
-                if (q_i < q_inx3) {
-                    for (int n = 0; n < nangmom; n++) {
-                        const simd_t old_AM(AM.data() + n * am_offset + q_i + am_slice_offset,
-                            SIMD_NAMESPACE::element_aligned_tag{});
-                        const simd_t current_am = SIMD_NAMESPACE::choose(mask,
-                            simd_t(
-                                combined_u.data() + (zx_i + n) * u_face_offset + i + u_slice_offset,
-                                SIMD_NAMESPACE::element_aligned_tag{}) *
-                                simd_t(combined_u.data() + i + u_slice_offset,
-                                    SIMD_NAMESPACE::element_aligned_tag{}),
-                            old_AM);
-                        current_am.copy_to(AM.data() + n * am_offset + q_i + am_slice_offset,
-                            SIMD_NAMESPACE::element_aligned_tag{});
-                    }
-                    for (int d = 0; d < ndir; d++) {
-                        cell_reconstruct_inner_loop_p1_simd<simd_t, simd_mask_t>(nf_, angmom_index_,
-                            smooth_field_.data(), disc_detect_.data(), combined_q.data(),
-                            combined_u.data(), AM.data(), dx[slice_id], cdiscs.data(), d, i, q_i,
-                            ndir, nangmom, slice_id, mask);
-                    }
-                    // Phase 2
-                    for (int d = 0; d < ndir; d++) {
-                        cell_reconstruct_inner_loop_p2_simd<simd_t, simd_mask_t>(omega,
-                            angmom_index_, combined_q.data(), combined_x.data(), combined_u.data(),
-                            AM.data(), dx[slice_id], d, i, q_i, ndir, nangmom, n_species_, nf_,
-                            slice_id, mask);
-                    }
-                }
+                        const int u_slice_offset = (nf_ * H_N3 + padding) * slice_id;
+                        const int am_slice_offset = (NDIM * q_inx3 + padding) * slice_id;
+                        if (q_i < q_inx3) {
+                            for (int n = 0; n < nangmom; n++) {
+                                const simd_t old_AM(
+                                    AM.data() + n * am_offset + q_i + am_slice_offset,
+                                    SIMD_NAMESPACE::element_aligned_tag{});
+                                const simd_t current_am = SIMD_NAMESPACE::choose(mask,
+                                    simd_t(combined_u.data() + (zx_i + n) * u_face_offset + i +
+                                            u_slice_offset,
+                                        SIMD_NAMESPACE::element_aligned_tag{}) *
+                                        simd_t(combined_u.data() + i + u_slice_offset,
+                                            SIMD_NAMESPACE::element_aligned_tag{}),
+                                    old_AM);
+                                current_am.copy_to(
+                                    AM.data() + n * am_offset + q_i + am_slice_offset,
+                                    SIMD_NAMESPACE::element_aligned_tag{});
+                            }
+                            for (int d = 0; d < ndir; d++) {
+                                cell_reconstruct_inner_loop_p1_simd<simd_t, simd_mask_t>(nf_,
+                                    angmom_index_, smooth_field_.data(), disc_detect_.data(),
+                                    combined_q.data(), combined_u.data(), AM.data(), dx[slice_id],
+                                    cdiscs.data(), d, i, q_i, ndir, nangmom, slice_id, mask);
+                            }
+                        }
+                    });
+                Kokkos::parallel_for(Kokkos::TeamThreadRange(team_handle, workgroup_size),
+                    [&](const int& work_elem) {
+                        /* const int index = (idx) * 64 + (idy) * 8 + (idz); */
+                        const int index = index_base + work_elem;
+                        const int z_row_id = index / z_number_workitems;
+                        const int z_id = index % z_number_workitems;
+                        const int q_i = z_row_id * q_inx + z_id *
+                        simd_t::size();
+
+                        std::array<double, simd_t::size()> mask_helper;
+                        for (int i = 0; i < simd_t::size(); i++) {
+                            if ((z_id * simd_t::size() + i) < q_inx) {
+                                mask_helper[i] = 1.0;
+                            } else {
+                                mask_helper[i] = 0.0;
+                            }
+                        }
+                        const simd_mask_t mask = simd_t(1.0) ==
+                            simd_t(mask_helper.data(), SIMD_NAMESPACE::element_aligned_tag{});
+                        const int i = ((q_i / q_inx2) + 2) * inx_large * inx_large +
+                            (((q_i % q_inx2) / q_inx) + 2) * inx_large +
+                            (((q_i % q_inx2) % q_inx) + 2);
+
+                        const int u_slice_offset = (nf_ * H_N3 + padding) * slice_id;
+                        const int am_slice_offset = (NDIM * q_inx3 + padding) * slice_id;
+                        if (q_i < q_inx3) {
+                            // Phase 2
+                            for (int d = 0; d < ndir; d++) {
+                                cell_reconstruct_inner_loop_p2_simd<simd_t, simd_mask_t>(omega,
+                                    angmom_index_, combined_q.data(), combined_x.data(),
+                                    combined_u.data(), AM.data(), dx[slice_id], d, i, q_i, ndir,
+                                    nangmom, n_species_, nf_, slice_id, mask);
+                            }
+                        }
+                    });
             });
     }
 }
@@ -691,51 +736,91 @@ void reconstruct_no_amc_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
     kokkos_buffer_t& AM, const kokkos_buffer_t& dx, const kokkos_buffer_t& cdiscs,
     const int n_species_, const int ndir, const int nangmom,
     const Kokkos::Array<long, 4>&& tiling_config) {
+    constexpr size_t workgroup_size = 16;
+    constexpr size_t team_size = 1;
+    static_assert(team_size <= workgroup_size);
     const size_t z_number_workitems = (q_inx / simd_t::size() + (q_inx % simd_t::size() > 0 ? 1 : 0));
     const int blocks =
-        (q_inx * q_inx * z_number_workitems) / 64 + 1;
+        (q_inx * q_inx * z_number_workitems) / workgroup_size + 1;
     const int number_slices = agg_exec.number_slices;
     if (agg_exec.sync_aggregation_slices()) {
-        auto policy = Kokkos::Experimental::require(
-            Kokkos::MDRangePolicy<decltype(agg_exec.get_underlying_executor().instance()),
-                Kokkos::Rank<4>>(agg_exec.get_underlying_executor().instance(), {0, 0, 0, 0},
-                {number_slices, blocks, 8, 8}, tiling_config),
-            Kokkos::Experimental::WorkItemProperty::HintLightWeight);
+        using policytype = Kokkos::TeamPolicy<decltype(agg_exec.get_underlying_executor().instance())>;
+        using membertype = typename policytype::member_type;
+        policytype policy =
+            Kokkos::Experimental::require(Kokkos::TeamPolicy<decltype(executor.instance())>(
+                                              executor.instance(),
+                                              blocks * number_slices, team_size),
+                Kokkos::Experimental::WorkItemProperty::HintLightWeight);
+
+        policy.set_chunk_size(blocks * 2);
         Kokkos::parallel_for(
             "kernel hydro reconstruct_no_amc", policy,
-            KOKKOS_LAMBDA(int slice_id, int idx, int idy, int idz) {
-                const int index = (idx) *64 + (idy) *8 + (idz);
-                const int z_row_id = index / z_number_workitems;
-                const int z_id = index % z_number_workitems;
-                const int q_i = z_row_id * q_inx + z_id * simd_t::size();
+            KOKKOS_LAMBDA(const membertype& team_handle) {
+                const int slice_id = (team_handle.league_rank() / blocks);
+                const int index_base = (team_handle.league_rank() % blocks) *
+                workgroup_size;
 
-                std::array<double, simd_t::size()> mask_helper;
-                for (int i = 0; i < simd_t::size(); i++) {
-                    if ((z_id * simd_t::size() + i) < q_inx) {
-                        mask_helper[i] = 1.0;
-                    } else {
-                        mask_helper[i] = 0.0;
-                    }
-                }
-                const simd_mask_t mask = simd_t(1.0) ==
-                    simd_t(mask_helper.data(), SIMD_NAMESPACE::element_aligned_tag{});
-                const int i = ((q_i / q_inx2) + 2) * inx_large * inx_large +
-                    (((q_i % q_inx2) / q_inx) + 2) * inx_large + (((q_i % q_inx2) % q_inx) + 2);
-                if (q_i < q_inx3) {
-                    for (int d = 0; d < ndir; d++) {
-                        cell_reconstruct_inner_loop_p1_simd<simd_t, simd_mask_t>(nf_, angmom_index_,
-                            smooth_field_.data(), disc_detect_.data(), combined_q.data(),
-                            combined_u.data(), AM.data(), dx[slice_id], cdiscs.data(), d, i, q_i, ndir,
-                            nangmom, slice_id, mask);
-                    }
-                    // Phase 2
-                    for (int d = 0; d < ndir; d++) {
-                        cell_reconstruct_inner_loop_p2_simd<simd_t, simd_mask_t>(omega,
-                            angmom_index_, combined_q.data(), combined_x.data(), combined_u.data(),
-                            AM.data(), dx[slice_id], d, i, q_i, ndir, nangmom, n_species_, nf_, slice_id,
-                            mask);
-                    }
-                }
+                Kokkos::parallel_for(Kokkos::TeamThreadRange(team_handle, workgroup_size),
+                    [&](const int& work_elem) {
+                        const int index = index_base + work_elem;
+                        const int z_row_id = index / z_number_workitems;
+                        const int z_id = index % z_number_workitems;
+                        const int q_i = z_row_id * q_inx + z_id *
+                        simd_t::size();
+
+                        std::array<double, simd_t::size()> mask_helper;
+                        for (int i = 0; i < simd_t::size(); i++) {
+                            if ((z_id * simd_t::size() + i) < q_inx) {
+                                mask_helper[i] = 1.0;
+                            } else {
+                                mask_helper[i] = 0.0;
+                            }
+                        }
+                        const simd_mask_t mask = simd_t(1.0) ==
+                            simd_t(mask_helper.data(), SIMD_NAMESPACE::element_aligned_tag{});
+                        const int i = ((q_i / q_inx2) + 2) * inx_large * inx_large +
+                            (((q_i % q_inx2) / q_inx) + 2) * inx_large +
+                            (((q_i % q_inx2) % q_inx) + 2);
+                        if (q_i < q_inx3) {
+                            for (int d = 0; d < ndir; d++) {
+                                cell_reconstruct_inner_loop_p1_simd<simd_t, simd_mask_t>(nf_,
+                                    angmom_index_, smooth_field_.data(), disc_detect_.data(),
+                                    combined_q.data(), combined_u.data(), AM.data(), dx[slice_id],
+                                    cdiscs.data(), d, i, q_i, ndir, nangmom, slice_id, mask);
+                            }
+                        }
+                    });
+                Kokkos::parallel_for(Kokkos::TeamThreadRange(team_handle, workgroup_size),
+                    [&](const int& work_elem) {
+                        const int index = index_base + work_elem;
+                        const int z_row_id = index / z_number_workitems;
+                        const int z_id = index % z_number_workitems;
+                        const int q_i = z_row_id * q_inx + z_id *
+                        simd_t::size();
+
+                        std::array<double, simd_t::size()> mask_helper;
+                        for (int i = 0; i < simd_t::size(); i++) {
+                            if ((z_id * simd_t::size() + i) < q_inx) {
+                                mask_helper[i] = 1.0;
+                            } else {
+                                mask_helper[i] = 0.0;
+                            }
+                        }
+                        const simd_mask_t mask = simd_t(1.0) ==
+                            simd_t(mask_helper.data(), SIMD_NAMESPACE::element_aligned_tag{});
+                        const int i = ((q_i / q_inx2) + 2) * inx_large * inx_large +
+                            (((q_i % q_inx2) / q_inx) + 2) * inx_large +
+                            (((q_i % q_inx2) % q_inx) + 2);
+                        if (q_i < q_inx3) {
+                            // Phase 2
+                            for (int d = 0; d < ndir; d++) {
+                                cell_reconstruct_inner_loop_p2_simd<simd_t, simd_mask_t>(omega,
+                                    angmom_index_, combined_q.data(), combined_x.data(),
+                                    combined_u.data(), AM.data(), dx[slice_id], d, i, q_i, ndir,
+                                    nangmom, n_species_, nf_, slice_id, mask);
+                            }
+                        }
+                    });
             });
     }
 }
