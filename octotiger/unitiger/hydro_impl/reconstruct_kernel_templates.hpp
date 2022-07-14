@@ -271,24 +271,53 @@ CUDA_GLOBAL_METHOD inline simd_t minmod_theta_simd(simd_t a, simd_t b, simd_t c)
 }
 template <typename simd_t, typename simd_mask_t>
 CUDA_GLOBAL_METHOD inline void cell_reconstruct_minmod_simd(double* __restrict__ combined_q,
-    const double* __restrict__ combined_u_face, int d, int f, int i, int q_i,
-    const simd_mask_t& mask) {
+    const double* __restrict__ combined_u_face, int d, int f, int i, int q_i) {
     const auto di = dir[d];
     const int start_index = f * q_face_offset + d * q_dir_offset;
     simd_t result;
-    result.copy_from(combined_q + q_i + start_index, SIMD_NAMESPACE::element_aligned_tag{});
-    const simd_t tmp_result = simd_t(combined_u_face + f * u_face_offset + i,
-                              SIMD_NAMESPACE::element_aligned_tag{}) +
+    /* result.copy_from(combined_q + q_i + start_index, SIMD_NAMESPACE::element_aligned_tag{}); */
+
+    simd_t u_plus_di;
+    simd_t u_zero;
+    simd_t u_minus_di;
+    if (i%inx_large + simd_t::size() - 1 < inx_large - 2) {
+        u_plus_di.copy_from(combined_u_face + f * u_face_offset + i + di,
+            SIMD_NAMESPACE::element_aligned_tag{});
+        u_zero.copy_from(combined_u_face + f * u_face_offset + i,
+            SIMD_NAMESPACE::element_aligned_tag{});
+        u_minus_di.copy_from(combined_u_face + f * u_face_offset + i - di,
+            SIMD_NAMESPACE::element_aligned_tag{});
+    } else {
+        std::array<double, simd_t::size()> u_zero_helper;
+        std::array<double, simd_t::size()> u_minus_di_helper;
+        std::array<double, simd_t::size()> u_plus_di_helper;
+        size_t simd_i = 0;
+        for(size_t i_line = i%inx_large; i_line < inx_large - 2; i_line++, simd_i++) {
+          u_zero_helper[simd_i] = combined_u_face[f * u_face_offset + i + simd_i];
+          u_minus_di_helper[simd_i] = combined_u_face[f * u_face_offset + i - di + simd_i];
+          u_plus_di_helper[simd_i] = combined_u_face[f * u_face_offset + i + di + simd_i];
+        }
+        // Load relevant values from second line - offset by skipping ghostlayers is 2+2
+        for(; simd_i < simd_t::size(); simd_i++) {
+          u_zero_helper[simd_i] = combined_u_face[f * u_face_offset + i + simd_i + 4];
+          u_minus_di_helper[simd_i] = combined_u_face[f * u_face_offset + i - di + simd_i + 4];
+          u_plus_di_helper[simd_i] = combined_u_face[f * u_face_offset + i + di + simd_i + 4];
+        }
+        // Copy from tmp helpers into working buffers
+        u_plus_di.copy_from(u_plus_di_helper.data(),
+            SIMD_NAMESPACE::element_aligned_tag{});
+        u_zero.copy_from(u_zero_helper.data(),
+            SIMD_NAMESPACE::element_aligned_tag{});
+        u_minus_di.copy_from(u_minus_di_helper.data(),
+            SIMD_NAMESPACE::element_aligned_tag{});
+    }
+    result = u_zero +
         0.5 *
-            minmod_simd(simd_t(combined_u_face + f * u_face_offset + i + di,
-                                 SIMD_NAMESPACE::element_aligned_tag{}) -
-                    simd_t(combined_u_face + f * u_face_offset + i,
-                        SIMD_NAMESPACE::element_aligned_tag{}),
-                simd_t(combined_u_face + f * u_face_offset + i,
-                    SIMD_NAMESPACE::element_aligned_tag{}) -
-                    simd_t(combined_u_face + f * u_face_offset + i - di,
-                        SIMD_NAMESPACE::element_aligned_tag{}));
-    result = SIMD_NAMESPACE::choose(mask, tmp_result, result);
+            minmod_simd(u_plus_di -
+                    u_zero,
+                u_zero -
+                    u_minus_di);
+    /* result = SIMD_NAMESPACE::choose(mask, tmp_result, result); */
     result.copy_to(combined_q + q_i + start_index, SIMD_NAMESPACE::element_aligned_tag{});
 }
 
@@ -296,23 +325,68 @@ template <typename simd_t, typename simd_mask_t>
 CUDA_GLOBAL_METHOD inline void cell_reconstruct_ppm_simd(double *__restrict__ combined_q,
     const double* __restrict__ combined_u_face, bool smooth, bool disc_detect,
     const double* __restrict__ disc, const int d, const int f, int i, int q_i,
-    int d_i, const simd_mask_t& mask) {
+    int d_i) {
     const auto di = dir[d];
     const auto flipped_di = flip(d);
 
     const int start_index = f * q_face_offset + d * q_dir_offset;
     const int start_index_flipped = f * q_face_offset + flipped_di * q_dir_offset;
 
-    const simd_t u_plus_2di(combined_u_face + f * u_face_offset + i + 2 * di,
-        SIMD_NAMESPACE::element_aligned_tag{});
-    const simd_t u_plus_di(combined_u_face + f * u_face_offset + i + di,
-        SIMD_NAMESPACE::element_aligned_tag{});
-    const simd_t u_zero(combined_u_face + f * u_face_offset + i,
-        SIMD_NAMESPACE::element_aligned_tag{});
-    const simd_t u_minus_di(combined_u_face + f * u_face_offset + i - di,
-        SIMD_NAMESPACE::element_aligned_tag{});
-    const simd_t u_minus_2di(combined_u_face + f * u_face_offset + i - 2 * di,
-        SIMD_NAMESPACE::element_aligned_tag{});
+    simd_t u_plus_2di;
+    simd_t u_plus_di;
+    simd_t u_zero;
+    simd_t u_minus_di;
+    simd_t u_minus_2di;
+    if (i%inx_large + simd_t::size() - 1 < inx_large - 2) {
+        // We do not hit the end of a line: All consecutive, normal loads 
+        u_plus_2di.copy_from(combined_u_face + f * u_face_offset + i + 2 * di,
+            SIMD_NAMESPACE::element_aligned_tag{});
+        u_plus_di.copy_from(combined_u_face + f * u_face_offset + i + di,
+            SIMD_NAMESPACE::element_aligned_tag{});
+        u_zero.copy_from(combined_u_face + f * u_face_offset + i,
+            SIMD_NAMESPACE::element_aligned_tag{});
+        u_minus_di.copy_from(combined_u_face + f * u_face_offset + i - di,
+            SIMD_NAMESPACE::element_aligned_tag{});
+        u_minus_2di.copy_from(combined_u_face + f * u_face_offset + i - 2 * di,
+            SIMD_NAMESPACE::element_aligned_tag{});
+    } else {
+        // TODO std::simd should have a specialization for partial loads
+        // which would allow us to skip this inefficient implementation of element-wise copies
+        //
+        // Load relevant values from first line
+        std::array<double, simd_t::size()> u_zero_helper;
+        std::array<double, simd_t::size()> u_minus_di_helper;
+        std::array<double, simd_t::size()> u_minus_2di_helper;
+        std::array<double, simd_t::size()> u_plus_di_helper;
+        std::array<double, simd_t::size()> u_plus_2di_helper;
+        size_t simd_i = 0;
+        for(size_t i_line = i%inx_large; i_line < inx_large - 2; i_line++, simd_i++) {
+          u_zero_helper[simd_i] = combined_u_face[f * u_face_offset + i + simd_i];
+          u_minus_di_helper[simd_i] = combined_u_face[f * u_face_offset + i - di + simd_i];
+          u_minus_2di_helper[simd_i] = combined_u_face[f * u_face_offset + i - 2 * di + simd_i];
+          u_plus_di_helper[simd_i] = combined_u_face[f * u_face_offset + i + di + simd_i];
+          u_plus_2di_helper[simd_i] = combined_u_face[f * u_face_offset + i + 2 * di + simd_i];
+        }
+        // Load relevant values from second line - offset by skipping ghostlayers is 2+2
+        for(; simd_i < simd_t::size(); simd_i++) {
+          u_zero_helper[simd_i] = combined_u_face[f * u_face_offset + i + simd_i + 4];
+          u_minus_di_helper[simd_i] = combined_u_face[f * u_face_offset + i - di + simd_i + 4];
+          u_minus_2di_helper[simd_i] = combined_u_face[f * u_face_offset + i - 2 * di + simd_i + 4];
+          u_plus_di_helper[simd_i] = combined_u_face[f * u_face_offset + i + di + simd_i + 4];
+          u_plus_2di_helper[simd_i] = combined_u_face[f * u_face_offset + i + 2 * di + simd_i + 4];
+        }
+        // Copy from tmp helpers into working buffers
+        u_plus_2di.copy_from(u_plus_2di_helper.data(),
+            SIMD_NAMESPACE::element_aligned_tag{});
+        u_plus_di.copy_from(u_plus_di_helper.data(),
+            SIMD_NAMESPACE::element_aligned_tag{});
+        u_zero.copy_from(u_zero_helper.data(),
+            SIMD_NAMESPACE::element_aligned_tag{});
+        u_minus_di.copy_from(u_minus_di_helper.data(),
+            SIMD_NAMESPACE::element_aligned_tag{});
+        u_minus_2di.copy_from(u_minus_2di_helper.data(),
+            SIMD_NAMESPACE::element_aligned_tag{});
+    }
 
     const simd_t diff_u_plus = u_plus_di - u_zero;
     const simd_t diff_u_2plus = u_plus_2di - u_plus_di;
@@ -342,10 +416,23 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_ppm_simd(double *__restrict__ co
         constexpr auto eta1 = 20.0;
         constexpr auto eta2 = 0.05;
         const auto dif = u_plus_di - u_minus_di;
+        simd_t disc_val;
+        if (d_i%inx_large + simd_t::size() - 1 < inx_large - 2) {
+            disc_val.copy_from(disc + d * disc_offset + d_i, SIMD_NAMESPACE::element_aligned_tag{});
+        } else {
+            std::array<double, simd_t::size()> disc_helper;
+            size_t simd_i = 0;
+            for(size_t i_line = i%inx_large; i_line < inx_large - 2; i_line++, simd_i++)
+                disc_helper[simd_i] = disc[d * disc_offset + d_i + simd_i];
+            for(; simd_i < simd_t::size(); simd_i++)
+                disc_helper[simd_i] = disc[d * disc_offset + d_i + simd_i + 4];
+            disc_val.copy_from(disc_helper.data(),
+                SIMD_NAMESPACE::element_aligned_tag{});
+        }
         const simd_t mask_helper1 =
-            simd_t(disc + d * disc_offset + d_i, SIMD_NAMESPACE::element_aligned_tag{}) *
+            disc_val *
             SIMD_NAMESPACE::min(SIMD_NAMESPACE::abs(u_plus_di), SIMD_NAMESPACE::abs(u_minus_di));
-        simd_mask_t criterias = mask && (mask_helper1 < (SIMD_NAMESPACE::abs(dif)));
+        simd_mask_t criterias = (mask_helper1 < (SIMD_NAMESPACE::abs(dif)));
         if (SIMD_NAMESPACE::any_of(criterias)) {
             const simd_t mask_helper2 = SIMD_NAMESPACE::min(SIMD_NAMESPACE::abs(u_plus_di),
                                           SIMD_NAMESPACE::abs(u_minus_di)) /
@@ -391,9 +478,9 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_ppm_simd(double *__restrict__ co
     // TODO compatibility when moving to KOKKOS HPX backend? Might overwrite stuff from other tasks using AVX512...
     // Hotfix variant 1: element-wise adding in case of not when_all...
     // Hotfix variant 2: Pick task sizes that have more padding (aka 2D border with 2*qinx)
-    current_q_results = SIMD_NAMESPACE::choose(mask, current_q_results, old_results);
+    /* current_q_results = SIMD_NAMESPACE::choose(mask, current_q_results, old_results); */
     current_q_results.copy_to(combined_q + start_index + q_i, SIMD_NAMESPACE::element_aligned_tag{});
-    current_q_results_flipped = SIMD_NAMESPACE::choose(mask, current_q_results_flipped, old_results_flipped);
+    /* current_q_results_flipped = SIMD_NAMESPACE::choose(mask, current_q_results_flipped, old_results_flipped); */
     current_q_results_flipped.copy_to(
         combined_q + start_index_flipped + q_i, SIMD_NAMESPACE::element_aligned_tag{});
 }
@@ -405,7 +492,7 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p1_simd(const size_t 
     const int* __restrict__ disc_detect_, double* __restrict__ combined_q,
     const double* __restrict__ combined_u, double* __restrict__ AM, const
     double dx, const double* __restrict__ cdiscs, const int i, const int q_i,
-    const int ndir, const int nangmom, const int slice_id, const simd_mask_t& mask) {
+    const int ndir, const int nangmom, const int slice_id) {
     const int q_slice_offset = (nf_ * 27 * q_inx3 + 128) * slice_id;
     const int u_slice_offset = (nf_ * H_N3 + 128) * slice_id;
     const int am_slice_offset = (NDIM * q_inx3 + 128) * slice_id;
@@ -426,7 +513,7 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p1_simd(const size_t 
                 if (d < ndir / 2) {
                     cell_reconstruct_ppm_simd<simd_t, simd_mask_t>(combined_q, combined_u,
                         smooth_field_[f + nf_ * slice_id], disc_detect_[f + nf_ * slice_id], cdiscs, d,
-                        f, i + u_slice_offset, q_i + q_slice_offset, i + disc_slice_offset, mask);
+                        f, i + u_slice_offset, q_i + q_slice_offset, i + disc_slice_offset);
                 }
             }
         }
@@ -434,14 +521,14 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p1_simd(const size_t 
             for (int d = 0; d < ndir; d++) {
                 if (d < ndir / 2) {
                     cell_reconstruct_ppm_simd<simd_t, simd_mask_t>(combined_q, combined_u, true, false,
-                        cdiscs, d, f, i + u_slice_offset, q_i + q_slice_offset, i + disc_slice_offset, mask);
+                        cdiscs, d, f, i + u_slice_offset, q_i + q_slice_offset, i + disc_slice_offset);
                 }
             }
         }
         for (int f = l_start; f < l_start + nangmom; f++) {
             for (int d = 0; d < ndir; d++) {
                 cell_reconstruct_minmod_simd<simd_t, simd_mask_t>(
-                    combined_q, combined_u, d, f, i + u_slice_offset, q_i + q_slice_offset, mask);
+                    combined_q, combined_u, d, f, i + u_slice_offset, q_i + q_slice_offset);
             }
         }
         for (int f = l_start + nangmom; f < nf_; f++) {
@@ -449,7 +536,7 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p1_simd(const size_t 
                 if (d < ndir / 2) {
                     cell_reconstruct_ppm_simd<simd_t, simd_mask_t>(combined_q, combined_u,
                         smooth_field_[f + nf_ * slice_id], disc_detect_[f + nf_ * slice_id], cdiscs, d,
-                        f, i + u_slice_offset, q_i + q_slice_offset, i + disc_slice_offset, mask);
+                        f, i + u_slice_offset, q_i + q_slice_offset, i + disc_slice_offset);
                 }
             }
         }
@@ -460,104 +547,105 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p1_simd(const size_t 
                     if (d < ndir / 2) {
                       cell_reconstruct_ppm_simd<simd_t, simd_mask_t>(combined_q, combined_u,
                           smooth_field_[f + nf_ * slice_id], disc_detect_[f + nf_ * slice_id], cdiscs,
-                          d, f, i + u_slice_offset, q_i + q_slice_offset, i + disc_slice_offset, mask);
+                          d, f, i + u_slice_offset, q_i + q_slice_offset, i + disc_slice_offset);
                     }
                 }
             } else {
                 for (int d = 0; d < ndir; d++) {
                     cell_reconstruct_minmod_simd<simd_t, simd_mask_t>(
-                        combined_q, combined_u, d, f, i + u_slice_offset, q_i + q_slice_offset, mask);
+                        combined_q, combined_u, d, f, i + u_slice_offset, q_i + q_slice_offset);
                 }
             }
         }
     }
 
+    // TODO Adapt this to new masking / u loading scheme
     for (int d = 0; d < ndir; d++) {
         if (d != ndir / 2 && angmom_index_ > -1) {
             const int start_index_rho = d * q_dir_offset;
 
             // n m q Levi Civita
             // 0 1 2 -> 1
-            simd_t results0 =
-                simd_t(AM + q_i + am_slice_offset, SIMD_NAMESPACE::element_aligned_tag{}) -
-                vw[d] * 1.0 * 0.5 * xloc[d][1] *
-                    simd_t(combined_q + (sx_i + 2) * q_face_offset + d *
-                        q_dir_offset + q_i +
-                            q_slice_offset,
-                        SIMD_NAMESPACE::element_aligned_tag{}) *
-                    simd_t(combined_q + start_index_rho + q_i + q_slice_offset,
-                        SIMD_NAMESPACE::element_aligned_tag{}) *
-                    dx;
+            /* simd_t results0 = */
+            /*     simd_t(AM + q_i + am_slice_offset, SIMD_NAMESPACE::element_aligned_tag{}) - */
+            /*     vw[d] * 1.0 * 0.5 * xloc[d][1] * */
+            /*         simd_t(combined_q + (sx_i + 2) * q_face_offset + d * */
+            /*             q_dir_offset + q_i + */
+            /*                 q_slice_offset, */
+            /*             SIMD_NAMESPACE::element_aligned_tag{}) * */
+            /*         simd_t(combined_q + start_index_rho + q_i + q_slice_offset, */
+            /*             SIMD_NAMESPACE::element_aligned_tag{}) * */
+            /*         dx; */
 
-            // n m q Levi Civita
-            // 0 2 1 -> -1
-            results0 = results0 -
-                vw[d] * (-1.0) * 0.5 * xloc[d][2] *
-                    simd_t(combined_q + (sx_i + 1) * q_face_offset + d * q_dir_offset + q_i +
-                            q_slice_offset,
-                        SIMD_NAMESPACE::element_aligned_tag{}) *
-                    simd_t(combined_q + start_index_rho + q_i + q_slice_offset,
-                        SIMD_NAMESPACE::element_aligned_tag{}) *
-                    dx;
-            // copy results 0 back
-            results0 = SIMD_NAMESPACE::choose(mask, results0,
-                simd_t(AM + q_i + am_slice_offset, SIMD_NAMESPACE::element_aligned_tag{}));
-            results0.copy_to(AM + q_i + am_slice_offset,
-                SIMD_NAMESPACE::element_aligned_tag{});
+            /* // n m q Levi Civita */
+            /* // 0 2 1 -> -1 */
+            /* results0 = results0 - */
+            /*     vw[d] * (-1.0) * 0.5 * xloc[d][2] * */
+            /*         simd_t(combined_q + (sx_i + 1) * q_face_offset + d * q_dir_offset + q_i + */
+            /*                 q_slice_offset, */
+            /*             SIMD_NAMESPACE::element_aligned_tag{}) * */
+            /*         simd_t(combined_q + start_index_rho + q_i + q_slice_offset, */
+            /*             SIMD_NAMESPACE::element_aligned_tag{}) * */
+            /*         dx; */
+            /* // copy results 0 back */
+            /* results0 = SIMD_NAMESPACE::choose(mask, results0, */
+            /*     simd_t(AM + q_i + am_slice_offset, SIMD_NAMESPACE::element_aligned_tag{})); */
+            /* results0.copy_to(AM + q_i + am_slice_offset, */
+            /*     SIMD_NAMESPACE::element_aligned_tag{}); */
 
-            // n m q Levi Civita
-            // 1 0 2 -> -1
-            simd_t results1 = simd_t(AM + am_offset + q_i + am_slice_offset,
-                                  SIMD_NAMESPACE::element_aligned_tag{}) -
-                vw[d] * (-1.0) * 0.5 * xloc[d][0] *
-                    simd_t(combined_q + (sx_i + 2) * q_face_offset + d * q_dir_offset + q_i +
-                            q_slice_offset,
-                        SIMD_NAMESPACE::element_aligned_tag{}) *
-                    simd_t(combined_q + start_index_rho + q_i + q_slice_offset,
-                        SIMD_NAMESPACE::element_aligned_tag{}) *
-                    dx;
+            /* // n m q Levi Civita */
+            /* // 1 0 2 -> -1 */
+            /* simd_t results1 = simd_t(AM + am_offset + q_i + am_slice_offset, */
+            /*                       SIMD_NAMESPACE::element_aligned_tag{}) - */
+            /*     vw[d] * (-1.0) * 0.5 * xloc[d][0] * */
+            /*         simd_t(combined_q + (sx_i + 2) * q_face_offset + d * q_dir_offset + q_i + */
+            /*                 q_slice_offset, */
+            /*             SIMD_NAMESPACE::element_aligned_tag{}) * */
+            /*         simd_t(combined_q + start_index_rho + q_i + q_slice_offset, */
+            /*             SIMD_NAMESPACE::element_aligned_tag{}) * */
+            /*         dx; */
 
-            // n m q Levi Civita 1 2 0 -> 1
-            results1 -= vw[d] * (1.0) * 0.5 * xloc[d][2] *
-                simd_t(combined_q + (sx_i + 0) * q_face_offset + d * q_dir_offset + q_i +
-                        q_slice_offset,
-                    SIMD_NAMESPACE::element_aligned_tag{}) *
-                simd_t(combined_q + start_index_rho + q_i + q_slice_offset,
-                    SIMD_NAMESPACE::element_aligned_tag{}) *
-                dx;
-            // copy results 1 back
-            results1 = SIMD_NAMESPACE::choose(mask, results1,
-                simd_t(AM + am_offset + q_i + am_slice_offset,
-                    SIMD_NAMESPACE::element_aligned_tag{}));
-            results1.copy_to(
-                AM + am_offset + q_i + am_slice_offset, SIMD_NAMESPACE::element_aligned_tag{});
+            /* // n m q Levi Civita 1 2 0 -> 1 */
+            /* results1 -= vw[d] * (1.0) * 0.5 * xloc[d][2] * */
+            /*     simd_t(combined_q + (sx_i + 0) * q_face_offset + d * q_dir_offset + q_i + */
+            /*             q_slice_offset, */
+            /*         SIMD_NAMESPACE::element_aligned_tag{}) * */
+            /*     simd_t(combined_q + start_index_rho + q_i + q_slice_offset, */
+            /*         SIMD_NAMESPACE::element_aligned_tag{}) * */
+            /*     dx; */
+            /* // copy results 1 back */
+            /* results1 = SIMD_NAMESPACE::choose(mask, results1, */
+            /*     simd_t(AM + am_offset + q_i + am_slice_offset, */
+            /*         SIMD_NAMESPACE::element_aligned_tag{})); */
+            /* results1.copy_to( */
+            /*     AM + am_offset + q_i + am_slice_offset, SIMD_NAMESPACE::element_aligned_tag{}); */
 
-            // n m q Levi Civita
-            // 2 0 1 -> 1
-            simd_t results2 = simd_t(AM + 2 * am_offset + q_i + am_slice_offset,
-                                  SIMD_NAMESPACE::element_aligned_tag{}) -
-                vw[d] * (1.0) * 0.5 * xloc[d][0] *
-                    simd_t(combined_q + (sx_i + 1) * q_face_offset + d * q_dir_offset + q_i +
-                            q_slice_offset,
-                        SIMD_NAMESPACE::element_aligned_tag{}) *
-                    simd_t(combined_q + start_index_rho + q_i + q_slice_offset,
-                        SIMD_NAMESPACE::element_aligned_tag{}) *
-                    dx;
+            /* // n m q Levi Civita */
+            /* // 2 0 1 -> 1 */
+            /* simd_t results2 = simd_t(AM + 2 * am_offset + q_i + am_slice_offset, */
+            /*                       SIMD_NAMESPACE::element_aligned_tag{}) - */
+            /*     vw[d] * (1.0) * 0.5 * xloc[d][0] * */
+            /*         simd_t(combined_q + (sx_i + 1) * q_face_offset + d * q_dir_offset + q_i + */
+            /*                 q_slice_offset, */
+            /*             SIMD_NAMESPACE::element_aligned_tag{}) * */
+            /*         simd_t(combined_q + start_index_rho + q_i + q_slice_offset, */
+            /*             SIMD_NAMESPACE::element_aligned_tag{}) * */
+            /*         dx; */
 
-            // n m q Levi Civita 2 1 0 -> -1
-            results2 -= vw[d] * (-1.0) * 0.5 * xloc[d][1] *
-                simd_t(combined_q + (sx_i + 0) * q_face_offset + d * q_dir_offset + q_i +
-                        q_slice_offset,
-                    SIMD_NAMESPACE::element_aligned_tag{}) *
-                simd_t(combined_q + start_index_rho + q_i + q_slice_offset,
-                    SIMD_NAMESPACE::element_aligned_tag{}) *
-                dx;
-            // copy results 2 back
-            results2 = SIMD_NAMESPACE::choose(mask, results2,
-                simd_t(AM + 2 * am_offset + q_i + am_slice_offset,
-                    SIMD_NAMESPACE::element_aligned_tag{}));
-            results2.copy_to(AM + 2 * am_offset + q_i + am_slice_offset,
-                SIMD_NAMESPACE::element_aligned_tag{});
+            /* // n m q Levi Civita 2 1 0 -> -1 */
+            /* results2 -= vw[d] * (-1.0) * 0.5 * xloc[d][1] * */
+            /*     simd_t(combined_q + (sx_i + 0) * q_face_offset + d * q_dir_offset + q_i + */
+            /*             q_slice_offset, */
+            /*         SIMD_NAMESPACE::element_aligned_tag{}) * */
+            /*     simd_t(combined_q + start_index_rho + q_i + q_slice_offset, */
+            /*         SIMD_NAMESPACE::element_aligned_tag{}) * */
+            /*     dx; */
+            /* // copy results 2 back */
+            /* results2 = SIMD_NAMESPACE::choose(mask, results2, */
+            /*     simd_t(AM + 2 * am_offset + q_i + am_slice_offset, */
+            /*         SIMD_NAMESPACE::element_aligned_tag{})); */
+            /* results2.copy_to(AM + 2 * am_offset + q_i + am_slice_offset, */
+            /*     SIMD_NAMESPACE::element_aligned_tag{}); */
         }
     }
 }
@@ -567,110 +655,110 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p2_simd(const safe_re
     const int angmom_index_, double* __restrict__ combined_q, const double* __restrict__ combined_x,
     const double* __restrict__ combined_u, const double* __restrict__ AM, const double dx,
     const int d, const int i, const int q_i, const int ndir, const int nangmom,
-    const int n_species_, const int nf_, const int slice_id, const simd_mask_t&
-    mask) {
+    const int n_species_, const int nf_, const int slice_id) {
     const int q_slice_offset = (nf_ * 27 * q_inx3 + 128) * slice_id;
     const int u_slice_offset = (nf_ * H_N3 + 128) * slice_id;
     const int am_slice_offset = (NDIM * q_inx3 + 128) * slice_id;
     const int x_slice_offset = (NDIM * q_inx3 + 128) * slice_id;
 
+    // TODO Adapt this to new masking / u loading scheme
     if (d < ndir / 2 && angmom_index_ > -1) {
         const auto di = dir[d];
 
         for (int q = 0; q < NDIM; q++) {
             const auto f = sx_i + q;
-            const int start_index_f = f * q_face_offset + d * q_dir_offset;
-            const int start_index_flipped = f * q_face_offset + flip(d) * q_dir_offset;
-            const int start_index_zero = 0 * q_face_offset + d * q_dir_offset;
-            const int start_index_zero_flipped = 0 * q_face_offset + flip(d) *
-              q_dir_offset;
+            /* const int start_index_f = f * q_face_offset + d * q_dir_offset; */
+            /* const int start_index_flipped = f * q_face_offset + flip(d) * q_dir_offset; */
+            /* const int start_index_zero = 0 * q_face_offset + d * q_dir_offset; */
+            /* const int start_index_zero_flipped = 0 * q_face_offset + flip(d) * */
+            /*   q_dir_offset; */
 
-            const simd_t rho_r(combined_q + start_index_zero + q_i + q_slice_offset,
-                SIMD_NAMESPACE::element_aligned_tag{});
-            const simd_t rho_l(combined_q + start_index_zero_flipped + q_i + q_slice_offset,
-                SIMD_NAMESPACE::element_aligned_tag{});
-            const simd_t ur(combined_u + f * u_face_offset + i + u_slice_offset + di,
-                SIMD_NAMESPACE::element_aligned_tag{});
-            const simd_t u0(combined_u + f * u_face_offset + i + u_slice_offset,
-                SIMD_NAMESPACE::element_aligned_tag{});
-            const simd_t ul(combined_u + f * u_face_offset + i + u_slice_offset - di,
-                SIMD_NAMESPACE::element_aligned_tag{});
+            /* const simd_t rho_r(combined_q + start_index_zero + q_i + q_slice_offset, */
+            /*     SIMD_NAMESPACE::element_aligned_tag{}); */
+            /* const simd_t rho_l(combined_q + start_index_zero_flipped + q_i + q_slice_offset, */
+            /*     SIMD_NAMESPACE::element_aligned_tag{}); */
+            /* const simd_t ur(combined_u + f * u_face_offset + i + u_slice_offset + di, */
+            /*     SIMD_NAMESPACE::element_aligned_tag{}); */
+            /* const simd_t u0(combined_u + f * u_face_offset + i + u_slice_offset, */
+            /*     SIMD_NAMESPACE::element_aligned_tag{}); */
+            /* const simd_t ul(combined_u + f * u_face_offset + i + u_slice_offset - di, */
+            /*     SIMD_NAMESPACE::element_aligned_tag{}); */
 
-            const simd_t old_qr(combined_q + start_index_f + q_i + q_slice_offset,
-                SIMD_NAMESPACE::element_aligned_tag{});
-            const simd_t old_ql(combined_q + start_index_flipped + q_i + q_slice_offset,
-                SIMD_NAMESPACE::element_aligned_tag{});
-            simd_t qr = old_qr;
-            simd_t ql = old_ql;
+            /* const simd_t old_qr(combined_q + start_index_f + q_i + q_slice_offset, */
+            /*     SIMD_NAMESPACE::element_aligned_tag{}); */
+            /* const simd_t old_ql(combined_q + start_index_flipped + q_i + q_slice_offset, */
+            /*     SIMD_NAMESPACE::element_aligned_tag{}); */
+            /* simd_t qr = old_qr; */
+            /* simd_t ql = old_ql; */
 
-            const auto b0 = qr - ql;
-            auto b = b0;
-            if (q == 0) {
-                // n m q Levi Civita 1 2 0 -> 1
-                b += 12.0 *
-                    simd_t(AM + 1 * am_offset + q_i + am_slice_offset,
-                        SIMD_NAMESPACE::element_aligned_tag{}) *
-                    1.0 * xloc[d][2] / (dx * (rho_l + rho_r));
-                // n m q Levi Civita 2 1 0 -> -1
-                b -= 12.0 *
-                    simd_t(AM + 2 * am_offset + q_i + am_slice_offset,
-                        SIMD_NAMESPACE::element_aligned_tag{}) *
-                    1.0 * xloc[d][1] / (dx * (rho_l + rho_r));
-            } else if (q == 1) {
-                // n m q Levi Civita 0 2 1 -> -1
-                b -= 12.0 *
-                    simd_t(AM + 0 * am_offset + q_i + am_slice_offset,
-                        SIMD_NAMESPACE::element_aligned_tag{}) *
-                    1.0 * xloc[d][2] / (dx * (rho_l + rho_r));
-                // n m q Levi Civita 2 0 1 -> 1
-                b += 12.0 *
-                    simd_t(AM + 2 * am_offset + q_i + am_slice_offset,
-                        SIMD_NAMESPACE::element_aligned_tag{}) *
-                    1.0 * xloc[d][0] / (dx * (rho_l + rho_r));
-            } else {
-                // n m q Levi Civita 0 1 2 -> 1
-                b += 12.0 *
-                    simd_t(AM + 0 * am_offset + q_i + am_slice_offset,
-                        SIMD_NAMESPACE::element_aligned_tag{}) *
-                    1.0 * xloc[d][1] / (dx * (rho_l + rho_r));
-                // n m q Levi Civita 1 0 2 -> -1
-                b -= 12.0 *
-                    simd_t(AM + 1 * am_offset + q_i + am_slice_offset,
-                        SIMD_NAMESPACE::element_aligned_tag{}) *
-                    1.0 * xloc[d][0] / (dx * (rho_l + rho_r));
-            }
+            /* const auto b0 = qr - ql; */
+            /* auto b = b0; */
+            /* if (q == 0) { */
+            /*     // n m q Levi Civita 1 2 0 -> 1 */
+            /*     b += 12.0 * */
+            /*         simd_t(AM + 1 * am_offset + q_i + am_slice_offset, */
+            /*             SIMD_NAMESPACE::element_aligned_tag{}) * */
+            /*         1.0 * xloc[d][2] / (dx * (rho_l + rho_r)); */
+            /*     // n m q Levi Civita 2 1 0 -> -1 */
+            /*     b -= 12.0 * */
+            /*         simd_t(AM + 2 * am_offset + q_i + am_slice_offset, */
+            /*             SIMD_NAMESPACE::element_aligned_tag{}) * */
+            /*         1.0 * xloc[d][1] / (dx * (rho_l + rho_r)); */
+            /* } else if (q == 1) { */
+            /*     // n m q Levi Civita 0 2 1 -> -1 */
+            /*     b -= 12.0 * */
+            /*         simd_t(AM + 0 * am_offset + q_i + am_slice_offset, */
+            /*             SIMD_NAMESPACE::element_aligned_tag{}) * */
+            /*         1.0 * xloc[d][2] / (dx * (rho_l + rho_r)); */
+            /*     // n m q Levi Civita 2 0 1 -> 1 */
+            /*     b += 12.0 * */
+            /*         simd_t(AM + 2 * am_offset + q_i + am_slice_offset, */
+            /*             SIMD_NAMESPACE::element_aligned_tag{}) * */
+            /*         1.0 * xloc[d][0] / (dx * (rho_l + rho_r)); */
+            /* } else { */
+            /*     // n m q Levi Civita 0 1 2 -> 1 */
+            /*     b += 12.0 * */
+            /*         simd_t(AM + 0 * am_offset + q_i + am_slice_offset, */
+            /*             SIMD_NAMESPACE::element_aligned_tag{}) * */
+            /*         1.0 * xloc[d][1] / (dx * (rho_l + rho_r)); */
+            /*     // n m q Levi Civita 1 0 2 -> -1 */
+            /*     b -= 12.0 * */
+            /*         simd_t(AM + 1 * am_offset + q_i + am_slice_offset, */
+            /*             SIMD_NAMESPACE::element_aligned_tag{}) * */
+            /*         1.0 * xloc[d][0] / (dx * (rho_l + rho_r)); */
+            /* } */
 
-            const simd_mask_t blim_mask = simd_t(0.0) < ((ur - u0) * (u0 - ul));
-            const simd_t blim = SIMD_NAMESPACE::choose(blim_mask, b0, simd_t(0.0));
-            b = minmod_simd(blim, b);
-            qr += 0.5 * (b - b0);
-            ql -= 0.5 * (b - b0);
+            /* const simd_mask_t blim_mask = simd_t(0.0) < ((ur - u0) * (u0 - ul)); */
+            /* const simd_t blim = SIMD_NAMESPACE::choose(blim_mask, b0, simd_t(0.0)); */
+            /* b = minmod_simd(blim, b); */
+            /* qr += 0.5 * (b - b0); */
+            /* ql -= 0.5 * (b - b0); */
 
-            // TODO should be possible to combine the masks and get rid of some
-            // of the statements
-            const simd_mask_t u_mask1 = (u0 < ur) && (ul < u0);
-            const simd_mask_t u_mask2 = (ur < u0) && (u0 < ul);
-            const simd_mask_t qr_larger_mask = (ur < qr) && u_mask1;
-            const simd_mask_t ql_smaller_mask = (ql < ul) && u_mask1;
-            ql = SIMD_NAMESPACE::choose(qr_larger_mask, ql - (qr - ur), ql);
-            qr = SIMD_NAMESPACE::choose(qr_larger_mask, ur, qr);
-            qr = SIMD_NAMESPACE::choose(ql_smaller_mask, qr - (ql - ul), qr);
-            ql = SIMD_NAMESPACE::choose(ql_smaller_mask, ul, ql);
-            const simd_mask_t qr_smaller_mask = (qr < ur) && u_mask2;
-            const simd_mask_t ql_larger_mask = (ul < ql) && u_mask2;
-            ql = SIMD_NAMESPACE::choose(qr_smaller_mask, ql - (qr - ur), ql);
-            qr = SIMD_NAMESPACE::choose(qr_smaller_mask, ur, qr);
-            qr = SIMD_NAMESPACE::choose(ql_larger_mask, qr - (ql - ul), qr);
-            ql = SIMD_NAMESPACE::choose(ql_larger_mask, ul, ql);
+            /* // TODO should be possible to combine the masks and get rid of some */
+            /* // of the statements */
+            /* const simd_mask_t u_mask1 = (u0 < ur) && (ul < u0); */
+            /* const simd_mask_t u_mask2 = (ur < u0) && (u0 < ul); */
+            /* const simd_mask_t qr_larger_mask = (ur < qr) && u_mask1; */
+            /* const simd_mask_t ql_smaller_mask = (ql < ul) && u_mask1; */
+            /* ql = SIMD_NAMESPACE::choose(qr_larger_mask, ql - (qr - ur), ql); */
+            /* qr = SIMD_NAMESPACE::choose(qr_larger_mask, ur, qr); */
+            /* qr = SIMD_NAMESPACE::choose(ql_smaller_mask, qr - (ql - ul), qr); */
+            /* ql = SIMD_NAMESPACE::choose(ql_smaller_mask, ul, ql); */
+            /* const simd_mask_t qr_smaller_mask = (qr < ur) && u_mask2; */
+            /* const simd_mask_t ql_larger_mask = (ul < ql) && u_mask2; */
+            /* ql = SIMD_NAMESPACE::choose(qr_smaller_mask, ql - (qr - ur), ql); */
+            /* qr = SIMD_NAMESPACE::choose(qr_smaller_mask, ur, qr); */
+            /* qr = SIMD_NAMESPACE::choose(ql_larger_mask, qr - (ql - ul), qr); */
+            /* ql = SIMD_NAMESPACE::choose(ql_larger_mask, ul, ql); */
 
-            make_monotone_simd<simd_t, simd_mask_t>(qr, u0, ql);
-            // Write back results
-            qr = SIMD_NAMESPACE::choose(mask, qr, old_qr);
-            ql = SIMD_NAMESPACE::choose(mask, ql, old_ql);
-            qr.copy_to(combined_q + start_index_f + q_i + q_slice_offset,
-                SIMD_NAMESPACE::element_aligned_tag{});
-            ql.copy_to(combined_q + start_index_flipped + q_i + q_slice_offset,
-                SIMD_NAMESPACE::element_aligned_tag{});
+            /* make_monotone_simd<simd_t, simd_mask_t>(qr, u0, ql); */
+            /* // Write back results */
+            /* qr = SIMD_NAMESPACE::choose(mask, qr, old_qr); */
+            /* ql = SIMD_NAMESPACE::choose(mask, ql, old_ql); */
+            /* qr.copy_to(combined_q + start_index_f + q_i + q_slice_offset, */
+            /*     SIMD_NAMESPACE::element_aligned_tag{}); */
+            /* ql.copy_to(combined_q + start_index_flipped + q_i + q_slice_offset, */
+            /*     SIMD_NAMESPACE::element_aligned_tag{}); */
         }
     }
 
@@ -684,20 +772,18 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p2_simd(const safe_re
             SIMD_NAMESPACE::element_aligned_tag{});
         simd_t q_sy(combined_q + start_index_sy + q_i + q_slice_offset,
             SIMD_NAMESPACE::element_aligned_tag{});
-        q_sx = SIMD_NAMESPACE::choose(mask,
+        q_sx = 
             q_sx -
                 omega *
                     (simd_t(combined_x + 1 * q_inx3 + q_i + x_slice_offset,
                          SIMD_NAMESPACE::element_aligned_tag{}) +
-                        0.5 * xloc[d][1] * dx),
-            q_sx);
-        q_sy = SIMD_NAMESPACE::choose(mask,
+                        0.5 * xloc[d][1] * dx);
+        q_sy = 
             q_sy +
                 omega *
                     (simd_t(combined_x + q_i + x_slice_offset,
                          SIMD_NAMESPACE::element_aligned_tag{}) +
-                        0.5 * xloc[d][0] * dx),
-            q_sy);
+                        0.5 * xloc[d][0] * dx);
         q_sx.copy_to(combined_q + start_index_sx + q_i + q_slice_offset,
             SIMD_NAMESPACE::element_aligned_tag{});
         q_sy.copy_to(combined_q + start_index_sy + q_i + q_slice_offset,
@@ -733,11 +819,7 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p2_simd(const safe_re
                 simd_t(combined_q + (sx_i + 1) * q_face_offset + d * q_dir_offset + q_i +
                         q_slice_offset,
                     SIMD_NAMESPACE::element_aligned_tag{});
-        const simd_t q_lx_result = SIMD_NAMESPACE::choose(mask, result0,
-            simd_t(combined_q + (lx_i + 0) * q_face_offset + d *
-              q_dir_offset + q_i +
-                    q_slice_offset,
-                SIMD_NAMESPACE::element_aligned_tag{}));
+        const simd_t q_lx_result = result0;
         q_lx_result.copy_to(combined_q + (lx_i + 0) * q_face_offset + d * q_dir_offset +
                 q_i + q_slice_offset,
             SIMD_NAMESPACE::element_aligned_tag{});
@@ -767,11 +849,7 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p2_simd(const safe_re
                 simd_t(combined_q + (sx_i + 0) * q_face_offset + d * q_dir_offset + q_i +
                         q_slice_offset,
                     SIMD_NAMESPACE::element_aligned_tag{});
-        const simd_t q_ly_result = SIMD_NAMESPACE::choose(mask, result1,
-            simd_t(combined_q + (lx_i + 1) * q_face_offset + d *
-              q_dir_offset + q_i +
-                    q_slice_offset,
-                SIMD_NAMESPACE::element_aligned_tag{}));
+        const simd_t q_ly_result = result1;
         q_ly_result.copy_to(combined_q + (lx_i + 1) * q_face_offset + d * q_dir_offset +
                 q_i + q_slice_offset,
             SIMD_NAMESPACE::element_aligned_tag{});
@@ -799,11 +877,7 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p2_simd(const safe_re
             simd_t(combined_q + (sx_i + 0) * q_face_offset + d * q_dir_offset + q_i +
                     q_slice_offset,
                 SIMD_NAMESPACE::element_aligned_tag{});
-        const simd_t q_lz_result = SIMD_NAMESPACE::choose(mask, result2,
-            simd_t(combined_q + (lx_i + 2) * q_face_offset + d *
-              q_dir_offset + q_i +
-                    q_slice_offset,
-                SIMD_NAMESPACE::element_aligned_tag{}));
+        const simd_t q_lz_result = result2;
         q_lz_result.copy_to(combined_q + (lx_i + 2) * q_face_offset + d * q_dir_offset +
                 q_i + q_slice_offset,
             SIMD_NAMESPACE::element_aligned_tag{});
@@ -814,8 +888,7 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p2_simd(const safe_re
             const int start_index_lx_n = (lx_i + n) * q_face_offset + d * q_dir_offset;
             simd_t current_lx_n(combined_q + start_index_lx_n + q_i + q_slice_offset,
                 SIMD_NAMESPACE::element_aligned_tag{});
-            current_lx_n = SIMD_NAMESPACE::choose(mask, current_lx_n * rho,
-                current_lx_n);
+            current_lx_n = current_lx_n * rho;
             current_lx_n.copy_to(combined_q + start_index_lx_n + q_i + q_slice_offset,
                 SIMD_NAMESPACE::element_aligned_tag{});
         }
@@ -827,20 +900,18 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p2_simd(const safe_re
             const simd_t current_egas(combined_q + start_index_egas + q_i + q_slice_offset,
                 SIMD_NAMESPACE::element_aligned_tag{});
             simd_t egas_result =
-                SIMD_NAMESPACE::choose(mask, current_egas + 0.5 * v * v * rho, current_egas);
-            ;
+                current_egas + 0.5 * v * v * rho;
             egas_result.copy_to(combined_q + start_index_egas + q_i +
                 q_slice_offset,
                 SIMD_NAMESPACE::element_aligned_tag{});
-            v = SIMD_NAMESPACE::choose(mask, v * rho, v);
+            v = v * rho;
             v.copy_to(combined_q + start_index_sx_d + q_i + q_slice_offset,
                 SIMD_NAMESPACE::element_aligned_tag{});
         }
 
         simd_t pot_result(combined_q + start_index_pot + q_i + q_slice_offset,
             SIMD_NAMESPACE::element_aligned_tag{});
-        pot_result = SIMD_NAMESPACE::choose(mask, pot_result * rho,
-            pot_result);
+        pot_result = pot_result * rho;
         pot_result.copy_to(combined_q + start_index_pot + q_i + q_slice_offset,
             SIMD_NAMESPACE::element_aligned_tag{});
         simd_t w = 0.0;
@@ -850,7 +921,7 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p2_simd(const safe_re
                 SIMD_NAMESPACE::element_aligned_tag{});
             w = w + current_sp_field;
             current_sp_field =
-                SIMD_NAMESPACE::choose(mask, current_sp_field * rho, current_sp_field);
+                current_sp_field * rho;
             current_sp_field.copy_to(combined_q + start_index_sp_i + q_i + q_slice_offset,
                 SIMD_NAMESPACE::element_aligned_tag{});
         }
@@ -860,7 +931,7 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p2_simd(const safe_re
             simd_t current_sp_field(combined_q + start_index_sp_i + q_i + q_slice_offset,
                 SIMD_NAMESPACE::element_aligned_tag{});
             current_sp_field =
-                SIMD_NAMESPACE::choose(mask, current_sp_field * w, current_sp_field);
+                current_sp_field * w;
             current_sp_field.copy_to(combined_q + start_index_sp_i + q_i + q_slice_offset,
                 SIMD_NAMESPACE::element_aligned_tag{});
         }

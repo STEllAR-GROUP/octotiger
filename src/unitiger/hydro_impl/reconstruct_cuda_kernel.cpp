@@ -37,16 +37,15 @@ __global__ void reconstruct_cuda_kernel_no_amc(double omega,
     const int i = ((q_i / q_inx2) + 2) * inx_large * inx_large +
         (((q_i % q_inx2) / q_inx) + 2) * inx_large + (((q_i % q_inx2) % q_inx) + 2);
     const int slice_id = blockIdx.x;
-    device_simd_mask_t mask(true); // placeholder to make it work with the simd methods
     if (q_i < q_inx3) {
         cell_reconstruct_inner_loop_p1_simd<device_simd_t, device_simd_mask_t>(nf_, angmom_index_,
             smooth_field_, disc_detect_, combined_q, combined_u, AM, dx[slice_id], cdiscs, i,
-            q_i, ndir, nangmom, slice_id, mask);
+            q_i, ndir, nangmom, slice_id);
         // Phase 2
         for (int d = 0; d < ndir; d++) {
             cell_reconstruct_inner_loop_p2_simd<device_simd_t, device_simd_mask_t>(omega, angmom_index_,
                 combined_q, combined_x, combined_u, AM, dx[slice_id], d, i, q_i, ndir, nangmom,
-                n_species_, nf_, slice_id, mask);
+                n_species_, nf_, slice_id);
         }
     }
 }
@@ -72,7 +71,6 @@ __global__ void reconstruct_cuda_kernel(const double omega, const int nf_,
     const int am_slice_offset = (NDIM * q_inx3 + 128) * slice_id;
     using simd_t = device_simd_t;
     using simd_mask_t = device_simd_mask_t;
-    device_simd_mask_t mask(true); // placeholder to make it work with the simd methods
     if (q_i < q_inx3) {
         for (int n = 0; n < nangmom; n++) {
             AM[n * am_offset + q_i + am_slice_offset] =
@@ -81,12 +79,12 @@ __global__ void reconstruct_cuda_kernel(const double omega, const int nf_,
         }
         cell_reconstruct_inner_loop_p1_simd<device_simd_t, device_simd_mask_t>(nf_, angmom_index_,
             smooth_field_, disc_detect_, combined_q, combined_u, AM, dx[slice_id], cdiscs, i,
-            q_i, ndir, nangmom, slice_id, mask);
+            q_i, ndir, nangmom, slice_id);
         // Phase 2
         for (int d = 0; d < ndir; d++) {
             cell_reconstruct_inner_loop_p2_simd<device_simd_t, device_simd_mask_t>(omega, angmom_index_,
                 combined_q, combined_x, combined_u, AM, dx[slice_id], d, i, q_i, ndir, nangmom,
-                n_species_, nf_, slice_id, mask);
+                n_species_, nf_, slice_id);
         }
     }
 }

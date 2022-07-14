@@ -6,6 +6,7 @@
 #pragma once
 #include <array>
 #include <cmath>
+#include "avx512.hpp"
 #include "octotiger/cuda_util/cuda_global_def.hpp"
 
 // =================================================================================================
@@ -41,9 +42,11 @@ using host_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_
 #warning "Using VSX SIMD types"
 #endif
 #elif defined(__AVX512F__)
-#include <avx512.hpp>
-using host_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::avx512>;
-using host_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::avx512>;
+#include <avx.hpp>
+using host_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::avx>;
+using host_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::avx>;
+/* using host_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>; */
+/* using host_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::scalar>; */
 #warning "Using AVX512 SIMD types"
 #elif defined(__AVX2__) || defined(__AVX__)
 #include <avx.hpp>
