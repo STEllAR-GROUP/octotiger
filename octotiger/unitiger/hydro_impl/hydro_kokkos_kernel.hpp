@@ -744,11 +744,6 @@ void reconstruct_no_amc_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
     const int n_species_, const int ndir, const int nangmom,
     const size_t workgroup_size, const size_t team_size) {
     assert(team_size <= workgroup_size);
-    // TODO anpassen
-    /* const size_t z_number_workitems = (q_inx / simd_t::size() + (q_inx % simd_t::size() > 0 ? 1 : 0)); */
-    /* const int blocks = */
-    /*     (q_inx * q_inx * z_number_workitems) / workgroup_size + 1; */
-    const size_t z_number_workitems = (q_inx / simd_t::size() + (q_inx % simd_t::size() > 0 ? 1 : 0));
     const int blocks =
         (q_inx * q_inx * q_inx / simd_t::size() + (q_inx3 % simd_t::size() > 0 ? 1 : 0)) / workgroup_size + 1;
     const int number_slices = agg_exec.number_slices;
@@ -775,21 +770,8 @@ void reconstruct_no_amc_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                 Kokkos::parallel_for(Kokkos::TeamThreadRange(team_handle, workgroup_size),
                     [&](const int& work_elem) {
                         const int index = index_base + work_elem;
-                        /* const int z_row_id = index / z_number_workitems; */
-                        /* const int z_id = index % z_number_workitems; */
-                        // TODO anpassen
                         const int q_i = index * simd_t::size();
 
-                        /* std::array<double, simd_t::size()> mask_helper; */
-                        /* for (int i = 0; i < simd_t::size(); i++) { */
-                        /*     if ((z_id * simd_t::size() + i) < q_inx) { */
-                        /*         mask_helper[i] = 1.0; */
-                        /*     } else { */
-                        /*         mask_helper[i] = 0.0; */
-                        /*     } */
-                        /* } */
-                        /* const simd_mask_t mask = simd_t(1.0) == */
-                        /*     simd_t(mask_helper.data(), SIMD_NAMESPACE::element_aligned_tag{}); */
                         const int i = ((q_i / q_inx2) + 2) * inx_large * inx_large +
                             (((q_i % q_inx2) / q_inx) + 2) * inx_large +
                             (((q_i % q_inx2) % q_inx) + 2);
@@ -805,20 +787,8 @@ void reconstruct_no_amc_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                 Kokkos::parallel_for(Kokkos::TeamThreadRange(team_handle, workgroup_size),
                     [&](const int& work_elem) {
                         const int index = index_base + work_elem;
-                        /* const int z_row_id = index / z_number_workitems; */
-                        /* const int z_id = index % z_number_workitems; */
                         const int q_i = index * simd_t::size();
 
-                        /* std::array<double, simd_t::size()> mask_helper; */
-                        /* for (int i = 0; i < simd_t::size(); i++) { */
-                        /*     if ((z_id * simd_t::size() + i) < q_inx) { */
-                        /*         mask_helper[i] = 1.0; */
-                        /*     } else { */
-                        /*         mask_helper[i] = 0.0; */
-                        /*     } */
-                        /* } */
-                        /* const simd_mask_t mask = simd_t(1.0) == */
-                        /*     simd_t(mask_helper.data(), SIMD_NAMESPACE::element_aligned_tag{}); */
                         const int i = ((q_i / q_inx2) + 2) * inx_large * inx_large +
                             (((q_i % q_inx2) / q_inx) + 2) * inx_large +
                             (((q_i % q_inx2) % q_inx) + 2);
