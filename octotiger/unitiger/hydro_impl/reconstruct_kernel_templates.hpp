@@ -275,12 +275,18 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_minmod_simd(double* __restrict__
     const auto di = dir[d];
     const int start_index = f * q_face_offset + d * q_dir_offset;
     simd_t result;
-    /* result.copy_from(combined_q + q_i + start_index, SIMD_NAMESPACE::element_aligned_tag{}); */
 
     simd_t u_plus_di;
     simd_t u_zero;
     simd_t u_minus_di;
-    if (i%inx_large + simd_t::size() - 1 < inx_large - 2) {
+    /* As combined_u and combined_q are differently indexed (i and q_i respectively),
+     * we need to take when loading an entire simd lane of u values as those might
+     * across 2 bars in the cube and are thus not necessarily consecutive in memory.
+     * Thus we first check if the values are consecutive in memory - if yes we load
+     * them immediately, if not we load the values manually from the first and
+     * second bar in the else branch (element-wise unfortunately) */
+    if (q_i%q_inx + simd_t::size() - 1 < q_inx) { 
+        // values are all in the first line/bar and can simply be loaded
         u_plus_di.copy_from(combined_u_face + f * u_face_offset + i + di,
             SIMD_NAMESPACE::element_aligned_tag{});
         u_zero.copy_from(combined_u_face + f * u_face_offset + i,
@@ -288,20 +294,30 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_minmod_simd(double* __restrict__
         u_minus_di.copy_from(combined_u_face + f * u_face_offset + i - di,
             SIMD_NAMESPACE::element_aligned_tag{});
     } else {
+        // TODO std::simd should have a specialization for partial loads
+        // which would allow us to skip this inefficient implementation of element-wise copies
         std::array<double, simd_t::size()> u_zero_helper;
         std::array<double, simd_t::size()> u_minus_di_helper;
         std::array<double, simd_t::size()> u_plus_di_helper;
         size_t simd_i = 0;
-        for(size_t i_line = i%inx_large; i_line < inx_large - 2; i_line++, simd_i++) {
+        // load from first bar
+        for(size_t i_line = q_i%q_inx; i_line < q_inx; i_line++, simd_i++) {
           u_zero_helper[simd_i] = combined_u_face[f * u_face_offset + i + simd_i];
           u_minus_di_helper[simd_i] = combined_u_face[f * u_face_offset + i - di + simd_i];
           u_plus_di_helper[simd_i] = combined_u_face[f * u_face_offset + i + di + simd_i];
         }
-        // Load relevant values from second line - offset by skipping ghostlayers is 2+2
+        // calculate indexing offset to check where the second line/bar is starting
+        size_t offset = (inx_large - q_inx);
+        if constexpr (q_inx2 % simd_t::size() != 0) {
+          if ((q_i + simd_i)%q_inx2 == 0) {
+            offset += (inx_large - q_inx) * inx_large;
+          }
+        } 
+        // Load relevant values from second line/bar 
         for(; simd_i < simd_t::size(); simd_i++) {
-          u_zero_helper[simd_i] = combined_u_face[f * u_face_offset + i + simd_i + 4];
-          u_minus_di_helper[simd_i] = combined_u_face[f * u_face_offset + i - di + simd_i + 4];
-          u_plus_di_helper[simd_i] = combined_u_face[f * u_face_offset + i + di + simd_i + 4];
+          u_zero_helper[simd_i] = combined_u_face[f * u_face_offset + i + simd_i + offset];
+          u_minus_di_helper[simd_i] = combined_u_face[f * u_face_offset + i - di + simd_i + offset];
+          u_plus_di_helper[simd_i] = combined_u_face[f * u_face_offset + i + di + simd_i + offset];
         }
         // Copy from tmp helpers into working buffers
         u_plus_di.copy_from(u_plus_di_helper.data(),
@@ -317,7 +333,6 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_minmod_simd(double* __restrict__
                     u_zero,
                 u_zero -
                     u_minus_di);
-    /* result = SIMD_NAMESPACE::choose(mask, tmp_result, result); */
     result.copy_to(combined_q + q_i + start_index, SIMD_NAMESPACE::element_aligned_tag{});
 }
 
@@ -337,8 +352,14 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_ppm_simd(double *__restrict__ co
     simd_t u_zero;
     simd_t u_minus_di;
     simd_t u_minus_2di;
-    if (i%inx_large + simd_t::size() - 1 < inx_large - 2) {
-        // We do not hit the end of a line: All consecutive, normal loads 
+    /* As combined_u and combined_q are differently indexed (i and q_i respectively),
+     * we need to take when loading an entire simd lane of u values as those might
+     * across 2 bars in the cube and are thus not necessarily consecutive in memory.
+     * Thus we first check if the values are consecutive in memory - if yes we load
+     * them immediately, if not we load the values manually from the first and
+     * second bar in the else branch (element-wise unfortunately) */
+    if (q_i%q_inx + simd_t::size() - 1 < q_inx) { 
+        // values are all in the first line/bar and can simply be loaded
         u_plus_2di.copy_from(combined_u_face + f * u_face_offset + i + 2 * di,
             SIMD_NAMESPACE::element_aligned_tag{});
         u_plus_di.copy_from(combined_u_face + f * u_face_offset + i + di,
@@ -353,27 +374,34 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_ppm_simd(double *__restrict__ co
         // TODO std::simd should have a specialization for partial loads
         // which would allow us to skip this inefficient implementation of element-wise copies
         //
-        // Load relevant values from first line
         std::array<double, simd_t::size()> u_zero_helper;
         std::array<double, simd_t::size()> u_minus_di_helper;
         std::array<double, simd_t::size()> u_minus_2di_helper;
         std::array<double, simd_t::size()> u_plus_di_helper;
         std::array<double, simd_t::size()> u_plus_2di_helper;
         size_t simd_i = 0;
-        for(size_t i_line = i%inx_large; i_line < inx_large - 2; i_line++, simd_i++) {
+        // load from first bar
+        for(size_t i_line = q_i%q_inx; i_line < q_inx; i_line++, simd_i++) {
           u_zero_helper[simd_i] = combined_u_face[f * u_face_offset + i + simd_i];
           u_minus_di_helper[simd_i] = combined_u_face[f * u_face_offset + i - di + simd_i];
           u_minus_2di_helper[simd_i] = combined_u_face[f * u_face_offset + i - 2 * di + simd_i];
           u_plus_di_helper[simd_i] = combined_u_face[f * u_face_offset + i + di + simd_i];
           u_plus_2di_helper[simd_i] = combined_u_face[f * u_face_offset + i + 2 * di + simd_i];
         }
-        // Load relevant values from second line - offset by skipping ghostlayers is 2+2
+        // calculate indexing offset to check where the second line/bar is starting
+        size_t offset = (inx_large - q_inx);
+        if constexpr (q_inx2 % simd_t::size() != 0) {
+          if ((q_i + simd_i)%q_inx2 == 0) {
+            offset += (inx_large - q_inx) * inx_large;
+          }
+        } 
+        // Load relevant values from second line/bar 
         for(; simd_i < simd_t::size(); simd_i++) {
-          u_zero_helper[simd_i] = combined_u_face[f * u_face_offset + i + simd_i + 4];
-          u_minus_di_helper[simd_i] = combined_u_face[f * u_face_offset + i - di + simd_i + 4];
-          u_minus_2di_helper[simd_i] = combined_u_face[f * u_face_offset + i - 2 * di + simd_i + 4];
-          u_plus_di_helper[simd_i] = combined_u_face[f * u_face_offset + i + di + simd_i + 4];
-          u_plus_2di_helper[simd_i] = combined_u_face[f * u_face_offset + i + 2 * di + simd_i + 4];
+          u_zero_helper[simd_i] = combined_u_face[f * u_face_offset + i + simd_i + offset];
+          u_minus_di_helper[simd_i] = combined_u_face[f * u_face_offset + i - di + simd_i + offset];
+          u_minus_2di_helper[simd_i] = combined_u_face[f * u_face_offset + i - 2 * di + simd_i + offset];
+          u_plus_di_helper[simd_i] = combined_u_face[f * u_face_offset + i + di + simd_i + offset];
+          u_plus_2di_helper[simd_i] = combined_u_face[f * u_face_offset + i + 2 * di + simd_i + offset];
         }
         // Copy from tmp helpers into working buffers
         u_plus_2di.copy_from(u_plus_2di_helper.data(),
@@ -417,15 +445,27 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_ppm_simd(double *__restrict__ co
         constexpr auto eta2 = 0.05;
         const auto dif = u_plus_di - u_minus_di;
         simd_t disc_val;
-        if (d_i%inx_large + simd_t::size() - 1 < inx_large - 2) {
+        /* Same issue as with the loading from combined_u: we first need to check 
+         * if the values are consecutive in memory of if we are dealing with two lines/
+         * bars of the cube and need to load them separetly (else branch)*/
+        if (q_i%q_inx + simd_t::size() - 1 < q_inx) { 
+            // values are consecutive
             disc_val.copy_from(disc + d * disc_offset + d_i, SIMD_NAMESPACE::element_aligned_tag{});
         } else {
+            // values need to be loaded from two lines/bars of the cube
             std::array<double, simd_t::size()> disc_helper;
             size_t simd_i = 0;
-            for(size_t i_line = i%inx_large; i_line < inx_large - 2; i_line++, simd_i++)
+            for(size_t i_line = q_i%q_inx; i_line < q_inx; i_line++, simd_i++)
                 disc_helper[simd_i] = disc[d * disc_offset + d_i + simd_i];
+            size_t offset = (inx_large - q_inx);
+            // calculate index offset to the second bar
+            if constexpr (q_inx2 % simd_t::size() != 0) {
+              if ((q_i + simd_i)%q_inx2 == 0) {
+                offset += (inx_large - q_inx) * inx_large;
+              }
+            } 
             for(; simd_i < simd_t::size(); simd_i++)
-                disc_helper[simd_i] = disc[d * disc_offset + d_i + simd_i + 4];
+                disc_helper[simd_i] = disc[d * disc_offset + d_i + simd_i + offset];
             disc_val.copy_from(disc_helper.data(),
                 SIMD_NAMESPACE::element_aligned_tag{});
         }
