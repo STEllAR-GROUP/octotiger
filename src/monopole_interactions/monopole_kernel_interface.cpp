@@ -122,7 +122,7 @@ namespace fmm {
 
             if (host_type == interaction_host_kernel_type::KOKKOS) {
 #ifdef OCTOTIGER_HAVE_KOKKOS
-                host_executor executor(hpx::kokkos::execution_space_mode::independent);
+                host_executor executor{};
                 monopole_kernel<host_executor>(executor, monopoles, com_ptr, neighbors, type, dx,
                     opts().theta, is_direction_empty, grid_ptr, contains_multipole_neighbor);
                 return;
