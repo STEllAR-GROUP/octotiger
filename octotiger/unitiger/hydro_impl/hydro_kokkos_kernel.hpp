@@ -129,9 +129,6 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
     // Supported team_sizes need to be the power of two! Team size of 1 is a special case for usage
     // with the serial kokkos backend:
     assert((team_size == 1));
-    /* kokkos_buffer_t amax(number_blocks * number_slices * (1 + 2 * nf)); */ 
-    /* kokkos_int_buffer_t amax_indices(number_blocks * number_slices); */
-    /* kokkos_int_buffer_t amax_d(number_blocks * number_slices); */
     if (agg_exec.sync_aggregation_slices()) {
         const int number_slices = agg_exec.number_slices;
         auto policy = Kokkos::Experimental::require(
@@ -242,10 +239,6 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
                                         f * face_offset + dim_offset * flipped_dim -
                                         compressedH_DN[dim] + index,
                                     SIMD_NAMESPACE::element_aligned_tag{});
-                                // Results get masked, no need to mask the input:
-                                /* local_q[f] = SIMD_NAMESPACE::choose(mask, local_q[f], simd_t(1.0)); */
-                                /* local_q_flipped[f] = SIMD_NAMESPACE::choose(mask, local_q_flipped[f], */
-                                /*     simd_t(1.0)); */
                             }
                             // Call the actual compute method
                             cell_inner_flux_loop_simd<simd_t>(omega, nf, A_, B_, local_q, local_q_flipped,
@@ -460,10 +453,6 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                                         f * face_offset + dim_offset * flipped_dim -
                                         compressedH_DN[dim] + index,
                                     SIMD_NAMESPACE::element_aligned_tag{});
-                                // Results get masked, no need to mask the input:
-                                /* local_q[f] = SIMD_NAMESPACE::choose(mask, local_q[f], simd_t(1.0)); */
-                                /* local_q_flipped[f] = SIMD_NAMESPACE::choose(mask, local_q_flipped[f], */
-                                /*     simd_t(1.0)); */
                             }
                             // Call the actual compute method
                             cell_inner_flux_loop_simd<simd_t>(omega, nf, A_, B_, local_q, local_q_flipped,
@@ -617,10 +606,8 @@ void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
     const int n_species_, const int ndir, const int nangmom,
     const size_t workgroup_size, const size_t team_size) {
     assert(team_size <= workgroup_size);
-
-    const size_t z_number_workitems = (q_inx / simd_t::size() + (q_inx % simd_t::size() > 0 ? 1 : 0));
     const int blocks =
-        (q_inx * q_inx * z_number_workitems) / workgroup_size + 1;
+        (q_inx * q_inx * q_inx / simd_t::size() + (q_inx3 % simd_t::size() > 0 ? 1 : 0)) / workgroup_size + 1;
     const int number_slices = agg_exec.number_slices;
     
     if (agg_exec.sync_aggregation_slices()) {
@@ -641,27 +628,15 @@ void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
         Kokkos::parallel_for(
             "kernel hydro reconstruct", policy, KOKKOS_LAMBDA(const membertype& team_handle) {
                 const int slice_id = (team_handle.league_rank() / blocks);
-                const int index_base = (team_handle.league_rank() % blocks) * workgroup_size;
+                const int index_base = (team_handle.league_rank() % blocks) *
+                workgroup_size;
                 const int sx_i = angmom_index_;
                 const int zx_i = sx_i + NDIM;
                 Kokkos::parallel_for(Kokkos::TeamThreadRange(team_handle, workgroup_size),
                     [&](const int& work_elem) {
                         const int index = index_base + work_elem;
-                        const int z_row_id = index / z_number_workitems;
-                        const int z_id = index % z_number_workitems;
-                        const int q_i = z_row_id * q_inx + z_id *
-                        simd_t::size();
+                        const int q_i = index * simd_t::size();
 
-                        /* std::array<double, simd_t::size()> mask_helper; */
-                        /* for (int i = 0; i < simd_t::size(); i++) { */
-                        /*     if ((z_id * simd_t::size() + i) < q_inx) { */
-                        /*         mask_helper[i] = 1.0; */
-                        /*     } else { */
-                        /*         mask_helper[i] = 0.0; */
-                        /*     } */
-                        /* } */
-                        /* const simd_mask_t mask = simd_t(1.0) == */
-                        /*     simd_t(mask_helper.data(), SIMD_NAMESPACE::element_aligned_tag{}); */
                         const int i = ((q_i / q_inx2) + 2) * inx_large * inx_large +
                             (((q_i % q_inx2) / q_inx) + 2) * inx_large +
                             (((q_i % q_inx2) % q_inx) + 2);
@@ -670,54 +645,74 @@ void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                         const int am_slice_offset = (NDIM * q_inx3 + padding) * slice_id;
                         if (q_i < q_inx3) {
                             for (int n = 0; n < nangmom; n++) {
-                              // TODO fix
-                                /* const simd_t old_AM( */
-                                /*     AM.data() + n * am_offset + q_i + am_slice_offset, */
-                                /*     SIMD_NAMESPACE::element_aligned_tag{}); */
-                                /* const simd_t current_am = SIMD_NAMESPACE::choose(mask, */
-                                /*     simd_t(combined_u.data() + (zx_i + n) * u_face_offset + i + */
-                                /*             u_slice_offset, */
-                                /*         SIMD_NAMESPACE::element_aligned_tag{}) * */
-                                /*         simd_t(combined_u.data() + i + u_slice_offset, */
-                                /*             SIMD_NAMESPACE::element_aligned_tag{}), */
-                                /*     old_AM); */
-                                /* current_am.copy_to( */
-                                /*     AM.data() + n * am_offset + q_i + am_slice_offset, */
-                                /*     SIMD_NAMESPACE::element_aligned_tag{}); */
+                                simd_t u_nangmom;
+                                simd_t u;
+                                // Load specialization for a as the simd value may stretch over 2
+                                // bars/lines in the cube, thus the values to be loaded are not
+                                // necessarily consecutive in memory
+                                if (q_i % q_inx + simd_t::size() - 1 < q_inx) {
+                                    // values are all in the first line/bar and
+                                    // can simply be loaded
+                                    u_nangmom.copy_from(combined_u.data() +
+                                            (zx_i + n) * u_face_offset + i + u_slice_offset,
+                                        SIMD_NAMESPACE::element_aligned_tag{});
+                                    u.copy_from(combined_u.data() + i + u_slice_offset,
+                                        SIMD_NAMESPACE::element_aligned_tag{});
+                                } else {
+                                    std::array<double, simd_t::size()> u_nangmom_helper;
+                                    std::array<double, simd_t::size()> u_helper;
+                                    size_t simd_i = 0;
+                                    // load from first bar
+                                    for (size_t i_line = q_i % q_inx; i_line < q_inx;
+                                         i_line++, simd_i++) {
+                                        u_nangmom_helper[simd_i] =
+                                            combined_u[(zx_i + n) * u_face_offset + i +
+                                                u_slice_offset + simd_i];
+                                        u_helper[simd_i] = combined_u[i + u_slice_offset + simd_i];
+                                    }
+                                    // calculate indexing offset to check where the second line/bar
+                                    // is starting
+                                    size_t offset = (inx_large - q_inx);
+                                    if constexpr (q_inx2 % simd_t::size() != 0) {
+                                        if ((q_i + simd_i) % q_inx2 == 0) {
+                                            offset += (inx_large - q_inx) * inx_large;
+                                        }
+                                    }
+                                    // Load relevant values from second
+                                    // line/bar
+                                    for (; simd_i < simd_t::size(); simd_i++) {
+                                        u_nangmom_helper[simd_i] =
+                                            combined_u[(zx_i + n) * u_face_offset + i +
+                                                u_slice_offset + simd_i + offset];
+                                        u_helper[simd_i] =
+                                            combined_u[i + u_slice_offset + simd_i + offset];
+                                    }
+                                    u_nangmom.copy_from(u_nangmom_helper.data(),
+                                        SIMD_NAMESPACE::element_aligned_tag{});
+                                    u.copy_from(u_helper.data(),
+                                        SIMD_NAMESPACE::element_aligned_tag{});
+                                }
+
+                                const simd_t current_am = u_nangmom * u;
+                                current_am.copy_to(
+                                    AM.data() + n * am_offset + q_i + am_slice_offset,
+                                    SIMD_NAMESPACE::element_aligned_tag{});
                             }
-                            /* for (int d = 0; d < ndir; d++) { */
-                                cell_reconstruct_inner_loop_p1_simd<simd_t, simd_mask_t>(nf_,
-                                    angmom_index_, smooth_field_.data(), disc_detect_.data(),
-                                    combined_q.data(), combined_u.data(), AM.data(), dx[slice_id],
-                                    cdiscs.data(), i, q_i, ndir, nangmom, slice_id);
-                            /* } */
+                            cell_reconstruct_inner_loop_p1_simd<simd_t, simd_mask_t>(nf_,
+                                angmom_index_, smooth_field_.data(), disc_detect_.data(),
+                                combined_q.data(), combined_u.data(), AM.data(), dx[slice_id],
+                                cdiscs.data(), i, q_i, ndir, nangmom, slice_id);
                         }
                     });
                 Kokkos::parallel_for(Kokkos::TeamThreadRange(team_handle, workgroup_size),
                     [&](const int& work_elem) {
-                        /* const int index = (idx) * 64 + (idy) * 8 + (idz); */
                         const int index = index_base + work_elem;
-                        const int z_row_id = index / z_number_workitems;
-                        const int z_id = index % z_number_workitems;
-                        const int q_i = z_row_id * q_inx + z_id *
-                        simd_t::size();
+                        const int q_i = index * simd_t::size();
 
-                        /* std::array<double, simd_t::size()> mask_helper; */
-                        /* for (int i = 0; i < simd_t::size(); i++) { */
-                        /*     if ((z_id * simd_t::size() + i) < q_inx) { */
-                        /*         mask_helper[i] = 1.0; */
-                        /*     } else { */
-                        /*         mask_helper[i] = 0.0; */
-                        /*     } */
-                        /* } */
-                        /* const simd_mask_t mask = simd_t(1.0) == */
-                        /*     simd_t(mask_helper.data(), SIMD_NAMESPACE::element_aligned_tag{}); */
                         const int i = ((q_i / q_inx2) + 2) * inx_large * inx_large +
                             (((q_i % q_inx2) / q_inx) + 2) * inx_large +
                             (((q_i % q_inx2) % q_inx) + 2);
 
-                        const int u_slice_offset = (nf_ * H_N3 + padding) * slice_id;
-                        const int am_slice_offset = (NDIM * q_inx3 + padding) * slice_id;
                         if (q_i < q_inx3) {
                             // Phase 2
                             for (int d = 0; d < ndir; d++) {
@@ -776,12 +771,10 @@ void reconstruct_no_amc_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                             (((q_i % q_inx2) / q_inx) + 2) * inx_large +
                             (((q_i % q_inx2) % q_inx) + 2);
                         if (q_i < q_inx3) {
-                            /* for (int d = 0; d < ndir; d++) { */
                                 cell_reconstruct_inner_loop_p1_simd<simd_t, simd_mask_t>(nf_,
                                     angmom_index_, smooth_field_.data(), disc_detect_.data(),
                                     combined_q.data(), combined_u.data(), AM.data(), dx[slice_id],
                                     cdiscs.data(), i, q_i, ndir, nangmom, slice_id);
-                            /* } */
                         }
                     });
                 Kokkos::parallel_for(Kokkos::TeamThreadRange(team_handle, workgroup_size),
@@ -828,8 +821,9 @@ void hydro_pre_recon_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                 const int grid_x = index / (inx_large * inx_large);
                 const int grid_y = (index % (inx_large * inx_large)) / inx_large;
                 const int grid_z = (index % (inx_large * inx_large)) % inx_large;
-                cell_hydro_pre_recon(large_x, omega, angmom, u, nf, n_species, grid_x, grid_y, grid_z, slice_id); 
-          }
+                cell_hydro_pre_recon(
+                    large_x, omega, angmom, u, nf, n_species, grid_x, grid_y, grid_z, slice_id);
+              }
         });
     }
 }
@@ -975,13 +969,6 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
             agg_exec.get_underlying_executor());
     const int number_blocks_small = (q_inx3 / 128 + 1) * 1;
 
-    /* aggregated_device_buffer<double, executor_t> amax_large( */
-    /*     alloc_device_double, number_blocks * NDIM * (1 + 2 * nf) * max_slices); */
-    /* aggregated_device_buffer<int, executor_t> amax_indices_large( */
-    /*     alloc_device_int, number_blocks * NDIM * max_slices); */
-    /* aggregated_device_buffer<int, executor_t> amax_d_large( */
-    /*     alloc_device_int, number_blocks * NDIM * max_slices); */
-
     aggregated_device_buffer<double, executor_t> amax(
         alloc_device_double, number_blocks_small * NDIM * (1 + 2 * nf) * max_slices);
     aggregated_device_buffer<int, executor_t> amax_indices(
@@ -991,10 +978,6 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
 
     aggregated_device_buffer<double, executor_t> f(
         alloc_device_double, (NDIM * nf * q_inx3 + padding) * max_slices);
-    /* flux_impl_teamless(exec, agg_exec, q, x, f, amax, amax_indices, amax_d, amax_large, */
-    /*     amax_indices_large, amax_d_large, masks, omega, dx_device, A_, B_, nf, */
-    /*     fgamma, de_switch_1, */
-    /*     NDIM * number_blocks_small, NDIM * number_blocks, 1, 128); */
     flux_impl(exec, agg_exec, q, x, f, amax, amax_indices, amax_d, masks, omega, dx_device, A_, B_,
         nf, fgamma, de_switch_1, NDIM * number_blocks_small, 128);
     aggregated_host_buffer<double, executor_t> host_amax(
