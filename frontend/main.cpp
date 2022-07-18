@@ -101,19 +101,19 @@ int hpx_main(int argc, char* argv[]) {
     printf("Not compiled for a known SIMD architecture.\n");
 #endif
 #ifdef OCTOTIGER_HAVE_KOKKOS
-#if defined(OCTOTIGER_SIMD_AUTOMATIC_DISCOVERY) 
+#if defined(OCTOTIGER_KOKKOS_SIMD_AUTOMATIC_DISCOVERY) 
     printf("Note: Kokkos kernels will try to use this SIMD type!\n");
-#elif defined(OCTOTIGER_SIMD_AVX512)
+#elif defined(OCTOTIGER_KOKKOS_SIMD_AVX512)
     printf("Note: Kokkos CPU kernels are manually set to AVX512 as per CMAKE configuration!\n");
-#elif defined(OCTOTIGER_SIMD_AVX)
+#elif defined(OCTOTIGER_KOKKOS_SIMD_AVX)
     printf("Note: Kokkos CPU kernels are manually set to AVX as per CMAKE configuration!\n");
-#elif defined(OCTOTIGER_SIMD_VSX)
+#elif defined(OCTOTIGER_KOKKOS_SIMD_VSX)
     printf("Note: Kokkos CPU kernels are manually set to VSX as per CMAKE configuration!\n");
-#elif defined(OCTOTIGER_SIMD_SVE)
+#elif defined(OCTOTIGER_KOKKOS_SIMD_SVE)
     printf("Note: Kokkos CPU kernels are manually set to SVE as per CMAKE configuration!\n");
-#elif defined(OCTOTIGER_SIMD_NEON)
+#elif defined(OCTOTIGER_KOKKOS_SIMD_NEON)
     printf("Note: Kokkos CPU kernels are manually set to NEON as per CMAKE configuration!\n");
-#elif defined(OCTOTIGER_SIMD_SCALAR)
+#elif defined(OCTOTIGER_KOKKOS_SIMD_SCALAR)
     printf("Note: Kokkos kernels are manually set to SCALAR as per CMAKE configuration!\n");
     printf("Note: Kokkos kernels are will not use explicit vectorization in this configuration!\n");
 #endif
@@ -122,9 +122,6 @@ int hpx_main(int argc, char* argv[]) {
 #else
     printf("Using Kokkos SIMD types.\n");
 #endif
-#endif
-#if defined(OCTOTIGER_FORCE_SCALAR_KOKKOS_SIMD)
-    printf("Note: OCTOTIGER_FORCE_SCALAR_KOKKOS_SIMD is on! Kokkos kernel will not use SIMD!\n");
 #endif
 #ifdef OCTOTIGER_HAVE_HIP
     printf("WARNING: Experimental HIP Build! Do not (yet) use for production runs!\n");
