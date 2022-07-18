@@ -57,8 +57,6 @@ option(OCTOTIGER_WITH_MONOPOLE_HOST_HPX_EXECUTOR
   "Use Kokkos HPX backend for host execution of monopole kernels (ON) or serial host backend (OFF)" ON)
 option(OCTOTIGER_WITH_MULTIPOLE_HOST_HPX_EXECUTOR 
   "Use Kokkos HPX backend for host execution of monopole kernels (ON) or serial host backend (OFF)" ON)
-option(OCTOTIGER_WITH_FORCE_SCALAR_KOKKOS_SIMD
-  "Uses scalar host simd types instead of the native ones" OFF) 
 option(OCTOTIGER_WITH_POLLING_EXECUTORS  
   "Use the polling executors, not the callback ones" ON)
 
@@ -66,6 +64,8 @@ option(OCTOTIGER_ARCH_FLAG
   "Arch flag for compilations" "-march=native")
 option(OCTOTIGER_CUDA_ARCH
   "Compile for this CUDA arch" sm_50)
+
+set(OCTOTIGER_SIMD_EXTENSION "AUTO" CACHE STRING "Choose either AVX512 AVX2 VSX NEON SVE SCALAR or DISCOVER (automatic discovery)") 
 
 # silence warnings for deprecated HPX includes
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-cpp")
@@ -135,6 +135,7 @@ include(FetchContent)
 FetchContent_Declare(
   kokkossimd
   GIT_REPOSITORY https://github.com/kokkos/simd-math.git
+  # GIT_TAG        e81aea6e4b12653acdc759366c359a4309219dd4
   GIT_TAG        c845b7d9d8da461457cc5aa88fdda5923773a4bf
 )
 FetchContent_MakeAvailable(kokkossimd)
@@ -535,21 +536,8 @@ if(OCTOTIGER_WITH_KOKKOS)
   if(OCTOTIGER_WITH_MULTIPOLE_HOST_HPX_EXECUTOR)
     target_compile_definitions(octolib PUBLIC OCTOTIGER_MULTIPOLE_HOST_HPX_EXECUTOR)
   endif()
-  if(OCTOTIGER_WITH_FORCE_SCALAR_KOKKOS_SIMD)
-    target_compile_definitions(octolib PUBLIC OCTOTIGER_FORCE_SCALAR_KOKKOS_SIMD)
-    target_compile_definitions(hydrolib PUBLIC OCTOTIGER_FORCE_SCALAR_KOKKOS_SIMD)
-  endif()
 endif()
 
-# Add simd library
-# Use this include when actively developing simd-math itself and the source changes often
-# You are responsible for checking out the simd-math source at the correct directory in this case
-#target_include_directories(octolib PUBLIC ${PROJECT_SOURCE_DIR}/../simd-math)
-message(INFO "Compiling with Kokkos SIMD! Path:")
-message(INFO ${kokkossimd_SOURCE_DIR})
-target_include_directories(optionslib PUBLIC ${kokkossimd_SOURCE_DIR})
-target_include_directories(hydrolib PUBLIC ${kokkossimd_SOURCE_DIR})
-target_include_directories(octolib PUBLIC ${kokkossimd_SOURCE_DIR})
 
 # Enable exported functions
 #target_compile_definitions(octolib PRIVATE OCTOTIGER_EXPORTS)
@@ -733,6 +721,63 @@ if(OCTOTIGER_WITH_STD_EXPERIMENTAL_SIMD)
   target_compile_definitions(optionslib PUBLIC OCTOTIGER_HAVE_STD_EXPERIMENTAL_SIMD)
   target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_STD_EXPERIMENTAL_SIMD)
   target_compile_definitions(hydrolib PUBLIC OCTOTIGER_HAVE_STD_EXPERIMENTAL_SIMD)
+endif()
+
+# Add simd library
+# Use this include when actively developing simd-math itself and the source changes often
+# You are responsible for checking out the simd-math source at the correct directory in this case
+#target_include_directories(octolib PUBLIC ${PROJECT_SOURCE_DIR}/../simd-math)
+message(INFO "Compiling with Kokkos SIMD! Path:")
+message(INFO ${kokkossimd_SOURCE_DIR})
+target_include_directories(octotiger PUBLIC ${kokkossimd_SOURCE_DIR})
+target_include_directories(optionslib PUBLIC ${kokkossimd_SOURCE_DIR})
+target_include_directories(hydrolib PUBLIC ${kokkossimd_SOURCE_DIR})
+target_include_directories(octolib PUBLIC ${kokkossimd_SOURCE_DIR})
+# Utilized KOKKOS SIMD extensions
+if (${OCTOTIGER_SIMD_EXTENSION} STREQUAL DISCOVER)
+  message(STATUS "Automatic KOKKOS SIMD extension discovery is ON")
+  target_compile_definitions(octotiger PUBLIC OCTOTIGER_SIMD_AUTOMATIC_DISCOVERY)
+  target_compile_definitions(optionslib PUBLIC OCTOTIGER_SIMD_AUTOMATIC_DISCOVERY)
+  target_compile_definitions(octolib PUBLIC OCTOTIGER_SIMD_AUTOMATIC_DISCOVERY)
+  target_compile_definitions(hydrolib PUBLIC OCTOTIGER_SIMD_AUTOMATIC_DISCOVERY)
+elseif(${OCTOTIGER_SIMD_EXTENSION} STREQUAL AVX512)
+  message(STATUS "KOKKOS SIMD extension manually set to AVX512")
+  target_compile_definitions(octotiger PUBLIC OCTOTIGER_SIMD_AVX512)
+  target_compile_definitions(optionslib PUBLIC OCTOTIGER_SIMD_AVX512)
+  target_compile_definitions(octolib PUBLIC OCTOTIGER_SIMD_AVX512)
+  target_compile_definitions(hydrolib PUBLIC OCTOTIGER_SIMD_AVX512)
+elseif(${OCTOTIGER_SIMD_EXTENSION} STREQUAL AVX)
+  message(STATUS "KOKKOS SIMD extension manually set to AVX")
+  target_compile_definitions(octotiger PUBLIC OCTOTIGER_SIMD_AVX)
+  target_compile_definitions(optionslib PUBLIC OCTOTIGER_SIMD_AVX)
+  target_compile_definitions(octolib PUBLIC OCTOTIGER_SIMD_AVX)
+  target_compile_definitions(hydrolib PUBLIC OCTOTIGER_SIMD_AVX)
+elseif(${OCTOTIGER_SIMD_EXTENSION} STREQUAL VSX)
+  message(STATUS "KOKKOS SIMD extension manually set to VSX")
+  target_compile_definitions(octotiger PUBLIC OCTOTIGER_SIMD_VSX)
+  target_compile_definitions(optionslib PUBLIC OCTOTIGER_SIMD_VSX)
+  target_compile_definitions(octolib PUBLIC OCTOTIGER_SIMD_VSX)
+  target_compile_definitions(hydrolib PUBLIC OCTOTIGER_SIMD_VSX)
+elseif(${OCTOTIGER_SIMD_EXTENSION} STREQUAL NEON)
+  message(STATUS "KOKKOS SIMD extension manually set to NEON")
+  target_compile_definitions(octotiger PUBLIC OCTOTIGER_SIMD_NEON)
+  target_compile_definitions(optionslib PUBLIC OCTOTIGER_SIMD_NEON)
+  target_compile_definitions(octolib PUBLIC OCTOTIGER_SIMD_NEON)
+  target_compile_definitions(hydrolib PUBLIC OCTOTIGER_SIMD_NEON)
+elseif(${OCTOTIGER_SIMD_EXTENSION} STREQUAL SVE)
+  message(STATUS "KOKKOS SIMD extension manually set to SVE")
+  target_compile_definitions(octotiger PUBLIC OCTOTIGER_SIMD_SVE)
+  target_compile_definitions(optionslib PUBLIC OCTOTIGER_SIMD_SVE)
+  target_compile_definitions(octolib PUBLIC OCTOTIGER_SIMD_SVE)
+  target_compile_definitions(hydrolib PUBLIC OCTOTIGER_SIMD_SVE)
+elseif(${OCTOTIGER_SIMD_EXTENSION} STREQUAL SCALAR)
+  message(STATUS "KOKKOS SIMD extension manually set to SCALAR (SIMD is OFF)")
+  target_compile_definitions(octotiger PUBLIC OCTOTIGER_SIMD_SCALAR)
+  target_compile_definitions(optionslib PUBLIC OCTOTIGER_SIMD_SCALAR)
+  target_compile_definitions(octolib PUBLIC OCTOTIGER_SIMD_SCALAR)
+  target_compile_definitions(hydrolib PUBLIC OCTOTIGER_SIMD_SCALAR)
+else()
+  message(FATAL_ERROR "Invalid value for OCTOTIGER_SIMD_EXTENSION! Choose one out of DISCOVER AVX512 AVX VSX SVE NEON SCALAR")
 endif()
 
 # Handle other options
