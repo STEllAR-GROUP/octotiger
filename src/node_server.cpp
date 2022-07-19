@@ -199,9 +199,10 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
 	for (auto const &dir : geo::direction::full_set()) {
 		if (!neighbors[dir].empty() && neighbors[dir].is_local()) {
         /* std::vector<hpx::lcos::local::promise<void>> *neighbor_promises = neighbors[dir].hydro_ready_vec; */
+        hpx::future<std::shared_ptr<node_server>> pf = hpx::get_ptr<node_server>(neighbors[dir].get_gid());
+        auto direct_access = pf.get();
         neighbors_ready.emplace_back((
-            neighbors[dir]
-                .local_access->ready_for_hydro_exchange)[hcycle % number_hydro_exchange_promises]
+            direct_access->ready_for_hydro_exchange)[hcycle % number_hydro_exchange_promises]
                                          .get_shared_future());
         } else if (neighbors[dir].empty() && parent.is_local() && use_local_amr_optimization) {
             local_amr_handling = true;
@@ -210,8 +211,10 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
   if (local_amr_handling && my_location.level() != 0) {
     /* std::vector<hpx::lcos::local::promise<void>> *parent_promise = parent.amr_hydro_ready_vec; */
     /* neighbors_ready.emplace_back((*parent_promise)[hcycle%number_hydro_exchange_promises].get_shared_future()); */
+    hpx::future<std::shared_ptr<node_server>> pf = hpx::get_ptr<node_server>(parent.get_gid());
+    auto direct_access = pf.get();
     neighbors_ready.emplace_back(
-        (parent.local_access->ready_for_amr_hydro_exchange)[hcycle % number_hydro_exchange_promises]
+        (direct_access->ready_for_amr_hydro_exchange)[hcycle % number_hydro_exchange_promises]
             .get_shared_future());
   }
   auto get_neighbors = hpx::when_all(neighbors_ready);
@@ -223,7 +226,9 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
     if (neighbors[dir].is_local() && use_local_optimization && !neighbors[dir].empty()) {
       /* auto fut = sibling_hydro_channels[dir].get_future(hcycle); */
       /* fut.get(); */
-      const auto &uneighbor = neighbors[dir].local_access->grid_ptr->U;
+      hpx::future<std::shared_ptr<node_server>> pf = hpx::get_ptr<node_server>(neighbors[dir].get_gid());
+      auto direct_access = pf.get();
+      const auto &uneighbor = direct_access->grid_ptr->U;
 
       std::array<integer, NDIM> lb_orig, ub_orig;
       std::array<integer, NDIM> lb_target, ub_target;
@@ -255,15 +260,18 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
 
       if (!opts().gravity && !is_refined) {
         /* auto neighbor_promises_p = neighbors[dir].ready_for_hydro_update; */
+        hpx::future<std::shared_ptr<node_server>> pf = hpx::get_ptr<node_server>(neighbors[dir].get_gid());
+        auto direct_access = pf.get();
         neighbors_finished_reading.emplace_back(
-            (neighbors[dir]
-                    .local_access->ready_for_hydro_update)[hcycle % number_hydro_exchange_promises]
+            (direct_access->ready_for_hydro_update)[hcycle % number_hydro_exchange_promises]
                 .get_shared_future());
       }
       //neighbors_finished_reading
     } else if (use_local_amr_optimization && neighbors[dir].empty() && parent.is_local() && my_location.level() != 0) { 
       // Get neighbor data and the required boundaries for copying the ghostlayer
-      const auto &uneighbor = parent.local_access->grid_ptr->U;
+      hpx::future<std::shared_ptr<node_server>> pf = hpx::get_ptr<node_server>(parent.get_gid());
+      auto direct_access = pf.get();
+      const auto &uneighbor = direct_access->grid_ptr->U;
       std::array<integer, NDIM> lb_orig, ub_orig;
       std::array<integer, NDIM> lb_target, ub_target;
       get_boundary_size(lb_target, ub_target, dir, OUTER, INX / 2, H_BW);

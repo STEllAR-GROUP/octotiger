@@ -30,10 +30,6 @@ node_client& node_client::operator=(hpx::future<hpx::id_type>&& fut) {
 	if( !empty() ) {
         unmanaged = hpx::id_type(id.get_gid(), hpx::id_type::management_type::unmanaged);
         local = hpx::naming::get_locality_from_id(id) == hpx::find_here();
-        if (local) {
-          hpx::future<std::shared_ptr<node_server>> pf = hpx::get_ptr<node_server>(id);
-          local_access = pf.get();
-        }
 
 // 		local = bool(hpx::get_colocation_id(id).get() == hpx::find_here());
 	}
@@ -45,11 +41,6 @@ node_client& node_client::operator=(const hpx::id_type& _id) {
 	if (!empty()) {
         unmanaged = hpx::id_type(id.get_gid(), hpx::id_type::management_type::unmanaged);
         local = hpx::naming::get_locality_from_id(id) == hpx::find_here();
-        if (local) {
-          hpx::future<std::shared_ptr<node_server>> pf = hpx::get_ptr<node_server>(id);
-          local_access = pf.get();
-
-        }
 // 		local = bool(hpx::get_colocation_id(id).get() == hpx::find_here());
 	}
 	return *this;
@@ -60,10 +51,6 @@ node_client::node_client(hpx::future<hpx::id_type>&& fut) {
 	if( !empty() ) {
         unmanaged = hpx::id_type(id.get_gid(), hpx::id_type::management_type::unmanaged);
         local = hpx::naming::get_locality_from_id(id) == hpx::find_here();
-        if (local) {
-          hpx::future<std::shared_ptr<node_server>> pf = hpx::get_ptr<node_server>(id);
-          local_access = pf.get();
-        }
     }
 }
 
@@ -72,10 +59,6 @@ node_client::node_client(const hpx::id_type& _id) {
 	if (!empty()) {
         unmanaged = hpx::id_type(id.get_gid(), hpx::id_type::management_type::unmanaged);
         local = hpx::naming::get_locality_from_id(id) == hpx::find_here();
-        if (local) {
-          hpx::future<std::shared_ptr<node_server>> pf = hpx::get_ptr<node_server>(id);
-          local_access = pf.get();
-        }
 	}
 }
 

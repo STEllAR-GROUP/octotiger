@@ -455,9 +455,6 @@ int node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std::
 	int amr_bnd = 0;
 
 	std::fill(nieces.begin(), nieces.end(), 0);
-  auto number_neighbors = neighbors.size();
-	neighbors.clear();
-  neighbors.resize(number_neighbors);
 	for (auto dir : geo::direction::full_set()) {
 		neighbors[dir] = std::move(neighbor_gids[dir]);
 	}
