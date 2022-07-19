@@ -76,57 +76,6 @@ void node_server::recv_hydro_boundary(std::vector<real> &&bdata, const geo::dire
 	sibling_hydro_channels[dir].set_value(std::move(tmp), cycle);
 }
 
-using send_hydro_boundary_action_local_type = node_server::send_hydro_boundary_action_local;
-HPX_REGISTER_ACTION (send_hydro_boundary_action_local_type);
-
-const std::vector<std::vector<safe_real>>* node_client::recv_hydro_boundary_local() const {
-  node_server::send_hydro_boundary_action_local action_instance;
-	const std::vector<std::vector<safe_real>>* u_p = action_instance(get_unmanaged_gid());
-  return u_p;
-}
-
-const std::vector<std::vector<safe_real>>* node_server::send_hydro_boundary_local() {
-  return &(grid_ptr->U);
-}
-
-using send_hydro_boundary_promises_action_local_type = node_server::send_hydro_boundary_promises_action_local;
-HPX_REGISTER_ACTION (send_hydro_boundary_promises_action_local_type);
-
-std::vector<hpx::lcos::local::promise<void>>* node_client::recv_hydro_boundary_promises_local() const {
-  node_server::send_hydro_boundary_promises_action_local action_instance;
-	std::vector<hpx::lcos::local::promise<void>>* vec = action_instance(get_unmanaged_gid());
-  return vec;
-}
-
-std::vector<hpx::lcos::local::promise<void>>* node_server::send_hydro_boundary_promises_local() {
-  return &(ready_for_hydro_exchange);
-}
-
-using send_amr_hydro_boundary_promises_action_local_type = node_server::send_amr_hydro_boundary_promises_action_local;
-HPX_REGISTER_ACTION (send_amr_hydro_boundary_promises_action_local_type);
-
-std::vector<hpx::lcos::local::promise<void>>* node_client::recv_amr_hydro_boundary_promises_local() const {
-  node_server::send_amr_hydro_boundary_promises_action_local action_instance;
-	std::vector<hpx::lcos::local::promise<void>>* vec = action_instance(get_unmanaged_gid());
-  return vec;
-}
-
-std::vector<hpx::lcos::local::promise<void>>* node_server::send_amr_hydro_boundary_promises_local() {
-  return &(ready_for_amr_hydro_exchange);
-}
-
-using send_hydro_update_ready_promises_action_local_type = node_server::send_hydro_update_ready_promises_action_local;
-HPX_REGISTER_ACTION (send_hydro_update_ready_promises_action_local_type);
-
-std::vector<hpx::lcos::local::promise<void>>* node_client::recv_hydro_update_ready_promises_local() const {
-  node_server::send_hydro_update_ready_promises_action_local action_instance;
-	std::vector<hpx::lcos::local::promise<void>>* vec = action_instance(get_unmanaged_gid());
-  return vec;
-}
-
-std::vector<hpx::lcos::local::promise<void>>* node_server::send_hydro_update_ready_promises_local() {
-  return &(ready_for_hydro_update);
-}
 
 using send_hydro_amr_boundary_action_type = node_server::send_hydro_amr_boundary_action;
 HPX_REGISTER_ACTION (send_hydro_amr_boundary_action_type);
