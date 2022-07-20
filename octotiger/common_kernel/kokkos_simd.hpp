@@ -117,6 +117,14 @@ struct has_simd_copysign<simd_t,
   : std::true_type
 {
 };
+template<class simd_t, class=void>
+struct has_simd_abs : std::false_type {};
+template <class simd_t>
+struct has_simd_abs<simd_t,
+    std::void_t<decltype(abs(std::declval<simd_t>()))>>
+  : std::true_type
+{
+};
 } // end namespace detail
 
 template <typename simd_t>
@@ -187,6 +195,23 @@ CUDA_GLOBAL_METHOD inline simd_t copysign_with_serial_fallback(const simd_t inpu
       copysign_helper[i] = std::copysign(copysign_helper_input1[i], copysign_helper_input2[i]);
     }
     return simd_t{copysign_helper.data(), SIMD_NAMESPACE::element_aligned_tag{}};
+  }
+}
+template <typename simd_t>
+CUDA_GLOBAL_METHOD inline simd_t abs(const simd_t input1) {
+  if constexpr (detail::has_simd_abs<simd_t>::value) {
+    // should consider the SIMD_NAMESPACE for overloads due to argument-dependent name lookup
+    return abs(input1);
+  } else {
+    /* static_assert(!std::is_same<simd_t, simd_t>::value, "Using asinh serial fallback!" */
+    /*     "If this is intentional please remove this static assert for your build"); */
+    std::array<double, simd_t::size()> abs_helper;
+    std::array<double, simd_t::size()> abs_helper_input1;
+    input1.copy_to(abs_helper_input1.data(), SIMD_NAMESPACE::element_aligned_tag{});
+    for (auto i = 0; i < simd_t::size(); i++) {
+      abs_helper[i] = std::abs(abs_helper_input1[i]);
+    }
+    return simd_t{abs_helper.data(), SIMD_NAMESPACE::element_aligned_tag{}};
   }
 }
 } // end namespace simd_fallbacks
