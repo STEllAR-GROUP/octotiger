@@ -600,7 +600,7 @@ future<void> node_server::nonrefined_step() {
 					if (rk == 0) {
 						dt_ = GET(dt_fut);
 					}
-          if (!opts().gravity) {
+          if (!opts().gravity && opts().optimize_local_communication) {
             all_neighbors_got_hydro[(hcycle-1)%number_hydro_exchange_promises].get();
           }
 					grid_ptr->next_u(rk, current_time, dt_.dt);
