@@ -32,7 +32,7 @@ pipeline {
                     buildbadge.setStatus('running')
                 }
                 sh '''
-                    echo "Build success! Pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger Node-Level Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} succeded" "${MAINTAINER_MAIL}"
+                    echo "Build starting... (Pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT})" | mail -s "Jenkins Octo-Tiger Node-Level Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} starting..." "${MAINTAINER_MAIL}"
                 '''
                 dir('octotiger') {
                     checkout scm
