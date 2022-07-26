@@ -32,6 +32,7 @@
 #include <unistd.h>
 #endif
 
+#include <apex_api.hpp>
 HPX_REGISTER_COMPONENT(hpx::components::managed_component<node_server>, node_server);
 
 hpx::mutex node_server::node_count_mtx;
@@ -566,6 +567,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 	if (!opts().gravity) {
 		return;
 	}
+  auto timer = apex::start("gravity_solver");
 
 	future<void> parent_fut;
 	if (energy_account) {
@@ -575,6 +577,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 	m_out.first.resize(INX * INX * INX);
 	m_out.second.resize(INX * INX * INX);
 
+  auto step_1_timer = apex::start("gravity_solver_step1");
 	for (auto const &dir : geo::direction::full_set()) {
 		if (!neighbors[dir].empty()) {
 			neighbor_signals[dir].wait();
@@ -657,6 +660,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 			is_direction_empty[dir] = false;
 		}
 	}
+  apex::stop(step_1_timer);
 
 	/* new-style interaction calculation */
 
@@ -672,6 +676,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 	std::fill(std::begin(L_c), std::end(L_c), ZERO);
 
 	// Check if we are a multipole
+  auto step_2_timer = apex::start("gravity_solver_step2");
 	if (!grid_ptr->get_leaf()) {
 		// Input structure, needed for multipole-monopole interactions
 		std::array<real, NDIM> Xbase = {
@@ -685,6 +690,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 		octotiger::fmm::monopole_interactions::monopole_kernel_interface(mon_ptr, com_ptr, all_neighbor_interaction_data, type,
 		grid_ptr->get_dx(), is_direction_empty, grid_ptr, contains_multipole);
 	}
+  apex::stop(step_2_timer);
 
 	/* old-style interaction calculation
 	// computes inner interactions
@@ -700,6 +706,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 	/**************************************************************************/
 	// now that all boundary information has been processed, signal all non-empty neighbors
 	// note that this was done before during boundary calculations
+  auto step_3_timer = apex::start("gravity_solver_step3");
 	for (auto const &dir : geo::direction::full_set()) {
 
 		if (!neighbors[dir].empty()) {
@@ -742,11 +749,13 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 			children[ci].send_gravity_expansions(std::move(l_out));
 		}
 	}
+  apex::stop(step_3_timer);
 
 	if (energy_account) {
 		grid_ptr->etot_to_egas();
 	}
 	++gcycle;
+  apex::stop(timer);
 }
 
 void node_server::report_timing() {

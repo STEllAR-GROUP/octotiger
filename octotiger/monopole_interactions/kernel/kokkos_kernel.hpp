@@ -14,6 +14,7 @@
 #include "octotiger/common_kernel/kokkos_util.hpp"
 #include "octotiger/common_kernel/kokkos_simd.hpp"
 
+#include <apex_api.hpp>
 namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
@@ -756,11 +757,13 @@ namespace fmm {
             const host_buffer<int>& host_masks = get_host_masks<host_buffer<int>>();
             const host_buffer<double>& host_constants = get_host_constants<host_buffer<double>>();
             // call kernel
+            auto kernel_timer = apex::start("kernel p2p kokkos");
             p2p_kernel_impl<host_simd_t, host_simd_mask_t>(exec, monopoles, host_masks,
                 host_constants, results, dx, theta, 1,
                 {NUMBER_P2P_BLOCKS, INX / 2, INX / 2, INX / host_simd_t::size()});
 
             sync_kokkos_host_kernel(exec);
+            apex::stop(kernel_timer);
         }
 
         // --------------------------------------- P2P / P2M Launch Interface implementations
@@ -891,9 +894,12 @@ namespace fmm {
             const host_buffer<double>& host_constants = get_host_constants<host_buffer<double>>();
 
             // call p2p kernel
+            auto kernel_timer_p2p = apex::start("kernel p2p kokkos");
             p2p_kernel_impl<host_simd_t, host_simd_mask_t>(exec, monopoles, host_masks,
                 host_constants, results, dx, theta, 1,
                 {NUMBER_P2P_BLOCKS, INX / 2, INX / 2, INX / host_simd_t::size()});
+            sync_kokkos_host_kernel(exec);
+            apex::stop(kernel_timer_p2p);
 
             // - Launch Kernel
             size_t counter_kernel = 0;
@@ -935,6 +941,7 @@ namespace fmm {
                         cells_end.z = (STENCIL_MAX + 1);
 
                     if (type == RHO) {
+                        auto kernel_timer_p2m = apex::start("kernel p2m-rho kokkos");
                         p2m_kernel_impl_rho<host_simd_t, host_simd_mask_t>(exec,
                             local_expansions[counter_kernel], center_of_masses[counter_kernel],
                             center_of_masses_inner_cells, results, ang_corr_results, neighbor_size,
@@ -942,11 +949,16 @@ namespace fmm {
                             host_masks, reset_ang_corrs);
                         // only reset angular correction result buffer for the first run
                         reset_ang_corrs = false;
+                        sync_kokkos_host_kernel(exec);
+                        apex::stop(kernel_timer_p2m);
                     } else {
+                        auto kernel_timer_p2m = apex::start("kernel p2m-non-rho kokkos");
                         p2m_kernel_impl_non_rho<host_simd_t, host_simd_mask_t>(exec,
                             local_expansions[counter_kernel], center_of_masses[counter_kernel],
                             center_of_masses_inner_cells, results, neighbor_size, start_index,
                             end_index, dir_index, theta, cells_start, cells_end, host_masks);
+                        sync_kokkos_host_kernel(exec);
+                        apex::stop(kernel_timer_p2m);
                     }
                     counter_kernel++;
                 }

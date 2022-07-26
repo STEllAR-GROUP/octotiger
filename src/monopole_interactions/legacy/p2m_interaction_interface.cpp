@@ -14,6 +14,7 @@
 #include <array>
 #include <vector>
 
+#include <apex_api.hpp>
 namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
@@ -141,6 +142,10 @@ namespace fmm {
             std::array<bool, geo::direction::count()>& is_direction_empty,
             std::shared_ptr<grid>& grid_ptr) {
             if (opts().monopole_host_kernel_type == interaction_host_kernel_type::LEGACY) {
+                std::string kernel_name = "kernel p2m-rho legacy";
+                if (type != RHO)
+                    kernel_name = "kernel p2m-non-rho legacy";
+                auto p2m_timer = apex::start(kernel_name);
                 // waits for boundary data and then computes boundary interactions
                 for (auto const& dir : geo::direction::full_set()) {
                     if (!is_direction_empty[dir]) {
@@ -151,6 +156,7 @@ namespace fmm {
                         }
                     }
                 }
+                apex::stop(p2m_timer);
                 return;
             }
 #ifdef OCTOTIGER_HAVE_VC    // kernel is only compiled with Vc
@@ -178,6 +184,10 @@ namespace fmm {
                         std::move(com0.at(flat_index_unpadded)), flat_index_unpadded);
                     angular_corrections_SoA.set_AoS_value(space_vector(), flat_index_unpadded);
                 });
+            
+            std::string kernel_name = "kernel p2m-rho vc";
+            if (type != RHO)
+                kernel_name = "kernel p2m-non-rho vc";
 
             for (const geo::direction& dir : geo::direction::full_set()) {
                 neighbor_gravity_type& neighbor = neighbors[dir];
@@ -214,11 +224,13 @@ namespace fmm {
                             center_of_masses_staging_area, local_expansions_compare,
                             center_of_masses_compare, dir));*/
 
+                        auto p2m_timer = apex::start(kernel_name);
                         kernel.apply_stencil_neighbor<INX * INX * STENCIL_MAX>(neighbor_size,
                             start_index, end_index, local_expansions_staging_area,
                             center_of_masses_staging_area,
                             center_of_masses_inner_cells_staging_area, potential_expansions_SoA,
                             angular_corrections_SoA, p2m_stencil_masks(), type, dir);
+                        apex::stop(p2m_timer);
                     } else if (size == INX * STENCIL_MAX * STENCIL_MAX) {
                         constexpr size_t buffer_size = INX * STENCIL_MAX * STENCIL_MAX;
                         struct_of_array_data<expansion, real, 20, buffer_size, SOA_PADDING,
@@ -237,11 +249,13 @@ namespace fmm {
                             center_of_masses_staging_area, local_expansions_compare,
                             center_of_masses_compare, dir));*/
 
+                        auto p2m_timer = apex::start(kernel_name);
                         kernel.apply_stencil_neighbor<INX * STENCIL_MAX * STENCIL_MAX>(
                             neighbor_size, start_index, end_index, local_expansions_staging_area,
                             center_of_masses_staging_area,
                             center_of_masses_inner_cells_staging_area, potential_expansions_SoA,
                             angular_corrections_SoA, p2m_stencil_masks(), type, dir);
+                        apex::stop(p2m_timer);
                     } else if (size == STENCIL_MAX * STENCIL_MAX * STENCIL_MAX) {
                         constexpr size_t buffer_size = STENCIL_MAX * STENCIL_MAX * STENCIL_MAX;
                         struct_of_array_data<expansion, real, 20, buffer_size, SOA_PADDING,
@@ -260,11 +274,13 @@ namespace fmm {
                             center_of_masses_staging_area, local_expansions_compare,
                             center_of_masses_compare, dir));*/
 
+                        auto p2m_timer = apex::start(kernel_name);
                         kernel.apply_stencil_neighbor<STENCIL_MAX * STENCIL_MAX * STENCIL_MAX>(
                             neighbor_size, start_index, end_index, local_expansions_staging_area,
                             center_of_masses_staging_area,
                             center_of_masses_inner_cells_staging_area, potential_expansions_SoA,
                             angular_corrections_SoA, p2m_stencil_masks(), type, dir);
+                        apex::stop(p2m_timer);
                     }
                 }
             }

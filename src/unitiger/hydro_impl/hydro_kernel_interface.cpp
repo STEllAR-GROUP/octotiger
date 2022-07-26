@@ -146,8 +146,12 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
         // Legacy implementation
         static thread_local auto f = std::vector<std::vector<std::vector<safe_real>>>(NDIM,
             std::vector<std::vector<safe_real>>(opts().n_fields, std::vector<safe_real>(H_N3)));
+        auto reconstruct_timer = apex::start("kernel hydro_reconstruct kokkos");
         const auto& q = hydro.reconstruct(U, X, omega);
+        apex::stop(reconstruct_timer);
+        auto flux_timer = apex::start("kernel hydro_flux legacy");
         max_lambda = hydro.flux(U, q, f, X, omega);
+        apex::stop(flux_timer);
         // Use legacy conversion
         for (int dim = 0; dim < NDIM; dim++) {
             for (integer field = 0; field != opts().n_fields; ++field) {

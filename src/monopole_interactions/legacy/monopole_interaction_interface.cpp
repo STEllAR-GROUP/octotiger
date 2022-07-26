@@ -16,6 +16,7 @@
 #include <aligned_buffer_util.hpp>
 #include <buffer_manager.hpp>
 
+#include <apex_api.hpp>
 namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
@@ -102,14 +103,17 @@ namespace fmm {
 #ifdef OCTOTIGER_HAVE_VC    // kernel is only compiled with Vc
                 p2p_cpu_kernel kernel_monopoles;
                 cpu_expansion_result_buffer_t potential_expansions_SoA;
+                auto p2p_timer = apex::start("kernel p2p vc");
                 kernel_monopoles.apply_stencil(local_monopoles_staging_area,
                     potential_expansions_SoA, stencil_masks(), stencil_four_constants(), dx);
+                apex::stop(p2p_timer);
                 potential_expansions_SoA.to_non_SoA(grid_ptr->get_L());
 #else    // should not happen - option gets already checked at application startup
                 std::cerr << "Tried to call Vc kernel in non-Vc build!" << std::endl;
                 abort();
 #endif
             } else if (p2p_type == interaction_host_kernel_type::LEGACY) {
+                auto p2p_timer = apex::start("kernel p2p legacy");
                 grid_ptr->compute_interactions(type);
                 // waits for boundary data and then computes boundary interactions
                 for (auto const& dir : geo::direction::full_set()) {
@@ -121,6 +125,7 @@ namespace fmm {
                         }
                     }
                 }
+                apex::stop(p2p_timer);
             }
         }
     }    // namespace monopole_interactions

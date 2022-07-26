@@ -18,8 +18,7 @@
 #include <aligned_buffer_util.hpp>
 #include <buffer_manager.hpp>
 
-// Big picture questions:
-// - use any kind of tiling?
+#include <apex_api.hpp>
 
 namespace octotiger {
 namespace fmm {
@@ -116,13 +115,23 @@ namespace fmm {
 
                 multipole_cpu_kernel kernel;
                 if (!use_root_stencil) {
+                    std::string kernel_name = "kernel multipole-rho vc";
+                    if (type != RHO)
+                        kernel_name = "kernel multipole-non-rho vc";
+                    auto multipole_timer = apex::start(kernel_name);
                     kernel.apply_stencil_non_blocked(local_expansions_SoA, center_of_masses_SoA,
                         potential_expansions_SoA, angular_corrections_SoA, local_monopoles,
                         stencil_masks(), inner_stencil_masks(), type);
+                    apex::stop(multipole_timer);
                 } else {
+                    std::string kernel_name = "kernel multipole-root-rho vc";
+                    if (type != RHO)
+                        kernel_name = "kernel multipole-root-non-rho vc";
+                    auto multipole_timer = apex::start(kernel_name);
                     kernel.apply_stencil_root_non_blocked(local_expansions_SoA,
                         center_of_masses_SoA, potential_expansions_SoA, angular_corrections_SoA,
                         inner_stencil_masks(), type);
+                    apex::stop(multipole_timer);
                 }
                 if (type == RHO) {
                     angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());
@@ -133,6 +142,10 @@ namespace fmm {
                 abort();
 #endif
             } else if (m2m_type == interaction_host_kernel_type::LEGACY) {
+                std::string kernel_name = "kernel multipole-rho legacy";
+                if (type != RHO)
+                    kernel_name = "kernel multipole-non-rho legacy";
+                auto multipole_timer = apex::start(kernel_name);
                 // old-style interaction calculation
                 // computes inner interactions
                 grid_ptr->compute_interactions(type);
@@ -144,6 +157,7 @@ namespace fmm {
                             neighbor_data.is_monopole, neighbor_data.data);
                     }
                 }
+                apex::stop(multipole_timer);
             }
         }
     }    // namespace multipole_interactions

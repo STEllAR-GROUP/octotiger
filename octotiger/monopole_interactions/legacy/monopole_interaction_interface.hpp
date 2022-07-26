@@ -18,6 +18,7 @@
 #include <memory>
 #include <vector>
 
+#include <apex_api.hpp>
 namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
@@ -63,6 +64,7 @@ namespace fmm {
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
             monopole_container& local_monopoles,
             std::shared_ptr<grid> &grid_ptr) {
+            auto timer = apex::start("monopole soa conversion");
             iterate_inner_cells_padded(
                 [&local_monopoles, mons](const multiindex<>& i, const size_t flat_index,
                     const multiindex<>& i_unpadded, const size_t flat_index_unpadded) {
@@ -131,6 +133,7 @@ namespace fmm {
                     }
                 }
             }
+            apex::stop(timer);
         }
     }    // namespace monopole_interactions
 }    // namespace fmm
