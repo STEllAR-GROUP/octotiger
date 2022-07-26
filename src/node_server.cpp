@@ -32,7 +32,9 @@
 #include <unistd.h>
 #endif
 
+#ifdef HPX_HAVE_APEX
 #include <apex_api.hpp>
+#endif
 HPX_REGISTER_COMPONENT(hpx::components::managed_component<node_server>, node_server);
 
 hpx::mutex node_server::node_count_mtx;
@@ -567,7 +569,9 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 	if (!opts().gravity) {
 		return;
 	}
+#ifdef HPX_HAVE_APEX
   auto timer = apex::start("gravity_solver");
+#endif
 
 	future<void> parent_fut;
 	if (energy_account) {
@@ -577,7 +581,9 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 	m_out.first.resize(INX * INX * INX);
 	m_out.second.resize(INX * INX * INX);
 
+#ifdef HPX_HAVE_APEX
   auto step_1_timer = apex::start("gravity_solver_step1");
+#endif
 	for (auto const &dir : geo::direction::full_set()) {
 		if (!neighbors[dir].empty()) {
 			neighbor_signals[dir].wait();
@@ -660,7 +666,9 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 			is_direction_empty[dir] = false;
 		}
 	}
+#ifdef HPX_HAVE_APEX
   apex::stop(step_1_timer);
+#endif
 
 	/* new-style interaction calculation */
 
@@ -676,7 +684,9 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 	std::fill(std::begin(L_c), std::end(L_c), ZERO);
 
 	// Check if we are a multipole
+#ifdef HPX_HAVE_APEX
   auto step_2_timer = apex::start("gravity_solver_step2");
+#endif
 	if (!grid_ptr->get_leaf()) {
 		// Input structure, needed for multipole-monopole interactions
 		std::array<real, NDIM> Xbase = {
@@ -690,7 +700,9 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 		octotiger::fmm::monopole_interactions::monopole_kernel_interface(mon_ptr, com_ptr, all_neighbor_interaction_data, type,
 		grid_ptr->get_dx(), is_direction_empty, grid_ptr, contains_multipole);
 	}
+#ifdef HPX_HAVE_APEX
   apex::stop(step_2_timer);
+#endif
 
 	/* old-style interaction calculation
 	// computes inner interactions
@@ -706,7 +718,9 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 	/**************************************************************************/
 	// now that all boundary information has been processed, signal all non-empty neighbors
 	// note that this was done before during boundary calculations
+#ifdef HPX_HAVE_APEX
   auto step_3_timer = apex::start("gravity_solver_step3");
+#endif
 	for (auto const &dir : geo::direction::full_set()) {
 
 		if (!neighbors[dir].empty()) {
@@ -749,13 +763,17 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 			children[ci].send_gravity_expansions(std::move(l_out));
 		}
 	}
+#ifdef HPX_HAVE_APEX
   apex::stop(step_3_timer);
+#endif
 
 	if (energy_account) {
 		grid_ptr->etot_to_egas();
 	}
 	++gcycle;
+#ifdef HPX_HAVE_APEX
   apex::stop(timer);
+#endif
 }
 
 void node_server::report_timing() {

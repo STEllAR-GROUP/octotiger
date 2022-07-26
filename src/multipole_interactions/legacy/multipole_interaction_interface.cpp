@@ -18,7 +18,9 @@
 #include <aligned_buffer_util.hpp>
 #include <buffer_manager.hpp>
 
+#ifdef HPX_HAVE_APEX
 #include <apex_api.hpp>
+#endif
 
 namespace octotiger {
 namespace fmm {
@@ -118,20 +120,28 @@ namespace fmm {
                     std::string kernel_name = "kernel multipole-rho vc";
                     if (type != RHO)
                         kernel_name = "kernel multipole-non-rho vc";
+#ifdef HPX_HAVE_APEX
                     auto multipole_timer = apex::start(kernel_name);
+#endif
                     kernel.apply_stencil_non_blocked(local_expansions_SoA, center_of_masses_SoA,
                         potential_expansions_SoA, angular_corrections_SoA, local_monopoles,
                         stencil_masks(), inner_stencil_masks(), type);
+#ifdef HPX_HAVE_APEX
                     apex::stop(multipole_timer);
+#endif
                 } else {
                     std::string kernel_name = "kernel multipole-root-rho vc";
                     if (type != RHO)
                         kernel_name = "kernel multipole-root-non-rho vc";
+#ifdef HPX_HAVE_APEX
                     auto multipole_timer = apex::start(kernel_name);
+#endif
                     kernel.apply_stencil_root_non_blocked(local_expansions_SoA,
                         center_of_masses_SoA, potential_expansions_SoA, angular_corrections_SoA,
                         inner_stencil_masks(), type);
+#ifdef HPX_HAVE_APEX
                     apex::stop(multipole_timer);
+#endif
                 }
                 if (type == RHO) {
                     angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());
@@ -145,7 +155,9 @@ namespace fmm {
                 std::string kernel_name = "kernel multipole-rho legacy";
                 if (type != RHO)
                     kernel_name = "kernel multipole-non-rho legacy";
+#ifdef HPX_HAVE_APEX
                 auto multipole_timer = apex::start(kernel_name);
+#endif
                 // old-style interaction calculation
                 // computes inner interactions
                 grid_ptr->compute_interactions(type);
@@ -157,7 +169,9 @@ namespace fmm {
                             neighbor_data.is_monopole, neighbor_data.data);
                     }
                 }
+#ifdef HPX_HAVE_APEX
                 apex::stop(multipole_timer);
+#endif
             }
         }
     }    // namespace multipole_interactions

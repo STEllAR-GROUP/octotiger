@@ -12,7 +12,6 @@
 #include <stream_manager.hpp>
 #include <type_traits>
 #include <utility>
-#include <apex_api.hpp>
 #ifdef OCTOTIGER_HAVE_KOKKOS
 #include <hpx/kokkos/executors.hpp>
 #include "octotiger/common_kernel/kokkos_util.hpp"
@@ -21,6 +20,10 @@
 #include "octotiger/unitiger/hydro_impl/flux_kernel_templates.hpp"
 #include "octotiger/unitiger/hydro_impl/hydro_kernel_interface.hpp"
 #include "octotiger/unitiger/hydro_impl/reconstruct_kernel_templates.hpp"
+
+#ifdef HPX_HAVE_APEX
+#include <apex_api.hpp>
+#endif
 
 static const char hydro_kokkos_kernel_identifier[] = "hydro_kernel_aggregator_kokkos";
 template<typename executor_t>
@@ -1083,7 +1086,9 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     aggregated_host_buffer<double, executor_t> AM(
         alloc_host_double, (NDIM * q_inx3 + padding) * max_slices);
 
+#ifdef HPX_HAVE_APEX
     auto reconstruct_timer = apex::start("kernel hydro_reconstruct kokkos");
+#endif
     if (angmom_index > -1) {
         reconstruct_impl<host_simd_t, host_simd_mask_t>(exec, agg_exec, omega, nf, angmom_index,
             smooth_field, disc_detect, q, combined_x, combined_u, AM, dx, disc, n_species, ndir,
@@ -1093,7 +1098,9 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
             angmom_index, smooth_field, disc_detect, q, combined_x, combined_u, AM, dx, disc,
             n_species, ndir, nangmom, 8, 1);
     }
+#ifdef HPX_HAVE_APEX
     apex::stop(reconstruct_timer);
+#endif
 
     // Flux
     static_assert(q_inx3 % host_simd_t::size() == 0,
@@ -1110,11 +1117,15 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     aggregated_host_buffer<int, executor_t> amax_indices(alloc_host_int, blocks * max_slices);
     aggregated_host_buffer<int, executor_t> amax_d(alloc_host_int, blocks * max_slices);
 
+#ifdef HPX_HAVE_APEX
     auto flux_timer = apex::start("kernel hydro_flux kokkos");
+#endif
     flux_impl_teamless<host_simd_t, host_simd_mask_t>(exec, agg_exec, q, combined_x, f,
         amax, amax_indices, amax_d, masks, omega, dx, A_, B_, nf, fgamma,
         de_switch_1, blocks, 1);
+#ifdef HPX_HAVE_APEX
     apex::stop(flux_timer);
+#endif
 
     sync_kokkos_host_kernel(agg_exec.get_underlying_executor());
 

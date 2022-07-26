@@ -22,7 +22,9 @@
 #include <aligned_buffer_util.hpp>
 #include <buffer_manager.hpp>
 
+#ifdef HPX_HAVE_APEX
 #include <apex_api.hpp>
+#endif
 namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {
