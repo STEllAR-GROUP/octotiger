@@ -46,8 +46,6 @@ private:
     bool local;
 
 public:
-    std::shared_ptr<node_server> local_access{nullptr};
-
     bool is_local() const;
     template <class Arc>
     void load(Arc& arc, unsigned)
