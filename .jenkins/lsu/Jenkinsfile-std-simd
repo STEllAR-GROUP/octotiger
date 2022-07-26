@@ -93,7 +93,7 @@ pipeline {
                         rm -f build-log.txt
                         sed -i 's/OCTOTIGER_WITH_STD_EXPERIMENTAL_SIMD=OFF/OCTOTIGER_WITH_STD_EXPERIMENTAL_SIMD=ON/' build-octotiger.sh
 		        
-	    	        srun -p medusa -N 1 -n 1 bash -c 'module load gcc/11 && ./build-all.sh RelWithDebInfo with-CC without-cuda without-mpi without-papi without-apex with-kokkos with-simd without-hpx-backend-multipole without-hpx-backend-monopole without-hpx-cuda-polling without-otf2 cmake jemalloc boost hdf5 silo vc hpx kokkos cppuddle octotiger |& tee build-log.txt'
+	    	        srun -p medusa -N 1 -n 1 bash -c 'module --ignore-cache load gcc/11 && ./build-all.sh RelWithDebInfo with-CC without-cuda without-mpi without-papi without-apex with-kokkos with-simd without-hpx-backend-multipole without-hpx-backend-monopole without-hpx-cuda-polling without-otf2 cmake jemalloc boost hdf5 silo vc hpx kokkos cppuddle octotiger |& tee build-log.txt'
 	   	        if grep "Using std-experimental-simd SIMD types" build-log.txt
 		        then
 		            echo "Found std-experimental build log output! All good!"
