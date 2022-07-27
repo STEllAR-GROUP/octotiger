@@ -764,7 +764,7 @@ namespace fmm {
 #endif
             p2p_kernel_impl<host_simd_t, host_simd_mask_t>(exec, monopoles, host_masks,
                 host_constants, results, dx, theta, 1,
-                {NUMBER_P2P_BLOCKS, INX / 2, INX / 2, INX / host_simd_t::size()});
+                {1, INX, INX / 2, INX / host_simd_t::size()});
 
             sync_kokkos_host_kernel(exec);
 #ifdef HPX_HAVE_APEX
@@ -906,7 +906,7 @@ namespace fmm {
 
             p2p_kernel_impl<host_simd_t, host_simd_mask_t>(exec, monopoles, host_masks,
                 host_constants, results, dx, theta, 1,
-                {NUMBER_P2P_BLOCKS, INX / 2, INX / 2, INX / host_simd_t::size()});
+                {1, INX, INX / 2, INX / host_simd_t::size()});
             sync_kokkos_host_kernel(exec);
 #ifdef HPX_HAVE_APEX
             apex::stop(kernel_timer_p2p);
