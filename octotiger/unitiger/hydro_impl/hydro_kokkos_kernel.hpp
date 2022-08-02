@@ -935,16 +935,7 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     const size_t number_slices = agg_exec.number_slices;
     const size_t max_slices = opts().max_executor_slices;
 
-    // Slice offsets
-    const int u_slice_offset = nf * H_N3 + padding;
-    constexpr int x_slice_offset = NDIM * q_inx3 + padding;
-    const int disc_detect_slice_offset = nf;
-    const int smooth_slice_offset = nf;
-    constexpr int large_x_slice_offset = (H_N3 * NDIM + padding); 
-    //const int q_slice_offset = (nf_ * 27 * H_N3 + padding) 
-    const int f_slice_offset = (NDIM* nf *  q_inx3 + padding);
-    const int disc_offset = ndir / 2 * H_N3 + padding;
-
+    // Required device allocators for aggregated kernels
     auto alloc_device_int =
         agg_exec
             .template make_allocator<int, kokkos_device_allocator<int>>();
@@ -1026,45 +1017,45 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
 
     aggregated_deep_copy(agg_exec, host_amax, amax);
     aggregated_deep_copy(agg_exec, host_amax_indices, amax_indices);
-    aggregated_deep_copy(agg_exec, host_amax_d, amax_d);
+    /* aggregated_deep_copy(agg_exec, host_amax_d, amax_d); */
 
     auto fut = aggregrated_deep_copy_async<executor_t>(agg_exec, host_f, f, (NDIM * nf * q_inx3 + padding));
     fut.get();
 
-    const int amax_slice_offset = NDIM * (1 + 2 * nf) * number_blocks_small * slice_id;
-    const int max_indices_slice_offset = NDIM * number_blocks_small * slice_id;
+    auto [host_amax_slice, host_amax_indices_slice, combined_x_slice] =
+          map_views_to_slice(agg_exec, host_amax, host_amax_indices, combined_x);
 
     // Find Maximum
     size_t current_max_slot = 0;
     for (size_t dim_i = 1; dim_i < number_blocks_small * NDIM; dim_i++) {
-        if (host_amax[dim_i + amax_slice_offset] >
-            host_amax[current_max_slot + amax_slice_offset]) {
+        if (host_amax_slice[dim_i] >
+            host_amax_slice[current_max_slot]) {
             current_max_slot = dim_i;
-        } else if (host_amax[dim_i + amax_slice_offset] ==
-            host_amax[current_max_slot + amax_slice_offset]) {
-            if (host_amax_indices[dim_i + max_indices_slice_offset] <
-                host_amax_indices[current_max_slot + max_indices_slice_offset])
+        } else if (host_amax_slice[dim_i] ==
+            host_amax_slice[current_max_slot]) {
+            if (host_amax_indices_slice[dim_i] <
+                host_amax_indices_slice[current_max_slot])
                 current_max_slot = dim_i;
         }
     }
 
     // Create & Return timestep_t type
     std::vector<double> URs(nf), ULs(nf);
-    const size_t current_max_index = host_amax_indices[current_max_slot + max_indices_slice_offset];
+    const size_t current_max_index = host_amax_indices_slice[current_max_slot];
     /* const size_t current_d = host_amax_d[current_max_slot]; */
     timestep_t ts;
-    ts.a = host_amax[current_max_slot + amax_slice_offset];
-    ts.x = combined_x[current_max_index + x_slice_offset * slice_id];
-    ts.y = combined_x[current_max_index + q_inx3 + x_slice_offset * slice_id];
-    ts.z = combined_x[current_max_index + 2 * q_inx3+ x_slice_offset * slice_id];
-    ts.z = combined_x[current_max_index + 2 * q_inx3 + x_slice_offset * slice_id];
+    ts.a = host_amax[current_max_slot];
+    ts.x = combined_x[current_max_index];
+    ts.y = combined_x[current_max_index + q_inx3];
+    ts.z = combined_x[current_max_index + 2 * q_inx3];
+    ts.z = combined_x[current_max_index + 2 * q_inx3];
     const size_t current_i = current_max_slot;
     const size_t current_dim = current_max_slot / number_blocks_small;
     /* const auto flipped_dim = flip_dim(current_d, current_dim); */
     constexpr int compressedH_DN[3] = {q_inx2, q_inx, 1};
     for (int f = 0; f < nf; f++) {
-        URs[f] = host_amax[NDIM * number_blocks_small + current_i * 2 * nf + f + amax_slice_offset];
-        ULs[f] = host_amax[NDIM * number_blocks_small + current_i * 2 * nf + nf + f + amax_slice_offset];
+        URs[f] = host_amax[NDIM * number_blocks_small + current_i * 2 * nf + f];
+        ULs[f] = host_amax[NDIM * number_blocks_small + current_i * 2 * nf + nf + f];
     }
     ts.ul = std::move(URs);
     ts.ur = std::move(ULs);
@@ -1252,8 +1243,6 @@ timestep_t launch_hydro_kokkos_kernels(const hydro_computer<NDIM, INX, physics<N
           std::copy(
               U[f].begin(), U[f].end(), combined_u_slice.data() + f * H_N3);
       }
-      /* std::cout<< "x:" << combined_large_x_slice[0] << " " << combined_x_slice[120] << std::endl; */
-      /* std::cout << "f:" << combined_f[0] << " " << combined_f_slice[120] << std::endl; */
 
       // Helper host buffers
       aggregated_host_buffer<int, executor_t> disc_detect(
