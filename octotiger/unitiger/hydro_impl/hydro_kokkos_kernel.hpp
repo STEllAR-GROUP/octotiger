@@ -58,43 +58,36 @@ const storage& get_flux_device_masks(executor_t& exec) {
 }
 
 template <typename Agg_view_t>
-typename Agg_view_t::view_type get_slice_subview(const Agg_view_t &agg_view, const size_t slice_id, const size_t max_slices) {
+CUDA_GLOBAL_METHOD typename Agg_view_t::view_type get_slice_subview(
+    const size_t slice_id, const size_t max_slices, const Agg_view_t& agg_view) {
     const size_t slice_size = agg_view.size() / max_slices;
     return Kokkos::subview(agg_view,
         std::make_pair<size_t, size_t>(slice_id * slice_size, (slice_id + 1) * slice_size));
 }
 
-template <typename Agg_executor_t, typename Agg_view_t>
-typename Agg_view_t::view_type get_slice_subview(
-    const Agg_executor_t& agg_exec,
-    const Agg_view_t& agg_view) {
-    const size_t slice_id = agg_exec.id;
-    const size_t max_slices = opts().max_executor_slices;
-    const size_t slice_size = agg_view.size() / max_slices;
-    return Kokkos::subview(agg_view,
-        std::make_pair<size_t, size_t>(slice_id * slice_size, (slice_id + 1) * slice_size));
-}
-
-template <typename Agg_executor_t, typename Agg_view_t, typename... Args>
-auto map_views_to_slice(
-    const Agg_executor_t& agg_exec, const Agg_view_t& current_arg,
-    const Args&... rest) {
+template <typename Integer, std::enable_if_t<std::is_integral<Integer>::value, bool> = true,
+    typename Agg_view_t, typename... Args>
+CUDA_GLOBAL_METHOD auto map_views_to_slice(const Integer slice_id, const Integer max_slices,
+    const Agg_view_t& current_arg, const Args&... rest) {
     static_assert(
         Kokkos::is_view<typename Agg_view_t::view_type>::value, "Argument not an aggregated view");
     if constexpr (sizeof...(Args) > 0) {
-        return std::tuple_cat(std::make_tuple(get_slice_subview(agg_exec, current_arg)),
-            map_views_to_slice(agg_exec, rest...));
+        return std::tuple_cat(std::make_tuple(get_slice_subview(slice_id, max_slices, current_arg)),
+            map_views_to_slice(slice_id, max_slices, rest...));
     } else {
-        return std::make_tuple(get_slice_subview(agg_exec,
-                current_arg));
+        return std::make_tuple(get_slice_subview(slice_id, max_slices, current_arg));
     }
 }
 
-template<typename Agg_executor_t, typename TargetView_t, typename SourceView_t>
-void aggregated_deep_copy(
-    Agg_executor_t &agg_exec,
-    TargetView_t &target,
-    SourceView_t &source) {
+template <typename Agg_executor_t, typename... Args>
+CUDA_GLOBAL_METHOD auto map_views_to_slice(const Agg_executor_t& agg_exec, const Args&... rest) {
+    const size_t slice_id = agg_exec.id;
+    const size_t max_slices = opts().max_executor_slices;
+    return map_views_to_slice(slice_id, max_slices, rest...);
+}
+
+template <typename Agg_executor_t, typename TargetView_t, typename SourceView_t>
+void aggregated_deep_copy(Agg_executor_t& agg_exec, TargetView_t& target, SourceView_t& source) {
     if (agg_exec.sync_aggregation_slices()) {
         Kokkos::deep_copy(agg_exec.get_underlying_executor().instance(), target, source);
     }
@@ -168,6 +161,7 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
     assert((team_size == 1));
     if (agg_exec.sync_aggregation_slices()) {
         const int number_slices = agg_exec.number_slices;
+        const int max_slices = opts().max_executor_slices;
         auto policy = Kokkos::Experimental::require(
             Kokkos::RangePolicy<decltype(agg_exec.get_underlying_executor().instance())>(
                 agg_exec.get_underlying_executor().instance(), 0, (number_blocks) *number_slices),
@@ -189,20 +183,11 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
                 const int index = (slice_idx % blocks_per_dim) * team_size * simd_t::size();
                 const int block_id = slice_idx;
 
-                const int q_slice_offset = (nf * 27 * q_inx3 + padding) * slice_id;
-                const int f_slice_offset = (NDIM * nf * q_inx3 + padding) * slice_id;
-                const int x_slice_offset = (NDIM * q_inx3 + padding) * slice_id;
-                const int amax_slice_offset = (1 + 2 * nf) * (number_blocks) * slice_id;
-                const int max_indices_slice_offset = (number_blocks) * slice_id;
                 // Default values for relevant buffers/variables:
-                auto q_combined_slice = Kokkos::subview(q_combined,
-                    std::make_pair(q_slice_offset, (nf * 27 * q_inx3 + padding) * (slice_id + 1)));
-                auto x_combined_slice = Kokkos::subview(x_combined,
-                    std::make_pair(x_slice_offset, (NDIM * q_inx3 + padding) * (slice_id + 1)));
-                auto f_combined_slice = Kokkos::subview(f_combined,
-                    std::make_pair(
-                        f_slice_offset, (NDIM * nf * q_inx3 + padding) *
-                        (slice_id + 1)));
+                auto [q_combined_slice, x_combined_slice, f_combined_slice] =
+                      map_views_to_slice(slice_id, max_slices, q_combined, x_combined, f_combined);
+                auto [amax_slice, amax_indices_slice, amax_d_slice] =
+                      map_views_to_slice(slice_id, max_slices, amax, amax_indices, amax_d);
 
                 // Set during cmake step with
                 // -DOCTOTIGER_WITH_MAX_NUMBER_FIELDS
@@ -227,9 +212,9 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
                       f_combined_slice[dim * nf * q_inx3 + f * q_inx3 + index + i] = 0.0;
                     }
                 }
-                amax[block_id + amax_slice_offset] = 0.0;
-                amax_indices[block_id + max_indices_slice_offset] = 0;
-                amax_d[block_id + max_indices_slice_offset] = 0;
+                amax_slice[block_id] = 0.0;
+                amax_indices_slice[block_id] = 0;
+                amax_d_slice[block_id] = 0;
                 double current_amax = 0.0;
                 int current_d = 0;
                 int current_i = index;
@@ -329,20 +314,19 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
                 }
 
                 // Write Maximum of local team to amax:
-                amax[block_id + amax_slice_offset] = current_amax;
-                amax_indices[block_id + max_indices_slice_offset] = current_i;
-                amax_d[block_id + max_indices_slice_offset] = current_d;
+                amax_slice[block_id] = current_amax;
+                amax_indices_slice[block_id] = current_i;
+                amax_d_slice[block_id] = current_d;
                 // Save faces to the end of the amax buffer This avoids putting combined_q back on
                 // the host side just to read those few values
-                const int flipped_dim = flip_dim(amax_d[block_id + max_indices_slice_offset], dim);
+                const int flipped_dim = flip_dim(amax_d_slice[block_id], dim);
                 for (int f = 0; f < nf; f++) {
-                    amax[(number_blocks) + block_id * 2 * nf + f + amax_slice_offset] =
-                        q_combined_slice[amax_indices[block_id + max_indices_slice_offset] +
+                    amax_slice[(number_blocks) + block_id * 2 * nf + f] =
+                        q_combined_slice[amax_indices_slice[block_id] +
                             f * face_offset +
-                            dim_offset * amax_d[block_id + max_indices_slice_offset]];
-                    amax[(number_blocks) + block_id * 2 * nf + nf + f + amax_slice_offset] =
-                        q_combined_slice[amax_indices[block_id +
-                        max_indices_slice_offset] -
+                            dim_offset * amax_d_slice[block_id]];
+                    amax_slice[(number_blocks) + block_id * 2 * nf + nf + f] =
+                        q_combined_slice[amax_indices_slice[block_id] -
                             compressedH_DN[dim] + f * face_offset + dim_offset * flipped_dim];
                 }
             });
@@ -366,6 +350,7 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
 
     if (agg_exec.sync_aggregation_slices()) {
         const int number_slices = agg_exec.number_slices;
+        const int max_slices = opts().max_executor_slices;
         // Set policy via executor and allocate enough scratch memory:
         using policytype = Kokkos::TeamPolicy<decltype(executor.instance())>;
         auto policy =
@@ -399,22 +384,11 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                 const int index = (unsliced_team_league % blocks_per_dim) * team_size + tid;
                 const int block_id = unsliced_team_league;
 
-                // todo insert reconstruct index
-                const int q_slice_offset = (nf * 27 * q_inx3 + padding) * slice_id;
-                const int f_slice_offset = (NDIM * nf * q_inx3 + padding) * slice_id;
-                const int x_slice_offset = (NDIM * q_inx3 + padding) * slice_id;
-                const int amax_slice_offset = (1 + 2 * nf) * number_blocks * slice_id;
-                const int max_indices_slice_offset = number_blocks * slice_id;
                 // Default values for relevant buffers/variables:
-                auto q_combined_slice = Kokkos::subview(
-                    q_combined, std::make_pair(q_slice_offset, (nf * 27 * q_inx3 + padding) *
-                    (slice_id + 1)));
-                auto x_combined_slice = Kokkos::subview(
-                    x_combined, std::make_pair(x_slice_offset, (NDIM * q_inx3 + padding) *
-                    (slice_id + 1)));
-                auto f_combined_slice = Kokkos::subview(
-                    f_combined, std::make_pair(f_slice_offset, (NDIM * nf * q_inx3 + padding) *
-                    (slice_id + 1)));
+                auto [q_combined_slice, x_combined_slice, f_combined_slice] =
+                      map_views_to_slice(slice_id, max_slices, q_combined, x_combined, f_combined);
+                auto [amax_slice, amax_indices_slice, amax_d_slice] =
+                      map_views_to_slice(slice_id, max_slices, amax, amax_indices, amax_d);
 
                 // Set during cmake step with
                 // -DOCTOTIGER_WITH_MAX_NUMBER_FIELDS
@@ -439,9 +413,9 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                     }
                 }
                 if (tid == 0) {
-                    amax[block_id + amax_slice_offset] = 0.0;
-                    amax_indices[block_id + max_indices_slice_offset] = 0;
-                    amax_d[block_id + max_indices_slice_offset] = 0;
+                    amax_slice[block_id] = 0.0;
+                    amax_indices_slice[block_id] = 0;
+                    amax_d_slice[block_id] = 0;
                 }
                 double current_amax = 0.0;
                 int current_d = 0;
@@ -595,9 +569,9 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                         }
                     }
                     if (tid == 0) {
-                        amax[block_id + amax_slice_offset] = sm_amax[0];
-                        amax_indices[block_id + max_indices_slice_offset] = sm_i[0];
-                        amax_d[block_id + max_indices_slice_offset] = sm_d[0];
+                        amax_slice[block_id] = sm_amax[0];
+                        amax_indices_slice[block_id] = sm_i[0];
+                        amax_d_slice[block_id] = sm_d[0];
                     }
                 }
 
@@ -609,20 +583,20 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                     // team sizes of 1 (as used by invocations on the serial
                     // backend)
                     if (team_handle.team_size() == 1) {
-                        amax[block_id + amax_slice_offset] = current_amax;
-                        amax_indices[block_id + max_indices_slice_offset] = index;
-                        amax_d[block_id + max_indices_slice_offset + max_indices_slice_offset] = current_d;
+                        amax_slice[block_id] = current_amax;
+                        amax_indices_slice[block_id] = index;
+                        amax_d_slice[block_id] = current_d;
                     }
                     // Save face to the end of the amax buffer This avoids putting combined_q back
                     // on the host side just to read those few values
-                    const int flipped_dim = flip_dim(amax_d[block_id + max_indices_slice_offset], dim);
+                    const int flipped_dim = flip_dim(amax_d_slice[block_id], dim);
                     for (int f = 0; f < nf; f++) {
-                        amax[number_blocks + block_id * 2 * nf + f + amax_slice_offset] =
-                            q_combined_slice[amax_indices[block_id + max_indices_slice_offset] +
+                        amax_slice[number_blocks + block_id * 2 * nf + f] =
+                            q_combined_slice[amax_indices_slice[block_id] +
                                 f * face_offset +
-                                dim_offset * amax_d[block_id + max_indices_slice_offset]];
-                        amax[number_blocks + block_id * 2 * nf + nf + f + amax_slice_offset] =
-                            q_combined_slice[amax_indices[block_id + max_indices_slice_offset] -
+                                dim_offset * amax_d_slice[block_id]];
+                        amax_slice[number_blocks + block_id * 2 * nf + nf + f] =
+                            q_combined_slice[amax_indices_slice[block_id] -
                                 compressedH_DN[dim] + f * face_offset +
                                 dim_offset * flipped_dim];
                     }
