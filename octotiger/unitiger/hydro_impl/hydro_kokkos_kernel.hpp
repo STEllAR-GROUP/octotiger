@@ -12,6 +12,7 @@
 #include <stream_manager.hpp>
 #include <type_traits>
 #include <utility>
+#include "octotiger/unitiger/hydro.hpp"
 #ifdef OCTOTIGER_HAVE_KOKKOS
 #include <hpx/kokkos/executors.hpp>
 #include "octotiger/common_kernel/kokkos_util.hpp"
@@ -74,29 +75,18 @@ typename Agg_view_t::view_type get_slice_subview(
         std::make_pair<size_t, size_t>(slice_id * slice_size, (slice_id + 1) * slice_size));
 }
 
-template <typename Agg_executor_t, typename Agg_view_t>
-auto map_view_to_slice(
-    const Agg_executor_t& agg_exec, const Agg_view_t& current_arg) {
-    static_assert(
-        Kokkos::is_view<typename Agg_view_t::view_type>::value, "Argument not an aggregated view");
-    auto my_tuple = std::forward_as_tuple(
-        get_slice_subview(agg_exec,
-            current_arg));
-    return my_tuple;
-}
 template <typename Agg_executor_t, typename Agg_view_t, typename... Args>
 auto map_views_to_slice(
     const Agg_executor_t& agg_exec, const Agg_view_t& current_arg,
-    Args&&... rest) {
+    const Args&... rest) {
     static_assert(
         Kokkos::is_view<typename Agg_view_t::view_type>::value, "Argument not an aggregated view");
     if constexpr (sizeof...(Args) > 0) {
-    return std::tuple_cat(
-        std::forward_as_tuple(
-            get_slice_subview(agg_exec, current_arg)),
-        map_views_to_slice(agg_exec, rest...));
+        return std::tuple_cat(std::make_tuple(get_slice_subview(agg_exec, current_arg)),
+            map_views_to_slice(agg_exec, rest...));
     } else {
-      return map_view_to_slice(agg_exec, current_arg);
+        return std::make_tuple(get_slice_subview(agg_exec,
+                current_arg));
     }
 }
 
@@ -1228,16 +1218,6 @@ timestep_t launch_hydro_kokkos_kernels(const hydro_computer<NDIM, INX, physics<N
       const size_t number_slices = agg_exec.number_slices;
       const size_t max_slices = opts().max_executor_slices;
 
-      // Slice offsets
-      const int u_slice_offset = hydro.get_nf() * H_N3 + padding;
-      constexpr int x_slice_offset = NDIM * q_inx3 + padding;
-      const int disc_detect_slice_offset = hydro.get_nf();
-      const int smooth_slice_offset = hydro.get_nf();
-      constexpr int large_x_slice_offset = (H_N3 * NDIM + padding); 
-      //const int q_slice_offset = (nf_ * 27 * H_N3 + padding) 
-      const int f_slice_offset = (NDIM * hydro.get_nf()   *  q_inx3 + padding);
-      const int disc_offset = geo.NDIR / 2 * H_N3 + padding;
-
       // Get allocators of all the executors working together
       // Allocator_Slice<double, kokkos_host_allocator<double>, executor_t>
       Allocator_Slice<double, kokkos_host_allocator<double>, executor_t> alloc_host_double =
@@ -1255,54 +1235,53 @@ timestep_t launch_hydro_kokkos_kernels(const hydro_computer<NDIM, INX, physics<N
       aggregated_host_buffer<double, executor_t> combined_u(
           alloc_host_double, (hydro.get_nf() * H_N3 + padding) *
           max_slices);
+      aggregated_host_buffer<double, executor_t> combined_f(
+          alloc_host_double, (NDIM * hydro.get_nf() * q_inx3 + padding) * max_slices);
+
+      // Map aggregated host buffers to the current slice
+      auto [combined_x_slice, combined_large_x_slice, combined_u_slice, combined_f_slice] =
+          map_views_to_slice(agg_exec, combined_x, combined_large_x, combined_u, combined_f);
+
+      // Convert input into current slice buffers
+      convert_x_structure(X, combined_x_slice.data());
+      for (int n = 0; n < NDIM; n++) {
+          std::copy(X[n].begin(), X[n].end(),
+              combined_large_x_slice.data() + n * H_N3);
+      }
+      for (int f = 0; f < hydro.get_nf(); f++) {
+          std::copy(
+              U[f].begin(), U[f].end(), combined_u_slice.data() + f * H_N3);
+      }
+      /* std::cout<< "x:" << combined_large_x_slice[0] << " " << combined_x_slice[120] << std::endl; */
+      /* std::cout << "f:" << combined_f[0] << " " << combined_f_slice[120] << std::endl; */
+
+      // Helper host buffers
       aggregated_host_buffer<int, executor_t> disc_detect(
           alloc_host_int, (hydro.get_nf()) * max_slices);
       aggregated_host_buffer<int, executor_t> smooth_field(
           alloc_host_int, (hydro.get_nf()) * max_slices);
-      aggregated_host_buffer<double, executor_t> f(
-          alloc_host_double, (NDIM * hydro.get_nf() * q_inx3 + padding) * max_slices);
+      aggregated_host_buffer<double, executor_t> dx(
+          alloc_host_double, max_slices);
 
-      aggregated_host_buffer<double, executor_t> test(
-          alloc_host_double, (NDIM * hydro.get_nf() * q_inx3 + padding) * max_slices);
-    /* typename decltype(test)::view_type test2 = Kokkos::subview(test, std::make_pair<size_t, size_t>(0, 10)); */
-    typename decltype(test)::view_type test2 = Kokkos::subview(test, std::make_pair<size_t, size_t>(0, 10));
-      /* std::cout << test2.size() << std::endl; */
-      static_assert(Kokkos::is_view<typename decltype(test)::view_type>::value, "Argument not an aggregated view");
-      auto [test3, test4] = map_views_to_slice(agg_exec, test, test);
-
-      auto [combined_x_slice, combined_large_x_slice] =
-          map_views_to_slice(agg_exec, combined_x, combined_large_x);
-      std::cout << combined_x.size() << " vs " << combined_x_slice.size() <<  std::endl;
-
-      // Convert input
-      convert_x_structure(X, combined_x.data() + x_slice_offset * slice_id);
-      for (int n = 0; n < NDIM; n++) {
-          std::copy(X[n].begin(), X[n].end(),
-              combined_large_x.data() + n * H_N3 + large_x_slice_offset * slice_id);
-      }
-      for (int f = 0; f < hydro.get_nf(); f++) {
-          std::copy(
-              U[f].begin(), U[f].end(), combined_u.data() + f * H_N3 + u_slice_offset * slice_id);
-      }
+      // Map aggregated host buffers to the current slice
+      auto [disc_detect_slice, smooth_field_slice, dx_slice] =
+          map_views_to_slice(agg_exec, disc_detect, smooth_field, dx);
       const auto& disc_detect_bool = hydro.get_disc_detect();
       const auto& smooth_bool = hydro.get_smooth_field();
       for (auto f = 0; f < hydro.get_nf(); f++) {
-          disc_detect[f + disc_detect_slice_offset * slice_id] = disc_detect_bool[f];
-          smooth_field[f + smooth_slice_offset * slice_id] = smooth_bool[f];
+          disc_detect_slice[f] = disc_detect_bool[f];
+          smooth_field_slice[f] = smooth_bool[f];
       }
-
-      aggregated_host_buffer<double, executor_t> dx(
-          alloc_host_double, max_slices);
-      dx[slice_id] = X[0][geo.H_DNX] - X[0][0];
+      dx_slice[0] = X[0][geo.H_DNX] - X[0][0];
 
       // Either handles the launches on the CPU or on the GPU depending on the passed executor
       auto max_lambda = device_interface_kokkos_hydro(executor, combined_x, combined_large_x,
-          combined_u, disc_detect, smooth_field, f, geo.NDIR, hydro.get_nf(),
+          combined_u, disc_detect, smooth_field, combined_f, geo.NDIR, hydro.get_nf(),
           hydro.get_angmom_index() != -1, n_species, omega, hydro.get_angmom_index(), geo.NANGMOM,
           dx, physics<NDIM>::A_, physics<NDIM>::B_, physics<NDIM>::fgamma_,
           physics<NDIM>::de_switch_1, agg_exec, alloc_host_double, alloc_host_int);
 
-      // Convert output
+      // Convert output and store in f result slice
       for (int dim = 0; dim < NDIM; dim++) {
           for (integer field = 0; field != opts().n_fields; ++field) {
               const auto dim_offset = dim * opts().n_fields * q_inx3 + field * q_inx3;
@@ -1312,7 +1291,7 @@ timestep_t launch_hydro_kokkos_kernels(const hydro_computer<NDIM, INX, physics<N
                           const auto i0 = findex(i, j, k);
                           const auto input_index =
                               (i + 1) * q_inx * q_inx + (j + 1) * q_inx + (k + 1);
-                          F[dim][field][i0] = f[dim_offset + input_index + f_slice_offset * slice_id];
+                          F[dim][field][i0] = combined_f_slice[dim_offset + input_index];
                       }
                   }
               }
