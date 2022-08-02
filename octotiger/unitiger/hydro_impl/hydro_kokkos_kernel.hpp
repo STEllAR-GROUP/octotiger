@@ -56,6 +56,50 @@ const storage& get_flux_device_masks(executor_t& exec) {
     return masks;
 }
 
+template <typename Agg_view_t>
+typename Agg_view_t::view_type get_slice_subview(const Agg_view_t &agg_view, const size_t slice_id, const size_t max_slices) {
+    const size_t slice_size = agg_view.size() / max_slices;
+    return Kokkos::subview(agg_view,
+        std::make_pair<size_t, size_t>(slice_id * slice_size, (slice_id + 1) * slice_size));
+}
+
+template <typename Agg_executor_t, typename Agg_view_t>
+typename Agg_view_t::view_type get_slice_subview(
+    const Agg_executor_t& agg_exec,
+    const Agg_view_t& agg_view) {
+    const size_t slice_id = agg_exec.id;
+    const size_t max_slices = opts().max_executor_slices;
+    const size_t slice_size = agg_view.size() / max_slices;
+    return Kokkos::subview(agg_view,
+        std::make_pair<size_t, size_t>(slice_id * slice_size, (slice_id + 1) * slice_size));
+}
+
+template <typename Agg_executor_t, typename Agg_view_t>
+auto map_view_to_slice(
+    const Agg_executor_t& agg_exec, const Agg_view_t& current_arg) {
+    static_assert(
+        Kokkos::is_view<typename Agg_view_t::view_type>::value, "Argument not an aggregated view");
+    auto my_tuple = std::forward_as_tuple(
+        get_slice_subview(agg_exec,
+            current_arg));
+    return my_tuple;
+}
+template <typename Agg_executor_t, typename Agg_view_t, typename... Args>
+auto map_views_to_slice(
+    const Agg_executor_t& agg_exec, const Agg_view_t& current_arg,
+    Args&&... rest) {
+    static_assert(
+        Kokkos::is_view<typename Agg_view_t::view_type>::value, "Argument not an aggregated view");
+    if constexpr (sizeof...(Args) > 0) {
+    return std::tuple_cat(
+        std::forward_as_tuple(
+            get_slice_subview(agg_exec, current_arg)),
+        map_views_to_slice(agg_exec, rest...));
+    } else {
+      return map_view_to_slice(agg_exec, current_arg);
+    }
+}
+
 template<typename Agg_executor_t, typename TargetView_t, typename SourceView_t>
 void aggregated_deep_copy(
     Agg_executor_t &agg_exec,
@@ -790,8 +834,8 @@ void reconstruct_no_amc_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                             (((q_i % q_inx2) % q_inx) + 2);
                         if (q_i < q_inx3) {
                             // Phase 2
-                            for (int d = 0; d < ndir; d++) {
-                                cell_reconstruct_inner_loop_p2_simd<simd_t, simd_mask_t>(omega,
+                            for (int d = 0; d < ndir; d++) { // 27 (but with one less due to != in kerenl)
+                                cell_reconstruct_inner_loop_p2_simd<simd_t, simd_mask_t>(omega, // 26 * 72
                                     angmom_index_, combined_q.data(), combined_x.data(),
                                     combined_u.data(), AM.data(), dx[slice_id], d, i, q_i, ndir,
                                     nangmom, n_species_, nf_, slice_id);
@@ -1218,6 +1262,17 @@ timestep_t launch_hydro_kokkos_kernels(const hydro_computer<NDIM, INX, physics<N
       aggregated_host_buffer<double, executor_t> f(
           alloc_host_double, (NDIM * hydro.get_nf() * q_inx3 + padding) * max_slices);
 
+      aggregated_host_buffer<double, executor_t> test(
+          alloc_host_double, (NDIM * hydro.get_nf() * q_inx3 + padding) * max_slices);
+    /* typename decltype(test)::view_type test2 = Kokkos::subview(test, std::make_pair<size_t, size_t>(0, 10)); */
+    typename decltype(test)::view_type test2 = Kokkos::subview(test, std::make_pair<size_t, size_t>(0, 10));
+      /* std::cout << test2.size() << std::endl; */
+      static_assert(Kokkos::is_view<typename decltype(test)::view_type>::value, "Argument not an aggregated view");
+      auto [test3, test4] = map_views_to_slice(agg_exec, test, test);
+
+      auto [combined_x_slice, combined_large_x_slice] =
+          map_views_to_slice(agg_exec, combined_x, combined_large_x);
+      std::cout << combined_x.size() << " vs " << combined_x_slice.size() <<  std::endl;
 
       // Convert input
       convert_x_structure(X, combined_x.data() + x_slice_offset * slice_id);
