@@ -717,7 +717,7 @@ void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                             cell_reconstruct_inner_loop_p1_simd<simd_t, simd_mask_t>(nf_,
                                 angmom_index_, smooth_field_slice.data(), disc_detect_slice.data(),
                                 combined_q_slice.data(), combined_u_slice.data(), AM_slice.data(), dx_slice[0],
-                                cdiscs_slice.data(), i, q_i, ndir, nangmom, slice_id);
+                                cdiscs_slice.data(), i, q_i, ndir, nangmom);
                         }
                     });
                 Kokkos::parallel_for(Kokkos::TeamThreadRange(team_handle, workgroup_size),
@@ -740,7 +740,7 @@ void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                                 cell_reconstruct_inner_loop_p2_simd<simd_t, simd_mask_t>(omega,
                                     angmom_index_, combined_q_slice.data(), combined_x_slice.data(),
                                     combined_u_slice.data(), AM_slice.data(), dx_slice[0], d, i, q_i, ndir,
-                                    nangmom, n_species_, nf_, slice_id);
+                                    nangmom, n_species_, nf_);
                             }
                         }
                     });
@@ -803,7 +803,7 @@ void reconstruct_no_amc_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                                 cell_reconstruct_inner_loop_p1_simd<simd_t, simd_mask_t>(nf_,
                                     angmom_index_, smooth_field_slice.data(), disc_detect_slice.data(),
                                     combined_q_slice.data(), combined_u_slice.data(), AM_slice.data(), dx_slice[0],
-                                    cdiscs_slice.data(), i, q_i, ndir, nangmom, slice_id);
+                                    cdiscs_slice.data(), i, q_i, ndir, nangmom);
                         }
                     });
                 Kokkos::parallel_for(Kokkos::TeamThreadRange(team_handle, workgroup_size),
@@ -825,7 +825,7 @@ void reconstruct_no_amc_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                                 cell_reconstruct_inner_loop_p2_simd<simd_t, simd_mask_t>(omega, // 26 * 72
                                     angmom_index_, combined_q_slice.data(), combined_x_slice.data(),
                                     combined_u_slice.data(), AM_slice.data(), dx_slice[0], d, i, q_i, ndir,
-                                    nangmom, n_species_, nf_, slice_id);
+                                    nangmom, n_species_, nf_);
                             }
                         }
                     });
