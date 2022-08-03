@@ -1018,7 +1018,7 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     const size_t current_max_index = host_amax_indices_slice[current_max_slot];
     /* const size_t current_d = host_amax_d[current_max_slot]; */
     timestep_t ts;
-    ts.a = host_amax[current_max_slot];
+    ts.a = host_amax_slice[current_max_slot];
     ts.x = combined_x[current_max_index];
     ts.y = combined_x[current_max_index + q_inx3];
     ts.z = combined_x[current_max_index + 2 * q_inx3];
@@ -1028,8 +1028,8 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     /* const auto flipped_dim = flip_dim(current_d, current_dim); */
     constexpr int compressedH_DN[3] = {q_inx2, q_inx, 1};
     for (int f = 0; f < nf; f++) {
-        URs[f] = host_amax[NDIM * number_blocks_small + current_i * 2 * nf + f];
-        ULs[f] = host_amax[NDIM * number_blocks_small + current_i * 2 * nf + nf + f];
+        URs[f] = host_amax_slice[NDIM * number_blocks_small + current_i * 2 * nf + f];
+        ULs[f] = host_amax_slice[NDIM * number_blocks_small + current_i * 2 * nf + nf + f];
     }
     ts.ul = std::move(URs);
     ts.ur = std::move(ULs);
