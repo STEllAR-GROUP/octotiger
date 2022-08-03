@@ -842,6 +842,7 @@ void hydro_pre_recon_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
 
     if (agg_exec.sync_aggregation_slices()) {
       const int blocks = (inx_large * inx_large * inx_large) / 64 + 1;
+      const int max_slices = opts().max_executor_slices;
       auto policy = Kokkos::Experimental::require(
           Kokkos::MDRangePolicy<decltype(agg_exec.get_underlying_executor().instance()),
               Kokkos::Rank<4>>(agg_exec.get_underlying_executor().instance(),
@@ -855,8 +856,10 @@ void hydro_pre_recon_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                 const int grid_x = index / (inx_large * inx_large);
                 const int grid_y = (index % (inx_large * inx_large)) / inx_large;
                 const int grid_z = (index % (inx_large * inx_large)) % inx_large;
+                auto [large_x_slice, u_slice] =
+                      map_views_to_slice(slice_id, max_slices, large_x, u);
                 cell_hydro_pre_recon(
-                    large_x, omega, angmom, u, nf, n_species, grid_x, grid_y, grid_z, slice_id);
+                    large_x_slice, omega, angmom, u_slice, nf, n_species, grid_x, grid_y, grid_z);
               }
         });
     }
@@ -872,6 +875,7 @@ void find_contact_discs_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
     const int number_slices = agg_exec.number_slices;
     if (agg_exec.sync_aggregation_slices()) {
         const int blocks = (inx_normal * inx_normal * inx_normal) / 64 + 1;
+        const int max_slices = opts().max_executor_slices;
         auto policy_phase_1 = Kokkos::Experimental::require(
             Kokkos::MDRangePolicy<decltype(agg_exec.get_underlying_executor().instance()),
                 Kokkos::Rank<4>>(agg_exec.get_underlying_executor().instance(), {0, 0, 0, 0},
@@ -885,8 +889,11 @@ void find_contact_discs_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                   const int grid_x = index / (inx_normal * inx_normal);
                   const int grid_y = (index % (inx_normal * inx_normal)) / inx_normal;
                   const int grid_z = (index % (inx_normal * inx_normal)) % inx_normal;
+                  auto [P_slice, u_slice] =
+                        map_views_to_slice(slice_id, max_slices, P, u);
                   cell_find_contact_discs_phase1(
-                      P, u, A_, B_, fgamma_, de_switch_1, nf, grid_x, grid_y, grid_z, slice_id);
+                      P_slice, u_slice, A_, B_, fgamma_, de_switch_1, nf,
+                      grid_x, grid_y, grid_z);
                 }
             });
 
@@ -905,7 +912,10 @@ void find_contact_discs_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                   const int grid_x = index / (q_inx * q_inx);
                   const int grid_y = (index % (q_inx * q_inx)) / q_inx;
                   const int grid_z = (index % (q_inx * q_inx)) % q_inx;
-                  cell_find_contact_discs_phase2(disc, P, fgamma_, ndir, grid_x, grid_y, grid_z, slice_id);
+                  auto [P_slice, disc_slice] =
+                        map_views_to_slice(slice_id, max_slices, P, disc);
+                  cell_find_contact_discs_phase2(disc_slice, P_slice, fgamma_, ndir,
+                      grid_x, grid_y, grid_z);
                 }
             });
     }

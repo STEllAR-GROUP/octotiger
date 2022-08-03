@@ -129,13 +129,10 @@ template <typename container_t, typename const_container_t>
 CUDA_GLOBAL_METHOD inline void cell_find_contact_discs_phase1(container_t &P,
     const_container_t &combined_u, const double A_, const double B_, const double fgamma_,
     const double de_switch_1, const int nf, const unsigned int x, const unsigned int y,
-    const unsigned int z, const int slice_id) {
+    const unsigned int z) {
     const int i = (x + 1) * inx_large * inx_large + (y + 1) * inx_large + (z + 1);
 
-    const int u_slice_offset = (H_N3 * nf + 128) * slice_id; 
-    const int p_slice_offset = (H_N3 + 128) * slice_id; 
-
-    const auto rho = combined_u[u_slice_offset + rho_i * u_face_offset + i];
+    const auto rho = combined_u[rho_i * u_face_offset + i];
     const auto rhoinv = 1.0 / rho;
     double pdeg = 0.0, edeg = 0.0;
 
@@ -148,24 +145,21 @@ CUDA_GLOBAL_METHOD inline void cell_find_contact_discs_phase1(container_t &P,
 
     safe_real ek = 0.0;
     for (int dim = 0; dim < NDIM; dim++) {
-        ek += combined_u[u_slice_offset + (sx_i + dim) * u_face_offset + i] *
-            combined_u[u_slice_offset + (sx_i + dim) * u_face_offset + i] * rhoinv * 0.5;
+        ek += combined_u[(sx_i + dim) * u_face_offset + i] *
+            combined_u[(sx_i + dim) * u_face_offset + i] * rhoinv * 0.5;
     }
 
-    auto ein = combined_u[u_slice_offset + egas_i * u_face_offset + i] - ek - edeg;
-    if (ein < de_switch_1 * combined_u[u_slice_offset + egas_i * u_face_offset + i]) {
-        ein = pow(combined_u[u_slice_offset + tau_i * u_face_offset + i], fgamma_);
+    auto ein = combined_u[egas_i * u_face_offset + i] - ek - edeg;
+    if (ein < de_switch_1 * combined_u[egas_i * u_face_offset + i]) {
+        ein = pow(combined_u[tau_i * u_face_offset + i], fgamma_);
     }
-    P[p_slice_offset + i] = (fgamma_ - 1.0) * ein + pdeg;
+    P[i] = (fgamma_ - 1.0) * ein + pdeg;
 }
 
 template <typename container_t, typename const_container_t>
 CUDA_GLOBAL_METHOD inline void cell_find_contact_discs_phase2(
     container_t &disc, const_container_t &P, const double fgamma_,
-    const int ndir, const unsigned int x, const unsigned int y, const unsigned int z, const int slice_id) {
-
-    const int p_slice_offset = (H_N3 + 128) * slice_id; 
-    const int disc_slice_offset = (ndir / 2 * H_N3 + 128) * slice_id; 
+    const int ndir, const unsigned int x, const unsigned int y, const unsigned int z) {
 
     const int disc_offset = inx_large * inx_large * inx_large;
 
@@ -173,11 +167,11 @@ CUDA_GLOBAL_METHOD inline void cell_find_contact_discs_phase2(
     const int i = (x + 2) * inx_large * inx_large + (y + 2) * inx_large + (z + 2);
     for (int d = 0; d < ndir / 2; d++) {
         const auto di = dir[d];
-        const double P_r = P[p_slice_offset + i + di];
-        const double P_l = P[p_slice_offset + i - di];
+        const double P_r = P[i + di];
+        const double P_l = P[i - di];
         const double tmp1 = fgamma_ * K0;
         const double tmp2 = abs(P_r - P_l) / std::min(std::abs(P_r), abs(P_l));
-        disc[disc_slice_offset + d * disc_offset + i] = tmp2 / tmp1;
+        disc[d * disc_offset + i] = tmp2 / tmp1;
     }
 }
 
@@ -187,54 +181,53 @@ CUDA_GLOBAL_METHOD inline void cell_find_contact_discs_phase2(
 
 template <typename container_t, typename const_container_t>
 CUDA_GLOBAL_METHOD inline void cell_hydro_pre_recon(const_container_t& X, safe_real omega, bool angmom,
-        container_t &u, const int nf, const int n_species_, const unsigned int x, const unsigned int y, const unsigned int z, const int slice_id) {
+        container_t &u, const int nf, const int n_species_, const unsigned int x,
+        const unsigned int y, const unsigned int z) {
     const int i = (x) * inx_large * inx_large + (y) * inx_large + (z);
-    const int u_slice_offset = (H_N3 * nf + 128) * slice_id; 
-    const int large_x_slice_offset = (H_N3 * NDIM + 128) * slice_id; 
 
-    const auto rho = u[u_slice_offset + rho_i * u_face_offset + i];
+    const auto rho = u[rho_i * u_face_offset + i];
     const auto rhoinv = 1.0 / rho;
     for (int dim = 0; dim < NDIM; dim++) {
-        auto& s = u[u_slice_offset + (sx_i + dim) * u_face_offset + i];
-        u[u_slice_offset + egas_i * u_face_offset + i] -= 0.5 * s * s * rhoinv;
+        auto& s = u[(sx_i + dim) * u_face_offset + i];
+        u[egas_i * u_face_offset + i] -= 0.5 * s * s * rhoinv;
         s *= rhoinv;
     }
     for (int si = 0; si < n_species_; si++) {
-        u[u_slice_offset + (spc_i + si) * u_face_offset + i] *= rhoinv;
+        u[(spc_i + si) * u_face_offset + i] *= rhoinv;
     }
-    u[u_slice_offset + pot_i * u_face_offset + i] *= rhoinv;
+    u[pot_i * u_face_offset + i] *= rhoinv;
 
-    u[u_slice_offset + (lx_i + 0) * u_face_offset + i] *= rhoinv;
-    u[u_slice_offset + (lx_i + 1) * u_face_offset + i] *= rhoinv;
-    u[u_slice_offset + (lx_i + 2) * u_face_offset + i] *= rhoinv;
+    u[(lx_i + 0) * u_face_offset + i] *= rhoinv;
+    u[(lx_i + 1) * u_face_offset + i] *= rhoinv;
+    u[(lx_i + 2) * u_face_offset + i] *= rhoinv;
 
     // Levi civita n m q -> lc
     // Levi civita 0 1 2 -> 1
-    u[u_slice_offset + (lx_i + 0) * u_face_offset + i] -=
-        1.0 * X[large_x_slice_offset + 1 * x_offset + i] * u[u_slice_offset + (sx_i + 2) * u_face_offset + i];
+    u[(lx_i + 0) * u_face_offset + i] -=
+        1.0 * X[1 * x_offset + i] * u[(sx_i + 2) * u_face_offset + i];
     // Levi civita n m q -> lc
     // Levi civita 0 2 1 -> -1
-    u[u_slice_offset + (lx_i + 0) * u_face_offset + i] -=
-        -1.0 * X[large_x_slice_offset + 2 * x_offset + i] * u[u_slice_offset + (sx_i + 1) * u_face_offset + i];
+    u[(lx_i + 0) * u_face_offset + i] -=
+        -1.0 * X[2 * x_offset + i] * u[(sx_i + 1) * u_face_offset + i];
     // Levi civita n m q -> lc
     // Levi civita 1 0 2 -> -1
-    u[u_slice_offset + (lx_i + 1) * u_face_offset + i] -=
-        -1.0 * X[large_x_slice_offset + i] * u[u_slice_offset + (sx_i + 2) * u_face_offset + i];
+    u[(lx_i + 1) * u_face_offset + i] -=
+        -1.0 * X[i] * u[(sx_i + 2) * u_face_offset + i];
     // Levi civita n m q -> lc
     // Levi civita 1 2 0 -> 1
-    u[u_slice_offset + (lx_i + 1) * u_face_offset + i] -=
-        1.0 * X[large_x_slice_offset + 2 * x_offset + i] * u[u_slice_offset + (sx_i + 0) * u_face_offset + i];
+    u[(lx_i + 1) * u_face_offset + i] -=
+        1.0 * X[2 * x_offset + i] * u[(sx_i + 0) * u_face_offset + i];
     // Levi civita n m q -> lc
     // Levi civita 2 0 1 -> 1
-    u[u_slice_offset + (lx_i + 2) * u_face_offset + i] -=
-        1.0 * X[large_x_slice_offset + i] * u[u_slice_offset + (sx_i + 1) * u_face_offset + i];
+    u[(lx_i + 2) * u_face_offset + i] -=
+        1.0 * X[i] * u[(sx_i + 1) * u_face_offset + i];
     // Levi civita n m q -> lc
     // Levi civita 2 1 0 -> -1
-    u[u_slice_offset + (lx_i + 2) * u_face_offset + i] -=
-        -1.0 * X[large_x_slice_offset + 1 * x_offset + i] * u[u_slice_offset + (sx_i + 0) * u_face_offset + i];
+    u[(lx_i + 2) * u_face_offset + i] -=
+        -1.0 * X[1 * x_offset + i] * u[(sx_i + 0) * u_face_offset + i];
 
-    u[u_slice_offset + sx_i * u_face_offset + i] += omega * X[large_x_slice_offset + 1 * x_offset + i];
-    u[u_slice_offset + sy_i * u_face_offset + i] -= omega * X[large_x_slice_offset + 0 * x_offset + i];
+    u[sx_i * u_face_offset + i] += omega * X[1 * x_offset + i];
+    u[sy_i * u_face_offset + i] -= omega * X[0 * x_offset + i];
 }
 // =================================================================================================
 // Reconstruct simd methods

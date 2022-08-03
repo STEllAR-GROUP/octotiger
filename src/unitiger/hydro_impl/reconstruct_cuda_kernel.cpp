@@ -163,13 +163,18 @@ discs_phase1(double* __restrict__ P, double* __restrict__ combined_u, const doub
 
     const int index = (blockIdx.z * 1 + threadIdx.x) * 64 + (threadIdx.y) * 8 + (threadIdx.z);
     const int slice_id = blockIdx.x;
+    const int u_slice_offset = (H_N3 * nf + 128) * slice_id; 
+    const int p_slice_offset = (H_N3 + 128) * slice_id; 
 
     if (index < inx_normal * inx_normal * inx_normal) {
         const int grid_x = index / (inx_normal * inx_normal);
         const int grid_y = (index % (inx_normal * inx_normal)) / inx_normal;
         const int grid_z = (index % (inx_normal * inx_normal)) % inx_normal;
+        combined_u += u_slice_offset;
+        P += p_slice_offset;
         cell_find_contact_discs_phase1(
-            P, combined_u, A_, B_, fgamma_, de_switch_1, nf, grid_x, grid_y, grid_z, slice_id);
+            P, combined_u, A_, B_, fgamma_, de_switch_1,
+            nf, grid_x, grid_y, grid_z);
     }
 }
 
@@ -181,11 +186,17 @@ __global__ void discs_phase2(
     double* __restrict__ disc, double* __restrict__ P, const double fgamma_, const int ndir) {
     const int index = (blockIdx.z * 1 + threadIdx.x) * 64 + (threadIdx.y) * 8 + (threadIdx.z);
     const int slice_id = blockIdx.x;
+    const int p_slice_offset = (H_N3 + 128) * slice_id; 
+    const int disc_slice_offset = (ndir / 2 * H_N3 + 128) * slice_id; 
+
     if (index < q_inx3) {
         const int grid_x = index / (q_inx * q_inx);
         const int grid_y = (index % (q_inx * q_inx)) / q_inx;
         const int grid_z = (index % (q_inx * q_inx)) % q_inx;
-        cell_find_contact_discs_phase2(disc, P, fgamma_, ndir, grid_x, grid_y, grid_z, slice_id);
+        disc += disc_slice_offset;
+        P += p_slice_offset;
+        cell_find_contact_discs_phase2(disc, P, fgamma_,
+            ndir, grid_x, grid_y, grid_z);
     }
 }
 
@@ -239,12 +250,18 @@ __global__ void __launch_bounds__(64, 4)
     // Index mapping to actual grid
     const int index = (blockIdx.z * 1 + threadIdx.x) * 64 + (threadIdx.y) * 8 + (threadIdx.z);
     const int slice_id = blockIdx.x;
+    const int u_slice_offset = (H_N3 * nf + 128) * slice_id; 
+    const int large_x_slice_offset = (H_N3 * NDIM + 128) * slice_id; 
+
     if (index < inx_large * inx_large * inx_large) {
         const int grid_x = index / (inx_large * inx_large);
         const int grid_y = (index % (inx_large * inx_large)) / inx_large;
         const int grid_z = (index % (inx_large * inx_large)) % inx_large;
+        device_X += large_x_slice_offset;
+        device_u += u_slice_offset;
         cell_hydro_pre_recon(
-            device_X, omega, angmom, device_u, nf, n_species_, grid_x, grid_y, grid_z, slice_id);
+            device_X, omega, angmom, device_u, nf,
+            n_species_, grid_x, grid_y, grid_z);
     }
 }
 #if defined(OCTOTIGER_HAVE_HIP)
