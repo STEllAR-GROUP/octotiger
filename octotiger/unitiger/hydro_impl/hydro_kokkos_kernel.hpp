@@ -622,6 +622,8 @@ void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
     const int number_slices = agg_exec.number_slices;
     
     if (agg_exec.sync_aggregation_slices()) {
+        const size_t number_slices = agg_exec.number_slices;
+        const size_t max_slices = opts().max_executor_slices;
         using policytype = Kokkos::TeamPolicy<decltype(agg_exec.get_underlying_executor().instance())>;
         using membertype = typename policytype::member_type;
         policytype policy = Kokkos::Experimental::require(
@@ -638,11 +640,11 @@ void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
 
         Kokkos::parallel_for(
             "kernel hydro reconstruct", policy, KOKKOS_LAMBDA(const membertype& team_handle) {
-                const int slice_id = (team_handle.league_rank() / blocks);
+                const size_t slice_id = (team_handle.league_rank() / blocks);
                 const int index_base = (team_handle.league_rank() % blocks) *
                 workgroup_size;
-                const int sx_i = angmom_index_;
-                const int zx_i = sx_i + NDIM;
+                const size_t sx_i = angmom_index_;
+                const size_t zx_i = sx_i + NDIM;
                 Kokkos::parallel_for(Kokkos::TeamThreadRange(team_handle, workgroup_size),
                     [&](const int& work_elem) {
                         const int index = index_base + work_elem;
@@ -652,8 +654,11 @@ void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                             (((q_i % q_inx2) / q_inx) + 2) * inx_large +
                             (((q_i % q_inx2) % q_inx) + 2);
 
-                        const int u_slice_offset = (nf_ * H_N3 + padding) * slice_id;
-                        const int am_slice_offset = (NDIM * q_inx3 + padding) * slice_id;
+                        auto [smooth_field_slice, disc_detect_slice, combined_q_slice, combined_x_slice,
+                            combined_u_slice, AM_slice, dx_slice, cdiscs_slice] =
+                            map_views_to_slice(slice_id, max_slices, smooth_field_, disc_detect_,
+                                combined_q, combined_x, combined_u, AM, dx, cdiscs);
+
                         if (q_i < q_inx3) {
                             for (int n = 0; n < nangmom; n++) {
                                 simd_t u_nangmom;
@@ -664,10 +669,10 @@ void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                                 if (q_i % q_inx + simd_t::size() - 1 < q_inx) {
                                     // values are all in the first line/bar and
                                     // can simply be loaded
-                                    u_nangmom.copy_from(combined_u.data() +
-                                            (zx_i + n) * u_face_offset + i + u_slice_offset,
+                                    u_nangmom.copy_from(combined_u_slice.data() +
+                                            (zx_i + n) * u_face_offset + i,
                                         SIMD_NAMESPACE::element_aligned_tag{});
-                                    u.copy_from(combined_u.data() + i + u_slice_offset,
+                                    u.copy_from(combined_u_slice.data() + i,
                                         SIMD_NAMESPACE::element_aligned_tag{});
                                 } else {
                                     std::array<double, simd_t::size()> u_nangmom_helper;
@@ -677,9 +682,9 @@ void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                                     for (size_t i_line = q_i % q_inx; i_line < q_inx;
                                          i_line++, simd_i++) {
                                         u_nangmom_helper[simd_i] =
-                                            combined_u[(zx_i + n) * u_face_offset + i +
-                                                u_slice_offset + simd_i];
-                                        u_helper[simd_i] = combined_u[i + u_slice_offset + simd_i];
+                                            combined_u_slice[(zx_i + n) * u_face_offset + i +
+                                                simd_i];
+                                        u_helper[simd_i] = combined_u_slice[i + simd_i];
                                     }
                                     // calculate indexing offset to check where the second line/bar
                                     // is starting
@@ -693,10 +698,10 @@ void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                                     // line/bar
                                     for (; simd_i < simd_t::size(); simd_i++) {
                                         u_nangmom_helper[simd_i] =
-                                            combined_u[(zx_i + n) * u_face_offset + i +
-                                                u_slice_offset + simd_i + offset];
+                                            combined_u_slice[(zx_i + n) * u_face_offset + i +
+                                                simd_i + offset];
                                         u_helper[simd_i] =
-                                            combined_u[i + u_slice_offset + simd_i + offset];
+                                            combined_u_slice[i + simd_i + offset];
                                     }
                                     u_nangmom.copy_from(u_nangmom_helper.data(),
                                         SIMD_NAMESPACE::element_aligned_tag{});
@@ -706,13 +711,13 @@ void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
 
                                 const simd_t current_am = u_nangmom * u;
                                 current_am.copy_to(
-                                    AM.data() + n * am_offset + q_i + am_slice_offset,
+                                    AM_slice.data() + n * am_offset + q_i,
                                     SIMD_NAMESPACE::element_aligned_tag{});
                             }
                             cell_reconstruct_inner_loop_p1_simd<simd_t, simd_mask_t>(nf_,
-                                angmom_index_, smooth_field_.data(), disc_detect_.data(),
-                                combined_q.data(), combined_u.data(), AM.data(), dx[slice_id],
-                                cdiscs.data(), i, q_i, ndir, nangmom, slice_id);
+                                angmom_index_, smooth_field_slice.data(), disc_detect_slice.data(),
+                                combined_q_slice.data(), combined_u_slice.data(), AM_slice.data(), dx_slice[0],
+                                cdiscs_slice.data(), i, q_i, ndir, nangmom, slice_id);
                         }
                     });
                 Kokkos::parallel_for(Kokkos::TeamThreadRange(team_handle, workgroup_size),
@@ -724,12 +729,17 @@ void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                             (((q_i % q_inx2) / q_inx) + 2) * inx_large +
                             (((q_i % q_inx2) % q_inx) + 2);
 
+                        auto [smooth_field_slice, disc_detect_slice, combined_q_slice, combined_x_slice,
+                            combined_u_slice, AM_slice, dx_slice, cdiscs_slice] =
+                            map_views_to_slice(slice_id, max_slices, smooth_field_, disc_detect_,
+                                combined_q, combined_x, combined_u, AM, dx, cdiscs);
+
                         if (q_i < q_inx3) {
                             // Phase 2
                             for (int d = 0; d < ndir; d++) {
                                 cell_reconstruct_inner_loop_p2_simd<simd_t, simd_mask_t>(omega,
-                                    angmom_index_, combined_q.data(), combined_x.data(),
-                                    combined_u.data(), AM.data(), dx[slice_id], d, i, q_i, ndir,
+                                    angmom_index_, combined_q_slice.data(), combined_x_slice.data(),
+                                    combined_u_slice.data(), AM_slice.data(), dx_slice[0], d, i, q_i, ndir,
                                     nangmom, n_species_, nf_, slice_id);
                             }
                         }
@@ -752,8 +762,9 @@ void reconstruct_no_amc_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
     assert(team_size <= workgroup_size);
     const int blocks =
         (q_inx * q_inx * q_inx / simd_t::size() + (q_inx3 % simd_t::size() > 0 ? 1 : 0)) / workgroup_size + 1;
-    const int number_slices = agg_exec.number_slices;
     if (agg_exec.sync_aggregation_slices()) {
+        const size_t number_slices = agg_exec.number_slices;
+        const size_t max_slices = opts().max_executor_slices;
         using policytype = Kokkos::TeamPolicy<decltype(agg_exec.get_underlying_executor().instance())>;
         using membertype = typename policytype::member_type;
         policytype policy = Kokkos::Experimental::require(
@@ -769,8 +780,8 @@ void reconstruct_no_amc_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
         Kokkos::parallel_for(
             "kernel hydro reconstruct_no_amc", policy,
             KOKKOS_LAMBDA(const membertype& team_handle) {
-                const int slice_id = (team_handle.league_rank() / blocks);
-                const int index_base = (team_handle.league_rank() % blocks) *
+                const size_t slice_id = (team_handle.league_rank() / blocks);
+                const size_t index_base = (team_handle.league_rank() % blocks) *
                 workgroup_size;
 
                 Kokkos::parallel_for(Kokkos::TeamThreadRange(team_handle, workgroup_size),
@@ -781,11 +792,18 @@ void reconstruct_no_amc_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                         const int i = ((q_i / q_inx2) + 2) * inx_large * inx_large +
                             (((q_i % q_inx2) / q_inx) + 2) * inx_large +
                             (((q_i % q_inx2) % q_inx) + 2);
+
+                        auto [smooth_field_slice, disc_detect_slice, combined_q_slice, combined_x_slice,
+                            combined_u_slice, AM_slice, dx_slice, cdiscs_slice] =
+                            map_views_to_slice(slice_id, max_slices, smooth_field_, disc_detect_,
+                                combined_q, combined_x, combined_u, AM, dx, cdiscs);
+
                         if (q_i < q_inx3) {
+                        // TODO use new subviews and remove index mapping from reconstruct...
                                 cell_reconstruct_inner_loop_p1_simd<simd_t, simd_mask_t>(nf_,
-                                    angmom_index_, smooth_field_.data(), disc_detect_.data(),
-                                    combined_q.data(), combined_u.data(), AM.data(), dx[slice_id],
-                                    cdiscs.data(), i, q_i, ndir, nangmom, slice_id);
+                                    angmom_index_, smooth_field_slice.data(), disc_detect_slice.data(),
+                                    combined_q_slice.data(), combined_u_slice.data(), AM_slice.data(), dx_slice[0],
+                                    cdiscs_slice.data(), i, q_i, ndir, nangmom, slice_id);
                         }
                     });
                 Kokkos::parallel_for(Kokkos::TeamThreadRange(team_handle, workgroup_size),
@@ -796,12 +814,17 @@ void reconstruct_no_amc_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                         const int i = ((q_i / q_inx2) + 2) * inx_large * inx_large +
                             (((q_i % q_inx2) / q_inx) + 2) * inx_large +
                             (((q_i % q_inx2) % q_inx) + 2);
+
+                        auto [smooth_field_slice, disc_detect_slice, combined_q_slice, combined_x_slice,
+                            combined_u_slice, AM_slice, dx_slice, cdiscs_slice] =
+                            map_views_to_slice(slice_id, max_slices, smooth_field_, disc_detect_,
+                                combined_q, combined_x, combined_u, AM, dx, cdiscs);
                         if (q_i < q_inx3) {
                             // Phase 2
                             for (int d = 0; d < ndir; d++) { // 27 (but with one less due to != in kerenl)
                                 cell_reconstruct_inner_loop_p2_simd<simd_t, simd_mask_t>(omega, // 26 * 72
-                                    angmom_index_, combined_q.data(), combined_x.data(),
-                                    combined_u.data(), AM.data(), dx[slice_id], d, i, q_i, ndir,
+                                    angmom_index_, combined_q_slice.data(), combined_x_slice.data(),
+                                    combined_u_slice.data(), AM_slice.data(), dx_slice[0], d, i, q_i, ndir,
                                     nangmom, n_species_, nf_, slice_id);
                             }
                         }
