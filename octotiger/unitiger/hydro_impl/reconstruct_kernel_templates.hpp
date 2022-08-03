@@ -681,10 +681,6 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p2_simd(const safe_re
     const double* __restrict__ combined_u, const double* __restrict__ AM, const double dx,
     const int d, const int i, const int q_i, const int ndir, const int nangmom,
     const int n_species_, const int nf_, const int slice_id) {
-    /* const int q_slice_offset = (nf_ * 27 * q_inx3 + 128) * slice_id; */
-    /* const int u_slice_offset = (nf_ * H_N3 + 128) * slice_id; */
-    /* const int am_slice_offset = (NDIM * q_inx3 + 128) * slice_id; */
-    /* const int x_slice_offset = (NDIM * q_inx3 + 128) * slice_id; */
 
     if (d < ndir / 2 && angmom_index_ > -1) {
         const auto di = dir[d];

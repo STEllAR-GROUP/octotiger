@@ -37,17 +37,28 @@ __global__ void reconstruct_cuda_kernel_no_amc(double omega,
     const int i = ((q_i / q_inx2) + 2) * inx_large * inx_large +
         (((q_i % q_inx2) / q_inx) + 2) * inx_large + (((q_i % q_inx2) % q_inx) + 2);
     const int slice_id = blockIdx.x;
-    /* if (q_i < q_inx3) { */
-    /*     cell_reconstruct_inner_loop_p1_simd<device_simd_t, device_simd_mask_t>(nf_, angmom_index_, */
-    /*         smooth_field_, disc_detect_, combined_q, combined_u, AM, dx[slice_id], cdiscs, i, */
-    /*         q_i, ndir, nangmom, slice_id); */
-    /*     // Phase 2 */
-    /*     for (int d = 0; d < ndir; d++) { */
-    /*         cell_reconstruct_inner_loop_p2_simd<device_simd_t, device_simd_mask_t>(omega, angmom_index_, */
-    /*             combined_q, combined_x, combined_u, AM, dx[slice_id], d, i, q_i, ndir, nangmom, */
-    /*             n_species_, nf_, slice_id); */
-    /*     } */
-    /* } */
+
+    const int q_slice_offset = (nf_ * 27 * q_inx3 + 128) * slice_id;
+    const int u_slice_offset = (nf_ * H_N3 + 128) * slice_id;
+    const int am_slice_offset = (NDIM * q_inx3 + 128) * slice_id;
+    const int disc_slice_offset = (ndir / 2 * H_N3 + 128) * slice_id; 
+    const int x_slice_offset = (NDIM * q_inx3 + 128) * slice_id;
+
+    if (q_i < q_inx3) {
+        cell_reconstruct_inner_loop_p1_simd<device_simd_t, device_simd_mask_t>(nf_, angmom_index_,
+            smooth_field_ + nf_ * slice_id, disc_detect_ + nf_ * slice_id,
+            combined_q + q_slice_offset, combined_u + u_slice_offset, AM + am_slice_offset,
+            dx[slice_id], cdiscs + disc_slice_offset, i, q_i, ndir, nangmom,
+            slice_id);
+        // Phase 2
+        for (int d = 0; d < ndir; d++) {
+            cell_reconstruct_inner_loop_p2_simd<device_simd_t, device_simd_mask_t>(omega,
+                angmom_index_, combined_q + q_slice_offset, combined_x + x_slice_offset,
+                combined_u + u_slice_offset, AM + am_slice_offset,
+                dx[slice_id], d, i, q_i, ndir,
+                nangmom, n_species_, nf_, slice_id);
+        }
+    }
 }
 
 #if defined(OCTOTIGER_HAVE_CUDA)
@@ -67,26 +78,35 @@ __global__ void reconstruct_cuda_kernel(const double omega, const int nf_,
     const int i = ((q_i / q_inx2) + 2) * inx_large * inx_large +
         (((q_i % q_inx2) / q_inx) + 2) * inx_large + (((q_i % q_inx2) % q_inx) + 2);
     const int slice_id = blockIdx.x;
+
+    const int q_slice_offset = (nf_ * 27 * q_inx3 + 128) * slice_id;
     const int u_slice_offset = (nf_ * H_N3 + 128) * slice_id;
     const int am_slice_offset = (NDIM * q_inx3 + 128) * slice_id;
+    const int disc_slice_offset = (ndir / 2 * H_N3 + 128) * slice_id; 
+    const int x_slice_offset = (NDIM * q_inx3 + 128) * slice_id;
+
     using simd_t = device_simd_t;
     using simd_mask_t = device_simd_mask_t;
-    /* if (q_i < q_inx3) { */
-    /*     for (int n = 0; n < nangmom; n++) { */
-    /*         AM[n * am_offset + q_i + am_slice_offset] = */
-    /*             combined_u[(zx_i + n) * u_face_offset + i + u_slice_offset] * */
-    /*             combined_u[i + u_slice_offset]; */
-    /*     } */
-    /*     cell_reconstruct_inner_loop_p1_simd<device_simd_t, device_simd_mask_t>(nf_, angmom_index_, */
-    /*         smooth_field_, disc_detect_, combined_q, combined_u, AM, dx[slice_id], cdiscs, i, */
-    /*         q_i, ndir, nangmom, slice_id); */
-    /*     // Phase 2 */
-    /*     for (int d = 0; d < ndir; d++) { */
-    /*         cell_reconstruct_inner_loop_p2_simd<device_simd_t, device_simd_mask_t>(omega, angmom_index_, */
-    /*             combined_q, combined_x, combined_u, AM, dx[slice_id], d, i, q_i, ndir, nangmom, */
-    /*             n_species_, nf_, slice_id); */
-    /*     } */
-    /* } */
+    if (q_i < q_inx3) {
+        for (int n = 0; n < nangmom; n++) {
+            AM[n * am_offset + q_i + am_slice_offset] =
+                combined_u[(zx_i + n) * u_face_offset + i + u_slice_offset] *
+                combined_u[i + u_slice_offset];
+        }
+        cell_reconstruct_inner_loop_p1_simd<device_simd_t, device_simd_mask_t>(nf_, angmom_index_,
+            smooth_field_ + nf_ * slice_id, disc_detect_ + nf_ * slice_id,
+            combined_q + q_slice_offset, combined_u + u_slice_offset, AM + am_slice_offset,
+            dx[slice_id], cdiscs + disc_slice_offset, i, q_i, ndir, nangmom,
+            slice_id);
+        // Phase 2
+        for (int d = 0; d < ndir; d++) {
+            cell_reconstruct_inner_loop_p2_simd<device_simd_t, device_simd_mask_t>(omega,
+                angmom_index_, combined_q + q_slice_offset, combined_x + x_slice_offset,
+                combined_u + u_slice_offset, AM + am_slice_offset,
+                dx[slice_id], d, i, q_i, ndir,
+                nangmom, n_species_, nf_, slice_id);
+        }
+    }
 }
 
 #if defined(OCTOTIGER_HAVE_HIP)
