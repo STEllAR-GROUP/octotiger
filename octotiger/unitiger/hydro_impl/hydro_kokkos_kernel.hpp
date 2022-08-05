@@ -237,6 +237,9 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
                             simd_t this_ap = 0.0, this_am = 0.0;
                             const int d = faces[dim][fi];
                             const int flipped_dim = flip_dim(d, dim);
+                            /* std::cout << d << " " << flipped_dim << std::endl; */
+                            /* std::cout << flip(d) << " " << flipped_dim << std::endl << std::endl;; */
+
                             for (int dim = 0; dim < NDIM; dim++) {
                                 local_x[dim] =
                                     simd_t(x_combined_slice.data() + dim * q_inx3 + index,
@@ -799,36 +802,36 @@ void reconstruct_no_amc_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                                 combined_q, combined_x, combined_u, AM, dx, cdiscs);
 
                         if (q_i < q_inx3) {
-                        // TODO use new subviews and remove index mapping from reconstruct...
-                                cell_reconstruct_inner_loop_p1_simd<simd_t, simd_mask_t>(nf_,
+                                cell_reconstruct_inner_loop_combined_simd<simd_t, simd_mask_t>(omega,
+                                    combined_x_slice.data(), nf_, n_species_,
                                     angmom_index_, smooth_field_slice.data(), disc_detect_slice.data(),
                                     combined_q_slice.data(), combined_u_slice.data(), AM_slice.data(), dx_slice[0],
                                     cdiscs_slice.data(), i, q_i, ndir, nangmom);
                         }
                     });
-                Kokkos::parallel_for(Kokkos::TeamThreadRange(team_handle, workgroup_size),
-                    [&](const int& work_elem) {
-                        const int index = index_base + work_elem;
-                        const int q_i = index * simd_t::size();
+                /* Kokkos::parallel_for(Kokkos::TeamThreadRange(team_handle, workgroup_size), */
+                /*     [&](const int& work_elem) { */
+                /*         const int index = index_base + work_elem; */
+                /*         const int q_i = index * simd_t::size(); */
 
-                        const int i = ((q_i / q_inx2) + 2) * inx_large * inx_large +
-                            (((q_i % q_inx2) / q_inx) + 2) * inx_large +
-                            (((q_i % q_inx2) % q_inx) + 2);
+                /*         const int i = ((q_i / q_inx2) + 2) * inx_large * inx_large + */
+                /*             (((q_i % q_inx2) / q_inx) + 2) * inx_large + */
+                /*             (((q_i % q_inx2) % q_inx) + 2); */
 
-                        auto [smooth_field_slice, disc_detect_slice, combined_q_slice, combined_x_slice,
-                            combined_u_slice, AM_slice, dx_slice, cdiscs_slice] =
-                            map_views_to_slice(slice_id, max_slices, smooth_field_, disc_detect_,
-                                combined_q, combined_x, combined_u, AM, dx, cdiscs);
-                        if (q_i < q_inx3) {
-                            // Phase 2
-                            for (int d = 0; d < ndir; d++) { // 27 (but with one less due to != in kerenl)
-                                cell_reconstruct_inner_loop_p2_simd<simd_t, simd_mask_t>(omega, // 26 * 72
-                                    angmom_index_, combined_q_slice.data(), combined_x_slice.data(),
-                                    combined_u_slice.data(), AM_slice.data(), dx_slice[0], d, i, q_i, ndir,
-                                    nangmom, n_species_, nf_);
-                            }
-                        }
-                    });
+                /*         auto [smooth_field_slice, disc_detect_slice, combined_q_slice, combined_x_slice, */
+                /*             combined_u_slice, AM_slice, dx_slice, cdiscs_slice] = */
+                /*             map_views_to_slice(slice_id, max_slices, smooth_field_, disc_detect_, */
+                /*                 combined_q, combined_x, combined_u, AM, dx, cdiscs); */
+                /*         if (q_i < q_inx3) { */
+                /*             // Phase 2 */
+                /*             for (int d = 0; d < ndir; d++) { // 27 (but with one less due to != in kerenl) */
+                /*                 cell_reconstruct_inner_loop_p2_simd<simd_t, simd_mask_t>(omega, // 26 * 72 */
+                /*                     angmom_index_, combined_q_slice.data(), combined_x_slice.data(), */
+                /*                     combined_u_slice.data(), AM_slice.data(), dx_slice[0], d, i, q_i, ndir, */
+                /*                     nangmom, n_species_, nf_); */
+                /*             } */
+                /*         } */
+                /*     }); */
             });
     }
 }
@@ -969,7 +972,6 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     hydro_pre_recon_impl(exec, agg_exec, large_x, omega, angmom, u, nf, n_species, {1, 1,
         8, 8});
 
-    // Reconstruct
     aggregated_device_buffer<double, executor_t> x(
         alloc_device_double, (NDIM * q_inx3 + padding) * max_slices);
     aggregated_deep_copy(agg_exec, x, combined_x, (NDIM * q_inx3 + padding));
@@ -996,6 +998,7 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
             angmom_index, device_smooth_field, device_disc_detect, q, x, u, AM, dx_device, disc,
             n_species, ndir, nangmom, 64, 64);
     }
+
 
     // Flux
     const device_buffer<bool>& masks =
@@ -1118,6 +1121,9 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     aggregated_host_buffer<double, executor_t> AM(
         alloc_host_double, (NDIM * q_inx3 + padding) * max_slices);
 
+    // Reconstruct
+    /* std::cout << "Reconstruct:" << std::endl; */
+    /* host_simd_t::reset_all(); */
 #ifdef HPX_HAVE_APEX
     auto reconstruct_timer = apex::start("kernel hydro_reconstruct kokkos");
 #endif
@@ -1133,8 +1139,9 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
 #ifdef HPX_HAVE_APEX
     apex::stop(reconstruct_timer);
 #endif
+    /* host_simd_t::print_all(); */
+    /* std::cin.get(); */
 
-    // Flux
     static_assert(q_inx3 % host_simd_t::size() == 0,
         "q_inx3 size is not evenly divisible by simd size! This simd width would require some "
         "further changes to the masking in the flux kernel!");
@@ -1149,6 +1156,9 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     aggregated_host_buffer<int, executor_t> amax_indices(alloc_host_int, blocks * max_slices);
     aggregated_host_buffer<int, executor_t> amax_d(alloc_host_int, blocks * max_slices);
 
+    // Flux
+    /* std::cout << "Flux:" << std::endl; */
+    /* host_simd_t::reset_all(); */
 #ifdef HPX_HAVE_APEX
     auto flux_timer = apex::start("kernel hydro_flux kokkos");
 #endif
@@ -1158,6 +1168,8 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
 #ifdef HPX_HAVE_APEX
     apex::stop(flux_timer);
 #endif
+    /* host_simd_t::print_all(); */
+    /* std::cin.get(); */
 
     sync_kokkos_host_kernel(agg_exec.get_underlying_executor());
 
