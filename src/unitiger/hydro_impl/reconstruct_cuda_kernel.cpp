@@ -11,6 +11,7 @@
 #include "octotiger/cuda_util/cuda_helper.hpp"
 #include "octotiger/defs.hpp"
 #include "octotiger/unitiger/hydro_impl/reconstruct_kernel_interface.hpp"
+#include "octotiger/unitiger/hydro_impl/flux_kernel_templates.hpp" // for combined kernel
 #include "octotiger/unitiger/hydro_impl/reconstruct_kernel_templates.hpp"
 
 #include "octotiger/common_kernel/kokkos_simd.hpp"
