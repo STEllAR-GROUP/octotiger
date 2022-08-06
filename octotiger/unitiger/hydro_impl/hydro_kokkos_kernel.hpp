@@ -753,7 +753,7 @@ void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
 
 /// Optimized for reconstruct without am correction
 template <typename simd_t, typename simd_mask_t, typename kokkos_backend_t,
-    typename kokkos_buffer_t, typename kokkos_int_buffer_t>
+    typename kokkos_buffer_t, typename kokkos_int_buffer_t, typename kokkos_mask_t>
 void reconstruct_no_amc_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
     typename Aggregated_Executor<hpx::kokkos::executor<kokkos_backend_t>>::Executor_Slice& agg_exec,
     const double omega, const int nf_, const int angmom_index_,
@@ -761,7 +761,11 @@ void reconstruct_no_amc_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
     kokkos_buffer_t& combined_q, const kokkos_buffer_t& combined_x, kokkos_buffer_t& combined_u,
     kokkos_buffer_t& AM, const kokkos_buffer_t& dx, const kokkos_buffer_t& cdiscs,
     const int n_species_, const int ndir, const int nangmom,
+    kokkos_buffer_t& amax, kokkos_int_buffer_t& amax_indices, kokkos_int_buffer_t& amax_d,
+    const kokkos_mask_t& masks, 
+    const double A_, const double B_, const double fgamma, const double de_switch_1,
     const size_t workgroup_size, const size_t team_size) {
+  // TODO number_blocks required?
     assert(team_size <= workgroup_size);
     const int blocks =
         (q_inx * q_inx * q_inx / simd_t::size() + (q_inx3 % simd_t::size() > 0 ? 1 : 0)) / workgroup_size + 1;
@@ -805,8 +809,10 @@ void reconstruct_no_amc_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                                 cell_reconstruct_inner_loop_combined_simd<simd_t, simd_mask_t>(omega,
                                     combined_x_slice.data(), nf_, n_species_,
                                     angmom_index_, smooth_field_slice.data(), disc_detect_slice.data(),
-                                    combined_q_slice.data(), combined_u_slice.data(), AM_slice.data(), dx_slice[0],
-                                    cdiscs_slice.data(), i, q_i, ndir, nangmom);
+                                    combined_q_slice.data(), combined_u_slice.data(), AM_slice.data(),
+                                    dx_slice[0], cdiscs_slice.data(), i, q_i, ndir, nangmom, amax.data(),
+                                    amax_indices.data(), amax_d.data(), masks.data(), A_, B_, fgamma,
+                                    de_switch_1);
                         }
                     });
                 /* Kokkos::parallel_for(Kokkos::TeamThreadRange(team_handle, workgroup_size), */
@@ -989,18 +995,7 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     aggregated_device_buffer<double, executor_t> dx_device(alloc_device_double, max_slices);
     aggregated_deep_copy(agg_exec, dx_device, dx);
 
-    if (angmom_index > -1) {
-        reconstruct_impl<device_simd_t, device_simd_mask_t>(exec, agg_exec, omega, nf, angmom_index,
-            device_smooth_field, device_disc_detect, q, x, u, AM, dx_device, disc, n_species, ndir,
-            nangmom, 64, 64);
-    } else {
-        reconstruct_no_amc_impl<device_simd_t, device_simd_mask_t>(exec, agg_exec, omega, nf,
-            angmom_index, device_smooth_field, device_disc_detect, q, x, u, AM, dx_device, disc,
-            n_species, ndir, nangmom, 64, 64);
-    }
-
-
-    // Flux
+    // Flux buffers
     const device_buffer<bool>& masks =
         get_flux_device_masks<device_buffer<bool>, host_buffer<bool>,
       executor_t>(
@@ -1016,6 +1011,21 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
 
     aggregated_device_buffer<double, executor_t> f(
         alloc_device_double, (NDIM * nf * q_inx3 + padding) * max_slices);
+
+    if (angmom_index > -1) {
+        reconstruct_impl<device_simd_t, device_simd_mask_t>(exec, agg_exec, omega, nf, angmom_index,
+            device_smooth_field, device_disc_detect, q, x, u, AM, dx_device, disc, n_species, ndir,
+            nangmom, 64, 64);
+    } else {
+        reconstruct_no_amc_impl<device_simd_t, device_simd_mask_t>(exec, agg_exec, omega, nf,
+            angmom_index, device_smooth_field, device_disc_detect, q, x, u, AM, dx_device, disc,
+            n_species, ndir, nangmom, amax, amax_indices, amax_d, masks, A_, B_, fgamma,
+            de_switch_1,  64, 64);
+    }
+
+
+    // flux...
+    // TODO remove for combined kernel?
     flux_impl(exec, agg_exec, q, x, f, amax, amax_indices, amax_d, masks, omega, dx_device, A_, B_,
         nf, fgamma, de_switch_1, NDIM * number_blocks_small, 128);
     aggregated_host_buffer<double, executor_t> host_amax(
@@ -1121,27 +1131,6 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     aggregated_host_buffer<double, executor_t> AM(
         alloc_host_double, (NDIM * q_inx3 + padding) * max_slices);
 
-    // Reconstruct
-    /* std::cout << "Reconstruct:" << std::endl; */
-    /* host_simd_t::reset_all(); */
-#ifdef HPX_HAVE_APEX
-    auto reconstruct_timer = apex::start("kernel hydro_reconstruct kokkos");
-#endif
-    if (angmom_index > -1) {
-        reconstruct_impl<host_simd_t, host_simd_mask_t>(exec, agg_exec, omega, nf, angmom_index,
-            smooth_field, disc_detect, q, combined_x, combined_u, AM, dx, disc, n_species, ndir,
-            nangmom, 8, 1);
-    } else {
-        reconstruct_no_amc_impl<host_simd_t, host_simd_mask_t>(exec, agg_exec, omega, nf,
-            angmom_index, smooth_field, disc_detect, q, combined_x, combined_u, AM, dx, disc,
-            n_species, ndir, nangmom, 8, 1);
-    }
-#ifdef HPX_HAVE_APEX
-    apex::stop(reconstruct_timer);
-#endif
-    /* host_simd_t::print_all(); */
-    /* std::cin.get(); */
-
     static_assert(q_inx3 % host_simd_t::size() == 0,
         "q_inx3 size is not evenly divisible by simd size! This simd width would require some "
         "further changes to the masking in the flux kernel!");
@@ -1155,6 +1144,28 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
         alloc_host_double, blocks * (1 + 2 * nf) * max_slices);
     aggregated_host_buffer<int, executor_t> amax_indices(alloc_host_int, blocks * max_slices);
     aggregated_host_buffer<int, executor_t> amax_d(alloc_host_int, blocks * max_slices);
+
+    // Reconstruct
+    /* std::cout << "Reconstruct:" << std::endl; */
+    /* host_simd_t::reset_all(); */
+#ifdef HPX_HAVE_APEX
+    auto reconstruct_timer = apex::start("kernel hydro_reconstruct kokkos");
+#endif
+    if (angmom_index > -1) {
+        reconstruct_impl<host_simd_t, host_simd_mask_t>(exec, agg_exec, omega, nf, angmom_index,
+            smooth_field, disc_detect, q, combined_x, combined_u, AM, dx, disc, n_species, ndir,
+            nangmom, 8, 1);
+    } else {
+        reconstruct_no_amc_impl<host_simd_t, host_simd_mask_t>(exec, agg_exec, omega, nf,
+            angmom_index, smooth_field, disc_detect, q, combined_x, combined_u, AM, dx, disc,
+            n_species, ndir, nangmom, amax, amax_indices, amax_d, masks, A_, B_, fgamma,
+            de_switch_1, 8, 1);
+    }
+#ifdef HPX_HAVE_APEX
+    apex::stop(reconstruct_timer);
+#endif
+    /* host_simd_t::print_all(); */
+    /* std::cin.get(); */
 
     // Flux
     /* std::cout << "Flux:" << std::endl; */

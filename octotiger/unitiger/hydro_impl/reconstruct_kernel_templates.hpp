@@ -724,7 +724,9 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_combined_simd(const s
     const int* __restrict__ disc_detect_, double* __restrict__ combined_q,
     const double* __restrict__ combined_u, double* __restrict__ AM, const double dx,
     const double* __restrict__ cdiscs, const int i, const int q_i, const int ndir,
-    const int nangmom) {
+    const int nangmom, double * __restrict__ amax, int *__restrict__ amax_indices,
+    int * __restrict__ amax_d, bool * __restrict__ masks, const double A_, const double B_,
+    const double fgamma, const double de_switch_1) {
     for (int dim = 0; dim < NDIM; dim++) {
         for (int fi = 0; fi < NDIR / NDIM; fi++) { 
             std::array<int, 2> ds= {faces[dim][fi], flip_dim(faces[dim][fi], dim)};
