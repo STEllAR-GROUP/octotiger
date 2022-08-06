@@ -805,7 +805,7 @@ void reconstruct_no_amc_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                             map_views_to_slice(slice_id, max_slices, smooth_field_, disc_detect_,
                                 combined_q, combined_x, combined_u, AM, dx, cdiscs);
 
-                        if (q_i < q_inx3) {
+                        if (index + simd_t::size() > q_inx * q_inx + q_inx && q_i < q_inx3) {
                                 cell_reconstruct_inner_loop_combined_simd<simd_t, simd_mask_t>(omega,
                                     combined_x_slice.data(), nf_, n_species_,
                                     angmom_index_, smooth_field_slice.data(), disc_detect_slice.data(),
