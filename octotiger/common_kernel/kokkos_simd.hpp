@@ -66,6 +66,7 @@ using host_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_
 #error "Could not detect any supported SIMD instruction set. Define OCTOTIGER_KOKKOS_SIMD_EXTENSION=SCALAR to build Kokkos kernels without SIMD!"
 #endif
 #else
+//#include <counting-scalar.hpp>
 // drop in for nvcc device pass - is used on host side if SCALAR is on
 // otherwise only used for compilation
 using host_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>;

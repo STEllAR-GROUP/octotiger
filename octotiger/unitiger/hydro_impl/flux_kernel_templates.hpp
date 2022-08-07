@@ -59,9 +59,9 @@ CUDA_GLOBAL_METHOD inline simd_t cell_inner_flux_loop_simd(const double omega, c
     const double A_, const double B_, const std::array<simd_t, OCTOTIGER_MAX_NUMBER_FIELDS>& local_q,
     const std::array<simd_t, OCTOTIGER_MAX_NUMBER_FIELDS>& local_q_flipped,
     std::array<simd_t, OCTOTIGER_MAX_NUMBER_FIELDS> &this_flux, const std::array<simd_t, NDIM>& x,
-    const std::array<simd_t, NDIM>& vg, simd_t& ap, simd_t& am, const size_t dim, const size_t d,
+    const std::array<simd_t, NDIM>& vg, simd_t& ap, simd_t& am, const size_t dim, const size_t d_tmp,
     const double dx, const double fgamma, const double de_switch_1,
-    const size_t face_offset) {
+    const size_t face_offset_tmp) {
     simd_t amr, apr, aml, apl;
     simd_t this_ap, this_am;    // tmps
 
