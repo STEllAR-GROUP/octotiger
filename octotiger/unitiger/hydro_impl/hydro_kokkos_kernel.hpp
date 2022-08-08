@@ -759,7 +759,7 @@ void reconstruct_no_amc_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
     typename Aggregated_Executor<hpx::kokkos::executor<kokkos_backend_t>>::Executor_Slice& agg_exec,
     const double omega, const int nf_, const int angmom_index_,
     const kokkos_int_buffer_t& smooth_field_, const kokkos_int_buffer_t& disc_detect_,
-    kokkos_buffer_t& combined_q, const kokkos_buffer_t& combined_x, kokkos_buffer_t& combined_u,
+    const kokkos_buffer_t& combined_x, kokkos_buffer_t& combined_u,
     kokkos_buffer_t& AM, const kokkos_buffer_t& dx, const kokkos_buffer_t& cdiscs,
     const int n_species_, const int ndir, const int nangmom,
     kokkos_buffer_t& f_combined,
@@ -807,10 +807,10 @@ void reconstruct_no_amc_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                             (((q_i % q_inx2) / q_inx) + 2) * inx_large +
                             (((q_i % q_inx2) % q_inx) + 2);
 
-                        auto [smooth_field_slice, disc_detect_slice, combined_q_slice, combined_x_slice,
+                        auto [smooth_field_slice, disc_detect_slice, combined_x_slice,
                             combined_u_slice, AM_slice, dx_slice, cdiscs_slice, f_combined_slice] =
                             map_views_to_slice(slice_id, max_slices, smooth_field_, disc_detect_,
-                                combined_q, combined_x, combined_u, AM, dx, cdiscs, f_combined);
+                                combined_x, combined_u, AM, dx, cdiscs, f_combined);
                         auto [amax_slice, amax_indices_slice, amax_d_slice] =
                               map_views_to_slice(slice_id, max_slices, amax, amax_indices, amax_d);
 
@@ -830,7 +830,7 @@ void reconstruct_no_amc_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                                 cell_reconstruct_inner_loop_combined_simd<simd_t, simd_mask_t>(omega,
                                     combined_x_slice.data(), nf_, n_species_,
                                     angmom_index_, smooth_field_slice.data(), disc_detect_slice.data(),
-                                    combined_q_slice.data(), combined_u_slice.data(), AM_slice.data(),
+                                    combined_u_slice.data(), AM_slice.data(),
                                     dx_slice[0], cdiscs_slice.data(), i, q_i, ndir, nangmom,
                                     f_combined_slice.data(),
                                     amax_slice.data(),
@@ -1123,7 +1123,7 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
             nangmom, 64, 64);
     } else {
         reconstruct_no_amc_impl<device_simd_t, device_simd_mask_t>(exec, agg_exec, omega, nf,
-            angmom_index, device_smooth_field, device_disc_detect, q, x, u, AM, dx_device, disc,
+            angmom_index, device_smooth_field, device_disc_detect, x, u, AM, dx_device, disc,
             n_species, ndir, nangmom, f, amax, amax_indices, amax_d, masks, A_, B_, fgamma,
             de_switch_1,  64, 64);
     }
@@ -1271,7 +1271,7 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
             nangmom, 1, 1);
     } else {
         reconstruct_no_amc_impl<host_simd_t, host_simd_mask_t>(exec, agg_exec, omega, nf,
-            angmom_index, smooth_field, disc_detect, q, combined_x, combined_u, AM, dx, disc,
+            angmom_index, smooth_field, disc_detect, combined_x, combined_u, AM, dx, disc,
             n_species, ndir, nangmom, f, amax, amax_indices, amax_d, masks, A_, B_, fgamma,
             de_switch_1, 1, 1);
     }
