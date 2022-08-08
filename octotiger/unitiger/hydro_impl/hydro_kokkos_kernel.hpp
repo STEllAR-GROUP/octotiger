@@ -1121,6 +1121,8 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
         reconstruct_impl<device_simd_t, device_simd_mask_t>(exec, agg_exec, omega, nf, angmom_index,
             device_smooth_field, device_disc_detect, q, x, u, AM, dx_device, disc, n_species, ndir,
             nangmom, 64, 64);
+        flux_impl(exec, agg_exec, q, x, f, amax, amax_indices, amax_d, masks, omega, dx_device, A_, B_,
+            nf, fgamma, de_switch_1, NDIM * number_blocks_small, 128);
     } else {
         reconstruct_no_amc_impl<device_simd_t, device_simd_mask_t>(exec, agg_exec, omega, nf,
             angmom_index, device_smooth_field, device_disc_detect, x, u, AM, dx_device, disc,
@@ -1131,8 +1133,6 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
 
     // flux...
     // TODO remove for combined kernel?
-    flux_impl(exec, agg_exec, q, x, f, amax, amax_indices, amax_d, masks, omega, dx_device, A_, B_,
-        nf, fgamma, de_switch_1, NDIM * number_blocks_small, 128);
     aggregated_host_buffer<double, executor_t> host_amax(
         alloc_host_double, number_blocks_small * NDIM * (1 + 2 * nf) * max_slices);
     aggregated_host_buffer<int, executor_t> host_amax_indices(
@@ -1152,7 +1152,7 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
 
     // Find Maximum
     size_t current_max_slot = 0;
-    for (size_t dim_i = 1; dim_i < number_blocks_small * NDIM; dim_i++) {
+    for (size_t dim_i = 1; dim_i < number_blocks_small; dim_i++) {
         if (host_amax_slice[dim_i] >
             host_amax_slice[current_max_slot]) {
             current_max_slot = dim_i;
@@ -1268,12 +1268,12 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     if (angmom_index > -1) {
         reconstruct_impl<host_simd_t, host_simd_mask_t>(exec, agg_exec, omega, nf, angmom_index,
             smooth_field, disc_detect, q, combined_x, combined_u, AM, dx, disc, n_species, ndir,
-            nangmom, 1, 1);
+            nangmom, 8, 1);
     } else {
         reconstruct_no_amc_impl<host_simd_t, host_simd_mask_t>(exec, agg_exec, omega, nf,
             angmom_index, smooth_field, disc_detect, combined_x, combined_u, AM, dx, disc,
             n_species, ndir, nangmom, f, amax, amax_indices, amax_d, masks, A_, B_, fgamma,
-            de_switch_1, 1, 1);
+            de_switch_1, 8, 1);
     }
 #ifdef HPX_HAVE_APEX
     apex::stop(reconstruct_timer);
