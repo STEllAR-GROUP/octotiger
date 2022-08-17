@@ -270,11 +270,6 @@ set(header_files
     octotiger/multipole_interactions/legacy/multipole_cpu_kernel.hpp
     octotiger/multipole_interactions/legacy/multipole_cuda_kernel.hpp
     octotiger/multipole_interactions/legacy/multipole_interaction_interface.hpp
-    octotiger/radiation/cpu_kernel.hpp
-    octotiger/radiation/cuda_kernel.hpp
-    octotiger/radiation/implicit.hpp
-    octotiger/radiation/kernel_interface.hpp
-    octotiger/radiation/opacities.hpp
     octotiger/radiation/rad_grid.hpp
     octotiger/test_problems/rotating_star.hpp
     

@@ -143,17 +143,6 @@ void node_client::send_rad_children(std::vector<real> &&data, const geo::octant 
 	hpx::apply<typename node_server::send_rad_children_action>(get_unmanaged_gid(), std::move(data), ci, cycle);
 }
 
-void rad_grid::rad_imp(std::vector<real> &egas, std::vector<real> &tau, std::vector<real> &sx, std::vector<real> &sy,
-		std::vector<real> &sz, const std::vector<real> &rho, real dt) {
-	PROFILE();
-	const integer d = H_BW - RAD_BW;
-	const real clight = physcon().c / opts().clight_retard;
-	const real clightinv = INVERSE(clight);
-	const real fgamma = grid::get_fgamma();
-	/*	octotiger::radiation::radiation_kernel<er_i, fx_i, fy_i, fz_i>(d, rho, sx,
-	 sy, sz, egas, tau, fgamma, U, mmw, X_spc, Z_spc, dt, clightinv);*/
-}
-
 void rad_grid::set_dx(real _dx) {
 	dx = _dx;
 }
@@ -1137,34 +1126,68 @@ double find4root(double a, double b, double c) {
 	double c3 = c2 * c;
 	double b2 = b * b;
 	double b4 = b2 * b2;
+	const double tmp1 = 81. * a2 * b4 - 768. * a3 * c3;
+	const double tmp2 = 9. * a * b2 + sqrt(tmp1);
+	const double tmp3 = pow(tmp2, 0.3333333333333333);
+	const double tmp4 = pow(tmp2, 0.6666666666666666);
 	return 0.08333333333333333
-			* (3.3019272488946263
-					* sqrt(
-							(11.537996562459266 * a * c
-									+ 1.2599210498948732
-											* pow(9. * a * b2 + sqrt(81. * a2 * b4 - 768. * a3 * c3), 0.6666666666666666))
-									/ (a * pow(9. * a * b2 + sqrt(81. * a2 * b4 - 768. * a3 * c3), 0.3333333333333333)))
+			* (3.3019272488946263 * sqrt((11.537996562459266 * a * c + 1.2599210498948732 * tmp4) / (a * tmp3))
 					+ 6.
 							* sqrt(
-									(-3.4943218589451956 * c)
-											/ pow(9. * a * b2 + sqrt(81. * a2 * b4 - 768. * a3 * c3), 0.3333333333333333)
-											- (0.381571414184444
-													* pow(9. * a * b2 + sqrt(81. * a2 * b4 - 768. * a3 * c3), 0.3333333333333333))
-													/ a
+									(-3.4943218589451956 * c) / tmp3 - (0.381571414184444 * tmp3) / a
 											- (3.6342411856642793 * b)
 													/ (a
 															* sqrt(
-																	(11.537996562459266 * a * c
-																			+ 1.2599210498948732
-																					* pow(9. * a * b2 + sqrt(81. * a2 * b4 - 768. * a3 * c3),
-																							0.6666666666666666))
-																			/ (a
-																					* pow(9. * a * b2 + sqrt(81. * a2 * b4 - 768. * a3 * c3),
-																							0.3333333333333333))))));
+																	(11.537996562459266 * a * c + 1.2599210498948732 * tmp4)
+																			/ (a * tmp3)))));
 }
 
+void rad_grid::rad_imp(std::vector<real> &egas, std::vector<real> &tau, std::vector<real> &sx, std::vector<real> &sy,
+		std::vector<real> &sz, const std::vector<real> &rho, real dt) {
+	PROFILE();
+	const integer d = H_BW - RAD_BW;
+	const real clight = physcon().c / opts().clight_retard;
+	const real sigma = physcon().sigma;
+	const real kb = physcon().kb;
+	const real mh = physcon().mh;
+	const real clightinv = INVERSE(clight);
+	const real fgamma = grid::get_fgamma();
 
-double implicit_radiation(double en, double En, double& enp1, double& Enp1) {
+	for (integer xi = RAD_BW; xi != RAD_NX - RAD_BW; ++xi) {
+		for (integer yi = RAD_BW; yi != RAD_NX - RAD_BW; ++yi) {
+			for (integer zi = RAD_BW; zi != RAD_NX - RAD_BW; ++zi) {
+				const integer D = H_BW - RAD_BW;
+				const integer iiir = rindex(xi, yi, zi);
+				const integer iiih = hindex(xi + D, yi + D, zi + D);
+				const real rhoinv = INVERSE(rho[iiih]);
+				real vx = sx[iiih] * rhoinv;
+				real vy = sy[iiih] * rhoinv;
+				real vz = sz[iiih] * rhoinv;
+				real e0 = egas[iiih];
+				e0 -= 0.5 * vx * vx * rho[iiih];
+				e0 -= 0.5 * vy * vy * rho[iiih];
+				e0 -= 0.5 * vz * vz * rho[iiih];
+				if (opts().eos == WD) {
+					e0 -= ztwd_energy(rho[iiih]);
+				}
+				if (e0 < egas[iiih] * 0.001) {
+					e0 = std::pow(tau[iiih], fgamma);
+				}
+				const real kappa = kappa_P(rho[iiih], e0, mmw[iiih], X_spc[iiih], Z_spc[iiih]);
+				const real A = 4.0 * dt * kappa * sigma * pow(mmw[iiih] * mh / (kn * rho[iiih]), 4.0);
+				const real B = (1.0 + clight * dt * kappa);
+				const real C = -((1.0 + clight * dt * kappa) * e0 + U[iiir] * dt * clight * kappa);
+				const real newE = find4root(A, B, C);
+				U[iiir] = newE;
+			}
+		}
+	}
+
+	/*	octotiger::radiation::radiation_kernel<er_i, fx_i, fy_i, fz_i>(d, rho, sx,
+	 sy, sz, egas, tau, fgamma, U, mmw, X_spc, Z_spc, dt, clightinv);*/
+}
+
+double implicit_radiation(double en, double En, double &enp1, double &Enp1) {
 
 }
 #endif
