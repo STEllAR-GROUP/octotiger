@@ -868,7 +868,7 @@ namespace fmm {
                     multipole_kernel_rho_impl<host_simd_t, host_simd_mask_t>(exec, monopoles,
                         centers_of_mass, multipoles, potential_expansions, angular_corrections,
                         theta, host_masks, host_indicators, 1,
-                        {1, 1, INX, INX, INX / host_simd_t::size()});
+                        {1, 1, 1, INX/2, INX / host_simd_t::size()});
                     sync_kokkos_host_kernel(exec);
 #ifdef HPX_HAVE_APEX
                     apex::stop(kernel_timer);
@@ -879,7 +879,7 @@ namespace fmm {
 #endif
                     multipole_kernel_root_rho_impl<host_simd_t, host_simd_mask_t>(exec,
                         centers_of_mass, multipoles, potential_expansions, angular_corrections,
-                        host_indicators, 1, {1, INX, INX, INX / host_simd_t::size()});
+                        host_indicators, 1, {1, 1, INX/2, INX / host_simd_t::size()});
                     sync_kokkos_host_kernel(exec);
 #ifdef HPX_HAVE_APEX
                     apex::stop(kernel_timer);
@@ -893,7 +893,7 @@ namespace fmm {
 #endif
                     multipole_kernel_non_rho_impl<host_simd_t, host_simd_mask_t>(exec, monopoles,
                         centers_of_mass, multipoles, potential_expansions, theta, host_masks,
-                        host_indicators, 1, {1, 1, INX, INX, INX / host_simd_t::size()});
+                        host_indicators, 1, {1, 1, 1, INX/2, INX / host_simd_t::size()});
                     sync_kokkos_host_kernel(exec);
 #ifdef HPX_HAVE_APEX
                     apex::stop(kernel_timer);
@@ -904,7 +904,7 @@ namespace fmm {
 #endif
                     multipole_kernel_root_non_rho_impl<host_simd_t, host_simd_mask_t>(exec,
                         centers_of_mass, multipoles, potential_expansions, host_indicators, 1,
-                        {1, INX, INX, INX / host_simd_t::size()});
+                        {1, 1, INX/2, INX / host_simd_t::size()});
                     sync_kokkos_host_kernel(exec);
 #ifdef HPX_HAVE_APEX
                     apex::stop(kernel_timer);
