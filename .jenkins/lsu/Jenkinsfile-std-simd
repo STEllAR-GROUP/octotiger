@@ -112,7 +112,7 @@ pipeline {
                 dir('octotiger') {
                     sh '''#!/bin/bash -l
                         cd "../octo-buildscripts-std-simd"
-                        srun -p medusa -N 1 -n 1 bash -c 'module load gcc/11 && cd build/octotiger/build && ctest'
+                        srun -p medusa -N 1 -n 1 bash -lc 'module load gcc/11 && cd build/octotiger/build && ctest'
                     '''
                 }
             }
