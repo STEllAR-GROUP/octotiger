@@ -20,13 +20,13 @@ fi
 
 # Tests with griddim = 8
 echo "Running tests with griddim=8"
-srun --partition=jenkins-cuda --nodelist=geev -N 1 -n 1 -t 08:00:00 bash -lc "module load ${compiler_module} cuda/11.5 hwloc && module list && ./build-all.sh Release ${compiler_config} ${cuda_config} without-mpi without-papi without-apex ${kokkos_config} ${simd_config} with-hpx-backend-multipole without-hpx-backend-monopole with-hpx-cuda-polling without-otf2 boost jemalloc hdf5 silo vc hpx kokkos cppuddle octotiger && cd build/octotiger/build && ctest --output-on-failure " 
+srun --partition=jenkins-cuda -N 1 -n 1 -t 08:00:00 bash -lc "module load ${compiler_module} cuda/11.5 hwloc && module list && ./build-all.sh Release ${compiler_config} ${cuda_config} without-mpi without-papi without-apex ${kokkos_config} ${simd_config} with-hpx-backend-multipole without-hpx-backend-monopole with-hpx-cuda-polling without-otf2 boost jemalloc hdf5 silo vc hpx kokkos cppuddle octotiger && cd build/octotiger/build && ctest --output-on-failure " 
 
 # Tests with griddim = 16 - only test in full kokkos + cuda build
 if [ "${cuda_config}" = "with-cuda" ] && [ "${kokkos_config}" = "with-kokkos" ]; then
 	sed -i 's/GRIDDIM=8/GRIDDIM=16/' build-octotiger.sh
 	rm -rf build # in case we end up on a different cuda node we need to rebuild with its architecture
-	srun --partition=jenkins-cuda --nodelist=geev -N 1 -n 1 -t 08:00:00 bash -lc "module load ${compiler_module} cuda/11.5 hwloc && module list && ./build-all.sh Release ${compiler_config} ${cuda_config} without-mpi without-papi without-apex ${kokkos_config} ${simd_config} with-hpx-backend-multipole without-hpx-backend-monopole with-hpx-cuda-polling without-otf2 boost jemalloc hdf5 silo vc hpx kokkos cppuddle octotiger && cd build/octotiger/build && ctest --output-on-failure " 
+	srun --partition=jenkins-cuda -N 1 -n 1 -t 08:00:00 bash -lc "module load ${compiler_module} cuda/11.5 hwloc && module list && ./build-all.sh Release ${compiler_config} ${cuda_config} without-mpi without-papi without-apex ${kokkos_config} ${simd_config} with-hpx-backend-multipole without-hpx-backend-monopole with-hpx-cuda-polling without-otf2 boost jemalloc hdf5 silo vc hpx kokkos cppuddle octotiger && cd build/octotiger/build && ctest --output-on-failure " 
 	sed -i 's/GRIDDIM=16/GRIDDIM=8/' build-octotiger.sh
 fi
 
