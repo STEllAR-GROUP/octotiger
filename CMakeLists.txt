@@ -152,7 +152,8 @@ FetchContent_Declare(
   kokkossimd
   GIT_REPOSITORY https://github.com/kokkos/simd-math.git
   # GIT_TAG        e81aea6e4b12653acdc759366c359a4309219dd4
-  GIT_TAG        c845b7d9d8da461457cc5aa88fdda5923773a4bf
+  # GIT_TAG        c845b7d9d8da461457cc5aa88fdda5923773a4bf
+  GIT_TAG        e3b2fb8d7bfda5d6eda90efee29fafdcbe895a25
 )
 FetchContent_MakeAvailable(kokkossimd)
 FetchContent_Declare(
