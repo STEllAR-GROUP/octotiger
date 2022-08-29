@@ -279,9 +279,9 @@ const diagnostics_t& diagnostics_t::compute() {
 	}
 	z_mom_orb = mu * sep2;
 
-	feenableexcept(FE_DIVBYZERO);
-	feenableexcept(FE_INVALID);
-	feenableexcept(FE_OVERFLOW);
+	//feenableexcept(FE_DIVBYZERO);
+//	feenableexcept(FE_INVALID);
+	//feenableexcept(FE_OVERFLOW);
 
 	return *this;
 }
