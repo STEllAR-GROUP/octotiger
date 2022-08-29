@@ -1820,6 +1820,7 @@ timestep_t grid::compute_fluxes() {
 	/******************************/
 //	hydro.set_low_order();
 	/******************************/
+	hydro.set_face_only(opts().recon_face_only);
 	hydro.use_experiment(opts().experiment);
 	if (opts().correct_am_hydro) {
 		hydro.use_angmom_correction(sx_i);

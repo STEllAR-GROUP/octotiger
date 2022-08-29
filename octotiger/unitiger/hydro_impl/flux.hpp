@@ -39,11 +39,14 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, con
 				F[dim][f][i] = 0.0;
 			}
 		}
-
+		if( face_only_) {
+			weights[1] = 1.0;
+		}
+		const int nfaces = face_only_ ? 1 : geo.NFACEDIR;
 		for (const auto &i : indices) {
 			safe_real ap = 0.0, am = 0.0;
 			safe_real this_ap, this_am;
-			for (int fi = 0; fi < geo.NFACEDIR; fi++) {
+			for (int fi = 0; fi < nfaces; fi++) {
 				const auto d = faces[dim][fi];
 				for (int f = 0; f < nf_; f++) {
 					UR[f] = Q[f][d][i];

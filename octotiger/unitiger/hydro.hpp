@@ -120,9 +120,14 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 		bc_ = std::move(bc);
 	}
 
+	void set_face_only(bool code) {
+		face_only_ = code;
+	}
+
 private:
 	int experiment;
 	int nf_;
+	bool face_only_;
 	int angmom_index_;
 	std::vector<bool> smooth_field_;
 	std::vector<bool> disc_detect_;
