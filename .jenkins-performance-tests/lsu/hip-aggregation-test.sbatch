@@ -18,6 +18,6 @@ srun ./build-all.sh Release with-CC-clang without-cuda without-mpi without-papi 
 echo "Running aggregation performance test..."
 srun ./src/octotiger/octotiger-performance-tests/rostam/aggregation-test/blast_aggregation_performance_hip.sh 
 echo "Upgrading required python modules..."
-pip3 install --upgrade matplotlib pandas
+pip3 install --upgrade matplotlib pandas numpy
 echo "Creating plots..."
 python3 ./src/octotiger/octotiger-performance-tests/rostam/aggregation-test/plot_blast_aggregation_performance.py --filename=performance_results.log --gpu-name='AMD MI100' | tee plot.log
