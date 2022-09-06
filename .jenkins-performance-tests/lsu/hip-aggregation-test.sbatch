@@ -4,7 +4,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --partition=mi100
-#SBATCH --nodelist=kamand1
+#SBATCH --nodelist=kamand0
 #SBATCH -e aggregation_test_hip.out
 #SBATCH -o aggregation_test_hip.out
 
