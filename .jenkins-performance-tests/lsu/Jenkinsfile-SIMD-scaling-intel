@@ -83,13 +83,17 @@ pipeline {
         }
         failure {
             sh '''
+            cd "octo-buildscripts-simd-scaling-intel"
             cat intel_simd_scaling_test.out
+            cat LOG.txt
             echo "SIMD Scaling Test failed! Pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger SIMD Scaling Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} failed" "${MAINTAINER_MAIL}"
             '''
         }
         aborted {
             sh '''
+            cd "octo-buildscripts-simd-scaling-intel"
             cat intel_simd_scaling_test.out
+            cat LOG.txt
             echo "SIMD Scaling Test aborted on pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger CUDA Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} aborted" "${MAINTAINER_MAIL}"
             '''
         }
