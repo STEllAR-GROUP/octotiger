@@ -202,7 +202,6 @@ void start_octotiger(int argc, char* argv[]) {
             std::cerr << "Finished timings report!" << std::endl;
             std::cerr << "Start cleanup..." << std::endl;
             cleanup();    // cleanup buffer and executor pools
-            std::cerr << "Localities cleanup finished" << std::endl;
         }
     } catch (...) {
         throw;
