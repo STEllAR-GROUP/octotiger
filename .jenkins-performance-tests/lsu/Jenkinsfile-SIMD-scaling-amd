@@ -52,7 +52,7 @@ pipeline {
                     else # without cached dependencies
                         git clone https://github.com/diehlpk/PowerTiger.git "octo-buildscripts-simd-scaling-amd"
                         cd "octo-buildscripts-simd-scaling-amd"
-                        git checkout epyc_epyc
+                        git checkout espm_epyc
                         mkdir src
                     fi
 
