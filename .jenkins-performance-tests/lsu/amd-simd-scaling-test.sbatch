@@ -5,8 +5,8 @@
 #SBATCH --ntasks=1
 #SBATCH --partition=mi100
 #SBATCH --nodelist=kamand1
-#SBATCH -e intel_simd_scaling_test.out
-#SBATCH -o intel_simd_scaling_test.out
+#SBATCH -e amd_simd_scaling_test.out
+#SBATCH -o amd_simd_scaling_test.out
 
 module load gcc/11.2.1 hwloc cmake
 module list
