@@ -15,4 +15,5 @@ module list
 time ./src/octotiger/octotiger-performance-tests/rostam/node-level-scaling-tests/test_cpu_performance.sh src/octotiger/octotiger-performance-tests/rostam/node-level-scaling-tests/simd_rotating_star_icelake_scenario
 cat LOG.txt
 pip3 install --upgrade matplotlib pandas numpy
-python3 src/octotiger/octotiger-performance-tests/rostam/node-level-scaling-tests/plot/plot_node_level_scaling.py --filename=LOG.txt --title_prefix="Hydro + Gravity Scenario " --output_prefix="intel_combined_" --simd_key="AVX512"
+python3 src/octotiger/octotiger-performance-tests/rostam/node-level-scaling-tests/plot/plot_node_level_scaling.py --filename=LOG.txt --title_prefix="Hydro + Gravity Scenario " --output_prefix="intel_avx_combined_" --simd_key="AVX"
+python3 src/octotiger/octotiger-performance-tests/rostam/node-level-scaling-tests/plot/plot_node_level_scaling.py --filename=LOG.txt --title_prefix="Hydro + Gravity Scenario " --output_prefix="intel_avx512_combined_" --simd_key="AVX512"

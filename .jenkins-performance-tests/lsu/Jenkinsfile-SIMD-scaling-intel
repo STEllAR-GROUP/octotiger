@@ -77,7 +77,7 @@ pipeline {
             cd "octo-buildscripts-simd-scaling-intel"
             cat intel_simd_scaling_test.out
             cat LOG.txt
-            echo " Icelake SIMD Scaling Test finished! Pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT} \n${subject_configuration} ${subject_best_run}" | mail -s "Jenkins Octo-Tiger Icelake SIMD Scaling Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} finished! See attachments" -a LOG.txt -a intel_combined_component_simd_speedup.pdf -a intel_combined_kokkos_node_level_scaling.pdf -a intel_combined_std_node_level_scaling.pdf "${MAINTAINER_MAIL}"
+            echo " Icelake SIMD Scaling Test finished! Pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT} \n${subject_configuration} ${subject_best_run}" | mail -s "Jenkins Octo-Tiger Icelake SIMD Scaling Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} finished! See attachments" -a LOG.txt -a intel_avx_combined_component_simd_speedup.pdf -a intel_avx_combined_kokkos_node_level_scaling.pdf -a intel_avx_combined_std_node_level_scaling.pdf -a intel_avx512_combined_component_simd_speedup.pdf -a intel_avx512_combined_kokkos_node_level_scaling.pdf -a intel_avx512_combined_std_node_level_scaling.pdf "${MAINTAINER_MAIL}"
             '''
         }
         failure {
