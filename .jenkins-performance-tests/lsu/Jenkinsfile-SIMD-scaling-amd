@@ -77,7 +77,7 @@ pipeline {
             cd "octo-buildscripts-simd-scaling-amd"
             cat amd_simd_scaling_test.out
             cat LOG.txt
-            echo "EPYC SIMD Scaling Test finished! Pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT} \n${subject_configuration} ${subject_best_run}" | mail -s "Jenkins Octo-Tiger EPYC SIMD Scaling Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} finished! See attachments" -a LOG.txt -a amd_combined_component_simd_speedup.pdf -a amd_combined_kokkos_node_level_scaling.pdf -a amd_combined_component_simd_speedup.pdf "${MAINTAINER_MAIL}"
+            echo "EPYC SIMD Scaling Test finished! Pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT} \n${subject_configuration} ${subject_best_run}" | mail -s "Jenkins Octo-Tiger EPYC SIMD Scaling Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} finished! See attachments" -a LOG.txt -a amd_combined_component_simd_speedup.pdf -a amd_combined_kokkos_node_level_scaling.pdf -a amd_combined_std_node_level_scaling.pdf "${MAINTAINER_MAIL}"
             '''
         }
         failure {
