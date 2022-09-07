@@ -26,9 +26,9 @@ pip3 install --upgrade matplotlib pandas numpy
 python3 src/octotiger/octotiger-performance-tests/rostam/node-level-scaling-tests/plot/plot_node_level_scaling.py --filename=LOG.txt --title_prefix="Hydro Scenario " --output_prefix="intel_avx_hydro_" --simd_key="AVX"
 python3 src/octotiger/octotiger-performance-tests/rostam/node-level-scaling-tests/plot/plot_node_level_scaling.py --filename=LOG.txt --title_prefix="Hydro Scenario " --output_prefix="intel_avx512_hydro_" --simd_key="AVX512"
 
-time ./src/octotiger/octotiger-performance-tests/rostam/node-level-scaling-tests/test_cpu_performance.sh src/octotiger/octotiger-performance-tests/rostam/node-level-scaling-tests/simd_sphere_icelake_scenario
-cat LOG.txt
-cp LOG.txt gravity_scenario_runtimes.csv
-pip3 install --upgrade matplotlib pandas numpy
-python3 src/octotiger/octotiger-performance-tests/rostam/node-level-scaling-tests/plot/plot_node_level_scaling.py --filename=LOG.txt --title_prefix="Gravity Scenario " --output_prefix="intel_avx_gravity_" --simd_key="AVX"
-python3 src/octotiger/octotiger-performance-tests/rostam/node-level-scaling-tests/plot/plot_node_level_scaling.py --filename=LOG.txt --title_prefix="Gravity Scenario " --output_prefix="intel_avx512_gravity_" --simd_key="AVX512"
+#time ./src/octotiger/octotiger-performance-tests/rostam/node-level-scaling-tests/test_cpu_performance.sh src/octotiger/octotiger-performance-tests/rostam/node-level-scaling-tests/simd_sphere_icelake_scenario
+#cat LOG.txt
+#cp LOG.txt gravity_scenario_runtimes.csv
+#pip3 install --upgrade matplotlib pandas numpy
+#python3 src/octotiger/octotiger-performance-tests/rostam/node-level-scaling-tests/plot/plot_node_level_scaling.py --filename=LOG.txt --title_prefix="Gravity Scenario " --output_prefix="intel_avx_gravity_" --simd_key="AVX"
+#python3 src/octotiger/octotiger-performance-tests/rostam/node-level-scaling-tests/plot/plot_node_level_scaling.py --filename=LOG.txt --title_prefix="Gravity Scenario " --output_prefix="intel_avx512_gravity_" --simd_key="AVX512"

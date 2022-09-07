@@ -8,7 +8,7 @@
 #SBATCH -e amd_simd_scaling_test.out
 #SBATCH -o amd_simd_scaling_test.out
 
-module load gcc/11.2.1 hwloc cmake
+module load gcc/11.2.1 hwloc 
 module list
 ./build-all.sh Release with-CC without-cuda without-mpi without-papi with-apex with-kokkos with-simd with-hpx-backend-multipole with-hpx-backend-monopole with-hpx-cuda-polling without-otf2 boost hdf5 silo jemalloc vc hpx kokkos cppuddle octotiger
 ./build/octotiger/build/tools/gen_rotating_star_init
