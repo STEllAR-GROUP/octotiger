@@ -7,8 +7,6 @@
 #include "octotiger/grid.hpp"
 #include "octotiger/node_server.hpp"
 #include "octotiger/options.hpp"
-#include "octotiger/radiation/implicit.hpp"
-#include "octotiger/radiation/kernel_interface.hpp"
 #include "octotiger/radiation/opacities.hpp"
 #include "octotiger/radiation/rad_grid.hpp"
 #include "octotiger/real.hpp"
@@ -1173,8 +1171,8 @@ void rad_grid::rad_imp(std::vector<real> &egas, std::vector<real> &tau, std::vec
 				if (e0 < egas[iiih] * 0.001) {
 					e0 = std::pow(tau[iiih], fgamma);
 				}
-				const real kappa = kappa_P(rho[iiih], e0, mmw[iiih], X_spc[iiih], Z_spc[iiih]);
-				const real A = 4.0 * dt * kappa * sigma * pow(mmw[iiih] * mh / (kn * rho[iiih]), 4.0);
+				const real kappa = kappa_p(rho[iiih], e0, mmw[iiih], X_spc[iiih], Z_spc[iiih]);
+				const real A = 4.0 * dt * kappa * sigma * pow(mmw[iiih] * mh / (kb * rho[iiih]), 4.0);
 				const real B = (1.0 + clight * dt * kappa);
 				const real C = -((1.0 + clight * dt * kappa) * e0 + U[iiir] * dt * clight * kappa);
 				const real newE = find4root(A, B, C);
