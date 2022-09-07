@@ -967,7 +967,9 @@ namespace fmm {
                         apex::stop(kernel_timer_p2m);
 #endif
                     } else {
+#ifdef HPX_HAVE_APEX
                         auto kernel_timer_p2m = apex::start("kernel p2m-non-rho kokkos");
+#endif
                         p2m_kernel_impl_non_rho<host_simd_t, host_simd_mask_t>(exec,
                             local_expansions[counter_kernel], center_of_masses[counter_kernel],
                             center_of_masses_inner_cells, results, neighbor_size, start_index,
