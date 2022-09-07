@@ -96,6 +96,24 @@ void cleanup_puddle_on_this_locality(void) {
 }
 
 void init_executors(void) {
+
+  // workaround for bug when using HIP without KOKKOS
+#if defined(OCTOTIGER_HAVE_HIP)  && !defined(OCTOTIGER_HAVE_KOKKOS) 
+    // BUG:
+    // ----
+    // As for rocm/5 we need to reset the device before actually starting octotiger (otherwise we
+    // get a segfault within the AMD driver. I am not entirely sure if this is
+    // a rocm/hip/AMD problem or a
+    // machine-specific one, but for now we will use this as a workaround.
+    //
+    // Note, interestingly this does not seem to happen when a) we let
+    // Octo-Tiger sleep for a second
+    // here or b) we use Kokkos (presumably because Kokkos::init already takes more than a second)
+    //
+    // TODO Try again with newer ROCM version and/or different machine without the explicit device reset
+    hipDeviceReset();
+#endif
+
     std::cout << "Initialize executors and masks..." << std::endl;
 #ifdef OCTOTIGER_HAVE_KOKKOS
     if (!Kokkos::is_initialized()) { // gets initialized earlier on root locality
@@ -125,9 +143,12 @@ void init_executors(void) {
 #endif
 
 #if HPX_KOKKOS_CUDA_FUTURE_TYPE == 0
-#if (defined(OCTOTIGER_HAVE_CUDA) ||  defined(KOKKOS_ENABLE_CUDA) || defined(KOKKOS_ENABLE_HIP))  
-    std::cout << "Registering HPX CUDA polling..." << std::endl;
+#if (defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP) || defined(KOKKOS_ENABLE_CUDA) || defined(KOKKOS_ENABLE_HIP))  
+    std::cerr << "Registering HPX CUDA polling..." << std::endl;
+    //std::cin.get();
     hpx::cuda::experimental::detail::register_polling(hpx::resource::get_thread_pool(0));
+    std::cerr << "Registered HPX CUDA polling..." << std::endl;
+    /* std::cin.get(); */
 #endif
 #endif
 
@@ -184,11 +205,12 @@ void init_executors(void) {
 #if defined(OCTOTIGER_HAVE_HIP)
     std::cout << "HIP is enabled!" << std::endl;
 #if HPX_KOKKOS_CUDA_FUTURE_TYPE == 0  // cuda in the name is correct
-    std::cout << "HIP with polling futures enabled!" << std::endl;
+    std::cerr << "HIP with polling futures enabled!" << std::endl;
     /*stream_pool::init<hpx::cuda::experimental::cuda_executor, pool_strategy>(
         opts().cuda_streams_per_gpu, opts().cuda_number_gpus, true);*/
     stream_pool::init<hpx::cuda::experimental::cuda_executor, pool_strategy>(
         opts().cuda_streams_per_gpu, 0, true);
+    std::cerr << "HIP with polling futures created!" << std::endl;
 #else
     std::cout << "HIP with callback futures enabled!" << std::endl;
     /*stream_pool::init<hpx::cuda::experimental::cuda_executor, pool_strategy>(
