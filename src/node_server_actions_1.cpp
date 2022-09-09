@@ -222,20 +222,22 @@ void node_server::regrid_scatter(integer a_, integer total) {
 		}
 	}
 	clear_family();
-  // Renew promises
-  ready_for_hydro_exchange.clear();
-  for (int i = 0; i < number_hydro_exchange_promises; i++)
-    ready_for_hydro_exchange.emplace_back();
-  ready_for_amr_hydro_exchange.clear();
-  for (int i = 0; i < number_hydro_exchange_promises; i++)
-    ready_for_amr_hydro_exchange.emplace_back();
-  if (!opts().gravity) {
-    ready_for_hydro_update.clear();
+  if (opts().optimize_local_communication) {
+    // Renew promises
+    ready_for_hydro_exchange.clear();
     for (int i = 0; i < number_hydro_exchange_promises; i++)
-      ready_for_hydro_update.emplace_back();
-    all_neighbors_got_hydro.clear();
+      ready_for_hydro_exchange.emplace_back();
+    ready_for_amr_hydro_exchange.clear();
     for (int i = 0; i < number_hydro_exchange_promises; i++)
-      all_neighbors_got_hydro.emplace_back(hpx::make_ready_future());
+      ready_for_amr_hydro_exchange.emplace_back();
+    if (!opts().gravity) {
+      ready_for_hydro_update.clear();
+      for (int i = 0; i < number_hydro_exchange_promises; i++)
+        ready_for_hydro_update.emplace_back();
+      all_neighbors_got_hydro.clear();
+      for (int i = 0; i < number_hydro_exchange_promises; i++)
+        all_neighbors_got_hydro.emplace_back(hpx::make_ready_future());
+    }
   }
 }
 
