@@ -30,18 +30,6 @@ node_client& node_client::operator=(hpx::future<hpx::id_type>&& fut) {
 	if( !empty() ) {
         unmanaged = hpx::id_type(id.get_gid(), hpx::id_type::management_type::unmanaged);
         local = hpx::naming::get_locality_from_id(id) == hpx::find_here();
-        if (local) {
-          node_server::send_hydro_boundary_action_local action_instance;
-          u_local = action_instance(get_unmanaged_gid());
-          node_server::send_hydro_boundary_promises_action_local action_instance_promises;
-          hydro_ready_vec = action_instance_promises(get_unmanaged_gid());
-          node_server::send_amr_hydro_boundary_promises_action_local action_instance_amr_promises;
-          amr_hydro_ready_vec = action_instance_amr_promises(get_unmanaged_gid());
-          if (!opts().gravity) {
-            node_server::send_hydro_update_ready_promises_action_local action_instance_hydro_ready_promises;
-            ready_for_hydro_update = action_instance_hydro_ready_promises(get_unmanaged_gid());
-          }
-        }
 
 // 		local = bool(hpx::get_colocation_id(id).get() == hpx::find_here());
 	}
@@ -53,18 +41,6 @@ node_client& node_client::operator=(const hpx::id_type& _id) {
 	if (!empty()) {
         unmanaged = hpx::id_type(id.get_gid(), hpx::id_type::management_type::unmanaged);
         local = hpx::naming::get_locality_from_id(id) == hpx::find_here();
-        if (local) {
-          node_server::send_hydro_boundary_action_local action_instance;
-          u_local = action_instance(get_unmanaged_gid());
-          node_server::send_hydro_boundary_promises_action_local action_instance_promises;
-          hydro_ready_vec = action_instance_promises(get_unmanaged_gid());
-          node_server::send_amr_hydro_boundary_promises_action_local action_instance_amr_promises;
-          amr_hydro_ready_vec = action_instance_amr_promises(get_unmanaged_gid());
-          if (!opts().gravity) {
-            node_server::send_hydro_update_ready_promises_action_local action_instance_hydro_ready_promises;
-            ready_for_hydro_update = action_instance_hydro_ready_promises(get_unmanaged_gid());
-          }
-        }
 // 		local = bool(hpx::get_colocation_id(id).get() == hpx::find_here());
 	}
 	return *this;
@@ -75,20 +51,7 @@ node_client::node_client(hpx::future<hpx::id_type>&& fut) {
 	if( !empty() ) {
         unmanaged = hpx::id_type(id.get_gid(), hpx::id_type::management_type::unmanaged);
         local = hpx::naming::get_locality_from_id(id) == hpx::find_here();
-        if (local) {
-          node_server::send_hydro_boundary_action_local action_instance;
-          u_local = action_instance(get_unmanaged_gid());
-          node_server::send_hydro_boundary_promises_action_local action_instance_promises;
-          hydro_ready_vec = action_instance_promises(get_unmanaged_gid());
-          node_server::send_amr_hydro_boundary_promises_action_local action_instance_amr_promises;
-          amr_hydro_ready_vec = action_instance_amr_promises(get_unmanaged_gid());
-          if (!opts().gravity) {
-            node_server::send_hydro_update_ready_promises_action_local action_instance_hydro_ready_promises;
-            ready_for_hydro_update = action_instance_hydro_ready_promises(get_unmanaged_gid());
-          }
-        }
-// 		local = bool(hpx::get_colocation_id(id).get() == hpx::find_here());
-	}
+    }
 }
 
 node_client::node_client(const hpx::id_type& _id) {
@@ -96,18 +59,6 @@ node_client::node_client(const hpx::id_type& _id) {
 	if (!empty()) {
         unmanaged = hpx::id_type(id.get_gid(), hpx::id_type::management_type::unmanaged);
         local = hpx::naming::get_locality_from_id(id) == hpx::find_here();
-        if (local) {
-          node_server::send_hydro_boundary_action_local action_instance;
-          u_local = action_instance(get_unmanaged_gid());
-          node_server::send_hydro_boundary_promises_action_local action_instance_promises;
-          hydro_ready_vec = action_instance_promises(get_unmanaged_gid());
-          node_server::send_amr_hydro_boundary_promises_action_local action_instance_amr_promises;
-          amr_hydro_ready_vec = action_instance_amr_promises(get_unmanaged_gid());
-          if (!opts().gravity) {
-            node_server::send_hydro_update_ready_promises_action_local action_instance_hydro_ready_promises;
-            ready_for_hydro_update = action_instance_hydro_ready_promises(get_unmanaged_gid());
-          }
-        }
 	}
 }
 
