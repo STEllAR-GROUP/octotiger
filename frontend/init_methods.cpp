@@ -240,10 +240,20 @@ void init_problem(void) {
     grid::set_min_level(opts().min_level);
     grid::set_max_level(opts().max_level);
     if (opts().problem == RADIATION_TEST) {
-        assert(opts().radiation);
-        //		opts().gravity = false;
-        set_problem(radiation_test_problem);
-        set_refine_test(radiation_test_refine);
+         assert(opts().radiation);
+         //		opts().gravity = false;
+         set_problem(radiation_test_problem);
+         set_refine_test(radiation_test_refine);
+    } else if (opts().problem == RADIATION_DIFFUSION) {
+              assert(opts().radiation);
+              //		opts().gravity = false;
+              set_problem(radiation_diffusion_test_problem);
+              set_refine_test(radiation_test_refine);
+    } else if (opts().problem == RADIATION_COUPLING) {
+              assert(opts().radiation);
+              //		opts().gravity = false;
+              set_problem(radiation_coupling_test_problem);
+              set_refine_test(radiation_test_refine);
     } else if (opts().problem == DWD) {
         opts().n_species = 5;
         set_problem(scf_binary);

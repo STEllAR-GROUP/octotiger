@@ -39,6 +39,7 @@ U kappa_p(U rho, U e, U mmw, real X, real Z) {
 		const U T = temperature(rho, e, mmw);
 		const U k_ff_bf = U(30.262) * U(4.0e+25) * (U(1) + X) * (Z + U(0.0001)) * rho * POWER(SQRT(INVERSE(T)), U(7));
 		const U k_tot = k_ff_bf;
+
 		return rho * k_tot;
 	}
 }
