@@ -6,6 +6,8 @@
 #pragma once
 
 //#define TVD_TEST
+#include <cuda_runtime_api.h>
+#include <cuda.h>
 
 #include "octotiger/unitiger/physics.hpp"
 #include "octotiger/unitiger/physics_impl.hpp"

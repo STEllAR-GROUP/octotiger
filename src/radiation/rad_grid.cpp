@@ -236,7 +236,7 @@ void node_server::compute_radiation(real dt, real omega) {
 	rad_grid_ptr->compute_mmw(grid_ptr->U);
 	const real min_dx = TWO * grid::get_scaling_factor() / real(INX << opts().max_level);
 	const real clight = physcon().c / opts().clight_retard;
-	const real max_dt = min_dx / clight * 0.1;
+	const real max_dt = min_dx / clight * 0.5;
 	const real ns = std::ceil(dt * INVERSE(max_dt));
 	if (ns > std::numeric_limits<int>::max()) {
 		print("Number of substeps greater than %i. dt = %e max_dt = %e\n", std::numeric_limits<int>::max(), dt, max_dt);
@@ -269,14 +269,18 @@ void node_server::compute_radiation(real dt, real omega) {
 		const double beta[3] = { 1.0, 0.25, 2.0 / 3.0 };
 		all_rad_bounds();
 		for (int rk = 0; rk < 3; rk++) {
-			//	printf( "%i\n", rk);
+			if( my_location.level() == 0 ) printf( "1 %i\n", rk);
 //			rgrid->set_fluxes(egas, tau, sx, sy, sz, rho);
 			all_rad_bounds();
+			if( my_location.level() == 0 ) printf( "2 %i\n", rk);
 			rgrid->compute_flux(omega, egas, tau, sx, sy, sz, rho);
+			if( my_location.level() == 0 ) printf( "3 %i\n", rk);
 //			if( my_location.level() == 0 ) printf( "\nbounds 10\n");
 			GET(exchange_rad_flux_corrections());
+			if( my_location.level() == 0 ) printf( "4 %i\n", rk);
 //			if( my_location.level() == 0 ) printf( "\nbounds 11\n");
 			rgrid->advance(this_dt, beta[rk], sx, sy, sz, rho);
+			if( my_location.level() == 0 ) printf( "5 %i\n", rk);
 		}
 
 	}
@@ -392,7 +396,12 @@ void rad_grid::compute_flux(real omega, const std::vector<real> &egas, const std
 				const real kr = kappa_R(rho[iii], e0, mmw[iii], X_spc[iii], Z_spc[iii]);
 				kappa[iii] = kr;
 				const real R = grad / kr / er0;
-				lambda[iii] = (2.0 + R) / (6.0 + 3.0 * R + R * R);
+				if (opts().problem == RADIATION_DIFFUSION) {
+					lambda[iii] =1.0/3.0;
+				} else {
+					lambda[iii] = (2.0 + R) / (6.0 + 3.0 * R + R * R);
+				}
+
 				const real f = lambda[iii] + sqr(lambda[iii] * R);
 				const real co1 = 0.5 * (1.0 - f);
 				const real co2 = 0.5 * (3.0 * f - 1.0);
@@ -679,6 +688,7 @@ std::vector<real> rad_grid::get_flux_restrict(const std::array<integer, NDIM> &l
 }
 
 void node_server::all_rad_bounds() {
+	return;
 //	if( my_location.level() == 0 ) print( "\nbounds 1\n");
 	GET(exchange_interlevel_rad_data());
 //	if( my_location.level() == 0 ) print( "\nbounds 2\n");
@@ -752,22 +762,15 @@ void node_server::collect_radiation_bounds() {
 
 std::vector<real> rad_grid::radiation_diffusion_analytic(real x, real y, real z, real t) {
 	std::vector<real> U(NRF, 0.0);
+	const auto c1 = opts().clight_retard;
 	const double r0 = 0.05;
-	x -= 0.15;
-	y += 0.08;
+	x -= 0.0;
+	y += 0.0;
+	const double t0 = c1;
 	const double r2 = x * x + y * y + z * z;
 	const double r = sqrt(r);
-	constexpr double D0 = 1.0 / 3.0;
-	const double er = std::max(pow(t + 1.0, -1.5) * exp(-r2 / (r0 * r0) / (4.0 * D0 * (t + 1.0))), 1e-10);
-	const double derdr = -0.5 * (r / r0) / (1 + t) * er / D0;
-	double fx, fy, fz;
-//	if( r == 0.0 ) {
-	fx = fy = fz = 0.0;
-	/*	} else {
-	 fx = -derdr * x / r * D0;
-	 fy = -derdr * y / r * D0;
-	 fz = -derdr * z / r * D0;
-	 }*/
+	const double D0 = 1.0 / 3.0 * (physcon().c  / opts().clight_retard) / 100.0;
+	const double er = std::max(pow(t / t0 + 1.0, -1.5) * exp(-r2 / (r0 * r0) / (4.0 * D0 * (t + t0))), 1e-10);
 	U[0] = er;
 	return U;
 
@@ -1151,7 +1154,7 @@ void rad_grid::rad_imp(std::vector<real> &egas, std::vector<real> &tau, std::vec
 		std::vector<real> &sz, const std::vector<real> &rho, real dt) {
 	PROFILE();
 	const integer d = H_BW - RAD_BW;
-	const real clight = physcon().c / opts().clight_retard;
+	const real clight = physcon().c; // / opts().clight_retard;
 	const real sigma = physcon().sigma;
 	const real kb = physcon().kb;
 	const real mh = physcon().mh;
@@ -1179,14 +1182,15 @@ void rad_grid::rad_imp(std::vector<real> &egas, std::vector<real> &tau, std::vec
 					e0 = std::pow(tau[iiih], fgamma);
 				}
 				const real kappa = kappa_p(rho[iiih], e0, mmw[iiih], X_spc[iiih], Z_spc[iiih]);
-				const real A = 4.0 * dt * kappa * sigma * pow(mmw[iiih] * mh * (fgamma - 1.) / (kb * rho[iiih]), 4.0) / M_PI;
+				//	printf( "%e %e %e\n",mmw[iiih],rho[iiih],fgamma );
+				const real A = 4.0 * dt * kappa * sigma * pow(mmw[iiih] * mh * (fgamma - 1.) / (kb * rho[iiih]), 4.0);
 				const real B = (1.0 + clight * dt * kappa);
 				const real C = -(1.0 + clight * dt * kappa) * e0 - U[iiir] * dt * clight * kappa;
 				real newE = find4root(A, B, C);
 //				printf( "%e %e %e\n", A, B, C);
 				real dE = e0 - newE;
 				real de = newE - e0;
-		//		print("%e %e\n", e0, U[iiir]);
+				//		print("%e %e\n", e0, U[iiir]);
 				e0 += de;
 				egas[iiih] += de;
 				U[iiir] += dE;

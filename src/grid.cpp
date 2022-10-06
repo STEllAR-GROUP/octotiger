@@ -387,7 +387,8 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 	const real dV = dx * dx * dx;
 	real x, y, z;
 	integer iii, iiig;
-
+	rc.Tr = rad_grid_ptr->get_er(R_BW, R_BW, R_BW);
+	rc.Tg = POWER(U[tau_i][iii], fgamma);
 	if (opts().problem != DWD) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
@@ -1947,6 +1948,14 @@ analytic_t grid::compute_analytic(real t) {
 				if (opts().radiation) {
 					auto tmp = rad_grid_ptr->get_er(i - H_BW + R_BW,
 							j - H_BW + R_BW, k - H_BW + R_BW);
+					if( opts().problem=RADIATION_DIFFUSION) {
+						A[opts().n_fields] = rad_grid::radiation_diffusion_analytic(X[XDIM][iii], X[YDIM][iii], X[ZDIM][iii], t)[0];
+						if( tmp >2e-10) {
+							const auto r = sqrt(X[XDIM][iii]*X[XDIM][iii] + X[YDIM][iii]*X[YDIM][iii] + X[ZDIM][iii]*X[ZDIM][iii]);
+							if( r < 0.2)
+						printf( "%e %e %e \n",r, tmp, A[opts().n_fields]);
+						}
+					}
 					real dif = std::abs(A[opts().n_fields] - tmp);
 					a.l1[A[opts().n_fields]] += dif * dv;
 					a.l2[A[opts().n_fields]] += dif * dif * dv;

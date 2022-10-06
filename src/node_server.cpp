@@ -151,6 +151,7 @@ future<void> node_server::exchange_flux_corrections() {
 }
 
 void node_server::all_hydro_bounds() {
+	return;
 	exchange_interlevel_hydro_data(); // bottom up step
 	collect_hydro_boundaries(); // interlevel step
 	send_hydro_amr_boundaries(); // up-down step
@@ -158,6 +159,7 @@ void node_server::all_hydro_bounds() {
 }
 
 void node_server::energy_hydro_bounds() {
+	return;
 	exchange_interlevel_hydro_data();
 	collect_hydro_boundaries(true);
 	send_hydro_amr_boundaries(true);

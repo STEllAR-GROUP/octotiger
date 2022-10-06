@@ -529,27 +529,39 @@ void node_server::refined_step() {
 
 	real a = std::numeric_limits<real>::min();
 	all_hydro_bounds();
+	if( my_location.level() == 0 ) printf( "55\n");
 	timestep_t tstep;
 	tstep.dt = std::numeric_limits<real>::max();
 	local_timestep_channels[NCHILD].set_value(tstep);
 	auto dt_fut = global_timestep_channel.get_future();
 
 	for (integer rk = 0; rk < NRK; ++rk) {
+		if( my_location.level() == 0 ) printf( "55 %i\n", rk);
 
 		{
 			timings::scope ts(timings_, timings::time_fmm);
 			compute_fmm(DRHODT, false);
+			if( my_location.level() == 0 ) printf( "64 %i\n", rk);
 			compute_fmm(RHO, true);
+			if( my_location.level() == 0 ) printf( "61 %i\n", rk);
 		}
+		if( my_location.level() == 0 ) printf( "66 %i\n", rk);
 		rk == NRK - 1 ? energy_hydro_bounds() : all_hydro_bounds();
+		if( my_location.level() == 0 ) printf( "77 %i\n", rk);
 
 	}
+	if( my_location.level() == 0 ) printf( "100\n");
 
 	dt_ = GET(dt_fut);
+	if( my_location.level() == 0 ) printf( "110\n");
 	update();
+	if( my_location.level() == 0 ) printf( "120\n");
 	if (opts().radiation) {
+		if( my_location.level() == 0 ) printf( "130\n");
 		compute_radiation(dt_.dt, grid_ptr->get_omega());
+		if( my_location.level() == 0 ) printf( "140\n");
 		all_hydro_bounds();
+		if( my_location.level() == 0 ) printf( "150\n");
 	}
 
 }
@@ -559,7 +571,7 @@ future<void> node_server::nonrefined_step() {
 //	static hpx::util::itt::string_handle sh("node_server::nonrefined_step");
 //	hpx::util::itt::task t(hpx::get_thread_itt_domain(), sh);
 //#endif
-
+	if( my_location.level() == 0 ) printf( "1\n");
 	timings::scope ts(timings_, timings::time_computation);
 
 
@@ -578,6 +590,7 @@ future<void> node_server::nonrefined_step() {
 		fut = fut.then(hpx::launch::async_policy(hpx::threads::thread_priority::boost),
 		hpx::util::annotated_function(
 				[rk, cfl0, this, dt_fut](future<void> f) {
+			if( my_location.level() == 0 ) printf( "2\n");
 					GET(f);
           size_t current_hydro_promise = hcycle % (NRK + 1);
 					timestep_t a = grid_ptr->compute_fluxes(); // hydro kernels
@@ -613,11 +626,13 @@ future<void> node_server::nonrefined_step() {
 
 		GET(f);
 
+		if( my_location.level() == 0 ) printf( "3\n");
 		update();
 		if (opts().radiation) {
 			compute_radiation(dt_.dt, grid_ptr->get_omega());
 			all_hydro_bounds();
 		}
+		if( my_location.level() == 0 ) printf( "4\n");
 
 	}, "node_server::nonrefined_step::update" )
 	);
@@ -662,6 +677,7 @@ future<real> node_server::local_step(integer steps) {
 			GET(fut);
 			auto time_start = std::chrono::high_resolution_clock::now();
 			auto next_dt = timestep_driver_descend();
+			if( my_location.level() == 0 ) printf( "44\n");
 
 			if (is_refined) {
 				refined_step();

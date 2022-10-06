@@ -197,7 +197,7 @@ bool refine_test(integer level, integer max_level, real x, real y, real z, std::
 	if(!rc && grad_rho > 0.0 && level < max_level) {
 		for( int dim = 0; dim < NDIM; dim++) {
 			if( std::abs(dudx[dim][rho_i])/U[rho_i] > grad_rho && U[rho_i] > 1000*den_floor) {
-				
+
 				rc = true;
 			}
 		}

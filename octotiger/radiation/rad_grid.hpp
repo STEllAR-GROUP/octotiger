@@ -84,7 +84,7 @@ public:
 	void allocate();
 	rad_grid(real dx);
 	rad_grid();
-	std::vector<real> radiation_diffusion_analytic(real x, real y, real z, real t);
+	static std::vector<real> radiation_diffusion_analytic(real x, real y, real z, real t);
 	void set_boundary(const std::vector<real>& data, const geo::direction& dir);
 	real get_er(integer i, integer j, integer k) const;
 	void set_er(real v, integer i, integer j, integer k);

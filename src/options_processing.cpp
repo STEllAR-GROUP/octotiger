@@ -333,16 +333,16 @@ bool options::process_options(int argc, char *argv[]) {
 
 	}
 	while (atomic_number.size() < opts().n_species) {
-		atomic_number.push_back(number_solar);
+		atomic_number.push_back(1.0);
 	}
 	while (atomic_mass.size() < opts().n_species) {
 		atomic_mass.push_back(mass_solar);
 	}
 	while (X.size() < opts().n_species) {
-		X.push_back(X_solar);
+		X.push_back(1.0);
 	}
 	while (Z.size() < opts().n_species) {
-		Z.push_back(Z_solar);
+		Z.push_back(0.0);
 	}
 	normalize_constants();
 	if (opts().problem == DWD) {

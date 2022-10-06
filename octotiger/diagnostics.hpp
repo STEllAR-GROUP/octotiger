@@ -34,6 +34,8 @@ struct diagnostics_t {
 	safe_real z_mom_orb;
 	safe_real munbound1;
 	safe_real munbound2;
+	safe_real Tr;
+	safe_real Tg;
 	space_vector grid_com;
 	std::array<safe_real, nspec> m;
 	std::array<safe_real, nspec> Ts;
@@ -63,6 +65,7 @@ struct diagnostics_t {
 		failed = false;
 		stage = 1;
 		omega = -1.0;
+		Tr = Tg = 0.0;
 		grid_com = 0.0;
 		munbound1 = 0.0;
 		munbound2 = 0.0;
@@ -112,6 +115,8 @@ struct diagnostics_t {
 	const diagnostics_t& compute();
 	diagnostics_t& operator+=(const diagnostics_t &other) {
 		failed = failed || other.failed;
+		Tr = other.Tr;
+		Tg = other.Tg;
 		if (opts().problem == DWD) {
 			l1_phi = std::max(l1_phi, other.l1_phi);
 			l2_phi = std::max(l2_phi, other.l2_phi);
@@ -170,6 +175,8 @@ struct diagnostics_t {
 
 	template<class Arc>
 	void serialize(Arc &arc, const unsigned) {
+		arc & Tg;
+		arc & Tr;
 		arc & munbound1;
 		arc & munbound2;
 		arc & ekin;

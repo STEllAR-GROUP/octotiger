@@ -249,7 +249,8 @@ void init_problem(void) {
               //		opts().gravity = false;
               set_problem(radiation_diffusion_test_problem);
               set_refine_test(radiation_test_refine);
-    } else if (opts().problem == RADIATION_COUPLING) {
+              set_analytic(sod_shock_tube_analytic);
+   } else if (opts().problem == RADIATION_COUPLING) {
               assert(opts().radiation);
               //		opts().gravity = false;
               set_problem(radiation_coupling_test_problem);
