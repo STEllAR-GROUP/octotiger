@@ -203,9 +203,9 @@ analytic_t node_server::compare_analytic() {
 }
 
 const diagnostics_t& diagnostics_t::compute() {
-	fedisableexcept(FE_DIVBYZERO);
-	fedisableexcept(FE_INVALID);
-	fedisableexcept(FE_OVERFLOW);
+//	fedisableexcept(FE_DIVBYZERO);
+	//fedisableexcept(FE_INVALID);
+	//fedisableexcept(FE_OVERFLOW);
 
 	if (virial_norm != 0.0) {
 		virial /= virial_norm;

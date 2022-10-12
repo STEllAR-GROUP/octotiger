@@ -26,7 +26,9 @@ cmake -DCMAKE_PREFIX_PATH="$HOME/local/$1/hpx" -DCMAKE_CXX_FLAGS="-DBOOST_USE_VA
       -DHDF5_ROOT=$HOME/local/hdf5 \
       -DSilo_DIR=$HOME/local/silo \
       -DOCTOTIGER_WITH_TESTS=OFF \
-      ..
+      -DTBBMALLOC_LIBRARY=$HOME/local/tbb/lib/intel64/gcc4.8/libtbbmalloc.so \
+      -DTBBMALLOC_PROXY_LIBRARY=$HOME/local/tbb/lib/intel64/gcc4.8/libtbbmalloc_proxy.so \
+	..
 
 
 make -j

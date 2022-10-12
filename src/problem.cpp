@@ -54,6 +54,28 @@ bool radiation_test_refine(integer level, integer max_level, real x, real y, rea
 }
 
 
+std::vector<real> radiation_diffusion_test_problem(real x, real y, real z, real dx) {
+
+	std::vector<real> u(opts().n_fields + NRF, real(0));
+		x -= 0.75;
+	y -= 0.75;
+	z -= 0.75;
+	real r = std::max(2.0 * dx, 0.50);
+	real eint;
+	u[rho_i] = 1.0e6;
+	eint = exp(-r*r/4.0);
+	u[tau_i] = POWER(eint * u[rho_i], 1.0 / grid::get_fgamma());
+	const real fgamma = grid::get_fgamma();
+	u[egas_i] = POWER(u[tau_i], fgamma);
+	const real rhoinv = INVERSE(u[rho_i]);
+	u[egas_i] += u[sx_i] * u[sx_i] * rhoinv / 2.0;
+	u[egas_i] += u[sy_i] * u[sy_i] * rhoinv / 2.0;
+	u[egas_i] += u[sz_i] * u[sz_i] * rhoinv / 2.0;
+	u[spc_ac_i] = u[rho_i];
+	return u;
+}
+
+
 std::vector<real> radiation_test_problem(real x, real y, real z, real dx) {
 //	return blast_wave(x,y,z,dx);
 
@@ -63,12 +85,16 @@ std::vector<real> radiation_test_problem(real x, real y, real z, real dx) {
 	z -= 0.0e11;
 	real r = std::max(2.0 * dx, 0.50);
 	real eint;
-	if (std::sqrt(x * x + y * y + z * z) < r) {
+	if (x < 0) {
 		u[rho_i] = 1.0;
-		eint = 2.0e+16;
+		eint = 1;
+		u[opts().n_fields] = 1;
+		u[opts().n_fields+1] = 0.999999;
 	} else {
+		u[opts().n_fields] = 1e-10;
+		u[opts().n_fields+1] = 0.999999e-10;
 		u[rho_i] = 1.0e-20;
-		eint = 2.0e+15;
+		eint = 1;
 	}
 	u[tau_i] = POWER(eint * u[rho_i], 1.0 / grid::get_fgamma());
 //	u[sx_i] = 0.0; //u[rho_i] / 10.0;
