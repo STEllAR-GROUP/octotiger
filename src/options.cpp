@@ -116,7 +116,7 @@ bool options::process_options(int argc, char *argv[]) {
 	("eos", po::value<eos_type>(&(opts().eos))->default_value(IDEAL), "gas equation of state")                              //
 	("hydro", po::value<bool>(&(opts().hydro))->default_value(true), "hydro on/off")    //
 	("radiation", po::value<bool>(&(opts().radiation))->default_value(false), "radiation on/off")    //
-	("correct_am_hydro", po::value<bool>(&(opts().correct_am_hydro))->default_value(true), "Angular momentum correction switch for hydro")    //
+	("correct_am_hydro", po::value<bool>(&(opts().correct_am_hydro))->default_value(false), "Angular momentum correction switch for hydro")    //
 	("correct_am_grav", po::value<bool>(&(opts().correct_am_grav))->default_value(true), "Angular momentum correction switch for gravity")    //
 	("rewrite_silo", po::value<bool>(&(opts().rewrite_silo))->default_value(false), "rewrite silo and exit")    //
 	("rad_implicit", po::value<bool>(&(opts().rad_implicit))->default_value(true), "implicit radiation on/off")    //

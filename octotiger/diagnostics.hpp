@@ -59,6 +59,7 @@ struct diagnostics_t {
 	std::array<safe_real, NDIM> lsum;
 	safe_real nonvacj;
 	safe_real nonvacjlz;
+	std::vector<std::pair<real,std::vector<real>>> xline;
 	diagnostics_t() {
 		failed = false;
 		stage = 1;
@@ -153,6 +154,7 @@ struct diagnostics_t {
 				}
 			}
 		}
+		xline.insert(xline.end(),other.xline.begin(),other.xline.end());
 		munbound1 += other.munbound1;
 		munbound2 += other.munbound2;
 		lsum[0] += other.lsum[0];

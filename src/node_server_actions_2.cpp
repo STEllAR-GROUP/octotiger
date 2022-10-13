@@ -169,15 +169,25 @@ analytic_t node_server::compare_analytic() {
 		for (int d = 0; d < NDIM; d++) {
 			vol *= 2.0 * opts().xscale;
 		}
-		for (integer field = 0; field != opts().n_fields; ++field) {
-			printf("%16s %e %e\n", physics<3>::field_names3[field], a.l1[field] / vol, std::sqrt(a.l2[field] / vol));
+		int nfields = opts().n_fields;
+		int top = opts().n_fields;
+		if( opts().radiation) {
+			nfields += NRF;
 		}
-
+		for (integer field = 0; field != opts().n_fields; ++field) {
+			printf("%16s %e %e %e\n", physics<3>::field_names3[field], a.l1[field] / vol, std::sqrt(a.l2[field] / vol), a.linf[field]);
+		}
+		if( opts().radiation) {
+			printf("%16s %e %e %e\n", "er", a.l1[top+0] / vol, std::sqrt(a.l2[top+0] / vol), a.linf[top+0]);
+			printf("%16s %e %e %e\n", "fx", a.l1[top+1] / vol, std::sqrt(a.l2[top+1] / vol), a.linf[top+1]);
+			printf("%16s %e %e %e\n", "fy", a.l1[top+2] / vol, std::sqrt(a.l2[top+2] / vol), a.linf[top+2]);
+			printf("%16s %e %e %e\n", "fz", a.l1[top+3] / vol, std::sqrt(a.l2[top+3] / vol), a.linf[top+3]);
+		}
 		const auto ml = opts().max_level;
 		const auto dxmin = 2.0 * opts().xscale / INX / double(1 << ml);
 		FILE *fp = fopen("L1.dat", "at");
 		fprintf(fp, "%e %i ", dxmin, int(ml));
-		for (integer field = 0; field != opts().n_fields; ++field) {
+		for (integer field = 0; field != nfields; ++field) {
 			fprintf(fp, "%e ", a.l1[field] / vol);
 		}
 		fprintf(fp, "\n");
@@ -185,7 +195,7 @@ analytic_t node_server::compare_analytic() {
 
 		fp = fopen("L2.dat", "at");
 		fprintf(fp, "%e %i ", dxmin, int(ml));
-		for (integer field = 0; field != opts().n_fields; ++field) {
+		for (integer field = 0; field != nfields; ++field) {
 			fprintf(fp, "%e ", std::sqrt(a.l2[field] / vol));
 		}
 		fprintf(fp, "\n");
@@ -193,7 +203,7 @@ analytic_t node_server::compare_analytic() {
 
 		fp = fopen("Linf.dat", "at");
 		fprintf(fp, "%e %i ", dxmin, int(ml));
-		for (integer field = 0; field != opts().n_fields; ++field) {
+		for (integer field = 0; field != nfields; ++field) {
 			fprintf(fp, "%e ", a.linf[field]);
 		}
 		fprintf(fp, "\n");

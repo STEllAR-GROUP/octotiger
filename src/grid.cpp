@@ -379,6 +379,19 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				for (integer l = H_BW; l != H_NX - H_BW; ++l) {
 					const integer iii = hindex(j, k, l);
+					if (std::abs(X[YDIM][iii]) < dx && std::abs(X[ZDIM][iii]) < dx) {
+						rc.xline.push_back(std::make_pair(X[XDIM][iii], std::vector<real>()));
+						for (int fi = 0; fi < opts().n_fields; fi++) {
+							rc.xline.back().second.push_back(U[fi][iii]);
+						}
+						if (opts().radiation) {
+							for (int fi = 0; fi < NRF; fi++) {
+								auto tmp = rad_grid_ptr->get_field(fi, j - H_BW + R_BW, k - H_BW + R_BW, l - H_BW + R_BW);
+								rc.xline.back().second.push_back(tmp);
+					//			PRINT( "!!!!!!!!!!!1\n");
+							}
+						}
+					}
 					const integer iiig = gindex(j - H_BW, k - H_BW, l - H_BW);
 					real ek = ZERO;
 					ek += HALF * pow(U[sx_i][iii], 2) * INVERSE(U[rho_i][iii]);
@@ -1163,8 +1176,8 @@ void grid::change_units(real m, real l, real t, real k) {
 }
 
 HPX_PLAIN_ACTION(grid::set_omega, set_omega_action);
-HPX_REGISTER_BROADCAST_ACTION_DECLARATION (set_omega_action);
-HPX_REGISTER_BROADCAST_ACTION (set_omega_action);
+HPX_REGISTER_BROADCAST_ACTION_DECLARATION(set_omega_action);
+HPX_REGISTER_BROADCAST_ACTION(set_omega_action);
 
 void grid::set_omega(real omega, bool bcast) {
 	if (bcast) {
@@ -1699,6 +1712,7 @@ analytic_t grid::compute_analytic(real t) {
 						real dif = std::abs(A[field] - tmp);
 						a.l1[field] += dif * dv;
 						a.l2[field] += dif * dif * dv;
+						a.linf[field] = std::max(dif, a.linf[field]);
 						rad_grid_ptr->set_field(A[field], field - opts().n_fields, i - H_BW + R_BW, j - H_BW + R_BW,
 								k - H_BW + R_BW);
 					}
@@ -1777,7 +1791,8 @@ grid::grid(const init_func_type &init_func, real _dx, std::array<real, NDIM> _xm
 					}
 					if (opts().radiation) {
 						for (integer field = opts().n_fields; field != opts().n_fields + NRF; ++field) {
-							rad_grid_ptr->set_field(this_u[field], field - opts().n_fields, i - H_BW + R_BW, j - H_BW + R_BW, k - H_BW + R_BW);
+							rad_grid_ptr->set_field(this_u[field], field - opts().n_fields, i - H_BW + R_BW, j - H_BW + R_BW,
+									k - H_BW + R_BW);
 						}
 					}
 				} else {

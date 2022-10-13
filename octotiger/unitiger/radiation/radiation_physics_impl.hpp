@@ -15,6 +15,9 @@
 #include "octotiger/unitiger/safe_real.hpp"
 #include "octotiger/test_problems/blast.hpp"
 #include "octotiger/test_problems/exact_sod.hpp"
+#include "octotiger/physcon.hpp"
+
+#define CHECK_FLUX( er, fx, fy, fz) if( ((fx)*(fx)+(fy)*(fy)+(fz)*(fz))/(er*er*physcon().c*physcon().c) > 1 ) {printf( "flux exceded %s %i %e\n", __FILE__, __LINE__, sqrt(((fx)*(fx)+(fy)*(fy)+(fz)*(fz))/(er*er*physcon().c*physcon().c))); abort();}
 
 template<int NDIM>
 int radiation_physics<NDIM>::field_count() {
@@ -23,8 +26,8 @@ int radiation_physics<NDIM>::field_count() {
 
 template<int NDIM>
 template<int INX>
-void radiation_physics<NDIM>::physical_flux(const std::vector<safe_real> &U, std::vector<safe_real> &F, int dim, safe_real &am, safe_real &ap,
-		std::array<safe_real, NDIM> &x, std::array<safe_real, NDIM> &vg) {
+void radiation_physics<NDIM>::physical_flux(const std::vector<safe_real> &U, std::vector<safe_real> &F, int dim,
+		safe_real &am, safe_real &ap, std::array<safe_real, NDIM> &x, std::array<safe_real, NDIM> &vg) {
 	static const cell_geometry<NDIM, INX> geo;
 	static constexpr auto levi_civita = geo.levi_civita();
 	const double c = clight;
@@ -50,18 +53,25 @@ void radiation_physics<NDIM>::physical_flux(const std::vector<safe_real> &U, std
 	}
 
 	const auto f2 = fedd * fedd;
-	const auto f3 = f2 * fedd;
-	const auto f4 = f2 * f2;
-	const auto f6 = f3 * f3;
-	const auto s4m3f2 = sqrt(4 - (3 * f2));
-	const auto den = (pow(5 + 2 * s4m3f2, 2) * s4m3f2);
-	const auto lam_s = (-12 * f3 + fedd * (41 + 20 * s4m3f2)) / den;
-	const auto tmp = std::max(-48 * f6 + 8 * f4 * (61 + 16 * s4m3f2) - f2 * (787 + 328 * s4m3f2) + (365 + 182 * s4m3f2), 0.0);
-	const auto lam_d = (2 * sqrt(3) * std::sqrt(tmp)) / den;
-	ap = lam_s * n[dim] + lam_d - vg[dim];
-	am = lam_s * n[dim] - lam_d - vg[dim];
-
-	const auto chi = (3 + 4 * fedd * fedd) / (5 + 2 * s4m3f2);
+	const auto tmp2 = 4 - 3 * f2;
+	const auto tmp = sqrt(tmp2);
+	const auto tmp3 = (2.0 / 3.0) * (tmp2 - tmp) + 2 * n[dim] * n[dim] * (2 - f2 - tmp);
+//	if( tmp3 < 0.0 ) {
+//		printf( "%e %e %e\n",f2, (2.0 / 3.0) * (tmp2 - tmp) , 2 * n[dim] * n[dim] * (2 - f2 - tmp) );
+//	}
+	ap = (n[dim] * fedd + sqrt(tmp3)) / tmp;
+	am = (n[dim] * fedd - sqrt(tmp3)) / tmp;
+	ap *= physcon().c;
+	am *= physcon().c;
+	ap = std::max(ap, 0.0);
+	am = std::min(am, 0.0);
+	if (fabs(ap) > 1 || fabs(am) > 1) {
+		printf("Error %s %i\n", __FILE__, __LINE__);
+		abort();
+	}
+//	ap = physcon().c;
+//	am = -physcon().c;
+	const auto chi = (3 + 4 * fedd * fedd) / (5 + 2 * tmp);
 	for (int d = 0; d < NDIM; d++) {
 		T[d] = (3 * chi - 1) / 2. * n[dim] * n[d];
 	}
@@ -74,7 +84,7 @@ void radiation_physics<NDIM>::physical_flux(const std::vector<safe_real> &U, std
 	for (int n = 0; n < geo.NANGMOM; n++) {
 #pragma ivdep
 		for (int m = 0; m < NDIM; m++) {
-			F[wx_i + n] += levi_civita[n][m][dim] * x[m] * F[fx_i + m];
+			F[wx_i + n] = 0.0;
 		}
 	}
 
@@ -88,8 +98,8 @@ void radiation_physics<NDIM>::post_process(hydro::state_type &U, safe_real dx) {
 
 template<int NDIM>
 template<int INX>
-void radiation_physics<NDIM>::source(hydro::state_type &dudt, const hydro::state_type &U, const hydro::flux_type &F, const hydro::x_type X, safe_real omega,
-		safe_real dx) {
+void radiation_physics<NDIM>::source(hydro::state_type &dudt, const hydro::state_type &U, const hydro::flux_type &F,
+		const hydro::x_type X, safe_real omega, safe_real dx) {
 	static const cell_geometry<NDIM, INX> geo;
 
 }
@@ -99,8 +109,8 @@ void radiation_physics<NDIM>::source(hydro::state_type &dudt, const hydro::state
 template<int NDIM>
 template<int INX>
 void radiation_physics<NDIM>::pre_angmom(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q,
-		std::array<safe_real, cell_geometry<NDIM, INX>::NANGMOM> &Z, std::array<std::array<safe_real, cell_geometry<NDIM, INX>::NDIR>, NDIM> &S, int i,
-		safe_real dx) {
+		std::array<safe_real, cell_geometry<NDIM, INX>::NANGMOM> &Z,
+		std::array<std::array<safe_real, cell_geometry<NDIM, INX>::NDIR>, NDIM> &S, int i, safe_real dx) {
 	static const cell_geometry<NDIM, INX> geo;
 	for (int d = 0; d < geo.NDIR; d++) {
 		if (d != geo.NDIR / 2) {
@@ -122,8 +132,8 @@ void radiation_physics<NDIM>::pre_angmom(const hydro::state_type &U, const hydro
 template<int NDIM>
 template<int INX>
 void radiation_physics<NDIM>::post_angmom(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q,
-		std::array<safe_real, cell_geometry<NDIM, INX>::NANGMOM> &Z, std::array<std::array<safe_real, cell_geometry<NDIM, INX>::NDIR>, NDIM> &S, int i,
-		safe_real dx) {
+		std::array<safe_real, cell_geometry<NDIM, INX>::NANGMOM> &Z,
+		std::array<std::array<safe_real, cell_geometry<NDIM, INX>::NDIR>, NDIM> &S, int i, safe_real dx) {
 	static const cell_geometry<NDIM, INX> geo;
 	for (int d = 0; d < geo.NDIR; d++) {
 		if (d != geo.NDIR / 2) {
@@ -144,7 +154,8 @@ void radiation_physics<NDIM>::post_angmom(const hydro::state_type &U, const hydr
 
 template<int NDIM>
 template<int INX>
-const hydro::state_type& radiation_physics<NDIM>::pre_recon(const hydro::state_type &U, const hydro::x_type X, safe_real omega, bool angmom) {
+const hydro::state_type& radiation_physics<NDIM>::pre_recon(const hydro::state_type &U, const hydro::x_type X,
+		safe_real omega, bool angmom) {
 	static const cell_geometry<NDIM, INX> geo;
 	static const auto indices = geo.find_indices(0, geo.H_NX);
 	static thread_local hydro::state_type V;
@@ -156,18 +167,11 @@ const hydro::state_type& radiation_physics<NDIM>::pre_recon(const hydro::state_t
 				const int i = geo.to_index(j, k, l);
 				const auto er = V[er_i][i];
 				const auto erinv = 1.0 / er;
+				CHECK_FLUX(V[er_i][i], V[fx_i][i], V[fy_i][i], V[fz_i][i]);
 				for (int dim = 0; dim < NDIM; dim++) {
 					V[fx_i + dim][i] *= erinv;
 				}
-				static constexpr auto lc = geo.levi_civita();
-				for (int n = 0; n < geo.NANGMOM; n++) {
-					V[wx_i + n][i] *= erinv;
-					for (int m = 0; m < NDIM; m++) {
-						for (int l = 0; l < NDIM; l++) {
-							V[wx_i + n][i] -= lc[n][m][l] * X[m][i] * V[fx_i + l][i];
-						}
-					}
-				}
+				V[wx_i][i] = sqrt(V[fx_i][i] * V[fx_i][i] + V[fy_i][i] * V[fy_i][i] + V[fz_i][i] * V[fz_i][i]);
 			}
 		}
 	}
@@ -178,7 +182,8 @@ const hydro::state_type& radiation_physics<NDIM>::pre_recon(const hydro::state_t
 
 template<int NDIM>
 template<int INX>
-void radiation_physics<NDIM>::post_recon(std::vector<std::vector<std::vector<safe_real>>> &Q, const hydro::x_type X, safe_real omega, bool angmom) {
+void radiation_physics<NDIM>::post_recon(std::vector<std::vector<std::vector<safe_real>>> &Q, const hydro::x_type X,
+		safe_real omega, bool angmom) {
 	static const cell_geometry<NDIM, INX> geo;
 	const auto dx = X[0][geo.H_DNX] - X[0][0];
 	const auto xloc = geo.xloc();
@@ -190,17 +195,18 @@ void radiation_physics<NDIM>::post_recon(std::vector<std::vector<std::vector<saf
 						const int i = geo.to_index(j + 2, k + 2, l + 2);
 						const auto er = Q[er_i][d][i];
 						static constexpr auto lc = geo.levi_civita();
-						for (int n = 0; n < geo.NANGMOM; n++) {
-							for (int m = 0; m < NDIM; m++) {
-								for (int l = 0; l < NDIM; l++) {
-									Q[wx_i + n][d][i] += lc[n][m][l] * (X[m][i] + 0.5 * xloc[d][m] * dx) * Q[fx_i + l][d][i];
-								}
-							}
-							Q[wx_i + n][d][i] *= er;
+						auto &nx = Q[fx_i][d][i];
+						auto &ny = Q[fy_i][d][i];
+						auto &nz = Q[fz_i][d][i];
+						double n2 = nx * nx + ny * ny + nz * nz;
+						if (n2 > 0) {
+							double ninv = 1.0 / sqrt(n2);
+							ninv *= Q[wx_i][d][i] * er;
+							nx *= ninv;
+							ny *= ninv;
+							nz *= ninv;
 						}
-						for (int dim = 0; dim < NDIM; dim++) {
-							Q[fx_i + dim][d][i] *= er;
-						}
+						CHECK_FLUX(Q[er_i][d][i], Q[fx_i][d][i], Q[fy_i][d][i], Q[fz_i][d][i]);
 					}
 				}
 			}
@@ -210,14 +216,15 @@ void radiation_physics<NDIM>::post_recon(std::vector<std::vector<std::vector<saf
 
 template<int NDIM>
 template<int INX>
-void radiation_physics<NDIM>::analytic_solution(test_type test, hydro::state_type &U, const hydro::x_type &X, safe_real time) {
+void radiation_physics<NDIM>::analytic_solution(test_type test, hydro::state_type &U, const hydro::x_type &X,
+		safe_real time) {
 	static const cell_geometry<NDIM, INX> geo;
 }
 
 template<int NDIM>
 template<int INX>
-std::vector<typename hydro_computer<NDIM, INX, radiation_physics<NDIM>>::bc_type> radiation_physics<NDIM>::initialize(radiation_physics<NDIM>::test_type t,
-		hydro::state_type &U, hydro::x_type &X) {
+std::vector<typename hydro_computer<NDIM, INX, radiation_physics<NDIM>>::bc_type> radiation_physics<NDIM>::initialize(
+		radiation_physics<NDIM>::test_type t, hydro::state_type &U, hydro::x_type &X) {
 	static const cell_geometry<NDIM, INX> geo;
 
 	std::vector<typename hydro_computer<NDIM, INX, radiation_physics<NDIM>>::bc_type> bc(2 * NDIM);
@@ -246,7 +253,7 @@ std::vector<typename hydro_computer<NDIM, INX, radiation_physics<NDIM>>::bc_type
 	}
 	for (int i = 0; i < geo.H_N3; i++) {
 		double xsum = 0.0;
-		for( int dim = 0; dim < NDIM; dim++) {
+		for (int dim = 0; dim < NDIM; dim++) {
 			xsum += X[dim][i];
 		}
 		if (xsum < 0.000001) {

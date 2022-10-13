@@ -21,7 +21,9 @@ U kappa_R(U rho, U e, U mmw, real X, real Z) {
 	if (opts().problem == MARSHAK) {
 		return MARSHAK_OPAC;
 	} else if (opts().problem == RADIATION_TEST) {
-		return 1;
+		return 1e-20;
+	} else if (opts().problem == RADIATION_DIFFUSION) {
+		return 1e2;
 	} else {
 		const U T = temperature(rho, e, mmw);
 		const U f1 = (T * T + U(2.7e+11) * rho);
@@ -37,6 +39,10 @@ template<class U>
 U kappa_p(U rho, U e, U mmw, real X, real Z) {
 	if (opts().problem == MARSHAK) {
 		return MARSHAK_OPAC;
+	} else if (opts().problem == RADIATION_TEST) {
+		return 1e-20;
+	} else if (opts().problem == RADIATION_DIFFUSION) {
+		return 1e2;
 	} else {
 		const U T = temperature(rho, e, mmw);
 		const U k_ff_bf = U(30.262) * U(4.0e+25) * (U(1) + X) * (Z + U(0.0001)) * rho * POWER(SQRT(INVERSE(T)), U(7));

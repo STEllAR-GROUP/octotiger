@@ -10,8 +10,8 @@
 #include "octotiger/unitiger/physics_impl.hpp"
 
 template<int NDIM, int INX, class PHYS>
-timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X,
-		safe_real omega) {
+timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q,
+		hydro::flux_type &F, hydro::x_type &X, safe_real omega) {
 
 	PROFILE();
 
@@ -43,7 +43,8 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, con
 		for (const auto &i : indices) {
 			safe_real ap = 0.0, am = 0.0;
 			safe_real this_ap, this_am;
-			for (int fi = 0; fi < geo.NFACEDIR; fi++) {
+			//			for (int fi = 0; fi < geo.NFACEDIR; fi++) {
+			for (int fi = 0; fi < 1; fi++) {
 				const auto d = faces[dim][fi];
 				for (int f = 0; f < nf_; f++) {
 					UR[f] = Q[f][d][i];
@@ -75,6 +76,8 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, con
 				for (int f = 0; f < nf_; f++) {
 					if (this_ap - this_am != 0.0) {
 						this_flux[f] = (this_ap * FL[f] - this_am * FR[f] + this_ap * this_am * (UR[f] - UL[f])) / (this_ap - this_am);
+						//const auto a = std::max(this_ap, -this_am);
+				//		this_flux[f] = 0.5 * (FL[f] + FR[f] - a * (UR[f] - UL[f]));
 					} else {
 						this_flux[f] = (FL[f] + FR[f]) / 2.0;
 					}
@@ -84,7 +87,8 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, con
 #pragma ivdep
 				for (int f = 0; f < nf_; f++) {
 					// field update from flux
-					F[dim][f][i] += weights[fi] * this_flux[f];
+					//				F[dim][f][i] += weights[fi] * this_flux[f];
+						F[dim][f][i] += this_flux[f];
 				}
 			}
 			const auto this_amax = std::max(ap, safe_real(-am));
