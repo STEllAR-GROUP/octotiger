@@ -86,9 +86,41 @@ std::vector<real> radiation_test_problem(real x, real y, real z, real dx) {
 }
 
 std::vector<real> radiation_diffusion_test_problem(real x, real y, real z, real dx) {
-	return radiation_diffusion_analytic(x,y,z,0);
+	return radiation_diffusion_analytic(x, y, z, 0);
 }
 
+std::vector<real> radiation_coupling_test_problem(real x, real y, real z, real dx) {
+	std::vector<real> u(opts().n_fields + NRF, real(0));
+	real eint;
+	u[rho_i] = 1.0;
+	u[spc_i] = u[rho_i];
+
+	specie_state_t<> species;
+	species[0] = u[rho_i];
+	real mmw;
+	real X;
+	real Z;
+	mean_ion_weight(species, mmw, X, Z);
+
+	const double er = (1.0e-10);
+	double T = pow(er / (4.0 * physcon().sigma / physcon().c), 0.25);
+	T *= 10.0;
+	double Pgas = u[rho_i] * T * physcon().kb / (physcon().mh * mmw);
+	const real fgamma = grid::get_fgamma();
+	double ei = (1.0 / (fgamma - 1.0)) * Pgas;
+	u[tau_i] = POWER(ei, 1.0 / grid::get_fgamma());
+	u[egas_i] = POWER(u[tau_i], fgamma);
+	double fx, fy, fz;
+	fx = fy = fz = 0.0;
+	u[opts().n_fields + 0] = er;
+	u[opts().n_fields + 1] = fx;
+	u[opts().n_fields + 2] = fy;
+	u[opts().n_fields + 3] = fz;
+//	if( er!= 0.0)
+	//printf( "--->%e\n",er);
+	return u;
+
+}
 
 std::vector<real> radiation_diffusion_analytic(real x, real y, real z, real t) {
 //	printf( "%e\n", t);
@@ -114,10 +146,10 @@ std::vector<real> radiation_diffusion_analytic(real x, real y, real z, real t) {
 	const double D0 = 1.0 / 3.0 * physcon().c / (1e2);
 	const double er = std::max(pow(t + 1.0, -1.5) * exp(-r2 / (4.0 * D0 * (t + 1.0))), 1e-10);
 
-	double T = pow(er / (4.0*physcon().sigma / physcon().c), 0.25);
+	double T = pow(er / (4.0 * physcon().sigma / physcon().c), 0.25);
 	double Pgas = u[rho_i] * T * physcon().kb / (physcon().mh * mmw);
 	const real fgamma = grid::get_fgamma();
-	double ei =  (1.0/(fgamma-1.0))* Pgas;
+	double ei = (1.0 / (fgamma - 1.0)) * Pgas;
 	u[tau_i] = POWER(ei, 1.0 / grid::get_fgamma());
 	u[egas_i] = POWER(u[tau_i], fgamma);
 	const double derdr = -0.5 * (r) / (1 + t) * er / D0;
@@ -132,7 +164,7 @@ std::vector<real> radiation_diffusion_analytic(real x, real y, real z, real t) {
 	double nx = fx;
 	double ny = fy;
 	double nz = fz;
-	double ninv = 1.0 / sqrt(nx*nx+ny*ny+nz*nz);
+	double ninv = 1.0 / sqrt(nx * nx + ny * ny + nz * nz);
 	nx *= ninv;
 	ny *= ninv;
 	nz *= ninv;

@@ -166,6 +166,12 @@ std::size_t init_thread_local_worker(std::size_t desired) {
 				set_problem (radiation_diffusion_test_problem);
 				set_refine_test(radiation_test_refine);
 				set_analytic(radiation_diffusion_analytic);
+			} else if (opts().problem == RADIATION_COUPLING) {
+				assert(opts().radiation);
+				//		opts().gravity = false;
+				set_problem (radiation_coupling_test_problem);
+				set_refine_test(radiation_test_refine);
+//				set_analytic(radiation_diffusion_analytic);
 			} else if (opts().problem == DWD) {
 				opts().n_species = 5;
 				set_problem(scf_binary);

@@ -208,6 +208,7 @@ void rad_grid::rad_imp(std::vector<real> &egas, std::vector<real> &tau, std::vec
 				const real B = (1.0 + clight * dt * kap_p);
 				const real C = -(1.0 + clight * dt * kap_p) * e0 - U[er_i][iiir] * dt * clight * kap_p;
 				real newE = find4root(A, B, C);
+			//	printf( "%e %e %e\n", A, B, C);
 				real dE = e0 - newE;
 				real de = newE - e0;
 				if (opts().hydro == false) {

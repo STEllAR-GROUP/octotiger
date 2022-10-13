@@ -79,5 +79,6 @@ OCTOTIGER_EXPORT bool radiation_test_refine(integer level, integer max_level,
     std::array<std::vector<real>, NDIM> const& dudx);
 OCTOTIGER_EXPORT std::vector<real> radiation_test_problem(real, real, real, real);
 std::vector<real> radiation_diffusion_test_problem(real x, real y, real z, real dx);
+std::vector<real> radiation_coupling_test_problem(real x, real y, real z, real dx);
 std::vector<real> radiation_diffusion_analytic(real x, real y, real z, real t);
 #endif /* PROBLEM_HPP_ */

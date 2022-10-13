@@ -24,6 +24,8 @@ U kappa_R(U rho, U e, U mmw, real X, real Z) {
 		return 1e-20;
 	} else if (opts().problem == RADIATION_DIFFUSION) {
 		return 1e2;
+	} else if (opts().problem == RADIATION_COUPLING) {
+		return 1;
 	} else {
 		const U T = temperature(rho, e, mmw);
 		const U f1 = (T * T + U(2.7e+11) * rho);
@@ -43,6 +45,8 @@ U kappa_p(U rho, U e, U mmw, real X, real Z) {
 		return 1e-20;
 	} else if (opts().problem == RADIATION_DIFFUSION) {
 		return 1e2;
+	} else if (opts().problem == RADIATION_COUPLING) {
+		return 1e0;
 	} else {
 		const U T = temperature(rho, e, mmw);
 		const U k_ff_bf = U(30.262) * U(4.0e+25) * (U(1) + X) * (Z + U(0.0001)) * rho * POWER(SQRT(INVERSE(T)), U(7));

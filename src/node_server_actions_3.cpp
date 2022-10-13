@@ -351,6 +351,9 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 				fprintf(fp, "\n");
 			}
 			fclose(fp);
+			fp = fopen( "temp.dat", "at");
+			fprintf( fp, "%e %e %e\n", current_time, diags.Tgas0, diags.Trad0);
+			fclose(fp);
 			fnum++;
 		}
 		if (opts().stop_step == 0) {
