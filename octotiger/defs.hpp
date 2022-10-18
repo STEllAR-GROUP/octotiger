@@ -275,4 +275,6 @@ inline void inplace_average(T& s1, T& s2)
 //    return sizeof(T) * size;
 //}
 
+#include "octotiger/containers.hpp"
+
 #endif
