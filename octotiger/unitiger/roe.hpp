@@ -30,9 +30,9 @@ class roe {
 	static constexpr int sh2_i = physics<NDIM>::egas_i;
 	static constexpr int nf = physics<NDIM>::field_count();
 
-	std::vector<std::vector<safe_real>> roe_primitives(std::vector<std::vector<safe_real>>& U) {
+	oct::vector<oct::vector<safe_real>> roe_primitives(oct::vector<oct::vector<safe_real>>& U) {
 		const std::size_t sz = U[0].size();
-		std::vector<std::vector<safe_real>> V(nf);
+		oct::vector<oct::vector<safe_real>> V(nf);
 		for (int f = 0; f != nf; ++f) {
 			V[f].resize(sz);
 		}
@@ -64,10 +64,10 @@ class roe {
 		return V;
 	}
 
-	std::vector<std::vector<safe_real>> roe_averages(const std::vector<std::vector<safe_real>>& VL,
-			const std::vector<std::vector<safe_real>>& VR) {
+	oct::vector<oct::vector<safe_real>> roe_averages(const oct::vector<oct::vector<safe_real>>& VL,
+			const oct::vector<oct::vector<safe_real>>& VR) {
 		const std::size_t sz = VR[0].size();
-		std::vector<std::vector<safe_real>> V_(nf);
+		oct::vector<oct::vector<safe_real>> V_(nf);
 		for (int f = 0; f != nf; ++f) {
 			V_[f].resize(sz);
 		}
@@ -86,8 +86,8 @@ class roe {
 		return V_;
 	}
 
-	safe_real roe_fluxes(std::vector<std::vector<safe_real>>& F, std::vector<std::vector<safe_real>>& UL,
-			std::vector<std::vector<safe_real>>& UR, int dimension) {
+	safe_real roe_fluxes(oct::vector<oct::vector<safe_real>>& F, oct::vector<oct::vector<safe_real>>& UL,
+			oct::vector<oct::vector<safe_real>>& UR, int dimension) {
 		const std::size_t sz = UL[0].size();
 
 		auto phi0 = [](safe_real lambda, safe_real delta) {

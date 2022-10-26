@@ -268,7 +268,7 @@
 // 			print( "Error file %s line %i\n", __FILE__, __LINE__);
 // 			abort();
 // 		}
-// //		std::array<double, 4> n;
+// //		oct::array<double, 4> n;
 // 		auto j = other.begin();
 // 		for (int i = 0; i != 4; ++i) {
 // 			(*this)[i] = *j;
@@ -344,7 +344,7 @@
 // 	inline v4sd() {
 // 	}
 // 	inline v4sd(const std::initializer_list<double>& other) {
-// 		std::array<double, 4> n;
+// 		oct::array<double, 4> n;
 // 		auto j = other.begin();
 // 		for (int i = 0; i != 4; ++i) {
 // 			(*this)[i] = *j;

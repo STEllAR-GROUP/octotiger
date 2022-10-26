@@ -30,8 +30,8 @@ using m2m_int_vector = Vc::Vector<std::int32_t, Vc::VectorAbi::Scalar>;
 //#else // !HAVE_VC
 //#include <vector>
 //#include <cstdint>
-//using m2m_vector = std::vector<double>;
-//using m2m_int_vector = std::vector<std::int32_t>;
+//using m2m_vector = oct::vector<double>;
+//using m2m_int_vector = oct::vector<std::int32_t>;
 //#endif
 
 // using multipole_v = taylor<4, m2m_vector>;

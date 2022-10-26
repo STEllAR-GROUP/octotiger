@@ -17,6 +17,7 @@
 #include "octotiger/cuda_util/cuda_helper.hpp"
 #include "octotiger/grid.hpp"
 #include "octotiger/options.hpp"
+#include "octotiger/containers.hpp"
 
 #include "octotiger/unitiger/hydro_impl/flux_kernel_interface.hpp"
 #include "octotiger/unitiger/hydro_impl/flux_kernel_templates.hpp"    // required for fill_masks
@@ -42,15 +43,15 @@ using device_buffer_t = recycler::cuda_device_buffer<T>;
 template <typename T, typename Alloc>
 using aggregated_device_buffer_t = recycler::cuda_aggregated_device_buffer<T, Alloc>;
 template <typename T>
-using host_buffer_t = std::vector<T, recycler::recycle_allocator_cuda_host<T>>;
+using host_buffer_t = oct::vector<T, recycler::recycle_allocator_cuda_host<T>>;
 using executor_t = hpx::cuda::experimental::cuda_executor;
 template <typename T, typename Alloc>
-using aggregated_host_buffer_t = std::vector<T, Alloc>;
+using aggregated_host_buffer_t = oct::vector<T, Alloc>;
 #elif defined(OCTOTIGER_HAVE_HIP)
 template <typename T>
 using device_buffer_t = recycler::hip_device_buffer<T>;
 template <typename T>
-using host_buffer_t = std::vector<T, recycler::recycle_allocator_hip_host<T>>;
+using host_buffer_t = oct::vector<T, recycler::recycle_allocator_hip_host<T>>;
 using executor_t = hpx::cuda::experimental::cuda_executor;
 
 template <typename T>
@@ -60,7 +61,7 @@ using device_allocator = recycler::detail::hip_device_allocator<T>;
 template <typename T, typename Alloc>
 using aggregated_device_buffer_t = recycler::hip_aggregated_device_buffer<T, Alloc>;
 template <typename T, typename Alloc>
-using aggregated_host_buffer_t = std::vector<T, Alloc>;
+using aggregated_host_buffer_t = oct::vector<T, Alloc>;
 
 #define cudaLaunchKernel hipLaunchKernel
 #define cudaMemcpy hipMemcpy
@@ -97,9 +98,9 @@ __host__ const bool* get_gpu_masks(void) {
 // Output F
 // TODO remove obsolete executor
 timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
-    const std::vector<std::vector<safe_real>>& U, const std::vector<std::vector<safe_real>>& X,
+    const oct::vector<oct::vector<safe_real>>& U, const oct::vector<oct::vector<safe_real>>& X,
     const double omega, const size_t device_id,
-    std::vector<hydro_state_t<std::vector<safe_real>>>& F) {
+    oct::vector<hydro_state_t<oct::vector<safe_real>>>& F) {
 
     // Init local kernel pool if not done already
     hpx::lcos::local::call_once(init_hydro_pool_flag, init_hydro_aggregation_pool);
@@ -231,7 +232,7 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
           opts().n_species);
 
       const double dx = X[0][geo.H_DNX] - X[0][0];
-      std::vector<double, decltype(alloc_host_double)> dx_host(
+      oct::vector<double, decltype(alloc_host_double)> dx_host(
           max_slices * 1, double{}, alloc_host_double);    
       aggregated_device_buffer_t<double, decltype(alloc_device_double)> dx_device(max_slices, device_id, alloc_device_double);
       dx_host[slice_id] = dx;
@@ -318,7 +319,7 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
           }
         }
       }
-      std::vector<double> URs(nf_local), ULs(nf_local);
+      oct::vector<double> URs(nf_local), ULs(nf_local);
       const size_t current_max_index = amax_indices[current_dim + max_indices_slice_offset];
       // const size_t current_d = amax_d[current_dim];
       ts.a = amax[current_dim + amax_slice_offset];

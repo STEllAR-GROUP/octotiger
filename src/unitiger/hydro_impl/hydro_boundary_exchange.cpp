@@ -32,8 +32,8 @@ void init_aggregation_pool(void) {
 
 __host__ void launch_complete_hydro_amr_boundary_cuda(double dx, bool
     energy_only,
-    const std::vector<std::vector<real>>& Ushad, const std::vector<int>& is_coarse,
-    const std::array<double, NDIM>& xmin, std::vector<std::vector<real>>& U) {
+    const oct::vector<oct::vector<real>>& Ushad, const oct::vector<int>& is_coarse,
+    const oct::array<double, NDIM>& xmin, oct::vector<oct::vector<real>>& U) {
     bool early_exit = true;
     for (int i = 0; i < HS_N3; i++) {
         if (early_exit && is_coarse[i]) {
@@ -71,19 +71,19 @@ __host__ void launch_complete_hydro_amr_boundary_cuda(double dx, bool
 
         const size_t max_slices = opts().max_executor_slices;
         // Create host buffers
-        std::vector<double, decltype(alloc_host_double)> unified_uf(
+        oct::vector<double, decltype(alloc_host_double)> unified_uf(
             max_slices * opts().n_fields * HS_N3 * 8, double{},
             alloc_host_double);
-        std::vector<double, decltype(alloc_host_double)> unified_ushad(
+        oct::vector<double, decltype(alloc_host_double)> unified_ushad(
             max_slices * opts().n_fields * HS_N3, double{}, alloc_host_double);
-        std::vector<int, decltype(alloc_host_int)> coarse(
+        oct::vector<int, decltype(alloc_host_int)> coarse(
             max_slices * HS_N3, int{}, alloc_host_int);
-        std::vector<double, decltype(alloc_host_double)> x_min(
+        oct::vector<double, decltype(alloc_host_double)> x_min(
             max_slices * NDIM, double{}, alloc_host_double);
 
-        std::vector<int, decltype(alloc_host_int)> energy_only_host(
+        oct::vector<int, decltype(alloc_host_int)> energy_only_host(
             max_slices * 1, int{}, alloc_host_int);
-        std::vector<double, decltype(alloc_host_double)> dx_host(
+        oct::vector<double, decltype(alloc_host_double)> dx_host(
             max_slices * 1, double{}, alloc_host_double);    
 
         // Create device buffers
@@ -189,7 +189,7 @@ __host__ void launch_complete_hydro_amr_boundary_cuda(double dx, bool
 
         recycler::cuda_aggregated_device_buffer<double, decltype(alloc_device_double)> device_u(
             max_slices * nfields * H_N3, 0, alloc_device_double);
-        std::vector<double, decltype(alloc_host_double)> unified_u(
+        oct::vector<double, decltype(alloc_host_double)> unified_u(
             max_slices * nfields * H_N3, double{},
             alloc_host_double);
 
@@ -242,16 +242,16 @@ __host__ void launch_complete_hydro_amr_boundary_cuda(double dx, bool
 #endif
 
 void complete_hydro_amr_boundary_cpu(const double dx, const bool energy_only,
-    const std::vector<std::vector<real>>& Ushad, const std::vector<int>& is_coarse,
-    const std::array<double, NDIM>& xmin, std::vector<std::vector<double>>& U) {
+    const oct::vector<oct::vector<real>>& Ushad, const oct::vector<int>& is_coarse,
+    const oct::array<double, NDIM>& xmin, oct::vector<oct::vector<double>>& U) {
     // std::cout << "Calling hydro cpu version!" << std::endl;
 
-    // std::vector<double, recycler::aggressive_recycle_aligned<double, 32>> unified_u(
+    // oct::vector<double, recycler::aggressive_recycle_aligned<double, 32>> unified_u(
     //     opts().n_fields * H_N3);
-    std::vector<double, recycler::aggressive_recycle_aligned<double, 32>> unified_ushad(
+    oct::vector<double, recycler::aggressive_recycle_aligned<double, 32>> unified_ushad(
         opts().n_fields * HS_N3);
     // Create non-atomic copy
-    std::vector<int, recycler::aggressive_recycle_aligned<int, 32>> coarse(HS_N3);
+    oct::vector<int, recycler::aggressive_recycle_aligned<int, 32>> coarse(HS_N3);
 
     for (int f = 0; f < opts().n_fields; f++) {
         if (!energy_only || f == egas_i) {

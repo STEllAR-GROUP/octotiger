@@ -885,12 +885,12 @@ namespace fmm {
         // --------------------------------------- Kernel interface
 
         template <typename executor_t>
-        void multipole_kernel(executor_t& exec, std::vector<real>& monopoles,
-            std::vector<multipole>& M_ptr,
-            std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
-            std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx, real theta,
-            std::array<bool, geo::direction::count()>& is_direction_empty,
-            std::array<real, NDIM> xbase, std::shared_ptr<grid> grid, const bool use_root_stencil) {
+        void multipole_kernel(executor_t& exec, oct::vector<real>& monopoles,
+            oct::vector<multipole>& M_ptr,
+            oct::vector<std::shared_ptr<oct::vector<space_vector>>>& com_ptr,
+            oct::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx, real theta,
+            oct::array<bool, geo::direction::count()>& is_direction_empty,
+            oct::array<real, NDIM> xbase, std::shared_ptr<grid> grid, const bool use_root_stencil) {
             // input buffers
             host_buffer<double> host_monopoles(NUMBER_LOCAL_MONOPOLE_VALUES);
             host_buffer<double> host_multipoles(NUMBER_LOCAL_EXPANSION_VALUES);
@@ -905,7 +905,7 @@ namespace fmm {
             launch_interface(exec, host_monopoles, host_masses, host_multipoles, host_expansions,
                 host_corrections, theta, type, use_root_stencil);
             // Add results back into non-SoA array
-            std::vector<expansion>& org = grid->get_L();
+            oct::vector<expansion>& org = grid->get_L();
             for (size_t component = 0; component < 20; component++) {
                 for (size_t entry = 0; entry < INNER_CELLS; entry++) {
                     org[entry][component] +=
@@ -914,7 +914,7 @@ namespace fmm {
             }
             // Copy angular corrections back into non-SoA
             if (type == RHO) {
-                std::vector<space_vector>& corrections = grid->get_L_c();
+                oct::vector<space_vector>& corrections = grid->get_L_c();
                 for (size_t component = 0; component < 3; component++) {
                     for (size_t entry = 0; entry < INNER_CELLS; entry++) {
                         corrections[entry][component] =

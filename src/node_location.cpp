@@ -127,8 +127,8 @@ std::size_t node_location::hash() const {
 	return std::size_t(this->to_id());
 }
 
-std::vector<node_location> node_location::get_neighbors() const {
-	std::vector<node_location> locs;
+oct::vector<node_location> node_location::get_neighbors() const {
+	oct::vector<node_location> locs;
 	locs.reserve(NDIM * NDIM * NDIM - 1);
 	const integer lb = 0;
 	const integer ub = (1 << lev) - 1;
@@ -202,7 +202,7 @@ real node_location::x_location(integer d) const {
 
 node_location::node_location() {
 	lev = 0;
-	xloc = { {0,0,0}};
+	xloc[XDIM] = xloc[YDIM] = xloc[ZDIM] = 0;
 }
 
 integer node_location::level() const {
@@ -312,7 +312,7 @@ bool node_location::operator <=(const node_location& other) const {
 
 std::size_t node_location::unique_id() const {
 	std::size_t id = 1;
-	std::array<std::size_t, NDIM> x;
+	oct::array<std::size_t, NDIM> x;
 	for (integer d = 0; d != NDIM; ++d) {
 		x[d] = std::size_t(xloc[d]);
 	}

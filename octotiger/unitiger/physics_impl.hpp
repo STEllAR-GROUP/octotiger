@@ -59,7 +59,7 @@ safe_real physics<NDIM>::pres_IPR_dft(safe_real t, const safe_real a0, const saf
 }
 
 template<int NDIM>
-safe_real physics<NDIM>::get_mu_average(std::vector<safe_real> u) {
+safe_real physics<NDIM>::get_mu_average(oct::vector<safe_real> u) {
 	safe_real mu_avg_inv = 0.0;
         for (int s = 0; s < n_species_; s++) {
                 mu_avg_inv += (u[spc_i + s] / u[rho_i]) / mu_[s];
@@ -69,7 +69,7 @@ safe_real physics<NDIM>::get_mu_average(std::vector<safe_real> u) {
 }
 
 template<int NDIM>
-void physics<NDIM>::to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v, safe_real &cs, int dim) {
+void physics<NDIM>::to_prim(oct::vector<safe_real> u, safe_real &p, safe_real &v, safe_real &cs, int dim) {
 	const auto rho = u[rho_i];
 	const auto rhoinv = INVERSE(rho);
 	double hdeg = 0.0, pdeg = 0.0, edeg = 0.0, dpdeg_drho = 0.0;
@@ -147,7 +147,7 @@ void physics<NDIM>::to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v
 }
 
 template<int NDIM>
-void physics<NDIM>::to_prim_experimental(const std::vector<double> &u, double &p, double &v, double &cs, const int dim) noexcept {
+void physics<NDIM>::to_prim_experimental(const oct::vector<double> &u, double &p, double &v, double &cs, const int dim) noexcept {
 	const auto rho = u[rho_i];
 	const auto rhoinv = (1.) / rho;
 	double hdeg = 0.0, pdeg = 0.0, edeg = 0.0, dpdeg_drho = 0.0;
@@ -189,8 +189,8 @@ void physics<NDIM>::to_prim_experimental(const std::vector<double> &u, double &p
 
 template<int NDIM>
 template<int INX>
-void physics<NDIM>::physical_flux(const std::vector<safe_real> &U, std::vector<safe_real> &F, int dim, safe_real &am, safe_real &ap,
-		std::array<safe_real, NDIM> &x, std::array<safe_real, NDIM> &vg) {
+void physics<NDIM>::physical_flux(const oct::vector<safe_real> &U, oct::vector<safe_real> &F, int dim, safe_real &am, safe_real &ap,
+		oct::array<safe_real, NDIM> &x, oct::array<safe_real, NDIM> &vg) {
 	static const cell_geometry<NDIM, INX> geo;
 	static constexpr auto levi_civita = geo.levi_civita();
 	safe_real p, v, v0, c;
@@ -213,8 +213,8 @@ void physics<NDIM>::physical_flux(const std::vector<safe_real> &U, std::vector<s
 }
 template<int NDIM>
 template<int INX>
-void physics<NDIM>::physical_flux_experimental(const std::vector<safe_real> &U, std::vector<safe_real> &F, int dim, safe_real &am, safe_real &ap,
-		std::array<safe_real, NDIM> &x, std::array<safe_real, NDIM> &vg) {
+void physics<NDIM>::physical_flux_experimental(const oct::vector<safe_real> &U, oct::vector<safe_real> &F, int dim, safe_real &am, safe_real &ap,
+		oct::array<safe_real, NDIM> &x, oct::array<safe_real, NDIM> &vg) {
 	static const cell_geometry<NDIM, INX> geo;
 	static constexpr auto levi_civita = geo.levi_civita();
 	safe_real p, v, v0, c;
@@ -444,7 +444,7 @@ void physics<NDIM>::set_fgamma(safe_real fg) {
 
 template<int NDIM>
 void physics<NDIM>::set_mu(std::vector<safe_real> atomic_mass, std::vector<safe_real> atomic_number) {
-//	std::vector<safe_real> mu_temp(n_species_);
+//	oct::vector<safe_real> mu_temp(n_species_);
 	mu_.resize(n_species_);
         for (int i = 0; i < n_species_; i++) {
                 mu_[i] = atomic_mass[i] / (atomic_number[i] + 1.);
@@ -455,12 +455,12 @@ void physics<NDIM>::set_mu(std::vector<safe_real> atomic_mass, std::vector<safe_
 
 template<int NDIM>
 template<int INX>
-const std::vector<std::vector<safe_real>>& physics<NDIM>::find_contact_discs(const hydro::state_type &U) {
+const oct::vector<oct::vector<safe_real>>& physics<NDIM>::find_contact_discs(const hydro::state_type &U) {
 	PROFILE();
 	static const cell_geometry<NDIM, INX> geo;
 	auto dir = geo.direction();
-	static thread_local std::vector<std::vector<safe_real>> disc(geo.NDIR / 2, std::vector<double>(geo.H_N3));
-	static thread_local std::vector<safe_real> P(H_N3);
+	static thread_local oct::vector<oct::vector<safe_real>> disc(geo.NDIR / 2, oct::vector<double>(geo.H_N3));
+	static thread_local oct::vector<safe_real> P(H_N3);
 	for (int j = 0; j < geo.H_NX_XM2; j++) {
 		for (int k = 0; k < geo.H_NX_YM2; k++) {
 #pragma ivdep
@@ -511,7 +511,7 @@ const std::vector<std::vector<safe_real>>& physics<NDIM>::find_contact_discs(con
 
 template<int NDIM>
 template<int INX>
-void physics<NDIM>::post_recon(std::vector<std::vector<std::vector<safe_real>>> &Q, const hydro::x_type X, safe_real omega, bool angmom) {
+void physics<NDIM>::post_recon(oct::vector<oct::vector<oct::vector<safe_real>>> &Q, const hydro::x_type X, safe_real omega, bool angmom) {
 	PROFILE();
 	static const cell_geometry<NDIM, INX> geo;
 	static const auto indices = geo.find_indices(2, geo.H_NX - 2);
@@ -705,11 +705,11 @@ void physics<NDIM>::update_n_field() {
 
 template<int NDIM>
 template<int INX>
-std::vector<typename hydro_computer<NDIM, INX, physics<NDIM>>::bc_type> physics<NDIM>::initialize(physics<NDIM>::test_type t, hydro::state_type &U,
+oct::vector<typename hydro_computer<NDIM, INX, physics<NDIM>>::bc_type> physics<NDIM>::initialize(physics<NDIM>::test_type t, hydro::state_type &U,
 		hydro::x_type &X) {
 	static const cell_geometry<NDIM, INX> geo;
 
-	std::vector<typename hydro_computer<NDIM, INX, physics<NDIM>>::bc_type> bc(2 * NDIM);
+	oct::vector<typename hydro_computer<NDIM, INX, physics<NDIM>>::bc_type> bc(2 * NDIM);
 
 	for (int i = 0; i < 2 * NDIM; i++) {
 		bc[i] = hydro_computer<NDIM, INX, physics<NDIM>>::OUTFLOW;
@@ -734,7 +734,7 @@ std::vector<typename hydro_computer<NDIM, INX, physics<NDIM>>::bc_type> physics<
 	}
 	const auto xlocs = geo.xloc();
 	const auto weights = geo.volume_weight();
-	std::array < safe_real, NDIM > x;
+	oct::array < safe_real, NDIM > x;
 	safe_real rho = 0, vx = 0, vy = 0, vz = 0, p = 0, r;
 	safe_real x2, xsum;
 	for (int dim = 0; dim < NDIM; dim++) {
@@ -762,7 +762,7 @@ std::vector<typename hydro_computer<NDIM, INX, physics<NDIM>>::bc_type> physics<
 		}
 		const auto xlocs = geo.xloc();
 		const auto weights = geo.volume_weight();
-		std::array < safe_real, NDIM > x;
+		oct::array < safe_real, NDIM > x;
 		double rho = 0, vx = 0, vy = 0, vz = 0, p = 0, r;
 		safe_real x2, xsum, xhalf;
 		xhalf = -X[0][geo.to_index(geo.H_BW, geo.H_BW, geo.H_BW)] / 2;

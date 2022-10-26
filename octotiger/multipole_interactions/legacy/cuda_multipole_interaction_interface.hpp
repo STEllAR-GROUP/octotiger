@@ -30,11 +30,11 @@ namespace fmm {
         public:
             cuda_multipole_interaction_interface();
             /// Takes AoS input, converts, launches kernel and writes AoS results back into L,L_c
-            void compute_multipole_interactions(std::vector<real>& monopoles,
-                std::vector<multipole>& M_ptr,
-                std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
-                std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
-                std::array<bool, geo::direction::count()>& is_direction_empty,
+            void compute_multipole_interactions(oct::vector<real>& monopoles,
+                oct::vector<multipole>& M_ptr,
+                oct::vector<std::shared_ptr<oct::vector<space_vector>>>& com_ptr,
+                oct::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
+                oct::array<bool, geo::direction::count()>& is_direction_empty,
                 std::array<real, NDIM> xbase, const bool use_root_stencil);
 
         protected:

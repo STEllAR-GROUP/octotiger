@@ -19,9 +19,9 @@ spherical_polytrope make_1d_spherical_polytrope(
 
 	double h0 = d0;
 	double err;
-	std::vector<double> r_data;
-	std::vector<double> p_data;
-	std::vector<double> d_data;
+	oct::vector<double> r_data;
+	oct::vector<double> p_data;
+	oct::vector<double> d_data;
 	do {
 		h = h0;
 		hdot = 0.0;

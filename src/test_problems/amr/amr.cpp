@@ -14,8 +14,8 @@
 #include <vector>
 
 
-bool refine_test_amr(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U,
-		std::array<std::vector<real>, NDIM> const& dudx) {
+bool refine_test_amr(integer level, integer max_level, real x, real y, real z, oct::vector<real> const& U,
+		oct::array<oct::vector<real>, NDIM> const& dudx) {
 	if (level >= max_level) {
 		return false;
 	} else {
@@ -33,8 +33,8 @@ real amr_test_analytic(real x, real y, real z) {
 	return y;
 }
 
-std::vector<real> amr_test(real x, real y, real z, real) {
-	std::vector<real> u(opts().n_fields, real(0));
+oct::vector<real> amr_test(real x, real y, real z, real) {
+	oct::vector<real> u(opts().n_fields, real(0));
 	u[rho_i] = u[spc_i] = amr_test_analytic(x,y,z);
 	return u;
 }

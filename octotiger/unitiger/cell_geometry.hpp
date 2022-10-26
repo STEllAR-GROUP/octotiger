@@ -179,7 +179,7 @@ private:
 
 	} };
 
-	static std::array<std::array<std::vector<int>, NDIR>, H_BW> all_indices;
+	static oct::array<oct::array<oct::vector<int>, NDIR>, H_BW> all_indices;
 
 	static void verify_3d_constdefs() {
 		for (int i = -1; i < 2; i++) {
@@ -313,7 +313,7 @@ public:
 	}
 
 	static inline int flip_dim(const int d, int flip_dim) {
-		std::array<int, NDIM> dims;
+		oct::array<int, NDIM> dims;
 		int k = d;
 		for (int dim = 0; dim < NDIM; dim++) {
 			dims[dim] = k % 3;
@@ -338,10 +338,10 @@ public:
 		}
 	}
 
-	static inline std::vector<int> find_indices(int lb, int ub, int d = NDIR / 2) {
-		std::vector<int> I;
-		std::array<int, NDIM> lbs;
-		std::array<int, NDIM> ubs;
+	static inline oct::vector<int> find_indices(int lb, int ub, int d = NDIR / 2) {
+		oct::vector<int> I;
+		oct::array<int, NDIM> lbs;
+		oct::array<int, NDIM> ubs;
 		for (int dim = 0; dim < NDIM; dim++) {
 			ubs[dim] = xloc()[d][dim] == -1 ? (ub + 1) : ub;
 			lbs[dim] = xloc()[d][dim] == +1 ? (lb - 1) : lb;
@@ -366,7 +366,7 @@ public:
 };
 
 template<int NDIM, int INX>
-std::array<std::array<std::vector<int>, cell_geometry<NDIM, INX>::NDIR>, cell_geometry<NDIM, INX>::H_BW> cell_geometry<NDIM, INX>::all_indices;
+oct::array<oct::array<oct::vector<int>, cell_geometry<NDIM, INX>::NDIR>, cell_geometry<NDIM, INX>::H_BW> cell_geometry<NDIM, INX>::all_indices;
 
 template<int NDIM, int INX>
 constexpr int cell_geometry<NDIM, INX>::ngroups_[3];

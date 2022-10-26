@@ -45,14 +45,14 @@ struct radiation_physics {
 	}
 
 	template<int INX>
-	static const std::vector<std::vector<double>>& find_contact_discs(const hydro::state_type &U) {
-		static std::vector<std::vector<double>> a;
+	static const oct::vector<oct::vector<double>>& find_contact_discs(const hydro::state_type &U) {
+		static oct::vector<oct::vector<double>> a;
 		return a;
 	}
 
 	template<int INX>
-	static void physical_flux(const std::vector<safe_real> &U, std::vector<safe_real> &F, int dim, safe_real &am, safe_real &ap, std::array<safe_real, NDIM> &x,
-			std::array<safe_real, NDIM> &vg);
+	static void physical_flux(const oct::vector<safe_real> &U, oct::vector<safe_real> &F, int dim, safe_real &am, safe_real &ap, oct::array<safe_real, NDIM> &x,
+			oct::array<safe_real, NDIM> &vg);
 
 	template<int INX>
 	static void post_process(hydro::state_type &U, safe_real dx);
@@ -62,28 +62,28 @@ struct radiation_physics {
 
 	/*** Reconstruct uses this - GPUize****/
 	template<int INX>
-	static void pre_angmom(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, std::array<safe_real, cell_geometry<NDIM, INX>::NANGMOM> &Z,
-			std::array<std::array<safe_real, cell_geometry<NDIM, INX>::NDIR>, NDIM> &S, int i, safe_real dx);
+	static void pre_angmom(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, oct::array<safe_real, cell_geometry<NDIM, INX>::NANGMOM> &Z,
+			oct::array<oct::array<safe_real, cell_geometry<NDIM, INX>::NDIR>, NDIM> &S, int i, safe_real dx);
 
 	template<int INX>
 	static void enforce_outflows(hydro::state_type &U, const hydro::x_type &X, int face);
 
 	/*** Reconstruct uses this - GPUize****/
 	template<int INX>
-	static void post_angmom(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, std::array<safe_real, cell_geometry<NDIM, INX>::NANGMOM> &Z,
-			std::array<std::array<safe_real, cell_geometry<NDIM, INX>::NDIR>, NDIM> &S, int i, safe_real dx);
+	static void post_angmom(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, oct::array<safe_real, cell_geometry<NDIM, INX>::NANGMOM> &Z,
+			oct::array<oct::array<safe_real, cell_geometry<NDIM, INX>::NDIR>, NDIM> &S, int i, safe_real dx);
 
 	/*** Reconstruct uses this - GPUize****/
 	template<int INX>
 	static const hydro::state_type& pre_recon(const hydro::state_type &U, const hydro::x_type X, safe_real omega, bool angmom);
 	/*** Reconstruct uses this - GPUize****/
 	template<int INX>
-	static void post_recon(std::vector<std::vector<std::vector<safe_real>>> &Q, const hydro::x_type X, safe_real omega, bool angmom);
+	static void post_recon(oct::vector<oct::vector<oct::vector<safe_real>>> &Q, const hydro::x_type X, safe_real omega, bool angmom);
 	template<int INX>
 	using comp_type = hydro_computer<NDIM, INX, radiation_physics<NDIM>>;
 
 	template<int INX>
-	std::vector<typename comp_type<INX>::bc_type> initialize(test_type t, hydro::state_type &U, hydro::x_type &X);
+	oct::vector<typename comp_type<INX>::bc_type> initialize(test_type t, hydro::state_type &U, hydro::x_type &X);
 
 	template<int INX>
 	static void analytic_solution(test_type test, hydro::state_type &U, const hydro::x_type &X, safe_real time);

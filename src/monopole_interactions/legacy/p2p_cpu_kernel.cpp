@@ -32,7 +32,7 @@ namespace fmm {
 
         void p2p_cpu_kernel::apply_stencil(const cpu_monopole_buffer_t& local_expansions,
             cpu_expansion_result_buffer_t& potential_expansions_SoA,
-            const std::vector<bool>& stencil_masks, const std::vector<std::array<real, 4>>& four,
+            const oct::vector<bool>& stencil_masks, const oct::vector<std::array<real, 4>>& four,
             real dx) {
             for (size_t i0 = 0; i0 < INNER_CELLS_PER_DIRECTION; i0++) {
                 for (size_t i1 = 0; i1 < INNER_CELLS_PER_DIRECTION; i1 += 2) {
@@ -71,8 +71,8 @@ namespace fmm {
             const size_t cell_flat_index,    /// iii0
             const multiindex<m2m_int_vector>& __restrict__ cell_index_coarse,
             const multiindex<>& __restrict__ cell_index_unpadded,
-            const size_t cell_flat_index_unpadded, const std::vector<bool>& __restrict__ stencil,
-            const std::vector<std::array<real, 4>>& __restrict__ four_constants,
+            const size_t cell_flat_index_unpadded, const oct::vector<bool>& __restrict__ stencil,
+            const oct::vector<std::array<real, 4>>& __restrict__ four_constants,
             const size_t outer_stencil_index, real dx) {
             const m2m_vector d_components[2] = {1.0 / dx, -1.0 / sqr(dx)};
             m2m_vector tmpstore1[4];

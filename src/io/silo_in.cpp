@@ -167,7 +167,7 @@ node_server::node_server(const node_location &loc) :
 	if (!iter->second.load) {
 //		print("Creating %s on %i\n", loc.to_str().c_str(), int(hpx::get_locality_id()));
 		std::atomic<int> nc(0);
-		std::vector<hpx::future<void>> futs;
+		oct::vector<hpx::future<void>> futs;
 		for (int ci = 0; ci < NCHILD; ci++) {
 			futs.push_back(hpx::async([this, ci, &nc, &loc, &localities]() {
 				auto cloc = loc.get_child(ci);
@@ -268,8 +268,8 @@ void load_data_from_silo(std::string fname, node_server *root_ptr, hpx::id_type 
 	silo_epoch() = GET(hpx::threads::run_as_os_thread(read_silo_var<integer>(), db, "epoch"));
 	silo_epoch()++;std
 	::vector<node_location::node_id> node_list;
-	std::vector<integer> positions;
-	std::vector<hpx::future<void>> futs;
+	oct::vector<integer> positions;
+	oct::vector<hpx::future<void>> futs;
 	int node_count;
 	if (db != nullptr) {
 		DBmultimesh *master_mesh = GET(hpx::threads::run_as_os_thread([&]() {
@@ -330,7 +330,7 @@ void load_data_from_silo(std::string fname, node_server *root_ptr, hpx::id_type 
 }
 
 void node_server::reconstruct_tree() {
-	std::vector<hpx::future<void>> futs;
+	oct::vector<hpx::future<void>> futs;
 	is_refined = true;
 	for (integer ci = 0; ci < NCHILD; ci++) {
 		futs.push_back(hpx::async([this, ci]() {

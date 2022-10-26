@@ -21,7 +21,7 @@ namespace fmm {
     namespace multipole_interactions {
 
         two_phase_stencil calculate_stencil() {
-            std::array<two_phase_stencil, 8> stencils;
+            oct::array<two_phase_stencil, 8> stencils;
 
             // used to check the radii of the outer and inner sphere
             const real theta0 = opts().theta;
@@ -140,10 +140,10 @@ namespace fmm {
             }
             return superimposed_stencil;
         }
-        std::pair<std::vector<bool>, std::vector<bool>>
+        std::pair<oct::vector<bool>, oct::vector<bool>>
         calculate_stencil_masks(two_phase_stencil superimposed_stencil) {
-            std::vector<bool> stencil_masks(FULL_STENCIL_SIZE, false);
-            std::vector<bool> inner_stencil_masks(FULL_STENCIL_SIZE, true);
+            oct::vector<bool> stencil_masks(FULL_STENCIL_SIZE, false);
+            oct::vector<bool> inner_stencil_masks(FULL_STENCIL_SIZE, true);
             auto inner_index = 0;
             for (auto stencil_element : superimposed_stencil.stencil_elements) {
                 const int x = stencil_element.x + STENCIL_MAX;
@@ -155,7 +155,7 @@ namespace fmm {
                     inner_stencil_masks[index] = false;
                 inner_index++;
             }
-            return std::pair<std::vector<bool>, std::vector<bool>>(stencil_masks, inner_stencil_masks);
+            return std::pair<oct::vector<bool>, oct::vector<bool>>(stencil_masks, inner_stencil_masks);
 
         }
 

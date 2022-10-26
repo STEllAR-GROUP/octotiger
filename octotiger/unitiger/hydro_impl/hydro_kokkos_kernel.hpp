@@ -169,14 +169,14 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
                 // assumes maximal number (given by cmake) of species in a simulation.  Not the most
                 // elegant solution and rather old-fashion but one that works.  May be changed to a
                 // more flexible sophisticated object.
-                std::array<simd_t, OCTOTIGER_MAX_NUMBER_FIELDS> local_f;
-                std::array<simd_t, OCTOTIGER_MAX_NUMBER_FIELDS> local_q;
-                std::array<simd_t, OCTOTIGER_MAX_NUMBER_FIELDS> local_q_flipped;
+                oct::array<simd_t, OCTOTIGER_MAX_NUMBER_FIELDS> local_f;
+                oct::array<simd_t, OCTOTIGER_MAX_NUMBER_FIELDS> local_q;
+                oct::array<simd_t, OCTOTIGER_MAX_NUMBER_FIELDS> local_q_flipped;
                 for (int f = 0; f < nf; f++) {
                     local_f[f] = simd_t(0.0);
                 }
-                std::array<simd_t, NDIM> local_x; 
-                std::array<simd_t, NDIM> local_vg; 
+                oct::array<simd_t, NDIM> local_x; 
+                oct::array<simd_t, NDIM> local_vg; 
                 for (int dim = 0; dim < NDIM; dim++) {
                   local_x[dim] = simd_t(0.0);
                   local_vg[dim] = simd_t(0.0);
@@ -200,7 +200,7 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
                     // component-wise but kokkos-simd currently does not support this!
                     // hence the mask_helpers
                     const simd_t mask_helper1(1.0);
-                    std::array<double, simd_t::size()> mask_helper2_array;
+                    oct::array<double, simd_t::size()> mask_helper2_array;
                     for (int i = 0; i < simd_t::size(); i++) {
                         mask_helper2_array[i] = masks[index + dim * dim_offset + i];
                     }
@@ -253,7 +253,7 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
                             const simd_t amax_tmp = SIMD_NAMESPACE::max(this_ap, (-this_am));
                             // Reduce
                             // TODO Reduce outside of inner loop?
-                            std::array<double, simd_t::size()> max_helper;
+                            oct::array<double, simd_t::size()> max_helper;
                             amax_tmp.copy_to(max_helper.data(), SIMD_NAMESPACE::element_aligned_tag{});
                             for (int i = 0; i < simd_t::size(); i++) {
                               if (max_helper[i] > current_amax) {
@@ -382,17 +382,17 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
 
                 // Set during cmake step with
                 // -DOCTOTIGER_WITH_MAX_NUMBER_FIELDS
-                std::array<simd_t, OCTOTIGER_MAX_NUMBER_FIELDS> local_f;
-                std::array<simd_t, OCTOTIGER_MAX_NUMBER_FIELDS> local_q;
-                std::array<simd_t, OCTOTIGER_MAX_NUMBER_FIELDS> local_q_flipped;
+                oct::array<simd_t, OCTOTIGER_MAX_NUMBER_FIELDS> local_f;
+                oct::array<simd_t, OCTOTIGER_MAX_NUMBER_FIELDS> local_q;
+                oct::array<simd_t, OCTOTIGER_MAX_NUMBER_FIELDS> local_q_flipped;
                 // assumes maximal number (given by cmake) of species in a simulation.  Not the most
                 // elegant solution and rather old-fashion but one that works.  May be changed to a
                 // more flexible sophisticated object.
                 for (int f = 0; f < nf; f++) {
                     local_f[f] = 0.0;
                 }
-                std::array<simd_t, NDIM> local_x; 
-                std::array<simd_t, NDIM> local_vg; 
+                oct::array<simd_t, NDIM> local_x; 
+                oct::array<simd_t, NDIM> local_vg; 
                 for (int dim = 0; dim < NDIM; dim++) {
                   local_x[dim] = simd_t(0.0);
                   local_vg[dim] = simd_t(0.0);
@@ -417,7 +417,7 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                     // component-wise but kokkos-simd currently does not support this!
                     // hence the mask_helpers
                     const simd_t mask_helper1(1.0);
-                    std::array<double, simd_t::size()> mask_helper2_array;
+                    oct::array<double, simd_t::size()> mask_helper2_array;
                     // TODO make masks double and load directly
                     for (int i = 0; i < simd_t::size(); i++) {
                         mask_helper2_array[i] = masks[index + dim * dim_offset + i];
@@ -471,7 +471,7 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                             const simd_t amax_tmp = SIMD_NAMESPACE::max(this_ap, (-this_am));
                             // Reduce
                             // TODO Reduce outside of inner loop?
-                            std::array<double, simd_t::size()> max_helper;
+                            oct::array<double, simd_t::size()> max_helper;
                             amax_tmp.copy_to(max_helper.data(), SIMD_NAMESPACE::element_aligned_tag{});
                             for (int i = 0; i < simd_t::size(); i++) {
                               if (max_helper[i] > current_amax) {
@@ -630,7 +630,7 @@ void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                 const int z_id = index % z_number_workitems;
                 const int q_i = z_row_id * q_inx + z_id * simd_t::size();
 
-                std::array<double, simd_t::size()> mask_helper;
+                oct::array<double, simd_t::size()> mask_helper;
                 for (int i = 0; i < simd_t::size(); i++) {
                     if ((z_id * simd_t::size() + i) < q_inx) {
                         mask_helper[i] = 1.0;
@@ -708,7 +708,7 @@ void reconstruct_no_amc_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                 const int z_id = index % z_number_workitems;
                 const int q_i = z_row_id * q_inx + z_id * simd_t::size();
 
-                std::array<double, simd_t::size()> mask_helper;
+                oct::array<double, simd_t::size()> mask_helper;
                 for (int i = 0; i < simd_t::size(); i++) {
                     if ((z_id * simd_t::size() + i) < q_inx) {
                         mask_helper[i] = 1.0;
@@ -958,7 +958,7 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     }
 
     // Create & Return timestep_t type
-    std::vector<double> URs(nf), ULs(nf);
+    oct::vector<double> URs(nf), ULs(nf);
     const size_t current_max_index = host_amax_indices[current_max_slot + max_indices_slice_offset];
     /* const size_t current_d = host_amax_d[current_max_slot]; */
     timestep_t ts;
@@ -1072,7 +1072,7 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     }
 
     // Create & Return timestep_t type
-    std::vector<double> URs(nf), ULs(nf);
+    oct::vector<double> URs(nf), ULs(nf);
     const size_t current_max_index = amax_indices[current_max_slot + max_indices_slice_offset];
     /* const size_t current_d = amax_d[current_max_slot]; */
     const auto current_dim = current_max_slot / (blocks / NDIM);
@@ -1098,9 +1098,9 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
 // Output F
 template <typename executor_t>
 timestep_t launch_hydro_kokkos_kernels(const hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
-    const std::vector<std::vector<safe_real>>& U, const std::vector<std::vector<safe_real>>& X,
+    const oct::vector<oct::vector<safe_real>>& U, const oct::vector<oct::vector<safe_real>>& X,
     const double omega, const size_t n_species, executor_t& executor,
-    std::vector<hydro_state_t<std::vector<safe_real>>>& F) {
+    oct::vector<hydro_state_t<oct::vector<safe_real>>>& F) {
     static const cell_geometry<NDIM, INX> geo;
 
     auto executor_slice_fut = hydro_kokkos_agg_executor_pool<executor_t>::request_executor_slice();

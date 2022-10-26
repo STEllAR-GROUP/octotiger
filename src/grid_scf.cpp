@@ -169,7 +169,7 @@ future<void> node_client::rho_move(real x) const {
 }
 
 void node_server::rho_move(real x) {
-	std::array<future<void>, NCHILD> futs;
+	oct::array<future<void>, NCHILD> futs;
 	if (is_refined) {
 		integer index = 0;
 		for (auto &child : children) {
@@ -202,7 +202,7 @@ future<real> node_client::scf_update(real com, real omega, real c1, real c2, rea
 }
 
 void node_server::rho_mult(real f0, real f1) {
-	std::array<future<void>, NCHILD> futs;
+	oct::array<future<void>, NCHILD> futs;
 	if (is_refined) {
 		integer index = 0;
 		for (auto &child : children) {
@@ -222,7 +222,7 @@ void node_server::rho_mult(real f0, real f1) {
 
 real node_server::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2_x, real l1_x, struct_eos e1, struct_eos e2) {
 	grid::set_omega(omega);
-	std::array<future<real>, NCHILD> futs;
+	oct::array<future<real>, NCHILD> futs;
 	real res;
 	if (is_refined) {
 		integer index = 0;
@@ -675,10 +675,10 @@ void node_server::run_scf(std::string const &data_dir) {
 	}
 }
 
-std::vector<real> scf_binary(real x, real y, real z, real dx) {
+oct::vector<real> scf_binary(real x, real y, real z, real dx) {
 
 	const real fgamma = grid::get_fgamma();
-	std::vector<real> u(opts().n_fields, real(0));
+	oct::vector<real> u(opts().n_fields, real(0));
 	static auto &params = initial_params();
 	if (!opts().restart_filename.empty()) {
 		return u;

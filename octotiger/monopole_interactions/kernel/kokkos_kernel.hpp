@@ -770,9 +770,9 @@ namespace fmm {
         void launch_interface_p2p_p2m(executor_t& exec, host_buffer<double>& monopoles,
             host_buffer<double>& results, host_buffer<double>& ang_corr_results,
             host_buffer<double>& center_of_masses_inner_cells,
-            std::vector<host_buffer<double>>& local_expansions,
-            std::vector<host_buffer<double>>& center_of_masses, double dx, double theta,
-            std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
+            oct::vector<host_buffer<double>>& local_expansions,
+            oct::vector<host_buffer<double>>& center_of_masses, double dx, double theta,
+            oct::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
             const size_t number_p2m_kernels) {
             // create device buffers
             const device_buffer<int>& device_masks =
@@ -798,8 +798,8 @@ namespace fmm {
             Kokkos::deep_copy(
                 exec.instance(), device_center_of_masses_inner_cells, center_of_masses_inner_cells);
 
-            std::vector<device_buffer<double>> device_center_of_masses_neighbors;
-            std::vector<device_buffer<double>> device_local_expansions_neighbors;
+            oct::vector<device_buffer<double>> device_center_of_masses_neighbors;
+            oct::vector<device_buffer<double>> device_local_expansions_neighbors;
 
             device_buffer<double> device_corrections(NUMBER_ANG_CORRECTIONS);
 
@@ -883,9 +883,9 @@ namespace fmm {
         void launch_interface_p2p_p2m(executor_t& exec, host_buffer<double>& monopoles,
             host_buffer<double>& results, host_buffer<double>& ang_corr_results,
             host_buffer<double>& center_of_masses_inner_cells,
-            std::vector<host_buffer<double>>& local_expansions,
-            std::vector<host_buffer<double>>& center_of_masses, double dx, double theta,
-            std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
+            oct::vector<host_buffer<double>>& local_expansions,
+            oct::vector<host_buffer<double>>& center_of_masses, double dx, double theta,
+            oct::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
             const size_t number_p2m_kernels) {
             const host_buffer<int>& host_masks = get_host_masks<host_buffer<int>>();
             const host_buffer<double>& host_constants = get_host_constants<host_buffer<double>>();
@@ -957,10 +957,10 @@ namespace fmm {
         // --------------------------------------- Kernel interface
 
         template <typename executor_t>
-        void monopole_kernel(executor_t& exec, std::vector<real>& monopoles,
-            std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
-            std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx, real theta,
-            std::array<bool, geo::direction::count()>& is_direction_empty,
+        void monopole_kernel(executor_t& exec, oct::vector<real>& monopoles,
+            oct::vector<std::shared_ptr<oct::vector<space_vector>>>& com_ptr,
+            oct::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx, real theta,
+            oct::array<bool, geo::direction::count()>& is_direction_empty,
             std::shared_ptr<grid> grid_ptr, const bool contains_multipole_neighbor) {
             // Create host buffers
             host_buffer<double> host_monopoles(NUMBER_LOCAL_MONOPOLE_VALUES);
@@ -971,7 +971,7 @@ namespace fmm {
 
             if (contains_multipole_neighbor) {
                 // Get center of masses inner cells
-                std::vector<space_vector> const& com0 = *(com_ptr[0]);
+                oct::vector<space_vector> const& com0 = *(com_ptr[0]);
                 host_buffer<double> host_center_of_masses_inner_cells(
                     (INNER_CELLS + SOA_PADDING) * 3);
                 iterate_inner_cells_padded(
@@ -983,8 +983,8 @@ namespace fmm {
                             std::move(com0.at(flat_index_unpadded)), flat_index_unpadded);
                     });
 
-                std::vector<host_buffer<double>> host_center_of_masses;
-                std::vector<host_buffer<double>> host_local_expansions;
+                oct::vector<host_buffer<double>> host_center_of_masses;
+                oct::vector<host_buffer<double>> host_local_expansions;
                 host_buffer<double> host_corrections(NUMBER_ANG_CORRECTIONS);
 
                 size_t number_kernels = 0;
@@ -1010,7 +1010,7 @@ namespace fmm {
                     host_center_of_masses_inner_cells, host_local_expansions, host_center_of_masses,
                     dx, theta, neighbors, type, number_kernels);
                 if (type == RHO) {
-                    std::vector<space_vector>& corrections = grid_ptr->get_L_c();
+                    oct::vector<space_vector>& corrections = grid_ptr->get_L_c();
                     for (size_t component = 0; component < 3; component++) {
                         for (size_t entry = 0; entry < INNER_CELLS; entry++) {
                             corrections[entry][component] =
@@ -1023,7 +1023,7 @@ namespace fmm {
             }
 
             // Add results back into non-SoA array
-            std::vector<expansion>& org = grid_ptr->get_L();
+            oct::vector<expansion>& org = grid_ptr->get_L();
             for (size_t component = 0; component < 4; component++) {
                 for (size_t entry = 0; entry < INNER_CELLS; entry++) {
                     org[entry][component] +=

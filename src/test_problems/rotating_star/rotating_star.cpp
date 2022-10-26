@@ -16,12 +16,12 @@
 
 class rotating_star_analytic {
 private:
-	std::vector<std::vector<double>> rho_;
-	std::vector<std::vector<double>> ene_;
+	oct::vector<oct::vector<double>> rho_;
+	oct::vector<oct::vector<double>> ene_;
 	double dr_, dz_, omega_;
 	int nr_, nz_;
 public:
-	double interpolate(const std::vector<std::vector<double>>& f, double R, double z) const {
+	double interpolate(const oct::vector<oct::vector<double>>& f, double R, double z) const {
                 // bicubic interpolation by the prescreption: f(x,y) = (x^3 x^2 x 1)A(y^3 y^2 y 1)^T, and F = BAB^T
                 static constexpr real mycoeff[4][4] = {{1., 0., 0., 0.}, {-1.83333333, 3., -1.5, 0.333333333}, {1., -2.5,
   2., -0.5}, {-0.166666667, 0.5, -0.5, 0.166666667}}; // B^-1
@@ -68,8 +68,8 @@ public:
 		nr_ *= 2;
 		nz_ *= 2;
 		fp.read(reinterpret_cast<char*>(&omega_), sizeof(double));
-		rho_.resize(nr_, std::vector<double>(nz_));
-		ene_.resize(nr_, std::vector<double>(nz_));
+		rho_.resize(nr_, oct::vector<double>(nz_));
+		ene_.resize(nr_, oct::vector<double>(nz_));
 		for (int i = 0; i < nr_; i++) {
 			for (int k = 0; k < nz_; k++) {
 				fp.read(reinterpret_cast<char*>(&(rho_[i][k])), sizeof(double));
@@ -92,8 +92,8 @@ public:
 
 };
 
-std::vector<real> rotating_star(real x, real y, real z, real dx) {
-	std::vector<real> u(opts().n_fields, real(0));
+oct::vector<real> rotating_star(real x, real y, real z, real dx) {
+	oct::vector<real> u(opts().n_fields, real(0));
 
 	x -= opts().rotating_star_x;
 
@@ -126,6 +126,6 @@ std::vector<real> rotating_star(real x, real y, real z, real dx) {
 	return u;
 }
 
-std::vector<real> rotating_star_a(real x, real y, real z, real) {
+oct::vector<real> rotating_star_a(real x, real y, real z, real) {
 	return rotating_star(x, y, z, 0);
 }

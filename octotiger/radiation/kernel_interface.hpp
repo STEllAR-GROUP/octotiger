@@ -20,7 +20,7 @@ namespace octotiger { namespace radiation {
     namespace dumper {
         constexpr char const* basepath = OCTOTIGER_DUMP_DIR "/octotiger-radiation-";
 
-        void save_v(std::ostream& os, std::vector<double> const& v)
+        void save_v(std::ostream& os, oct::vector<double> const& v)
         {
             std::size_t size = v.size();
             os.write(reinterpret_cast<char*>(&size), sizeof(std::size_t));
@@ -30,7 +30,7 @@ namespace octotiger { namespace radiation {
         }
 
         void save_a(
-            std::ostream& os, std::array<std::vector<double>, NRF> const& a)
+            std::ostream& os, oct::array<oct::vector<double>, NRF> const& a)
         {
             std::size_t size = a.size();
             os.write(reinterpret_cast<char*>(&size), sizeof(std::size_t));
@@ -67,16 +67,16 @@ namespace octotiger { namespace radiation {
             std::int64_t const& fy_i,
             std::int64_t const& fz_i,
             std::int64_t const& d,
-            std::vector<double> const& sx,
-            std::vector<double> const& sy,
-            std::vector<double> const& sz,
-            std::vector<double> const& egas,
-            std::vector<double> const& tau,
-            std::array<std::vector<double>, NRF> const& U,
-            std::vector<double> const& rho,
-            std::vector<double> const& X_spc,
-            std::vector<double> const& Z_spc,
-            std::vector<double> const& mmw)
+            oct::vector<double> const& sx,
+            oct::vector<double> const& sy,
+            oct::vector<double> const& sz,
+            oct::vector<double> const& egas,
+            oct::vector<double> const& tau,
+            oct::array<oct::vector<double>, NRF> const& U,
+            oct::vector<double> const& rho,
+            oct::vector<double> const& X_spc,
+            oct::vector<double> const& Z_spc,
+            oct::vector<double> const& mmw)
         {
             std::string const args_fn = std::string{basepath} +
                 std::to_string(index) + std::string{".args"};
@@ -116,12 +116,12 @@ namespace octotiger { namespace radiation {
         }
 
         void save_case_outs(std::size_t const index,
-            std::vector<double> const& sx,
-            std::vector<double> const& sy,
-            std::vector<double> const& sz,
-            std::vector<double> const& egas,
-            std::vector<double> const& tau,
-            std::array<std::vector<double>, NRF> const& U)
+            oct::vector<double> const& sx,
+            oct::vector<double> const& sy,
+            oct::vector<double> const& sz,
+            oct::vector<double> const& egas,
+            oct::vector<double> const& tau,
+            oct::array<oct::vector<double>, NRF> const& U)
         {
             std::string const outs_fn = std::string{basepath} +
                 std::to_string(index) + std::string{".outs"};
@@ -145,17 +145,17 @@ namespace octotiger { namespace radiation {
 
     template <integer er_i, integer fx_i, integer fy_i, integer fz_i>
     void radiation_kernel(integer const d,
-        std::vector<real> const& rho,
-        std::vector<real>& sx,
-        std::vector<real>& sy,
-        std::vector<real>& sz,
-        std::vector<real>& egas,
-        std::vector<real>& tau,
+        oct::vector<real> const& rho,
+        oct::vector<real>& sx,
+        oct::vector<real>& sy,
+        oct::vector<real>& sz,
+        oct::vector<real>& egas,
+        oct::vector<real>& tau,
         real const fgamma,
-        std::vector<std::vector<real>>& U,
-        std::vector<real> const& mmw,
-        std::vector<real> const& X_spc,
-        std::vector<real> const& Z_spc,
+        oct::vector<oct::vector<real>>& U,
+        oct::vector<real> const& mmw,
+        oct::vector<real> const& X_spc,
+        oct::vector<real> const& Z_spc,
         real dt,
         real const clightinv)
     {

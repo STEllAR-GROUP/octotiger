@@ -79,12 +79,12 @@ public:
         real, real, real, real, real, real, real, struct_eos, struct_eos) const;
     future<std::pair<real,real>> amr_error() const;
     void send_hydro_children(
-        std::vector<real>&&, const geo::octant& ci, std::size_t cycle) const;
-    void send_hydro_flux_correct(std::vector<real>&&, const geo::face& face,
+        oct::vector<real>&&, const geo::octant& ci, std::size_t cycle) const;
+    void send_hydro_flux_correct(oct::vector<real>&&, const geo::face& face,
         const geo::octant& ci) const;
-    void send_read_flux_correct(std::vector<real>&&, const geo::face& face,
+    void send_read_flux_correct(oct::vector<real>&&, const geo::face& face,
         const geo::octant& ci) const;
-    void send_rad_flux_correct(std::vector<real>&&, const geo::face& face,
+    void send_rad_flux_correct(oct::vector<real>&&, const geo::face& face,
         const geo::octant& ci) const;
     future<diagnostics_t> diagnostics(const diagnostics_t&) const;
     future<analytic_t> compare_analytic() const;
@@ -95,20 +95,20 @@ public:
     future<void> set_aunt(const hpx::id_type&, const geo::face&) const;
     OCTOTIGER_EXPORT future<node_server*> get_ptr() const;
     future<int> form_tree(
-        hpx::id_type&&, hpx::id_type&&, std::vector<hpx::id_type>&&);
+        hpx::id_type&&, hpx::id_type&&, oct::vector<hpx::id_type>&&);
     future<hpx::id_type> get_child_client(
         const node_location& parent_loc, const geo::octant&);
     future<void> regrid_scatter(integer, integer) const;
     future<node_count_type> regrid_gather(bool) const;
     future<line_of_centers_t> line_of_centers(
         const std::pair<space_vector, space_vector>& line) const;
-    void send_flux_check(std::vector<real>&&, const geo::direction& dir,
+    void send_flux_check(oct::vector<real>&&, const geo::direction& dir,
         std::size_t cycle) const;
-    void send_hydro_boundary(std::vector<real>&&, const geo::direction& dir,
+    void send_hydro_boundary(oct::vector<real>&&, const geo::direction& dir,
         std::size_t cycle) const;
-    void send_hydro_amr_boundary(std::vector<real>&&, const geo::direction& dir,
+    void send_hydro_amr_boundary(oct::vector<real>&&, const geo::direction& dir,
         std::size_t cycle) const;
-    void send_rad_amr_boundary(std::vector<real>&&, const geo::direction& dir,
+    void send_rad_amr_boundary(oct::vector<real>&&, const geo::direction& dir,
         std::size_t cycle) const;
     void send_gravity_boundary(gravity_boundary_type&&, const geo::direction&,
         bool monopole, std::size_t cycle) const;
@@ -118,22 +118,22 @@ public:
     future<real> step(integer) const;
     future<void> solve_gravity(bool ene, bool aonly) const;
     future<hpx::id_type> copy_to_locality(const hpx::id_type&) const;
-    future<void> set_grid(std::vector<real>&&, std::vector<real>&&) const;
+    future<void> set_grid(oct::vector<real>&&, oct::vector<real>&&) const;
     void timestep_driver_ascend(timestep_t) const;
     void set_local_timestep(integer, timestep_t) const;
     future<void> velocity_inc(const space_vector&) const;
     future<void> energy_adj() const;
     future<void> check_for_refinement(real omega, real) const;
     future<void> enforce_bc() const;
-    future<void> force_nodes_to_exist(std::vector<node_location>&& loc) const;
+    future<void> force_nodes_to_exist(oct::vector<node_location>&& loc) const;
     void report_timing() const;
     future<void> change_units(real, real, real, real) const;
     future<void> erad_init() const;
     void send_rad_children(
-        std::vector<real>&&, const geo::octant& ci, std::size_t cycle) const;
+        oct::vector<real>&&, const geo::octant& ci, std::size_t cycle) const;
     void send_rad_boundary(
-        std::vector<real>&&, const geo::direction&, std::size_t cycle) const;
-    future<void> set_rad_grid(std::vector<real>&&) const;
+        oct::vector<real>&&, const geo::direction&, std::size_t cycle) const;
+    future<void> set_rad_grid(oct::vector<real>&&) const;
     future<void> kill() const;
 };
 #endif /* NODE_CLIENT_HPP_ */

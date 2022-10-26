@@ -147,17 +147,17 @@ namespace octotiger { namespace radiation {
 
     template <integer er_i, integer fx_i, integer fy_i, integer fz_i>
     void radiation_cpu_kernel(integer const d,
-        std::vector<real> const& rho,
-        std::vector<real>& sx,
-        std::vector<real>& sy,
-        std::vector<real>& sz,
-        std::vector<real>& egas,
-        std::vector<real>& tau,
+        oct::vector<real> const& rho,
+        oct::vector<real>& sx,
+        oct::vector<real>& sy,
+        oct::vector<real>& sz,
+        oct::vector<real>& egas,
+        oct::vector<real>& tau,
         real const fgamma,
-        std::vector<std::vector<real>>& U,
-        std::vector<real> const& mmw,
-        std::vector<real> const& X_spc,
-        std::vector<real> const& Z_spc,
+        oct::vector<oct::vector<real>>& U,
+        oct::vector<real> const& mmw,
+        oct::vector<real> const& X_spc,
+        oct::vector<real> const& Z_spc,
         real dt,
         real const clightinv)
     {

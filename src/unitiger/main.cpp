@@ -51,9 +51,9 @@ void run_test(typename PHYS::test_type problem, bool with_correction, bool writi
 	for (int s = 0; s < 5; s++) {
 		computer.use_disc_detect(PHYS::spc_i + s);
 	}
-	std::vector<std::vector<std::vector<safe_real>>> F(NDIM, std::vector<std::vector<safe_real>>(nf, std::vector<safe_real>(H_N3)));
-	std::vector<std::vector<safe_real>> U(nf, std::vector<safe_real>(H_N3));
-	std::vector<std::vector<safe_real>> U0(nf, std::vector<safe_real>(H_N3));
+	oct::vector<oct::vector<oct::vector<safe_real>>> F(NDIM, oct::vector<oct::vector<safe_real>>(nf, oct::vector<safe_real>(H_N3)));
+	oct::vector<oct::vector<safe_real>> U(nf, oct::vector<safe_real>(H_N3));
+	oct::vector<oct::vector<safe_real>> U0(nf, oct::vector<safe_real>(H_N3));
 	hydro::x_type X(NDIM);
 	for (int dim = 0; dim < NDIM; dim++) {
 		X[dim].resize(H_N3);
@@ -129,9 +129,9 @@ void run_test(typename PHYS::test_type problem, bool with_correction, bool writi
 //
 //      phys.template pre_recon<INX>(U0, X, omega, with_correction);
 //      phys.template pre_recon<INX>(U, X, omega, with_correction);
-//      std::vector<safe_real> L1(nf);
-//      std::vector<safe_real> L2(nf);
-//      std::vector<safe_real> Linf(nf);
+//      oct::vector<safe_real> L1(nf);
+//      oct::vector<safe_real> L2(nf);
+//      oct::vector<safe_real> Linf(nf);
 //      for (int f = 0; f < nf; f++) {
 //              L1[f] = L2[f] = Linf[f];
 //              for (int i = 0; i < H_N3; i++) {

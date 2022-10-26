@@ -7,9 +7,9 @@
 #include "octotiger/test_problems/amr/amr.hpp"
 #include "octotiger/unitiger/util.hpp"
 
-std::vector<real> grid::get_subset(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub, bool energy_only) {
+oct::vector<real> grid::get_subset(const oct::array<integer, NDIM> &lb, const oct::array<integer, NDIM> &ub, bool energy_only) {
 	PROFILE();
-	std::vector<real> data;
+	oct::vector<real> data;
 	for (int f = 0; f < opts().n_fields; f++) {
 		if (!energy_only || f == egas_i) {
 			for (int i = lb[0]; i < ub[0]; i++) {
@@ -24,10 +24,10 @@ std::vector<real> grid::get_subset(const std::array<integer, NDIM> &lb, const st
 	return std::move(data);
 }
 
-void grid::set_hydro_amr_boundary(const std::vector<real> &data, const geo::direction &dir, bool energy_only) {
+void grid::set_hydro_amr_boundary(const oct::vector<real> &data, const geo::direction &dir, bool energy_only) {
 	PROFILE();
 
-	std::array<integer, NDIM> lb, ub;
+	oct::array<integer, NDIM> lb, ub;
 	int l = 0;
 	get_boundary_size(lb, ub, dir, OUTER, INX / 2, H_BW);
 	for (int i = lb[0]; i < ub[0]; i++) {
@@ -62,10 +62,10 @@ void grid::set_hydro_amr_boundary(const std::vector<real> &data, const geo::dire
 void grid::complete_hydro_amr_boundary(bool energy_only) {
 	PROFILE();
 
-	using oct_array = std::array<std::array<std::array<double, 2>, 2>, 2>;
-	static thread_local std::vector<std::vector<oct_array>> Uf(opts().n_fields, std::vector<oct_array>(HS_N3));
+	using oct_array = oct::array<oct::array<oct::array<double, 2>, 2>, 2>;
+	static thread_local oct::vector<oct::vector<oct_array>> Uf(opts().n_fields, oct::vector<oct_array>(HS_N3));
 
-	std::array<double, NDIM> xmin;
+	oct::array<double, NDIM> xmin;
 	for (int dim = 0; dim < NDIM; dim++) {
 		xmin[dim] = X[dim][0];
 	}

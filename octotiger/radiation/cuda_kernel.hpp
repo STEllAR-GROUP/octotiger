@@ -15,11 +15,11 @@
 
 namespace octotiger { namespace radiation {
     template <integer er_i, integer fx_i, integer fy_i, integer fz_i>
-    void radiation_cuda_kernel(integer const d, std::vector<real> const& rho,
-        std::vector<real>& sx, std::vector<real>& sy, std::vector<real>& sz,
-        std::vector<real>& egas, std::vector<real>& tau, real const fgamma,
-        std::array<std::vector<real>, NRF> U, std::vector<real> mmw,
-        std::vector<real> X_spc, std::vector<real> Z_spc, real dt,
+    void radiation_cuda_kernel(integer const d, oct::vector<real> const& rho,
+        oct::vector<real>& sx, oct::vector<real>& sy, oct::vector<real>& sz,
+        oct::vector<real>& egas, oct::vector<real>& tau, real const fgamma,
+        oct::array<oct::vector<real>, NRF> U, oct::vector<real> mmw,
+        oct::vector<real> X_spc, oct::vector<real> Z_spc, real dt,
         real const clightinv)
     {
         throw std::logic_error{"Not Implemented"};

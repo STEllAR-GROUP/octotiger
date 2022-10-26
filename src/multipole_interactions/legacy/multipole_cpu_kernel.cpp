@@ -85,7 +85,7 @@ namespace fmm {
             const cpu_space_vector_buffer_t& center_of_masses_SoA,
             cpu_expansion_result_buffer_t& potential_expansions_SoA,
             cpu_angular_result_t& angular_corrections_SoA, const cpu_monopole_buffer_t& mons,
-            const std::vector<bool>& stencil, const std::vector<bool>& inner_stencil,
+            const oct::vector<bool>& stencil, const oct::vector<bool>& inner_stencil,
             gsolve_type type) {
             for (size_t i0 = 0; i0 < INNER_CELLS_PER_DIRECTION; i0++) {
                 for (size_t i1 = 0; i1 < INNER_CELLS_PER_DIRECTION; i1++) {
@@ -131,7 +131,7 @@ namespace fmm {
             const cpu_expansion_buffer_t& local_expansions_SoA,
             const cpu_space_vector_buffer_t& center_of_masses_SoA,
             cpu_expansion_result_buffer_t& potential_expansions_SoA,
-            cpu_angular_result_t& angular_corrections_SoA, const std::vector<bool>& inner_stencil,
+            cpu_angular_result_t& angular_corrections_SoA, const oct::vector<bool>& inner_stencil,
             gsolve_type type) {
             for (size_t i0 = 0; i0 < INNER_CELLS_PER_DIRECTION; i0++) {
                 for (size_t i1 = 0; i1 < INNER_CELLS_PER_DIRECTION; i1++) {
@@ -551,7 +551,7 @@ namespace fmm {
             const multiindex<>& cell_index, const size_t cell_flat_index,
             const multiindex<m2m_int_vector>& cell_index_coarse,
             const multiindex<>& cell_index_unpadded, const size_t cell_flat_index_unpadded,
-            const std::vector<bool>& stencil, const std::vector<bool>& inner_mask,
+            const oct::vector<bool>& stencil, const oct::vector<bool>& inner_mask,
             const size_t outer_stencil_index) {
             m2m_vector X[3];
             X[0] = center_of_masses_SoA.value<0, m2m_vector>(cell_flat_index);
@@ -780,7 +780,7 @@ namespace fmm {
             const multiindex<>& cell_index, const size_t cell_flat_index,
             const multiindex<m2m_int_vector>& cell_index_coarse,
             const multiindex<>& cell_index_unpadded, const size_t cell_flat_index_unpadded,
-            const std::vector<bool>& stencil, const std::vector<bool>& inner_mask,
+            const oct::vector<bool>& stencil, const oct::vector<bool>& inner_mask,
             const size_t outer_stencil_index) {
             m2m_vector X[3];
             X[0] = center_of_masses_SoA.value<0, m2m_vector>(cell_flat_index);
@@ -974,7 +974,7 @@ namespace fmm {
             cpu_expansion_result_buffer_t& potential_expansions_SoA,
             cpu_angular_result_t& angular_corrections_SoA, const multiindex<>& cell_index,
             const size_t cell_flat_index, const multiindex<>& cell_index_unpadded,
-            const size_t cell_flat_index_unpadded, const std::vector<bool>& inner_mask) {
+            const size_t cell_flat_index_unpadded, const oct::vector<bool>& inner_mask) {
             m2m_vector X[3];
             X[0] = center_of_masses_SoA.value<0, m2m_vector>(cell_flat_index);
             X[1] = center_of_masses_SoA.value<1, m2m_vector>(cell_flat_index);
@@ -1169,7 +1169,7 @@ namespace fmm {
             cpu_expansion_result_buffer_t& potential_expansions_SoA,
             cpu_angular_result_t& angular_corrections_SoA, const multiindex<>& cell_index,
             const size_t cell_flat_index, const multiindex<>& cell_index_unpadded,
-            const size_t cell_flat_index_unpadded, const std::vector<bool>& inner_mask) {
+            const size_t cell_flat_index_unpadded, const oct::vector<bool>& inner_mask) {
             m2m_vector X[3];
             X[0] = center_of_masses_SoA.value<0, m2m_vector>(cell_flat_index);
             X[1] = center_of_masses_SoA.value<1, m2m_vector>(cell_flat_index);

@@ -38,7 +38,7 @@ using sed_real = boost::multiprecision::cpp_bin_float_quad;
 constexpr real blast_wave_t0 = 7e-4;
 
 #if defined(OCTOTIGER_HAVE_BLAST_TEST)
-std::vector<real> blast_wave_analytic(real x, real y, real z, real t) {
+oct::vector<real> blast_wave_analytic(real x, real y, real z, real t) {
 	static const auto dxmin = 2.0 * opts().xscale / INX / double(1 << opts().max_level);
 	real r = std::sqrt(x * x + y * y + z * z);
 	r = std::max(r, dxmin * 1.0e-3);
@@ -46,7 +46,7 @@ std::vector<real> blast_wave_analytic(real x, real y, real z, real t) {
 	real rmax = 3.0 * opts().xscale;
 	real d, v, p;
 	sedov::solution(t, r, rmax, d, v, p);
-	std::vector<real> u(opts().n_fields, 0.0);
+	oct::vector<real> u(opts().n_fields, 0.0);
 	u[rho_i] = u[spc_i] = std::max(d, 1.0e-20);
 	real s = d * v;
 	u[sx_i] = s * x / r;
@@ -59,8 +59,8 @@ std::vector<real> blast_wave_analytic(real x, real y, real z, real t) {
 }
 #endif
 
-std::vector<real> blast_wave(real x, real y, real z, real dx) {
-	std::vector<real> u(opts().n_fields, 0.0);
+oct::vector<real> blast_wave(real x, real y, real z, real dx) {
+	oct::vector<real> u(opts().n_fields, 0.0);
 	u[rho_i] = u[spc_i] = 1.0;
 	const auto r2 = x * x + y * y + z * z;
 	const auto rmax = dx * 3.5;

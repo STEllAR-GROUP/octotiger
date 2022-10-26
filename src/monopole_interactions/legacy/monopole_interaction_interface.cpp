@@ -28,8 +28,8 @@ namespace fmm {
             return cuda_launch_counter_;
         }
 
-        std::vector<multiindex<>>& monopole_interaction_interface::stencil() {
-            static thread_local std::vector<multiindex<>>
+        oct::vector<multiindex<>>& monopole_interaction_interface::stencil() {
+            static thread_local oct::vector<multiindex<>>
                 stencil_;    // = calculate_stencil().first;
             static thread_local bool initialized = false;
             if (!initialized) {
@@ -39,8 +39,8 @@ namespace fmm {
             return stencil_;
         }
 
-        std::vector<bool>& monopole_interaction_interface::stencil_masks() {
-            static thread_local std::vector<bool> stencil_masks_;
+        oct::vector<bool>& monopole_interaction_interface::stencil_masks() {
+            static thread_local oct::vector<bool> stencil_masks_;
             static thread_local bool initialized = false;
             if (!initialized) {
                 stencil_masks_ =
@@ -49,8 +49,8 @@ namespace fmm {
             }
             return stencil_masks_;
         }
-        std::vector<std::array<real, 4>>& monopole_interaction_interface::four() {
-            static thread_local std::vector<std::array<real, 4>> four_;
+        oct::vector<std::array<real, 4>>& monopole_interaction_interface::four() {
+            static thread_local oct::vector<std::array<real, 4>> four_;
             static thread_local bool initialized = false;
             if (!initialized) {
                 four_ = calculate_stencil().second;
@@ -58,8 +58,8 @@ namespace fmm {
             }
             return four_;
         }
-        std::vector<std::array<real, 4>>& monopole_interaction_interface::stencil_four_constants() {
-            static thread_local std::vector<std::array<real, 4>> stencil_four_constants_;
+        oct::vector<std::array<real, 4>>& monopole_interaction_interface::stencil_four_constants() {
+            static thread_local oct::vector<std::array<real, 4>> stencil_four_constants_;
             static thread_local bool initialized = false;
             if (!initialized) {
                 stencil_four_constants_ =
@@ -74,10 +74,10 @@ namespace fmm {
         }
 
         void monopole_interaction_interface::compute_interactions(
-            const std::vector<real>& monopoles,
-            std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
-            std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
-            std::array<bool, geo::direction::count()>& is_direction_empty,
+            const oct::vector<real>& monopoles,
+            oct::vector<std::shared_ptr<oct::vector<space_vector>>>& com_ptr,
+            oct::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
+            oct::array<bool, geo::direction::count()>& is_direction_empty,
             std::shared_ptr<grid>& grid_ptr, const bool contains_multipole_neighbor) {
             cpu_launch_counter()++;
             cpu_monopole_buffer_t local_monopoles_staging_area(ENTRIES);
@@ -94,8 +94,8 @@ namespace fmm {
         }
 
         void monopole_interaction_interface::compute_interactions(gsolve_type type,
-            std::array<bool, geo::direction::count()>& is_direction_empty,
-            std::vector<neighbor_gravity_type>& all_neighbor_interaction_data, real dx,
+            oct::array<bool, geo::direction::count()>& is_direction_empty,
+            oct::vector<neighbor_gravity_type>& all_neighbor_interaction_data, real dx,
             const cpu_monopole_buffer_t& local_monopoles_staging_area,
             std::shared_ptr<grid>& grid_ptr) {
             if (p2p_type == interaction_host_kernel_type::VC) {

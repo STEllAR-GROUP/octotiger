@@ -288,9 +288,9 @@ public:
 OCTOTIGER_EXPORT options& opts();
 
 template<class T = real>
-struct hydro_state_t: public std::vector<T> {
+struct hydro_state_t: public oct::vector<T> {
 	hydro_state_t() :
-			std::vector<T>(opts().n_fields) {
+			oct::vector<T>(opts().n_fields) {
 	}
 };
 

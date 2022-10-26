@@ -32,7 +32,7 @@ namespace fmm {
         {
         private:
             // so skip non-existing interaction partners faster, one entry per vector variable
-            std::vector<bool> vector_is_empty;
+            oct::vector<bool> vector_is_empty;
 
             const m2m_vector theta_rec_squared;
             m2m_int_vector offset_vector;
@@ -44,8 +44,8 @@ namespace fmm {
                 const multiindex<m2m_int_vector>& __restrict__ cell_index_coarse,
                 const multiindex<>& __restrict__ cell_index_unpadded,
                 const size_t cell_flat_index_unpadded,
-                const std::vector<bool>& __restrict__ stencil,
-                const std::vector<std::array<real, 4>>& __restrict__ four_constants,
+                const oct::vector<bool>& __restrict__ stencil,
+                const oct::vector<std::array<real, 4>>& __restrict__ four_constants,
                 const size_t outer_stencil_index, real dx);
 
         public:
@@ -59,7 +59,7 @@ namespace fmm {
 
             void apply_stencil(const cpu_monopole_buffer_t& local_expansions,
                 cpu_expansion_result_buffer_t& potential_expansions_SoA,
-                const std::vector<bool>& stencil, const std::vector<std::array<real, 4>>& four,
+                const oct::vector<bool>& stencil, const oct::vector<std::array<real, 4>>& four,
                 real dx);
         };
 

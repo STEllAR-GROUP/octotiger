@@ -71,8 +71,8 @@ int main(int argc, char* argv[]) {
 //	eos::set_eos_type(eos::eos_type(eos));
 //	eos::set_units(cm, g, s, K);
 
-	std::vector<std::string> field_names;
-	std::vector<std::string> hydro_names;
+	oct::vector<std::string> field_names;
+	oct::vector<std::string> hydro_names;
 	if (hydro) {
 		field_names.push_back("tau");
 		field_names.push_back("egas");

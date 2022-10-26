@@ -117,7 +117,7 @@ HPX_PLAIN_ACTION(cleanup_buffers, cleanup_buffers_action);
 void cleanup() {
     std::vector<hpx::naming::id_type> localities = hpx::find_all_localities();
 
-    std::vector<hpx::lcos::future<void>> futures;
+    oct::vector<hpx::lcos::future<void>> futures;
     futures.reserve(localities.size());
 
     for (hpx::naming::id_type const& node : localities) {

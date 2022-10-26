@@ -21,7 +21,7 @@ namespace hydro {
 
 
 
-void output_cell2d(FILE *fp, const std::array<safe_real, 9> &C, int joff, int ioff) {
+void output_cell2d(FILE *fp, const oct::array<safe_real, 9> &C, int joff, int ioff) {
 	for (int i = 0; i < 3; i++) {
 		for (int j = 0; j < 3; j++) {
 			if (i < 2)

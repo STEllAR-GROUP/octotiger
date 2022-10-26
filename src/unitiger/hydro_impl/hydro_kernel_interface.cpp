@@ -46,8 +46,8 @@ void init_hydro_kokkos_aggregation_pool(void) {
 
 
 timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
-    const std::vector<std::vector<safe_real>>& U, std::vector<std::vector<safe_real>>& X,
-    const double omega, std::vector<hydro_state_t<std::vector<safe_real>>>& F,
+    const oct::vector<oct::vector<safe_real>>& U, oct::vector<oct::vector<safe_real>>& X,
+    const double omega, oct::vector<hydro_state_t<oct::vector<safe_real>>>& F,
     const interaction_host_kernel_type host_type, const interaction_device_kernel_type device_type,
     const size_t cuda_buffer_capacity) {
     static const cell_geometry<NDIM, INX> geo;
@@ -144,9 +144,9 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
 #endif
     } else if (host_type == interaction_host_kernel_type::LEGACY) {
         // Legacy implementation
-        static thread_local auto f = std::vector<std::vector<std::vector<safe_real>>>(NDIM,
-            std::vector<std::vector<safe_real>>(opts().n_fields, std::vector<safe_real>(H_N3)));
-        const auto& q = hydro.reconstruct(U, X, omega);
+        static thread_local auto f = oct::vector<oct::vector<oct::vector<safe_real>>>(NDIM,
+            oct::vector<oct::vector<safe_real>>(opts().n_fields, oct::vector<safe_real>(H_N3)));
+        const auto q = hydro.reconstruct(U, X, omega);
         max_lambda = hydro.flux(U, q, f, X, omega);
         // Use legacy conversion
         for (int dim = 0; dim < NDIM; dim++) {

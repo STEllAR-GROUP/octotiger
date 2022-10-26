@@ -24,7 +24,7 @@
 // using mutex = hpx::lcos::local::spinlock;
 // }
 
-std::vector<std::vector<real>>& TLS_V();
+oct::vector<oct::vector<real>>& TLS_V();
 
 #include <unordered_map>
 

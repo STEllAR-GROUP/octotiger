@@ -58,20 +58,20 @@ struct physics {
 
 	static void set_fgamma(safe_real fg);
 
-	static void to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v, safe_real& c, int dim);
+	static void to_prim(oct::vector<safe_real> u, safe_real &p, safe_real &v, safe_real& c, int dim);
 	// static void to_prim_experimental(const double rho, const double sx, const double tau, const double egas, safe_real &p, safe_real &v, safe_real& c, int dim);
-	static void to_prim_experimental(const std::vector<double> &u, double &p, double &v, double &cs, const int dim) noexcept;
+	static void to_prim_experimental(const oct::vector<double> &u, double &p, double &v, double &cs, const int dim) noexcept;
 
 	static void enforce_outflows(hydro::state_type &U, const hydro::x_type &X, int face) {
 
 	}
 
 	template<int INX>
-	static void physical_flux(const std::vector<safe_real> &U, std::vector<safe_real> &F, int dim, safe_real &am, safe_real &ap, std::array<safe_real, NDIM> &x,
-			std::array<safe_real, NDIM> &vg);
+	static void physical_flux(const oct::vector<safe_real> &U, oct::vector<safe_real> &F, int dim, safe_real &am, safe_real &ap, oct::array<safe_real, NDIM> &x,
+			oct::array<safe_real, NDIM> &vg);
 	template<int INX>
-	static void physical_flux_experimental(const std::vector<safe_real> &U, std::vector<safe_real> &F, int dim, safe_real &am, safe_real &ap, std::array<safe_real, NDIM> &x,
-			std::array<safe_real, NDIM> &vg);
+	static void physical_flux_experimental(const oct::vector<safe_real> &U, oct::vector<safe_real> &F, int dim, safe_real &am, safe_real &ap, oct::array<safe_real, NDIM> &x,
+			oct::array<safe_real, NDIM> &vg);
 
 	template<int INX>
 	static void post_process(hydro::state_type &U, const hydro::x_type& X, safe_real dx);
@@ -87,18 +87,18 @@ struct physics {
 	static const hydro::state_type& pre_recon(const hydro::state_type &U, const hydro::x_type X, safe_real omega, bool angmom);
 	/*** Reconstruct uses this - GPUize****/
 	template<int INX>
-	static void post_recon(std::vector<std::vector<std::vector<safe_real>>> &Q, const hydro::x_type X, safe_real omega, bool angmom);
+	static void post_recon(oct::vector<oct::vector<oct::vector<safe_real>>> &Q, const hydro::x_type X, safe_real omega, bool angmom);
 	template<int INX>
 	using comp_type = hydro_computer<NDIM, INX, physics<NDIM>>;
 
 	template<int INX>
-	std::vector<typename comp_type<INX>::bc_type> initialize(test_type t, hydro::state_type &U, hydro::x_type &X);
+	oct::vector<typename comp_type<INX>::bc_type> initialize(test_type t, hydro::state_type &U, hydro::x_type &X);
 
 	template<int INX>
 	static void analytic_solution(test_type test, hydro::state_type &U, const hydro::x_type &X, safe_real time);
 
 	template<int INX>
-	static const std::vector<std::vector<double>>& find_contact_discs(const hydro::state_type &U);
+	static const oct::vector<oct::vector<double>>& find_contact_discs(const hydro::state_type &U);
 
 	static void set_n_species(int n);
 	static int get_n_species() {
@@ -107,7 +107,7 @@ struct physics {
 
 	static void update_n_field();
 
-	static safe_real get_mu_average(std::vector<safe_real> u);
+	static safe_real get_mu_average(oct::vector<safe_real> u);
 
 	static void set_mu(std::vector<safe_real>, std::vector<safe_real>);
 
@@ -137,7 +137,7 @@ public:
 	static int IPR_NR_maxiter;
 	static bool IPR_test;
 	static safe_real IPR_eint_floor;
-	static std::vector<safe_real> mu_;
+	static oct::vector<safe_real> mu_;
 	static safe_real GM_;
 	static safe_real deg_pres(safe_real x);
 	static safe_real pres_IPR(safe_real t, const safe_real a0, const safe_real a1, const safe_real a2, int &iter_num, const safe_real tol = 1.48e-08, const int max_iter = 50);
@@ -190,7 +190,7 @@ bool physics<NDIM>::IPR_test = false;
 //
 
 template<int NDIM>
-std::vector<safe_real> physics<NDIM>::mu_;
+oct::vector<safe_real> physics<NDIM>::mu_;
 
 template<int NDIM>
 safe_real physics<NDIM>::de_switch_1 = 1e-3;

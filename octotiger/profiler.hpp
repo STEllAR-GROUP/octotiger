@@ -14,6 +14,8 @@
 #include <array>
 #include <iostream>
 
+#include "octotiger/containers.hpp"
+
 struct profiler_register {
 	profiler_register(const char*, int);
 };
@@ -95,7 +97,7 @@ struct timings
         }
     }
 
-    std::array<double, timer::time_last> times_;
+    oct::array<double, timer::time_last> times_;
 };
 
 struct profiler_scope {

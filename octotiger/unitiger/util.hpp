@@ -7,8 +7,8 @@
 #define OCTOTIGER_UNITIGER_UTI1L_HPP_
 
 template<int NDIM, int NX>
-std::array<int, NDIM> index_to_dims(int i) {
-	std::array<int, NDIM> dims;
+oct::array<int, NDIM> index_to_dims(int i) {
+	oct::array<int, NDIM> dims;
 	for (int j = 0; j < NDIM; j++) {
 		dims[NDIM - 1 - j] = i % NX;
 		i /= NX;

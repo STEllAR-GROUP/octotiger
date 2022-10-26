@@ -60,17 +60,17 @@ __global__ void __launch_bounds__(128, 2) flux_cuda_kernel(const double* __restr
     const int index = blockIdx.y * 128 + tid;    // + 104;
 
     // Set during cmake step with -DOCTOTIGER_WITH_MAX_NUMBER_FIELDS
-    std::array<simd_t, OCTOTIGER_MAX_NUMBER_FIELDS> local_f;
-    std::array<simd_t, OCTOTIGER_MAX_NUMBER_FIELDS> local_q;
-    std::array<simd_t, OCTOTIGER_MAX_NUMBER_FIELDS> local_q_flipped;
+    oct::array<simd_t, OCTOTIGER_MAX_NUMBER_FIELDS> local_f;
+    oct::array<simd_t, OCTOTIGER_MAX_NUMBER_FIELDS> local_q;
+    oct::array<simd_t, OCTOTIGER_MAX_NUMBER_FIELDS> local_q_flipped;
     // assumes maximal number (given by cmake) of species in a simulation.
     // Not the most elegant solution and rather old-fashion but one that works.
     // May be changed to a more flexible sophisticated object.
     for (int f = 0; f < nf; f++) {
         local_f[f] = 0.0;
     }
-    std::array<simd_t, NDIM> local_x; 
-    std::array<simd_t, NDIM> local_vg; 
+    oct::array<simd_t, NDIM> local_x; 
+    oct::array<simd_t, NDIM> local_vg; 
     for (int dim = 0; dim < NDIM; dim++) {
         local_x[dim] = simd_t(0.0);
         local_vg[dim] = simd_t(0.0);
@@ -90,7 +90,7 @@ __global__ void __launch_bounds__(128, 2) flux_cuda_kernel(const double* __restr
         // component-wise but kokkos-simd currently does not support this!
         // hence the mask_helpers
         const simd_t mask_helper1(1.0);
-        std::array<double, simd_t::size()> mask_helper2_array;
+        oct::array<double, simd_t::size()> mask_helper2_array;
         // TODO make masks double and load directly
         for (int i = 0; i < simd_t::size(); i++) {
             mask_helper2_array[i] = masks[index + dim * dim_offset + i];
@@ -140,7 +140,7 @@ __global__ void __launch_bounds__(128, 2) flux_cuda_kernel(const double* __restr
                 const simd_t amax_tmp = SIMD_NAMESPACE::max(this_ap, (-this_am));
                 // Reduce
                 // TODO Reduce outside of inner loop?
-                std::array<double, simd_t::size()> max_helper;
+                oct::array<double, simd_t::size()> max_helper;
                 amax_tmp.copy_to(max_helper.data(), SIMD_NAMESPACE::element_aligned_tag{});
                 for (int i = 0; i < simd_t::size(); i++) {
                   if (max_helper[i] > current_amax) {

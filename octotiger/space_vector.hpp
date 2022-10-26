@@ -27,11 +27,11 @@ using space_vector = Vc::Vector<real, Vc::VectorAbi::Avx>;
 #else
 //using floatv = Vc::float_v;
  template<class T = real>
- class space_vector_gen : public std::array<T, NDIM> {
+ class space_vector_gen : public oct::array<T, NDIM> {
  public:
  	template<class Archive>
  	void serialize(Archive& arc, unsigned) {
- 		arc & *(static_cast<std::array<T, NDIM>*>(this));
+ 		arc & *(static_cast<oct::array<T, NDIM>*>(this));
  	}
  	space_vector_gen& operator=(T a) {
  		for (integer i = 0; i != NDIM; ++i) {

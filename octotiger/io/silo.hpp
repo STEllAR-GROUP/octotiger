@@ -32,7 +32,7 @@ class node_server;
 struct silo_var_t {
 private:
 	std::string name_;
-	std::vector<real> data_;
+	oct::vector<real> data_;
 	std::pair<real,real> range_;
 public:
 	void set_range(real val ) {
@@ -70,8 +70,8 @@ public:
 
 struct  silo_load_t {
 	integer nx;
-	std::vector<std::pair<std::string,std::vector<real>>> vars;
-	std::vector<std::pair<std::string,real>> outflows;
+	oct::vector<std::pair<std::string,oct::vector<real>>> vars;
+	oct::vector<std::pair<std::string,real>> outflows;
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {
 		arc & nx;

@@ -11,8 +11,9 @@
 
 #include <vector>
 
-OCTOTIGER_EXPORT std::vector<real> rotating_star(real x, real y, real z, real);
+#include "octotiger/containers.hpp"
+OCTOTIGER_EXPORT oct::vector<real> rotating_star(real x, real y, real z, real);
 
-OCTOTIGER_EXPORT std::vector<real> rotating_star_a(real x, real y, real z, real);
+OCTOTIGER_EXPORT oct::vector<real> rotating_star_a(real x, real y, real z, real);
 
 #endif /* ROTATING_STAR_ROTATING_STAR_HPP_ */

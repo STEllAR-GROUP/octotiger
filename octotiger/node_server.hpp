@@ -55,7 +55,7 @@ class OCTOTIGER_EXPORT node_server: public hpx::components::managed_component_ba
 
 private:
 	struct sibling_hydro_type {
-		std::vector<real> data;
+		oct::vector<real> data;
 		geo::direction direction;
 	};
 	integer position;
@@ -70,17 +70,17 @@ private:
 	std::shared_ptr<grid> grid_ptr; //
 	std::shared_ptr<rad_grid> rad_grid_ptr; //
 	std::atomic<bool> is_refined;
-	std::array<integer, NVERTEX> child_descendant_count;
-	std::array<real, NDIM> xmin;
+	oct::array<integer, NVERTEX> child_descendant_count;
+	oct::array<real, NDIM> xmin;
 	real dx;
 
   size_t number_hydro_exchange_promises;
-  std::vector<hpx::lcos::local::promise<void>> ready_for_hydro_exchange;
-  std::vector<hpx::lcos::local::promise<void>> ready_for_amr_hydro_exchange;
-  std::vector<hpx::lcos::local::promise<void>> boundaries_exchanged;
+  oct::vector<hpx::lcos::local::promise<void>> ready_for_hydro_exchange;
+  oct::vector<hpx::lcos::local::promise<void>> ready_for_amr_hydro_exchange;
+  oct::vector<hpx::lcos::local::promise<void>> boundaries_exchanged;
 
-  std::vector<hpx::lcos::local::promise<void>> ready_for_hydro_update;
-  std::vector<hpx::lcos::future<void>> all_neighbors_got_hydro;
+  oct::vector<hpx::lcos::local::promise<void>> ready_for_hydro_update;
+  oct::vector<hpx::lcos::future<void>> all_neighbors_got_hydro;
 
 	/* this node*/
 	node_client me;
@@ -88,29 +88,29 @@ private:
 	node_client parent;
 	/* neighbors refers to the up to 26 adjacent neighbors to this node (on the same refinement level). These are in the directions
 	 *  of the 6 faces, 12 edges, and 8 vertices of the subgrid cube. If there is an AMR boundary to a coarser level, that neighbor is empty. */
-	std::vector<node_client> neighbors;
+	oct::vector<node_client> neighbors;
 	/* Child refers to the up to 8 refined children of this node. Either all or none exist.*/
-	std::array<node_client, NCHILD> children;
+	oct::array<node_client, NCHILD> children;
 	/* nieces are the children of neighbors that are adjacent to this node. They are one level finer than this node
 	 * . Only nieces in the face directions are needed, and in each
 	 * face direction there are 4 adjacent neighbors (or zero). This is used for AMR boundary handling - interpolation onto finer boundaries and flux matchinig.*/
-	std::vector<integer> nieces;
+	oct::vector<integer> nieces;
 	/* An aunt is this node's parent's neighbor, so it is one level coarser.
 	 *  Only aunts in the 6 face directions are required. Used for AMR boundary handling. */
-	std::vector<node_client> aunts;
+	oct::vector<node_client> aunts;
 
-	std::vector<std::array<bool, geo::direction::count()>> amr_flags;
+	oct::vector<oct::array<bool, geo::direction::count()>> amr_flags;
 	hpx::lcos::local::spinlock mtx;
 	hpx::lcos::local::spinlock prolong_mtx;
 	channel<expansion_pass_type> parent_gravity_channel;
-	std::array<semaphore, geo::direction::count()> neighbor_signals;
-	std::array<unordered_channel<std::vector<real>>, NCHILD> child_hydro_channels;
-	std::array<unordered_channel<neighbor_gravity_type>, geo::direction::count()> neighbor_gravity_channels;
-	std::array<unordered_channel<sibling_hydro_type>, geo::direction::count()> sibling_hydro_channels;
-	std::array<channel<multipole_pass_type>, NCHILD> child_gravity_channels;
-	std::array<std::array<channel<std::vector<real>>, 4>, NFACE> niece_hydro_channels;
+	oct::array<semaphore, geo::direction::count()> neighbor_signals;
+	oct::array<unordered_channel<oct::vector<real>>, NCHILD> child_hydro_channels;
+	oct::array<unordered_channel<neighbor_gravity_type>, geo::direction::count()> neighbor_gravity_channels;
+	oct::array<unordered_channel<sibling_hydro_type>, geo::direction::count()> sibling_hydro_channels;
+	oct::array<channel<multipole_pass_type>, NCHILD> child_gravity_channels;
+	oct::array<oct::array<channel<oct::vector<real>>, 4>, NFACE> niece_hydro_channels;
 	channel<timestep_t> global_timestep_channel;
-	std::array<channel<timestep_t>, NCHILD + 1> local_timestep_channels;
+	oct::array<channel<timestep_t>, NCHILD + 1> local_timestep_channels;
 
 	timestep_t dt_;
 
@@ -185,8 +185,8 @@ public:
 	void reconstruct_tree();
 
 	/*TODO move radiation to*/
-	node_server(const node_location&, integer, bool, real, real, const std::array<integer, NCHILD>&, grid,
-			const std::vector<hpx::id_type>&, std::size_t, std::size_t, std::size_t, integer position);
+	node_server(const node_location&, integer, bool, real, real, const oct::array<integer, NCHILD>&, grid,
+			const oct::vector<hpx::id_type>&, std::size_t, std::size_t, std::size_t, integer position);
 
 	void report_timing();/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server, report_timing, report_timing_action);
@@ -197,22 +197,22 @@ public:
 
 	void regrid_scatter(integer, integer);/**/HPX_DEFINE_COMPONENT_ACTION(node_server, regrid_scatter, regrid_scatter_action);
 
-	void recv_flux_check(std::vector<real>&&, const geo::direction&, std::size_t cycle);
+	void recv_flux_check(oct::vector<real>&&, const geo::direction&, std::size_t cycle);
 	/**/HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_flux_check, send_flux_check_action);
 
-	void recv_hydro_boundary(std::vector<real>&&, const geo::direction&, std::size_t cycle);
+	void recv_hydro_boundary(oct::vector<real>&&, const geo::direction&, std::size_t cycle);
 	/**/HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_hydro_boundary, send_hydro_boundary_action);
 
-	void recv_hydro_amr_boundary(std::vector<real>&&, const geo::direction&, std::size_t cycle);
+	void recv_hydro_amr_boundary(oct::vector<real>&&, const geo::direction&, std::size_t cycle);
 	/**/HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_hydro_amr_boundary, send_hydro_amr_boundary_action);
 
-	void recv_rad_amr_boundary(std::vector<real>&&, const geo::direction&, std::size_t cycle);
+	void recv_rad_amr_boundary(oct::vector<real>&&, const geo::direction&, std::size_t cycle);
 	/**/HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_rad_amr_boundary, send_rad_amr_boundary_action);
 
-	void recv_hydro_children(std::vector<real>&&, const geo::octant& ci, std::size_t cycle);
+	void recv_hydro_children(oct::vector<real>&&, const geo::octant& ci, std::size_t cycle);
 	/**/HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_hydro_children, send_hydro_children_action);
 
-	void recv_hydro_flux_correct(std::vector<real>&&, const geo::face& face, const geo::octant& ci);
+	void recv_hydro_flux_correct(oct::vector<real>&&, const geo::face& face, const geo::octant& ci);
 	/**/HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_hydro_flux_correct, send_hydro_flux_correct_action);
 
 	void recv_gravity_boundary(gravity_boundary_type&&, const geo::direction&, bool monopole, std::size_t cycle);
@@ -236,7 +236,7 @@ public:
 
 	void execute_solver(bool scf, node_count_type);
 
-	void set_grid(const std::vector<real>&, std::vector<real>&&);/**/
+	void set_grid(const oct::vector<real>&, oct::vector<real>&&);/**/
 	HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, set_grid, set_grid_action);
 
 	hpx::future<void> timestep_driver_descend();
@@ -253,7 +253,7 @@ public:
 	hpx::id_type get_child_client(const geo::octant&);/**/
 	HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, get_child_client, get_child_client_action);
 
-	int form_tree(hpx::id_type, hpx::id_type=hpx::invalid_id, std::vector<hpx::id_type> = std::vector<hpx::id_type>(geo::direction::count()));/**/
+	int form_tree(hpx::id_type, hpx::id_type=hpx::invalid_id, oct::vector<hpx::id_type> = oct::vector<hpx::id_type>(geo::direction::count()));/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server, form_tree, form_tree_action);
 
 	std::uintptr_t get_ptr();/**/
@@ -282,7 +282,7 @@ public:
 	void enforce_bc();/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server, enforce_bc, enforce_bc_action);
 
-	void force_nodes_to_exist(std::vector<node_location>&& loc);/**/
+	void force_nodes_to_exist(oct::vector<node_location>&& loc);/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server, force_nodes_to_exist, force_nodes_to_exist_action);
 
 	scf_data_t scf_params();/**/
@@ -310,12 +310,12 @@ public:
 
 private:
 	struct sibling_rad_type {
-		std::vector<real> data;
+		oct::vector<real> data;
 		geo::direction direction;
 	};
 
-	std::array<unordered_channel<sibling_rad_type>, geo::direction::count()> sibling_rad_channels;
-	std::array<unordered_channel<std::vector<real>>, NCHILD> child_rad_channels;
+	oct::array<unordered_channel<sibling_rad_type>, geo::direction::count()> sibling_rad_channels;
+	oct::array<unordered_channel<oct::vector<real>>, NCHILD> child_rad_channels;
 	unordered_channel<expansion_pass_type> parent_rad_channel;
 public:
 	hpx::future<void> exchange_rad_flux_corrections();
@@ -326,18 +326,18 @@ public:
 	void collect_radiation_bounds();
 	void send_rad_amr_bounds();
 
-	void recv_rad_flux_correct(std::vector<real>&&, const geo::face& face, const geo::octant& ci);/**/
+	void recv_rad_flux_correct(oct::vector<real>&&, const geo::face& face, const geo::octant& ci);/**/
 	HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_rad_flux_correct, send_rad_flux_correct_action);
 
-	void recv_rad_boundary(std::vector<real>&&, const geo::direction&, std::size_t cycle);/**/
+	void recv_rad_boundary(oct::vector<real>&&, const geo::direction&, std::size_t cycle);/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server, recv_rad_boundary, send_rad_boundary_action);
 
-	void recv_rad_children(std::vector<real>&&, const geo::octant& ci, std::size_t cycle);/**/
+	void recv_rad_children(oct::vector<real>&&, const geo::octant& ci, std::size_t cycle);/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server, recv_rad_children, send_rad_children_action);
 
-	std::array<std::array<channel<std::vector<real>>, 4>, NFACE> niece_rad_channels;
+	oct::array<oct::array<channel<oct::vector<real>>, 4>, NFACE> niece_rad_channels;
 
-	void set_rad_grid(const std::vector<real>&/*, std::vector<real>&&*/);/**/
+	void set_rad_grid(const oct::vector<real>&/*, oct::vector<real>&&*/);/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server, set_rad_grid, set_rad_grid_action);
 
 	void erad_init();/**/HPX_DEFINE_COMPONENT_ACTION(node_server, erad_init, erad_init_action);

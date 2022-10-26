@@ -22,7 +22,7 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, con
 	timestep_t ts;
 	ts.a = 0.0;
 	// bunch of tmp containers
-	static thread_local std::vector<safe_real> UR(nf_), UL(nf_), this_flux(nf_);
+	static thread_local oct::vector<safe_real> UR(nf_), UL(nf_), this_flux(nf_);
 
     // bunch of small helpers
 	static const cell_geometry<NDIM, INX> geo;
@@ -61,8 +61,8 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, con
 					UR[f] = Q[f][d][i];
 					UL[f] = Q[f][geo::flip_dim(d, dim)][i - geo.H_DN[dim]];
 				}
-				std::array < safe_real, NDIM > x;
-				std::array < safe_real, NDIM > vg;
+				oct::array < safe_real, NDIM > x;
+				oct::array < safe_real, NDIM > vg;
 				for (int dim = 0; dim < NDIM; dim++) {
 					x[dim] = X[dim][i] + 0.5 * xloc[d][dim] * dx;
 				}
@@ -77,7 +77,7 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, con
 				}
 
 				safe_real amr, apr, aml, apl;
-				static thread_local std::vector<safe_real> FR(nf_), FL(nf_);
+				static thread_local oct::vector<safe_real> FR(nf_), FL(nf_);
 
 				PHYS::template physical_flux<INX>(UR, FR, dim, amr, apr, x, vg);
 				PHYS::template physical_flux<INX>(UL, FL, dim, aml, apl, x, vg);
@@ -136,7 +136,7 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux_experimental(const hydro::recon
 	timestep_t ts;
 	ts.a = 0.0;
 	// bunch of tmp containers
-	static thread_local std::vector<double> UR(nf_), UL(nf_), this_flux(nf_);
+	static thread_local oct::vector<double> UR(nf_), UL(nf_), this_flux(nf_);
 
     // bunch of small helpers
 	static const cell_geometry<NDIM, INX> geo;
@@ -158,8 +158,8 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux_experimental(const hydro::recon
 
 		const auto indices = geo.get_indexes(3, geo.face_pts()[dim][0]);
 
-		std::array<int, NDIM> lbs = {3, 3, 3};
-		std::array<int, NDIM> ubs = {geo.H_NX - 3, geo.H_NX - 3, geo.H_NX - 3};
+		oct::array<int, NDIM> lbs = {3, 3, 3};
+		oct::array<int, NDIM> ubs = {geo.H_NX - 3, geo.H_NX - 3, geo.H_NX - 3};
 		for (int dimension = 0; dimension < NDIM; dimension++) {
 			ubs[dimension] = geo.xloc()[geo.face_pts()[dim][0]][dimension] == -1 ? (geo.H_NX - 3 + 1) : (geo.H_NX - 3);
 			lbs[dimension] = geo.xloc()[geo.face_pts()[dim][0]][dimension] == +1 ? (3 - 1) : 3;
@@ -186,8 +186,8 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux_experimental(const hydro::recon
                             continue;
                         const size_t i = x * geo.H_NX * geo.H_NX + y * geo.H_NX + z;
 
-                        std::array<double, NDIM> x;
-                        std::array<double, NDIM> vg;
+                        oct::array<double, NDIM> x;
+                        oct::array<double, NDIM> vg;
                         for (int dim = 0; dim < NDIM; dim++) {
                             x[dim] = X[dim][i] + 0.5 * xloc[d][dim] * dx;
                         }
@@ -204,7 +204,7 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux_experimental(const hydro::recon
                         }
 
                         double amr, apr, aml, apl;
-                        static thread_local std::vector<double> FR(nf_), FL(nf_);
+                        static thread_local oct::vector<double> FR(nf_), FL(nf_);
 
                         auto rho = UR[rho_i];
                         auto rhoinv = (1.) / rho;

@@ -21,10 +21,10 @@ namespace fmm {
         template <size_t buffer_size>
         bool check_neighbor_conversion(
             struct_of_array_data<expansion, real, 20, buffer_size, SOA_PADDING,
-                std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&
+                oct::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&
                 local_expansions_staging_area,
             struct_of_array_data<space_vector, real, 3, buffer_size, SOA_PADDING,
-                std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&
+                oct::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&
                 center_of_masses_staging_area,
             cpu_expansion_buffer_t& local_expansions_compare,
             cpu_space_vector_buffer_t& center_of_masses_compare, const geo::direction& dir) {
@@ -89,8 +89,8 @@ namespace fmm {
             return correct;
         }
 
-        std::vector<multiindex<>>& p2m_interaction_interface::stencil() {
-            static thread_local std::vector<multiindex<>> stencil_;
+        oct::vector<multiindex<>>& p2m_interaction_interface::stencil() {
+            static thread_local oct::vector<multiindex<>> stencil_;
             static thread_local bool initialized = false;
             if (!initialized) {
                 stencil_ = calculate_stencil().first;
@@ -98,8 +98,8 @@ namespace fmm {
             }
             return stencil_;
         }
-        std::vector<multiindex<>>& p2m_stencil() {
-            static thread_local std::vector<multiindex<>> stencil_;
+        oct::vector<multiindex<>>& p2m_stencil() {
+            static thread_local oct::vector<multiindex<>> stencil_;
             static thread_local bool initialized = false;
             if (!initialized) {
                 stencil_ = calculate_stencil().first;
@@ -107,8 +107,8 @@ namespace fmm {
             }
             return stencil_;
         }
-        std::vector<bool>& p2m_stencil_masks() {
-            static thread_local std::vector<bool> stencil_masks_;
+        oct::vector<bool>& p2m_stencil_masks() {
+            static thread_local oct::vector<bool> stencil_masks_;
             static thread_local bool initialized = false;
             if (!initialized) {
                 stencil_masks_ = calculate_stencil_masks(p2m_stencil()).first;
@@ -122,11 +122,11 @@ namespace fmm {
             this->p2m_type = opts().monopole_host_kernel_type;
         }
 
-        void p2m_interaction_interface::compute_p2m_interactions(std::vector<real>& monopoles,
-            std::vector<multipole>& M_ptr,
-            std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
-            std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
-            std::array<bool, geo::direction::count()>& is_direction_empty) {
+        void p2m_interaction_interface::compute_p2m_interactions(oct::vector<real>& monopoles,
+            oct::vector<multipole>& M_ptr,
+            oct::vector<std::shared_ptr<oct::vector<space_vector>>>& com_ptr,
+            oct::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
+            oct::array<bool, geo::direction::count()>& is_direction_empty) {
             cpu_expansion_buffer_t local_expansions_staging_area;
             cpu_space_vector_buffer_t center_of_masses_staging_area;
 
@@ -135,10 +135,10 @@ namespace fmm {
             compute_interactions(type, is_direction_empty, neighbors, local_expansions_staging_area,
                 center_of_masses_staging_area);
         }
-        void compute_p2m_interactions_neighbors_only(const std::vector<real>& monopoles,
-            std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
-            std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
-            std::array<bool, geo::direction::count()>& is_direction_empty,
+        void compute_p2m_interactions_neighbors_only(const oct::vector<real>& monopoles,
+            oct::vector<std::shared_ptr<oct::vector<space_vector>>>& com_ptr,
+            oct::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
+            oct::array<bool, geo::direction::count()>& is_direction_empty,
             std::shared_ptr<grid>& grid_ptr) {
             if (opts().monopole_host_kernel_type == interaction_host_kernel_type::LEGACY) {
                 // waits for boundary data and then computes boundary interactions
@@ -164,9 +164,9 @@ namespace fmm {
             //    center_of_masses_compare));
 
             struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
-                std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>
+                oct::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>
                 center_of_masses_inner_cells_staging_area;
-            std::vector<space_vector> const& com0 = *(com_ptr[0]);
+            oct::vector<space_vector> const& com0 = *(com_ptr[0]);
             cpu_expansion_result_buffer_t potential_expansions_SoA;
             cpu_angular_result_t angular_corrections_SoA;
 
@@ -199,11 +199,11 @@ namespace fmm {
                     if (size == INX * INX * STENCIL_MAX) {
                         constexpr size_t buffer_size = INX * INX * STENCIL_MAX;
                         struct_of_array_data<expansion, real, 20, buffer_size, SOA_PADDING,
-                            std::vector<real,
+                            oct::vector<real,
                                 recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>
                             local_expansions_staging_area;
                         struct_of_array_data<space_vector, real, 3, buffer_size, SOA_PADDING,
-                            std::vector<real,
+                            oct::vector<real,
                                 recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>
                             center_of_masses_staging_area;
 
@@ -222,11 +222,11 @@ namespace fmm {
                     } else if (size == INX * STENCIL_MAX * STENCIL_MAX) {
                         constexpr size_t buffer_size = INX * STENCIL_MAX * STENCIL_MAX;
                         struct_of_array_data<expansion, real, 20, buffer_size, SOA_PADDING,
-                            std::vector<real,
+                            oct::vector<real,
                                 recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>
                             local_expansions_staging_area;
                         struct_of_array_data<space_vector, real, 3, buffer_size, SOA_PADDING,
-                            std::vector<real,
+                            oct::vector<real,
                                 recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>
                             center_of_masses_staging_area;
 
@@ -245,11 +245,11 @@ namespace fmm {
                     } else if (size == STENCIL_MAX * STENCIL_MAX * STENCIL_MAX) {
                         constexpr size_t buffer_size = STENCIL_MAX * STENCIL_MAX * STENCIL_MAX;
                         struct_of_array_data<expansion, real, 20, buffer_size, SOA_PADDING,
-                            std::vector<real,
+                            oct::vector<real,
                                 recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>
                             local_expansions_staging_area;
                         struct_of_array_data<space_vector, real, 3, buffer_size, SOA_PADDING,
-                            std::vector<real,
+                            oct::vector<real,
                                 recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>
                             center_of_masses_staging_area;
 
@@ -276,8 +276,8 @@ namespace fmm {
         }
 
         void p2m_interaction_interface::compute_interactions(gsolve_type type,
-            std::array<bool, geo::direction::count()>& is_direction_empty,
-            std::vector<neighbor_gravity_type>& all_neighbor_interaction_data,
+            oct::array<bool, geo::direction::count()>& is_direction_empty,
+            oct::vector<neighbor_gravity_type>& all_neighbor_interaction_data,
             const cpu_expansion_buffer_t& local_expansions_staging_area,
             const cpu_space_vector_buffer_t& center_of_masses_staging_area) {
             if (p2m_type == interaction_host_kernel_type::VC) {

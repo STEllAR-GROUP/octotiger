@@ -13,12 +13,12 @@
 
 #include <cmath>
 
-OCTOTIGER_EXPORT std::vector<real> advection_test_init(real x, real y, real z, real dx) {
+OCTOTIGER_EXPORT oct::vector<real> advection_test_init(real x, real y, real z, real dx) {
 	return advection_test_analytic(x, y, z, 0.0);
 }
 
-OCTOTIGER_EXPORT std::vector<real> advection_test_analytic(real x, real y, real z, real t) {
-	std::vector<real> U(opts().n_fields, 0.0);
+OCTOTIGER_EXPORT oct::vector<real> advection_test_analytic(real x, real y, real z, real t) {
+	oct::vector<real> U(opts().n_fields, 0.0);
 	const real fgamma = grid::get_fgamma();
 	const auto r0 = 1.0/3.0;
 	constexpr auto x0 = 0.5;
@@ -35,12 +35,12 @@ OCTOTIGER_EXPORT std::vector<real> advection_test_analytic(real x, real y, real 
 	return U;
 }
 
-std::vector<real> sod_shock_tube_init(real x, real y, real z, real dx) {
+oct::vector<real> sod_shock_tube_init(real x, real y, real z, real dx) {
 	return sod_shock_tube_analytic(x,y,z,-dx);
 }
 
-std::vector<real> sod_shock_tube_analytic(real x0, real y, real z, real t) {
-	std::vector<real> U(opts().n_fields, 0.0);
+oct::vector<real> sod_shock_tube_analytic(real x0, real y, real z, real t) {
+	oct::vector<real> U(opts().n_fields, 0.0);
         const real fgamma = grid::get_fgamma();
 
         const real theta = opts().sod_theta;

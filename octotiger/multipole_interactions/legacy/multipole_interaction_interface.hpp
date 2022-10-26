@@ -32,11 +32,11 @@ namespace fmm {
         public:
             multipole_interaction_interface();
             /// Takes AoS data, converts it, calculates FMM interactions, stores results in L, L_c
-            void compute_multipole_interactions(std::vector<real>& monopoles,
-                std::vector<multipole>& M_ptr,
-                std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
-                std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
-                std::array<bool, geo::direction::count()>& is_direction_empty,
+            void compute_multipole_interactions(oct::vector<real>& monopoles,
+                oct::vector<multipole>& M_ptr,
+                oct::vector<std::shared_ptr<oct::vector<space_vector>>>& com_ptr,
+                oct::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
+                oct::array<bool, geo::direction::count()>& is_direction_empty,
                 std::array<real, NDIM> xbase, const bool use_root_stencil);
             /// Sets the grid pointer - usually only required once
             void set_grid_ptr(std::shared_ptr<grid> ptr) {
@@ -51,8 +51,8 @@ namespace fmm {
 
         protected:
             /// Calls FMM kernels with SoA data (assumed to be stored in the static members)
-            void compute_interactions(std::array<bool, geo::direction::count()>& is_direction_empty,
-                std::vector<neighbor_gravity_type>& all_neighbor_interaction_data,
+            void compute_interactions(oct::array<bool, geo::direction::count()>& is_direction_empty,
+                oct::vector<neighbor_gravity_type>& all_neighbor_interaction_data,
                 const cpu_monopole_buffer_t& local_monopoles,
                 const cpu_expansion_buffer_t& local_expansions_SoA,
                 const cpu_space_vector_buffer_t& center_of_masses_SoA, const bool use_root_stencil);
@@ -69,8 +69,8 @@ namespace fmm {
         public:
             /// Stencil for stencil based FMM kernels
             static OCTOTIGER_EXPORT two_phase_stencil& stencil();
-            static OCTOTIGER_EXPORT std::vector<bool>& stencil_masks();
-            static OCTOTIGER_EXPORT std::vector<bool>& inner_stencil_masks();
+            static OCTOTIGER_EXPORT oct::vector<bool>& stencil_masks();
+            static OCTOTIGER_EXPORT oct::vector<bool>& inner_stencil_masks();
         };
 
         template <size_t padded_entries_per_component, size_t num_components, typename container_t,
@@ -84,14 +84,14 @@ namespace fmm {
         /// Converts AoS input data into SoA data
         template <typename monopole_container, typename expansion_soa_container,
             typename masses_soa_container>
-        void update_input(std::vector<real>& monopoles, std::vector<multipole>& M_ptr,
-            std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
-            std::vector<neighbor_gravity_type>& neighbors, gsolve_type t, real dx,
+        void update_input(oct::vector<real>& monopoles, oct::vector<multipole>& M_ptr,
+            oct::vector<std::shared_ptr<oct::vector<space_vector>>>& com_ptr,
+            oct::vector<neighbor_gravity_type>& neighbors, gsolve_type t, real dx,
             std::array<real, NDIM> xbase, monopole_container& local_monopoles,
             expansion_soa_container& local_expansions_SoA,
             masses_soa_container& center_of_masses_SoA, std::shared_ptr<grid>& grid_ptr,
             bool is_root) {
-            std::vector<space_vector> const& com0 = *(com_ptr[0]);
+            oct::vector<space_vector> const& com0 = *(com_ptr[0]);
 
             if (is_root) {
                 iterate_inner_cells_padded(
@@ -133,8 +133,8 @@ namespace fmm {
                                     local_monopoles[flat_index] = 0.0;
                                 });
                         } else {
-                            std::vector<multipole>& neighbor_M_ptr = *(neighbor.data.M);
-                            std::vector<space_vector>& neighbor_com0 = *(neighbor.data.x);
+                            oct::vector<multipole>& neighbor_M_ptr = *(neighbor.data.M);
+                            oct::vector<space_vector>& neighbor_com0 = *(neighbor.data.x);
                             const bool fullsizes = neighbor_M_ptr.size() == INNER_CELLS &&
                                 neighbor_com0.size() == INNER_CELLS;
                             if (fullsizes) {
@@ -204,7 +204,7 @@ namespace fmm {
                                 });
                         } else {
                             // Get multipole data into our input structure
-                            std::vector<real>& neighbor_mons = *(neighbor.data.m);
+                            oct::vector<real>& neighbor_mons = *(neighbor.data.m);
                             const bool fullsizes = neighbor_mons.size() == INNER_CELLS;
                             if (fullsizes) {
                                 iterate_inner_cells_padding(dir,

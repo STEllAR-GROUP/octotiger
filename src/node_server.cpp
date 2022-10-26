@@ -83,7 +83,7 @@ future<void> node_server::exchange_flux_corrections() {
 		const auto face_dim = f.get_dimension();
 		auto const &this_aunt = aunts[f];
 		if (!this_aunt.empty()) {
-			std::array<integer, NDIM> lb, ub;
+			oct::array<integer, NDIM> lb, ub;
 			lb[XDIM] = lb[YDIM] = lb[ZDIM] = 0;
 			ub[XDIM] = ub[YDIM] = ub[ZDIM] = INX;
 			if (f.get_side() == geo::MINUS) {
@@ -98,7 +98,7 @@ future<void> node_server::exchange_flux_corrections() {
 	}
 
 	constexpr integer size = geo::face::count() * geo::quadrant::count();
-	std::array<future<void>, size> futs;
+	oct::array<future<void>, size> futs;
 	for (auto &f : futs) {
 		f = hpx::make_ready_future();
 	}
@@ -107,9 +107,9 @@ future<void> node_server::exchange_flux_corrections() {
 		if (this->nieces[f] == +1) {
 			for (auto const &quadrant : geo::quadrant::full_set()) {
 				futs[index++] = niece_hydro_channels[f][quadrant].get_future().then(
-				hpx::util::annotated_function([this, f, quadrant](future<std::vector<real> > &&fdata) -> void {
+				hpx::util::annotated_function([this, f, quadrant](future<oct::vector<real> > &&fdata) -> void {
 					const auto face_dim = f.get_dimension();
-					std::array<integer, NDIM> lb, ub;
+					oct::array<integer, NDIM> lb, ub;
 					switch (face_dim) {
 						case XDIM:
 						lb[XDIM] = f.get_side() == geo::MINUS ? 0 : INX;
@@ -167,7 +167,7 @@ void node_server::energy_hydro_bounds() {
 void node_server::exchange_interlevel_hydro_data() {
   hpx::util::annotated_function([&]() {
     if (is_refined) {
-      std::vector<real> outflow(opts().n_fields, ZERO);
+      oct::vector<real> outflow(opts().n_fields, ZERO);
       for (auto const &ci : geo::octant::full_set()) {
         auto data = GET(child_hydro_channels[ci].get_future(hcycle));
         grid_ptr->set_restrict(data, ci);
@@ -195,11 +195,11 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
 
   if (use_local_optimization)
     ready_for_hydro_exchange[hcycle%number_hydro_exchange_promises].set_value();
-	std::vector<hpx::lcos::shared_future<void>> neighbors_ready; 
+	oct::vector<hpx::lcos::shared_future<void>> neighbors_ready; 
   bool local_amr_handling = false;
 	for (auto const &dir : geo::direction::full_set()) {
 		if (!neighbors[dir].empty() && neighbors[dir].is_local() && use_local_optimization) {
-      /* std::vector<hpx::lcos::local::promise<void>> *neighbor_promises = neighbors[dir].hydro_ready_vec; */
+      /* oct::vector<hpx::lcos::local::promise<void>> *neighbor_promises = neighbors[dir].hydro_ready_vec; */
       hpx::future<std::shared_ptr<node_server>> pf = hpx::get_ptr<node_server>(neighbors[dir].get_gid());
       auto direct_access = pf.get();
       neighbors_ready.emplace_back((
@@ -210,7 +210,7 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
       }
   }
   if (local_amr_handling && my_location.level() != 0) {
-    /* std::vector<hpx::lcos::local::promise<void>> *parent_promise = parent.amr_hydro_ready_vec; */
+    /* oct::vector<hpx::lcos::local::promise<void>> *parent_promise = parent.amr_hydro_ready_vec; */
     /* neighbors_ready.emplace_back((*parent_promise)[hcycle%number_hydro_exchange_promises].get_shared_future()); */
     hpx::future<std::shared_ptr<node_server>> pf = hpx::get_ptr<node_server>(parent.get_gid());
     auto direct_access = pf.get();
@@ -223,7 +223,7 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
     get_neighbors.get();
   }
 
-  std::vector<hpx::lcos::shared_future<void>> neighbors_finished_reading;
+  oct::vector<hpx::lcos::shared_future<void>> neighbors_finished_reading;
 	for (auto const &dir : geo::direction::full_set()) {
     const integer width = H_BW;
     if (neighbors[dir].is_local() && use_local_optimization && !neighbors[dir].empty()) {
@@ -233,8 +233,8 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
       auto direct_access = pf.get();
       const auto &uneighbor = direct_access->grid_ptr->U;
 
-      std::array<integer, NDIM> lb_orig, ub_orig;
-      std::array<integer, NDIM> lb_target, ub_target;
+      oct::array<integer, NDIM> lb_orig, ub_orig;
+      oct::array<integer, NDIM> lb_target, ub_target;
       const auto& bw = energy_only ? grid_ptr->energy_bw : grid_ptr->field_bw;
       for (integer field = 0; field != opts().n_fields; ++field) {
         get_boundary_size(lb_orig, ub_orig, dir.flip(), INNER, INX, H_BW, bw[field]);
@@ -275,8 +275,8 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
       hpx::future<std::shared_ptr<node_server>> pf = hpx::get_ptr<node_server>(parent.get_gid());
       auto direct_access = pf.get();
       const auto &uneighbor = direct_access->grid_ptr->U;
-      std::array<integer, NDIM> lb_orig, ub_orig;
-      std::array<integer, NDIM> lb_target, ub_target;
+      oct::array<integer, NDIM> lb_orig, ub_orig;
+      oct::array<integer, NDIM> lb_target, ub_target;
       get_boundary_size(lb_target, ub_target, dir, OUTER, INX / 2, H_BW);
       // Set is_coarse 
       for (integer i = 0; i < ub_target[XDIM] - lb_target[XDIM]; ++i) {
@@ -344,7 +344,7 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
     if (!is_refined)
       all_neighbors_got_hydro[hcycle%number_hydro_exchange_promises] = hpx::when_all(neighbors_finished_reading);
   }
-	std::array<future<void>, geo::direction::count()> results; 
+	oct::array<future<void>, geo::direction::count()> results; 
 	integer index = 0;
 	for (auto const &dir : geo::direction::full_set()) {
     // receive data from neighbor via sibling_hydro_channels
@@ -380,7 +380,7 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
 	if (kernel_type == AMR_LEGACY) {
 		grid_ptr->complete_hydro_amr_boundary(energy_only);
 	} else {
-		std::array<double, NDIM> xmin;
+		oct::array<double, NDIM> xmin;
 		for (int dim = 0; dim < NDIM; dim++) {
 			xmin[dim] = grid_ptr->X[dim][0];
 		}
@@ -433,8 +433,8 @@ void node_server::send_hydro_amr_boundaries(bool energy_only) {
         for (auto &dir : geo::direction::full_set()) {
           // TODO If flags and children_ci is_local, then set child amr_hydro_parent_ready_promise
           if (flags[dir] && (!children[ci].is_local() || !use_local_optimization)) { 
-            std::array<integer, NDIM> lb, ub;
-            std::vector<real> data;
+            oct::array<integer, NDIM> lb, ub;
+            oct::vector<real> data;
             get_boundary_size(lb, ub, dir, OUTER, INX / 2, H_BW);
             for (integer dim = 0; dim != NDIM; ++dim) {
               lb[dim] = std::max(lb[dim] - 1, integer(0));
@@ -563,7 +563,7 @@ node_server::node_server(const node_location &loc, const node_client &parent_id,
 }
 
 node_server::node_server(const node_location &_my_location, integer _step_num, bool _is_refined, real _current_time, real _rotational_time,
-		const std::array<integer, NCHILD> &_child_d, grid _grid, const std::vector<hpx::id_type> &_c, std::size_t _hcycle, std::size_t _rcycle,
+		const oct::array<integer, NCHILD> &_child_d, grid _grid, const oct::vector<hpx::id_type> &_c, std::size_t _hcycle, std::size_t _rcycle,
 		std::size_t _gcycle, integer position_) {
 	my_location = _my_location;
 	initialize(_current_time, _rotational_time);
@@ -636,7 +636,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 	}
 
 	if (!aonly) {
-		std::vector<future<void>> send_futs;
+		oct::vector<future<void>> send_futs;
 		for (auto const &dir : geo::direction::full_set()) {
 			if (!neighbors[dir].empty()) {
 				auto ndir = dir.flip();
@@ -659,7 +659,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 	// data managemenet for old and new version of interaction computation
 	// all neighbors and placeholder for yourself
 	bool contains_multipole = false;
-	std::vector<neighbor_gravity_type> all_neighbor_interaction_data;
+	oct::vector<neighbor_gravity_type> all_neighbor_interaction_data;
 	for (geo::direction const &dir : geo::direction::full_set()) {
 		if (!neighbors[dir].empty()) {
 			all_neighbor_interaction_data.push_back(neighbor_gravity_channels[dir].get_future(gcycle).get());
@@ -670,7 +670,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 		}
 	}
 
-	std::array<bool, geo::direction::count()> is_direction_empty;
+	oct::array<bool, geo::direction::count()> is_direction_empty;
 	for (geo::direction const &dir : geo::direction::full_set()) {
 		if (neighbors[dir].empty()) {
 			is_direction_empty[dir] = true;
@@ -682,13 +682,13 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 	/* new-style interaction calculation */
 
 	// Get all input structures we need as input
-	std::vector<multipole> &M_ptr = grid_ptr->get_M();
-	std::vector<real> &mon_ptr = grid_ptr->get_mon();
-	std::vector<std::shared_ptr<std::vector<space_vector>>> &com_ptr = grid_ptr->get_com_ptr();
+	oct::vector<multipole> &M_ptr = grid_ptr->get_M();
+	oct::vector<real> &mon_ptr = grid_ptr->get_mon();
+	oct::vector<std::shared_ptr<oct::vector<space_vector>>> &com_ptr = grid_ptr->get_com_ptr();
 
 	// initialize to zero
-	std::vector<expansion> &L = grid_ptr->get_L();
-	std::vector<space_vector> &L_c = grid_ptr->get_L_c();
+	oct::vector<expansion> &L = grid_ptr->get_L();
+	oct::vector<space_vector> &L_c = grid_ptr->get_L_c();
 	std::fill(std::begin(L), std::end(L), ZERO);
 	std::fill(std::begin(L_c), std::end(L_c), ZERO);
 

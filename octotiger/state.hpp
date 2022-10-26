@@ -12,7 +12,7 @@
 
 class state {
 private:
-	std::array<real, NF> a;
+	oct::array<real, NF> a;
 public:
 	const real& operator()(int i) const {
 		return a[i];

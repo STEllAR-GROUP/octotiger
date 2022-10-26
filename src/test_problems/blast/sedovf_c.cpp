@@ -21,6 +21,7 @@
 
 
 #include "octotiger/print.hpp"
+#include "octotiger/containers.hpp"
 #include <cmath>
 #include <vector>
 #include <unordered_map>
@@ -1164,16 +1165,16 @@ void solution(double time, double r, double rmax, double& d, double& v, double& 
 	sed_real eblast = 1.0;
 	sed_real xgeom = sed_real(ndim);
 
-	std::vector<sed_real> xpos(nstep+2*bw);
-	std::vector<sed_real> den(nstep+2*bw);
-	std::vector<sed_real> ener(nstep+2*bw);
-	std::vector<sed_real> pres(nstep+2*bw);
-	std::vector<sed_real> vel(nstep+2*bw);
-	std::vector<sed_real> cs(nstep+2*bw);
+	oct::vector<sed_real> xpos(nstep+2*bw);
+	oct::vector<sed_real> den(nstep+2*bw);
+	oct::vector<sed_real> ener(nstep+2*bw);
+	oct::vector<sed_real> pres(nstep+2*bw);
+	oct::vector<sed_real> vel(nstep+2*bw);
+	oct::vector<sed_real> cs(nstep+2*bw);
 
-	std::vector<double> den1(nstep+2*bw);
-	std::vector<double> pres1(nstep+2*bw);
-	std::vector<double> vel1(nstep+2*bw);
+	oct::vector<double> den1(nstep+2*bw);
+	oct::vector<double> pres1(nstep+2*bw);
+	oct::vector<double> vel1(nstep+2*bw);
 
 	std::shared_ptr<function_type> ptr;
 
@@ -1220,7 +1221,7 @@ void solution(double time, double r, double rmax, double& d, double& v, double& 
 
 		function_type func = [nstep,rmax,den1,pres1,vel1,bw](double r, double& d, double& v, double & p) {
 			double dr = rmax / (nstep);
-			std::array<int,4> i;
+			oct::array<int,4> i;
 			i[1] = (r + (bw - 0.5)*dr) / dr;
 			i[0] = i[1] - 1;
 			i[2] = i[1] + 1;
@@ -1229,7 +1230,7 @@ void solution(double time, double r, double rmax, double& d, double& v, double& 
 	//		print( "%i %e\n", i[0], r, dr );
 			assert( i[0] >= 0 );
 			assert( i[3] < int(vel1.size()));
-			const auto interp = [r0,i](const std::vector<double>& data) {
+			const auto interp = [r0,i](const oct::vector<double>& data) {
 				double sum = 0.0;
 				sum += (-0.5 * data[i[0]] + 1.5 * data[i[1]] - 1.5 * data[i[2]] + 0.5 * data[i[3]]) * r0 * r0 * r0;
 				sum += (+1.0 * data[i[0]] - 2.5 * data[i[1]] + 2.0 * data[i[2]] - 0.5 * data[i[3]]) * r0 * r0;

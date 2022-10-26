@@ -11,6 +11,7 @@
 
 //#define SAFE_MATH_ON
 #include "../../octotiger/safe_math.hpp"
+#include "../../octotiger/containers.hpp"
 
 #ifdef NOHPX
 #include <future>
@@ -29,8 +30,8 @@ struct timestep_t {
 	double x, y, z;
 	double dt;
 	int dim;
-	std::vector<double> ur;
-	std::vector<double> ul;
+	oct::vector<double> ur;
+	oct::vector<double> ul;
 	template<class A>
 	void serialize(A &&arc, unsigned) {
 		arc & a;
@@ -46,21 +47,21 @@ struct timestep_t {
 
 namespace hydro {
 
-using x_type = std::vector<std::vector<safe_real>>;
+using x_type = oct::vector<oct::vector<safe_real>>;
 
-using flux_type = std::vector<std::vector<std::vector<safe_real>>>;
+using flux_type = oct::vector<oct::vector<oct::vector<safe_real>>>;
 
 template<int NDIM>
-using recon_type =std::vector<std::vector<std::vector<safe_real>>>;
+using recon_type =oct::vector<oct::vector<oct::vector<safe_real>>>;
 
-using state_type = std::vector<std::vector<safe_real>>;
+using state_type = oct::vector<oct::vector<safe_real>>;
 }
 
 template<int NDIM, int INX, class PHYSICS>
 struct hydro_computer: public cell_geometry<NDIM, INX> {
 
-	void reconstruct_ppm(std::vector<std::vector<safe_real>> &q, const std::vector<safe_real> &u, bool smooth, bool disc_detect,
-			const std::vector<std::vector<double>> &disc);
+	void reconstruct_ppm(oct::vector<oct::vector<safe_real>> &q, const oct::vector<safe_real> &u, bool smooth, bool disc_detect,
+			const oct::vector<oct::vector<double>> &disc);
 
 	using geo = cell_geometry<NDIM,INX>;
 
@@ -68,7 +69,7 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 		OUTFLOW, PERIODIC
 	};
 
-	const hydro::recon_type<NDIM>& reconstruct(const hydro::state_type &U, const hydro::x_type&, safe_real);
+	const hydro::recon_type<NDIM> reconstruct(const hydro::state_type &U, const hydro::x_type&, safe_real);
 //#ifdef OCTOTIGER_WITH_CUDA
 	const hydro::recon_type<NDIM>& reconstruct_cuda(hydro::state_type &U, const hydro::x_type&, safe_real);
 //#endif
@@ -107,9 +108,9 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 		experiment = num;
 	}
 
-	std::vector<safe_real> get_field_sums(const hydro::state_type &U, safe_real dx);
+	oct::vector<safe_real> get_field_sums(const hydro::state_type &U, safe_real dx);
 
-	std::vector<safe_real> get_field_mags(const hydro::state_type &U, safe_real dx);
+	oct::vector<safe_real> get_field_mags(const hydro::state_type &U, safe_real dx);
 
 	hydro_computer();
 
@@ -117,22 +118,22 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 		bc_[face] = bc;
 	}
 
-	void set_bc(std::vector<bc_type> &&bc) {
+	void set_bc(oct::vector<bc_type> &&bc) {
 		bc_ = std::move(bc);
 	}
 
 	inline int get_nf() const {return nf_;}
 	inline int get_angmom_index() const {return angmom_index_;}
-	inline const std::vector<bool>& get_smooth_field() const {return smooth_field_;}
-	inline const std::vector<bool>& get_disc_detect() const {return disc_detect_;}
+	inline const oct::vector<bool>& get_smooth_field() const {return smooth_field_;}
+	inline const oct::vector<bool>& get_disc_detect() const {return disc_detect_;}
 
 private:
 	int experiment;
 	int nf_;
 	int angmom_index_;
-	std::vector<bool> smooth_field_;
-	std::vector<bool> disc_detect_;
-	std::vector<bc_type> bc_;
+	oct::vector<bool> smooth_field_;
+	oct::vector<bool> disc_detect_;
+	oct::vector<bc_type> bc_;
 }
 ;
 

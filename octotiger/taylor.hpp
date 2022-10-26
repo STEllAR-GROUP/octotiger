@@ -41,7 +41,7 @@ template <int N, class T = real >class taylor
 private:
     static constexpr integer my_size = taylor_sizes[N - 1];
     static taylor_consts tc;
-    std::array<T, my_size> data;
+    oct::array<T, my_size> data;
 
 public:
     OCTOTIGER_FORCEINLINE T& operator[](integer i) {
@@ -219,7 +219,7 @@ public:
         return data[index(i, j, k, l)];
     }
 
-    taylor<N, T>& operator>>=(const std::array<T, NDIM>& X) {
+    taylor<N, T>& operator>>=(const oct::array<T, NDIM>& X) {
         // PROF_BEGIN;
         const taylor<N, T>& A = *this;
         taylor<N, T> B = A;
@@ -254,13 +254,13 @@ public:
         return *this;
     }
 
-    OCTOTIGER_FORCEINLINE taylor<N, T> operator>>(const std::array<T, NDIM>& X) const {
+    OCTOTIGER_FORCEINLINE taylor<N, T> operator>>(const oct::array<T, NDIM>& X) const {
         taylor<N, T> r = *this;
         r >>= X;
         return r;
     }
 
-    taylor<N, T>& operator<<=(const std::array<T, NDIM>& X) {
+    taylor<N, T>& operator<<=(const oct::array<T, NDIM>& X) {
         // PROF_BEGIN;
         const taylor<N, T>& A = *this;
         taylor<N, T> B = A;
@@ -310,13 +310,13 @@ public:
         return *this;
     }
 
-    OCTOTIGER_FORCEINLINE taylor<N, T> operator<<(const std::array<T, NDIM>& X) const {
+    OCTOTIGER_FORCEINLINE taylor<N, T> operator<<(const oct::array<T, NDIM>& X) const {
         taylor<N, T> r = *this;
         r <<= X;
         return r;
     }
 
-    void set_basis(const std::array<T, NDIM>& X);
+    void set_basis(const oct::array<T, NDIM>& X);
 
     OCTOTIGER_FORCEINLINE T* ptr() {
         return data.data();

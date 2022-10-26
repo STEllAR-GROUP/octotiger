@@ -50,8 +50,8 @@ namespace fmm {
             }
             return stencil_;
         }
-        std::vector<bool>& multipole_interaction_interface::stencil_masks() {
-            static thread_local std::vector<bool> stencil_masks_;
+        oct::vector<bool>& multipole_interaction_interface::stencil_masks() {
+            static thread_local oct::vector<bool> stencil_masks_;
             // calculate_stencil_masks(multipole_interaction_interface::stencil()).first;
             static thread_local bool initialized = false;
             if (!initialized) {
@@ -61,8 +61,8 @@ namespace fmm {
             }
             return stencil_masks_;
         }
-        std::vector<bool>& multipole_interaction_interface::inner_stencil_masks() {
-            static thread_local std::vector<bool> inner_stencil_masks_;
+        oct::vector<bool>& multipole_interaction_interface::inner_stencil_masks() {
+            static thread_local oct::vector<bool> inner_stencil_masks_;
             // calculate_stencil_masks(multipole_interaction_interface::stencil()).second;
             static thread_local bool initialized = false;
             if (!initialized) {
@@ -78,10 +78,10 @@ namespace fmm {
         }
 
         void multipole_interaction_interface::compute_multipole_interactions(
-            std::vector<real>& monopoles, std::vector<multipole>& M_ptr,
-            std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
-            std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
-            std::array<bool, geo::direction::count()>& is_direction_empty,
+            oct::vector<real>& monopoles, oct::vector<multipole>& M_ptr,
+            oct::vector<std::shared_ptr<oct::vector<space_vector>>>& com_ptr,
+            oct::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
+            oct::array<bool, geo::direction::count()>& is_direction_empty,
             std::array<real, NDIM> xbase, const bool use_root_stencil) {
             if (type == RHO)
                 cpu_launch_counter()++;
@@ -104,8 +104,8 @@ namespace fmm {
         }
 
         void multipole_interaction_interface::compute_interactions(
-            std::array<bool, geo::direction::count()>& is_direction_empty,
-            std::vector<neighbor_gravity_type>& all_neighbor_interaction_data,
+            oct::array<bool, geo::direction::count()>& is_direction_empty,
+            oct::vector<neighbor_gravity_type>& all_neighbor_interaction_data,
             const cpu_monopole_buffer_t& local_monopoles,
             const cpu_expansion_buffer_t& local_expansions_SoA,
             const cpu_space_vector_buffer_t& center_of_masses_SoA, const bool use_root_stencil) {

@@ -65,11 +65,11 @@ void node_server::recv_gravity_multipoles(multipole_pass_type &&v, const geo::oc
 using send_hydro_boundary_action_type = node_server::send_hydro_boundary_action;
 HPX_REGISTER_ACTION (send_hydro_boundary_action_type);
 
-void node_client::send_hydro_boundary(std::vector<real> &&data, const geo::direction &dir, std::size_t cycle) const {
+void node_client::send_hydro_boundary(oct::vector<real> &&data, const geo::direction &dir, std::size_t cycle) const {
 	hpx::apply<typename node_server::send_hydro_boundary_action>(get_unmanaged_gid(), std::move(data), dir, cycle);
 }
 
-void node_server::recv_hydro_boundary(std::vector<real> &&bdata, const geo::direction &dir, std::size_t cycle) {
+void node_server::recv_hydro_boundary(oct::vector<real> &&bdata, const geo::direction &dir, std::size_t cycle) {
 	sibling_hydro_type tmp;
 	tmp.data = std::move(bdata);
 	tmp.direction = dir;
@@ -80,11 +80,11 @@ void node_server::recv_hydro_boundary(std::vector<real> &&bdata, const geo::dire
 using send_hydro_amr_boundary_action_type = node_server::send_hydro_amr_boundary_action;
 HPX_REGISTER_ACTION (send_hydro_amr_boundary_action_type);
 
-void node_client::send_hydro_amr_boundary(std::vector<real> &&data, const geo::direction &dir, std::size_t cycle) const {
+void node_client::send_hydro_amr_boundary(oct::vector<real> &&data, const geo::direction &dir, std::size_t cycle) const {
   hpx::apply<typename node_server::send_hydro_amr_boundary_action>(get_unmanaged_gid(), std::move(data), dir, cycle);
 }
 
-void node_server::recv_hydro_amr_boundary(std::vector<real> &&bdata, const geo::direction &dir, std::size_t cycle) {
+void node_server::recv_hydro_amr_boundary(oct::vector<real> &&bdata, const geo::direction &dir, std::size_t cycle) {
 	sibling_hydro_type tmp;
 	tmp.data = std::move(bdata);
 	tmp.direction = dir;
@@ -94,11 +94,11 @@ void node_server::recv_hydro_amr_boundary(std::vector<real> &&bdata, const geo::
 using send_flux_check_action_type = node_server::send_flux_check_action;
 HPX_REGISTER_ACTION (send_flux_check_action_type);
 
-void node_client::send_flux_check(std::vector<real> &&data, const geo::direction &dir, std::size_t cycle) const {
+void node_client::send_flux_check(oct::vector<real> &&data, const geo::direction &dir, std::size_t cycle) const {
 	hpx::apply<typename node_server::send_flux_check_action>(get_unmanaged_gid(), std::move(data), dir, cycle);
 }
 
-void node_server::recv_flux_check(std::vector<real> &&bdata, const geo::direction &dir, std::size_t cycle) {
+void node_server::recv_flux_check(oct::vector<real> &&bdata, const geo::direction &dir, std::size_t cycle) {
 	sibling_hydro_type tmp;
 	tmp.data = std::move(bdata);
 	tmp.direction = dir;
@@ -108,22 +108,22 @@ void node_server::recv_flux_check(std::vector<real> &&bdata, const geo::directio
 using send_hydro_children_action_type = node_server::send_hydro_children_action;
 HPX_REGISTER_ACTION (send_hydro_children_action_type);
 
-void node_server::recv_hydro_children(std::vector<real> &&data, const geo::octant &ci, std::size_t cycle) {
+void node_server::recv_hydro_children(oct::vector<real> &&data, const geo::octant &ci, std::size_t cycle) {
 	child_hydro_channels[ci].set_value(std::move(data), cycle);
 }
 
-void node_client::send_hydro_children(std::vector<real> &&data, const geo::octant &ci, std::size_t cycle) const {
+void node_client::send_hydro_children(oct::vector<real> &&data, const geo::octant &ci, std::size_t cycle) const {
 	hpx::apply<typename node_server::send_hydro_children_action>(get_unmanaged_gid(), std::move(data), ci, cycle);
 }
 
 using send_hydro_flux_correct_action_type = node_server::send_hydro_flux_correct_action;
 HPX_REGISTER_ACTION (send_hydro_flux_correct_action_type);
 
-void node_client::send_hydro_flux_correct(std::vector<real> &&data, const geo::face &face, const geo::octant &ci) const {
+void node_client::send_hydro_flux_correct(oct::vector<real> &&data, const geo::face &face, const geo::octant &ci) const {
 	hpx::apply<typename node_server::send_hydro_flux_correct_action>(get_unmanaged_gid(), std::move(data), face, ci);
 }
 
-void node_server::recv_hydro_flux_correct(std::vector<real> &&data, const geo::face &face, const geo::octant &ci) {
+void node_server::recv_hydro_flux_correct(oct::vector<real> &&data, const geo::face &face, const geo::octant &ci) {
 	const geo::quadrant index(ci, face.get_dimension());
 	if (face >= nieces.size()) {
 		for (integer i = 0; i != 100; ++i) {
@@ -161,11 +161,11 @@ void output_line_of_centers(FILE *fp, const line_of_centers_t &loc) {
 line_of_centers_t node_server::line_of_centers(const std::pair<space_vector, space_vector> &line) const {
 	line_of_centers_t return_line;
 	if (is_refined) {
-		std::array<future<line_of_centers_t>, NCHILD> futs;
+		oct::array<future<line_of_centers_t>, NCHILD> futs;
 		for (integer ci = 0; ci != NCHILD; ++ci) {
 			futs[ci] = children[ci].line_of_centers(line);
 		}
-		std::map<real, std::vector<real>> map;
+		std::map<real, oct::vector<real>> map;
 		for (auto &&fut : futs) {
 			auto tmp = fut.get();
 			for (integer ii = 0; ii != tmp.size(); ++ii) {
@@ -687,7 +687,7 @@ future<real> node_server::local_step(integer steps) {
 future<real> node_server::step(integer steps) {
 	grid_ptr->set_coordinates();
 
-	std::array<future<void>, NCHILD> child_futs;
+	oct::array<future<void>, NCHILD> child_futs;
 	if (is_refined) {
 		for (integer ci = 0; ci != NCHILD; ++ci) {
 			child_futs[ci] = children[ci].step(steps);
@@ -697,7 +697,7 @@ future<real> node_server::step(integer steps) {
 	future<real> fut = local_step(steps);
 
 	if (is_refined) {
-		return hpx::dataflow(hpx::launch::sync, [this](future<real> dt_fut, future<std::array<future<void>, NCHILD>> &&f) {
+		return hpx::dataflow(hpx::launch::sync, [this](future<real> dt_fut, future<oct::array<future<void>, NCHILD>> &&f) {
 			auto fi = GET(f); // propagate exceptions
 			for (auto &f : fi) {
 				GET(f);
@@ -782,7 +782,7 @@ future<void> node_client::velocity_inc(const space_vector &dv) const {
 
 void node_server::velocity_inc(const space_vector &dv) {
 	if (is_refined) {
-		std::array<future<void>, NCHILD> futs;
+		oct::array<future<void>, NCHILD> futs;
 		integer index = 0;
 		for (auto &child : children) {
 			futs[index++] = child.velocity_inc(dv);
@@ -805,7 +805,7 @@ future<void> node_client::energy_adj() const {
 
 void node_server::energy_adj() {
         if (is_refined) {
-                std::array<future<void>, NCHILD> futs;
+                oct::array<future<void>, NCHILD> futs;
                 integer index = 0;
                 for (auto &child : children) {
                         futs[index++] = child.energy_adj();

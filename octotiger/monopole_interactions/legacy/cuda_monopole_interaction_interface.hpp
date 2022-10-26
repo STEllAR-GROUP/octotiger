@@ -33,17 +33,17 @@ namespace fmm {
             cuda_monopole_interaction_interface();
             /** Takes AoS data, converts it, calculates FMM monopole-monopole interactions,
              * stores results in L */
-            void compute_interactions(std::vector<real>& monopoles,
-                std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
-                std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
-                std::array<bool, geo::direction::count()>& is_direction_empty,
+            void compute_interactions(oct::vector<real>& monopoles,
+                oct::vector<std::shared_ptr<oct::vector<space_vector>>>& com_ptr,
+                oct::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
+                oct::array<bool, geo::direction::count()>& is_direction_empty,
                 std::shared_ptr<grid>& grid, const bool contains_multipole_neighbor);
 
         protected:
             real theta;
             /// Host-side pinned memory buffer for potential expansions results
             // struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING,
-            //     std::vector<real, cuda_pinned_allocator<real>>>
+            //     oct::vector<real, cuda_pinned_allocator<real>>>
             //     potential_expansions_SoA;
         };
 

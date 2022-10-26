@@ -15,11 +15,11 @@
 #include <vector>
 
 template<class T = real>
-struct specie_state_t: public std::vector<T> {
+struct specie_state_t: public oct::vector<T> {
 	specie_state_t() :
-			std::vector<T>(opts().n_species) {
+			oct::vector<T>(opts().n_species) {
 	}
-	specie_state_t(std::initializer_list<T> list ) : std::vector<T>(list) {
+	specie_state_t(std::initializer_list<T> list ) : oct::vector<T>(list) {
 
 	}
 };

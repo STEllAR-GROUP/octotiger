@@ -28,13 +28,13 @@
 template <typename T>
 using device_buffer_t = recycler::cuda_device_buffer<T>;
 template <typename T>
-using host_buffer_t = std::vector<T, recycler::recycle_allocator_cuda_host<T>>;
+using host_buffer_t = oct::vector<T, recycler::recycle_allocator_cuda_host<T>>;
 using executor_t = hpx::cuda::experimental::cuda_executor;
 #elif defined(OCTOTIGER_HAVE_HIP)
 template <typename T>
 using device_buffer_t = recycler::hip_device_buffer<T>;
 template <typename T>
-using host_buffer_t = std::vector<T, recycler::recycle_allocator_hip_host<T>>;
+using host_buffer_t = oct::vector<T, recycler::recycle_allocator_hip_host<T>>;
 using executor_t = hpx::cuda::experimental::cuda_executor;
 
 #define cudaLaunchKernel hipLaunchKernel
@@ -54,10 +54,10 @@ namespace fmm {
           , theta(opts().theta) {}
 
         void cuda_multipole_interaction_interface::compute_multipole_interactions(
-            std::vector<real>& monopoles, std::vector<multipole>& M_ptr,
-            std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
-            std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
-            std::array<bool, geo::direction::count()>& is_direction_empty,
+            oct::vector<real>& monopoles, oct::vector<multipole>& M_ptr,
+            oct::vector<std::shared_ptr<oct::vector<space_vector>>>& com_ptr,
+            oct::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
+            oct::array<bool, geo::direction::count()>& is_direction_empty,
             std::array<real, NDIM> xbase, const bool use_root_stencil) {
             bool avail = true;
             if (m2m_type != interaction_host_kernel_type::DEVICE_ONLY) {

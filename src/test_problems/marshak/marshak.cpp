@@ -134,8 +134,8 @@ static std::unordered_map<std::pair<double,double>, solution, pair_hash > sol_di
 static hpx::lcos::local::mutex mtx_;
 
 // NOTE: Why are y0 and z0 are unused?
-std::vector<double> marshak_wave_analytic(double x0, double y0, double z0, double t) {
-	std::vector<double> U(opts().n_fields + NRF, 0.0);
+oct::vector<double> marshak_wave_analytic(double x0, double y0, double z0, double t) {
+	oct::vector<double> U(opts().n_fields + NRF, 0.0);
 	double z = x0 + opts().xscale;
 	z *= std::sqrt(3)*kappa;
 	t *= eps * kappa * c;
@@ -180,8 +180,8 @@ std::vector<double> marshak_wave_analytic(double x0, double y0, double z0, doubl
 
 
 // NOTE: Why are x, y, and z unused?
-std::vector<double> marshak_wave(double x, double y, double z, double dx) {
-	std::vector<double> u(opts().n_fields);
+oct::vector<double> marshak_wave(double x, double y, double z, double dx) {
+	oct::vector<double> u(opts().n_fields);
 	double e = 1.0e-20;
 	u[rho_i] = u[spc_i] = 1.0;
 	u[egas_i] = e;

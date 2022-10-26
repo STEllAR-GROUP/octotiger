@@ -48,8 +48,8 @@ void hydro_computer<NDIM, INX, PHYS>::post_process(hydro::state_type &U, const h
 }
 
 template<int NDIM, int INX, class PHYS>
-std::vector<safe_real>  hydro_computer<NDIM, INX, PHYS>::get_field_sums(const hydro::state_type &U, safe_real dx) {
-	std::vector<safe_real> sums(nf_,0.0);
+oct::vector<safe_real>  hydro_computer<NDIM, INX, PHYS>::get_field_sums(const hydro::state_type &U, safe_real dx) {
+	oct::vector<safe_real> sums(nf_,0.0);
 	static const auto indices = geo::find_indices(geo::H_BW,geo::H_NX-geo::H_BW);
 	for( int f = 0; f < nf_; f++) {
 		for( auto i : indices) {
@@ -60,8 +60,8 @@ std::vector<safe_real>  hydro_computer<NDIM, INX, PHYS>::get_field_sums(const hy
 }
 
 template<int NDIM, int INX, class PHYS>
-std::vector<safe_real>  hydro_computer<NDIM, INX, PHYS>::get_field_mags(const hydro::state_type &U, safe_real dx) {
-	std::vector<safe_real> sums(nf_,0.0);
+oct::vector<safe_real>  hydro_computer<NDIM, INX, PHYS>::get_field_mags(const hydro::state_type &U, safe_real dx) {
+	oct::vector<safe_real> sums(nf_,0.0);
 	static const auto indices = geo::find_indices(geo::H_BW,geo::H_NX-geo::H_BW);
 	for( int f = 0; f < nf_; f++) {
 		for( auto i : indices) {

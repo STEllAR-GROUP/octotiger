@@ -30,7 +30,7 @@ extern taylor<4, m2m_vector> factor_half_v;
 extern taylor<4, m2m_vector> factor_sixth_v;
 
 template <>
-inline void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM>& X) {
+inline void taylor<5, simd_vector>::set_basis(const oct::array<simd_vector, NDIM>& X) {
     constexpr integer N = 5;
     using T = simd_vector;
     // PROF_BEGIN;
@@ -151,13 +151,13 @@ const auto for_loop_policy = hpx::execution::seq;
 // what is the semantics of a space_vector? (David)
 
 // non-root and non-leaf node (David)
-static std::vector<interaction_type> ilist_n;
+static oct::vector<interaction_type> ilist_n;
 // monopole-monopole interactions? (David)
-static std::vector<interaction_type> ilist_d;
+static oct::vector<interaction_type> ilist_d;
 // interactions of root node (empty list? boundary stuff?) (David)
-static std::vector<interaction_type> ilist_r;
-static std::vector<std::vector<boundary_interaction_type>> ilist_d_bnd(geo::direction::count());
-static std::vector<std::vector<boundary_interaction_type>> ilist_n_bnd(geo::direction::count());
+static oct::vector<interaction_type> ilist_r;
+static oct::vector<oct::vector<boundary_interaction_type>> ilist_d_bnd(geo::direction::count());
+static oct::vector<oct::vector<boundary_interaction_type>> ilist_n_bnd(geo::direction::count());
 extern taylor<4, real> factor;
 
 template<class T>
@@ -232,7 +232,7 @@ std::pair<space_vector, space_vector> grid::find_axis() const {
 
 	auto &M = *M_ptr;
 	auto &mon = *mon_ptr;
-	std::vector<space_vector> const &com0 = *(com_ptr[0]);
+	oct::vector<space_vector> const &com0 = *(com_ptr[0]);
 	for (integer i = 0; i != G_NX; ++i) {
 		for (integer j = 0; j != G_NX; ++j) {
 			for (integer k = 0; k != G_NX; ++k) {
@@ -347,7 +347,7 @@ void grid::compute_interactions(gsolve_type type) {
 
 		// Space vector is a vector pack (David)
 		// Center of masses of each cell (com_ptr1 is the center of mass of the parent cell)
-		std::vector<space_vector> const &com0 = (*(com_ptr[0]));
+		oct::vector<space_vector> const &com0 = (*(com_ptr[0]));
 		// Do 8 cell-cell interactions at the same time (simd.hpp) (Dominic)
 		// This could lead to problems either on Haswell or on KNL as the number is hardcoded
 		// (David)
@@ -358,9 +358,9 @@ void grid::compute_interactions(gsolve_type type) {
 			// dX is distance between X and Y
 			// X and Y are the two cells interacting
 			// X and Y store the 3D center of masses (per simd element, SoA style)
-			std::array<simd_vector, NDIM> dX;
-			std::array<simd_vector, NDIM> X;
-			std::array<simd_vector, NDIM> Y;
+			oct::array<simd_vector, NDIM> dX;
+			oct::array<simd_vector, NDIM> X;
+			oct::array<simd_vector, NDIM> Y;
 
 			// m multipole moments of the cells
 			taylor<4, simd_vector> m0;
@@ -435,8 +435,8 @@ void grid::compute_interactions(gsolve_type type) {
 			// A0, A1 are the contributions to L (for each cell)
 			taylor<4, simd_vector> A0, A1;
 			// B0, B1 are the contributions to L_c (for each cell)
-			std::array<simd_vector, NDIM> BB0 = { simd_vector(ZERO), simd_vector(ZERO), simd_vector(ZERO) };
-			std::array<simd_vector, NDIM> B1 = { simd_vector(ZERO), simd_vector(ZERO), simd_vector(ZERO) };
+			std::array<simd_vector, NDIM> BB0 = std::array<simd_vector, NDIM> { simd_vector(ZERO), simd_vector(ZERO), simd_vector(ZERO) };
+			std::array<simd_vector, NDIM> B1 = std::array<simd_vector, NDIM>{ simd_vector(ZERO), simd_vector(ZERO), simd_vector(ZERO) };
 
 			// calculates all D-values, calculate all coefficients of 1/r (not the potential),
 			// formula (6)-(9) and (19)
@@ -634,20 +634,20 @@ void grid::compute_boundary_interactions(gsolve_type type, const geo::direction 
 	}
 }
 
-void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, const std::vector<boundary_interaction_type> &ilist_n_bnd,
+void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, const oct::vector<boundary_interaction_type> &ilist_n_bnd,
 		const gravity_boundary_type &mpoles) {
 	PROFILE();
 
 	auto &M = *M_ptr;
 	auto &mon = *mon_ptr;
 
-	std::vector<space_vector> const &com0 = *(com_ptr[0]);
+	oct::vector<space_vector> const &com0 = *(com_ptr[0]);
 	hpx::for_loop(for_loop_policy, 0, ilist_n_bnd.size(), [&mpoles, &com0, &ilist_n_bnd, type, this, &M](std::size_t si) {
 
 		taylor<4, simd_vector> m0;
 		taylor<4, simd_vector> n0;
-		std::array<simd_vector, NDIM> dX;
-		std::array<simd_vector, NDIM> X;
+		oct::array<simd_vector, NDIM> dX;
+		oct::array<simd_vector, NDIM> X;
 		space_vector Y;
 
 		boundary_interaction_type const &bnd = ilist_n_bnd[si];
@@ -655,7 +655,7 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
 
 		load_multipole(m0, Y, mpoles, index, false);
 
-		std::array<simd_vector, NDIM> simdY = { simd_vector(real(Y[0])), simd_vector(real(Y[1])), simd_vector(real(Y[2])), };
+		std::array<simd_vector, NDIM> simdY = std::array<simd_vector, NDIM>{ simd_vector(real(Y[0])), simd_vector(real(Y[1])), simd_vector(real(Y[2])), };
 
 		const integer list_size = bnd.first.size();
 		for (integer li = 0; li < list_size; li += simd_len) {
@@ -689,7 +689,7 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
 
 		taylor<5, simd_vector> D;
 		taylor<4, simd_vector> A0;
-		std::array<simd_vector, NDIM> BB0 = { simd_vector(0.0), simd_vector(0.0), simd_vector(0.0) };
+		std::array<simd_vector, NDIM> BB0 = std::array<simd_vector, NDIM> { simd_vector(0.0), simd_vector(0.0), simd_vector(0.0) };
 
 		D.set_basis(dX);
 		A0[0] = m0[0] * D[0];
@@ -802,20 +802,20 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
 
 }
 
-void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, const std::vector<boundary_interaction_type> &ilist_n_bnd,
+void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, const oct::vector<boundary_interaction_type> &ilist_n_bnd,
 		const gravity_boundary_type &mpoles) {
 	PROFILE();
 
 	auto &M = *M_ptr;
 	auto &mon = *mon_ptr;
 
-	std::vector<space_vector> const &com0 = *(com_ptr[0]);
+	oct::vector<space_vector> const &com0 = *(com_ptr[0]);
 	hpx::for_loop(for_loop_policy, 0, ilist_n_bnd.size(), [&mpoles, &com0, &ilist_n_bnd, type, this](std::size_t si) {
 
 		taylor<4, simd_vector> m0;
 		taylor<4, simd_vector> n0;
-		std::array<simd_vector, NDIM> dX;
-		std::array<simd_vector, NDIM> X;
+		oct::array<simd_vector, NDIM> dX;
+		oct::array<simd_vector, NDIM> X;
 		space_vector Y;
 
 		boundary_interaction_type const &bnd = ilist_n_bnd[si];
@@ -823,7 +823,7 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
 		integer index = (mpoles.local_semaphore != nullptr) ? bnd.second : si;
 		load_multipole(m0, Y, mpoles, index, false);
 
-		std::array<simd_vector, NDIM> simdY = { simd_vector(real(Y[0])), simd_vector(real(Y[1])), simd_vector(real(Y[2])), };
+		std::array<simd_vector, NDIM> simdY = std::array<simd_vector, NDIM>{ simd_vector(real(Y[0])), simd_vector(real(Y[1])), simd_vector(real(Y[2])), };
 
 		if (type == RHO) {
 #pragma GCC ivdep
@@ -852,7 +852,7 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
 
 		taylor<5, simd_vector> D;
 		taylor<2, simd_vector> A0;
-		std::array<simd_vector, NDIM> BB0 = { simd_vector(0.0), simd_vector(0.0), simd_vector(0.0) };
+		std::array<simd_vector, NDIM> BB0 = std::array<simd_vector, NDIM> { simd_vector(0.0), simd_vector(0.0), simd_vector(0.0) };
 
 		D.set_basis(dX);
 		A0[0] = m0[0] * D[0];
@@ -937,7 +937,7 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
 
 }
 
-void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type, const std::vector<boundary_interaction_type> &ilist_n_bnd,
+void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type, const oct::vector<boundary_interaction_type> &ilist_n_bnd,
 		const gravity_boundary_type &mpoles) {
 	PROFILE();
 
@@ -946,12 +946,12 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type, co
 
 	std::array<real, NDIM> Xbase = { X[0][hindex(H_BW, H_BW, H_BW)], X[1][hindex(H_BW, H_BW, H_BW)], X[2][hindex(H_BW, H_BW, H_BW)] };
 
-	std::vector<space_vector> const &com0 = *(com_ptr[0]);
+	oct::vector<space_vector> const &com0 = *(com_ptr[0]);
 	hpx::for_loop(for_loop_policy, 0, ilist_n_bnd.size(), [&mpoles, &Xbase, &com0, &ilist_n_bnd, type, this, &M](std::size_t si) {
 		taylor<4, simd_vector> n0;
-		std::array<simd_vector, NDIM> dX;
-		std::array<simd_vector, NDIM> X;
-		std::array<simd_vector, NDIM> Y;
+		oct::array<simd_vector, NDIM> dX;
+		oct::array<simd_vector, NDIM> X;
+		oct::array<simd_vector, NDIM> Y;
 
 		boundary_interaction_type const &bnd = ilist_n_bnd[si];
 		integer index = (mpoles.local_semaphore != nullptr) ? bnd.second : si;
@@ -994,7 +994,7 @@ if (type != RHO) {
 
 		taylor<5, simd_vector> D;
 		taylor<4, simd_vector> A0;
-		std::array<simd_vector, NDIM> BB0 = { simd_vector(0.0), simd_vector(0.0), simd_vector(0.0) };
+		std::array<simd_vector, NDIM> BB0 = std::array<simd_vector, NDIM> { simd_vector(0.0), simd_vector(0.0), simd_vector(0.0) };
 
 		D.set_basis(dX);
 
@@ -1053,7 +1053,7 @@ if (type != RHO) {
 
 }
 
-void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type, const std::vector<boundary_interaction_type> &ilist_n_bnd,
+void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type, const oct::vector<boundary_interaction_type> &ilist_n_bnd,
 		const gravity_boundary_type &mpoles) {
 	PROFILE();
 
@@ -1107,11 +1107,11 @@ void compute_ilist() {
 	const integer nx = inx;
 	interaction_type np;
 	interaction_type dp;
-	std::vector<interaction_type> ilist_r0;
-	std::vector<interaction_type> ilist_n0;
-	std::vector<interaction_type> ilist_d0;
-	std::array<std::vector<interaction_type>, geo::direction::count()> ilist_n0_bnd;
-	std::array<std::vector<interaction_type>, geo::direction::count()> ilist_d0_bnd;
+	oct::vector<interaction_type> ilist_r0;
+	oct::vector<interaction_type> ilist_n0;
+	oct::vector<interaction_type> ilist_d0;
+	oct::array<oct::vector<interaction_type>, geo::direction::count()> ilist_n0_bnd;
+	oct::array<oct::vector<interaction_type>, geo::direction::count()> ilist_d0_bnd;
 	const real theta0 = opts().theta;
 	const auto theta = [](integer i0, integer j0, integer k0, integer i1, integer j1, integer k1) {
 		real tmp = (sqr(i0 - i1) + sqr(j0 - j1) + sqr(k0 - k1));
@@ -1179,7 +1179,7 @@ void compute_ilist() {
 #if defined(OCTOTIGER_LEGACY_VC)
                             v4sd four;
 #else
-							std::array<real, 4> four;
+							oct::array<real, 4> four;
 #endif
 							if (r > 0.0) {
 								four[0] = -1.0 / r;
@@ -1258,9 +1258,9 @@ void compute_ilist() {
 	}
 
 //     print("# direct = %i\n", int(max_d));
-	ilist_n = std::vector<interaction_type>(ilist_n0.begin(), ilist_n0.end());
-	ilist_d = std::vector<interaction_type>(ilist_d0.begin(), ilist_d0.end());
-	ilist_r = std::vector<interaction_type>(ilist_r0.begin(), ilist_r0.end());
+	ilist_n = oct::vector<interaction_type>(ilist_n0.begin(), ilist_n0.end());
+	ilist_d = oct::vector<interaction_type>(ilist_d0.begin(), ilist_d0.end());
+	ilist_r = oct::vector<interaction_type>(ilist_r0.begin(), ilist_r0.end());
 	for (auto &dir : geo::direction::full_set()) {
 		auto &d = ilist_d_bnd[dir];
 		auto &d0 = ilist_d0_bnd[dir];
@@ -1305,14 +1305,14 @@ void compute_ilist() {
 // expansion_pass_type grid::compute_expansions_soa(
 //     gsolve_type type, const expansion_pass_type* parent_expansions) {
 //     // Create return type expansion_pass_type
-//     // which is typedef std::pair<std::vector<expansion>, std::vector<space_vector>>
+//     // which is typedef std::pair<oct::vector<expansion>, oct::vector<space_vector>>
 //     // expansion_pass_type;
 //     expansion_pass_type exp_ret;
 
 //     // load data into soa arrays
-//     std::vector<expansion>& local_expansions = this->get_L();
-//     auto center_of_masses = std::vector<space_vector>(octotiger::fmm::INNER_CELLS);
-//     std::vector<space_vector> const& com0 = *(com_ptr[0]);
+//     oct::vector<expansion>& local_expansions = this->get_L();
+//     auto center_of_masses = oct::vector<space_vector>(octotiger::fmm::INNER_CELLS);
+//     oct::vector<space_vector> const& com0 = *(com_ptr[0]);
 //     octotiger::fmm::iterate_inner_cells_not_padded([this, &local_expansions, &center_of_masses,
 //         com0](const octotiger::fmm::multiindex<>& i_unpadded, const size_t flat_index_unpadded) {
 //         local_expansions.at(flat_index_unpadded) = L.at(flat_index_unpadded);
@@ -1349,7 +1349,7 @@ void compute_ilist() {
 //     octotiger::fmm::iterate_inner_cells_not_padded([this, &local_expansions, &center_of_masses_SoA,
 //                                                     com0, &parent_expansions_SoA, &parent_corrections_SoA, &exp_ret, child_index,
 //         type, inx](const octotiger::fmm::multiindex<>& i_unpadded, const size_t flat_index_unpadded) {
-//         std::array<m2m_vector, NDIM> parent_corrections;
+//         oct::array<m2m_vector, NDIM> parent_corrections;
 //         const integer index =
 //             (INX * INX / 4) * (i_unpadded.x) + (INX / 2) * (i_unpadded.y) + (i_unpadded.z);
 //         const integer ic = (2 * (i_unpadded.x));
@@ -1357,7 +1357,7 @@ void compute_ilist() {
 //         const integer kc = (2 * (i_unpadded.z));
 
 //         // Get position of child nodes
-//         std::array<std::array<m2m_vector, NDIM>, NCHILD> X;
+//         oct::array<oct::array<m2m_vector, NDIM>, NCHILD> X;
 //         integer childindex = inx * inx * (ic + 0) + inx * (jc + 0) + (kc + 0);
 //         X[0][0] = center_of_masses_SoA.value<0>(childindex);
 //         X[0][1] = center_of_masses_SoA.value<1>(childindex);
@@ -1400,7 +1400,7 @@ void compute_ilist() {
 
 //         // Get expansions and angular corrections of parent node
 //         // TODO parent expansions contain zeros if we are at the root node
-//         std::array<std::array<m2m_vector, 20>, NCHILD> m_partner;
+//         oct::array<oct::array<m2m_vector, 20>, NCHILD> m_partner;
 //         for (auto i = 0; i < NCHILD; ++i) {
 //             m_partner[i][0] = parent_expansions_SoA.value<0>(index);
 //             m_partner[i][1] = parent_expansions_SoA.value<1>(index);
@@ -1431,7 +1431,7 @@ void compute_ilist() {
 //         }
 
 //         // Get position of all interaction partners
-//         std::array<std::array<m2m_vector, NDIM>, NCHILD> Y;
+//         oct::array<oct::array<m2m_vector, NDIM>, NCHILD> Y;
 //         childindex = index;
 //         Y[0][0] = center_of_masses_SoA.value<0>(childindex);
 //         Y[0][1] = center_of_masses_SoA.value<1>(childindex);
@@ -1473,7 +1473,7 @@ void compute_ilist() {
 //         Y[7][2] = center_of_masses_SoA.value<2>(childindex);
 
 //         // Calculate distances
-//         std::array<std::array<m2m_vector, NDIM>, NCHILD> dX;
+//         oct::array<oct::array<m2m_vector, NDIM>, NCHILD> dX;
 //         for (auto i = 0; i < NCHILD; ++i) {
 //             dX[i][0] = X[i][0] - Y[i][0];
 //             dX[i][1] = X[i][1] - Y[i][1];
@@ -1482,7 +1482,7 @@ void compute_ilist() {
 
 //         // Calculate taylor expansions for this cell (<<=)
 //         taylor_consts tc;
-//         std::array<std::array<m2m_vector, NDIM>, NCHILD> cur_expansion;
+//         oct::array<oct::array<m2m_vector, NDIM>, NCHILD> cur_expansion;
 //         for (auto i = 0; i < NCHILD; ++i) {
 //             cur_expansion[i][0] = m_partner[i][0] * dX[i][0];
 //             cur_expansion[i][0] = m_partner[i][1] * dX[i][1];
@@ -1545,10 +1545,10 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
 		for (integer jp = 0; jp != nxp; ++jp) {
 			for (integer kp = 0; kp != nxp; ++kp) {
 				const integer iiip = nxp * nxp * ip + nxp * jp + kp;
-				std::array<simd_vector, NDIM> X;
-				std::array<simd_vector, NDIM> dX;
+				oct::array<simd_vector, NDIM> X;
+				oct::array<simd_vector, NDIM> dX;
 				taylor<4, simd_vector> l;
-				std::array<simd_vector, NDIM> lc;
+				oct::array<simd_vector, NDIM> lc;
 				if (!is_root) {
 					const integer index = (INX * INX / 4) * (ip) + (INX / 2) * (jp) + (kp);
 					for (integer j = 0; j != 20; ++j) {
@@ -1640,8 +1640,8 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 
 	integer lev = 0;
 	const real dx3 = dx * dx * dx;
-	M_ptr = std::make_shared<std::vector<multipole>>();
-	mon_ptr = std::make_shared<std::vector<real>>();
+	M_ptr = std::make_shared<oct::vector<multipole>>();
+	mon_ptr = std::make_shared<oct::vector<real>>();
 	auto &M = *M_ptr;
 	auto &mon = *mon_ptr;
 	if (is_leaf) {
@@ -1652,10 +1652,10 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 		mon.resize(0);
 	}
 	if (com_ptr[1] == nullptr) {
-		com_ptr[1] = std::make_shared<std::vector<space_vector>>(G_N3 / 8);
+		com_ptr[1] = std::make_shared<oct::vector<space_vector>>(G_N3 / 8);
 	}
 	if (type == RHO) {
-		com_ptr[0] = std::make_shared<std::vector<space_vector>>(G_N3);
+		com_ptr[0] = std::make_shared<oct::vector<space_vector>>(G_N3);
 		const integer iii0 = hindex(H_BW, H_BW, H_BW);
 		const std::array<real, NDIM> x0 = { X[XDIM][iii0], X[YDIM][iii0], X[ZDIM][iii0] };
 		for (integer i = 0; i != G_NX; ++i) {
@@ -1699,7 +1699,7 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 					if (lev != 0) {
 						if (type == RHO) {
 							simd_vector mc;
-							std::array<simd_vector, NDIM> X;
+							oct::array<simd_vector, NDIM> X;
 							for (integer ci = 0; ci != NCHILD; ++ci) {
 								const integer iiic = child_index(ip, jp, kp, ci);
 								if (is_leaf) {
@@ -1725,7 +1725,7 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 							}
 						}
 						taylor<4, simd_vector> mc, mp;
-						std::array<simd_vector, NDIM> x, y, dx;
+						oct::array<simd_vector, NDIM> x, y, dx;
 						for (integer ci = 0; ci != NCHILD; ++ci) {
 
 							const integer iiic = child_index(ip, jp, kp, ci);
@@ -1804,7 +1804,7 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 gravity_boundary_type grid::get_gravity_boundary(const geo::direction &dir, bool is_local) {
 	PROFILE();
 
-	//	std::array<integer, NDIM> lb, ub;
+	//	oct::array<integer, NDIM> lb, ub;
 	gravity_boundary_type data;
 	auto &M = *M_ptr;
 	auto &mon = *mon_ptr;
@@ -1825,7 +1825,7 @@ gravity_boundary_type grid::get_gravity_boundary(const geo::direction &dir, bool
 		//     }
 		// }
 		integer iter = 0;
-		const std::vector<boundary_interaction_type> &list = ilist_n_bnd[dir.flip()];
+		const oct::vector<boundary_interaction_type> &list = ilist_n_bnd[dir.flip()];
 		if (is_leaf) {
 			data.m->reserve(list.size());
 			for (auto i : list) {
@@ -1856,7 +1856,7 @@ gravity_boundary_type grid::get_gravity_boundary(const geo::direction &dir, bool
 
 neighbor_gravity_type grid::fill_received_array(neighbor_gravity_type raw_input) {
 	PROFILE();
-	const std::vector<boundary_interaction_type> &list = ilist_n_bnd[raw_input.direction];
+	const oct::vector<boundary_interaction_type> &list = ilist_n_bnd[raw_input.direction];
 	neighbor_gravity_type filled_array;
 	filled_array.data.allocate();
 	constexpr size_t blocksize = INX * INX * INX;
@@ -1888,6 +1888,6 @@ neighbor_gravity_type grid::fill_received_array(neighbor_gravity_type raw_input)
 	return filled_array;
 }
 
-const std::vector<boundary_interaction_type>& grid::get_ilist_n_bnd(const geo::direction &dir) {
+const oct::vector<boundary_interaction_type>& grid::get_ilist_n_bnd(const geo::direction &dir) {
 	return ilist_n_bnd[dir];
 }

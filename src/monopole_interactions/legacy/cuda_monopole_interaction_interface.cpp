@@ -30,13 +30,13 @@
 template <typename T>
 using device_buffer_t = recycler::cuda_device_buffer<T>;
 template <typename T>
-using host_buffer_t = std::vector<T, recycler::recycle_allocator_cuda_host<T>>;
+using host_buffer_t = oct::vector<T, recycler::recycle_allocator_cuda_host<T>>;
 using executor_t = hpx::cuda::experimental::cuda_executor;
 #elif defined(OCTOTIGER_HAVE_HIP)
 template <typename T>
 using device_buffer_t = recycler::hip_device_buffer<T>;
 template <typename T>
-using host_buffer_t = std::vector<T, recycler::recycle_allocator_hip_host<T>>;
+using host_buffer_t = oct::vector<T, recycler::recycle_allocator_hip_host<T>>;
 using executor_t = hpx::cuda::experimental::cuda_executor;
 
 #define cudaLaunchKernel hipLaunchKernel
@@ -86,10 +86,10 @@ namespace fmm {
           : monopole_interaction_interface()
           , theta(opts().theta) {}
 
-        void cuda_monopole_interaction_interface::compute_interactions(std::vector<real>& monopoles,
-            std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
-            std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
-            std::array<bool, geo::direction::count()>& is_direction_empty,
+        void cuda_monopole_interaction_interface::compute_interactions(oct::vector<real>& monopoles,
+            oct::vector<std::shared_ptr<oct::vector<space_vector>>>& com_ptr,
+            oct::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
+            oct::array<bool, geo::direction::count()>& is_direction_empty,
             std::shared_ptr<grid>& grid_ptr, const bool contains_multipole_neighbor) {
             // Check where we want to run this:
             bool avail = true;
@@ -184,9 +184,9 @@ namespace fmm {
                           cudaMemsetAsync, device_erg_corrs.device_side_buffer, 0,
                           (INNER_CELLS + SOA_PADDING) * 3 * sizeof(double));
                     // Convert and move inner cells coms to device
-                    std::vector<space_vector> const& com0 = *(com_ptr[0]);
+                    oct::vector<space_vector> const& com0 = *(com_ptr[0]);
                     struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
-                        std::vector<real, recycler::recycle_allocator_cuda_host<real>>>
+                        oct::vector<real, recycler::recycle_allocator_cuda_host<real>>>
                         center_of_masses_inner_cells_staging_area;
                     iterate_inner_cells_padded(
                         [&center_of_masses_inner_cells_staging_area, com0](const multiindex<>& i,
@@ -225,13 +225,13 @@ namespace fmm {
                     }
                     // Input kernel buffers for p2m kernels - 2 host-side and 2 device-side buffers
                     // for each of the three kernel types
-                    std::vector<struct_of_array_data<expansion, real, 20, buffer_size_kernel_type1,
+                    oct::vector<struct_of_array_data<expansion, real, 20, buffer_size_kernel_type1,
                         SOA_PADDING,
-                        std::vector<real, recycler::recycle_allocator_cuda_host<real>>>>
+                        oct::vector<real, recycler::recycle_allocator_cuda_host<real>>>>
                         local_expansions_staging_area_type1(number_kernel_type1);
-                    std::vector<struct_of_array_data<space_vector, real, 3,
+                    oct::vector<struct_of_array_data<space_vector, real, 3,
                         buffer_size_kernel_type1, SOA_PADDING,
-                        std::vector<real, recycler::recycle_allocator_cuda_host<real>>>>
+                        oct::vector<real, recycler::recycle_allocator_cuda_host<real>>>>
                         center_of_masses_staging_area_type1(number_kernel_type1);
                     device_buffer_t<double> local_expansions_type1(
                         (buffer_size_kernel_type1 + SOA_PADDING) * 20 * number_kernel_type1 + 32,
@@ -240,13 +240,13 @@ namespace fmm {
                         (buffer_size_kernel_type1 + SOA_PADDING) * 3 * number_kernel_type1 + 32,
                         device_id);
                     // Input buffers for type 2
-                    std::vector<struct_of_array_data<expansion, real, 20, buffer_size_kernel_type2,
+                    oct::vector<struct_of_array_data<expansion, real, 20, buffer_size_kernel_type2,
                         SOA_PADDING,
-                        std::vector<real, recycler::recycle_allocator_cuda_host<real>>>>
+                        oct::vector<real, recycler::recycle_allocator_cuda_host<real>>>>
                         local_expansions_staging_area_type2(number_kernel_type2);
-                    std::vector<struct_of_array_data<space_vector, real, 3,
+                    oct::vector<struct_of_array_data<space_vector, real, 3,
                         buffer_size_kernel_type2, SOA_PADDING,
-                        std::vector<real, recycler::recycle_allocator_cuda_host<real>>>>
+                        oct::vector<real, recycler::recycle_allocator_cuda_host<real>>>>
                         center_of_masses_staging_area_type2(number_kernel_type2);
                     device_buffer_t<double> local_expansions_type2(
                         (buffer_size_kernel_type2 + SOA_PADDING) * 20 * number_kernel_type2 + 32,
@@ -255,13 +255,13 @@ namespace fmm {
                         (buffer_size_kernel_type2 + SOA_PADDING) * 3 * number_kernel_type2 + 32,
                         device_id);
                     // Input buffers for type 3
-                    std::vector<struct_of_array_data<expansion, real, 20, buffer_size_kernel_type3,
+                    oct::vector<struct_of_array_data<expansion, real, 20, buffer_size_kernel_type3,
                         SOA_PADDING,
-                        std::vector<real, recycler::recycle_allocator_cuda_host<real>>>>
+                        oct::vector<real, recycler::recycle_allocator_cuda_host<real>>>>
                         local_expansions_staging_area_type3(number_kernel_type3);
-                    std::vector<struct_of_array_data<space_vector, real, 3,
+                    oct::vector<struct_of_array_data<space_vector, real, 3,
                         buffer_size_kernel_type3, SOA_PADDING,
-                        std::vector<real, recycler::recycle_allocator_cuda_host<real>>>>
+                        oct::vector<real, recycler::recycle_allocator_cuda_host<real>>>>
                         center_of_masses_staging_area_type3(number_kernel_type3);
                     device_buffer_t<double> local_expansions_type3(
                         (buffer_size_kernel_type3 + SOA_PADDING) * 20 * number_kernel_type3 + 32,

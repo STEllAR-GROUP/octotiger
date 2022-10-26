@@ -18,12 +18,12 @@
 #include "octotiger/util/vec_vc_wrapper.hpp"
 
 void complete_hydro_amr_boundary_vc(const double dx, const bool energy_only,
-    const std::vector<std::vector<real>>& Ushad, const std::vector<int>& is_coarse,
-    const std::array<double, NDIM>& xmin, std::vector<std::vector<double>>& U) {
+    const oct::vector<oct::vector<real>>& Ushad, const oct::vector<int>& is_coarse,
+    const oct::array<double, NDIM>& xmin, oct::vector<oct::vector<double>>& U) {
 
-    std::vector<double, recycler::aggressive_recycle_aligned<double, 32>> unified_u(
+    oct::vector<double, recycler::aggressive_recycle_aligned<double, 32>> unified_u(
         opts().n_fields * H_N3);
-    std::vector<double, recycler::aggressive_recycle_aligned<double, 32>> unified_ushad(
+    oct::vector<double, recycler::aggressive_recycle_aligned<double, 32>> unified_ushad(
         opts().n_fields * HS_N3);
 
     for (int f = 0; f < opts().n_fields; f++) {

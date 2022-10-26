@@ -32,12 +32,12 @@ HPX_PLAIN_ACTION(output_stage2, output_stage2_action);
 HPX_PLAIN_ACTION(output_stage3, output_stage3_action);
 
 struct node_list_t {
-	std::vector<node_location::node_id> silo_leaves;
-	std::vector<int> group_num;
-	std::vector<node_location::node_id> all;
-	std::vector<integer> positions;
-	std::vector<std::vector<double>> extents;
-	std::vector<int> zone_count;
+	oct::vector<node_location::node_id> silo_leaves;
+	oct::vector<int> group_num;
+	oct::vector<node_location::node_id> all;
+	oct::vector<integer> positions;
+	oct::vector<oct::vector<double>> extents;
+	oct::vector<int> zone_count;
 	template<class Arc>
 	void serialize(Arc &arc, unsigned) {
 		arc & silo_leaves;
@@ -49,13 +49,13 @@ struct node_list_t {
 };
 
 struct mesh_vars_t {
-	std::vector<silo_var_t> vars;
-	std::vector<std::string> var_names;
-	std::vector<std::pair<std::string, real>> outflow;
+	oct::vector<silo_var_t> vars;
+	oct::vector<std::string> var_names;
+	oct::vector<std::pair<std::string, real>> outflow;
 	std::string mesh_name;
-	std::vector<std::vector<real>> X;
-	std::array<int, NDIM> X_dims;
-	std::array<int, NDIM> var_dims;
+	oct::vector<oct::vector<real>> X;
+	oct::array<int, NDIM> X_dims;
+	oct::array<int, NDIM> var_dims;
 	node_location location;
 	mesh_vars_t(mesh_vars_t&&) = default;
 	mesh_vars_t(const node_location &loc) :
@@ -78,8 +78,8 @@ struct mesh_vars_t {
 
 struct mesh_vars_t;
 
-static std::vector<mesh_vars_t> all_mesh_vars;
-static std::vector<hpx::future<mesh_vars_t>> futs_;
+static oct::vector<mesh_vars_t> all_mesh_vars;
+static oct::vector<hpx::future<mesh_vars_t>> futs_;
 static node_list_t node_list_;
 static int nsteps;
 static int time_elapsed;
@@ -95,7 +95,7 @@ void output_stage1(std::string fname, int cycle) {
   if (opts().idle_rates == 1) {
     grid::set_idle_rate();
   }
-	std::vector<node_location::node_id> ids;
+	oct::vector<node_location::node_id> ids;
 	futs_.clear();
 	const auto *node_ptr_ = node_registry::begin()->second.get_ptr().get();
 	silo_output_time() = node_ptr_->get_time() * opts().code_to_s;
@@ -129,7 +129,7 @@ node_list_t output_stage2(std::string fname, int cycle) {
 	for (auto &this_fut : futs_) {
 		all_mesh_vars.push_back(std::move(GET(this_fut)));
 	}
-	std::vector<node_location::node_id> ids;
+	oct::vector<node_location::node_id> ids;
 	node_list_t nl;
 	nl.extents.resize(nfields);
 	ids.reserve(all_mesh_vars.size());
@@ -146,8 +146,8 @@ node_list_t output_stage2(std::string fname, int cycle) {
 		}
 
 	}
-	std::vector<node_location::node_id> all;
-	std::vector<integer> positions;
+	oct::vector<node_location::node_id> all;
+	oct::vector<integer> positions;
 	all.reserve(node_registry::size());
 	positions.reserve(node_registry::size());
 	for (auto i = node_registry::begin(); i != node_registry::end(); ++i) {
@@ -263,9 +263,9 @@ void output_stage4(std::string fname, int cycle) {
 		auto *db = DBCreateReal(this_fname.c_str(), DB_CLOBBER, DB_LOCAL, "Octo-tiger", SILO_DRIVER);
 		double dtime = silo_output_time();
 		float ftime = dtime;
-		std::vector<std::pair<int, node_location>> node_locs;
-		std::vector<char*> mesh_names;
-		std::vector<std::vector<char*>> field_names(nfields);
+		oct::vector<std::pair<int, node_location>> node_locs;
+		oct::vector<char*> mesh_names;
+		oct::vector<oct::vector<char*>> field_names(nfields);
 		node_locs.reserve(node_list_.silo_leaves.size());
 		int j = 0;
 		for (auto &i : node_list_.silo_leaves) {
@@ -300,7 +300,7 @@ void output_stage4(std::string fname, int cycle) {
 		int dj = DB_ABUTTING;
 		int six = 2 * NDIM;
 		assert(n_total_domains > 0);
-		std::vector<double> extents;
+		oct::vector<double> extents;
 		extents.reserve(node_locs.size() * 6);
 		for (const auto &n0 : node_locs) {
 			const auto &n = n0.second;
@@ -349,7 +349,7 @@ void output_stage4(std::string fname, int cycle) {
 			DBAddOption(optlist, DBOPT_EXTENTS_SIZE, &two);
 			DBAddOption(optlist, DBOPT_EXTENTS, node_list_.extents[f].data());
 			DBAddOption(optlist, DBOPT_MMESH_NAME, mmesh);
-			DBPutMultivar(db, top_field_names[f].c_str(), n_total_domains, field_names[f].data(), std::vector<int>(n_total_domains, DB_QUADVAR).data(), optlist);
+			DBPutMultivar(db, top_field_names[f].c_str(), n_total_domains, field_names[f].data(), oct::vector<int>(n_total_domains, DB_QUADVAR).data(), optlist);
 			DBFreeOptlist(optlist);
 		}
 		write_silo_var<integer> fi;
@@ -393,14 +393,14 @@ void output_stage4(std::string fname, int cycle) {
 //
 //				// mesh adjacency information
 //				int nleaves = node_locs.size();
-//				std::vector<int> neighbor_count(nleaves, 0);
-//				std::vector<std::vector<int>> neighbor_lists(nleaves);
-//				std::vector<std::vector<int>> back_lists(nleaves);
-//				std::vector<int> linear_neighbor_list;
-//				std::vector<int> linear_back_list;
-//				std::vector<std::vector<int*>> connections(nleaves);
-//				std::vector<int*> linear_connections;
-//				std::vector<std::vector<int>> tmp;
+//				oct::vector<int> neighbor_count(nleaves, 0);
+//				oct::vector<oct::vector<int>> neighbor_lists(nleaves);
+//				oct::vector<oct::vector<int>> back_lists(nleaves);
+//				oct::vector<int> linear_neighbor_list;
+//				oct::vector<int> linear_back_list;
+//				oct::vector<oct::vector<int*>> connections(nleaves);
+//				oct::vector<int*> linear_connections;
+//				oct::vector<oct::vector<int>> tmp;
 //				tmp.reserve(nleaves);
 //				for (int n = 0; n < nleaves; n++) {
 //					for (int m = n + 1; m < nleaves; m++) {
@@ -415,8 +415,8 @@ void output_stage4(std::string fname, int cycle) {
 //							back_lists[n].push_back(neighbor_lists[m].size());
 //							neighbor_lists[m].push_back(n); //
 //							neighbor_lists[n].push_back(m);
-//							std::vector<int> adj1(15);
-//							std::vector<int> adj2(15);
+//							oct::vector<int> adj1(15);
+//							oct::vector<int> adj2(15);
 //							for (int d = 0; d < NDIM; d++) {
 //								int d0 = NDIM - d - 1;
 //								adj1[2 * d + 0] = rn[d].first;
@@ -447,8 +447,8 @@ void output_stage4(std::string fname, int cycle) {
 //						linear_connections.push_back(connections[n][m]);
 //					}
 //				}
-//				std::vector<int> fifteen(linear_connections.size(), 15);
-//				std::vector<int> mesh_types(nleaves, mesh_type);
+//				oct::vector<int> fifteen(linear_connections.size(), 15);
+//				oct::vector<int> mesh_types(nleaves, mesh_type);
 //				int isTimeVarying = 1;
 //				int n = 1;
 //				DBWrite(db, "ConnectivityIsTimeVarying", &isTimeVarying, &n, 1, DB_INT);
@@ -461,9 +461,9 @@ void output_stage4(std::string fname, int cycle) {
 		// Expressions
 
 		DBSetDir(db, "/");
-		std::vector<char*> names;
-		std::vector<char*> defs;
-		std::vector<int> types;
+		oct::vector<char*> names;
+		oct::vector<char*> defs;
+		oct::vector<int> types;
 		auto exps1 = grid::get_scalar_expressions();
 		auto exps2 = grid::get_vector_expressions();
 //				decltype(exps1) exps;
@@ -534,13 +534,13 @@ void output_all(node_server *root_ptr, std::string fname, int cycle, bool block)
 	time_elapsed = time(nullptr) - start_time;
 	start_time = timestamp;
 	start_step = nsteps;
-	std::vector<hpx::future<void>> futs1;
+	oct::vector<hpx::future<void>> futs1;
 	for (auto &id : localities) {
 		futs1.push_back(hpx::async<output_stage1_action>(hpx::launch::async_policy(hpx::threads::thread_priority::boost), id, fname, cycle));
 	}
 	GET(hpx::when_all(futs1));
 
-	std::vector<hpx::future<node_list_t>> id_futs;
+	oct::vector<hpx::future<node_list_t>> id_futs;
 	for (auto &id : localities) {
 		id_futs.push_back(hpx::async<output_stage2_action>(hpx::launch::async_policy(hpx::threads::thread_priority::boost), id, fname, cycle));
 	}
@@ -571,14 +571,14 @@ void output_all(node_server *root_ptr, std::string fname, int cycle, bool block)
 	}
 	const auto ng = opts().silo_num_groups;
 
-	std::vector<hpx::future<void>> futs;
+	oct::vector<hpx::future<void>> futs;
 	for (int i = 0; i < ng; i++) {
 		int gb = (i * localities.size()) / ng;
 		int ge = ((i + 1) * localities.size()) / ng;
 		futs.push_back(hpx::async < output_stage3_action > (hpx::launch::async_policy(hpx::threads::thread_priority::boost), localities[gb], fname, cycle, i, gb, ge));
 	}
 
-	barrier = hpx::async(hpx::launch::async_policy(hpx::threads::thread_priority::boost), [tstart, fname, cycle](std::vector<hpx::future<void>> &&futs) {
+	barrier = hpx::async(hpx::launch::async_policy(hpx::threads::thread_priority::boost), [tstart, fname, cycle](oct::vector<hpx::future<void>> &&futs) {
 		for (auto &f : futs) {
 			GET(f);
 		}
