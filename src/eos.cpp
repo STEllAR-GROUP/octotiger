@@ -20,6 +20,7 @@ constexpr real struct_eos::G;
 
 #define N53
 
+
 void struct_eos::conversion_factors(real &m, real &l, real &t) const {
 	real b = B();
 	real a = A;

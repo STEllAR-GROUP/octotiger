@@ -182,7 +182,6 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
 	grid_ptr->clear_amr();
 	for (auto const &dir : geo::direction::full_set()) {
 		if (!neighbors[dir].empty()) {
-			const integer width = H_BW;
 			auto bdata = grid_ptr->get_hydro_boundary(dir, energy_only);
 			neighbors[dir].send_hydro_boundary(std::move(bdata), dir.flip(), hcycle);
 		}

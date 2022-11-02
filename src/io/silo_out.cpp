@@ -101,7 +101,6 @@ void output_stage1(std::string fname, int cycle) {
 			futs_.push_back(hpx::async(hpx::launch::async(hpx::threads::thread_priority_boost), [](node_location loc, node_registry::node_ptr ptr) {
 				const auto *this_ptr = ptr.get_ptr().get();
 				assert(this_ptr);
-				const real dx = TWO / real(1 << loc.level()) / real(INX);
 				mesh_vars_t rc(loc);
 				const std::string suffix = oct_to_str(loc.to_id());
 				const grid &gridref = this_ptr->get_hydro_grid();
@@ -323,7 +322,6 @@ void output_stage4(std::string fname, int cycle) {
 		DBAddOption(optlist, DBOPT_EXTENTS_SIZE, &six);
 		DBAddOption(optlist, DBOPT_EXTENTS, extents.data());
 		DBAddOption(optlist, DBOPT_ZONECOUNTS, node_list_.zone_count.data());
-//			DBAddOption(optlist, DBOPT_TV_CONNECTIVITY, &one);
 		DBAddOption(optlist, DBOPT_DISJOINT_MODE, &dj);
 		DBAddOption(optlist, DBOPT_TOPO_DIM, &three);
 		DBAddOption(optlist, DBOPT_MB_BLOCK_TYPE, &mesh_type);

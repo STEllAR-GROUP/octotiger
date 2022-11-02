@@ -247,7 +247,7 @@ node_count_type node_server::regrid(const hpx::id_type &root_gid, real omega, re
 	tstart = timer.elapsed();
 	printf("forming tree connections\n");
 	a.amr_bnd = form_tree(hpx::unmanaged(root_gid));
-	printf("%i amr boundaries\n", a.amr_bnd);
+	printf("%i amr boundaries\n", int(a.amr_bnd));
 	tstop = timer.elapsed();
 	printf("Formed tree in %f seconds\n", real(tstop - tstart));
 	printf("solving gravity\n");

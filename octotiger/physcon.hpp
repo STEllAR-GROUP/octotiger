@@ -50,7 +50,7 @@ HPX_IS_BITWISE_SERIALIZABLE(physcon_t);
 
 physcon_t& physcon();
 
-void mean_ion_weight(const specie_state_t<> species, real& mmw, real& X, real& Z);
+void mean_ion_weight(const specie_state_t<> species, real& abar, real& zbar, real& X, real& Z);
 void set_AB(real, real);
 
 void set_units(real m, real l, real t, real k);

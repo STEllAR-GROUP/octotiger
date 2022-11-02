@@ -43,8 +43,8 @@ real find_T_rad_gas(real p, real rho, real mu) {
 }
 
 void these_units(real &m, real &l, real &t, real &k) {
-	const real Acgs = 6.00228e+22;
-	const real Bcgs = 2 * 9.81011e+5;
+	const real Acgs = 6.00233345657677e+22;
+	const real Bcgs = 2 * 9.73931565123750e+05;
 	const real Gcgs = 6.67259e-8;
 	const real kbcgs = 1.380658e-16;
 	real m1, l1, t1, k1;
@@ -64,7 +64,6 @@ void these_units(real &m, real &l, real &t, real &k) {
 		real m2 = std::pow(A / G, 1.5) / (B * B);
 		real l2 = std::sqrt(A / G) / B;
 		real t2 = 1.0 / std::sqrt(B * G);
-		real k2 = (m2 * l2 * l2) / (t2 * t2) / kb;
 		m = m2 / m1;
 		l = l2 / l1;
 		t = t2 / t1;
@@ -127,6 +126,7 @@ void normalize_constants() {
 		opts().code_to_s = 1.0 / t;
 		opts().code_to_cm = 1.0 / l;
 	}
+
 }
 
 void set_units(real m, real l, real t, real k) {
@@ -229,6 +229,7 @@ void set_AB(real a, real b) {
 	physcon().A = a;
 	physcon().B = b;
 	normalize_constants();
+	grid::set_units();
 }
 
 HPX_PLAIN_ACTION(grid::static_change_units, static_change_units_action);
@@ -254,19 +255,22 @@ hpx::future<void> grid::static_change_units(real m, real l, real t, real k) {
 	return f;
 }
 
-void mean_ion_weight(const specie_state_t<> species, real &mmw, real &X, real &Z) {
+void mean_ion_weight(const specie_state_t<> species, real &abar, real& zbar, real &X, real &Z) {
 //	real N;
 	real mtot = 0.0;
 	real ntot = 0.0;
 	X = Z = 0;
+	zbar = 0.0;
 	for (integer i = 0; i != opts().n_species; ++i) {
 		const real m = species[i];
-		ntot += m * (opts().atomic_number[i] + 1.0) / opts().atomic_mass[i];
+		ntot += m / opts().atomic_mass[i];
+		zbar += m * opts().atomic_number[i] / opts().atomic_mass[i];
 		X += m * opts().X[i];
 		Z += m * opts().Z[i];
 		mtot += m;
 	}
-	mmw = mtot / ntot;
+	abar = mtot / ntot;
+	zbar *= abar / mtot;
 	X /= mtot;
 	Z /= mtot;
 }

@@ -92,6 +92,8 @@ class hydro_computer;
 
 class grid {
 public:
+	static stellar_eos* eos;
+
 	using xpoint = std::array<xpoint_type, NDIM>;
 	struct node_point;
         OCTOTIGER_EXPORT static void set_min_level(integer l);
@@ -118,7 +120,6 @@ private:
 	static hpx::lcos::local::spinlock omega_mtx;
 	static OCTOTIGER_EXPORT real scaling_factor;
 	static double idle_rate;
-	hydro_computer<NDIM,INX,physics<NDIM>> hydro;
 	std::shared_ptr<rad_grid> rad_grid_ptr;
 	std::vector<roche_type> roche_lobe;
 	std::vector<std::atomic<int>> is_coarse;
@@ -165,6 +166,9 @@ public:
 	static bool is_hydro_field(const std::string&);
 	static std::vector<std::string> get_field_names();
 	static std::vector<std::string> get_hydro_field_names();
+	static void set_units() {
+		eos->set_units(opts().code_to_g, opts().code_to_cm, opts().code_to_s);
+	}
 
 	std::vector<multipole>& get_M() {
 		return *M_ptr;

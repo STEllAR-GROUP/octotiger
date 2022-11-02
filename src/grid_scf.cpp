@@ -433,7 +433,7 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 
 				U[sx_i][iiih] = sx;
 				U[sy_i][iiih] = sy;
-				U[tau_i][iiih] = POWER(etherm, 3.0 / 5.0);
+				U[ein_i][iiih] = eint;
 				U[egas_i][iiih] = eint + (sx * sx + sy * sy) / 2.0 * INVERSE(rho);
 				U[lx_i][iiih] = -z * sy;
 				U[ly_i][iiih] = +z * sx;
@@ -443,7 +443,7 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 	}
 	init_z_field();
 	if (opts().radiation) {
-		rad_grid_ptr->initialize_erad(U[rho_i], U[tau_i]);
+		rad_grid_ptr->initialize_erad(U[rho_i], U[ein_i]);
 	}
 	return 0.0;
 }
@@ -741,6 +741,6 @@ std::vector<real> scf_binary(real x, real y, real z, real dx) {
 		etherm -= ztwd_energy(rho);
 		etherm = std::max(1.0e-10, etherm);
 	}
-	u[tau_i] = POWER(etherm, 3.0 / 5.0);
+	u[ein_i] = ei;
 	return u;
 }

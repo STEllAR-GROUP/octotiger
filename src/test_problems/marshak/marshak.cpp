@@ -166,7 +166,7 @@ std::vector<double> marshak_wave_analytic(double x0, double y0, double z0, doubl
 	const double fy = 0;
 	const double fz = 0;
 	U[egas_i] = e;
-	U[tau_i] = std::pow(e, 1.0 / grid::get_fgamma());
+	U[ein_i] = e;
 	assert(!std::isnan(erad));
 	assert(!std::isnan(fx));
 	assert(!std::isnan(fy));
@@ -185,7 +185,7 @@ std::vector<double> marshak_wave(double x, double y, double z, double dx) {
 	double e = 1.0e-20;
 	u[rho_i] = u[spc_i] = 1.0;
 	u[egas_i] = e;
-	u[tau_i] = std::pow(e, grid::get_fgamma());
+	u[ein_i] = e;
 	return u;
 
 }

@@ -26,7 +26,7 @@
 
 COMMAND_LINE_ENUM(problem_type, DWD, SOD, BLAST, NONE, SOLID_SPHERE, STAR, MOVING_STAR, RADIATION_TEST, ROTATING_STAR, MARSHAK, AMR_TEST, ADVECTION);
 
-COMMAND_LINE_ENUM(eos_type, IDEAL, WD);
+ COMMAND_LINE_ENUM(eos_type,IDEAL,WD,HELMHOLTZ);
 
 class options {
 public:
@@ -87,7 +87,7 @@ public:
 	real code_to_cm;
 	real cfl;
 	real rho_floor;
-	real tau_floor;
+	real ein_floor;
 
 	real sod_rhol;
 	real sod_rhor;
@@ -148,7 +148,7 @@ public:
 	void serialize(Arc &arc, unsigned) {
 		arc & eblast0;
 		arc & rho_floor;
-		arc & tau_floor;
+		arc & ein_floor;
 		arc & sod_rhol;
 		arc & sod_rhor;
 		arc & sod_pl;

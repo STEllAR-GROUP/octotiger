@@ -3,14 +3,12 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-
 #include "octotiger/defs.hpp"
 #include "octotiger/grid.hpp"
 #include "octotiger/node_server.hpp"
 #include "octotiger/options.hpp"
 #include "octotiger/radiation/implicit.hpp"
 #include "octotiger/radiation/kernel_interface.hpp"
-#include "octotiger/radiation/opacities.hpp"
 #include "octotiger/radiation/rad_grid.hpp"
 #include "octotiger/real.hpp"
 #include "octotiger/roe.hpp"
@@ -29,6 +27,7 @@ using real = double;
 
 std::unordered_map<std::string, int> rad_grid::str_to_index;
 std::unordered_map<int, std::string> rad_grid::index_to_str;
+stellar_eos *rad_grid::eos;
 
 void rad_grid::static_init() {
 	str_to_index["er"] = er_i;
@@ -102,7 +101,7 @@ constexpr auto _4 = real(4);
 constexpr auto _5 = real(5);
 
 using set_rad_grid_action_type = node_server::set_rad_grid_action;
-HPX_REGISTER_ACTION (set_rad_grid_action_type);
+HPX_REGISTER_ACTION(set_rad_grid_action_type);
 
 hpx::future<void> node_client::set_rad_grid(std::vector<real> &&g/*, std::vector<real>&& o*/) const {
 	return hpx::async<typename node_server::set_rad_grid_action>(get_unmanaged_gid(), g/*, o*/);
@@ -113,10 +112,10 @@ void node_server::set_rad_grid(const std::vector<real> &data/*, std::vector<real
 }
 
 using send_rad_boundary_action_type = node_server::send_rad_boundary_action;
-HPX_REGISTER_ACTION (send_rad_boundary_action_type);
+HPX_REGISTER_ACTION(send_rad_boundary_action_type);
 
 using send_rad_flux_correct_action_type = node_server::send_rad_flux_correct_action;
-HPX_REGISTER_ACTION (send_rad_flux_correct_action_type);
+HPX_REGISTER_ACTION(send_rad_flux_correct_action_type);
 
 void node_client::send_rad_flux_correct(std::vector<real> &&data, const geo::face &face, const geo::octant &ci) const {
 	hpx::apply<typename node_server::send_rad_flux_correct_action>(get_unmanaged_gid(), std::move(data), face, ci);
@@ -139,7 +138,7 @@ void node_server::recv_rad_boundary(std::vector<real> &&bdata, const geo::direct
 }
 
 using send_rad_children_action_type = node_server::send_rad_children_action;
-HPX_REGISTER_ACTION (send_rad_children_action_type);
+HPX_REGISTER_ACTION(send_rad_children_action_type);
 
 void node_server::recv_rad_children(std::vector<real> &&data, const geo::octant &ci, std::size_t cycle) {
 	child_rad_channels[ci].set_value(std::move(data), cycle);
@@ -149,7 +148,7 @@ void node_client::send_rad_children(std::vector<real> &&data, const geo::octant 
 	hpx::apply<typename node_server::send_rad_children_action>(get_unmanaged_gid(), std::move(data), ci, cycle);
 }
 
-void rad_grid::rad_imp(std::vector<real> &egas, std::vector<real> &tau, std::vector<real> &sx, std::vector<real> &sy, std::vector<real> &sz,
+void rad_grid::rad_imp(std::vector<real> &egas, std::vector<real> &ein, std::vector<real> &sx, std::vector<real> &sy, std::vector<real> &sz,
 		const std::vector<real> &rho, real dt) {
 	PROFILE()
 	;
@@ -157,7 +156,7 @@ void rad_grid::rad_imp(std::vector<real> &egas, std::vector<real> &tau, std::vec
 	const real clight = physcon().c / opts().clight_retard;
 	const real clightinv = INVERSE(clight);
 	const real fgamma = grid::get_fgamma();
-	octotiger::radiation::radiation_kernel<er_i, fx_i, fy_i, fz_i>(d, rho, sx, sy, sz, egas, tau, fgamma, U, mmw, X_spc, Z_spc, dt, clightinv);
+	octotiger::radiation::radiation_kernel<er_i, fx_i, fy_i, fz_i>(d, rho, sx, sy, sz, egas, ein, fgamma, U, abar, zbar, X_spc, Z_spc, dt, clightinv, eos);
 }
 
 void rad_grid::set_dx(real _dx) {
@@ -182,46 +181,47 @@ void rad_grid::set_X(const std::vector<std::vector<real>> &x) {
 	}
 }
 
-real rad_grid::hydro_signal_speed(const std::vector<real> &egas, const std::vector<real> &tau, const std::vector<real> &sx, const std::vector<real> &sy,
-		const std::vector<real> &sz, const std::vector<real> &rho) {
-	real a = 0.0;
-	const real fgamma = grid::get_fgamma();
-	for (integer xi = RAD_BW; xi != RAD_NX - RAD_BW; ++xi) {
-		for (integer yi = RAD_BW; yi != RAD_NX - RAD_BW; ++yi) {
-			for (integer zi = RAD_BW; zi != RAD_NX - RAD_BW; ++zi) {
-				const integer D = H_BW - RAD_BW;
-				const integer iiir = rindex(xi, yi, zi);
-				const integer iiih = hindex(xi + D, yi + D, zi + D);
-				const real rhoinv = INVERSE(rho[iiih]);
-				real vx = sx[iiih] * rhoinv;
-				real vy = sy[iiih] * rhoinv;
-				real vz = sz[iiih] * rhoinv;
-				real e0 = egas[iiih];
-				e0 -= 0.5 * vx * vx * rho[iiih];
-				e0 -= 0.5 * vy * vy * rho[iiih];
-				e0 -= 0.5 * vz * vz * rho[iiih];
-				if (opts().eos == WD) {
-					e0 -= ztwd_energy(rho[iiih]);
-				}
-				if (e0 < egas[iiih] * 0.001) {
-					e0 = std::pow(tau[iiih], fgamma);
-				}
-
-				real this_a = (4.0 / 9.0) * U[er_i][iiir] * rhoinv;
-				//		printf( "%e %e %e %e\n",rho[iiih], e0, mmw[iiir],dx );
-				const real cons = kappa_R(rho[iiih], e0, mmw[iiir], X_spc[iiir], Z_spc[iiir]) * dx;
-				if (cons < 32.0) {
-					this_a *= std::max(1.0 - std::exp(-cons), 0.0);
-				}
-				a = std::max(this_a, a);
-			}
-		}
-	}
-	return SQRT(a);
-}
-
+//real rad_grid::hydro_signal_speed(const std::vector<real> &egas, const std::vector<real> &tau, const std::vector<real> &sx, const std::vector<real> &sy,
+//		const std::vector<real> &sz, const std::vector<real> &rho) {
+//	real a = 0.0;
+//	const real fgamma = grid::get_fgamma();
+//	for (integer xi = RAD_BW; xi != RAD_NX - RAD_BW; ++xi) {
+//		for (integer yi = RAD_BW; yi != RAD_NX - RAD_BW; ++yi) {
+//			for (integer zi = RAD_BW; zi != RAD_NX - RAD_BW; ++zi) {
+//				const integer D = H_BW - RAD_BW;
+//				const integer iiir = rindex(xi, yi, zi);
+//				const integer iiih = hindex(xi + D, yi + D, zi + D);
+//				const real rhoinv = INVERSE(rho[iiih]);
+//				real vx = sx[iiih] * rhoinv;
+//				real vy = sy[iiih] * rhoinv;
+//				real vz = sz[iiih] * rhoinv;
+//				real e0 = egas[iiih];
+//				e0 -= 0.5 * vx * vx * rho[iiih];
+//				e0 -= 0.5 * vy * vy * rho[iiih];
+//				e0 -= 0.5 * vz * vz * rho[iiih];
+//				if (opts().eos == WD) {
+//					e0 -= ztwd_energy(rho[iiih]);
+//				}
+//				if (e0 < egas[iiih] * 0.001) {
+//					e0 = std::pow(tau[iiih], fgamma);
+//				}
+//
+//				real this_a = (4.0 / 9.0) * U[er_i][iiir] * rhoinv;
+//				//		printf( "%e %e %e %e\n",rho[iiih], e0, mmw[iiir],dx );
+//				const real cons = kappa_R(rho[iiih], e0, mmw[iiir], X_spc[iiir], Z_spc[iiir]) * dx;
+//				if (cons < 32.0) {
+//					this_a *= std::max(1.0 - std::exp(-cons), 0.0);
+//				}
+//				a = std::max(this_a, a);
+//			}
+//		}
+//	}
+//	return SQRT(a);
+//}
+//
 void rad_grid::compute_mmw(const std::vector<std::vector<safe_real>> &U) {
-	mmw.resize(RAD_N3);
+	abar.resize(RAD_N3);
+	zbar.resize(RAD_N3);
 	X_spc.resize(RAD_N3);
 	Z_spc.resize(RAD_N3);
 	for (integer i = 0; i != RAD_NX; ++i) {
@@ -234,7 +234,7 @@ void rad_grid::compute_mmw(const std::vector<std::vector<safe_real>> &U) {
 				for (integer si = 0; si != opts().n_species; ++si) {
 					spc[si] = U[spc_i + si][iiih];
 				}
-				mean_ion_weight(spc, mmw[iiir], X_spc[iiir], Z_spc[iiir]);
+				mean_ion_weight(spc, abar[iiir], zbar[iiir], X_spc[iiir], Z_spc[iiir]);
 			}
 		}
 	}
@@ -262,7 +262,7 @@ void node_server::compute_radiation(real dt, real omega) {
 	const real this_dt = dt * INVERSE(real(nsteps));
 	auto &egas = grid_ptr->get_field(egas_i);
 	const auto &rho = grid_ptr->get_field(rho_i);
-	auto &tau = grid_ptr->get_field(tau_i);
+	auto &ein = grid_ptr->get_field(ein_i);
 	auto &sx = grid_ptr->get_field(sx_i);
 	auto &sy = grid_ptr->get_field(sy_i);
 	auto &sz = grid_ptr->get_field(sz_i);
@@ -272,7 +272,7 @@ void node_server::compute_radiation(real dt, real omega) {
 //		printf("Explicit\n");
 //	}
 	if (opts().rad_implicit) {
-		rgrid->rad_imp(egas, tau, sx, sy, sz, rho, 0.5 * dt);
+		rgrid->rad_imp(egas, ein, sx, sy, sz, rho, 0.5 * dt);
 	}
 	for (integer i = 0; i != nsteps; ++i) {
 		//	rgrid->sanity_check();
@@ -294,7 +294,7 @@ void node_server::compute_radiation(real dt, real omega) {
 
 	}
 	if (opts().rad_implicit) {
-		rgrid->rad_imp(egas, tau, sx, sy, sz, rho, 0.5 * dt);
+		rgrid->rad_imp(egas, ein, sx, sy, sz, rho, 0.5 * dt);
 	}
 //	rgrid->sanity_check();
 	all_rad_bounds();
@@ -504,12 +504,11 @@ hpx::future<void> node_server::exchange_rad_flux_corrections() {
 	for (auto const &f : geo::face::full_set()) {
 		if (this->nieces[f] == +1) {
 			for (auto const &quadrant : geo::quadrant::full_set()) {
-				futs[index++] = niece_rad_channels[f][quadrant].get_future().then([this, f, quadrant](hpx::future<std::vector<real> > && fdata) -> void
-				{
+				futs[index++] = niece_rad_channels[f][quadrant].get_future().then([this, f, quadrant](hpx::future<std::vector<real> > &&fdata) -> void {
 					const auto face_dim = f.get_dimension();
 					std::array<integer, NDIM> lb, ub;
 					switch (face_dim) {
-						case XDIM:
+					case XDIM:
 						lb[XDIM] = (f.get_side() == geo::MINUS ? 0 : INX) + RAD_BW;
 						lb[YDIM] = quadrant.get_side(0) * (INX / 2) + RAD_BW;
 						lb[ZDIM] = quadrant.get_side(1) * (INX / 2) + RAD_BW;
@@ -517,7 +516,7 @@ hpx::future<void> node_server::exchange_rad_flux_corrections() {
 						ub[YDIM] = lb[YDIM] + (INX / 2);
 						ub[ZDIM] = lb[ZDIM] + (INX / 2);
 						break;
-						case YDIM:
+					case YDIM:
 						lb[XDIM] = quadrant.get_side(0) * (INX / 2) + RAD_BW;
 						lb[YDIM] = (f.get_side() == geo::MINUS ? 0 : INX) + RAD_BW;
 						lb[ZDIM] = quadrant.get_side(1) * (INX / 2) + RAD_BW;
@@ -525,8 +524,8 @@ hpx::future<void> node_server::exchange_rad_flux_corrections() {
 						ub[YDIM] = lb[YDIM] + 1;
 						ub[ZDIM] = lb[ZDIM] + (INX / 2);
 						break;
-						case ZDIM:
-						default:
+					case ZDIM:
+					default:
 						lb[XDIM] = quadrant.get_side(0) * (INX / 2) + RAD_BW;
 						lb[YDIM] = quadrant.get_side(1) * (INX / 2) + RAD_BW;
 						lb[ZDIM] = (f.get_side() == geo::MINUS ? 0 : INX) + RAD_BW;
@@ -633,7 +632,6 @@ void node_server::collect_radiation_bounds() {
 	rad_grid_ptr->clear_amr();
 	for (auto const &dir : geo::direction::full_set()) {
 		if (!neighbors[dir].empty()) {
-			const integer width = H_BW;
 			auto bdata = rad_grid_ptr->get_boundary(dir);
 			neighbors[dir].send_rad_boundary(std::move(bdata), dir.flip(), rcycle);
 		}
@@ -671,16 +669,16 @@ void node_server::collect_radiation_bounds() {
 
 }
 
-void rad_grid::initialize_erad(const std::vector<safe_real> rho, const std::vector<safe_real> tau) {
-	const real fgamma = grid::get_fgamma();
+void rad_grid::initialize_erad(const std::vector<safe_real> rho, const std::vector<safe_real> ein) {
 	for (integer xi = 0; xi != RAD_NX; ++xi) {
 		for (integer yi = 0; yi != RAD_NX; ++yi) {
 			for (integer zi = 0; zi != RAD_NX; ++zi) {
 				const auto D = H_BW - RAD_BW;
 				const integer iiir = rindex(xi, yi, zi);
 				const integer iiih = hindex(xi + D, yi + D, zi + D);
-				const real ei = POWER(tau[iiih], fgamma);
-				U[er_i][iiir] = B_p((double) rho[iiih], (double) ei, (double) mmw[iiir]) * (4.0 * M_PI / physcon().c);
+				const real ei = ein[iiih];
+				const real T = eos->T_from_energy(rho[iiih], ei, abar[iiir], zbar[iiir]);
+				U[er_i][iiir] = eos->B_p((double) rho[iiih], T) * (4.0 * M_PI / physcon().c);
 				U[fx_i][iiir] = U[fy_i][iiir] = U[fz_i][iiir] = 0.0;
 			}
 		}
@@ -862,7 +860,7 @@ void node_server::send_rad_amr_bounds() {
 }
 
 using erad_init_action_type = node_server::erad_init_action;
-HPX_REGISTER_ACTION (erad_init_action_type);
+HPX_REGISTER_ACTION(erad_init_action_type);
 
 hpx::future<void> node_client::erad_init() const {
 	return hpx::async<typename node_server::erad_init_action>(get_unmanaged_gid());
@@ -887,7 +885,7 @@ void rad_grid::clear_amr() {
 	std::fill(has_coarse.begin(), has_coarse.end(), 0);
 }
 
-void rad_grid::set_rad_amr_boundary(const std::vector<real>& data, const geo::direction& dir) {
+void rad_grid::set_rad_amr_boundary(const std::vector<real> &data, const geo::direction &dir) {
 	PROFILE();
 
 	std::array<integer, NDIM> lb, ub;
@@ -932,7 +930,7 @@ void rad_grid::complete_rad_amr_boundary() {
 	}
 
 	const auto limiter = [](double a, double b) {
-		return minmod_theta(a, b, 64./37.);
+		return minmod_theta(a, b, 64. / 37.);
 	};
 
 	for (int f = 0; f < NRF; f++) {
@@ -992,7 +990,7 @@ void rad_grid::complete_rad_amr_boundary() {
 							}
 						}
 					}
-					double zx = 0, zy = 0, zz = 0, rho = 0;
+					double zx = 0, zy = 0, zz = 0;
 					for (int ir = 0; ir < 2; ir++) {
 						for (int jr = 0; jr < 2; jr++) {
 							for (int kr = 0; kr < 2; kr++) {
@@ -1044,7 +1042,7 @@ void rad_grid::complete_rad_amr_boundary() {
 					const int iiir = hindex(i, j, k);
 					if (is_coarse[iii0]) {
 						int ir, jr, kr;
-						if constexpr (H_BW % 2 == 0) {
+						if (H_BW % 2 == 0) {
 							ir = i % 2;
 							jr = j % 2;
 							kr = k % 2;
@@ -1062,7 +1060,7 @@ void rad_grid::complete_rad_amr_boundary() {
 
 }
 
-std::vector<real> rad_grid::get_subset(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub) {
+std::vector<real> rad_grid::get_subset(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub) {
 	PROFILE();
 	std::vector<real> data;
 	for (int f = 0; f < NRF; f++) {
@@ -1079,16 +1077,16 @@ std::vector<real> rad_grid::get_subset(const std::array<integer, NDIM>& lb, cons
 }
 
 using send_rad_amr_boundary_action_type = node_server:: send_rad_amr_boundary_action;
-HPX_REGISTER_ACTION (send_rad_amr_boundary_action_type);
+HPX_REGISTER_ACTION(send_rad_amr_boundary_action_type);
 
-void node_server::recv_rad_amr_boundary(std::vector<real>&& bdata, const geo::direction& dir, std::size_t cycle) {
+void node_server::recv_rad_amr_boundary(std::vector<real> &&bdata, const geo::direction &dir, std::size_t cycle) {
 	sibling_rad_type tmp;
 	tmp.data = std::move(bdata);
 	tmp.direction = dir;
 	sibling_rad_channels[dir].set_value(std::move(tmp), cycle);
 }
 
-void node_client::send_rad_amr_boundary(std::vector<real>&& data, const geo::direction& dir, std::size_t cycle) const {
+void node_client::send_rad_amr_boundary(std::vector<real> &&data, const geo::direction &dir, std::size_t cycle) const {
 	hpx::apply<typename node_server::send_rad_amr_boundary_action>(get_unmanaged_gid(), std::move(data), dir, cycle);
 }
 

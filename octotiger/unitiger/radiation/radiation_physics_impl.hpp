@@ -149,7 +149,6 @@ const hydro::state_type& radiation_physics<NDIM>::pre_recon(const hydro::state_t
 	static const auto indices = geo.find_indices(0, geo.H_NX);
 	static thread_local hydro::state_type V;
 	V = U;
-	const auto dx = X[0][geo.H_DNX] - X[0][0];
 	for (int j = 0; j < geo.H_NX_X; j++) {
 		for (int k = 0; k < geo.H_NX_Y; k++) {
 			for (int l = 0; l < geo.H_NX_Z; l++) {

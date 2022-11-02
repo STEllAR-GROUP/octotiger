@@ -14,7 +14,7 @@ static constexpr int NDIM = 3;
 
 static constexpr int rho_i = 0;
 static constexpr int egas_i = 1;
-static constexpr int tau_i = 2;
+static constexpr int ein_i = 2;
 static constexpr int pot_i = 3;
 static constexpr int sx_i = 4;
 static constexpr int sy_i = 5;

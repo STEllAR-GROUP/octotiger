@@ -134,7 +134,7 @@ void grid::complete_hydro_amr_boundary(bool energy_only) {
 								}
 							}
 						}
-						double zx = 0, zy = 0, zz = 0, rho = 0;
+						double zx = 0, zy = 0, zz = 0;
 						for (int ir = 0; ir < 2; ir++) {
 							for (int jr = 0; jr < 2; jr++) {
 								for (int kr = 0; kr < 2; kr++) {
@@ -188,7 +188,7 @@ void grid::complete_hydro_amr_boundary(bool energy_only) {
 						const int iiir = hindex(i, j, k);
 						if (is_coarse[iii0]) {
 							int ir, jr, kr;
-							if constexpr (H_BW % 2 == 0) {
+							if (H_BW % 2 == 0) {
 								ir = i % 2;
 								jr = j % 2;
 								kr = k % 2;

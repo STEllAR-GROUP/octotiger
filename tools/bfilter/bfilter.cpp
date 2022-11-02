@@ -171,6 +171,10 @@ int main(int argc, char *argv[]) {
 
 		while (!feof(fp)) {
 			const char* b = fgets(buffer, 100000, fp);
+			if( b == 0) {
+				printf( "UNable to read file\n");
+				abort();
+			}
 			bool done = false;
 			char *ptr = buffer;
 			double t;
@@ -210,7 +214,6 @@ int main(int argc, char *argv[]) {
 		auto Ps = 4.0 * opts.pmax * opts.pmin / (opts.pmax - opts.pmin);
 		printf("sinc period      = %e\n", Pc);
 		printf("Blackmann period = %e\n", Ps);
-		const auto P = 2.0 * M_PI / v1[0][2];
 
 		printf("Window is +/- %.12e orbits\n", Pc / 2.0);
 

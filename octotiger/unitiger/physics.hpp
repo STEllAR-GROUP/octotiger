@@ -9,15 +9,20 @@
 #include "octotiger/unitiger/safe_real.hpp"
 #include "octotiger/test_problems/blast.hpp"
 #include "octotiger/test_problems/exact_sod.hpp"
+#include "octotiger/stellar_eos/stellar_eos.hpp"
+#include "octotiger/stellar_eos/ideal_eos.hpp"
+#include <functional>
+#include <vector>
 
 template<int NDIM>
 struct physics {
-	static constexpr char const *field_names3[] = { "rho", "egas", "tau", "pot", "sx", "sy", "sz", "zx", "zy", "zz", "spc_1", "spc_2", "spc_3", "spc_4", "spc_5" };
-	static constexpr char const *field_names2[] = { "rho", "egas", "tau", "pot", "sx", "sy", "zz", "spc_1", "spc_2", "spc_3", "spc_4", "spc_5" };
-	static constexpr char const *field_names1[] = { "rho", "egas", "tau", "pot", "sx", "spc_1", "spc_2", "spc_3", "spc_4", "spc_5" };
+	static constexpr char const *field_names3[] =
+			{ "rho", "egas", "ein", "pot", "sx", "sy", "sz", "zx", "zy", "zz", "spc_1", "spc_2", "spc_3", "spc_4", "spc_5" };
+	static constexpr char const *field_names2[] = { "rho", "egas", "ein", "pot", "sx", "sy", "zz", "spc_1", "spc_2", "spc_3", "spc_4", "spc_5" };
+	static constexpr char const *field_names1[] = { "rho", "egas", "ein", "pot", "sx", "spc_1", "spc_2", "spc_3", "spc_4", "spc_5" };
 	static constexpr int rho_i = 0;
 	static constexpr int egas_i = 1;
-	static constexpr int tau_i = 2;
+	static constexpr int ein_i = 2;
 	static constexpr int pot_i = 3;
 	static constexpr int sx_i = 4;
 	static constexpr int sy_i = 5;
@@ -28,6 +33,7 @@ struct physics {
 	static constexpr int spc_i = 4 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2));
 	static safe_real de_switch_1;
 	static safe_real de_switch_2;
+	static stellar_eos* eos;
 
 	enum test_type {
 		SOD, BLAST, KH, CONTACT, KEPLER
@@ -56,7 +62,7 @@ struct physics {
 
 	static void set_fgamma(safe_real fg);
 
-	static void to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v, safe_real& c, int dim);
+	static void to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v, safe_real &c, int dim);
 
 	static void enforce_outflows(hydro::state_type &U, const hydro::x_type &X, int face) {
 
@@ -67,12 +73,14 @@ struct physics {
 			std::array<safe_real, NDIM> &vg);
 
 	template<int INX>
-	static void post_process(hydro::state_type &U, const hydro::x_type& X, safe_real dx);
-
-	static void set_degenerate_eos(safe_real, safe_real);
+	static void post_process(hydro::state_type &U, const hydro::x_type &X, safe_real dx);
 
 	template<int INX>
 	static void source(hydro::state_type &dudt, const hydro::state_type &U, const hydro::flux_type &F, const hydro::x_type X, safe_real omega, safe_real dx);
+
+	template<int INX>
+	static void derivative_source(hydro::state_type &dudt, const hydro::state_type &U, const std::vector<std::vector<std::vector<safe_real>>> &Q,
+			const hydro::x_type X, safe_real omega, safe_real dx);
 
 	/*** Reconstruct uses this - GPUize****/
 	template<int INX>
@@ -108,26 +116,50 @@ struct physics {
 	template<int INX>
 	static void enforce_outflow(hydro::state_type &U, int dim, int dir);
 
+	using eos_func = std::function<double(double,double,double, double)>;
+	using eos_func2 = std::function<std::pair<double,double>(double,double,double, double)>;
+
+
+	static void set_atomic_data(const std::vector<double> a, const std::vector<double> z) {
+		for (int s = 0; s < n_species_; s++) {
+			A[s] = a[s];
+			Z[s] = z[s];
+		}
+	}
+
+	static void set_stellar_eos(stellar_eos* e) {
+		delete eos;
+		eos = e;
+	}
+
 private:
 	static safe_real rho_sink_radius_;
 	static safe_real rho_sink_floor_;
 	static int nf_;
 	static int n_species_;
 	static safe_real fgamma_;
-	static safe_real A_;
-	static safe_real B_;
 	static safe_real GM_;
-	static safe_real deg_pres(safe_real x);
+	static std::vector<safe_real> A;
+	static std::vector<safe_real> Z;
 
 };
 
+template<int NDIM>
+std::vector<safe_real> physics<NDIM>::A;
+
+template<int NDIM>
+std::vector<safe_real> physics<NDIM>::Z;
+
+template<int NDIM>
+stellar_eos* physics<NDIM>::eos = new ideal_eos;
+
 //definitions of the declarations (and initializations) of the static constexpr variables
 template<int NDIM>
-constexpr char const * physics<NDIM>::field_names1[];
+constexpr char const *physics<NDIM>::field_names1[];
 template<int NDIM>
-constexpr char const * physics<NDIM>::field_names2[];
+constexpr char const *physics<NDIM>::field_names2[];
 template<int NDIM>
-constexpr char const * physics<NDIM>::field_names3[];
+constexpr char const *physics<NDIM>::field_names3[];
 
 template<int NDIM>
 safe_real physics<NDIM>::rho_sink_radius_ = 0.0;
@@ -139,12 +171,6 @@ template<int NDIM>
 safe_real physics<NDIM>::GM_ = 0.0;
 
 template<int NDIM>
-safe_real physics<NDIM>::A_ = 0.0;
-
-template<int NDIM>
-safe_real physics<NDIM>::B_ = 1.0;
-
-template<int NDIM>
 safe_real physics<NDIM>::de_switch_1 = 1e-3;
 
 template<int NDIM>
@@ -154,7 +180,7 @@ template<int NDIM>
 int physics<NDIM>::nf_ = (4 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2))) + physics<NDIM>::n_species_;
 
 template<int NDIM>
-int physics<NDIM>::n_species_ = 5;
+int physics<NDIM>::n_species_ = -1;
 
 template<int NDIM>
 safe_real physics<NDIM>::fgamma_ = 7. / 5.;

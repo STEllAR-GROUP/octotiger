@@ -187,7 +187,6 @@ void line_of_centers_analyze(const line_of_centers_t &loc, real omega, std::pair
 	constexpr integer spc_ae_i = spc_i + 1;
 	constexpr integer spc_dc_i = spc_i + 2;
 	constexpr integer spc_de_i = spc_i + 3;
-	constexpr integer spc_vac_i = spc_i + 4;
 
 	for (auto &l : loc) {
 		ASSERT_NONAN(l.first);
@@ -356,7 +355,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 
 		if ((opts().problem == DWD) && (step_num % refinement_freq() == 0)) {
 			printf("dwd step...\n");
-			auto dt = GET(step(next_step - step_num));
+			GET(step(next_step - step_num));
 			if (!opts().disable_diagnostics) {
 				printf("diagnostics...\n");
 			}
@@ -364,8 +363,6 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 
 			const real dx = diags.com[1][XDIM] - diags.com[0][XDIM];
 			const real dy = diags.com[1][YDIM] - diags.com[0][YDIM];
-			const real dx_dot = diags.com_dot[1][XDIM] - diags.com_dot[0][XDIM];
-			const real dy_dot = diags.com_dot[1][YDIM] - diags.com_dot[0][YDIM];
 			theta = atan2(dy, dx);
 			omega = grid::get_omega();
 //			if (opts().variable_omega) {
@@ -490,10 +487,7 @@ void node_server::refined_step() {
 //#endif
 
 	timings::scope ts(timings_, timings::time_computation);
-	const real dx = TWO * grid::get_scaling_factor() / real(INX << my_location.level());
-	real cfl0 = opts().cfl;
 
-	real a = std::numeric_limits<real>::min();
 	all_hydro_bounds();
 	timestep_t tstep;
 	tstep.dt = std::numeric_limits<real>::max();

@@ -103,4 +103,5 @@ public:
 
 };
 
+HPX_IS_BITWISE_SERIALIZABLE(struct_eos);
 #endif /* POLYTROPE_HPP_ */

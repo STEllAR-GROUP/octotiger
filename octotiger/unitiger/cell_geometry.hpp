@@ -214,7 +214,6 @@ private:
 			const auto pair = group_pair(gi, n);
 			const int x = pair.second % 3;
 			const int y = (pair.second / 3) % 3;
-			const int z = pair.second / 9;
 			const int index = -((x / 2) * H_DNX + (y / 2) * H_DNY);
 			if (index != pair.first) {
 				fail = true;
@@ -224,7 +223,6 @@ private:
 		for (int n = 0; n < group_size_[2][2]; n++) {
 			const auto pair = group_pair(gi, n);
 			const int x = pair.second % 3;
-			const int y = (pair.second / 3) % 3;
 			const int z = pair.second / 9;
 			const int index = -((x / 2) * H_DNX + (z / 2) * H_DNZ);
 			if (index != pair.first) {
@@ -234,7 +232,6 @@ private:
 		gi = 3;
 		for (int n = 0; n < group_size_[2][2]; n++) {
 			const auto pair = group_pair(gi, n);
-			const int x = pair.second % 3;
 			const int y = (pair.second / 3) % 3;
 			const int z = pair.second / 9;
 			const int index = -((y / 2) * H_DNY + (z / 2) * H_DNZ);

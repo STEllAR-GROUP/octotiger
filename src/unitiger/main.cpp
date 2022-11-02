@@ -75,27 +75,27 @@ void run_test(typename PHYS::test_type problem, bool with_correction, bool writi
 		auto a = computer.flux(U, q, F, X, omega);
 		dt = CFL * dx / a.a;
 		dt = std::min(double(dt), tmax - t + 1.0e-20);
-		computer.advance(U0, U, F, X, dx, dt, 1.0, omega);
+		computer.advance(U0, U, q, F, X, dx, dt, 1.0, omega);
 		computer.boundaries(U, X);
-		if constexpr (RK == 3) {
+		if  (RK == 3) {
 			q = computer.reconstruct(U, X, omega);
 			computer.flux(U, q, F, X, omega);
-			computer.advance(U0, U, F, X, dx, dt, 0.25, omega);
+			computer.advance(U0, U, q, F, X, dx, dt, 0.25, omega);
 			computer.boundaries(U, X);
 			q = computer.reconstruct(U, X, omega);
 			computer.flux(U, q, F, X, omega);
-			computer.advance(U0, U, F, X, dx, dt, 2.0 / 3.0, omega);
+			computer.advance(U0, U, q, F, X, dx, dt, 2.0 / 3.0, omega);
 			computer.boundaries(U, X);
-		} else if constexpr (RK == 2) {
+		} else if  (RK == 2) {
 			q = computer.reconstruct(U, X, omega);
 			computer.flux(U, q, F, X, omega);
-			computer.advance(U0, U, F, X, dx, dt, 0.5, omega);
+			computer.advance(U0, U, q, F, X, dx, dt, 0.5, omega);
 			computer.boundaries(U, X);
 		}
 		computer.post_process(U, X, dx);
 		t += dt;
 		computer.boundaries(U, X);
-		if (int(t / dt_out) != int((t - dt) / dt_out)){
+		if (int(t / dt_out) != int((t - dt) / dt_out)) {
 			computer.output(U, X, oter++, t);
 		}
 		iter++;
@@ -176,10 +176,10 @@ int main(int argc, char *argv[]) {
 	}
 
 	srand(123);
-	run_test<2, 64, physics<2>>(physics<2>::KEPLER, true, createTests);
+//	run_test<2, 64, physics<2>>(physics<2>::KEPLER, true, createTests);
 //	run_test<2, 100, physics<2>>(physics<2>::KEPLER, true, createTests);
 //        run_test<3, 8, physics<3>>(physics<3>::SOD, false, createTests);
-//        run_test<2, 50, physics<2>>(physics<2>::BLAST, true, createTests);
+	run_test<2, 50, physics<2>>(physics<2>::SOD, true, createTests);
 //        run_test<2, 50, radiation_physics<2>>(radiation_physics<2>::CONTACT, true, createTests);
 
 	return 0;

@@ -71,7 +71,7 @@ namespace octotiger { namespace radiation {
             std::vector<double> const& sy,
             std::vector<double> const& sz,
             std::vector<double> const& egas,
-            std::vector<double> const& tau,
+            std::vector<double> const& ei,
             std::array<std::vector<double>, NRF> const& U,
             std::vector<double> const& rho,
             std::vector<double> const& X_spc,
@@ -107,7 +107,7 @@ namespace octotiger { namespace radiation {
             save_v(os, sy);
             save_v(os, sz);
             save_v(os, egas);
-            save_v(os, tau);
+            save_v(os, ei);
             save_a(os, U);
             save_v(os, rho);
             save_v(os, X_spc);
@@ -120,7 +120,7 @@ namespace octotiger { namespace radiation {
             std::vector<double> const& sy,
             std::vector<double> const& sz,
             std::vector<double> const& egas,
-            std::vector<double> const& tau,
+            std::vector<double> const& ei,
             std::array<std::vector<double>, NRF> const& U)
         {
             std::string const outs_fn = std::string{basepath} +
@@ -137,7 +137,7 @@ namespace octotiger { namespace radiation {
             save_v(os, sy);
             save_v(os, sz);
             save_v(os, egas);
-            save_v(os, tau);
+            save_v(os, ei);
             save_a(os, U);
         }
     }
@@ -150,14 +150,16 @@ namespace octotiger { namespace radiation {
         std::vector<real>& sy,
         std::vector<real>& sz,
         std::vector<real>& egas,
-        std::vector<real>& tau,
+        std::vector<real>& ei,
         real const fgamma,
         std::vector<std::vector<real>>& U,
-        std::vector<real> const& mmw,
+        std::vector<real> const& abar,
+        std::vector<real> const& zbar,
         std::vector<real> const& X_spc,
         std::vector<real> const& Z_spc,
         real dt,
-        real const clightinv)
+        real const clightinv,
+		stellar_eos* eos)
     {
 #if defined(OCTOTIGER_DUMP_RADIATION_CASES)
         static std::atomic_size_t next_index(0);
@@ -167,17 +169,17 @@ namespace octotiger { namespace radiation {
             dumper::save_case_args(index, opts().eos, opts().problem,
                 opts().dual_energy_sw1, opts().dual_energy_sw2, physcon().A,
                 physcon().B, physcon().c, fgamma, dt, clightinv, er_i, fx_i,
-                fy_i, fz_i, d, sx, sy, sz, egas, tau, U, rho, X_spc, Z_spc,
+                fy_i, fz_i, d, sx, sy, sz, egas, ei, U, rho, X_spc, Z_spc,
                 mmw);
         }).get();
 #endif
 
         radiation_cpu_kernel<er_i, fx_i, fy_i, fz_i>(d, rho, sx, sy, sz, egas,
-            tau, fgamma, U, mmw, X_spc, Z_spc, dt, clightinv);
+            ei, fgamma, U, abar, zbar, X_spc, Z_spc, dt, clightinv, eos);
 
 #if defined(OCTOTIGER_DUMP_RADIATION_CASES)
         hpx::threads::run_as_os_thread([&]() {
-            dumper::save_case_outs(index, sx, sy, sz, egas, tau, U);
+            dumper::save_case_outs(index, sx, sy, sz, egas, ei, U);
         }).get();
 #endif
     }

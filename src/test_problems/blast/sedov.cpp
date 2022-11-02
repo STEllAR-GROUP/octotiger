@@ -47,7 +47,7 @@ std::vector<real> blast_wave_analytic(real x, real y, real z, real t) {
 	u[sz_i] = s * z / r;
 	real e = std::max(p / (grid::get_fgamma() - 1), 1.0e-20);
 	u[egas_i] = e + s * v * 0.5;
-	u[tau_i] = std::pow(e, 1 / grid::get_fgamma());
+	u[ein_i] = e;
 	return u;
 }
 
@@ -61,7 +61,7 @@ std::vector<real> blast_wave(real x, real y, real z, real dx) {
 	} else {
 		u[egas_i] = 1.0e-20;
 	}
-	u[tau_i] = std::pow(u[egas_i], 1.0 / grid::get_fgamma());
+	u[ein_i] = u[egas_i];
 	return u;
 
 }

@@ -139,6 +139,10 @@ set(source_files
     src/multipole_interactions/multipole_cpu_kernel.cpp
     src/radiation/cuda_kernel.cu
     src/radiation/rad_grid.cpp
+    src/stellar_eos/helmholtz.cpp
+    src/stellar_eos/ideal.cpp
+    src/stellar_eos/segretain.cpp
+    src/stellar_eos/stellar_eos.cpp
     src/test_problems/marshak/marshak.cpp
     src/test_problems/rotating_star/rotating_star.cpp
     src/test_problems/sod/sod.cpp
@@ -152,7 +156,6 @@ set(header_files
     octotiger/channel.hpp
     octotiger/compute_factor.hpp
     octotiger/config.hpp
-    octotiger/const.hpp
     octotiger/container_device.hpp
     octotiger/defs.hpp
     octotiger/diagnostics.hpp
@@ -182,6 +185,10 @@ set(header_files
     octotiger/simd.hpp
     octotiger/space_vector.hpp
     octotiger/state.hpp
+    octotiger/stellar_eos/stellar_eos.hpp
+    octotiger/stellar_eos/ideal_eos.hpp
+    octotiger/stellar_eos/segretain_eos.hpp
+    octotiger/stellar_eos/helmholtz_eos.hpp
     octotiger/struct_eos.hpp
     octotiger/taylor.hpp
     octotiger/util.hpp
@@ -215,7 +222,6 @@ set(header_files
     octotiger/radiation/cuda_kernel.hpp
     octotiger/radiation/implicit.hpp
     octotiger/radiation/kernel_interface.hpp
-    octotiger/radiation/opacities.hpp
     octotiger/radiation/rad_grid.hpp
     octotiger/test_problems/rotating_star.hpp
 )

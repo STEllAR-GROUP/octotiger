@@ -19,14 +19,14 @@ void hydro_computer<NDIM, INX, PHYS>::output(const hydro::state_type &U, const h
 	fprintf(fp, "\n");
 	fclose(fp);
 
-	fp = fopen("mags.dat", "at");
-	sums = get_field_mags(U, dx);
-	fprintf(fp, "%e ", (double) t);
-	for (int f = 0; f < nf_; f++) {
-		fprintf(fp, "%e ", (double) sums[f]);
-	}
-	fprintf(fp, "\n");
-	fclose(fp);
+//	fp = fopen("mags.dat", "at");
+//	sums = get_field_mags(U, dx);
+//	fprintf(fp, "%e ", (double) t);
+//	for (int f = 0; f < nf_; f++) {
+//		fprintf(fp, "%e ", (double) sums[f]);
+//	}
+//	fprintf(fp, "\n");
+//	fclose(fp);
 
 	std::string filename = "Y." + std::to_string(num);
 	if (NDIM == 1) {

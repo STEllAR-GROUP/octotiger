@@ -56,7 +56,6 @@ OCTOTIGER_FORCEINLINE real ztwd_energy(real d, real A = physcon().A, real B = ph
 		return 2.4 * A * POWER(x, 5);
 	} else {
 		return std::max(ztwd_enthalpy(d) * d - ztwd_pressure(d), real(0));
-
 	}
 }
 

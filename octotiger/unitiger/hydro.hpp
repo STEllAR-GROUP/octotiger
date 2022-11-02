@@ -79,7 +79,7 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 
 	void boundaries(hydro::state_type &U, const hydro::x_type &X);
 
-	void advance(const hydro::state_type &U0, hydro::state_type &U, const hydro::flux_type &F, const hydro::x_type &X, safe_real dx, safe_real dt,
+	void advance(const hydro::state_type &U0, hydro::state_type &U, const std::vector<std::vector<std::vector<safe_real>>>&, const hydro::flux_type &F, const hydro::x_type &X, safe_real dx, safe_real dt,
 			safe_real beta, safe_real omega);
 
 	void output(const hydro::state_type &U, const hydro::x_type &X, int num, safe_real);

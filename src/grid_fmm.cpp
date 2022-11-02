@@ -125,7 +125,6 @@ std::pair<space_vector, space_vector> grid::find_axis() const {
 		for (integer j = 0; j != G_NX; ++j) {
 			for (integer k = 0; k != G_NX; ++k) {
 				const integer iii1 = gindex(i, j, k);
-				const integer iii0 = gindex(i + H_BW, j + H_BW, k + H_BW);
 				space_vector const &com0iii1 = com0[iii1];
 				multipole const &Miii1 = M[iii1];
 				for (integer n = 0; n != NDIM; ++n) {
@@ -521,7 +520,6 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
 	PROFILE();
 
 	auto &M = *M_ptr;
-	auto &mon = *mon_ptr;
 
 	std::vector<space_vector> const &com0 = *(com_ptr[0]);
 	hpx::parallel::for_loop(for_loop_policy, 0, ilist_n_bnd.size(), [&mpoles, &com0, &ilist_n_bnd, type, this, &M](std::size_t si) {
@@ -688,9 +686,6 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
 		const gravity_boundary_type &mpoles) {
 	PROFILE();
 
-	auto &M = *M_ptr;
-	auto &mon = *mon_ptr;
-
 	std::vector<space_vector> const &com0 = *(com_ptr[0]);
 	hpx::parallel::for_loop(for_loop_policy, 0, ilist_n_bnd.size(), [&mpoles, &com0, &ilist_n_bnd, type, this](std::size_t si) {
 
@@ -824,7 +819,6 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type, co
 	PROFILE();
 
 	auto &M = *M_ptr;
-	auto &mon = *mon_ptr;
 
 	std::array<real, NDIM> Xbase = { X[0][hindex(H_BW, H_BW, H_BW)], X[1][hindex(H_BW, H_BW, H_BW)], X[2][hindex(H_BW, H_BW, H_BW)] };
 
@@ -939,8 +933,6 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type, con
 		const gravity_boundary_type &mpoles) {
 	PROFILE();
 
-	auto &M = *M_ptr;
-	auto &mon = *mon_ptr;
 
 	// Coefficients for potential evaluation? (David)
 	alignas(64) double di0[8] = { 1. / dx, 1. / sqr(dx), 1. / sqr(dx), 1. / sqr(dx) };
@@ -1695,7 +1687,6 @@ gravity_boundary_type grid::get_gravity_boundary(const geo::direction &dir, bool
 		//         data.x->push_back((*(com_ptr[0]))[i]);
 		//     }
 		// }
-		integer iter = 0;
 		const std::vector<boundary_interaction_type> &list = ilist_n_bnd[dir.flip()];
 		if (is_leaf) {
 			data.m->reserve(list.size());
@@ -1708,7 +1699,6 @@ gravity_boundary_type grid::get_gravity_boundary(const geo::direction &dir, bool
 			data.x->reserve(list.size());
 			for (auto i : list) {
 				const integer iii = i.second;
-				const integer top = M[iii].size();
 				data.M->push_back(M[iii]);
 				data.x->push_back((*(com_ptr[0]))[iii]);
 			}

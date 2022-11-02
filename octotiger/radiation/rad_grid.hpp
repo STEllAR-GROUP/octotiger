@@ -16,6 +16,7 @@
 #include "octotiger/unitiger/hydro_impl/reconstruct.hpp"
 #include "octotiger/unitiger/hydro_impl/flux.hpp"
 #include "octotiger/unitiger/radiation/radiation_physics.hpp"
+#include "octotiger/stellar_eos/stellar_eos.hpp"
 //#include "octotiger/sphere_points.hpp"
 
 #include <array>
@@ -48,9 +49,13 @@ private:
 	std::vector<std::vector<std::vector<real>>> flux;
 	std::array<std::array<std::vector<real>*, NDIM>, NDIM> P;
 	std::vector<std::vector<real>> X;
-	std::vector<real> mmw, X_spc, Z_spc;
+	std::vector<real> abar, zbar, X_spc, Z_spc;
 	hydro_computer<NDIM,INX,radiation_physics<NDIM>> hydro;
+	static stellar_eos* eos;
 public:
+	static void set_eos(stellar_eos* eos_) {
+		eos = eos_;
+	}
 	static void static_init();
 	static std::vector<std::string> get_field_names();
 	void set(const std::string name, real* data);
@@ -58,7 +63,6 @@ public:
 	void set_X( const std::vector<std::vector<real>>& x );
 	void restore();
 	void store();
-
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {
 		arc & dx;
@@ -69,12 +73,12 @@ public:
 	real rad_imp_comoving(real& E, real& e, real rho, real mmw, real X, real Z, real dt);
 	void sanity_check();
 	void compute_flux(real);
-	void initialize_erad(const std::vector<safe_real> rho, const std::vector<safe_real> tau);
+	void initialize_erad(const std::vector<safe_real> rho, const std::vector<safe_real> ein);
 	void set_dx(real dx);
 	//void compute_fEdd();
 	void compute_fluxes();
 	void advance(real dt, real beta);
-	void rad_imp(std::vector<real>& egas, std::vector<real>& tau, std::vector<real>& sx, std::vector<real>& sy, std::vector<real>& sz,
+	void rad_imp(std::vector<real>& egas, std::vector<real>& ein, std::vector<real>& sx, std::vector<real>& sy, std::vector<real>& sz,
 			const std::vector<real>& rho, real dt);
 	std::vector<real> get_restrict() const;
 	std::vector<real> get_prolong(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub);
@@ -94,7 +98,7 @@ public:
 	std::vector<real> get_boundary(const geo::direction& dir);
 	using kappa_type = std::function<real(real)>;
 
-	real hydro_signal_speed(const std::vector<real>& egas, const std::vector<real>& tau, const std::vector<real>& sx, const std::vector<real>& sy, const std::vector<real>& sz,
+	real hydro_signal_speed(const std::vector<real>& egas, const std::vector<real>& ein, const std::vector<real>& sx, const std::vector<real>& sy, const std::vector<real>& sz,
 			const std::vector<real>& rho);
 
 	void clear_amr();
