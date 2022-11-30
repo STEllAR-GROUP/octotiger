@@ -24,9 +24,9 @@ using device_pool_strategy = round_robin_pool<device_executor>;
 using executor_interface_t = stream_interface<device_executor, device_pool_strategy>;
 #endif
 //#ifdef OCTOTIGER_MONOPOLE_HOST_HPX_EXECUTOR
-using host_executor = hpx::kokkos::hpx_executor;
+/* using host_executor = hpx::kokkos::hpx_executor; */
 //#else
-//using host_executor = hpx::kokkos::serial_executor;
+using host_executor = hpx::kokkos::serial_executor;
 //#endif
 void init_hydro_kokkos_aggregation_pool(void) {
     const size_t max_slices = opts().max_executor_slices;
