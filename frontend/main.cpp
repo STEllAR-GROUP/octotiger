@@ -140,7 +140,7 @@ int main(int argc, char* argv[]) {
     p.cfg = {
         "hpx.commandline.allow_unknown=1",    // HPX should not complain about unknown command line
                                               // options
-        "hpx.scheduler=local-priority-lifo",          // Use LIFO scheduler by default
+        "hpx.scheduler=local-priority-fifo",          // Use LIFO scheduler by default
         "hpx.parcel.mpi.zero_copy_optimization!=0"    // Disable the usage of zero copy optimization
                                                       // for MPI...
     };

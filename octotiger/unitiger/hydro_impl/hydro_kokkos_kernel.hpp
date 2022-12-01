@@ -135,8 +135,8 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
     if (agg_exec.sync_aggregation_slices()) {
         const int number_slices = agg_exec.number_slices;
         auto policy = Kokkos::Experimental::require(
-            Kokkos::RangePolicy<decltype(agg_exec.get_underlying_executor().instance())>(
-                agg_exec.get_underlying_executor().instance(), 0, (number_blocks) *number_slices),
+            Kokkos::RangePolicy<decltype(executor.instance())>(
+                executor.instance(), 0, (number_blocks) *number_slices),
             Kokkos::Experimental::WorkItemProperty::HintLightWeight);
         // Incrase chunk size if it's an hpx executor to use 1-task optimization
         if constexpr (std::is_same_v<
@@ -747,33 +747,34 @@ void reconstruct_no_amc_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
         (q_inx * q_inx * q_inx / simd_t::size() + (q_inx3 % simd_t::size() > 0 ? 1 : 0)) / workgroup_size + 1;
     const int number_slices = agg_exec.number_slices;
     if (agg_exec.sync_aggregation_slices()) {
-        /* using policytype = Kokkos::TeamPolicy<decltype(agg_exec.get_underlying_executor().instance())>; */
-        /* using membertype = typename policytype::member_type; */
-        /* policytype policy = Kokkos::Experimental::require( */
-        /*     Kokkos::TeamPolicy<decltype(agg_exec.get_underlying_executor().instance())>( */
-        /*         agg_exec.get_underlying_executor().instance(), blocks * number_slices, team_size), */
-        /*     Kokkos::Experimental::WorkItemProperty::HintLightWeight); */
-        auto policy = Kokkos::Experimental::require(
-            Kokkos::RangePolicy<decltype(agg_exec.get_underlying_executor().instance())>(
-                agg_exec.get_underlying_executor().instance(), 0, blocks * number_slices),
+        using policytype = Kokkos::TeamPolicy<decltype(executor.instance())>;
+        using membertype = typename policytype::member_type;
+        policytype policy = Kokkos::Experimental::require(
+            Kokkos::TeamPolicy<decltype(executor.instance())>(
+                executor.instance(), blocks * number_slices, team_size),
             Kokkos::Experimental::WorkItemProperty::HintLightWeight);
+        /* auto policy = Kokkos::Experimental::require( */
+        /*     Kokkos::RangePolicy<decltype(agg_exec.get_underlying_executor().instance())>( */
+        /*         agg_exec.get_underlying_executor().instance(), 0, blocks * number_slices), */
+        /*     Kokkos::Experimental::WorkItemProperty::HintLightWeight); */
 
         if constexpr (std::is_same_v<
                           typename std::remove_reference<decltype(agg_exec.get_underlying_executor())>::type,
                           hpx::kokkos::hpx_executor>) {
-            policy.set_chunk_size(blocks * 2);
+            policy.set_chunk_size(blocks / 4);
             assert(team_size == 1);
         }
+        policy.set_chunk_size(blocks * 2);
         Kokkos::parallel_for(
             "kernel hydro reconstruct_no_amc", policy,
-            /* KOKKOS_LAMBDA(const membertype& team_handle) { */
-            KOKKOS_LAMBDA(int idx) {
-                /* const int slice_id = (team_handle.league_rank() / blocks); */
-                /* const int index_base = (team_handle.league_rank() % blocks) * */
+            [](const membertype& team_handle) {
+            /* KOKKOS_LAMBDA(int idx) { */
+                const int slice_id = (team_handle.league_rank() / 1);
+                const int index_base = (team_handle.league_rank() % 1) *
+                1;
+                /* const int slice_id = (idx / blocks); */
+                /* const int index_base = (idx % blocks) * */
                 /* workgroup_size; */
-                const int slice_id = (idx / blocks);
-                const int index_base = (idx % blocks) *
-                workgroup_size;
 
                 const int index = index_base + 0;
                 const int q_i = index * simd_t::size();
@@ -790,11 +791,12 @@ void reconstruct_no_amc_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                 /*         const int i = ((q_i / q_inx2) + 2) * inx_large * inx_large + */
                 /*             (((q_i % q_inx2) / q_inx) + 2) * inx_large + */
                 /*             (((q_i % q_inx2) % q_inx) + 2); */
-                        if (q_i < q_inx3) {
-                                cell_reconstruct_inner_loop_p1_simd<simd_t, simd_mask_t>(nf_,
-                                    angmom_index_, smooth_field_.data(), disc_detect_.data(),
-                                    combined_q.data(), combined_u.data(), AM.data(), dx[slice_id],
-                                    cdiscs.data(), i, q_i, ndir, nangmom, slice_id);
+                        /* if (q_i < q_inx3) { */
+                        if (q_i < 0) {
+                                /* cell_reconstruct_inner_loop_p1_simd<simd_t, simd_mask_t>(nf_, */
+                                /*     angmom_index_, smooth_field_.data(), disc_detect_.data(), */
+                                /*     combined_q.data(), combined_u.data(), AM.data(), dx[slice_id], */
+                                /*     cdiscs.data(), i, q_i, ndir, nangmom, slice_id); */
                         }
                     /* }); */
                 /* Kokkos::parallel_for(Kokkos::TeamThreadRange(team_handle, workgroup_size), */
@@ -805,18 +807,18 @@ void reconstruct_no_amc_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                 /*         const int i = ((q_i / q_inx2) + 2) * inx_large * inx_large + */
                 /*             (((q_i % q_inx2) / q_inx) + 2) * inx_large + */
                 /*             (((q_i % q_inx2) % q_inx) + 2); */
-                        if (q_i < q_inx3) {
+                        /* if (q_i < q_inx3) { */
+                        if (q_i < 0) {
                             // Phase 2
-                            for (int d = 0; d < ndir; d++) {
-                                cell_reconstruct_inner_loop_p2_simd<simd_t, simd_mask_t>(omega,
-                                    angmom_index_, combined_q.data(), combined_x.data(),
-                                    combined_u.data(), AM.data(), dx[slice_id], d, i, q_i, ndir,
-                                    nangmom, n_species_, nf_, slice_id);
+                            for (int d = 0; d < 1; d++) {
+                                /* cell_reconstruct_inner_loop_p2_simd<simd_t, simd_mask_t>(omega, */
+                                /*     angmom_index_, combined_q.data(), combined_x.data(), */
+                                /*     combined_u.data(), AM.data(), dx[slice_id], d, i, q_i, ndir, */
+                                /*     nangmom, n_species_, nf_, slice_id); */
                             }
                         }
                     /* }); */
             });
-        Kokkos::fence();
     }
 }
 
@@ -830,8 +832,8 @@ void hydro_pre_recon_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
     if (agg_exec.sync_aggregation_slices()) {
       const int blocks = (inx_large * inx_large * inx_large) / 64 + 1;
       auto policy = Kokkos::Experimental::require(
-          Kokkos::MDRangePolicy<decltype(agg_exec.get_underlying_executor().instance()),
-              Kokkos::Rank<4>>(agg_exec.get_underlying_executor().instance(),
+          Kokkos::MDRangePolicy<decltype(executor.instance()),
+              Kokkos::Rank<4>>(executor.instance(),
                 {0, 0, 0, 0},
               {number_slices, blocks, 8, 8}, tiling_config),
           Kokkos::Experimental::WorkItemProperty::HintLightWeight);
@@ -860,8 +862,8 @@ void find_contact_discs_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
     if (agg_exec.sync_aggregation_slices()) {
         const int blocks = (inx_normal * inx_normal * inx_normal) / 64 + 1;
         auto policy_phase_1 = Kokkos::Experimental::require(
-            Kokkos::MDRangePolicy<decltype(agg_exec.get_underlying_executor().instance()),
-                Kokkos::Rank<4>>(agg_exec.get_underlying_executor().instance(), {0, 0, 0, 0},
+            Kokkos::MDRangePolicy<decltype(executor.instance()),
+                Kokkos::Rank<4>>(executor.instance(), {0, 0, 0, 0},
                 {number_slices, blocks, 8, 8}, tiling_config_phase1),
             Kokkos::Experimental::WorkItemProperty::HintLightWeight);
         Kokkos::parallel_for(
@@ -879,8 +881,8 @@ void find_contact_discs_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
 
         const int blocks2 = (q_inx * q_inx * q_inx) / 64 + 1;
         auto policy_phase_2 = Kokkos::Experimental::require(
-            Kokkos::MDRangePolicy<decltype(agg_exec.get_underlying_executor().instance()),
-                Kokkos::Rank<4>>(agg_exec.get_underlying_executor().instance(),
+            Kokkos::MDRangePolicy<decltype(executor.instance()),
+                Kokkos::Rank<4>>(executor.instance(),
                   {0, 0, 0, 0},
                 {number_slices, blocks2, 8, 8}, tiling_config_phase2),
             Kokkos::Experimental::WorkItemProperty::HintLightWeight);
@@ -1105,47 +1107,82 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
         alloc_host_double, blocks * (1 + 2 * nf) * max_slices);
     aggregated_host_buffer<int, executor_t> amax_indices(alloc_host_int, blocks * max_slices);
     aggregated_host_buffer<int, executor_t> amax_d(alloc_host_int, blocks * max_slices);
-    find_contact_discs_impl(exec, agg_exec, combined_u, P, disc, physics<NDIM>::A_, physics<NDIM>::B_,
-        physics<NDIM>::fgamma_, physics<NDIM>::de_switch_1, ndir, nf,
-        {1, 32, 8, 8}, {1, 32, 8, 8});
+    const host_buffer<bool>& masks = get_flux_host_masks<host_buffer<bool>>();
+    /* find_contact_discs_impl(exec, agg_exec, combined_u, P, disc, physics<NDIM>::A_, physics<NDIM>::B_, */
+    /*     physics<NDIM>::fgamma_, physics<NDIM>::de_switch_1, ndir, nf, */
+    /*     {1, 32, 8, 8}, {1, 32, 8, 8}); */
 
-    // Pre recon
-    hydro_pre_recon_impl(exec, agg_exec, combined_large_x, omega, angmom, combined_u, nf, n_species,
-        {1, 64, 8, 8});
+    /* // Pre recon */
+    /* hydro_pre_recon_impl(exec, agg_exec, combined_large_x, omega, angmom, combined_u, nf, n_species, */
+    /*     {1, 64, 8, 8}); */
 
+    /* sync_kokkos_host_kernel(exec); */
 
     // Reconstruct
 #ifdef HPX_HAVE_APEX
-    auto reconstruct_timer = apex::start("kernel hydro_reconstruct kokkos");
+    /* auto reconstruct_timer = apex::start("kernel hydro_reconstruct kokkos"); */
 #endif
     if (angmom_index > -1) {
-        reconstruct_impl<host_simd_t, host_simd_mask_t>(exec, agg_exec, omega, nf, angmom_index,
-            smooth_field, disc_detect, q, combined_x, combined_u, AM, dx, disc, n_species, ndir,
-            nangmom, 1, 1);
+        /* reconstruct_impl<host_simd_t, host_simd_mask_t>(exec, agg_exec, omega, nf, angmom_index, */
+        /*     smooth_field, disc_detect, q, combined_x, combined_u, AM, dx, disc, n_species, ndir, */
+        /*     nangmom, 1, 1); */
     } else {
-        reconstruct_no_amc_impl<host_simd_t, host_simd_mask_t>(exec, agg_exec, omega, nf,
-            angmom_index, smooth_field, disc_detect, q, combined_x, combined_u, AM, dx, disc,
-            n_species, ndir, nangmom, 1, 1);
+        /* reconstruct_no_amc_impl<host_simd_t, host_simd_mask_t>(exec, agg_exec, omega, nf, */
+        /*     angmom_index, smooth_field, disc_detect, q, combined_x, combined_u, AM, dx, disc, */
+        /*     n_species, ndir, nangmom, 1, 1); */
     }
 #ifdef HPX_HAVE_APEX
-    apex::stop(reconstruct_timer);
+    /* apex::stop(reconstruct_timer); */
 #endif
+        using policytype = Kokkos::TeamPolicy<decltype(exec.instance())>;
+        using membertype = typename policytype::member_type;
+        policytype policy = Kokkos::Experimental::require(
+            Kokkos::TeamPolicy<decltype(exec.instance())>(
+                exec.instance(), blocks * number_slices, 1),
+            Kokkos::Experimental::WorkItemProperty::HintLightWeight);
+        /* auto policy = Kokkos::Experimental::require( */
+        /*     Kokkos::RangePolicy<decltype(agg_exec.get_underlying_executor().instance())>( */
+        /*         agg_exec.get_underlying_executor().instance(), 0, blocks * number_slices), */
+        /*     Kokkos::Experimental::WorkItemProperty::HintLightWeight); */
+
+        if constexpr (std::is_same_v<
+                          typename std::remove_reference<decltype(agg_exec.get_underlying_executor())>::type,
+                          hpx::kokkos::hpx_executor>) {
+            policy.set_chunk_size(blocks / 4);
+            assert(team_size == 1);
+        }
+        policy.set_chunk_size(blocks * 2);
+        Kokkos::parallel_for(
+            "kernel hydro reconstruct_no_amc", policy,
+            [](const membertype& team_handle) {
+            /* KOKKOS_LAMBDA(int idx) { */
+                const int slice_id = (team_handle.league_rank() / 1);
+                const int index_base = (team_handle.league_rank() % 1) *
+                1;
+            });
+
+    // TODO Uncomment for any cast crashes
+    sync_kokkos_host_kernel(exec);
+
+    /* sync_kokkos_host_kernel(agg_exec.get_underlying_executor()); */
+    /* Kokkos::fence(); */
 
     // Flux
-    const host_buffer<bool>& masks = get_flux_host_masks<host_buffer<bool>>();
 
 
 #ifdef HPX_HAVE_APEX
-    auto flux_timer = apex::start("kernel hydro_flux kokkos");
+    /* auto flux_timer = apex::start("kernel hydro_flux kokkos"); */
 #endif
     flux_impl_teamless<host_simd_t, host_simd_mask_t>(exec, agg_exec, q, combined_x, f,
         amax, amax_indices, amax_d, masks, omega, dx, A_, B_, nf, fgamma,
         de_switch_1, blocks, 1);
 #ifdef HPX_HAVE_APEX
-    apex::stop(flux_timer);
+    /* apex::stop(flux_timer); */
 #endif
 
-    sync_kokkos_host_kernel(agg_exec.get_underlying_executor());
+    sync_kokkos_host_kernel(exec);
+    // TODO Can be used instead of the sync after the team policy
+    /* Kokkos::fence(); */
 
     const int amax_slice_offset = (1 + 2 * nf) * blocks * slice_id;
     const int max_indices_slice_offset = blocks * slice_id;
