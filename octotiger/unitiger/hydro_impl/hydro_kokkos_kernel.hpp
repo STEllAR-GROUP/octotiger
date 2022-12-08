@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <Kokkos_Core.hpp>
+#include <Kokkos_View.hpp>
 #include <aggregation_manager.hpp>
 #include <hpx/futures/future.hpp>
 #include <stream_manager.hpp>
@@ -626,7 +626,6 @@ void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                           typename std::remove_reference<decltype(agg_exec.get_underlying_executor())>::type,
                           hpx::kokkos::hpx_executor>) {
             policy.set_chunk_size(blocks * 2);
-            assert(team_size == 1);
         }
 
         Kokkos::parallel_for(
@@ -747,64 +746,48 @@ void reconstruct_no_amc_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
         (q_inx * q_inx * q_inx / simd_t::size() + (q_inx3 % simd_t::size() > 0 ? 1 : 0)) / workgroup_size + 1;
     const int number_slices = agg_exec.number_slices;
     if (agg_exec.sync_aggregation_slices()) {
-        /* using policytype = Kokkos::TeamPolicy<decltype(agg_exec.get_underlying_executor().instance())>; */
-        /* using membertype = typename policytype::member_type; */
-        /* policytype policy = Kokkos::Experimental::require( */
-        /*     Kokkos::TeamPolicy<decltype(agg_exec.get_underlying_executor().instance())>( */
-        /*         agg_exec.get_underlying_executor().instance(), blocks * number_slices, team_size), */
-        /*     Kokkos::Experimental::WorkItemProperty::HintLightWeight); */
-        auto policy = Kokkos::Experimental::require(
-            Kokkos::RangePolicy<decltype(agg_exec.get_underlying_executor().instance())>(
-                agg_exec.get_underlying_executor().instance(), 0, blocks * number_slices),
+        using policytype = Kokkos::TeamPolicy<decltype(agg_exec.get_underlying_executor().instance())>;
+        using membertype = typename policytype::member_type;
+        policytype policy = Kokkos::Experimental::require(
+            Kokkos::TeamPolicy<decltype(agg_exec.get_underlying_executor().instance())>(
+                agg_exec.get_underlying_executor().instance(), blocks * number_slices, team_size),
             Kokkos::Experimental::WorkItemProperty::HintLightWeight);
 
         if constexpr (std::is_same_v<
                           typename std::remove_reference<decltype(agg_exec.get_underlying_executor())>::type,
                           hpx::kokkos::hpx_executor>) {
             policy.set_chunk_size(blocks * 2);
-            assert(team_size == 1);
         }
         Kokkos::parallel_for(
             "kernel hydro reconstruct_no_amc", policy,
-            /* KOKKOS_LAMBDA(const membertype& team_handle) { */
-            KOKKOS_LAMBDA(int idx) {
-                /* const int slice_id = (team_handle.league_rank() / blocks); */
-                /* const int index_base = (team_handle.league_rank() % blocks) * */
-                /* workgroup_size; */
-                const int slice_id = (idx / blocks);
-                const int index_base = (idx % blocks) *
+            KOKKOS_LAMBDA(const membertype& team_handle) {
+                const int slice_id = (team_handle.league_rank() / blocks);
+                const int index_base = (team_handle.league_rank() % blocks) *
                 workgroup_size;
 
-                const int index = index_base + 0;
-                const int q_i = index * simd_t::size();
+                Kokkos::parallel_for(Kokkos::TeamThreadRange(team_handle, workgroup_size),
+                    [&](const int& work_elem) {
+                        const int index = index_base + work_elem;
+                        const int q_i = index * simd_t::size();
 
-                const int i = ((q_i / q_inx2) + 2) * inx_large * inx_large +
-                    (((q_i % q_inx2) / q_inx) + 2) * inx_large +
-                    (((q_i % q_inx2) % q_inx) + 2);
-
-                /* Kokkos::parallel_for(Kokkos::TeamThreadRange(team_handle, workgroup_size), */
-                /*     [&](const int& work_elem) { */
-                /*         const int index = index_base + work_elem; */
-                /*         const int q_i = index * simd_t::size(); */
-
-                /*         const int i = ((q_i / q_inx2) + 2) * inx_large * inx_large + */
-                /*             (((q_i % q_inx2) / q_inx) + 2) * inx_large + */
-                /*             (((q_i % q_inx2) % q_inx) + 2); */
+                        const int i = ((q_i / q_inx2) + 2) * inx_large * inx_large +
+                            (((q_i % q_inx2) / q_inx) + 2) * inx_large +
+                            (((q_i % q_inx2) % q_inx) + 2);
                         if (q_i < q_inx3) {
                                 cell_reconstruct_inner_loop_p1_simd<simd_t, simd_mask_t>(nf_,
                                     angmom_index_, smooth_field_.data(), disc_detect_.data(),
                                     combined_q.data(), combined_u.data(), AM.data(), dx[slice_id],
                                     cdiscs.data(), i, q_i, ndir, nangmom, slice_id);
                         }
-                    /* }); */
-                /* Kokkos::parallel_for(Kokkos::TeamThreadRange(team_handle, workgroup_size), */
-                /*     [&](const int& work_elem) { */
-                /*         const int index = index_base + work_elem; */
-                /*         const int q_i = index * simd_t::size(); */
+                    });
+                Kokkos::parallel_for(Kokkos::TeamThreadRange(team_handle, workgroup_size),
+                    [&](const int& work_elem) {
+                        const int index = index_base + work_elem;
+                        const int q_i = index * simd_t::size();
 
-                /*         const int i = ((q_i / q_inx2) + 2) * inx_large * inx_large + */
-                /*             (((q_i % q_inx2) / q_inx) + 2) * inx_large + */
-                /*             (((q_i % q_inx2) % q_inx) + 2); */
+                        const int i = ((q_i / q_inx2) + 2) * inx_large * inx_large +
+                            (((q_i % q_inx2) / q_inx) + 2) * inx_large +
+                            (((q_i % q_inx2) % q_inx) + 2);
                         if (q_i < q_inx3) {
                             // Phase 2
                             for (int d = 0; d < ndir; d++) {
@@ -814,9 +797,8 @@ void reconstruct_no_amc_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                                     nangmom, n_species_, nf_, slice_id);
                             }
                         }
-                    /* }); */
+                    });
             });
-        Kokkos::fence();
     }
 }
 
@@ -1090,21 +1072,6 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     aggregated_host_buffer<double, executor_t> P(alloc_host_double, (H_N3 + padding) * max_slices);
     aggregated_host_buffer<double, executor_t> disc(
         alloc_host_double, (ndir / 2 * H_N3 + padding) * max_slices);
-    static_assert(q_inx3 % host_simd_t::size() == 0,
-        "q_inx3 size is not evenly divisible by simd size! This simd width would require some "
-        "further changes to the masking in the flux kernel!");
-    static_assert(q_inx > host_simd_t::size(),
-        "SIMD width is larger than one subgrid lane + 2. "
-        "This does not work given the current implementation");
-    const int blocks = NDIM * (q_inx3 / host_simd_t::size()) * 1;
-    aggregated_host_buffer<double, executor_t> q(
-        alloc_host_double, (nf * 27 * q_inx3 + padding) * max_slices);
-    aggregated_host_buffer<double, executor_t> AM(
-        alloc_host_double, (NDIM * q_inx3 + padding) * max_slices);
-    aggregated_host_buffer<double, executor_t> amax(
-        alloc_host_double, blocks * (1 + 2 * nf) * max_slices);
-    aggregated_host_buffer<int, executor_t> amax_indices(alloc_host_int, blocks * max_slices);
-    aggregated_host_buffer<int, executor_t> amax_d(alloc_host_int, blocks * max_slices);
     find_contact_discs_impl(exec, agg_exec, combined_u, P, disc, physics<NDIM>::A_, physics<NDIM>::B_,
         physics<NDIM>::fgamma_, physics<NDIM>::de_switch_1, ndir, nf,
         {1, 32, 8, 8}, {1, 32, 8, 8});
@@ -1113,27 +1080,42 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     hydro_pre_recon_impl(exec, agg_exec, combined_large_x, omega, angmom, combined_u, nf, n_species,
         {1, 64, 8, 8});
 
-
     // Reconstruct
+    aggregated_host_buffer<double, executor_t> q(
+        alloc_host_double, (nf * 27 * q_inx3 + padding) * max_slices);
+    aggregated_host_buffer<double, executor_t> AM(
+        alloc_host_double, (NDIM * q_inx3 + padding) * max_slices);
+
 #ifdef HPX_HAVE_APEX
     auto reconstruct_timer = apex::start("kernel hydro_reconstruct kokkos");
 #endif
     if (angmom_index > -1) {
         reconstruct_impl<host_simd_t, host_simd_mask_t>(exec, agg_exec, omega, nf, angmom_index,
             smooth_field, disc_detect, q, combined_x, combined_u, AM, dx, disc, n_species, ndir,
-            nangmom, 1, 1);
+            nangmom, 8, 1);
     } else {
         reconstruct_no_amc_impl<host_simd_t, host_simd_mask_t>(exec, agg_exec, omega, nf,
             angmom_index, smooth_field, disc_detect, q, combined_x, combined_u, AM, dx, disc,
-            n_species, ndir, nangmom, 1, 1);
+            n_species, ndir, nangmom, 8, 1);
     }
 #ifdef HPX_HAVE_APEX
     apex::stop(reconstruct_timer);
 #endif
 
     // Flux
+    static_assert(q_inx3 % host_simd_t::size() == 0,
+        "q_inx3 size is not evenly divisible by simd size! This simd width would require some "
+        "further changes to the masking in the flux kernel!");
+    static_assert(q_inx > host_simd_t::size(),
+        "SIMD width is larger than one subgrid lane + 2. "
+        "This does not work given the current implementation");
+    const int blocks = NDIM * (q_inx3 / host_simd_t::size()) * 1;
     const host_buffer<bool>& masks = get_flux_host_masks<host_buffer<bool>>();
 
+    aggregated_host_buffer<double, executor_t> amax(
+        alloc_host_double, blocks * (1 + 2 * nf) * max_slices);
+    aggregated_host_buffer<int, executor_t> amax_indices(alloc_host_int, blocks * max_slices);
+    aggregated_host_buffer<int, executor_t> amax_d(alloc_host_int, blocks * max_slices);
 
 #ifdef HPX_HAVE_APEX
     auto flux_timer = apex::start("kernel hydro_flux kokkos");
@@ -1194,10 +1176,8 @@ timestep_t launch_hydro_kokkos_kernels(const hydro_computer<NDIM, INX, physics<N
     std::vector<hydro_state_t<std::vector<safe_real>>>& F) {
     static const cell_geometry<NDIM, INX> geo;
 
-  /* std::cin.get(); */
     auto executor_slice_fut = hydro_kokkos_agg_executor_pool<executor_t>::request_executor_slice();
     auto ret_fut = executor_slice_fut.value().then(hpx::util::annotated_function([&](auto && fut) {
-  /* std::cin.get(); */
       typename Aggregated_Executor<executor_t>::Executor_Slice agg_exec = fut.get();
       // How many executor slices are working together and what's our ID?
       const size_t slice_id = agg_exec.id;
