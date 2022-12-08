@@ -26,7 +26,7 @@ using executor_interface_t = stream_interface<device_executor, device_pool_strat
 //#ifdef OCTOTIGER_MONOPOLE_HOST_HPX_EXECUTOR
 using host_executor = hpx::kokkos::hpx_executor;
 //#else
-//using host_executor = hpx::kokkos::serial_executor;
+/* using host_executor = hpx::kokkos::serial_executor; */
 //#endif
 void init_hydro_kokkos_aggregation_pool(void) {
     const size_t max_slices = opts().max_executor_slices;
@@ -132,8 +132,7 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
     if (host_type == interaction_host_kernel_type::KOKKOS) {
 #ifdef OCTOTIGER_HAVE_KOKKOS
         hpx::lcos::local::call_once(init_hydro_kokkos_pool_flag, init_hydro_kokkos_aggregation_pool);
-        host_executor executor{};
-        // host_executor executor{};
+        host_executor executor{hpx::kokkos::execution_space_mode::independent};
         max_lambda = launch_hydro_kokkos_kernels<host_executor>(
             hydro, U, X, omega, opts().n_species, executor, F);
         return max_lambda;

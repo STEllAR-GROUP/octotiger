@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <Kokkos_View.hpp>
+#include <Kokkos_Core.hpp>
 #include <aggregation_manager.hpp>
 #include <hpx/futures/future.hpp>
 #include <stream_manager.hpp>
@@ -30,7 +30,11 @@ template<typename executor_t>
 using hydro_kokkos_agg_executor_pool = aggregation_pool<hydro_kokkos_kernel_identifier, executor_t,
                                        round_robin_pool<executor_t>>;
 
+// padding for arrays (useful for masked operations). 
 constexpr int padding = 128;
+// number of tasks to be used for CPU execution per kernel invocation. 1 usually works best but 
+// it depends on the available workload
+constexpr int number_chunks = 1; 
 
 template <typename storage>
 const storage& get_flux_host_masks() {
@@ -136,13 +140,13 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
         const int number_slices = agg_exec.number_slices;
         auto policy = Kokkos::Experimental::require(
             Kokkos::RangePolicy<decltype(agg_exec.get_underlying_executor().instance())>(
-                agg_exec.get_underlying_executor().instance(), 0, (number_blocks) *number_slices),
+                agg_exec.get_underlying_executor().instance(), 0, (number_blocks) * number_slices),
             Kokkos::Experimental::WorkItemProperty::HintLightWeight);
         // Incrase chunk size if it's an hpx executor to use 1-task optimization
         if constexpr (std::is_same_v<
                           typename std::remove_reference<decltype(agg_exec.get_underlying_executor())>::type,
                           hpx::kokkos::hpx_executor>) {
-            policy.set_chunk_size(number_blocks * 2);
+            policy.set_chunk_size(number_blocks * number_slices / number_chunks);
         }
 
         Kokkos::parallel_for(
@@ -333,13 +337,13 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
     if (agg_exec.sync_aggregation_slices()) {
         const int number_slices = agg_exec.number_slices;
         // Set policy via executor and allocate enough scratch memory:
-        using policytype = Kokkos::TeamPolicy<decltype(executor.instance())>;
         auto policy =
             Kokkos::Experimental::require(Kokkos::TeamPolicy<decltype(executor.instance())>(
                                               agg_exec.get_underlying_executor().instance(),
                                               number_blocks * number_slices, team_size),
                 Kokkos::Experimental::WorkItemProperty::HintLightWeight);
-        using membertype = typename policytype::member_type;
+        using policytype = decltype(policy);
+        using membertype = typename decltype(policy)::member_type;
         if (team_size > 1)
             policy.set_scratch_size(
                 0, Kokkos::PerTeam(team_size * (sizeof(double) + sizeof(int) *
@@ -614,18 +618,17 @@ void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
     const int number_slices = agg_exec.number_slices;
     
     if (agg_exec.sync_aggregation_slices()) {
-        using policytype = Kokkos::TeamPolicy<decltype(agg_exec.get_underlying_executor().instance())>;
-        using membertype = typename policytype::member_type;
-        policytype policy = Kokkos::Experimental::require(
+        auto policy = Kokkos::Experimental::require(
             Kokkos::TeamPolicy<decltype(agg_exec.get_underlying_executor().instance())>(
                 agg_exec.get_underlying_executor().instance(), blocks * number_slices,
                 team_size),
             Kokkos::Experimental::WorkItemProperty::HintLightWeight);
+        using membertype = typename decltype(policy)::member_type;
 
         if constexpr (std::is_same_v<
                           typename std::remove_reference<decltype(agg_exec.get_underlying_executor())>::type,
                           hpx::kokkos::hpx_executor>) {
-            policy.set_chunk_size(blocks * 2);
+            policy.set_chunk_size(blocks * number_slices / number_chunks);
         }
 
         Kokkos::parallel_for(
@@ -746,17 +749,16 @@ void reconstruct_no_amc_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
         (q_inx * q_inx * q_inx / simd_t::size() + (q_inx3 % simd_t::size() > 0 ? 1 : 0)) / workgroup_size + 1;
     const int number_slices = agg_exec.number_slices;
     if (agg_exec.sync_aggregation_slices()) {
-        using policytype = Kokkos::TeamPolicy<decltype(agg_exec.get_underlying_executor().instance())>;
-        using membertype = typename policytype::member_type;
-        policytype policy = Kokkos::Experimental::require(
+        auto policy = Kokkos::Experimental::require(
             Kokkos::TeamPolicy<decltype(agg_exec.get_underlying_executor().instance())>(
                 agg_exec.get_underlying_executor().instance(), blocks * number_slices, team_size),
             Kokkos::Experimental::WorkItemProperty::HintLightWeight);
+        using membertype = typename decltype(policy)::member_type;
 
         if constexpr (std::is_same_v<
                           typename std::remove_reference<decltype(agg_exec.get_underlying_executor())>::type,
                           hpx::kokkos::hpx_executor>) {
-            policy.set_chunk_size(blocks * 2);
+            policy.set_chunk_size(blocks * number_slices / number_chunks);
         }
         Kokkos::parallel_for(
             "kernel hydro reconstruct_no_amc", policy,
@@ -1083,6 +1085,8 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     // Reconstruct
     aggregated_host_buffer<double, executor_t> q(
         alloc_host_double, (nf * 27 * q_inx3 + padding) * max_slices);
+    aggregated_host_buffer<double, executor_t> q2(
+        alloc_host_double, (nf * 27 * q_inx3 + 2*padding) * max_slices);
     aggregated_host_buffer<double, executor_t> AM(
         alloc_host_double, (NDIM * q_inx3 + padding) * max_slices);
 
@@ -1126,8 +1130,8 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
 #ifdef HPX_HAVE_APEX
     apex::stop(flux_timer);
 #endif
-
     sync_kokkos_host_kernel(agg_exec.get_underlying_executor());
+
 
     const int amax_slice_offset = (1 + 2 * nf) * blocks * slice_id;
     const int max_indices_slice_offset = blocks * slice_id;
