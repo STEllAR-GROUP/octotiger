@@ -12,6 +12,7 @@
 #include <stream_manager.hpp>
 #include <type_traits>
 #include <utility>
+#include "octotiger/unitiger/hydro.hpp"
 #ifdef OCTOTIGER_HAVE_KOKKOS
 #include <hpx/kokkos/executors.hpp>
 #include "octotiger/common_kernel/kokkos_util.hpp"
@@ -34,7 +35,7 @@ using hydro_kokkos_agg_executor_pool = aggregation_pool<hydro_kokkos_kernel_iden
 constexpr int padding = 128;
 // number of tasks to be used for CPU execution per kernel invocation. 1 usually works best but 
 // it depends on the available workload
-constexpr int number_chunks = 1; 
+constexpr int number_chunks = 4; 
 
 template <typename storage>
 const storage& get_flux_host_masks() {
@@ -1206,6 +1207,8 @@ timestep_t launch_hydro_kokkos_kernels(const hydro_computer<NDIM, INX, physics<N
       Allocator_Slice<int, kokkos_host_allocator<int>, executor_t> alloc_host_int =
           agg_exec
               .template make_allocator<int, kokkos_host_allocator<int>>();
+      timestep_t max_lambda{};
+      {
 
       // Host buffers
       aggregated_host_buffer<double, executor_t> combined_x(
@@ -1245,7 +1248,7 @@ timestep_t launch_hydro_kokkos_kernels(const hydro_computer<NDIM, INX, physics<N
       dx[slice_id] = X[0][geo.H_DNX] - X[0][0];
 
       // Either handles the launches on the CPU or on the GPU depending on the passed executor
-      auto max_lambda = device_interface_kokkos_hydro(executor, combined_x, combined_large_x,
+      max_lambda = device_interface_kokkos_hydro(executor, combined_x, combined_large_x,
           combined_u, disc_detect, smooth_field, f, geo.NDIR, hydro.get_nf(),
           hydro.get_angmom_index() != -1, n_species, omega, hydro.get_angmom_index(), geo.NANGMOM,
           dx, physics<NDIM>::A_, physics<NDIM>::B_, physics<NDIM>::fgamma_,
@@ -1266,6 +1269,7 @@ timestep_t launch_hydro_kokkos_kernels(const hydro_computer<NDIM, INX, physics<N
                   }
               }
           }
+      }
       }
       return max_lambda;
           }, "kokkos_hydro_solver"));

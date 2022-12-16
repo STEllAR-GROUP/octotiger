@@ -4,6 +4,7 @@
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 //
 
+#undef NDEBUG
 #include "octotiger/unitiger/hydro_impl/hydro_kernel_interface.hpp"
 #include "octotiger/unitiger/hydro_impl/flux_kernel_interface.hpp"
 #ifdef OCTOTIGER_HAVE_KOKKOS
@@ -30,7 +31,7 @@ using host_executor = hpx::kokkos::hpx_executor;
 //#endif
 void init_hydro_kokkos_aggregation_pool(void) {
     const size_t max_slices = opts().max_executor_slices;
-    constexpr size_t number_aggregation_executors = 51200;
+    constexpr size_t number_aggregation_executors = 128;
     constexpr Aggregated_Executor_Modes executor_mode = Aggregated_Executor_Modes::EAGER;
     if (opts().cuda_streams_per_gpu > 0) {
 #if defined(KOKKOS_ENABLE_CUDA)
