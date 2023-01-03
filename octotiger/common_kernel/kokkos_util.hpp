@@ -24,6 +24,8 @@
 using kokkos_device_executor = hpx::kokkos::cuda_executor;
 #elif defined(KOKKOS_ENABLE_HIP)
 using kokkos_device_executor = hpx::kokkos::hip_executor;
+#elif defined(KOKKOS_ENABLE_SYCL)
+using kokkos_device_executor = hpx::kokkos::sycl_executor;
 #endif
 
 template <typename T>
@@ -48,6 +50,8 @@ struct is_kokkos_device_executor
         std::is_same<hpx::kokkos::cuda_executor, typename std::remove_cv<T>::type>::value>
 #elif defined(KOKKOS_ENABLE_HIP)
         std::is_same<hpx::kokkos::hip_executor, typename std::remove_cv<T>::type>::value>
+#elif defined(KOKKOS_ENABLE_SYCL)
+        std::is_same<hpx::kokkos::sycl_executor, typename std::remove_cv<T>::type>::value>
 #else
         false>
 #endif
@@ -63,6 +67,9 @@ struct is_kokkos_device_executor
 #endif
 #ifdef KOKKOS_ENABLE_HIP
 #include <hip_buffer_util.hpp>
+#endif
+#ifdef KOKKOS_ENABLE_SYCL
+#include <sycl_buffer_util.hpp>
 #endif
 
 #if defined(KOKKOS_ENABLE_CUDA)
@@ -81,6 +88,14 @@ using kokkos_device_array = Kokkos::View<T*, Kokkos::Experimental::HIPSpace>;
 template <class T>
 using recycled_device_view = recycler::recycled_view<kokkos_um_device_array<T>,
     recycler::recycle_allocator_hip_device<T>, T>;
+#elif defined(KOKKOS_ENABLE_SYCL)
+template <class T>
+using kokkos_um_device_array = Kokkos::View<T*, Kokkos::Experimental::SYCLDeviceUSMSpace, Kokkos::MemoryUnmanaged>;
+template <class T>
+using kokkos_device_array = Kokkos::View<T*, Kokkos::Experimental::SYCLDeviceUSMSpace>;
+template <class T>
+using recycled_device_view = recycler::recycled_view<kokkos_um_device_array<T>,
+    recycler::recycle_allocator_sycl_device<T>, T>;
 #else
 // Fallback without cuda
 template <class T>
@@ -126,6 +141,17 @@ using kokkos_um_pinned_array = Kokkos::View<T*, typename kokkos_um_device_array<
 template <class T>
 using recycled_pinned_view =
     recycler::recycled_view<kokkos_um_pinned_array<T>, recycler::recycle_allocator_hip_host<T>, T>;
+#elif defined(KOKKOS_ENABLE_SYCL)
+template <typename T>
+using kokkos_host_allocator = recycler::detail::sycl_host_default_allocator<T>;
+template <typename T>
+using kokkos_device_allocator = recycler::detail::sycl_device_default_allocator<T>;
+template <class T>
+using kokkos_um_pinned_array = Kokkos::View<T*, typename kokkos_um_device_array<T>::array_layout,
+    Kokkos::Experimental::SYCLHostUSMSpace, Kokkos::MemoryUnmanaged>;
+template <class T>
+using recycled_pinned_view =
+    recycler::recycled_view<kokkos_um_pinned_array<T>, recycler::recycle_allocator_sycl_host<T>, T>;
 #else
 template <typename T>
 using kokkos_host_allocator = std::allocator<T>;

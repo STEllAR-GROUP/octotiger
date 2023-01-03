@@ -81,12 +81,17 @@ void cleanup_puddle_on_this_locality(void) {
       stream_pool::cleanup<hpx::kokkos::cuda_executor, round_robin_pool<hpx::kokkos::cuda_executor>>();
 #elif defined(KOKKOS_ENABLE_HIP) 
       stream_pool::cleanup<hpx::kokkos::hip_executor, round_robin_pool<hpx::kokkos::hip_executor>>();
+#elif defined(KOKKOS_ENABLE_SYCL) 
+      stream_pool::cleanup<hpx::kokkos::sycl_executor, round_robin_pool<hpx::kokkos::sycl_executor>>();
 #endif
     }
     // Disable polling
 #if (defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)) && HPX_KOKKOS_CUDA_FUTURE_TYPE == 0 
     std::cout << "Unregistering cuda polling..." << std::endl;
     hpx::cuda::experimental::detail::unregister_polling(hpx::resource::get_thread_pool(0));
+#endif
+#if defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_SYCL)
+    hpx::sycl::experimental::detail::unregister_polling(hpx::resource::get_thread_pool(0));
 #endif
 #ifdef OCTOTIGER_HAVE_KOKKOS
     stream_pool::cleanup<hpx::kokkos::serial_executor, round_robin_pool<hpx::kokkos::serial_executor>>();
@@ -151,6 +156,12 @@ void init_executors(void) {
     /* std::cin.get(); */
 #endif
 #endif
+#if defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_SYCL)
+    std::cerr << "Registering HPX SYCL polling..." << std::endl;
+    //std::cin.get();
+    hpx::sycl::experimental::detail::register_polling(hpx::resource::get_thread_pool(0));
+    std::cerr << "Registered HPX SYCL polling..." << std::endl;
+#endif
 
 #if defined(OCTOTIGER_HAVE_KOKKOS)
     stream_pool::init<hpx::kokkos::serial_executor, round_robin_pool<hpx::kokkos::serial_executor>>(
@@ -164,8 +175,12 @@ void init_executors(void) {
     std::cout << "KOKKOS/HIP is enabled!" << std::endl;
     stream_pool::init<hpx::kokkos::hip_executor, round_robin_pool<hpx::kokkos::hip_executor>>(
         opts().cuda_streams_per_gpu, hpx::kokkos::execution_space_mode::independent);
+#elif defined(KOKKOS_ENABLE_SYCL)
+    std::cout << "KOKKOS/SYCL is enabled!" << std::endl;
+    stream_pool::init<hpx::kokkos::sycl_executor, round_robin_pool<hpx::kokkos::sycl_executor>>(
+        opts().cuda_streams_per_gpu, hpx::kokkos::execution_space_mode::independent);
 #endif
-#if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)
+#if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP) || defined(KOKKOS_ENABLE_SYCL)
     kokkos_device_executor mover{};
     octotiger::fmm::monopole_interactions::get_device_masks<device_buffer<int>, host_buffer<int>,
         kokkos_device_executor>(mover);
