@@ -758,14 +758,25 @@ namespace fmm {
             host_buffer<double>& results, double dx, double theta) {
             const host_buffer<int>& host_masks = get_host_masks<host_buffer<int>>();
             const host_buffer<double>& host_constants = get_host_constants<host_buffer<double>>();
+
+            static_assert(NUMBER_MONOPOLE_TASKS == 1 || NUMBER_MONOPOLE_TASKS == 4 || 
+                NUMBER_MONOPOLE_TASKS == 16);
+            static_assert(INX % host_simd_t::size() == 0);
+            static_assert(INX / host_simd_t::size() <= INX && INX / host_simd_t::size() >= 1);
+            static_assert(NUMBER_MONOPOLE_TASKS_X == 1 || NUMBER_MONOPOLE_TASKS_X == 2 || 
+                NUMBER_MONOPOLE_TASKS_X == 4);
+            static_assert(NUMBER_MONOPOLE_TASKS_Y == NUMBER_MONOPOLE_TASKS_X);
+            static_assert(NUMBER_MONOPOLE_TASKS == NUMBER_MONOPOLE_TASKS_X * NUMBER_MONOPOLE_TASKS_Y);
+            static_assert(INX % (2 * NUMBER_MONOPOLE_TASKS_Y) == 0);
+            static_assert(INX / (2 * NUMBER_MONOPOLE_TASKS_Y) >= 1);
             // call kernel
 #ifdef HPX_HAVE_APEX
             auto kernel_timer = apex::start("kernel p2p kokkos");
 #endif
             p2p_kernel_impl<host_simd_t, host_simd_mask_t>(exec, monopoles, host_masks,
                 host_constants, results, dx, theta, 1,
-                {1, INX, INX / 2, INX / host_simd_t::size()});
-
+                {1, INX / NUMBER_MONOPOLE_TASKS_X, INX / (2 * NUMBER_MONOPOLE_TASKS_Y),
+                INX / host_simd_t::size()});
             sync_kokkos_host_kernel(exec);
 #ifdef HPX_HAVE_APEX
             apex::stop(kernel_timer);
@@ -899,6 +910,17 @@ namespace fmm {
             const host_buffer<int>& host_masks = get_host_masks<host_buffer<int>>();
             const host_buffer<double>& host_constants = get_host_constants<host_buffer<double>>();
 
+            static_assert(NUMBER_MONOPOLE_TASKS == 1 || NUMBER_MONOPOLE_TASKS == 4 || 
+                NUMBER_MONOPOLE_TASKS == 16);
+            static_assert(INX % host_simd_t::size() == 0);
+            static_assert(INX / host_simd_t::size() <= INX && INX / host_simd_t::size() >= 1);
+            static_assert(NUMBER_MONOPOLE_TASKS_X == 1 || NUMBER_MONOPOLE_TASKS_X == 2 || 
+                NUMBER_MONOPOLE_TASKS_X == 4);
+            static_assert(NUMBER_MONOPOLE_TASKS_Y == NUMBER_MONOPOLE_TASKS_X);
+            static_assert(NUMBER_MONOPOLE_TASKS == NUMBER_MONOPOLE_TASKS_X * NUMBER_MONOPOLE_TASKS_Y);
+            static_assert(INX % (2 * NUMBER_MONOPOLE_TASKS_Y) == 0);
+            static_assert(INX / (2 * NUMBER_MONOPOLE_TASKS_Y) >= 1);
+
             // call p2p kernel
 #ifdef HPX_HAVE_APEX
             auto kernel_timer_p2p = apex::start("kernel p2p kokkos");
@@ -906,7 +928,8 @@ namespace fmm {
 
             p2p_kernel_impl<host_simd_t, host_simd_mask_t>(exec, monopoles, host_masks,
                 host_constants, results, dx, theta, 1,
-                {1, INX, INX / 2, INX / host_simd_t::size()});
+                {1, INX / NUMBER_MONOPOLE_TASKS_X, INX / (2 * NUMBER_MONOPOLE_TASKS_Y),
+                INX / host_simd_t::size()});
             sync_kokkos_host_kernel(exec);
 #ifdef HPX_HAVE_APEX
             apex::stop(kernel_timer_p2p);

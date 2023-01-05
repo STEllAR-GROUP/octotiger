@@ -35,7 +35,7 @@ using hydro_kokkos_agg_executor_pool = aggregation_pool<hydro_kokkos_kernel_iden
 constexpr int padding = 128;
 // number of tasks to be used for CPU execution per kernel invocation. 1 usually works best but 
 // it depends on the available workload
-constexpr int number_chunks = 4; 
+constexpr int number_chunks = OCTOTIGER_KOKKOS_HYDRO_TASKS; 
 
 template <typename storage>
 const storage& get_flux_host_masks() {
@@ -147,6 +147,9 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
         if constexpr (std::is_same_v<
                           typename std::remove_reference<decltype(agg_exec.get_underlying_executor())>::type,
                           hpx::kokkos::hpx_executor>) {
+            static_assert(number_chunks >= 1);
+            static_assert(number_chunks <= 64);
+            assert(number_blocks * number_slices / number_chunks >= 1); 
             policy.set_chunk_size(number_blocks * number_slices / number_chunks);
         }
 
@@ -629,6 +632,9 @@ void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
         if constexpr (std::is_same_v<
                           typename std::remove_reference<decltype(agg_exec.get_underlying_executor())>::type,
                           hpx::kokkos::hpx_executor>) {
+            static_assert(number_chunks >= 1);
+            static_assert(number_chunks <= 64);
+            assert(blocks * number_slices / number_chunks >= 1); 
             policy.set_chunk_size(blocks * number_slices / number_chunks);
         }
 
@@ -759,6 +765,9 @@ void reconstruct_no_amc_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
         if constexpr (std::is_same_v<
                           typename std::remove_reference<decltype(agg_exec.get_underlying_executor())>::type,
                           hpx::kokkos::hpx_executor>) {
+            static_assert(number_chunks >= 1);
+            static_assert(number_chunks <= 64);
+            assert(blocks * number_slices / number_chunks >= 1); 
             policy.set_chunk_size(blocks * number_slices / number_chunks);
         }
         Kokkos::parallel_for(

@@ -58,6 +58,10 @@ option(OCTOTIGER_WITH_AVX512 "" OFF)
 
 option(OCTOTIGER_WITH_TESTS "Enable tests" ON)
 set(OCTOTIGER_WITH_GRIDDIM "8" CACHE STRING "Grid size")
+set(OCTOTIGER_WITH_KOKKOS_MULTIPOLE_TASKS "1" CACHE STRING "Tasks per multipole kernel launch with KOKKOS HPX (allowed values 1 4 16 64).")
+set(OCTOTIGER_WITH_KOKKOS_MONOPOLE_TASKS "1" CACHE STRING "Tasks per monopole kernel launch with KOKKOS HPX (allowed values 1 4 16).")
+set(OCTOTIGER_WITH_KOKKOS_HYDRO_TASKS "1" CACHE STRING "Tasks per hydro kernel launch with KOKKOS HPX.")
+set(OCTOTIGER_WITH_GRIDDIM "8" CACHE STRING "Grid size")
 set(OCTOTIGER_WITH_MAX_NUMBER_FIELDS "15" CACHE STRING "Maximum allowed nf_ (number fields)")
 set(OCTOTIGER_THETA_MINIMUM "0.34" CACHE STRING "Minimal allowed theta value - important for optimizations")
 option(OCTOTIGER_WITH_DOCU "Enable the target to build the documentation" OFF)
@@ -834,6 +838,21 @@ message(STATUS "Octo-Tiger grid size: ${OCTOTIGER_WITH_GRIDDIM}")
 target_compile_definitions(optionslib PUBLIC OCTOTIGER_GRIDDIM=${OCTOTIGER_WITH_GRIDDIM})
 target_compile_definitions(octolib PUBLIC OCTOTIGER_GRIDDIM=${OCTOTIGER_WITH_GRIDDIM})
 target_compile_definitions(hydrolib PUBLIC OCTOTIGER_GRIDDIM=${OCTOTIGER_WITH_GRIDDIM})
+
+# Kokkos HPX backend task configuration
+# i.e. Tasks per kernel invocation
+message(STATUS "Octo-Tiger Kokkos-HPX number of Multipole tasks: ${OCTOTIGER_WITH_KOKKOS_MULTIPOLE_TASKS}")
+target_compile_definitions(optionslib PUBLIC OCTOTIGER_KOKKOS_MULTIPOLE_TASKS=${OCTOTIGER_WITH_KOKKOS_MULTIPOLE_TASKS})
+target_compile_definitions(octolib PUBLIC OCTOTIGER_KOKKOS_MULTIPOLE_TASKS=${OCTOTIGER_WITH_KOKKOS_MULTIPOLE_TASKS})
+target_compile_definitions(hydrolib PUBLIC OCTOTIGER_KOKKOS_MULTIPOLE_TASKS=${OCTOTIGER_WITH_KOKKOS_MULTIPOLE_TASKS})
+message(STATUS "Octo-Tiger Kokkos-HPX number of Monopole tasks: ${OCTOTIGER_WITH_KOKKOS_MONOPOLE_TASKS}")
+target_compile_definitions(optionslib PUBLIC OCTOTIGER_KOKKOS_MONOPOLE_TASKS=${OCTOTIGER_WITH_KOKKOS_MONOPOLE_TASKS})
+target_compile_definitions(octolib PUBLIC OCTOTIGER_KOKKOS_MONOPOLE_TASKS=${OCTOTIGER_WITH_KOKKOS_MONOPOLE_TASKS})
+target_compile_definitions(hydrolib PUBLIC OCTOTIGER_KOKKOS_MONOPOLE_TASKS=${OCTOTIGER_WITH_KOKKOS_MONOPOLE_TASKS})
+message(STATUS "Octo-Tiger Kokkos-HPX number of Hydro tasks: ${OCTOTIGER_WITH_KOKKOS_HYDRO_TASKS}")
+target_compile_definitions(optionslib PUBLIC OCTOTIGER_KOKKOS_HYDRO_TASKS=${OCTOTIGER_WITH_KOKKOS_HYDRO_TASKS})
+target_compile_definitions(octolib PUBLIC OCTOTIGER_KOKKOS_HYDRO_TASKS=${OCTOTIGER_WITH_KOKKOS_HYDRO_TASKS})
+target_compile_definitions(hydrolib PUBLIC OCTOTIGER_KOKKOS_HYDRO_TASKS=${OCTOTIGER_WITH_KOKKOS_HYDRO_TASKS})
 
 # Interaction list disabled?
 if(OCTOTIGER_DISABLE_ILIST)
