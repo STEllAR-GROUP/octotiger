@@ -122,6 +122,7 @@ void init_executors(void) {
     std::cout << "Initialize executors and masks..." << std::endl;
 #ifdef OCTOTIGER_HAVE_KOKKOS
     if (!Kokkos::is_initialized()) { // gets initialized earlier on root locality
+      // TODO SYCL Need args for distributed build...
       Kokkos::initialize();
       Kokkos::print_configuration(std::cout);
       std::cout << "Initialized Kokkos on this locality..." << std::endl;
@@ -321,8 +322,8 @@ void init_problem(void) {
         set_problem(init_func_type(
             [](real x, real y, real z, real dx) { return solid_sphere(x, y, z, dx, 0.25); }));
     } else {
-        printf("No problem specified\n");
-        throw;
+        std::cerr << "Error: No problem specified\n";
+        std::terminate();
     }
 
     if (OCTOTIGER_MAX_NUMBER_FIELDS > physics<NDIM>::nf_) {

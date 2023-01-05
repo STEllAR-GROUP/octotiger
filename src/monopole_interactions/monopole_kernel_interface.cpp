@@ -37,6 +37,10 @@ using executor_interface_t = stream_interface<device_executor, device_pool_strat
 using device_executor = hpx::kokkos::hip_executor;
 using device_pool_strategy = round_robin_pool<device_executor>;
 using executor_interface_t = stream_interface<device_executor, device_pool_strategy>;
+#elif defined(KOKKOS_ENABLE_SYCL)
+using device_executor = hpx::kokkos::sycl_executor;
+using device_pool_strategy = round_robin_pool<device_executor>;
+using executor_interface_t = stream_interface<device_executor, device_pool_strategy>;
 #endif
 #ifdef OCTOTIGER_MONOPOLE_HOST_HPX_EXECUTOR
 using host_executor = hpx::kokkos::hpx_executor;
@@ -63,7 +67,7 @@ namespace fmm {
             if (device_type != interaction_device_kernel_type::OFF) {
                 if (device_type == interaction_device_kernel_type::KOKKOS_CUDA ||
                     device_type == interaction_device_kernel_type::KOKKOS_HIP) {
-#if defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_CUDA) || defined(KOKKOS_ENABLE_HIP))
+#if defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_CUDA) || defined(KOKKOS_ENABLE_HIP)|| defined(KOKKOS_ENABLE_SYCL))
                     bool avail = true;
                     if (host_type != interaction_host_kernel_type::DEVICE_ONLY) {
                         // Check where we want to run this:
@@ -72,7 +76,7 @@ namespace fmm {
                                 opts().cuda_buffer_capacity);
                     }
                     // TODO p2m kokkos bug - probably not enough threads for a wavefront
-#if defined(KOKKOS_ENABLE_HIP)
+#if defined(KOKKOS_ENABLE_HIP) || defined(KOKKOS_ENABLE_SYCL) 
                     if (contains_multipole_neighbor) // TODO Add device_only error
                         avail = false;
 #endif
