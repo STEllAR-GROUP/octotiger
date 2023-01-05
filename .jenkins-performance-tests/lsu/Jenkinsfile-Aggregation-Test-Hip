@@ -68,6 +68,7 @@ pipeline {
                 cd "octo-buildscripts-aggregation-test-HIP"
                 sbatch --wait src/octotiger/.jenkins-performance-tests/lsu/hip-aggregation-test.sbatch
                 cat aggregation_test_hip.out
+                cat performance_results.log
                 '''
             }
         }
@@ -84,11 +85,15 @@ pipeline {
         failure {
             sh '''
             echo "HIP Aggregation Performance Test failed! Pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger HIP Aggregation Performance Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} failed" "${MAINTAINER_MAIL}"
+            cat aggregation_test_hip.out
+            cat performance_results.log
             '''
         }
         aborted {
             sh '''
             echo "HIP Aggregation Performance Test aborted on pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger HIP Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} aborted" "${MAINTAINER_MAIL}"
+            cat aggregation_test_hip.out
+            cat performance_results.log
             '''
         }
     }

@@ -263,7 +263,7 @@ set(header_files
     octotiger/safe_math.hpp
     octotiger/scf_data.hpp
     octotiger/io/silo.hpp
-    octotiger/simd.hpp
+    octotiger/simd_legacy.hpp
     octotiger/space_vector.hpp
     octotiger/state.hpp
     octotiger/struct_eos.hpp
@@ -539,7 +539,7 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/unitiger/hydro_impl/hydro_cuda_interface.cpp
   )
   set(host_only_header_files
-    octotiger/simd.hpp
+    octotiger/simd_legacy.hpp
     octotiger/common_kernel/kernel_simd_types.hpp
   )
   message(INFO " Host-only list set!")
