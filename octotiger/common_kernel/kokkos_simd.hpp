@@ -8,6 +8,12 @@
 #include <cmath>
 #include "octotiger/cuda_util/cuda_global_def.hpp"
 
+#if defined(KOKKOS_ENABLE_SYCL) && defined( __SYCL_DEVICE_ONLY__)
+#define sycl_pow_wrapper sycl::pow
+#else
+#define sycl_pow_wrapper std::pow
+#endif
+
 // =================================================================================================
 // SIMD types
 // =================================================================================================
@@ -86,7 +92,7 @@ struct has_simd_pow : std::false_type
 };
 template<class simd_t>
 struct has_simd_pow<simd_t,
-  std::void_t<decltype(pow(std::declval<simd_t>(),std::declval<double>()))>>
+  std::void_t<decltype(sycl_pow_wrapper(std::declval<simd_t>(),std::declval<double>()))>>
   : std::true_type
 {
 };
@@ -128,7 +134,7 @@ template <typename simd_t>
 CUDA_GLOBAL_METHOD inline simd_t pow_with_serial_fallback(const simd_t input, const double exponent) {
   if constexpr (detail::has_simd_pow<simd_t>::value) {
     // should consider the SIMD_NAMESPACE for overloads due to argument-dependent name lookup
-    return pow(input, exponent);
+    return sycl_pow_wrapper(input, exponent);
   } else {
     /* static_assert(!std::is_same<simd_t, simd_t>::value, "Using pow serial fallback! " */
     /*     "If this is intentional please remove this static assert for your build"); */
@@ -136,7 +142,7 @@ CUDA_GLOBAL_METHOD inline simd_t pow_with_serial_fallback(const simd_t input, co
     std::array<double, simd_t::size()> pow_helper_input;
     input.copy_to(pow_helper_input.data(), SIMD_NAMESPACE::element_aligned_tag{});
     for (auto i = 0; i < simd_t::size(); i++) {
-      pow_helper[i] = std::pow(pow_helper_input[i], exponent);
+      pow_helper[i] = sycl_pow_wrapper(pow_helper_input[i], exponent);
     }
     return simd_t{pow_helper.data(), SIMD_NAMESPACE::element_aligned_tag{}};
   }
