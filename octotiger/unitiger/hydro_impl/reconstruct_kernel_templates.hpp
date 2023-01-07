@@ -119,7 +119,7 @@ CUDA_GLOBAL_METHOD inline double deg_pres(double x, double A_) {
         p = 1.6 * A_ * sycl_pow_wrapper(x, 5.0);
     } else {
 #if defined(KOKKOS_ENABLE_SYCL) && defined( __SYCL_DEVICE_ONLY__)
-        p = A_ * (x * (2 * x * x - 3) * sycl::sqrt(x * x + 1) + 3 * asinh(x));
+        p = A_ * (x * (2 * x * x - 3) * sycl::sqrt(x * x + 1) + 3 * sycl::asinh(x));
 #else
         p = A_ * (x * (2 * x * x - 3) * sqrt(x * x + 1) + 3 * asinh(x));
 #endif

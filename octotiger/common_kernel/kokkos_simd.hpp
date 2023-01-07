@@ -14,6 +14,12 @@
 #define sycl_pow_wrapper std::pow
 #endif
 
+#if defined(KOKKOS_ENABLE_SYCL) && defined( __SYCL_DEVICE_ONLY__)
+#define sycl_asinh_wrapper sycl::asinh
+#else
+#define sycl_asinh_wrapper std::asinh
+#endif
+
 // =================================================================================================
 // SIMD types
 // =================================================================================================
@@ -151,7 +157,7 @@ template <typename simd_t>
 CUDA_GLOBAL_METHOD inline simd_t asinh_with_serial_fallback(const simd_t input) {
   if constexpr (detail::has_simd_asinh<simd_t>::value) {
     // should consider the SIMD_NAMESPACE for overloads due to argument-dependent name lookup
-    return asinh(input);
+    return sycl_asinh_wrapper(input);
   } else {
     /* static_assert(!std::is_same<simd_t, simd_t>::value, "Using asinh serial fallback!" */
     /*     "If this is intentional please remove this static assert for your build"); */
@@ -159,7 +165,7 @@ CUDA_GLOBAL_METHOD inline simd_t asinh_with_serial_fallback(const simd_t input) 
     std::array<double, simd_t::size()> asinh_helper_input;
     input.copy_to(asinh_helper_input.data(), SIMD_NAMESPACE::element_aligned_tag{});
     for (auto i = 0; i < simd_t::size(); i++) {
-      asinh_helper[i] = std::asinh(asinh_helper_input[i]);
+      asinh_helper[i] = sycl_asinh_wrapper(asinh_helper_input[i]);
     }
     return simd_t{asinh_helper.data(), SIMD_NAMESPACE::element_aligned_tag{}};
   }
