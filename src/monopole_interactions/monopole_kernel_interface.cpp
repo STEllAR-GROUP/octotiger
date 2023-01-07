@@ -66,7 +66,8 @@ namespace fmm {
             // Try accelerator implementation
             if (device_type != interaction_device_kernel_type::OFF) {
                 if (device_type == interaction_device_kernel_type::KOKKOS_CUDA ||
-                    device_type == interaction_device_kernel_type::KOKKOS_HIP) {
+                    device_type == interaction_device_kernel_type::KOKKOS_HIP ||
+                    device_type == interaction_device_kernel_type::KOKKOS_SYCL) {
 #if defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_CUDA) || defined(KOKKOS_ENABLE_HIP)|| defined(KOKKOS_ENABLE_SYCL))
                     bool avail = true;
                     if (host_type != interaction_host_kernel_type::DEVICE_ONLY) {
