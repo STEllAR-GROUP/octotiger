@@ -5,6 +5,7 @@
 //
 #pragma once
 #include <aggregation_manager.hpp>
+#include <hpx/futures/future.hpp>
 #include <hpx/kokkos/executors.hpp>
 #ifdef OCTOTIGER_HAVE_KOKKOS
 //#define KOKKOS_OPT_RANGE_AGGRESSIVE_VECTORIZATION
@@ -177,8 +178,6 @@ inline void sync_kokkos_host_kernel(executor_t& exec) {
 template <>
 inline void sync_kokkos_host_kernel(hpx::kokkos::hpx_executor& exec) {
     exec.instance().fence();    // All kokkos executor should support this
-    //auto fut = exec.instance().impl_get_future();
-    //fut.get();
 }
 
 template <class T, typename executor_t>

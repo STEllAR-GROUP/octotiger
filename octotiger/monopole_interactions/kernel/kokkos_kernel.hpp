@@ -14,6 +14,9 @@
 #include "octotiger/common_kernel/kokkos_util.hpp"
 #include "octotiger/common_kernel/kokkos_simd.hpp"
 
+#ifdef HPX_HAVE_APEX
+#include <apex_api.hpp>
+#endif
 namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
@@ -755,12 +758,29 @@ namespace fmm {
             host_buffer<double>& results, double dx, double theta) {
             const host_buffer<int>& host_masks = get_host_masks<host_buffer<int>>();
             const host_buffer<double>& host_constants = get_host_constants<host_buffer<double>>();
+
+            static_assert(NUMBER_MONOPOLE_TASKS == 1 || NUMBER_MONOPOLE_TASKS == 4 || 
+                NUMBER_MONOPOLE_TASKS == 16);
+            static_assert(INX % host_simd_t::size() == 0);
+            static_assert(INX / host_simd_t::size() <= INX && INX / host_simd_t::size() >= 1);
+            static_assert(NUMBER_MONOPOLE_TASKS_X == 1 || NUMBER_MONOPOLE_TASKS_X == 2 || 
+                NUMBER_MONOPOLE_TASKS_X == 4);
+            static_assert(NUMBER_MONOPOLE_TASKS_Y == NUMBER_MONOPOLE_TASKS_X);
+            static_assert(NUMBER_MONOPOLE_TASKS == NUMBER_MONOPOLE_TASKS_X * NUMBER_MONOPOLE_TASKS_Y);
+            static_assert(INX % (2 * NUMBER_MONOPOLE_TASKS_Y) == 0);
+            static_assert(INX / (2 * NUMBER_MONOPOLE_TASKS_Y) >= 1);
             // call kernel
+#ifdef HPX_HAVE_APEX
+            auto kernel_timer = apex::start("kernel p2p kokkos");
+#endif
             p2p_kernel_impl<host_simd_t, host_simd_mask_t>(exec, monopoles, host_masks,
                 host_constants, results, dx, theta, 1,
-                {NUMBER_P2P_BLOCKS, INX / 2, INX / 2, INX / host_simd_t::size()});
-
+                {1, INX / NUMBER_MONOPOLE_TASKS_X, INX / (2 * NUMBER_MONOPOLE_TASKS_Y),
+                INX / host_simd_t::size()});
             sync_kokkos_host_kernel(exec);
+#ifdef HPX_HAVE_APEX
+            apex::stop(kernel_timer);
+#endif
         }
 
         // --------------------------------------- P2P / P2M Launch Interface implementations
@@ -890,10 +910,30 @@ namespace fmm {
             const host_buffer<int>& host_masks = get_host_masks<host_buffer<int>>();
             const host_buffer<double>& host_constants = get_host_constants<host_buffer<double>>();
 
+            static_assert(NUMBER_MONOPOLE_TASKS == 1 || NUMBER_MONOPOLE_TASKS == 4 || 
+                NUMBER_MONOPOLE_TASKS == 16);
+            static_assert(INX % host_simd_t::size() == 0);
+            static_assert(INX / host_simd_t::size() <= INX && INX / host_simd_t::size() >= 1);
+            static_assert(NUMBER_MONOPOLE_TASKS_X == 1 || NUMBER_MONOPOLE_TASKS_X == 2 || 
+                NUMBER_MONOPOLE_TASKS_X == 4);
+            static_assert(NUMBER_MONOPOLE_TASKS_Y == NUMBER_MONOPOLE_TASKS_X);
+            static_assert(NUMBER_MONOPOLE_TASKS == NUMBER_MONOPOLE_TASKS_X * NUMBER_MONOPOLE_TASKS_Y);
+            static_assert(INX % (2 * NUMBER_MONOPOLE_TASKS_Y) == 0);
+            static_assert(INX / (2 * NUMBER_MONOPOLE_TASKS_Y) >= 1);
+
             // call p2p kernel
+#ifdef HPX_HAVE_APEX
+            auto kernel_timer_p2p = apex::start("kernel p2p kokkos");
+#endif
+
             p2p_kernel_impl<host_simd_t, host_simd_mask_t>(exec, monopoles, host_masks,
                 host_constants, results, dx, theta, 1,
-                {NUMBER_P2P_BLOCKS, INX / 2, INX / 2, INX / host_simd_t::size()});
+                {1, INX / NUMBER_MONOPOLE_TASKS_X, INX / (2 * NUMBER_MONOPOLE_TASKS_Y),
+                INX / host_simd_t::size()});
+            sync_kokkos_host_kernel(exec);
+#ifdef HPX_HAVE_APEX
+            apex::stop(kernel_timer_p2p);
+#endif
 
             // - Launch Kernel
             size_t counter_kernel = 0;
@@ -935,6 +975,9 @@ namespace fmm {
                         cells_end.z = (STENCIL_MAX + 1);
 
                     if (type == RHO) {
+#ifdef HPX_HAVE_APEX
+                        auto kernel_timer_p2m = apex::start("kernel p2m-rho kokkos");
+#endif
                         p2m_kernel_impl_rho<host_simd_t, host_simd_mask_t>(exec,
                             local_expansions[counter_kernel], center_of_masses[counter_kernel],
                             center_of_masses_inner_cells, results, ang_corr_results, neighbor_size,
@@ -942,11 +985,22 @@ namespace fmm {
                             host_masks, reset_ang_corrs);
                         // only reset angular correction result buffer for the first run
                         reset_ang_corrs = false;
+                        sync_kokkos_host_kernel(exec);
+#ifdef HPX_HAVE_APEX
+                        apex::stop(kernel_timer_p2m);
+#endif
                     } else {
+#ifdef HPX_HAVE_APEX
+                        auto kernel_timer_p2m = apex::start("kernel p2m-non-rho kokkos");
+#endif
                         p2m_kernel_impl_non_rho<host_simd_t, host_simd_mask_t>(exec,
                             local_expansions[counter_kernel], center_of_masses[counter_kernel],
                             center_of_masses_inner_cells, results, neighbor_size, start_index,
                             end_index, dir_index, theta, cells_start, cells_end, host_masks);
+                        sync_kokkos_host_kernel(exec);
+#ifdef HPX_HAVE_APEX
+                        apex::stop(kernel_timer_p2m);
+#endif
                     }
                     counter_kernel++;
                 }

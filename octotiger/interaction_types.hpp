@@ -7,7 +7,7 @@
 
 #include "octotiger/geometry.hpp"
 #if defined(OCTOTIGER_LEGACY_VC)
-#include "octotiger/simd.hpp"
+#include "octotiger/simd_legacy.hpp"
 #endif
 #include "octotiger/space_vector.hpp"
 #include "octotiger/taylor.hpp"

@@ -132,14 +132,17 @@ void init_executors(void) {
     
 #ifdef OCTOTIGER_MULTIPOLE_HOST_HPX_EXECUTOR
     std::cout << "Using Kokkos HPX executors for multipole FMM kernels..." << std::endl;
+    std::cout << "Number of tasks per KOKKOS multipole kernel: " << OCTOTIGER_KOKKOS_MULTIPOLE_TASKS << std::endl;
 #else
     std::cout << "Using Kokkos serial executors for multipole FMM kernels..." << std::endl;
 #endif
 #ifdef OCTOTIGER_MONOPOLE_HOST_HPX_EXECUTOR
     std::cout << "Using Kokkos HPX executors for monopole FMM kernels..." << std::endl;
+    std::cout << "Number of tasks per KOKKOS monopole kernel: " << OCTOTIGER_KOKKOS_MONOPOLE_TASKS << std::endl;
 #else
     std::cout << "Using Kokkos serial executors for monopole FMM kernels..." << std::endl;
 #endif
+    std::cout << "Number of tasks per KOKKOS hydro kernel: " << OCTOTIGER_KOKKOS_HYDRO_TASKS << std::endl;
     // initialize stencils in kokkos host memory
     octotiger::fmm::monopole_interactions::get_host_masks<host_buffer<int>>();
     octotiger::fmm::monopole_interactions::get_host_constants<host_buffer<double>>();
@@ -166,6 +169,8 @@ void init_executors(void) {
 
 #if defined(OCTOTIGER_HAVE_KOKKOS)
     stream_pool::init<hpx::kokkos::serial_executor, round_robin_pool<hpx::kokkos::serial_executor>>(
+        256, hpx::kokkos::execution_space_mode::independent);
+    stream_pool::init<hpx::kokkos::hpx_executor, round_robin_pool<hpx::kokkos::hpx_executor>>(
         256, hpx::kokkos::execution_space_mode::independent);
 #if defined(KOKKOS_ENABLE_CUDA)
     // initialize stencils / executor pool in kokkos device

@@ -746,7 +746,7 @@ future<void> node_server::timestep_driver_descend() {
 
 		return hpx::dataflow(hpx::launch::sync, /*hpx::util::annotated_function(*/[this](std::array<future<timestep_t>, NCHILD + 1> dts_fut) {
 
-			auto dts = hpx::util::unwrap(dts_fut);
+			auto dts = hpx::unwrap(dts_fut);
 			timestep_t dt;
 			dt.dt = 1.0e+99;
 			for (const auto &this_dt : dts) {

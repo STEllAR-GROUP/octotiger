@@ -11,7 +11,7 @@
 #include "octotiger/defs.hpp"
 #include "octotiger/profiler.hpp"
 #include "octotiger/real.hpp"
-//#include "octotiger/simd.hpp"
+//#include "octotiger/simd_legacy.hpp"
 #include "octotiger/space_vector.hpp"
 
 #include <algorithm>
