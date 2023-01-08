@@ -162,7 +162,7 @@ FetchContent_MakeAvailable(kokkossimd)
 FetchContent_Declare(
   svesimd
   GIT_REPOSITORY https://github.com/srinivasyadav18/sve.git
-  GIT_TAG        bedcf9374717fb1ed0f90e8e6d81dbf8b4a02699
+  GIT_TAG        a0582754c96f265b10e3c19d4fbd3e8d6debc321
 )
 FetchContent_MakeAvailable(svesimd)
 
