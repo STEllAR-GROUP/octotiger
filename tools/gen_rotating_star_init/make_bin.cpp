@@ -193,7 +193,7 @@ int main()
         printf("%e %e %e %e %e\n", omega, virial, T, W, K);
 
         scf_iter++;
-        if (scf_iter > 20)
+        if (scf_iter > 50)
         {
             break;
         }

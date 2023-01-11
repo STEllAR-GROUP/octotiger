@@ -34,6 +34,41 @@ safe_real physics<NDIM>::deg_pres(safe_real x) {
 }
 
 template<int NDIM>
+safe_real physics<NDIM>::pres_IPR(safe_real t, const safe_real a0, const safe_real a1, const safe_real a2, int &iter_num, const safe_real tol, const int max_iter) {
+//	printf("%i : %e + %e * %e + %e * %e^4 = %e\n", iter_num, a0, a1, t, a2, t, pres_IPR_ft(t, a0, a1, a2)); 
+	if (std::abs(pres_IPR_ft(t, a0, a1, a2)) < tol) {
+		return t;
+	}
+	if (iter_num > max_iter) {
+		std::cout << "Exceeded number of Iteration in Newton-Rahpson method! aborting\n";
+		std::cout << "Maximum number of iteration " << max_iter << ". Current iteration find: " << a0 << "+" << a1 << "*" << t << "+" << a2 << "*" << t << "^4=" << pres_IPR_ft(t, a0, a1, a2) << "\n";
+		abort();
+	}
+	iter_num++;
+	return pres_IPR(t - pres_IPR_ft(t, a0, a1, a2) / pres_IPR_dft(t, a0, a1, a2), a0, a1, a2, iter_num, tol, max_iter);
+}
+
+template<int NDIM>
+safe_real physics<NDIM>::pres_IPR_ft(safe_real t, const safe_real a0, const safe_real a1, const safe_real a2) {
+        return (-a0 + a1 * t + a2 * t * t * t * t);
+}
+
+template<int NDIM>
+safe_real physics<NDIM>::pres_IPR_dft(safe_real t, const safe_real a0, const safe_real a1, const safe_real a2) {
+        return (a1 + 4 * a2 * t * t * t);
+}
+
+template<int NDIM>
+safe_real physics<NDIM>::get_mu_average(std::vector<safe_real> u) {
+	safe_real mu_avg_inv = 0.0;
+        for (int s = 0; s < n_species_; s++) {
+                mu_avg_inv += (u[spc_i + s] / u[rho_i]) / mu_[s];
+//		printf("mu %i = %e, X %i = %e\n", s+1, mu_[s], s+1, u[spc_i + s] / u[rho_i]);
+        }
+        return INVERSE(mu_avg_inv);
+}
+
+template<int NDIM>
 void physics<NDIM>::to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v, safe_real &cs, int dim) {
 	const auto rho = u[rho_i];
 	const auto rhoinv = INVERSE(rho);
@@ -54,18 +89,102 @@ void physics<NDIM>::to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v
 		ek += pow(u[sx_i + dim], 2) * rhoinv * safe_real(0.5);
 	}
 	auto ein = u[egas_i] - ek - edeg;
-	if (ein <= de_switch_1 * u[egas_i]) {
-		ein = POWER(u[tau_i], fgamma_);
+	safe_real z;
+	if (IPR_RC_ != 0.0) { 
+		ein = std::max(IPR_eint_floor, ein);
+		int it_num = 0;
+		const auto mu_avg = get_mu_average(u); // get mu by specie weight fractions
+//		printf("mu avg = %e\n", mu_avg);
+
+		const auto t0 = mu_avg * ein * (fgamma_ - 1.0) / (IPR_IC_ * rho); // the first guess assumes only thermal pressure
+		// gets temperature according to total internal energy by the Newton-Raphson method
+		auto t = pres_IPR(t0, 1.0, IPR_IC_ * rho / (mu_avg * ein * (fgamma_ - 1.0)), IPR_RC_ / ein, it_num, IPR_NR_tol, IPR_NR_maxiter);
+//		print("Tgas = %.15e,  %.15e * %.15e * %.15e + %.15e * %.15e^4 = %.15e\n", t0, IC_ / mu_avg / (fgamma_ - 1.0), rho, t, RC_, t, ein);
+//		printf("Newton solution: %15e after %i\n", t, it_num);		
+		p = IPR_IC_ * rho * t / mu_avg + IPR_RC_ * t * t * t * t / 3.0;
+
+		if (IPR_test) {
+			const auto t2 = pres_IPR(t0, 1.0, IPR_IC_ * rho / (mu_avg * p ), IPR_RC_ / 3.0 / p, it_num, IPR_NR_tol, IPR_NR_maxiter);
+			const auto ein2 = IPR_IC_ * rho * t / (fgamma_ - 1.0) / mu_avg + IPR_RC_ * t * t * t * t;
+			if (std::abs(ein2 - ein) > IPR_NR_tol) {
+				printf("problem in eos: %e\n", ein - ein2);
+			}
+		}
+
+		// computation of some thermodynamic qunatities to derive the sound speed (based on Kippenhahn book chapter 13.2)
+		const auto pinv = INVERSE(p);
+		const auto beta = IPR_IC_ * rho * t / mu_avg * pinv; //  pgas / p
+		//printf("pgas = %e, prad = %e, p = %e, beta = %e\n", beta * p, (1.0 - beta) * p, p, beta);
+		safe_real gamma1;
+		if (beta <= 0.001) {
+			gamma1 = 4.0/3.0 + beta / 6.0;
+		} else {
+			const auto alpha = INVERSE(beta); // dln(rho)/dln(P) at constant T
+			const auto delta = (4.0 - 3.0 * beta) * alpha;  // -dln(rho)/dln(T) at constant P
+			const auto invden = INVERSE(fgamma_ / (fgamma_ -1) + 4.0 * (1.0 - beta) * (4.0 + beta) * alpha * alpha);
+			const auto nab_ad = (1.0 + (1.0 - beta) * (4.0 + beta) * alpha * alpha) * invden; // dln(T)/dln(P) at constant entropy
+			gamma1 = INVERSE(alpha - delta * nab_ad); // dln(P)/dln(rho) at constant entropy
+		}
+		z = p * gamma1 * rhoinv;
+	//	printf("p = %e, cs^2 = %e, gamma = %e\n", p, z, fgamma_);
+		if( z < 0.0 ) {
+			print( "%e %e %e %e %e %e %e %e %e\n", p, rhoinv, gamma1, t, ein, beta, mu_avg, ek, edeg);
+		}
+	} else { // WD or ideal eos
+                if (ein <= de_switch_1 * u[egas_i]) {
+                        ein = POWER(u[tau_i], fgamma_);
+                }
+                const double dp_drho = dpdeg_drho + (fgamma_ - 1.0) * ein * rhoinv;
+                const double dp_deps = (fgamma_ - 1.0) * rho;
+                p = (fgamma_ - 1.0) * ein + pdeg;
+                z = p * rhoinv * rhoinv * dp_deps + dp_drho;
+                if( z < 0.0 ) {
+                        print( "%e %e %e %e %e %e %e %e %e\n", p, rhoinv, dpdeg_drho, dp_deps, ein, dp_drho, u[tau_i], ek, edeg);
+                }
+	}
+	v = u[sx_i + dim] * rhoinv;
+	cs = SQRT(z);
+}
+
+template<int NDIM>
+void physics<NDIM>::to_prim_experimental(const std::vector<double> &u, double &p, double &v, double &cs, const int dim) noexcept {
+	const auto rho = u[rho_i];
+	const auto rhoinv = (1.) / rho;
+	double hdeg = 0.0, pdeg = 0.0, edeg = 0.0, dpdeg_drho = 0.0;
+
+	// all workitems choose the same path
+	if (A_ != 0.0) {
+		const auto Binv = 1.0 / B_;
+		const auto x = std::pow(rho * Binv, 1.0 / 3.0);
+		const auto x_sqr = x * x;
+		const auto x_sqr_sqrt = std::sqrt(x_sqr + 1.0);
+		const auto x_pow_5 = x_sqr * x_sqr * x;
+		hdeg = 8.0 * A_ * Binv * (x_sqr_sqrt - 1.0);
+        if (x < 0.001) {
+            pdeg = 1.6 * A_ * x_pow_5;
+        } else {
+            pdeg = A_ * (x * (2 * x_sqr - 3) * x_sqr_sqrt + 3 * asinh(x));
+        }
+        if (x > 0.001) {
+			edeg = rho * hdeg - pdeg;
+		} else {
+			edeg = 2.4 * A_ * x_pow_5 ;
+		}
+		dpdeg_drho = 8.0 / 3.0 * A_ * Binv * x_sqr / x_sqr_sqrt;
+	}
+	double ek = 0.0;
+	for (int dim = 0; dim < NDIM; dim++) {
+		ek += u[sx_i + dim] * u[sx_i + dim] * rhoinv * 0.5;
+	}
+	auto ein = u[egas_i] - ek - edeg;
+	if (ein < de_switch_1 * u[egas_i]) {
+		ein = pow(u[tau_i], fgamma_);
 	}
 	const double dp_drho = dpdeg_drho + (fgamma_ - 1.0) * ein * rhoinv;
 	const double dp_deps = (fgamma_ - 1.0) * rho;
 	v = u[sx_i + dim] * rhoinv;
 	p = (fgamma_ - 1.0) * ein + pdeg;
-	const auto z = p * rhoinv * rhoinv * dp_deps + dp_drho;
-	if( z < 0.0 ) {
-		printf( "%e %e %e %e %e %e %e %e %e\n", p, rhoinv, dpdeg_drho, dp_deps, ein, dp_drho, u[tau_i], ek, edeg);
-	}
-	cs = SQRT(z);
+	cs = std::sqrt(p * rhoinv * rhoinv * dp_deps + dp_drho);
 }
 
 template<int NDIM>
@@ -76,6 +195,31 @@ void physics<NDIM>::physical_flux(const std::vector<safe_real> &U, std::vector<s
 	static constexpr auto levi_civita = geo.levi_civita();
 	safe_real p, v, v0, c;
 	to_prim(U, p, v0, c, dim);
+	v = v0 - vg[dim];
+	am = v - c;
+	ap = v + c;
+#pragma ivdep
+	for (int f = 0; f < nf_; f++) {
+		F[f] = v * U[f];
+	}
+	F[sx_i + dim] += p;
+	F[egas_i] += v0 * p;
+	for (int n = 0; n < geo.NANGMOM; n++) {
+#pragma ivdep
+		for (int m = 0; m < NDIM; m++) {
+			F[lx_i + n] += levi_civita[n][m][dim] * x[m] * p;
+		}
+	}
+}
+template<int NDIM>
+template<int INX>
+void physics<NDIM>::physical_flux_experimental(const std::vector<safe_real> &U, std::vector<safe_real> &F, int dim, safe_real &am, safe_real &ap,
+		std::array<safe_real, NDIM> &x, std::array<safe_real, NDIM> &vg) {
+	static const cell_geometry<NDIM, INX> geo;
+	static constexpr auto levi_civita = geo.levi_civita();
+	safe_real p, v, v0, c;
+	to_prim_experimental(U, p, v0, c, dim);
+	// to_prim(U, p, v0, c, dim);
 	v = v0 - vg[dim];
 	am = v - c;
 	ap = v + c;
@@ -119,7 +263,19 @@ void physics<NDIM>::post_process(hydro::state_type &U, const hydro::x_type &X, s
 			egas_max = std::max(egas_max, U[egas_i][i + dir[d]]);
 		}
 		safe_real ein = U[egas_i][i] - ek - edeg;
-		if (ein > de_switch_2 * egas_max) {
+		if (IPR_RC_ != 0.0) {
+			ein = std::max(IPR_eint_floor, ein);
+        		safe_real mu_avg_inv = 0.0, rho =0.0;
+        		for (int s = 0; s < n_species_; s++) {
+                		mu_avg_inv += U[spc_i + s][i] / mu_[s];
+				rho += U[spc_i + s][i];
+                        }
+                	const auto mu_avg = rho * INVERSE(mu_avg_inv); // get mu by specie weight fractions
+			const auto t0 = mu_avg * ein * (fgamma_ - 1.0) / (IPR_IC_ * rho); // the first guess assumes only thermal pressure
+                        // gets temperature according to total internal energy by the Newton-Raphson methoda
+                        int it_num = 0;
+                        U[tau_i][i] = pres_IPR(t0, 1.0, IPR_IC_ * rho / (mu_avg * ein * (fgamma_ - 1.0)), IPR_RC_ / ein, it_num, IPR_NR_tol, IPR_NR_maxiter);
+		} else if (ein > de_switch_2 * egas_max) {
 			U[tau_i][i] = POWER(ein, 1.0 / fgamma_);
 		}
 		if (rho_sink_radius_ > 0.0) {
@@ -151,11 +307,11 @@ void physics<NDIM>::source(hydro::state_type &dudt, const hydro::state_type &U, 
 	static const cell_geometry<NDIM, INX> geo;
 	static constexpr auto levi_civita = geo.levi_civita();
 	for (const auto &i : geo.find_indices(geo.H_BW, geo.H_NX - geo.H_BW)) {
-		if constexpr (NDIM == 3) {
+		if HOST_CONSTEXPR (NDIM == 3) {
 			dudt[lx_i][i] += U[ly_i][i] * omega;
 			dudt[ly_i][i] -= U[lx_i][i] * omega;
 		}
-		if constexpr (NDIM >= 2) {
+		if HOST_CONSTEXPR (NDIM >= 2) {
 			dudt[sx_i][i] += U[sy_i][i] * omega;
 			dudt[sy_i][i] -= U[sx_i][i] * omega;
 		}
@@ -265,6 +421,17 @@ void physics<NDIM>::set_degenerate_eos(safe_real a, safe_real b) {
 }
 
 template<int NDIM>
+void physics<NDIM>::set_ideal_plus_rad_eos(safe_real ideal_coeff, safe_real rad_coeff, safe_real NR_tol, int NR_maxiter, bool eos_test, safe_real min_eint) {
+        IPR_IC_ = ideal_coeff;
+        IPR_RC_ = rad_coeff;
+	IPR_NR_tol = NR_tol;
+	IPR_NR_maxiter = NR_maxiter;
+	IPR_test = eos_test;
+	IPR_eint_floor = min_eint;
+}
+
+
+template<int NDIM>
 void physics<NDIM>::set_dual_energy_switches(safe_real one, safe_real two) {
 	de_switch_1 = one;
 	de_switch_2 = two;
@@ -273,6 +440,17 @@ void physics<NDIM>::set_dual_energy_switches(safe_real one, safe_real two) {
 template<int NDIM>
 void physics<NDIM>::set_fgamma(safe_real fg) {
 	fgamma_ = fg;
+}
+
+template<int NDIM>
+void physics<NDIM>::set_mu(std::vector<safe_real> atomic_mass, std::vector<safe_real> atomic_number) {
+//	std::vector<safe_real> mu_temp(n_species_);
+	mu_.resize(n_species_);
+        for (int i = 0; i < n_species_; i++) {
+                mu_[i] = atomic_mass[i] / (atomic_number[i] + 1.);
+//		printf("A = %e, Z = %e, mu %i = %e\n", atomic_mass[i], atomic_number[i], i+1, mu_[i]);
+	}
+//	mu_ = mu_temp;
 }
 
 template<int NDIM>
@@ -303,7 +481,7 @@ const std::vector<std::vector<safe_real>>& physics<NDIM>::find_contact_discs(con
 				}
 				auto ein = U[egas_i][i] - ek - edeg;
 				if (ein < de_switch_1 * U[egas_i][i]) {
-					//	printf( "%e\n", U[tau_i][i]);
+					//	print( "%e\n", U[tau_i][i]);
 					ein = pow(U[tau_i][i], fgamma_);
 				}
 				P[i] = (fgamma_ - 1.0) * ein + pdeg;
@@ -422,7 +600,7 @@ void physics<NDIM>::post_recon(std::vector<std::vector<std::vector<safe_real>>> 
 							Q[spc_i + si][d][i] *= rho;
 						}
 						if (w <= 0.0) {
-							printf("NO SPECIES %i\n", i);
+							print("NO SPECIES %i\n", i);
 							abort();
 						}
 						w = 1.0 / w;
@@ -520,8 +698,9 @@ void physics<NDIM>::set_n_species(int n) {
 
 template<int NDIM>
 void physics<NDIM>::update_n_field() {
-	nf_ = (4 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2))) + n_species_;
-	;
+	// nf_ = (4 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2))) + n_species_;
+	// ;
+  nf_ = (4 + NDIM + (NDIM == 1 ? 0 : (NDIM == 3 ? 3 : (NDIM == 2 ? 1 : 0)) )) + n_species_;
 }
 
 template<int NDIM>
@@ -691,11 +870,11 @@ std::vector<typename hydro_computer<NDIM, INX, physics<NDIM>>::bc_type> physics<
 		U[sx_i][i] += (rho * vx);
 		U[egas_i][i] += (p / (fgamma_ - 1.0) + 0.5 * rho * vx * vx);
 		U[tau_i][i] += (std::pow(p / (fgamma_ - 1.0), 1.0 / fgamma_));
-		if constexpr (NDIM >= 2) {
+		if HOST_CONSTEXPR (NDIM >= 2) {
 			U[sy_i][i] += rho * vy;
 			U[egas_i][i] += 0.5 * rho * vy * vy;
 		}
-		if constexpr (NDIM >= 3) {
+		if HOST_CONSTEXPR (NDIM >= 3) {
 			U[sz_i][i] += rho * vz;
 			U[egas_i][i] += 0.5 * rho * vz * vz;
 		}

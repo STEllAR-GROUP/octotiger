@@ -26,7 +26,7 @@
 
 COMMAND_LINE_ENUM(problem_type, DWD, SOD, BLAST, NONE, SOLID_SPHERE, STAR, MOVING_STAR, RADIATION_TEST, ROTATING_STAR, MARSHAK, AMR_TEST, ADVECTION, RADIATION_DIFFUSION, RADIATION_COUPLING);
 
-COMMAND_LINE_ENUM(eos_type, IDEAL, WD);
+COMMAND_LINE_ENUM(eos_type, IDEAL, WD, IPR);
 
 class options {
 public:
@@ -38,10 +38,12 @@ public:
 	bool disable_diagnostics;
 	bool bench;
 	bool disable_output;
+	bool disable_analytic;
 	bool core_refine;
 	bool gravity;
 	bool hydro;
 	bool radiation;
+	real grad_rho_refine;
 	real clight_retard;
 	bool v1309;
 	bool rad_implicit;
@@ -50,6 +52,7 @@ public:
 	bool correct_am_hydro;
 	bool rotating_star_amr;
 	bool idle_rates;
+	bool ipr_test;
 
 	integer scf_output_frequency;
 	integer silo_num_groups;
@@ -65,6 +68,7 @@ public:
 	integer silo_offset_y;
 	integer silo_offset_z;
 	integer future_wait_time;
+	integer ipr_nr_maxiter;
 
 	real dt_max;
 	real eblast0;
@@ -88,6 +92,9 @@ public:
 	real cfl;
 	real rho_floor;
 	real tau_floor;
+	real scf_rho_floor;
+	real ipr_eint_floor;
+	real ipr_nr_tol;
 
 	real sod_rhol;
 	real sod_rhor;
@@ -119,9 +126,12 @@ public:
         real moving_star_yvelocity;
         real moving_star_zvelocity;
 
-	size_t cuda_streams_per_locality;
+	size_t cuda_number_gpus;
 	size_t cuda_streams_per_gpu;
-	size_t cuda_scheduling_threads;
+	size_t cuda_buffer_capacity;
+	size_t max_executor_slices;
+	bool root_node_on_device;
+	bool optimize_local_communication;
 
 	std::string input_file;
 	std::string config_file;
@@ -135,9 +145,13 @@ public:
 
 	problem_type problem;
 
-	interaction_kernel_type m2m_kernel_type;
-	interaction_kernel_type p2m_kernel_type;
-	interaction_kernel_type p2p_kernel_type;
+	amr_boundary_type amr_boundary_kernel_type;
+	interaction_host_kernel_type multipole_host_kernel_type;
+	interaction_device_kernel_type multipole_device_kernel_type;
+	interaction_host_kernel_type monopole_host_kernel_type;
+	interaction_device_kernel_type monopole_device_kernel_type;
+	interaction_host_kernel_type hydro_host_kernel_type;
+	interaction_device_kernel_type hydro_device_kernel_type;
 
 	std::vector<real> atomic_mass;
 	std::vector<real> atomic_number;
@@ -149,6 +163,11 @@ public:
 		arc & eblast0;
 		arc & rho_floor;
 		arc & tau_floor;
+		arc & scf_rho_floor;
+		arc & ipr_eint_floor;
+		arc & ipr_nr_tol;
+		arc & ipr_test;
+		arc & ipr_nr_maxiter;
 		arc & sod_rhol;
 		arc & sod_rhor;
 		arc & sod_pl;
@@ -204,9 +223,12 @@ public:
 		arc & gravity;
 		arc & bench;
 		arc & radiation;
-		arc & m2m_kernel_type;
-		arc & p2m_kernel_type;
-		arc & p2p_kernel_type;
+		arc & multipole_host_kernel_type;
+		arc & multipole_device_kernel_type;
+		arc & monopole_host_kernel_type;
+		arc & monopole_device_kernel_type;
+		arc & hydro_host_kernel_type;
+		arc & hydro_device_kernel_type;
 		arc & entropy_driving_rate;
 		arc & entropy_driving_time;
 		arc & driving_rate;
@@ -228,6 +250,7 @@ public:
 		arc & stop_step;
 		arc & disable_diagnostics;
 		arc & disable_output;
+	  arc & disable_analytic;
 		arc & theta;
 		arc & core_refine;
 		arc & donor_refine;
@@ -241,16 +264,17 @@ public:
 		arc & tmp;
 		eos = static_cast<eos_type>(tmp);
 		arc & data_dir;
-		arc & m2m_kernel_type;
-		arc & p2p_kernel_type;
-		arc & p2m_kernel_type;
-		arc & cuda_streams_per_locality;
+		arc & cuda_number_gpus;
 		arc & cuda_streams_per_gpu;
-		arc & cuda_scheduling_threads;
+		arc & cuda_buffer_capacity;
+		arc & max_executor_slices;
+	  arc & root_node_on_device;
+	  arc & optimize_local_communication;
 		arc & atomic_mass;
 		arc & atomic_number;
 		arc & X;
 		arc & Z;
+		arc & grad_rho_refine;
 		arc & code_to_g;
 		arc & code_to_s;
 		arc & code_to_cm;

@@ -24,6 +24,8 @@
 #include <cstdint>
 #include <cstdio>
 
+#if !defined(HPX_COMPUTE_DEVICE_CODE)
+
 using check_for_refinement_action_type = node_server::check_for_refinement_action;
 HPX_REGISTER_ACTION(check_for_refinement_action_type);
 
@@ -122,7 +124,7 @@ future<hpx::id_type> node_server::copy_to_locality(const hpx::id_type &id) {
 	std::vector<hpx::id_type> cids;
 	if (is_refined) {
 		cids.resize(NCHILD);
-		for (auto &ci : geo::octant::full_set()) {
+		for (auto ci : geo::octant::full_set()) {
 			cids[ci] = children[ci].get_gid();
 		}
 	}
@@ -164,7 +166,7 @@ analytic_t node_server::compare_analytic() {
 		}
 	}
 	if (my_location.level() == 0) {
-		printf("L1, L2\n");
+		print("L1, L2\n");
 		real vol = 1.0;
 		for (int d = 0; d < NDIM; d++) {
 			vol *= 2.0 * opts().xscale;
@@ -236,7 +238,7 @@ const diagnostics_t& diagnostics_t::compute() {
 	omega = std::abs((dX[XDIM] * V[YDIM] - dX[YDIM] * V[XDIM]) * INVERSE(sep2));
 	Torb = com[0][XDIM] * g[0][YDIM] - com[0][YDIM] * g[0][XDIM];
 	Torb += com[1][XDIM] * g[1][YDIM] - com[1][YDIM] * g[1][XDIM];
-//	printf( "%e %e %e %e %e\n", dX[XDIM], V[XDIM], dX[YDIM], V[YDIM], omega);
+//	print( "%e %e %e %e %e\n", dX[XDIM], V[XDIM], dX[YDIM], V[YDIM], omega);
 	a = std::sqrt(sep2);
 	real mu = m[0] * m[1] / (m[1] + m[0]);
 	jorb = mu * omega * sep2;
@@ -273,7 +275,7 @@ diagnostics_t node_server::diagnostics() {
 
 	diagnostics_t diags;
 	for (integer i = 1; i != (opts().problem == DWD ? 5 : 2); ++i) {
-//		printf( "%i\n", i );
+//		print( "%i\n", i );
 		diags.stage = i;
 		diags = diagnostics(diags).compute();
 		if (opts().gravity) {
@@ -333,10 +335,10 @@ diagnostics_t node_server::diagnostics() {
 			fclose(fp);
 
 		} else {
-			printf("Failed to write binary.dat %s\n", std::strerror(errno));
+			print("Failed to write binary.dat %s\n", std::strerror(errno));
 		}
 	} else {
-		printf("Failed to compute Roche geometry\n");
+		print("Failed to compute Roche geometry\n");
 	}
 	return diags;
 }
@@ -347,9 +349,9 @@ diagnostics_t node_server::root_diagnostics(const diagnostics_t &diags) {
 
 diagnostics_t node_server::diagnostics(const diagnostics_t &diags) {
 	if (is_refined) {
-		auto rc = hpx::async([&]() {
+		auto rc = hpx::async(hpx::util::annotated_function([&]() {
 			return child_diagnostics(diags);
-		});
+		}, "diagnostics::return_child_diagnostics"));
 		all_hydro_bounds();
 		auto diags = GET(rc);
 		return diags;
@@ -399,7 +401,7 @@ void node_server::force_nodes_to_exist(std::vector<node_location> &&locs) {
 				futs.push_back(parent.force_nodes_to_exist(my_location.get_neighbors()));
 			}
 			if (is_refined) {
-				for (auto &ci : geo::octant::full_set()) {
+				for (auto ci : geo::octant::full_set()) {
 					if (loc.is_child_of(my_location.get_child(ci))) {
 						child_lists[ci].push_back(loc);
 						break;
@@ -410,13 +412,13 @@ void node_server::force_nodes_to_exist(std::vector<node_location> &&locs) {
 
 			/** BUG HERE ***/
 			if (parent.empty()) {
-				printf("parent empty %s %s\n", my_location.to_str().c_str(), loc.to_str().c_str());
+				print("parent empty %s %s\n", my_location.to_str().c_str(), loc.to_str().c_str());
 				abort();
 			}
 			assert(!parent.empty());
 
 			bool found_match = false;
-			for (auto &di : geo::direction::full_set()) {
+			for (auto di : geo::direction::full_set()) {
 				if (loc.is_child_of(my_location.get_neighbor(di)) && !neighbors[di].empty()) {
 					sibling_lists[di].push_back(loc);
 					found_match = true;
@@ -428,12 +430,12 @@ void node_server::force_nodes_to_exist(std::vector<node_location> &&locs) {
 			}
 		}
 	}
-	for (auto &ci : geo::octant::full_set()) {
+	for (auto ci : geo::octant::full_set()) {
 		if (is_refined && child_lists[ci].size()) {
 			futs.push_back(children[ci].force_nodes_to_exist(std::move(child_lists[ci])));
 		}
 	}
-	for (auto &di : geo::direction::full_set()) {
+	for (auto di : geo::direction::full_set()) {
 		if (sibling_lists[di].size()) {
 			futs.push_back(neighbors[di].force_nodes_to_exist(std::move(sibling_lists[di])));
 		}
@@ -463,7 +465,7 @@ int node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std::
 	int amr_bnd = 0;
 
 	std::fill(nieces.begin(), nieces.end(), 0);
-	for (auto &dir : geo::direction::full_set()) {
+	for (auto dir : geo::direction::full_set()) {
 		neighbors[dir] = std::move(neighbor_gids[dir]);
 	}
 	me = std::move(self_gid);
@@ -502,7 +504,7 @@ int node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std::
 					}
 					cfuts[index++] = hpx::dataflow(hpx::launch::sync, [this, ci](std::array<future<hpx::id_type>, geo::direction::count()> &&cns) {
 						std::vector<hpx::id_type> child_neighbors(geo::direction::count());
-						for (auto &dir : geo::direction::full_set()) {
+						for (auto dir : geo::direction::full_set()) {
 							child_neighbors[dir] = GET(cns[dir]);
 							amr_flags[ci][dir] = bool(child_neighbors[dir] == hpx::invalid_id);
 						}
@@ -511,10 +513,13 @@ int node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std::
 				}
 			}
 		}
+		for (auto &f : cfuts) {
+			amr_bnd += GET(f);
+		}
 		constexpr auto full_set = geo::octant::full_set();
 		for (auto &ci : full_set) {
 			const auto &flags = amr_flags[ci];
-			for (auto &dir : geo::direction::full_set()) {
+			for (auto dir : geo::direction::full_set()) {
 				if (dir.is_face()) {
 					if (flags[dir]) {
 						amr_bnd++;
@@ -522,18 +527,16 @@ int node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std::
 				}
 			}
 		}
-		for (auto &f : cfuts) {
-			amr_bnd += GET(f);
-		}
 	} else {
 		std::vector<future<void>> nfuts;
 		nfuts.reserve(NFACE);
-		for (auto &f : geo::face::full_set()) {
+		for (auto f : geo::face::full_set()) {
 			const auto &neighbor = neighbors[f.to_direction()];
 			if (!neighbor.empty()) {
-				nfuts.push_back(neighbor.set_child_aunt(me.get_gid(), f ^ 1).then([this, f](future<set_child_aunt_type> &&n) {
+				nfuts.push_back(neighbor.set_child_aunt(me.get_gid(), f ^ 1).then(
+                    hpx::util::annotated_function([this, f](future<set_child_aunt_type> &&n) {
 					nieces[f] = GET(n);
-				}));
+				}, "node_server::form_tree::sync")));
 			} else {
 				nieces[f] = -2;
 			}
@@ -580,9 +583,9 @@ future<hpx::id_type> node_client::get_child_client(const node_location &parent_l
 			++misses;
 		}
 		if (!found) {
-			rfut = hpx::async([=]() {
+			rfut = hpx::async(hpx::util::annotated_function([=]() {
 						return sfut.get();
-					});
+					}), "return_future_get_child_client");
 		}
 #else
 		rfut = hpx::async<typename node_server::get_child_client_action>(get_unmanaged_gid(), ci);
@@ -624,7 +627,7 @@ set_child_aunt_type node_server::set_child_aunt(const hpx::id_type &aunt, const 
 	} else {
 		for (auto const &ci : geo::octant::face_subset(face)) {
 			if (children[ci].get_gid() != hpx::invalid_id) {
-				printf("CHILD SHOULD NOT EXIST\n");
+				print("CHILD SHOULD NOT EXIST\n");
 				abort();
 			}
 		}
@@ -644,11 +647,12 @@ std::uintptr_t node_server::get_ptr() {
 }
 
 future<node_server*> node_client::get_ptr() const {
-	return hpx::async<typename node_server::get_ptr_action>(get_unmanaged_gid()).then([this](future<std::uintptr_t> &&fut) {
+	return hpx::async<typename node_server::get_ptr_action>(get_unmanaged_gid()).then(hpx::util::annotated_function([this](future<std::uintptr_t> &&fut) {
 		if (hpx::find_here() != hpx::get_colocation_id(get_gid()).get()) {
-			printf("get_ptr called non-locally\n");
+			print("get_ptr called non-locally\n");
 			abort();
 		}
 		return reinterpret_cast<node_server*>(GET(fut));
-	});
+	}, "node_client::get_ptr"));
 }
+#endif

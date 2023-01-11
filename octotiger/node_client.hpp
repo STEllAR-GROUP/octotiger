@@ -16,6 +16,7 @@
 #include "octotiger/grid.hpp"
 #include "octotiger/node_location.hpp"
 
+#include <hpx/futures/promise.hpp>
 #include <hpx/include/naming.hpp>
 
 //#include <boost/mpi/packed_iarchive.hpp>
@@ -31,9 +32,10 @@ using set_child_aunt_type = integer;
 
 struct node_count_type;
 
-namespace hpx {
-    using mutex = hpx::lcos::local::spinlock;
-}
+// TODO (daissgr) Keep the hpx mutex or the local spinlock one here?
+// namespace hpx {
+//     using mutex = hpx::lcos::local::spinlock;
+// }
 
 class node_client
 {
@@ -51,7 +53,7 @@ public:
         arc& id;
         if (!empty())
         {
-            unmanaged = hpx::id_type(id.get_gid(), hpx::id_type::unmanaged);
+            unmanaged = hpx::id_type(id.get_gid(), hpx::id_type::management_type::unmanaged);
         }
     }
 
@@ -120,6 +122,7 @@ public:
     void timestep_driver_ascend(timestep_t) const;
     void set_local_timestep(integer, timestep_t) const;
     future<void> velocity_inc(const space_vector&) const;
+    future<void> energy_adj() const;
     future<void> check_for_refinement(real omega, real) const;
     future<void> enforce_bc() const;
     future<void> force_nodes_to_exist(std::vector<node_location>&& loc) const;

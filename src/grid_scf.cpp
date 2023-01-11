@@ -21,6 +21,9 @@
 #include <cstring>
 #include <mutex>
 
+
+#if !defined(HPX_COMPUTE_DEVICE_CODE)
+
 constexpr integer spc_ac_i = spc_i;
 constexpr integer spc_ae_i = spc_i + 1;
 constexpr integer spc_dc_i = spc_i + 2;
@@ -95,14 +98,14 @@ static real contact_fill = 0.1; //  Degree of contact - IGNORED FOR NON-CONTACT 
 #define READ_LINE(s) 		\
 	else if( cmp(ptr,#s) ) { \
 		s = read_float(ptr); \
-		if( hpx::get_locality_id() == 0 ) printf( #s "= %e\n", double(s)); \
+		if( hpx::get_locality_id() == 0 ) print( #s "= %e\n", double(s)); \
 	}
 
 void read_option_file() {
 	FILE *fp = fopen("scf.init", "rt");
 	if (fp != nullptr) {
 		if (hpx::get_locality_id() == 0)
-			printf("SCF option file found\n");
+			print("SCF option file found\n");
 		const auto cmp = [](char *ptr, const char *str) {
 			return strncmp(ptr, str, strlen(str)) == 0;
 		};
@@ -145,14 +148,14 @@ void read_option_file() {
 				READ_LINE(M2)
 				READ_LINE(a) else if (strlen(ptr)) {
 					if (hpx::get_locality_id() == 0)
-						printf("unknown SCF option - %s\n", buffer);
+						print("unknown SCF option - %s\n", buffer);
 				}
 			}
 		}
 		fclose(fp);
 	} else {
 		if (hpx::get_locality_id() == 0)
-			printf("SCF option file \"scf.init\" not found - using defaults\n");
+			print("SCF option file \"scf.init\" not found - using defaults\n");
 	}
 
 }
@@ -273,7 +276,7 @@ struct scf_parameters {
 		R1 = POWER(V1 / c, 1.0 / 3.0) * POWER(fill1, 5);
 		R2 = POWER(V2 / c, 1.0 / 3.0) * POWER(fill2, 5);
 		if (opts().eos == WD) {
-			//	printf( "!\n");
+			//	print( "!\n");
 			struct_eos2 = std::make_shared<struct_eos>(scf_options::M2, R2);
 			struct_eos1 = std::make_shared<struct_eos>(scf_options::M1, *struct_eos2);
 		} else {
@@ -291,7 +294,7 @@ struct scf_parameters {
 				}
 			}
 		}
-		//	printf( "R1 R2 %e %e\n", R1, R2);
+		//	print( "R1 R2 %e %e\n", R1, R2);
 	}
 };
 
@@ -306,9 +309,10 @@ static scf_parameters& initial_params() {
 real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2_x, real l1_x, struct_eos struct_eos_1, struct_eos struct_eos_2) {
 
 	if (omega <= 0.0) {
-		printf("OMEGA <= 0.0\n");
+		print("OMEGA <= 0.0\n");
 		abort();
 	}
+	real rho_floor = opts().scf_rho_floor;
 	real rho_int = 10.0 * rho_floor;
 	rho_int = SQRT(rho_int * rho_floor);
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
@@ -452,9 +456,9 @@ void node_server::run_scf(std::string const &data_dir) {
 	solve_gravity(false, false);
 	real omega = initial_params().omega;
 	real jorb0;
-//	printf( "Starting SCF\n");
+//	print( "Starting SCF\n");
 	grid::set_omega(omega);
-	printf("Starting SCF\n");
+	print("Starting SCF\n");
 	real l1_phi = 0.0, l2_phi, l3_phi;
 	for (integer i = 0; i != itermax; ++i) {
 //		profiler_output(stdout);
@@ -518,15 +522,15 @@ void node_server::run_scf(std::string const &data_dir) {
 		l2_phi = l2_phi_pair.second;
 		l3_phi = l3_phi_pair.second;
 
-		//	printf( "++++++++++++++++++++%e %e %e %e \n", rho1, rho2, c1_x, c2_x);
+		//	print( "++++++++++++++++++++%e %e %e %e \n", rho1, rho2, c1_x, c2_x);
 		params.struct_eos2->set_d0(rho2);
 		if (opts().eos == WD) {
 			params.struct_eos1->set_wd_T0(0.0, opts().atomic_mass[0], opts().atomic_number[0]);
 			params.struct_eos2->set_wd_T0(0.0, opts().atomic_mass[3], opts().atomic_number[3]);
-///			printf("wd_eps = %e %e\n", params.struct_eos1->wd_eps, params.struct_eos2->wd_eps);
+///			print("wd_eps = %e %e\n", params.struct_eos1->wd_eps, params.struct_eos2->wd_eps);
 		}
 		if (scf_options::equal_struct_eos) {
-			//	printf( "%e %e \n", rho1, rho1*f0);
+			//	print( "%e %e \n", rho1, rho1*f0);
 			params.struct_eos1->set_d0_using_struct_eos(rho1, *(params.struct_eos2));
 		} else {
 			params.struct_eos1->set_d0(rho1);
@@ -566,7 +570,7 @@ void node_server::run_scf(std::string const &data_dir) {
 			params.struct_eos1->set_h0(c_1 - phi_1);
 		}
 		params.struct_eos2->set_h0(c_2 - phi_2);
-		//	printf( "---------\n");
+		//	print( "---------\n");
 		auto e1 = params.struct_eos1;
 		auto e2 = params.struct_eos2;
 
@@ -619,7 +623,7 @@ void node_server::run_scf(std::string const &data_dir) {
 					const real p0 = params.struct_eos1->P0();
 					const real de = params.struct_eos1->dE();
 					const real s1 = POWER(p0 * POWER(rhoc1 * INVERSE( de), 1.0 + 1.0 * INVERSE( ne)) / (gamma - 1.0), 1.0 / gamma) * INVERSE(rhoc1);
-					printf("S = %e\n", s1);
+					print("S = %e\n", s1);
 					e2->set_entropy(s1);
 				} else {
 					e2->set_entropy(e1->s0());
@@ -639,11 +643,11 @@ void node_server::run_scf(std::string const &data_dir) {
 
 		jmin = SQRT((M1 + M2)) * (mu * POWER(amin, 0.5) + (is1 + is2) * POWER(amin, -1.5));
 		if (i % 5 == 0) {
-			printf("   %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s\n", "rho1", "rho2", "M1", "M2",
+			print("   %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s\n", "rho1", "rho2", "M1", "M2",
 					"is1", "is2", "omega", "virial", "core_frac_1", "core_frac_2", "jorb", "jmin", "amin", "jtot", "com", "spin_ratio", "iorb", "R1", "R2",
 					"fill1", "fill2");
 		}
-		lprintf((opts().data_dir + "log.txt").c_str(),
+		lprint((opts().data_dir + "log.txt").c_str(),
 				"%i %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e  %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e\n", i, rho1, rho2,
 				M1, M2, is1, is2, omega, virial, core_frac_1, core_frac_2, jorb, jmin, amin, j1 + j2 + jorb, com, spin_ratio, iorb, r0, r1, fi0, fi1, w0, e1f,
 				e2f);
@@ -655,8 +659,8 @@ void node_server::run_scf(std::string const &data_dir) {
 		if (opts().eos == WD) {
 			set_AB(e2->A, e2->B());
 		}
-//		printf( "%e %e\n", grid::get_A(), grid::get_B());
-		//	printf( "%e %e %e\n", rho1_max.first, rho2_max.first, l1_x);
+//		print( "%e %e\n", grid::get_A(), grid::get_B());
+		//	print( "%e %e %e\n", rho1_max.first, rho2_max.first, l1_x);
 		scf_update(com, omega, c_1, c_2, rho1_max.first, rho2_max.first, l1_x, *e1, *e2);
 		solve_gravity(false, false);
 		w0 = std::min(w0max, w0 * POWER(w0max / w0init, 1.0 / iter2max));
@@ -691,7 +695,7 @@ std::vector<real> scf_binary(real x, real y, real z, real dx) {
 		this_struct_eos = params.struct_eos2;
 		R0 = R02;
 	}
-//	printf( "%e %e\n", R01, R02);
+//	print( "%e %e\n", R01, R02);
 	real rho = 0;
 //	const real R0 = this_struct_eos->get_R0();
 	int M = std::max(std::min(int(10.0 * dx), 2), 1);
@@ -713,7 +717,7 @@ std::vector<real> scf_binary(real x, real y, real z, real dx) {
 		}
 	}
 //	grid::set_AB(this_struct_eos->A, this_struct_eos->B());
-	rho = std::max(rho / nsamp, rho_floor);
+	rho = std::max(rho / nsamp, opts().scf_rho_floor);
 	if (opts().eos == WD) {
 		ei = this_struct_eos->energy(rho);
 	} else {
@@ -744,3 +748,4 @@ std::vector<real> scf_binary(real x, real y, real z, real dx) {
 	u[tau_i] = POWER(etherm, 3.0 / 5.0);
 	return u;
 }
+#endif

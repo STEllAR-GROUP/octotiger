@@ -23,9 +23,10 @@ constexpr integer spc_dc_i = spc_i + 2;
 constexpr integer spc_de_i = spc_i + 3;
 constexpr integer spc_vac_i = spc_i + 4;
 
-namespace hpx {
-using mutex = hpx::lcos::local::spinlock;
-}
+// TODO (daissgr) mutex....
+// namespace hpx {
+// using mutex = hpx::lcos::local::spinlock;
+// }
 const real ssr0 = 1.0 / 3.0;
 
 init_func_type problem = nullptr;
@@ -240,6 +241,10 @@ bool refine_test(integer level, integer max_level, real x, real y, real z, std::
 	if (!majority_accretor) {
 		test_level -= opts().accretor_refine;
 	}
+	const auto grad_rho = opts().grad_rho_refine;
+	if( grad_rho > 0.0 ) {
+		test_level--;
+	}
 	real den_floor = opts().refinement_floor;
 	for (integer this_test_level = test_level; this_test_level >= 1; --this_test_level) {
 		if (U[rho_i] > den_floor) {
@@ -250,6 +255,15 @@ bool refine_test(integer level, integer max_level, real x, real y, real z, std::
 		}
 		den_floor /= 8.0;
 	}
+	if(!rc && grad_rho > 0.0 && level < max_level) {
+		for( int dim = 0; dim < NDIM; dim++) {
+			if( std::abs(dudx[dim][rho_i])/U[rho_i] > grad_rho && U[rho_i] > 1000*den_floor) {
+				
+				rc = true;
+			}
+		}
+	}
+
 	return rc;
 }
 
@@ -476,9 +490,17 @@ std::vector<real> star(real x, real y, real z, real) {
 		}
 //		u[rho_i] = std::max(rho_c * std::pow(theta, n), rho_out);
 		u[spc_i] = u[rho_i];
-		u[egas_i] = std::max(opts().star_egas_out,
-				std::pow(rho_c * std::pow(theta, n), (real(1) + real(1) / n)) * c0 * n);
-		u[tau_i] = std::pow(u[egas_i], (n / (real(1) + n)));
+		const real p = std::pow(rho_c * std::pow(theta, n), (real(1) + real(1)/n)) * c0;
+		if (opts().eos == IPR) {
+			//printf("p(%e) = %e, rho = %e\n", r, p, u[rho_i]);
+			u[egas_i] = std::max(opts().star_egas_out, find_ei_rad_gas(p, u[rho_i], opts().atomic_mass[0] / (opts().atomic_number[0] + 1.0), fgamma, u[tau_i])); // makes sure the calculated pressure will be as the polytropic one
+			//printf("egas(%e) = %e, epoly=%e\n", r, u[egas_i], n * p);
+		} else {
+			// u[egas_i] = std::max(opts().star_egas_out, p * n);
+			u[egas_i] = std::max(opts().star_egas_out, p / (fgamma - 1.0));
+			u[tau_i] = std::pow(u[egas_i], 1.0 / fgamma);
+			//u[tau_i] = std::pow(u[egas_i], (n / (real(1) + n)));
+		}
 
 		/*		const real r = std::sqrt(x * x + y * y + z * z);
 		 static struct_eos eos(0.0040083, 0.33593, 3.0, 1.5, 0.1808, 2.0);

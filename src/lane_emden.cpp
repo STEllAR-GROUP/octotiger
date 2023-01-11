@@ -116,7 +116,7 @@ real wd_radius(real mass, real* rho0) {
 		} else {
 			rho_min = rho_mid;
 		}
-//		printf("%e %e %e %e %e\n", rho_min, rho_mid, rho_max, test_mass, mass);
+//		print("%e %e %e %e %e\n", rho_min, rho_mid, rho_max, test_mass, mass);
 	} while (log(rho_max / rho_min) > 1.0e-9);
 	*rho0 = rho_mid;
 	return r;
@@ -139,7 +139,7 @@ double find_l1(double q) {
 		dfr = qp1;
 		df = df1 + df2 + dfr;
 		y -= f / df;
-		//	printf( "%e %e %e\n", y, df, f );
+		//	print( "%e %e %e\n", y, df, f );
 	} while (fabs(f) > 1.0e-10);
 	return y;
 
@@ -179,7 +179,7 @@ real find_V(real q) {
 			}
 		}
 	}
-//	printf( "!\n");
+//	print( "!\n");
 	return 4.0 * in * h * h * h;
 }
 

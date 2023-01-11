@@ -19,6 +19,8 @@
  http://www.netlib.org/f2c/libf2c.zip
  */
 
+
+#include "octotiger/print.hpp"
 #include <cmath>
 #include <vector>
 #include <unordered_map>
@@ -1184,7 +1186,7 @@ void solution(double time, double r, double rmax, double& d, double& v, double& 
 	auto iter = map.find(time);
 	if (iter == map.end()) {
 		sed_real sed_time = time;
-		printf( "Computing sedov solution\n");
+		print( "Computing sedov solution\n");
 		sed_1d__(&sed_time, &nstep, xpos.data() + bw, &eblast, &omega, &xgeom, &rho0,
 				&vel0, &ener0, &pres0, &cs0, &gamma, den.data() + bw, ener.data() + bw,
 				pres.data() + bw, vel.data() + bw, cs.data() + bw);
@@ -1224,7 +1226,7 @@ void solution(double time, double r, double rmax, double& d, double& v, double& 
 			i[2] = i[1] + 1;
 			i[3] = i[1] + 2;
 			double r0 = (r - (i[1]-bw + 0.5)*dr)/dr;
-	//		printf( "%i %e\n", i[0], r, dr );
+	//		print( "%i %e\n", i[0], r, dr );
 			assert( i[0] >= 0 );
 			assert( i[3] < int(vel1.size()));
 			const auto interp = [r0,i](const std::vector<double>& data) {

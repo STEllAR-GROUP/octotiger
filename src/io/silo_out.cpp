@@ -1,3 +1,6 @@
+#include <hpx/config/compiler_specific.hpp>
+#if !defined(HPX_COMPUTE_DEVICE_CODE)
+
 #include "octotiger/io/silo.hpp"
 #include "octotiger/node_registry.hpp"
 
@@ -88,8 +91,10 @@ static int steps_elapsed;
 static const int HOST_NAME_LEN = 100;
 
 void output_stage1(std::string fname, int cycle) {
-	printf("Opening output stage 1 on locality %i\n", hpx::get_locality_id());
-	grid::set_idle_rate();
+	print("Opening output stage 1 on locality %i\n", hpx::get_locality_id());
+  if (opts().idle_rates == 1) {
+    grid::set_idle_rate();
+  }
 	std::vector<node_location::node_id> ids;
 	futs_.clear();
 	const auto *node_ptr_ = node_registry::begin()->second.get_ptr().get();
@@ -98,7 +103,7 @@ void output_stage1(std::string fname, int cycle) {
 	for (auto i = node_registry::begin(); i != node_registry::end(); ++i) {
 		const auto *node_ptr_ = GET(i->second.get_ptr());
 		if (!node_ptr_->refined()) {
-			futs_.push_back(hpx::async(hpx::launch::async(hpx::threads::thread_priority_boost), [](node_location loc, node_registry::node_ptr ptr) {
+			futs_.push_back(hpx::async(hpx::launch::async_policy(hpx::threads::thread_priority::boost), [](node_location loc, node_registry::node_ptr ptr) {
 				const auto *this_ptr = ptr.get_ptr().get();
 				assert(this_ptr);
 				const real dx = TWO / real(1 << loc.level()) / real(INX);
@@ -111,11 +116,11 @@ void output_stage1(std::string fname, int cycle) {
 			}, i->first, i->second));
 		}
 	}
-	printf("Closing output stage 1 on locality %i\n", hpx::get_locality_id());
+	print("Closing output stage 1 on locality %i\n", hpx::get_locality_id());
 }
 
 node_list_t output_stage2(std::string fname, int cycle) {
-	printf("Opening output stage 2 on locality %i\n", hpx::get_locality_id());
+	print("Opening output stage 2 on locality %i\n", hpx::get_locality_id());
 	const int this_id = hpx::get_locality_id();
 	const int nfields = grid::get_field_names().size();
 	std::string this_fname = fname + std::string(".") + std::to_string(INX) + std::string(".silo");
@@ -135,7 +140,7 @@ node_list_t output_stage2(std::string fname, int cycle) {
 		ids.push_back(mv.location.to_id());
 		nl.zone_count.push_back(mv.var_dims[0] * mv.var_dims[1] * mv.var_dims[2]);
 		for (int f = 0; f < nfields; f++) {
-			//		printf( "%s %e %e\n", mv.vars[f].name(), mv.vars[f].min(), mv.vars[f].max());
+			//		print( "%s %e %e\n", mv.vars[f].name(), mv.vars[f].min(), mv.vars[f].max());
 			nl.extents[f].push_back(mv.vars[f].min());
 			nl.extents[f].push_back(mv.vars[f].max());
 		}
@@ -152,12 +157,12 @@ node_list_t output_stage2(std::string fname, int cycle) {
 	nl.silo_leaves = std::move(ids);
 	nl.all = std::move(all);
 	nl.positions = std::move(positions);
-	printf("Closing output stage 2 on locality %i\n", hpx::get_locality_id());
+	print("Closing output stage 2 on locality %i\n", hpx::get_locality_id());
 	return std::move(nl);
 }
 
 void output_stage3(std::string fname, int cycle, int gn, int gb, int ge) {
-	printf("Opening output stage 3 on locality %i\n", hpx::get_locality_id());
+	print("Opening output stage 3 on locality %i\n", hpx::get_locality_id());
 	const int this_id = hpx::get_locality_id();
 	const int nfields = grid::get_field_names().size();
 	const auto dir = opts().data_dir;
@@ -166,10 +171,10 @@ void output_stage3(std::string fname, int cycle, int gn, int gb, int ge) {
 	hpx::threads::run_as_os_thread([&this_fname, this_id, &dtime, gb, gn, ge](integer cycle) {
 		DBfile *db;
 		if (this_id == gb) {
-//			printf( "Create %s %i %i %i %i\n", this_fname.c_str(), this_id, gn, gb, ge);
+//			print( "Create %s %i %i %i %i\n", this_fname.c_str(), this_id, gn, gb, ge);
 			db = DBCreateReal(this_fname.c_str(), DB_CLOBBER, DB_LOCAL, "Octo-tiger", SILO_DRIVER);
 		} else {
-//			printf( "Open %s %i %i %i %i\n", this_fname.c_str(), this_id, gn, gb, ge);
+//			print( "Open %s %i %i %i %i\n", this_fname.c_str(), this_id, gn, gb, ge);
 			db = DBOpenReal(this_fname.c_str(), SILO_DRIVER, DB_APPEND);
 		}
 		float ftime = dtime;
@@ -228,7 +233,7 @@ void output_stage3(std::string fname, int cycle, int gn, int gb, int ge) {
 				}
 				//			if( std::strcmp(o.name(),"fx")==0 ) {
 //							for( int i = 0; i < INX*INX*INX; i++) {
-//								printf( "%e\n", o(i));
+//								print( "%e\n", o(i));
 //							}
 				//				}
 				DBPutQuadvar1(db, o.name(), "quadmesh", o.data(), mesh_vars.var_dims.data(), ndim, nullptr, 0, DB_DOUBLE, DB_ZONECENT, optlist_var);
@@ -241,15 +246,15 @@ void output_stage3(std::string fname, int cycle, int gn, int gb, int ge) {
 		DBClose(db);
 	}, cycle).get();
 	if (this_id < ge - 1) {
-		auto f = hpx::async<output_stage3_action>(hpx::launch::async(hpx::threads::thread_priority_boost), localities[this_id + 1], fname, cycle, gn, gb, ge);
+		auto f = hpx::async<output_stage3_action>(hpx::launch::async_policy(hpx::threads::thread_priority::boost), localities[this_id + 1], fname, cycle, gn, gb, ge);
 
 		GET(f);
 	}
-	printf("Closing output stage 3 on locality %i\n", hpx::get_locality_id());
+	print("Closing output stage 3 on locality %i\n", hpx::get_locality_id());
 }
 
 void output_stage4(std::string fname, int cycle) {
-	printf("Opening output stage 4 on locality %i\n", hpx::get_locality_id());
+	print("Opening output stage 4 on locality %i\n", hpx::get_locality_id());
 	const int nfields = grid::get_field_names().size();
 	std::string this_fname = opts().data_dir + "/" + fname + std::string(".silo");
 	double dtime = opts().problem == DWD ? silo_output_rotation_time() : silo_output_time();
@@ -327,7 +332,7 @@ void output_stage4(std::string fname, int cycle) {
 		DBAddOption(optlist, DBOPT_DISJOINT_MODE, &dj);
 		DBAddOption(optlist, DBOPT_TOPO_DIM, &three);
 		DBAddOption(optlist, DBOPT_MB_BLOCK_TYPE, &mesh_type);
-		printf("Writing %i total sub-grids\n", n_total_domains);
+		print("Writing %i total sub-grids\n", n_total_domains);
 		DBPutMultimesh(db, "quadmesh", n_total_domains, mesh_names.data(), nullptr, optlist);
 		DBFreeOptlist(optlist);
 		char mmesh[] = "quadmesh";
@@ -498,17 +503,17 @@ void output_stage4(std::string fname, int cycle) {
 			}
 		}
 	}, cycle).get();
-	printf("Closing output stage 4 on locality %i\n", hpx::get_locality_id());
+	print("Closing output stage 4 on locality %i\n", hpx::get_locality_id());
 }
 
 void output_all(node_server *root_ptr, std::string fname, int cycle, bool block) {
 	timings::scope ts(root_ptr->timings_, timings::time_io);
 
-	printf("Writing %s.silo\n", fname.c_str());
+	print("Writing %s.silo\n", fname.c_str());
 	const auto tstart = time(NULL);
 
 	if (opts().disable_output) {
-		printf("Skipping SILO output\n");
+		print("Skipping SILO output\n");
 		return;
 	}
 
@@ -516,7 +521,7 @@ void output_all(node_server *root_ptr, std::string fname, int cycle, bool block)
 	hpx::threads::run_as_os_thread([&]() {
 		auto rc = mkdir(dir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 		if (rc != 0 && errno != EEXIST) {
-			printf("Could not create directory for SILO file. mkdir failed with error. code: %i name: %s", errno, std::strerror(errno));
+			print("Could not create directory for SILO file. mkdir failed with error. code: %i name: %s", errno, std::strerror(errno));
 			abort();
 		}
 	}).get();
@@ -531,13 +536,13 @@ void output_all(node_server *root_ptr, std::string fname, int cycle, bool block)
 	start_step = nsteps;
 	std::vector<hpx::future<void>> futs1;
 	for (auto &id : localities) {
-		futs1.push_back(hpx::async<output_stage1_action>(hpx::launch::async(hpx::threads::thread_priority_boost), id, fname, cycle));
+		futs1.push_back(hpx::async<output_stage1_action>(hpx::launch::async_policy(hpx::threads::thread_priority::boost), id, fname, cycle));
 	}
 	GET(hpx::when_all(futs1));
 
 	std::vector<hpx::future<node_list_t>> id_futs;
 	for (auto &id : localities) {
-		id_futs.push_back(hpx::async < output_stage2_action > (hpx::launch::async(hpx::threads::thread_priority_boost), id, fname, cycle));
+		id_futs.push_back(hpx::async<output_stage2_action>(hpx::launch::async_policy(hpx::threads::thread_priority::boost), id, fname, cycle));
 	}
 	node_list_.silo_leaves.clear();
 	node_list_.group_num.clear();
@@ -546,7 +551,7 @@ void output_all(node_server *root_ptr, std::string fname, int cycle, bool block)
 	node_list_.extents.clear();
 	int id = 0;
 	for (auto &f : id_futs) {
-//		printf( "---%i\n", id) ;
+//		print( "---%i\n", id) ;
 		const int gn = ((id + 1) * opts().silo_num_groups - 1) / localities.size();
 		node_list_t this_list = GET(f);
 		const int leaf_cnt = this_list.silo_leaves.size();
@@ -570,16 +575,16 @@ void output_all(node_server *root_ptr, std::string fname, int cycle, bool block)
 	for (int i = 0; i < ng; i++) {
 		int gb = (i * localities.size()) / ng;
 		int ge = ((i + 1) * localities.size()) / ng;
-		futs.push_back(hpx::async < output_stage3_action > (hpx::launch::async(hpx::threads::thread_priority_boost), localities[gb], fname, cycle, i, gb, ge));
+		futs.push_back(hpx::async < output_stage3_action > (hpx::launch::async_policy(hpx::threads::thread_priority::boost), localities[gb], fname, cycle, i, gb, ge));
 	}
 
-	barrier = hpx::async(hpx::launch::async(hpx::threads::thread_priority_boost), [tstart, fname, cycle](std::vector<hpx::future<void>> &&futs) {
+	barrier = hpx::async(hpx::launch::async_policy(hpx::threads::thread_priority::boost), [tstart, fname, cycle](std::vector<hpx::future<void>> &&futs) {
 		for (auto &f : futs) {
 			GET(f);
 		}
 		output_stage4(fname, cycle);
 		const auto tstop = time(NULL);
-		printf("Write took %li seconds\n", tstop - tstart);
+		print("Write took %li seconds\n", tstop - tstart);
 	}, std::move(futs));
 
 //	block = true;
@@ -589,4 +594,4 @@ void output_all(node_server *root_ptr, std::string fname, int cycle, bool block)
 	}
 
 }
-
+#endif

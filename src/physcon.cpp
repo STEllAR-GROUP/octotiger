@@ -14,12 +14,14 @@
 #include "octotiger/util.hpp"
 
 #include <hpx/hpx.hpp>
-#include <hpx/collectives/broadcast.hpp>
+#include <hpx/collectives/broadcast_direct.hpp>
 
 #include <array>
 #include <cmath>
 #include <cstdio>
 #include <functional>
+
+#if !defined(HPX_COMPUTE_DEVICE_CODE)
 
 physcon_t& physcon() {
 	static physcon_t physcon_ = { 1, 1, 1, 1, 1.0, 1.0, 1.0, 1.0 };
@@ -33,13 +35,25 @@ real find_T_rad_gas(real p, real rho, real mu) {
 	const real cr = (4.0 * physcon().sigma) / (3.0 * physcon().c);
 	real T = std::min(p / (cg * rho), std::pow(p / cr, 0.25));
 	real dfdT, f;
-	for (int i = 0; i != 6; ++i) {
-		f = cg * rho * T + cr * std::pow(T, 4) - p;
-		dfdT = cg * rho + 4.0 * cr * std::pow(T, 3);
+	for (int i = 0; i != opts().ipr_nr_maxiter; ++i) {
+		f = cg * rho * T / p + cr * std::pow(T, 4) / p - 1.0;
+		if (std::abs(f) < opts().ipr_nr_tol) {
+			return T;
+		}
+		dfdT = cg * rho / p + 4.0 * cr * std::pow(T, 3) / p;
 		T -= f / dfdT;
 	}
-//	printf("%e\n", f / (T * dfdT));
+        std::cout << "Error: exceeded number of iterations in Newton-Rahpson method, could not find accurate temperature.\n";
+        std::cout << "Maximum number of iteration " << opts().ipr_nr_maxiter << ". Current iteration find: " << -1.0 << "+" << cg << "*" << T << "+" << cr << "*" << T << "^4=" << f << "\n";
+	abort();
 	return T;
+}
+
+real find_ei_rad_gas(real p, real rho, real mu, real gamma, real &T) {
+	T = find_T_rad_gas(p, rho, mu);
+        const real cg_e = physcon().kb / (mu * physcon().mh) / (gamma - 1.0);
+        const real cr_e = (4.0 * physcon().sigma) / physcon().c;
+	return cg_e * rho * T + cr_e * std::pow(T, 4); 
 }
 
 void these_units(real &m, real &l, real &t, real &k) {
@@ -88,7 +102,7 @@ void these_units(real &m, real &l, real &t, real &k) {
 		k = 1.0;
 	}
 
-//	printf("%e %e %e %e\n", l, m, t, k);
+//	print("%e %e %e %e\n", l, m, t, k);
 	if (opts().problem == MARSHAK) {
 		opts().code_to_g = 1.0;
 		opts().code_to_s = 1.0;
@@ -113,9 +127,9 @@ void normalize_constants() {
 	physcon().sigma = 5.67051e-5 * m / (t * t * t) / (k * k * k * k);
 	physcon().h = 6.6260755e-27 * m * l * l / t;
 	if (hpx::get_locality_id() == 0) {
-		printf("Normalized constants 222\n");
-		printf("%e %e %e %e\n", 1.0 / m, 1.0 / l, 1.0 / t, 1.0 / k);
-		printf("A = %e | B = %e | G = %e | kb = %e | c = %e | mh = %e | sigma = %e | h = %e\n", physcon().A, physcon().B, physcon().G, physcon().kb,
+		print("Normalized constants 222\n");
+		print("%e %e %e %e\n", 1.0 / m, 1.0 / l, 1.0 / t, 1.0 / k);
+		print("A = %e | B = %e | G = %e | kb = %e | c = %e | mh = %e | sigma = %e | h = %e\n", physcon().A, physcon().B, physcon().G, physcon().kb,
 				physcon().c, physcon().mh, physcon().sigma, physcon().h);
 	}
 	if (opts().problem == MARSHAK) {
@@ -144,9 +158,9 @@ void set_units(real m, real l, real t, real k) {
 	physcon().sigma = 5.67051e-5 * m / (t * t * t) / (k * k * k * k);
 	physcon().h = 6.6260755e-27 * m * l * l / t;
 //	if (hpx::get_locality_id() == 0) {
-		printf("normalized constants\n");
-		printf("%e %e %e %e\n", 1.0 / m, 1.0 / l, 1.0 / t, 1.0 / k);
-		printf("A = %e | B = %e | G = %e | kb = %e | c = %e | mh = %e | sigma = %e | h = %e\n", physcon().A, physcon().B, physcon().G, physcon().kb,
+		print("normalized constants\n");
+		print("%e %e %e %e\n", 1.0 / m, 1.0 / l, 1.0 / t, 1.0 / k);
+		print("A = %e | B = %e | G = %e | kb = %e | c = %e | mh = %e | sigma = %e | h = %e\n", physcon().A, physcon().B, physcon().G, physcon().kb,
 				physcon().c, physcon().mh, physcon().sigma, physcon().h);
 //	}
 }
@@ -200,7 +214,7 @@ void node_server::set_cgs(bool change) {
 	physcon_t tmp = physcon();
 	auto f1 = set_physcon(tmp);
 	if (change) {
-//		printf("%e %e %e %e\n", m, l, t, k);
+//		print("%e %e %e %e\n", m, l, t, k);
 		change_units(m, l, t, k);
 		auto f3 = grid::static_change_units(m, l, t, k);
 		f3.get();
@@ -236,7 +250,7 @@ HPX_REGISTER_BROADCAST_ACTION_DECLARATION (static_change_units_action);
 HPX_REGISTER_BROADCAST_ACTION (static_change_units_action);
 
 hpx::future<void> grid::static_change_units(real m, real l, real t, real k) {
-//	printf("%e %e %e %e\n", m, l, t, k);
+//	print("%e %e %e %e\n", m, l, t, k);
 	hpx::future<void> f;
 	if (hpx::get_locality_id() == 0 && options::all_localities.size() > 1) {
 		std::vector<hpx::id_type> remotes;
@@ -352,3 +366,4 @@ void rad_coupling_vars(real rho, real e, real mmw, real &bp, real &kp, real &dkp
 	dbde = 4.0 * bp * einv;
 }
 
+#endif

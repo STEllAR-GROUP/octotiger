@@ -6,12 +6,10 @@
 #ifndef NODE_SERVER_HPP_
 #define NODE_SERVER_HPP_
 
+#include "octotiger/print.hpp"
 #include "octotiger/config/export_definitions.hpp"
 #include "octotiger/radiation/rad_grid.hpp"
 #include "octotiger/interaction_types.hpp"
-#include "octotiger/monopole_interactions/cuda_p2p_interaction_interface.hpp"
-#include "octotiger/monopole_interactions/p2m_interaction_interface.hpp"
-#include "octotiger/multipole_interactions/cuda_multipole_interaction_interface.hpp"
 #include "octotiger/channel.hpp"
 #include "octotiger/defs.hpp"
 #include "octotiger/future.hpp"
@@ -23,8 +21,10 @@
 #include "octotiger/io/silo.hpp"
 //#include "octotiger/struct_eos.hpp"
 
+#include <hpx/futures/future.hpp>
 #include <hpx/include/components.hpp>
 #include <hpx/include/serialization.hpp>
+#include <hpx/mutex.hpp>
 
 #include <array>
 #include <atomic>
@@ -74,6 +74,14 @@ private:
 	std::array<real, NDIM> xmin;
 	real dx;
 
+  size_t number_hydro_exchange_promises;
+  std::vector<hpx::lcos::local::promise<void>> ready_for_hydro_exchange;
+  std::vector<hpx::lcos::local::promise<void>> ready_for_amr_hydro_exchange;
+  std::vector<hpx::lcos::local::promise<void>> boundaries_exchanged;
+
+  std::vector<hpx::lcos::local::promise<void>> ready_for_hydro_update;
+  std::vector<hpx::lcos::future<void>> all_neighbors_got_hydro;
+
 	/* this node*/
 	node_client me;
 	/* The parent is the node one level coarser that this node is a child of*/
@@ -106,14 +114,6 @@ private:
 
 	timestep_t dt_;
 
-	octotiger::fmm::monopole_interactions::p2m_interaction_interface p2m_interactor;
-#ifdef OCTOTIGER_HAVE_CUDA
-	octotiger::fmm::multipole_interactions::cuda_multipole_interaction_interface multipole_interactor;
-	octotiger::fmm::monopole_interactions::cuda_p2p_interaction_interface p2p_interactor;
-#else
-	octotiger::fmm::multipole_interactions::multipole_interaction_interface multipole_interactor;
-	octotiger::fmm::monopole_interactions::p2p_interaction_interface p2p_interactor;
-#endif
 public:
 	timings timings_;
 
@@ -294,6 +294,9 @@ public:
 	void velocity_inc(const space_vector& dv);/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server, velocity_inc, velocity_inc_action);
 
+        void energy_adj();/**/
+        HPX_DEFINE_COMPONENT_ACTION(node_server, energy_adj, energy_adj_action);
+
 	line_of_centers_t line_of_centers(const std::pair<space_vector, space_vector>& line) const;
 	HPX_DEFINE_COMPONENT_ACTION(node_server, line_of_centers, line_of_centers_action);
 
@@ -354,6 +357,7 @@ HPX_REGISTER_ACTION_DECLARATION(node_server::change_units_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::rho_mult_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::line_of_centers_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::velocity_inc_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::energy_adj_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::scf_update_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::set_grid_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::force_nodes_to_exist_action);

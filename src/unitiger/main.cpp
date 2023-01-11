@@ -26,7 +26,15 @@ static constexpr safe_real dt_out = tmax / 100;
 
 #define H_BW 3
 #define H_NX (INX + 2 * H_BW)
-#define H_N3 std::pow(INX+2*H_BW,NDIM)
+#if NDIM == 3
+#define H_N3 (INX+2*H_BW) * (INX+2*H_BW) * (INX+2*H_BW)
+#endif
+#if NDIM == 2
+#define H_N3 (INX+2*H_BW) * (INX+2*H_BW) 
+#endif
+#if NDIM == 1
+#define H_N3 (INX+2*H_BW)
+#endif
 
 template<int NDIM, int INX, class PHYS>
 void run_test(typename PHYS::test_type problem, bool with_correction, bool writingForTest);
@@ -63,7 +71,7 @@ void run_test(typename PHYS::test_type problem, bool with_correction, bool writi
 	computer.output(U, X, oter++, 0);
 //	const safe_real omega = 2.0 * M_PI / tmax / 10.0;
 	const safe_real omega = 0.0;
-	printf("omega = %e\n", (double) omega);
+	print("omega = %e\n", (double) omega);
 
 	constexpr int RK = 2;
 
@@ -77,7 +85,7 @@ void run_test(typename PHYS::test_type problem, bool with_correction, bool writi
 		dt = std::min(double(dt), tmax - t + 1.0e-20);
 		computer.advance(U0, U, F, X, dx, dt, 1.0, omega);
 		computer.boundaries(U, X);
-		if constexpr (RK == 3) {
+		if HOST_CONSTEXPR (RK == 3) {
 			q = computer.reconstruct(U, X, omega);
 			computer.flux(U, q, F, X, omega);
 			computer.advance(U0, U, F, X, dx, dt, 0.25, omega);
@@ -86,7 +94,7 @@ void run_test(typename PHYS::test_type problem, bool with_correction, bool writi
 			computer.flux(U, q, F, X, omega);
 			computer.advance(U0, U, F, X, dx, dt, 2.0 / 3.0, omega);
 			computer.boundaries(U, X);
-		} else if constexpr (RK == 2) {
+		} else if HOST_CONSTEXPR (RK == 2) {
 			q = computer.reconstruct(U, X, omega);
 			computer.flux(U, q, F, X, omega);
 			computer.advance(U0, U, F, X, dx, dt, 0.5, omega);
@@ -99,7 +107,7 @@ void run_test(typename PHYS::test_type problem, bool with_correction, bool writi
 			computer.output(U, X, oter++, t);
 		}
 		iter++;
-		printf("%i %e %e\n", iter, double(t), double(dt));
+		print("%i %e %e\n", iter, double(t), double(dt));
 		if (writingForTest) {
 			computer.outputU(U, iter, type_test_string);
 			computer.outputQ(q, iter, type_test_string);
@@ -110,9 +118,9 @@ void run_test(typename PHYS::test_type problem, bool with_correction, bool writi
 			int testQ = computer.compareQ(q, iter, type_test_string);
 			int testF = computer.compareF(F, iter, type_test_string);
 			if ((testU == -1) or (testQ == -1) or (testF == -1))
-				printf("Could not test, output files do not exist! Create test files by running unitiger with -C\n");
+				print("Could not test, output files do not exist! Create test files by running unitiger with -C\n");
 			if (testU * testQ * testF == 1)
-				printf("%s tests are OK!\n", type_test_string.c_str());
+				print("%s tests are OK!\n", type_test_string.c_str());
 		}
 	}
 //      U0 = U;
@@ -155,22 +163,22 @@ void run_test(typename PHYS::test_type problem, bool with_correction, bool writi
 	int testQ = computer.compareQ(q, -1, type_test_string);
 	int testF = computer.compareF(F, -1, type_test_string);
 	if ((testU == -1) or (testQ == -1) or (testF == -1))
-		printf("Could not test, output files do not exist! Create test files by running unitiger with -C\n");
+		print("Could not test, output files do not exist! Create test files by running unitiger with -C\n");
 	if (testU * testF * testQ == 1)
-		printf("Final %s tests are OK!!\n", type_test_string.c_str());
+		print("Final %s tests are OK!!\n", type_test_string.c_str());
 }
 
 int main(int argc, char *argv[]) {
-	feenableexcept(FE_DIVBYZERO);
-	feenableexcept(FE_INVALID);
-	feenableexcept(FE_OVERFLOW);
+	//feenableexcept(FE_DIVBYZERO);
+	//feenableexcept(FE_INVALID);
+	//feenableexcept(FE_OVERFLOW);
 
 	bool createTests = false;
 
 	if (argc > 1) {
 		std::string input = argv[1];
 		if (input == "-C") {
-			printf("Creating Tests.\n");
+			print("Creating Tests.\n");
 			createTests = true;
 		}
 	}

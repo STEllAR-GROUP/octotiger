@@ -20,7 +20,7 @@
 #include "octotiger/roe.hpp"
 #include "octotiger/scf_data.hpp"
 #include "octotiger/io/silo.hpp"
-#include "octotiger/simd.hpp"
+// #include "octotiger/simd.hpp"
 #include "octotiger/space_vector.hpp"
 //#include "octotiger/taylor.hpp"
 #include "octotiger/unitiger/safe_real.hpp"
@@ -32,7 +32,7 @@
 #include <memory>
 #include <utility>
 #include <vector>
-#include "octotiger/unitiger/hydro.hpp"
+//#include "octotiger/unitiger/hydro.hpp"
 
 class struct_eos;
 
@@ -141,15 +141,19 @@ private:
 	hydro_computer<NDIM, INX, physics<NDIM>> hydro;
 	std::shared_ptr<rad_grid> rad_grid_ptr;
 	std::vector<roche_type> roche_lobe;
-	std::vector<std::atomic<int>> is_coarse;
-	std::vector<std::atomic<int>> has_coarse;
+	std::vector<int> is_coarse;
+	std::vector<int> has_coarse;
 	std::vector<std::vector<real>> Ushad;
 	std::vector<std::vector<safe_real>> U;
 	std::vector<std::vector<safe_real>> U0;
 	std::vector<std::vector<safe_real>> dUdt;
 	std::vector<hydro_state_t<std::vector<safe_real>>> F;
 	std::vector<std::vector<safe_real>> X;
+#if defined(__AVX2__) && defined(OCTOTIGER_LEGACY_VC)
 	std::vector<v4sd> G;
+#else
+	std::vector<std::array<real,4>> G;
+#endif
 	std::shared_ptr<std::vector<multipole>> M_ptr;
 	std::shared_ptr<std::vector<real>> mon_ptr;
 	std::vector<expansion> L;
@@ -293,7 +297,8 @@ public:
 	scf_data_t scf_params();
 	real scf_update(real, real, real, real, real, real, real, struct_eos, struct_eos);
 	std::pair<std::vector<real>, std::vector<real> > field_range() const;
-	void velocity_inc(const space_vector &dv);
+	void velocity_inc(const space_vector& dv);
+	void energy_adj();
 	std::vector<real> get_restrict() const;
 	std::vector<real> get_flux_restrict(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub,
 			const geo::dimension&) const;

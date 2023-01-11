@@ -1,0 +1,211 @@
+#!groovy
+
+//  Copyright (c) 2021-2022 Gregor Daiß
+//
+//  Distributed under the Boost Software License, Version 1.0. (See accompanying
+//  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+
+def buildbadge = addEmbeddableBadgeConfiguration(id: "knlbuild", subject: "KNL Kokkos SIMD Tests", status: "skipped")
+
+pipeline {
+    agent { label 'argon-fs' }
+
+    options {
+        buildDiscarder(
+            logRotator(
+                daysToKeepStr: "28",
+                numToKeepStr: "100",
+                artifactDaysToKeepStr: "28",
+                artifactNumToKeepStr: "100"
+            )
+        )
+	disableConcurrentBuilds()
+    }
+    environment {
+        GITHUB_TOKEN = credentials('GITHUB_TOKEN_OCTOTIGER')
+        NEXTCLOUD_OCTOTIGER_DEPENDENCIES_TOKEN = credentials('NEXTCLOUD_OCTOTIGER_DEPENDENCIES_TOKEN')
+        MAINTAINER_MAIL = credentials('OCTOTIGER_MAINTAINER_EMAIL')
+    }
+    stages {
+        stage('init') {
+            steps {
+                script {
+                    buildbadge.setStatus('running')
+                }
+                dir('octotiger') {
+                    sh '''
+                        github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
+                        curl \
+                            --request POST \
+                            --url "https://api.github.com/repos/STEllAR-GROUP/octotiger/statuses/$GIT_COMMIT" \
+                            --header "Content-Type: application/json" \
+                            --header "authorization: Bearer ${github_token}" \
+                            --data "{
+                                \\"state\\": \\"pending\\",
+                                \\"context\\": \\"jenkins-KNL-SIMD\\",
+                                \\"description\\": \\"Jenkins CI Job: jenkins-KNL-SIMD\\",
+                                \\"target_url\\": \\"https://simsgs.informatik.uni-stuttgart.de/jenkins/job/Octo-Tiger%20KNL/job/${JOB_BASE_NAME}/${BUILD_NUMBER}/console\\"
+                        }"
+                    '''
+                }
+            }
+        }
+        stage('checkout') {
+            steps {
+                dir('octotiger') {
+		    /* Log into the slurm node, checkout the buildscripts and move the current version of octotiger into
+		       the correct place for the buildscripts to work. */
+                    sh '''
+                    srun -p knl -N 1 -n 1 -t 08:00:00 --exclusive bash -c "\
+		    pwd && cd /scratch && \
+                    mkdir -p jenkins && cd jenkins && \
+                    mkdir -p octotiger-${JOB_BASE_NAME} && cd octotiger-${JOB_BASE_NAME} && \
+                    rm -rf octotiger && \
+                    rm -rf OctoTigerBuildChain/build && \
+                    rm -rf OctoTigerBuildChain/src/boost && \
+                    rm -rf OctoTigerBuildChain/src/octotiger && \
+                    rm -rf OctoTigerBuildChain/src/silo && \
+                    git clone https://github.com/STEllAR-GROUP/octotiger.git && \
+                    cd octotiger && \
+                    git checkout ${GIT_COMMIT} && \
+                    git submodule update --init --recursive && \
+                    cd - ; \
+                    if [[ ! -d OctoTigerBuildChain ]]; then git clone https://github.com/STEllAR-GROUP/OctoTigerBuildChain;fi;\
+                    cd OctoTigerBuildChain/ && \
+                    git checkout jenkins-knl && \
+                    git pull && \
+                    mkdir -p src && \
+                    cp -r ../octotiger src/octotiger && \
+                    cd src && \
+                    curl -u "6PRsT5XzKK2pHam:${NEXTCLOUD_OCTOTIGER_DEPENDENCIES_TOKEN}" -H 'X-Requested-With: XMLHttpRequest' 'https://ipvs.informatik.uni-stuttgart.de/cloud/public.php/webdav/' -o silo.tar.gz && \
+                    tar -xvf silo.tar.gz && \
+                    mv silo-4.10.2 silo && \
+                    rm silo.tar.gz && \
+                    cd .. "
+                    '''
+                }
+            }
+        }
+        stage('build-kokkos-without-simd') {
+            steps {
+                sh '''
+                srun -p knl -N 1 -n 1 -t 08:00:00 --exclusive -D /data/scratch/jenkins/octotiger-${JOB_BASE_NAME}/OctoTigerBuildChain bash -c \
+                "./build-all.sh Release with-CC without-cuda without-mpi without-papi without-apex with-kokkos without-simd without-hpx-backend-multipole without-hpx-backend-monopole without-hpx-cuda-polling "
+                '''
+            }
+        }
+        // Legacy and vc are tested on other machines already - concentrate on Kokkos here
+        /*stage('ctest-legacy') {
+            steps {
+                sh '''
+                srun -p knl -N 1 -n 1 -t 01:00:00 --exclusive -D /data/scratch/jenkins/octotiger-${JOB_BASE_NAME}/OctoTigerBuildChain/build/octotiger/build bash -c "ctest --output-on-failure -R legacy"
+                '''
+            }
+        }
+        stage('ctest-vc') {
+            steps {
+                sh '''
+                srun -p knl -N 1 -n 1 -t 01:00:00 --exclusive -D /data/scratch/jenkins/octotiger-${JOB_BASE_NAME}/OctoTigerBuildChain/build/octotiger/build bash -c "ctest --output-on-failure -R vc"
+                '''
+            }
+        }*/
+        stage('ctest-kokkos-without-simd') {
+            steps {
+                sh '''
+                srun -p knl -N 1 -n 1 -t 08:00:00 --exclusive -D /data/scratch/jenkins/octotiger-${JOB_BASE_NAME}/OctoTigerBuildChain/build/octotiger/build bash -c "ctest --output-on-failure -R kokkos"
+                '''
+            }
+        }
+        stage('build-kokkos-with-simd') {
+            steps {
+                sh '''
+                srun -p knl -N 1 -n 1 -t 08:00:00 --exclusive -D /data/scratch/jenkins/octotiger-${JOB_BASE_NAME}/OctoTigerBuildChain bash -c \
+                "./build-all.sh Release with-CC without-cuda without-mpi without-papi without-apex with-kokkos with-simd without-hpx-backend-multipole without-hpx-backend-monopole without-hpx-cuda-polling octotiger"
+                '''
+            }
+        }
+        stage('ctest-kokkos-with-simd') {
+            steps {
+                sh '''
+                srun -p knl -N 1 -n 1 -t 08:00:00 --exclusive -D /data/scratch/jenkins/octotiger-${JOB_BASE_NAME}/OctoTigerBuildChain/build/octotiger/build bash -c "ctest --output-on-failure -R kokkos"
+                '''
+            }
+        }
+        stage('build-kokkos-with-hpx-backend') {
+            steps {
+                sh '''
+                srun -p knl -N 1 -n 1 -t 08:00:00 --exclusive -D /data/scratch/jenkins/octotiger-${JOB_BASE_NAME}/OctoTigerBuildChain bash -c \
+                "./build-all.sh Release with-CC without-cuda without-mpi without-papi without-apex with-kokkos with-simd with-hpx-backend-multipole with-hpx-backend-monopole without-hpx-cuda-polling octotiger"
+                '''
+            }
+        }
+        stage('ctest-kokkos-with-hpx-backend') {
+            steps {
+                sh '''
+                srun -p knl -N 1 -n 1 -t 08:00:00 --exclusive -D /data/scratch/jenkins/octotiger-${JOB_BASE_NAME}/OctoTigerBuildChain/build/octotiger/build bash -c "ctest --output-on-failure -R kokkos"
+                '''
+            }
+        }
+    }
+    post {
+        success {
+            script {
+                buildbadge.setStatus('success')
+            }
+            sh '''
+                github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
+                curl \
+                    --request POST \
+                    --url "https://api.github.com/repos/STEllAR-GROUP/octotiger/statuses/$GIT_COMMIT" \
+                    --header "Content-Type: application/json" \
+                    --header "authorization: Bearer ${github_token}" \
+                    --data "{
+                        \\"state\\": \\"success\\",
+                        \\"context\\": \\"jenkins-KNL-SIMD\\",
+                        \\"description\\": \\"Jenkins CI Job: jenkins-KNL-SIMD\\",
+                        \\"target_url\\": \\"https://simsgs.informatik.uni-stuttgart.de/jenkins/job/Octo-Tiger%20KNL/job/${JOB_BASE_NAME}/${BUILD_NUMBER}/console\\"
+                }"
+            '''
+        }
+        failure {
+            script {
+                buildbadge.setStatus('failing')
+            }
+            sh '''
+                github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
+                curl \
+                    --request POST \
+                    --url "https://api.github.com/repos/STEllAR-GROUP/octotiger/statuses/$GIT_COMMIT" \
+                    --header "Content-Type: application/json" \
+                    --header "authorization: Bearer ${github_token}" \
+                    --data "{
+                        \\"state\\": \\"failure\\",
+                        \\"context\\": \\"jenkins-KNL-SIMD\\",
+                        \\"description\\": \\"Jenkins CI Job: jenkins-KNL-SIMD\\",
+                        \\"target_url\\": \\"https://simsgs.informatik.uni-stuttgart.de/jenkins/job/Octo-Tiger%20KNL/job/${JOB_BASE_NAME}/${BUILD_NUMBER}/console\\"
+                }"
+                echo "Build failed on pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger KNL: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} failed" "${MAINTAINER_MAIL}"
+            '''
+        }
+        aborted {
+            script {
+                buildbadge.setStatus('aborted')
+            }
+            sh '''
+                github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
+                curl \
+                    --request POST \
+                    --url "https://api.github.com/repos/STEllAR-GROUP/octotiger/statuses/$GIT_COMMIT" \
+                    --header "Content-Type: application/json" \
+                    --header "authorization: Bearer ${github_token}" \
+                    --data "{
+                        \\"state\\": \\"error\\",
+                        \\"context\\": \\"jenkins-KNL-SIMD\\",
+                        \\"description\\": \\"Jenkins CI Job: jenkins-KNL-SIMD\\",
+                        \\"target_url\\": \\"https://simsgs.informatik.uni-stuttgart.de/jenkins/job/Octo-Tiger%20KNL/job/${JOB_BASE_NAME}/${BUILD_NUMBER}/console\\"
+                }"
+                echo "Build aborted on pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger KNL: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} aborted" "${MAINTAINER_MAIL}"
+            '''
+        }
+    }
+}

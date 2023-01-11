@@ -1,0 +1,212 @@
+#!groovy
+
+//  Copyright (c) 2021-2022 Gregor Daiß
+//
+//  Distributed under the Boost Software License, Version 1.0. (See accompanying
+//  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+
+def buildbadge = addEmbeddableBadgeConfiguration(id: "nodelevel", subject: "CPU / GPU Kernel Tests", status: "skipped")
+
+pipeline {
+    agent any
+
+    options {
+        buildDiscarder(
+            logRotator(
+                daysToKeepStr: "28",
+                numToKeepStr: "100",
+                artifactDaysToKeepStr: "28",
+                artifactNumToKeepStr: "100"
+            )
+        )
+        disableConcurrentBuilds()
+    }
+    environment {
+        GITHUB_TOKEN = credentials('GITHUB_TOKEN_OCTOTIGER')
+        MAINTAINER_MAIL = credentials('OCTOTIGER_MAINTAINER_EMAIL')
+    }
+    stages {
+        stage('checkout') {
+            steps {
+                script {
+                    buildbadge.setStatus('running')
+                }
+                sh '''
+                    echo "Build success! Pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger Node-Level Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} succeded" "${MAINTAINER_MAIL}"
+                '''
+                dir('octotiger') {
+                    checkout scm
+                    sh '''
+                        cd octotiger
+                        git submodule update --init --recursive
+                        cd ..
+                    '''
+                }
+            }
+        }
+        stage('build') {
+            matrix {
+                axes {
+                    axis {
+                        name 'compiler_config'
+                        values 'with-CC', 'with-CC-clang'
+                    }
+                    axis {
+                        name 'cuda_config'
+                        values 'with-cuda', 'without-cuda'
+                    }
+                    axis {
+                        name 'kokkos_config'
+                        values 'with-kokkos', 'without-kokkos'
+                    }
+                    axis {
+                         name 'build_type'
+                         values 'Release'
+                    }
+                }
+                stages {
+                    stage('init') {
+                        steps {
+                            dir('octotiger') {
+                                sh '''
+                                github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
+                                curl --verbose\
+                                    --request POST \
+                                    --url "https://api.github.com/repos/STEllAR-GROUP/octotiger/statuses/$GIT_COMMIT" \
+                                    --header "Content-Type: application/json" \
+                                    --header "authorization: Bearer ${github_token}" \
+                                    --data "{
+                                        \\"state\\": \\"pending\\",
+                                        \\"context\\": \\"jenkins-${compiler_config}-${cuda_config}-${kokkos_config}\\",
+                                        \\"description\\": \\"Jenkins CI Job: ${compiler_config}-${cuda_config}-${kokkos_config}\\",
+                                        \\"target_url\\": \\"https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger%20Node-Level/job/$JOB_BASE_NAME/$BUILD_NUMBER/console\\"
+                                    }"
+                                '''
+                            }
+                        }
+                    }
+                    stage('checkout_buildscripts') {
+                        steps {
+                            dir('octotiger') {
+                                sh '''
+                                #!/bin/bash -l
+                                cd ..
+                                #rm -rf octo-buildscripts/src/octotiger
+                                rm -rf "octo-buildscripts-${compiler_config}-${cuda_config}-${kokkos_config}" #remove line for dependency caching
+                                if [[ -d "octo-buildscripts-${compiler_config}-${cuda_config}-${kokkos_config}" ]]
+                                then
+                                    cd "octo-buildscripts-${compiler_config}-${cuda_config}-${kokkos_config}"
+                                    git reset --hard # reset griddim modification in case of unclean directory
+                                    git checkout jenkins-aggregation-test-cuda
+                                    git pull
+                                    rm -rf build/octotiger
+                                    rm -rf build/kokkos
+                                    rm -rf src/octotiger
+                                else
+                                    git clone https://github.com/diehlpk/PowerTiger.git "octo-buildscripts-${compiler_config}-${cuda_config}-${kokkos_config}"
+                                    cd "octo-buildscripts-${compiler_config}-${cuda_config}-${kokkos_config}"
+                                    git checkout jenkins-aggregation-test-cuda # change to different branch if needed for target machine
+                                    mkdir src
+                                    rm -rf build/octotiger
+                                    rm -rf build/kokkos
+                                    rm -rf src/octotiger
+                                fi
+
+                                cd ..
+                                cp -r octotiger "octo-buildscripts-${compiler_config}-${cuda_config}-${kokkos_config}/src/octotiger"
+                                '''
+                            }
+                        }
+                    }
+                    stage('build-and-test') {
+                        steps {
+                            dir('octotiger') {
+                                sh '''
+                                #!/bin/bash -l
+                                cd "../octo-buildscripts-${compiler_config}-${cuda_config}-${kokkos_config}"
+                                src/octotiger/.jenkins/lsu/node-level-tests-entry.sh
+                                '''
+                            }
+                        }
+                    }
+                }
+                post {
+                    success {
+                        sh '''
+                        github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
+                        curl --verbose\
+                            --request POST \
+                            --url "https://api.github.com/repos/STEllAR-GROUP/octotiger/statuses/$GIT_COMMIT" \
+                            --header "Content-Type: application/json" \
+                            --header "authorization: Bearer ${github_token}" \
+                            --data "{
+                                \\"state\\": \\"success\\",
+                                \\"context\\": \\"jenkins-${compiler_config}-${cuda_config}-${kokkos_config}\\",
+                                \\"description\\": \\"Jenkins CI Job: ${compiler_config}-${cuda_config}-${kokkos_config}\\",
+                                \\"target_url\\": \\"https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger%20Node-Level/job/$JOB_BASE_NAME/$BUILD_NUMBER/console\\"
+                            }"
+                        '''
+                    }
+                    failure {
+                        sh '''
+                        github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
+                        curl --verbose\
+                            --request POST \
+                            --url "https://api.github.com/repos/STEllAR-GROUP/octotiger/statuses/$GIT_COMMIT" \
+                            --header "Content-Type: application/json" \
+                            --header "authorization: Bearer ${github_token}" \
+                            --data "{
+                                \\"state\\": \\"failure\\",
+                                \\"context\\": \\"jenkins-${compiler_config}-${cuda_config}-${kokkos_config}\\",
+                                \\"description\\": \\"Jenkins CI Job: ${compiler_config}-${cuda_config}-${kokkos_config}\\",
+                                \\"target_url\\": \\"https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger%20Node-Level/job/$JOB_BASE_NAME/$BUILD_NUMBER/console\\"
+                            }"
+                        '''
+                    }
+                    aborted {
+                        sh '''
+                        github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
+                        curl --verbose\
+                            --request POST \
+                            --url "https://api.github.com/repos/STEllAR-GROUP/octotiger/statuses/$GIT_COMMIT" \
+                            --header "Content-Type: application/json" \
+                            --header "authorization: Bearer ${github_token}" \
+                            --data "{
+                                \\"state\\": \\"error\\",
+                                \\"context\\": \\"jenkins-${compiler_config}-${cuda_config}-${kokkos_config}\\",
+                                \\"description\\": \\"Jenkins CI Job: ${compiler_config}-${cuda_config}-${kokkos_config}\\",
+                                \\"target_url\\": \\"https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger%20Node-Level/job/$JOB_BASE_NAME/$BUILD_NUMBER/console\\"
+                            }"
+                        '''
+                    }
+                }
+            }
+        }
+    }
+    post {
+        success {
+            script {
+                buildbadge.setStatus('success')
+            }
+            sh '''
+                echo "Build success! Pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger Node-Level Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} succeded" "${MAINTAINER_MAIL}"
+            '''
+        }
+        failure {
+            script {
+                buildbadge.setStatus('failing')
+            }
+            sh '''
+                echo "Build failed! Pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger Node-Level Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} failed" "${MAINTAINER_MAIL}"
+            '''
+        }
+        aborted {
+            script {
+                buildbadge.setStatus('aborted')
+            }
+            sh '''
+                echo "Build aborted on pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger Node-Level Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} aborted" "${MAINTAINER_MAIL}"
+            '''
+        }
+    }
+}
