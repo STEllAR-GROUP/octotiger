@@ -166,7 +166,7 @@ namespace fmm {
             dim3 const grid_spec, dim3 const threads_per_block, const double *monopoles,
             double *tmp_potential_expansions,
             const double theta, const double dx) {
-            executor.post(hip_p2p_interactions_kernel_ggl_wrapper, grid_spec,
+            hpx::post(executor.interface, hip_p2p_interactions_kernel_ggl_wrapper, grid_spec,
                 threads_per_block, monopoles, tmp_potential_expansions,
                 theta, dx);
         }
@@ -191,14 +191,14 @@ namespace fmm {
 #else
         void launch_sum_p2p_results_post(stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
             dim3 const grid_spec, dim3 const threads_per_block, void *args[]) {
-            executor.post(
+          hpx::post(executor.interface, 
             cudaLaunchKernel<decltype(cuda_sum_p2p_results)>,
             cuda_sum_p2p_results, grid_spec, threads_per_block, args, 0);
         }
 
         void launch_p2p_cuda_kernel_post(stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
             dim3 const grid_spec, dim3 const threads_per_block, void *args[]) {
-            executor.post(
+          hpx::post(executor.interface,
             cudaLaunchKernel<decltype(cuda_p2p_interactions_kernel)>,
             cuda_p2p_interactions_kernel, grid_spec, threads_per_block, args, 0);
         }
@@ -322,7 +322,7 @@ namespace fmm {
         }
         void launch_p2m_rho_cuda_kernel_post(stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
             dim3 const grid_spec, dim3 const threads_per_block, void *args[]) {
-            executor.post(
+          hpx::post(executor.interface,
             cudaLaunchKernel<decltype(cuda_p2m_interaction_rho)>,
             cuda_p2m_interaction_rho, grid_spec, threads_per_block, args, 0);
         }
@@ -434,7 +434,7 @@ namespace fmm {
         void launch_p2m_non_rho_cuda_kernel_post(
             stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
             dim3 const grid_spec, dim3 const threads_per_block, void *args[]) {
-            executor.post(
+          hpx::post(executor.interface,
             cudaLaunchKernel<decltype(cuda_p2m_interaction_non_rho)>,
             cuda_p2m_interaction_non_rho, grid_spec, threads_per_block, args, 0);
         }
