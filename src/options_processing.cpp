@@ -233,6 +233,16 @@ bool options::process_options(int argc, char *argv[]) {
 		std::cerr << "Either increase theta or recompile with a new theta minimum using the cmake parameter OCTOTIGER_THETA_MINIMUM";
 		abort();
 	}
+  opts().detected_intel_compiler=true;
+
+#ifdef __VERSION__
+  std::string compiler_version = std::string(__VERSION__);
+  std::cout << "Using compiler " << compiler_version << std::endl;
+  if (compiler_version.find("intel") != std::string::npos) {
+    std::cout << "Detected Intel compiler..." << '\n';
+    opts().detected_intel_compiler=true;
+  }
+#endif
 	{
 #define SHOW( opt ) std::cout << std::string( #opt ) << " = " << to_string(opt) << '\n';
 		std::cout << "atomic_number=";
