@@ -93,7 +93,7 @@ __global__ void reconstruct_cuda_kernel(const double omega, const int nf_,
 void reconstruct_hip_kernel_ggl_wrapper(dim3 const grid_spec, dim3 const threads_per_block,
     double omega, int nf_, int angmom_index_, int *smooth_field_, int* disc_detect, double *combined_q,
     double *combined_x, double *combined_u, double *AM, double *dx, double *cdiscs, int n_species_, int ndir, int nangmom,
-    cudaStream_t& stream) {
+    cudaStream_t const& stream) {
     if (angmom_index_ > -1) {
 				hipLaunchKernelGGL(reconstruct_cuda_kernel, grid_spec, threads_per_block, 0, stream, omega, nf_,
 						angmom_index_, smooth_field_, disc_detect, combined_q, combined_x, combined_u, AM, dx, cdiscs,
@@ -177,12 +177,12 @@ __global__ void discs_phase2(
 #if defined(OCTOTIGER_HAVE_HIP)
 void disc1_hip_kernel_ggl_wrapper(dim3 const grid_spec, dim3 const threads_per_block,
     double* device_P, double* device_u, double A_, double B_, double fgamma_, double de_switch_1, int nf,
-    cudaStream_t& stream) {
+    cudaStream_t const& stream) {
     hipLaunchKernelGGL(discs_phase1, grid_spec, threads_per_block, 0, stream, device_P, device_u,
         A_, B_, fgamma_, de_switch_1, nf);
 }
 void disc2_hip_kernel_ggl_wrapper(dim3 const grid_spec, dim3 const threads_per_block,
-    double* device_disc, double* device_P, double fgamma_, int ndir, cudaStream_t& stream) {
+    double* device_disc, double* device_P, double fgamma_, int ndir, cudaStream_t const& stream) {
     hipLaunchKernelGGL(discs_phase2, grid_spec, threads_per_block, 0, stream, device_disc, device_P,
         fgamma_, ndir);
 }
@@ -235,7 +235,7 @@ __global__ void __launch_bounds__(64, 4)
 #if defined(OCTOTIGER_HAVE_HIP)
 void pre_recon_hip_kernel_ggl_wrapper(dim3 const grid_spec, dim3 const threads_per_block,
     double* device_X, double omega, bool angmom, double* device_u, int nf, int n_species_,
-    cudaStream_t& stream) {
+    cudaStream_t const& stream) {
     hipLaunchKernelGGL(hydro_pre_recon_cuda, grid_spec, threads_per_block, 0, stream, device_X,
         omega, angmom, device_u, nf, n_species_);
 }
