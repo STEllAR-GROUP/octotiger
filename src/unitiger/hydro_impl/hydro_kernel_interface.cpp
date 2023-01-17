@@ -36,7 +36,10 @@ using host_executor = hpx::kokkos::hpx_executor;
 void init_hydro_kokkos_aggregation_pool(void) {
     const size_t max_slices = opts().max_executor_slices;
     constexpr size_t number_aggregation_executors = 128;
-    constexpr Aggregated_Executor_Modes executor_mode = Aggregated_Executor_Modes::EAGER;
+    Aggregated_Executor_Modes executor_mode = Aggregated_Executor_Modes::EAGER;
+    if (max_slices == 1) {
+      executor_mode = Aggregated_Executor_Modes::STRICT;
+    }
     if (opts().cuda_streams_per_gpu > 0) {
 #if defined(KOKKOS_ENABLE_CUDA)
     hydro_kokkos_agg_executor_pool<hpx::kokkos::cuda_executor>::init(number_aggregation_executors, max_slices, executor_mode);
