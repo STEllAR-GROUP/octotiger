@@ -14,7 +14,7 @@
 template<int NDIM, int INX, class PHYS>
 hydro_computer<NDIM, INX, PHYS>::hydro_computer() {
 	nf_ = PHYS::field_count();
-
+	face_flux_only_ = false;
 	angmom_index_ = -1;
 	experiment = 0;
 	for( int f = 0; f < nf_; f++) {

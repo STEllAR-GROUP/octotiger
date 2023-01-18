@@ -439,9 +439,7 @@ void rad_grid::compute_flux(real omega) {
 	PROFILE()
 	;
 	radiation_physics<NDIM>::set_clight(physcon().c / opts().clight_retard);
-	if (opts().correct_am_hydro) {
-	//	hydro.use_angmom_correction(fx_i);
-	}
+	radiation_physics<NDIM>::set_face_flux_only(true);
 	const auto &q = hydro.reconstruct(U, X, omega);
 	hydro.flux(U, q, flux, X, omega);
 }
