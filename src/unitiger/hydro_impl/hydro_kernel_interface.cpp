@@ -49,7 +49,7 @@ void init_hydro_kokkos_aggregation_pool(void) {
     hydro_kokkos_agg_executor_pool<hpx::kokkos::sycl_executor>::init(number_aggregation_executors, max_slices, executor_mode);
 #endif
     }
-    hydro_kokkos_agg_executor_pool<host_executor>::init(number_aggregation_executors, max_slices, executor_mode);
+    hydro_kokkos_agg_executor_pool<host_executor>::init(number_aggregation_executors, 1, executor_mode);
 }
 #endif
 

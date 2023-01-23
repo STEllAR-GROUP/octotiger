@@ -516,10 +516,10 @@ bool options::process_options(int argc, char *argv[]) {
 #endif
 #endif
 
-   if (opts().hydro_host_kernel_type == KOKKOS && opts().max_executor_slices > 1) {
-     std::cerr << "\nERROR: work aggregation not yet supported for Kokkos host kernel!" << std::endl;
-     abort();
-   }
+   /* if (opts().hydro_host_kernel_type == KOKKOS && opts().max_executor_slices > 1) { */
+   /*   std::cerr << "\nERROR: work aggregation not yet supported for Kokkos host kernel!" << std::endl; */
+   /*   abort(); */
+   /* } */
 
     return true;
 }

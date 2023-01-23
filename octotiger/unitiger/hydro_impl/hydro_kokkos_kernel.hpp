@@ -8,6 +8,7 @@
 
 #include <Kokkos_Core.hpp>
 #include <aggregation_manager.hpp>
+#include <exception>
 #include <hpx/futures/future.hpp>
 #include <stream_manager.hpp>
 #include <type_traits>
@@ -1196,7 +1197,11 @@ timestep_t launch_hydro_kokkos_kernels(const hydro_computer<NDIM, INX, physics<N
       // How many executor slices are working together and what's our ID?
       const size_t slice_id = agg_exec.id;
       const size_t number_slices = agg_exec.number_slices;
-      const size_t max_slices = opts().max_executor_slices;
+      size_t max_slices = opts().max_executor_slices;
+      if constexpr (is_kokkos_host_executor<executor_t>::value) {
+        max_slices = 1;
+        assert(number_slices == 1);
+      }
 
       // Slice offsets
       const int u_slice_offset = hydro.get_nf() * H_N3 + padding;
