@@ -36,7 +36,7 @@ using host_executor = hpx::kokkos::hpx_executor;
 void init_hydro_kokkos_aggregation_pool(void) {
     const size_t max_slices = opts().max_executor_slices;
     constexpr size_t number_aggregation_executors = 128;
-    Aggregated_Executor_Modes executor_mode = Aggregated_Executor_Modes::EAGER;
+    Aggregated_Executor_Modes executor_mode = Aggregated_Executor_Modes::STRICT;
     if (max_slices == 1) {
       executor_mode = Aggregated_Executor_Modes::STRICT;
     }
