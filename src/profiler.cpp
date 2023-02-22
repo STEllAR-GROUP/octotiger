@@ -46,7 +46,7 @@ auto 	cntptr = std::make_shared < real > (0.0);
 
 static/**/void accumulate() {
 	const real told = t;
-	t = hpx::util::high_resolution_clock::now() / 1e9;
+	t = hpx::chrono::high_resolution_clock::now() / 1e9;
 	if (!callstack.empty()) {
 		const std::string& str(callstack.top());
 		while (lock()++ != 0) {
@@ -71,12 +71,12 @@ void profiler_enter(const char* func, int line) {
 		}
 	}
 	callstack.push(str);
-	t = hpx::util::high_resolution_clock::now() / 1e9;
+	t = hpx::chrono::high_resolution_clock::now() / 1e9;
 }
 void profiler_exit() {
 	accumulate();
 	callstack.pop();
-	t = hpx::util::high_resolution_clock::now() / 1e9;
+	t = hpx::chrono::high_resolution_clock::now() / 1e9;
 }
 
 void profiler_output(FILE* _fp) {

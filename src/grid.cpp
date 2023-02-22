@@ -21,6 +21,7 @@
 #include "octotiger/test_problems/amr/amr.hpp"
 #include "octotiger/unitiger/hydro_impl/reconstruct.hpp"
 #include "octotiger/unitiger/hydro_impl/flux.hpp"
+#include <hpx/collectives/broadcast_direct.hpp>
 
 #include <hpx/include/runtime.hpp>
 #include <hpx/collectives/broadcast.hpp>

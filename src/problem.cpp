@@ -24,7 +24,7 @@ constexpr integer spc_de_i = spc_i + 3;
 constexpr integer spc_vac_i = spc_i + 4;
 
 namespace hpx {
-using mutex = hpx::lcos::local::spinlock;
+//using mutex = hpx::lcos::local::spinlock;
 }
 const real ssr0 = 1.0 / 3.0;
 

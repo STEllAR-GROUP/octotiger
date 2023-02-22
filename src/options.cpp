@@ -11,10 +11,12 @@
 #include "octotiger/common_kernel/interaction_constants.hpp"
 
 #include <boost/program_options.hpp>
+#include <hpx/runtime_distributed/find_all_localities.hpp>
 
 #include <cmath>
 #include <iosfwd>
 #include <sstream>
+#include <fstream>
 #include <string>
 #include <vector>
 

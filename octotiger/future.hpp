@@ -73,7 +73,7 @@ inline T debug_get(future<T> &f, const char *file, int line) {
 	const int timeout = opts().future_wait_time;
 	int count = 0;
 	if (timeout > 0) {
-		while (f.wait_for(std::chrono::duration<int>(timeout)) == hpx::lcos::future_status::timeout) {
+		while (f.wait_for(std::chrono::duration<int>(timeout)) == hpx::future_status::timeout) {
 			count++;
 			printf("future::get in file %s on line %i is taking a while - %i seconds so far.\n", file, line, 60 * count);
 		}
@@ -96,7 +96,7 @@ inline T debug_get(const hpx::shared_future<T> &f, const char *file, int line) {
 //	constexpr int timeout = 10;
 //	int count = 0;
 //	if (!f.is_ready()) {
-//		while (f.wait_for(std::chrono::duration<int>(timeout)) == hpx::lcos::future_status::timeout) {
+//		while (f.wait_for(std::chrono::duration<int>(timeout)) == hpx::future_status::timeout) {
 //			count++;
 //			printf("shared_future::get in file %s on line %i is taking a while - %i seconds so far.\n", file, line, 60 * count);
 //		}

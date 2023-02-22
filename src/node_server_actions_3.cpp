@@ -347,7 +347,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 
 		}
 		if (step_num == 0) {
-			bench_start = hpx::util::high_resolution_clock::now() / 1e9;
+			bench_start = hpx::chrono::high_resolution_clock::now() / 1e9;
 		}
 
 		real dt = 0;
@@ -422,7 +422,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 			// run output on separate thread
 			auto need_break = hpx::threads::run_as_os_thread([&]() {
 				//		set_omega_and_pivot();
-				bench_stop = hpx::util::high_resolution_clock::now() / 1e9;
+				bench_stop = hpx::chrono::high_resolution_clock::now() / 1e9;
 				if (scf || opts().bench) {
 					printf("Total time = %e s\n", double(bench_stop - bench_start));
 					if (!opts().disable_output) {
@@ -438,13 +438,13 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 				break;
 		}
 		if (scf) {
-			bench_stop = hpx::util::high_resolution_clock::now() / 1e9;
+			bench_stop = hpx::chrono::high_resolution_clock::now() / 1e9;
 			printf("Total time = %e s\n", double(bench_stop - bench_start));
 			break;
 		}
 	}
 
-	bench_stop = hpx::util::high_resolution_clock::now() / 1e9;
+	bench_stop = hpx::chrono::high_resolution_clock::now() / 1e9;
 	{
 		timings::scope ts(timings_, timings::time_compare_analytic);
 
@@ -540,7 +540,7 @@ future<void> node_server::nonrefined_step() {
 
 	for (integer rk = 0; rk < NRK; ++rk) {
 
-		fut = fut.then(hpx::launch::async(hpx::threads::thread_priority_boost),
+		fut = fut.then(HPX_PRIORITY_BOOST
 		//hpx::util::annotated_function(
 				[rk, cfl0, this, dt_fut](future<void> f) {
 					GET(f);
@@ -618,7 +618,7 @@ future<real> node_server::local_step(integer steps) {
 			}
 		}
 
-		fut = fut.then(hpx::launch::async(hpx::threads::thread_priority_boost), [this, i, steps](future<void> fut) -> real {
+		fut = fut.then(HPX_PRIORITY_BOOST [this, i, steps](future<void> fut) -> real {
 			GET(fut);
 			auto time_start = std::chrono::high_resolution_clock::now();
 			auto next_dt = timestep_driver_descend();

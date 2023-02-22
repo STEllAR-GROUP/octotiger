@@ -20,7 +20,7 @@
 #include <thread>
 
 namespace hpx {
-using mutex = hpx::lcos::local::spinlock;
+//using mutex = hpx::lcos::local::spinlock;
 }
 
 std::vector<std::vector<real>>& TLS_V();
