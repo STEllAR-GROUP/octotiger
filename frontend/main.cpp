@@ -17,6 +17,10 @@
 #include "octotiger/test_problems/blast.hpp"
 #include "octotiger/unitiger/physics.hpp"
 #include "octotiger/unitiger/physics_impl.hpp"
+#include <hpx/collectives/broadcast_direct.hpp>
+#include <hpx/runtime/find_all_localities.hpp>
+#include <hpx/init.hpp>
+#include <hpx/hpx_init_params.hpp>
 
 #include "octotiger/test_problems/amr/amr.hpp"
 
@@ -551,6 +555,7 @@ int main(int argc, char* argv[]) {
 			};
 	hpx::register_startup_function(&node_server::register_counters);
 	hpx::register_pre_shutdown_function([]() {options::all_localities.clear();});
-
-	hpx::init(argc, argv, cfg);
+	hpx::init_params ip;
+	ip.cfg = cfg;
+	hpx::init(argc, argv, ip);
 }
