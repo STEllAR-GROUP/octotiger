@@ -62,10 +62,10 @@ option(OCTOTIGER_WITH_FORCE_SCALAR_KOKKOS_SIMD
 option(OCTOTIGER_WITH_POLLING_EXECUTORS  
   "Use the polling executors, not the callback ones" ON)
 
-option(OCTOTIGER_ARCH_FLAG
-  "Arch flag for compilations" "-march=native")
-option(OCTOTIGER_CUDA_ARCH
-  "Compile for this CUDA arch" sm_50)
+set(OCTOTIGER_ARCH_FLAG "-march=native"
+  CACHE STRING "Arch flag for compilations" )
+set(OCTOTIGER_CUDA_ARCH "sm_50"
+  CACHE STRING "Compile for this CUDA arch" )
 
 # silence warnings for deprecated HPX includes
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-cpp")
