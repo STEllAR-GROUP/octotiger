@@ -1,4 +1,3 @@
-#pragma once
 #include <hpx/apply.hpp>
 #include <hpx/synchronization/once.hpp>
 
