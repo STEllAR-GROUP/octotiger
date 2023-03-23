@@ -32,7 +32,7 @@ From <https://doi.org/10.1145/3204919.3204938>:
 
   * **Where to get help**:
 
-  IRC Channel `#ste||ar` on [freenode.net](https://freenode.net/)
+  IRC Channel `#ste||ar` on [libera.chat](libera.chat)
 
   * **Where to file issues**:
 
