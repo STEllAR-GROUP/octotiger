@@ -358,7 +358,7 @@ diagnostics_t node_server::child_diagnostics(const diagnostics_t &diags) {
 	for (integer ci = 0; ci != NCHILD; ++ci) {
 		futs[index++] = children[ci].diagnostics(diags);
 	}
-	auto child_sums = hpx::util::unwrap(futs);
+	auto child_sums = hpx::unwrap(futs);
 	return std::accumulate(child_sums.begin(), child_sums.end(), sums);
 }
 
