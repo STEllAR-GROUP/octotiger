@@ -22,8 +22,8 @@ using refine_test_type = std::function<bool(integer, integer, real, real, real,
 const static init_func_type null_problem = nullptr;
 OCTOTIGER_EXPORT std::vector<real> old_scf(
     real, real, real, real, real, real, real);
-#if defined(OCTOTIGER_HAVE_BLAST_TEST)
 OCTOTIGER_EXPORT std::vector<real> blast_wave(real, real, real, real);
+#if defined(OCTOTIGER_HAVE_BLAST_TEST)
 OCTOTIGER_EXPORT std::vector<real> blast_wave_analytic(
     real x, real y, real z, real t);
 #endif
@@ -79,5 +79,6 @@ OCTOTIGER_EXPORT bool radiation_test_refine(integer level, integer max_level,
     std::array<std::vector<real>, NDIM> const& dudx);
 OCTOTIGER_EXPORT std::vector<real> radiation_test_problem(real, real, real, real);
 std::vector<real> radiation_diffusion_test_problem(real x, real y, real z, real dx);
+std::vector<real> radiation_coupling_test_problem(real x, real y, real z, real dx);
 std::vector<real> radiation_diffusion_analytic(real x, real y, real z, real t);
 #endif /* PROBLEM_HPP_ */

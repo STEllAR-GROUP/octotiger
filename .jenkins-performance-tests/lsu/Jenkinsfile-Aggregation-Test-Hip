@@ -1,0 +1,100 @@
+#!groovy
+
+//  Copyright (c) 2022 Gregor Daiß
+//
+//  Distributed under the Boost Software License, Version 1.0. (See accompanying
+//  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+
+pipeline {
+    agent any
+
+    options {
+        buildDiscarder(
+            logRotator(
+                daysToKeepStr: "365",
+                numToKeepStr: "200",
+                artifactDaysToKeepStr: "365",
+                artifactNumToKeepStr: "200"
+            )
+        )
+        disableConcurrentBuilds()
+    }
+    environment {
+        GITHUB_TOKEN = credentials('GITHUB_TOKEN_OCTOTIGER')
+        MAINTAINER_MAIL = credentials('OCTOTIGER_MAINTAINER_EMAIL')
+    }
+    stages {
+        stage('checkout') {
+            steps {
+                dir('octotiger') {
+                    checkout scm
+                    sh '''
+                        cd octotiger
+                        git submodule update --init --recursive
+                        cd ..
+                    '''
+                }
+            }
+        }
+        stage('configure') {
+            steps {
+                    sh '''
+                    #!/bin/bash -l
+                    rm -rf "octo-buildscripts-aggregation-test-HIP" #remove line for dependency caching
+                    if [[ -d "octo-buildscripts-aggregation-test-HIP" ]] # handle with cache dependencies
+                    then
+                        cd "octo-buildscripts-aggregation-test-HIP"
+                        git reset --hard # reset griddim modification in case of unclean directory
+                        git checkout jenkins-aggregation-test-kamand
+                        git pull
+                        rm -rf build/octotiger
+                        rm -rf src/octotiger
+                    else #handle fresh build
+                        git clone https://github.com/diehlpk/PowerTiger.git "octo-buildscripts-aggregation-test-HIP"
+                        cd "octo-buildscripts-aggregation-test-HIP"
+                        git checkout jenkins-aggregation-test-kamand
+                        mkdir src
+                    fi
+
+                    cd ..
+                    cp -r octotiger "octo-buildscripts-aggregation-test-HIP/src/octotiger"
+                '''
+            }
+        }
+        stage('build-and-test') {
+            steps {
+                sh '''
+                #!/bin/bash -l
+                cd "octo-buildscripts-aggregation-test-HIP"
+                sbatch --wait src/octotiger/.jenkins-performance-tests/lsu/hip-aggregation-test.sbatch
+                cat aggregation_test_hip.out
+                cat performance_results.log
+                '''
+            }
+        }
+    }
+    post {
+        success {
+		    sh '''
+        cd "octo-buildscripts-aggregation-test-HIP"
+        subject_configuration="$(cat performance_results.log | grep '^#' | sed 's/# //')"
+        subject_best_run="$(cat plot.log | tail -n 28)"
+        echo -e " HIP Aggregation Performance Test finished! Pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT} \n${subject_configuration} ${subject_best_run}" | mail -s "Jenkins Octo-Tiger HIP Aggregation Performance Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} finished! See attachments" -a performance_results.log -a plot.log -a cpu-gpu-nodelevel-scaling.pdf -a gpu-only-nodelevel-scaling.pdf -a slices_scaling.pdf -a executors_scaling.pdf -a cpu-only-nodelevel-scaling.pdf -a Reconstruct-Runtime-Per-Launch.pdf -a Reconstruct-Runtime-Per-Subgrid.pdf -a Reconstruct-Speedup-Per-Subgrid.pdf -a Flux-Runtime-Per-Launch.pdf -a Flux-Runtime-Per-Subgrid.pdf -a Flux-Speedup-Per-Subgrid.pdf -a Discs1-Runtime-Per-Launch.pdf -a Discs1-Runtime-Per-Subgrid.pdf -a Discs1-Speedup-Per-Subgrid.pdf -a Discs2-Runtime-Per-Launch.pdf -a Discs2-Runtime-Per-Subgrid.pdf -a Discs2-Speedup-Per-Subgrid.pdf -a Pre_Recon-Runtime-Per-Launch.pdf -a Pre_Recon-Runtime-Per-Subgrid.pdf -a Pre_Recon-Speedup-Per-Subgrid.pdf "${MAINTAINER_MAIL}"
+		    '''
+        }
+        failure {
+            sh '''
+            echo "HIP Aggregation Performance Test failed! Pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger HIP Aggregation Performance Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} failed" "${MAINTAINER_MAIL}"
+            cat aggregation_test_hip.out
+            cat performance_results.log
+            '''
+        }
+        aborted {
+            sh '''
+            echo "HIP Aggregation Performance Test aborted on pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger HIP Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} aborted" "${MAINTAINER_MAIL}"
+            cat aggregation_test_hip.out
+            cat performance_results.log
+            '''
+        }
+    }
+}

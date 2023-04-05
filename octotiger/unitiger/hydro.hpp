@@ -74,6 +74,7 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 //#endif
 
 	timestep_t flux(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X, safe_real omega);
+	timestep_t flux_experimental(const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X, safe_real omega);
 
 	void post_process(hydro::state_type &U, const hydro::state_type &X, safe_real dx);
 
@@ -120,10 +121,20 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 		bc_ = std::move(bc);
 	}
 
+	void set_face_flux_only(bool b) {
+		face_flux_only = b;
+	}
+
+	inline int get_nf() const {return nf_;}
+	inline int get_angmom_index() const {return angmom_index_;}
+	inline const std::vector<bool>& get_smooth_field() const {return smooth_field_;}
+	inline const std::vector<bool>& get_disc_detect() const {return disc_detect_;}
+
 private:
 	int experiment;
 	int nf_;
 	int angmom_index_;
+	int face_flux_only;
 	std::vector<bool> smooth_field_;
 	std::vector<bool> disc_detect_;
 	std::vector<bc_type> bc_;

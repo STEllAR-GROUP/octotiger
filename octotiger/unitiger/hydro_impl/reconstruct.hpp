@@ -43,7 +43,7 @@ static inline bool PPM_test(const T &ql, const T &q0, const T &qr) {
 		}
 	}
 	if (!rc) {
-		printf("%e %e %e %e %e\n", ql, q0, qr, tmp4, tmp3);
+		print("%e %e %e %e %e\n", ql, q0, qr, tmp4, tmp3);
 	}
 
 	return rc;
@@ -227,11 +227,11 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 								auto norm = std::max(std::abs(u0), std::max(std::abs(up), std::abs(um)));
 								norm *= norm;
 								if ((qp - qm) * (up - um) < -1.0e-12 * norm) {
-									printf("TVD fail 1 %e\n", (qp - qm) * (up - um) / norm);
+									print("TVD fail 1 %e\n", (qp - qm) * (up - um) / norm);
 									abort();
 								}
 //								if (!PPM_test(qp, u0, qm)) {
-//									printf("TVD fail 4\n");
+//									print("TVD fail 4\n");
 //									abort();
 //								}
 							}
@@ -252,11 +252,11 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 									auto norm = std::max(std::abs(ur), std::abs(ul));
 									norm *= norm;
 									if ((qr - ul) * (ur - qr) < -1.0e-12 * norm) {
-										printf("TVD fail 3 %e\n", (qr - ul) * (ur - qr) / norm);
+										print("TVD fail 3 %e\n", (qr - ul) * (ur - qr) / norm);
 										abort();
 									}
 									if ((ql - ul) * (ur - ql) < -1.0e-12 * norm) {
-										printf("TVD fail 5 %e\n", (ql - ul) * (ur - ql) / norm);
+										print("TVD fail 5 %e\n", (ql - ul) * (ur - ql) / norm);
 										abort();
 									}
 								}

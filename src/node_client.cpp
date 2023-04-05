@@ -10,6 +10,8 @@
 #include <hpx/include/naming.hpp>
 #include <hpx/collectives/broadcast.hpp>
 
+#if !defined(HPX_COMPUTE_DEVICE_CODE)
+
 bool node_client::is_local() const {
 	return local;
 }
@@ -26,8 +28,9 @@ hpx::id_type node_client::get_unmanaged_gid() const {
 node_client& node_client::operator=(hpx::future<hpx::id_type>&& fut) {
 	id = fut.get();
 	if( !empty() ) {
-        unmanaged = hpx::id_type(id.get_gid(), hpx::id_type::unmanaged);
+        unmanaged = hpx::id_type(id.get_gid(), hpx::id_type::management_type::unmanaged);
         local = hpx::naming::get_locality_from_id(id) == hpx::find_here();
+
 // 		local = bool(hpx::get_colocation_id(id).get() == hpx::find_here());
 	}
 	return *this;
@@ -36,7 +39,7 @@ node_client& node_client::operator=(hpx::future<hpx::id_type>&& fut) {
 node_client& node_client::operator=(const hpx::id_type& _id) {
 	id = _id;
 	if (!empty()) {
-        unmanaged = hpx::id_type(id.get_gid(), hpx::id_type::unmanaged);
+        unmanaged = hpx::id_type(id.get_gid(), hpx::id_type::management_type::unmanaged);
         local = hpx::naming::get_locality_from_id(id) == hpx::find_here();
 // 		local = bool(hpx::get_colocation_id(id).get() == hpx::find_here());
 	}
@@ -46,16 +49,15 @@ node_client& node_client::operator=(const hpx::id_type& _id) {
 node_client::node_client(hpx::future<hpx::id_type>&& fut) {
 	id = fut.get();
 	if( !empty() ) {
-        unmanaged = hpx::id_type(id.get_gid(), hpx::id_type::unmanaged);
+        unmanaged = hpx::id_type(id.get_gid(), hpx::id_type::management_type::unmanaged);
         local = hpx::naming::get_locality_from_id(id) == hpx::find_here();
-// 		local = bool(hpx::get_colocation_id(id).get() == hpx::find_here());
-	}
+    }
 }
 
 node_client::node_client(const hpx::id_type& _id) {
 	id = _id;
 	if (!empty()) {
-        unmanaged = hpx::id_type(id.get_gid(), hpx::id_type::unmanaged);
+        unmanaged = hpx::id_type(id.get_gid(), hpx::id_type::management_type::unmanaged);
         local = hpx::naming::get_locality_from_id(id) == hpx::find_here();
 	}
 }
@@ -73,3 +75,4 @@ void node_client::report_timing() const {
 	   hpx::async<typename node_server::report_timing_action>(get_gid()).get();
 	}
 
+#endif

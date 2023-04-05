@@ -28,6 +28,8 @@
 #include <fstream>
 #include <vector>
 
+#if !defined(HPX_COMPUTE_DEVICE_CODE)
+
 using amr_error_action_type = node_server::amr_error_action;
 HPX_REGISTER_ACTION(amr_error_action_type);
 
@@ -122,7 +124,7 @@ node_count_type node_server::regrid_gather(bool rebalance_only) {
 }
 
 future<hpx::id_type> node_server::create_child(hpx::id_type const &locality, integer ci) {
-	return hpx::async([ci, this](hpx::id_type const locality) {
+	return hpx::async(hpx::util::annotated_function([ci, this](hpx::id_type const locality) {
 
 		return hpx::new_<node_server>(locality, my_location.get_child(ci), me, current_time, rotational_time, step_num, hcycle, rcycle, gcycle).then([this, ci](future<hpx::id_type> &&child_idf) {
 		hpx::id_type child_id = child_idf.get();
@@ -172,7 +174,7 @@ future<hpx::id_type> node_server::create_child(hpx::id_type const &locality, int
 			}
 		}
 		return child_id;
-	});}, locality);
+	});}, "node_server::create_child::lambda"), locality);
 }
 
 using regrid_scatter_action_type = node_server::regrid_scatter_action;
@@ -220,40 +222,57 @@ void node_server::regrid_scatter(integer a_, integer total) {
 		}
 	}
 	clear_family();
+  if (opts().optimize_local_communication) {
+    // Renew promises
+    ready_for_hydro_exchange.clear();
+    for (int i = 0; i < number_hydro_exchange_promises; i++)
+      ready_for_hydro_exchange.emplace_back();
+    ready_for_amr_hydro_exchange.clear();
+    for (int i = 0; i < number_hydro_exchange_promises; i++)
+      ready_for_amr_hydro_exchange.emplace_back();
+    if (!opts().gravity) {
+      ready_for_hydro_update.clear();
+      for (int i = 0; i < number_hydro_exchange_promises; i++)
+        ready_for_hydro_update.emplace_back();
+      all_neighbors_got_hydro.clear();
+      for (int i = 0; i < number_hydro_exchange_promises; i++)
+        all_neighbors_got_hydro.emplace_back(hpx::make_ready_future());
+    }
+  }
 }
 
 node_count_type node_server::regrid(const hpx::id_type &root_gid, real omega, real new_floor, bool rb, bool grav_energy_comp) {
 	timings::scope ts(timings_, timings::time_regrid);
-	hpx::util::high_resolution_timer timer;
+	hpx::chrono::high_resolution_timer timer;
 	assert(grid_ptr != nullptr);
-	printf("-----------------------------------------------\n");
+	print("-----------------------------------------------\n");
 	if (!rb) {
-		printf("checking for refinement\n");
+		print("checking for refinement\n");
 		check_for_refinement(omega, new_floor);
 	} else {
 		node_registry::clear();
 	}
-	printf("regridding\n");
+	print("regridding\n");
 	real tstart = timer.elapsed();
 	auto a = regrid_gather(rb);
 	real tstop = timer.elapsed();
-	printf("Regridded tree in %f seconds\n", real(tstop - tstart));
-	printf("rebalancing %i nodes with %i leaves\n", int(a.total), int(a.leaf));
+	print("Regridded tree in %f seconds\n", real(tstop - tstart));
+	print("rebalancing %i nodes with %i leaves\n", int(a.total), int(a.leaf));
 	tstart = timer.elapsed();
 	regrid_scatter(0, a.total);
 	tstop = timer.elapsed();
-	printf("Rebalanced tree in %f seconds\n", real(tstop - tstart));
+	print("Rebalanced tree in %f seconds\n", real(tstop - tstart));
 	assert(grid_ptr != nullptr);
 	tstart = timer.elapsed();
-	printf("forming tree connections\n");
+	print("forming tree connections\n");
 	a.amr_bnd = form_tree(hpx::unmanaged(root_gid));
-	printf("%i amr boundaries\n", a.amr_bnd);
+	print("%i amr boundaries\n", a.amr_bnd);
 	tstop = timer.elapsed();
-	printf("Formed tree in %f seconds\n", real(tstop - tstart));
-	printf("solving gravity\n");
+	print("Formed tree in %f seconds\n", real(tstop - tstart));
+	print("solving gravity\n");
 	solve_gravity(grav_energy_comp, false);
 	double elapsed = timer.elapsed();
-	printf("regrid done in %f seconds\n---------------------------------------\n", elapsed);
+	print("regrid done in %f seconds\n---------------------------------------\n", elapsed);
 	return a;
 }
 
@@ -266,7 +285,7 @@ future<void> node_client::set_aunt(const hpx::id_type &aunt, const geo::face &f)
 
 void node_server::set_aunt(const hpx::id_type &aunt, const geo::face &face) {
 	if (aunts[face].get_gid() != hpx::invalid_id) {
-		printf("AUNT ALREADY SET\n");
+		print("AUNT ALREADY SET\n");
 		abort();
 	}
 	aunts[face] = aunt;
@@ -310,3 +329,4 @@ void node_server::solve_gravity(bool ene, bool aonly) {
 		}
 	}
 }
+#endif

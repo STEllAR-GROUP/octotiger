@@ -25,27 +25,54 @@ jobs:
             - checkout:
                 path: /octotiger
             - run:
+                name: Get reference data submodule
+                command: cd /octotiger && git submodule update --init --recursive && cd ..
+            - run:
+                name: Checkout CPPuddle
+                command: git clone https://github.com/G-071/hpx-kokkos-interopt-WIP.git cppuddle
+            - run: 
+                name: Create CPPuddle installation directory
+                command: mkdir cppuddle-install
+            - run:
+                name: Configure CPPuddle
+                command: cmake -Hcppuddle -Bcppuddle/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=cppuddle-install
+            - run:
+                name: Build CPPuddle
+                command: cmake --build cppuddle/build -- -j 2 VERBOSE=1
+            - run:
+                name: Install CPPuddle
+                command: cmake --build cppuddle/build --target install
+            - run:
                 name: Configure Octo-Tiger
                 command: |
                     cmake -H/octotiger -B/octotiger/build \
                           -DCMAKE_BUILD_TYPE=Release \
                           -DHPX_DIR=/local/hpx/lib/cmake/HPX \
                           -DVc_DIR=/local/vc/lib/cmake/Vc \
+                          -DCPPuddle_DIR=/root/project/cppuddle-install/lib/cmake/CPPuddle \
                           -DSilo_DIR=/local/silo \
                           -DHDF5_ROOT=/local/hdf5 \
                           -DBOOST_ROOT=/local/boost \
+                          -DOCTOTIGER_WITH_Vc=OFF \
                           -DOCTOTIGER_WITH_DOCU=ON \
                           -GNinja
             - run:
                 name: Build
                 command: cmake --build /octotiger/build -- -j2
             - run:
+                name: Install CPPuddle lib to persistent octotiger directory
+                command: |
+                    cp cppuddle-install/lib/libbuffer_manager.so /octotiger/build/libbuffer_manager.so
+                    cp cppuddle-install/lib/libstream_manager.so /octotiger/build/libstream_manager.so
+            - run:
                 name: Documentation
-                command: make -C /octotiger/build doc 
+                command: cmake --build /octotiger/build -- doc
             - persist_to_workspace:
                 root: /
                 paths:
                     - octotiger/build
+                    - cppuddle/build
+                    - cppuddle-install
 
     test_marshak:
         <<: *docker_config
@@ -78,7 +105,7 @@ jobs:
                 at: /
             - run:
                 name: Blast test
-                command: ctest --output-on-failure -R test_problems.cpu.blast.diff
+                command: ctest --output-on-failure -R test_problems.cpu.*.blast_legacy
                 no_output_timeout: 200m
             - run:
                 name: Move artifacts
@@ -99,7 +126,7 @@ jobs:
                 at: /
             - run:
                 name: Sod shock tube test
-                command: ctest --output-on-failure -R test_problems.cpu.sod.diff
+                command: ctest --output-on-failure -R test_problems.cpu.*.sod.*_legacy
                 no_output_timeout: 25m
             - run:
                 name: Move artifacts
@@ -120,7 +147,7 @@ jobs:
                 at: /
             - run:
                 name: Solid sphere test
-                command: ctest --output-on-failure -R test_problems.cpu.sphere.diff
+                command: ctest --output-on-failure -R test_problems.cpu.sphere_legacy
                 no_output_timeout: 25m
             - run:
                 name: Move artifacts
@@ -141,7 +168,7 @@ jobs:
                 at: /
             - run:
                 name: Rotating star test
-                command: ctest --output-on-failure -R test_problems.cpu.rotating_star.diff
+                command: ctest --output-on-failure -R test_problems.cpu.*.rotating_star_legacy
                 no_output_timeout: 25m
             - run:
                 name: Move artifacts
@@ -151,6 +178,32 @@ jobs:
                 when: always
             - store_artifacts:
                 path: /test
+
+    publish_documentation:
+        <<: *docker_config
+        working_directory: /octotiger/build
+        steps:
+            - checkout:
+                path: /octotiger
+            - attach_workspace:
+                at: /
+            - run:
+               name: Configure git
+               command: |
+                        git config --global user.name "Circle CI"
+                        git config --global user.email "bot@circleci.com"
+                        git checkout gh-pages
+            - run: 
+               name: Move documentation
+               command: |
+                        cp -r doc/html ../doc/   
+            - run:
+                name: publish documentation
+                command: |
+                        git add ../doc/html/*
+                        git commit -m "Update documentation [ci skip] " ../doc/html/* || true
+                        git push  https://${TOKEN}@github.com/STEllAR-GROUP/octotiger.git || true
+                no_output_timeout: 25m
 
 workflows:
     version: 2
@@ -173,3 +226,10 @@ workflows:
             - test_sphere:
                 requires:
                     - build
+            - publish_documentation:
+                requires:
+                    - build
+                filters:
+                  branches:
+                    only:
+                      - main

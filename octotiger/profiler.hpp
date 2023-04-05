@@ -46,7 +46,7 @@ struct timings
             time_ += timer_.elapsed();
         }
 
-        hpx::util::high_resolution_timer timer_;
+        hpx::chrono::high_resolution_timer timer_;
         double& time_;
     };
 
@@ -82,13 +82,17 @@ struct timings
 
     void report(std::string const& name)
     {
-    	const auto tinv = 1.0/ times_[time_total];
-    	const auto tcr = times_[time_computation] + times_[time_regrid];
-        std::cout << name << ":\n";
-        std::cout << "   Total: "             << times_[time_total] << '\n';
-        std::cout << "   Computation: "       << times_[time_computation] << " (" <<  100*times_[time_computation] * tinv << "\%)\n";
-        std::cout << "   Regrid: "            << times_[time_regrid]  << " (" <<  100*times_[time_regrid] * tinv << "\%)\n";
-        std::cout << "   Computation + Regrid: "       << tcr << " (" <<  100*tcr * tinv << "\%)\n";
+        if (times_[time_total] > 0.0) {
+            const auto tinv = 1.0/ times_[time_total];
+            const auto tcr = times_[time_computation] + times_[time_regrid];
+            std::cout << name << ":" << std::endl;
+            std::cout << "   Total: "             << times_[time_total] << std::endl;
+            std::cout << "   Computation: "       << times_[time_computation] << " (" <<  100*times_[time_computation] * tinv << " %)" << std::endl;
+            std::cout << "   Regrid: "            << times_[time_regrid]  << " (" <<  100*times_[time_regrid] * tinv << " %)" << std::endl;
+            std::cout << "   Computation + Regrid: "       << tcr << " (" <<  100*tcr * tinv << " %)" << std::endl;
+        } else {
+            std::cout << "   Warning! Total time is 0! " << std::endl;
+        }
     }
 
     std::array<double, timer::time_last> times_;

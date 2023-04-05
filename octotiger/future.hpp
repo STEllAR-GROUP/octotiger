@@ -65,23 +65,23 @@ inline void wait_all_and_propagate_exceptions(Ts &&futs) {
 	 (void)sequencer;*/
 }
 
-template<class T>
+/*template<class T>
 inline T debug_get(future<T> &f, const char *file, int line) {
 	if (f.valid() == false) {
-		printf("get on invalid future file %s line %i\n", file, line);
+		print("get on invalid future file %s line %i\n", file, line);
 	}
 	const int timeout = opts().future_wait_time;
 	int count = 0;
 	if (timeout > 0) {
 		while (f.wait_for(std::chrono::duration<int>(timeout)) == hpx::lcos::future_status::timeout) {
 			count++;
-			printf("future::get in file %s on line %i is taking a while - %i seconds so far.\n", file, line, 60 * count);
+			print("future::get in file %s on line %i is taking a while - %i seconds so far.\n", file, line, 60 * count);
 		}
 	}
 	return f.get();
-}
+}*/
 
-template<class T>
+/*template<class T>
 inline T debug_get(future<T> &&_f, const char *file, int line) {
 	future<T> f = std::move(_f);
 	return debug_get(f, file, line);
@@ -90,7 +90,7 @@ inline T debug_get(future<T> &&_f, const char *file, int line) {
 template<class T>
 inline T debug_get(const hpx::shared_future<T> &f, const char *file, int line) {
 	if (f.valid() == false) {
-		printf("get on invalid future file %s line %i\n", file, line);
+		print("get on invalid future file %s line %i\n", file, line);
 	}
 // something wrong with hpx::future::wait_for
 //	constexpr int timeout = 10;
@@ -98,11 +98,11 @@ inline T debug_get(const hpx::shared_future<T> &f, const char *file, int line) {
 //	if (!f.is_ready()) {
 //		while (f.wait_for(std::chrono::duration<int>(timeout)) == hpx::lcos::future_status::timeout) {
 //			count++;
-//			printf("shared_future::get in file %s on line %i is taking a while - %i seconds so far.\n", file, line, 60 * count);
+//			print("shared_future::get in file %s on line %i is taking a while - %i seconds so far.\n", file, line, 60 * count);
 //		}
 //	}
 	return f.get();
-}
+}*/
 
 //#ifndef NDEBUG
 //#define GET(fut) debug_get(fut,__FILE__,__LINE__)
@@ -110,6 +110,7 @@ inline T debug_get(const hpx::shared_future<T> &f, const char *file, int line) {
 //#define GET(fut) ((fut).get())
 //#endif
 
-#define GET(fut) debug_get(fut,__FILE__,__LINE__)
+//#define GET(fut) debug_get(fut,__FILE__,__LINE__)
+#define GET(fut) fut.get()
 
 #endif /* FUTURE_HPP_ */
