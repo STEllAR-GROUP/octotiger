@@ -758,8 +758,8 @@ void rad_grid::initialize_erad(const std::vector<safe_real> rho, const std::vect
 				const integer iiir = rindex(xi, yi, zi);
 				const integer iiih = hindex(xi + D, yi + D, zi + D);
 				const real ei = POWER(tau[iiih], fgamma);
-				//	U[er_i][iiir] = B_p((double) rho[iiih], (double) ei, (double) mmw[iiir]) * (4.0 * M_PI / physcon().c);
-				//	U[fx_i][iiir] = U[fy_i][iiir] = U[fz_i][iiir] = 0.0;
+				U[er_i][iiir] = B_p((double) rho[iiih], (double) ei, (double) mmw[iiir]) * (4.0 * M_PI / physcon().c);
+				U[fx_i][iiir] = U[fy_i][iiir] = U[fz_i][iiir] = 0.0;
 			}
 		}
 	}
