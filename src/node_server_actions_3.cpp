@@ -489,7 +489,6 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 		fclose(fp);
 	}
 
-
 	bench_stop = hpx::util::high_resolution_clock::now() / 1e9;
 	{
 		timings::scope ts(timings_, timings::time_compare_analytic);
@@ -602,8 +601,9 @@ future<void> node_server::nonrefined_step() {
 						if (opts().stop_time > 0.0) {
 							real maxdt = (opts().stop_time - current_time)
 									/ (refinement_freq() - (step_num % refinement_freq()));
-
-							maxdt = std::min(maxdt, opts().hard_dt);
+							if (opts().hard_dt > 0.0) {
+								maxdt = std::min(maxdt, opts().hard_dt);
+							}
 							dt_.dt = std::min(dt_.dt, maxdt);
 						}
 						local_timestep_channels[NCHILD].set_value(dt_);
@@ -613,6 +613,7 @@ future<void> node_server::nonrefined_step() {
 					compute_fmm(DRHODT, false);
 					if (rk == 0) {
 						dt_ = GET(dt_fut);
+
 					}
 					grid_ptr->next_u(rk, current_time, dt_.dt);
 					compute_fmm(RHO, true);
