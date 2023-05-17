@@ -42,7 +42,7 @@ void rad_grid::static_init() {
 }
 
 std::vector<std::string> rad_grid::get_field_names() {
-	std::vector<std::string> rc;
+	std::vector < std::string > rc;
 	for (auto i : str_to_index) {
 		rc.push_back(i.first);
 	}
@@ -71,7 +71,7 @@ void rad_grid::set(const std::string name, real *data) {
 }
 
 std::vector<silo_var_t> rad_grid::var_data() const {
-	std::vector<silo_var_t> s;
+	std::vector < silo_var_t > s;
 	real eunit = opts().problem == MARSHAK ? 1 : opts().code_to_g / std::pow(opts().code_to_s, 2) / opts().code_to_cm;
 	real funit = opts().problem == MARSHAK ? 1 : eunit * opts().code_to_cm / opts().code_to_s;
 	for (auto l : str_to_index) {
@@ -208,25 +208,56 @@ void rad_grid::rad_imp(std::vector<real> &egas, std::vector<real> &tau, std::vec
 				const real B = (1.0 + clight * dt * kap_p);
 				const real C = -(1.0 + clight * dt * kap_p) * e0 - U[er_i][iiir] * dt * clight * kap_p;
 				real newE = find4root(A, B, C);
-			//	printf( "%e %e %e\n", A, B, C);
+				//	printf( "%e %e %e\n", A, B, C);
 				real dE = e0 - newE;
+				dE += kap_r * (sx[iiih] / rho[iiih] / clight) * U[fx_i][iiir] * dt;
+				dE += kap_r * (sy[iiih] / rho[iiih] / clight) * U[fy_i][iiir] * dt;
+				dE += kap_r * (sz[iiih] / rho[iiih] / clight) * U[fz_i][iiir] * dt;
 				real de = newE - e0;
+				e0 += de;
+				egas[iiih] += de;
+				CHECK_FLUX(U[er_i][iiir], U[fx_i][iiir], U[fy_i][iiir], U[fz_i][iiir]);
+			//	U[er_i][iiir] += dE;
+				double fx0 = U[fx_i][iiir];
+				double fy0 = U[fy_i][iiir];
+				double fz0 = U[fz_i][iiir];
+				tau[iiih] = pow(e0, 1.0 / fgamma);
+				auto dfx = kap_r * (4.0 / 3.0) * (sx[iiih] / rho[iiih] / clight) * U[er_i][iiir];
+				auto dfy = kap_r * (4.0 / 3.0) * (sy[iiih] / rho[iiih] / clight) * U[er_i][iiir];
+				auto dfz = kap_r * (4.0 / 3.0) * (sz[iiih] / rho[iiih] / clight) * U[er_i][iiir];
 				if (opts().hydro == false) {
 					sx[iiih] = 0.0;
 					sy[iiih] = 0.0;
 					sz[iiih] = 0.0;
+				} else {
+					U[fx_i][iiir] += dfx * dt;
+					U[fy_i][iiir] += dfy * dt;
+					U[fz_i][iiir] += dfz * dt;
 				}
-				e0 += de;
-				egas[iiih] += de;
-				CHECK_FLUX(U[er_i][iiir], U[fx_i][iiir], U[fy_i][iiir], U[fz_i][iiir]);
-				U[er_i][iiir] += dE;
-				double fx0 = U[fx_i][iiir];
-				double fy0 = U[fy_i][iiir];
-				double fz0 = U[fz_i][iiir];
-				U[fx_i][iiir] = fx0 / (1.0 + clight * dt * kap_r);
-				U[fy_i][iiir] = fy0 / (1.0 + clight * dt * kap_r);
-				U[fz_i][iiir] = fz0 / (1.0 + clight * dt * kap_r);
-				tau[iiih] = pow(e0, 1.0 / fgamma);
+				if (opts().hydro == false) {
+					sx[iiih] = 0.0;
+					sy[iiih] = 0.0;
+					sz[iiih] = 0.0;
+				} else {
+					sx[iiih] -= dfx * dt;
+					sy[iiih] -= dfy * dt;
+					sz[iiih] -= dfz * dt;
+				}
+				dfx = U[fx_i][iiir];
+				dfy = U[fy_i][iiir];
+				dfz = U[fz_i][iiir];
+				U[fx_i][iiir] = U[fx_i][iiir] / (1.0 + clight * dt * kap_r);
+				U[fy_i][iiir] = U[fy_i][iiir] / (1.0 + clight * dt * kap_r);
+				U[fz_i][iiir] = U[fz_i][iiir] / (1.0 + clight * dt * kap_r);
+				sx[iiih] += dfx - U[fx_i][iiir];
+				sy[iiih] += dfy - U[fy_i][iiir];
+				sz[iiih] += dfz - U[fz_i][iiir];
+				if (((U[fx_i][iiir]) * (U[fx_i][iiir]) + (U[fy_i][iiir]) * (U[fy_i][iiir])
+						+ (U[fz_i][iiir]) * (U[fz_i][iiir])) / (U[er_i][iiir] * U[er_i][iiir] * physcon().c * physcon().c)
+						> 1) {
+					printf("%e %e %e %e %i %i %i\n", U[fx_i][iiir], U[fy_i][iiir], U[fz_i][iiir],
+							U[er_i][iiir] * (physcon().c), xi, yi, zi);
+				}
 				CHECK_FLUX(U[er_i][iiir], U[fx_i][iiir], U[fy_i][iiir], U[fz_i][iiir]);
 			}
 		}
@@ -304,7 +335,7 @@ void rad_grid::compute_mmw(const std::vector<std::vector<safe_real>> &U) {
 				const integer d = H_BW - RAD_BW;
 				const integer iiir = rindex(i, j, k);
 				const integer iiih = hindex(i + d, j + d, k + d);
-				specie_state_t<real> spc;
+				specie_state_t < real > spc;
 				for (integer si = 0; si != opts().n_species; ++si) {
 					spc[si] = U[spc_i + si][iiih];
 				}
@@ -326,7 +357,7 @@ void node_server::compute_radiation(real dt, real omega) {
 	rad_grid_ptr->compute_mmw(grid_ptr->U);
 	const real min_dx = TWO * grid::get_scaling_factor() / real(INX << opts().max_level);
 	const real clight = physcon().c / opts().clight_retard;
-	const real max_dt = min_dx / clight / 3;
+	const real max_dt = min_dx / clight / 4;
 	const real ns = std::ceil(dt * INVERSE(max_dt));
 	if (ns > std::numeric_limits<int>::max()) {
 		printf("Number of substeps greater than %i. dt = %e max_dt = %e\n", std::numeric_limits<int>::max(), dt, max_dt);
@@ -347,9 +378,9 @@ void node_server::compute_radiation(real dt, real omega) {
 	}
 	for (integer i = 0; i != nsteps; ++i) {
 		if (i == 0 && opts().rad_implicit) {
-			rgrid->rad_imp(egas, tau, sx, sy, sz, rho, 0.5*this_dt);
+			rgrid->rad_imp(egas, tau, sx, sy, sz, rho, 0.5 * this_dt);
 		}
-	//	if (my_location.level() == 0)printf( "%i\n", i);
+		//	if (my_location.level() == 0)printf( "%i\n", i);
 		//	rgrid->sanity_check();
 		if (my_location.level() == 0) {
 			printf("radiation sub-step %i of %i\r", int(i + 1), int(nsteps));
@@ -367,7 +398,7 @@ void node_server::compute_radiation(real dt, real omega) {
 			rgrid->advance(this_dt, beta[rk]);
 		}
 		if (opts().rad_implicit) {
-			double dtt = i == nsteps - 1 ? 0.5*this_dt : this_dt;
+			double dtt = i == nsteps - 1 ? 0.5 * this_dt : this_dt;
 			rgrid->rad_imp(egas, tau, sx, sy, sz, rho, dtt);
 		}
 	}
@@ -436,9 +467,9 @@ void rad_grid::sanity_check() {
 void rad_grid::compute_flux(real omega) {
 	PROFILE()
 	;
-	radiation_physics<NDIM>::set_clight(physcon().c / opts().clight_retard);
+	radiation_physics < NDIM > ::set_clight(physcon().c / opts().clight_retard);
 	if (opts().correct_am_hydro) {
-	//	hydro.use_angmom_correction(fx_i);
+		//	hydro.use_angmom_correction(fx_i);
 	}
 	const auto &q = hydro.reconstruct(U, X, omega);
 	hydro.flux(U, q, flux, X, omega);
@@ -645,7 +676,7 @@ void rad_grid::set_flux_restrict(const std::vector<real> &data, const std::array
 std::vector<real> rad_grid::get_flux_restrict(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub,
 		const geo::dimension &dim) const {
 
-	std::vector<real> data;
+	std::vector < real > data;
 	integer size = 1;
 	for (auto &dim : geo::dimension::full_set()) {
 		size *= (ub[dim] - lb[dim]);
@@ -758,8 +789,8 @@ void rad_grid::initialize_erad(const std::vector<safe_real> rho, const std::vect
 				const integer iiir = rindex(xi, yi, zi);
 				const integer iiih = hindex(xi + D, yi + D, zi + D);
 				const real ei = POWER(tau[iiih], fgamma);
-				U[er_i][iiir] = B_p((double) rho[iiih], (double) ei, (double) mmw[iiir]) * (4.0 * M_PI / physcon().c);
-				U[fx_i][iiir] = U[fy_i][iiir] = U[fz_i][iiir] = 0.0;
+				//	U[er_i][iiir] = B_p((double) rho[iiih], (double) ei, (double) mmw[iiir]) * (4.0 * M_PI / physcon().c);
+				//	U[fx_i][iiir] = U[fy_i][iiir] = U[fz_i][iiir] = 0.0;
 			}
 		}
 	}
@@ -797,7 +828,7 @@ void rad_grid::set_boundary(const std::vector<real> &data, const geo::direction 
 std::vector<real> rad_grid::get_boundary(const geo::direction &dir) {
 
 	std::array<integer, NDIM> lb, ub;
-	std::vector<real> data;
+	std::vector < real > data;
 	integer size = NRF * get_boundary_size(lb, ub, dir, INNER, INX, RAD_BW);
 	data.resize(size);
 	integer iter = 0;
@@ -841,7 +872,7 @@ void rad_grid::set_prolong(const std::vector<real> &data) {
 }
 
 std::vector<real> rad_grid::get_prolong(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub) {
-	std::vector<real> data;
+	std::vector < real > data;
 	integer size = NRF;
 	for (integer dim = 0; dim != NDIM; ++dim) {
 		size *= (ub[dim] - lb[dim]);
@@ -868,7 +899,7 @@ std::vector<real> rad_grid::get_prolong(const std::array<integer, NDIM> &lb, con
 }
 
 std::vector<real> rad_grid::get_restrict() const {
-	std::vector<real> data;
+	std::vector < real > data;
 	for (integer f = 0; f != NRF; ++f) {
 		for (integer i = RAD_BW; i < RAD_NX - RAD_BW; i += 2) {
 			for (integer j = RAD_BW; j < RAD_NX - RAD_BW; j += 2) {
@@ -1002,7 +1033,7 @@ void rad_grid::complete_rad_amr_boundary() {
 	PROFILE();
 
 	using oct_array = std::array<std::array<std::array<double, 2>, 2>, 2>;
-	static thread_local std::vector<std::vector<oct_array>> Uf(NRF, std::vector<oct_array>(HS_N3));
+	static thread_local std::vector<std::vector<oct_array>> Uf(NRF, std::vector<oct_array> (HS_N3));
 
 	std::array<double, NDIM> xmin;
 	for (int dim = 0; dim < NDIM; dim++) {
@@ -1084,7 +1115,7 @@ void rad_grid::complete_rad_amr_boundary() {
 
 std::vector<real> rad_grid::get_subset(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub) {
 	PROFILE();
-	std::vector<real> data;
+	std::vector < real > data;
 	for (int f = 0; f < NRF; f++) {
 		for (int i = lb[0]; i < ub[0]; i++) {
 			for (int j = lb[1]; j < ub[1]; j++) {

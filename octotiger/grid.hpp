@@ -61,9 +61,9 @@ public:
 	}
 	analytic_t(integer nfields) {
 		nfields_ = nfields;
-		l1.resize(nfields_);
-		l2.resize(nfields_);
-		linf.resize(nfields_);
+		l1.resize(nfields_ + NRF);
+		l2.resize(nfields_ + NRF);
+		linf.resize(nfields_ + NRF);
 		for (integer field = 0; field != nfields_; ++field) {
 			l1[field] = 0.0;
 			l2[field] = 0.0;

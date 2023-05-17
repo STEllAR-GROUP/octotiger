@@ -133,6 +133,10 @@ std::vector<real> radiation_diffusion_analytic(real x, real y, real z, real t) {
 	u[rho_i] = 1.0;
 	u[spc_i] = u[rho_i];
 
+	x /= 1e5;
+	y /= 1e5;
+	z /= 1e5;
+
 	specie_state_t<> species;
 	species[0] = u[rho_i];
 	real mmw;
@@ -144,7 +148,7 @@ std::vector<real> radiation_diffusion_analytic(real x, real y, real z, real t) {
 	const double r2 = x * x + y * y + z * z;
 	const double r = sqrt(r2);
 	const double D0 = 1.0 / 3.0 * physcon().c / (1e2);
-	const double er = std::max(pow(t + 1.0, -1.5) * exp(-r2 / (4.0 * D0 * (t + 1.0))), 1e-10);
+	const double er = 1.0e-6 * std::max(pow(t + 1.0, -1.5) * exp(-r2 / (4.0 * D0 * (t + 1.0))), 1e-10);
 
 	double T = pow(er / (4.0 * physcon().sigma / physcon().c), 0.25);
 	double Pgas = u[rho_i] * T * physcon().kb / (physcon().mh * mmw);
@@ -154,13 +158,16 @@ std::vector<real> radiation_diffusion_analytic(real x, real y, real z, real t) {
 	u[egas_i] = POWER(u[tau_i], fgamma);
 	const double derdr = -0.5 * (r) / (1 + t) * er / D0;
 	double fx, fy, fz;
+	double vx = 1e-2 * physcon().c;
 	if (r == 0.0) {
 		fx = fy = fz = 0.0;
 	} else {
-		fx = -derdr * x / r * D0;
+		fx = -derdr * x / r * D0 + vx * er;
 		fy = -derdr * y / r * D0;
 		fz = -derdr * z / r * D0;
 	}
+	u[egas_i] += 0.5 * vx * vx * u[rho_i];
+	u[sx_i] = u[rho_i] * vx;
 	double nx = fx;
 	double ny = fy;
 	double nz = fz;

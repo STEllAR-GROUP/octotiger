@@ -1892,6 +1892,13 @@ timestep_t grid::compute_fluxes() {
 			std::vector<std::vector<safe_real>>(opts().n_fields, std::vector<safe_real>(H_N3)));
 	const auto &q = hydro.reconstruct(U, X, omega);
 	auto max_lambda = hydro.flux(U, q, f, X, omega);
+	auto &egas = get_field(egas_i);
+	const auto &rho = get_field(rho_i);
+	auto &tau = get_field(tau_i);
+	auto &sx = get_field(sx_i);
+	auto &sy = get_field(sy_i);
+	auto &sz = get_field(sz_i);
+	max_lambda.a = std::max(max_lambda.a, rad_grid_ptr->hydro_signal_speed(egas, tau, sx, sy, sz, rho));
 
 	for (int dim = 0; dim < NDIM; dim++) {
 		for (integer field = 0; field != opts().n_fields; ++field) {

@@ -79,6 +79,9 @@ void radiation_physics<NDIM>::physical_flux(const std::vector<safe_real> &U, std
 
 	F[er_i] = fr[dim] - vg[dim] * er;
 	for (int d = 0; d < NDIM; d++) {
+		if (fabs(T[dim] - .333) > 0.1) {
+			printf("%i %i %e\n", dim, d, T[d]);
+		}
 		F[fx_i + d] = er * T[d] - vg[dim] * fr[d];
 	}
 	for (int n = 0; n < geo.NANGMOM; n++) {
