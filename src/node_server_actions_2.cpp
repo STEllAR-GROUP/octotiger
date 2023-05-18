@@ -492,7 +492,7 @@ int node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std::
 							}
 						}
 					}
-					cfuts[index++] = hpx::dataflow(hpx::launch::sync, [this, ci](std::array<future<hpx::id_type>, geo::direction::count()> &&cns) {
+					cfuts[index++] = hpx::dataflow(hpx::launch::async, [this, ci](std::array<future<hpx::id_type>, geo::direction::count()> &&cns) {
 						std::vector<hpx::id_type> child_neighbors(geo::direction::count());
 						for (auto dir : geo::direction::full_set()) {
 							child_neighbors[dir] = GET(cns[dir]);
