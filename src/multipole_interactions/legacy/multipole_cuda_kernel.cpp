@@ -174,7 +174,7 @@ namespace fmm {
             dim3 const grid_spec, dim3 const threads_per_block, const double* monopoles,
             const double* center_of_masses, const double* multipoles, double* potential_expansions,
             double* angular_corrections, const double theta, const bool computing_second_half) {
-            executor.post(hip_multipole_interactions_kernel_rho_ggl_wrapper, grid_spec,
+            hpx::apply(executor.interface, hip_multipole_interactions_kernel_rho_ggl_wrapper, grid_spec,
                 threads_per_block, monopoles, center_of_masses, multipoles, potential_expansions,
                 angular_corrections, theta, computing_second_half);
         }
@@ -190,20 +190,20 @@ namespace fmm {
             stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
             dim3 const grid_spec, dim3 const threads_per_block, int block_numbers,
             double* tmp_angular_corrections, double* angular_corrections) {
-            executor.post(hip_sum_multipole_angular_corrections_results_ggl_wrapper, grid_spec,
+            hpx::apply(executor.interface, hip_sum_multipole_angular_corrections_results_ggl_wrapper, grid_spec,
                 threads_per_block, block_numbers, tmp_angular_corrections, angular_corrections);
         }
 #else
         void launch_multipole_rho_cuda_kernel_post(
             stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
             dim3 const grid_spec, dim3 const threads_per_block, void* args[]) {
-            executor.post(cudaLaunchKernel<decltype(cuda_multipole_interactions_kernel_rho)>,
+            hpx::apply(executor.interface, cudaLaunchKernel<decltype(cuda_multipole_interactions_kernel_rho)>,
                 cuda_multipole_interactions_kernel_rho, grid_spec, threads_per_block, args, 0);
         }
         void launch_sum_multipole_angular_corrections_results_post(
             stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
             dim3 const grid_spec, dim3 const threads_per_block, void* args[]) {
-            executor.post(
+            hpx::apply(executor.interface, 
                 cudaLaunchKernel<decltype(cuda_sum_multipole_angular_corrections_results)>,
                 cuda_sum_multipole_angular_corrections_results, grid_spec, threads_per_block, args,
                 0);
@@ -312,7 +312,7 @@ namespace fmm {
             stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
             dim3 const grid_spec, dim3 const threads_per_block, const double* center_of_masses,
             const double* multipoles, double* potential_expansions, double* angular_corrections) {
-            executor.post(hip_multipole_interactions_kernel_root_rho_ggl_wrapper, grid_spec,
+            hpx::apply(executor.interface, hip_multipole_interactions_kernel_root_rho_ggl_wrapper, grid_spec,
                 threads_per_block, center_of_masses, multipoles, potential_expansions,
                 angular_corrections);
         }
@@ -320,7 +320,7 @@ namespace fmm {
         void launch_multipole_root_rho_cuda_kernel_post(
             stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
             dim3 const grid_spec, dim3 const threads_per_block, void* args[]) {
-            executor.post(cudaLaunchKernel<decltype(cuda_multipole_interactions_kernel_root_rho)>,
+            hpx::apply(executor.interface, cudaLaunchKernel<decltype(cuda_multipole_interactions_kernel_root_rho)>,
                 cuda_multipole_interactions_kernel_root_rho, grid_spec, threads_per_block, args, 0);
         }
 #endif
@@ -446,7 +446,7 @@ namespace fmm {
             dim3 const grid_spec, dim3 const threads_per_block, const double* monopoles,
             const double* center_of_masses, const double* multipoles, double* potential_expansions,
             const double theta, const bool computing_second_half) {
-            executor.post(hip_multipole_interactions_kernel_non_rho_ggl_wrapper, grid_spec,
+            hpx::apply(executor.interface, hip_multipole_interactions_kernel_non_rho_ggl_wrapper, grid_spec,
                 threads_per_block, monopoles, center_of_masses, multipoles, potential_expansions,
                 theta, computing_second_half);
         }
@@ -462,20 +462,20 @@ namespace fmm {
             stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
             dim3 const grid_spec, dim3 const threads_per_block, int block_numbers,
             double* tmp_potential_expansions, double* potential_expansions) {
-            executor.post(hip_sum_multipole_potential_expansions_results_ggl_wrapper, grid_spec,
+            hpx::apply(executor.interface, hip_sum_multipole_potential_expansions_results_ggl_wrapper, grid_spec,
                 threads_per_block, block_numbers, tmp_potential_expansions, potential_expansions);
         }
 #else
         void launch_multipole_non_rho_cuda_kernel_post(
             stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
             dim3 const grid_spec, dim3 const threads_per_block, void* args[]) {
-            executor.post(cudaLaunchKernel<decltype(cuda_multipole_interactions_kernel_non_rho)>,
+            hpx::apply(executor.interface, cudaLaunchKernel<decltype(cuda_multipole_interactions_kernel_non_rho)>,
                 cuda_multipole_interactions_kernel_non_rho, grid_spec, threads_per_block, args, 0);
         }
         void launch_sum_multipole_potential_expansions_results_post(
             stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
             dim3 const grid_spec, dim3 const threads_per_block, void* args[]) {
-            executor.post(
+            hpx::apply(executor.interface, 
                 cudaLaunchKernel<decltype(cuda_sum_multipole_potential_expansions_results)>,
                 cuda_sum_multipole_potential_expansions_results, grid_spec, threads_per_block, args,
                 0);
@@ -568,14 +568,14 @@ namespace fmm {
             stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
             dim3 const grid_spec, dim3 const threads_per_block, const double* center_of_masses,
             const double* multipoles, double* potential_expansions) {
-            executor.post(hip_multipole_interactions_kernel_root_non_rho_ggl_wrapper, grid_spec,
+            hpx::apply(executor.interface, hip_multipole_interactions_kernel_root_non_rho_ggl_wrapper, grid_spec,
                 threads_per_block, center_of_masses, multipoles, potential_expansions);
         }
 #else
         void launch_multipole_root_non_rho_cuda_kernel_post(
             stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
             dim3 const grid_spec, dim3 const threads_per_block, void* args[]) {
-            executor.post(
+            hpx::apply(executor.interface, 
                 cudaLaunchKernel<decltype(cuda_multipole_interactions_kernel_root_non_rho)>,
                 cuda_multipole_interactions_kernel_root_non_rho, grid_spec, threads_per_block, args,
                 0);
