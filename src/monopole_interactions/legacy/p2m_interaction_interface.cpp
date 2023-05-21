@@ -144,10 +144,10 @@ namespace fmm {
             std::array<bool, geo::direction::count()>& is_direction_empty,
             std::shared_ptr<grid>& grid_ptr) {
             if (opts().monopole_host_kernel_type == interaction_host_kernel_type::LEGACY) {
+#ifdef HPX_HAVE_APEX
                 std::string kernel_name = "kernel p2m-rho legacy";
                 if (type != RHO)
                     kernel_name = "kernel p2m-non-rho legacy";
-#ifdef HPX_HAVE_APEX
                 auto p2m_timer = apex::start(kernel_name);
 #endif
                 // waits for boundary data and then computes boundary interactions
