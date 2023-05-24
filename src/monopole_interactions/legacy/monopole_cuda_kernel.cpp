@@ -191,13 +191,15 @@ namespace fmm {
 #else
         void launch_sum_p2p_results_post(stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
             dim3 const grid_spec, dim3 const threads_per_block, void *args[]) {
-            hpx::apply(executor.interface, cudaLaunchKernel<decltype(cuda_sum_p2p_results)>,
+            auto launch_function = cudaLaunchKernel<decltype(cuda_sum_p2p_results)>;
+            hpx::apply(executor.interface, launch_function,
                 cuda_sum_p2p_results, grid_spec, threads_per_block, args, 0);
         }
 
         void launch_p2p_cuda_kernel_post(stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
             dim3 const grid_spec, dim3 const threads_per_block, void *args[]) {
-            hpx::apply(executor.interface, cudaLaunchKernel<decltype(cuda_p2p_interactions_kernel)>,
+            auto launch_function = cudaLaunchKernel<decltype(cuda_p2p_interactions_kernel)>;
+            hpx::apply(executor.interface, launch_function,
                 cuda_p2p_interactions_kernel, grid_spec, threads_per_block, args, 0);
         }
 #endif
@@ -320,8 +322,8 @@ namespace fmm {
         }
         void launch_p2m_rho_cuda_kernel_post(stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
             dim3 const grid_spec, dim3 const threads_per_block, void *args[]) {
-          hpx::apply(executor.interface,
-            cudaLaunchKernel<decltype(cuda_p2m_interaction_rho)>,
+          auto launch_function = cudaLaunchKernel<decltype(cuda_p2m_interaction_rho)>;
+          hpx::apply(executor.interface, launch_function,
             cuda_p2m_interaction_rho, grid_spec, threads_per_block, args, 0);
         }
 
@@ -432,8 +434,9 @@ namespace fmm {
         void launch_p2m_non_rho_cuda_kernel_post(
             stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
             dim3 const grid_spec, dim3 const threads_per_block, void *args[]) {
+          auto launch_function = cudaLaunchKernel<decltype(cuda_p2m_interaction_non_rho)>;
           hpx::apply(executor.interface, 
-            cudaLaunchKernel<decltype(cuda_p2m_interaction_non_rho)>,
+            launch_function,
             cuda_p2m_interaction_non_rho, grid_spec, threads_per_block, args, 0);
         }
 #endif
