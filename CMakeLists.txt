@@ -532,6 +532,9 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/io/silo_in.cpp
     src/radiation/rad_grid.cpp
     frontend/frontend-helper.cpp
+
+    src/eos.cpp
+    src/util.cpp
     
 
     #misc
