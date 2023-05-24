@@ -740,6 +740,111 @@ void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
     }
 }
 
+/// Reconstruct with or without am
+template <typename simd_t, typename simd_mask_t, typename kokkos_backend_t,
+    typename kokkos_buffer_t, typename kokkos_int_buffer_t>
+void reconstruct_teamless_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
+    typename Aggregated_Executor<hpx::kokkos::executor<kokkos_backend_t>>::Executor_Slice& agg_exec,
+    const double omega, const int nf_, const int angmom_index_,
+    const kokkos_int_buffer_t& smooth_field_, const kokkos_int_buffer_t& disc_detect_,
+    kokkos_buffer_t& combined_q, const kokkos_buffer_t& combined_x, kokkos_buffer_t& combined_u,
+    kokkos_buffer_t& AM, const kokkos_buffer_t& dx, const kokkos_buffer_t& cdiscs,
+    const int n_species_, const int ndir, const int nangmom,
+    const Kokkos::Array<long, 4>&& tiling_config) {
+    const int blocks =
+        (q_inx * q_inx * q_inx / simd_t::size()) / 64 + 1;
+    const int number_slices = agg_exec.number_slices;
+    
+    if (agg_exec.sync_aggregation_slices()) {
+        auto policy = Kokkos::Experimental::require(
+            Kokkos::MDRangePolicy<decltype(agg_exec.get_underlying_executor().instance()),
+                Kokkos::Rank<4>>(agg_exec.get_underlying_executor().instance(), {0, 0, 0, 0},
+                {number_slices, blocks, 8, 8}, tiling_config),
+            Kokkos::Experimental::WorkItemProperty::HintLightWeight);
+        Kokkos::parallel_for(
+            "kernel hydro reconstruct_teamless", policy,
+            KOKKOS_LAMBDA(int slice_id, int idx, int idy, int idz) {
+                const int index = (idx) * 64 + (idy) * 8 + (idz);
+                const int q_i = index * simd_t::size();
+                const int i = ((q_i / q_inx2) + 2) * inx_large * inx_large +
+                    (((q_i % q_inx2) / q_inx) + 2) * inx_large + (((q_i % q_inx2) % q_inx) + 2);
+                    
+                const int sx_i = angmom_index_;
+                const int zx_i = sx_i + NDIM;
+
+                const int u_slice_offset = (nf_ * H_N3 + padding) * slice_id;
+                const int am_slice_offset = (NDIM * q_inx3 + padding) * slice_id;
+                if (q_i < q_inx3) {
+                    for (int n = 0; n < nangmom; n++) {
+                        simd_t u_nangmom;
+                        simd_t u;
+                        // Load specialization for a as the simd value may stretch over 2
+                        // bars/lines in the cube, thus the values to be loaded are not
+                        // necessarily consecutive in memory
+                        if (q_i % q_inx + simd_t::size() - 1 < q_inx) {
+                            // values are all in the first line/bar and
+                            // can simply be loaded
+                            u_nangmom.copy_from(combined_u.data() +
+                                    (zx_i + n) * u_face_offset + i + u_slice_offset,
+                                SIMD_NAMESPACE::element_aligned_tag{});
+                            u.copy_from(combined_u.data() + i + u_slice_offset,
+                                SIMD_NAMESPACE::element_aligned_tag{});
+                        } else {
+                            std::array<double, simd_t::size()> u_nangmom_helper;
+                            std::array<double, simd_t::size()> u_helper;
+                            size_t simd_i = 0;
+                            // load from first bar
+                            for (size_t i_line = q_i % q_inx; i_line < q_inx;
+                                 i_line++, simd_i++) {
+                                u_nangmom_helper[simd_i] =
+                                    combined_u[(zx_i + n) * u_face_offset + i +
+                                        u_slice_offset + simd_i];
+                                u_helper[simd_i] = combined_u[i + u_slice_offset + simd_i];
+                            }
+                            // calculate indexing offset to check where the second line/bar
+                            // is starting
+                            size_t offset = (inx_large - q_inx);
+                            if constexpr (q_inx2 % simd_t::size() != 0) {
+                                if ((q_i + simd_i) % q_inx2 == 0) {
+                                    offset += (inx_large - q_inx) * inx_large;
+                                }
+                            }
+                            // Load relevant values from second
+                            // line/bar
+                            for (; simd_i < simd_t::size(); simd_i++) {
+                                u_nangmom_helper[simd_i] =
+                                    combined_u[(zx_i + n) * u_face_offset + i +
+                                        u_slice_offset + simd_i + offset];
+                                u_helper[simd_i] =
+                                    combined_u[i + u_slice_offset + simd_i + offset];
+                            }
+                            u_nangmom.copy_from(u_nangmom_helper.data(),
+                                SIMD_NAMESPACE::element_aligned_tag{});
+                            u.copy_from(u_helper.data(),
+                                SIMD_NAMESPACE::element_aligned_tag{});
+                        }
+
+                        const simd_t current_am = u_nangmom * u;
+                        current_am.copy_to(
+                            AM.data() + n * am_offset + q_i + am_slice_offset,
+                            SIMD_NAMESPACE::element_aligned_tag{});
+                    }
+                    cell_reconstruct_inner_loop_p1_simd<simd_t, simd_mask_t>(nf_,
+                        angmom_index_, smooth_field_.data(), disc_detect_.data(),
+                        combined_q.data(), combined_u.data(), AM.data(), dx[slice_id],
+                        cdiscs.data(), i, q_i, ndir, nangmom, slice_id);
+                          // Phase 2
+                          for (int d = 0; d < ndir; d++) {
+                              cell_reconstruct_inner_loop_p2_simd<simd_t, simd_mask_t>(omega,
+                                  angmom_index_, combined_q.data(), combined_x.data(),
+                                  combined_u.data(), AM.data(), dx[slice_id], d, i, q_i, ndir,
+                                  nangmom, n_species_, nf_, slice_id);
+                          }
+                      }
+            });
+    }
+}
+
 /// Optimized for reconstruct without am correction
 template <typename simd_t, typename simd_mask_t, typename kokkos_backend_t,
     typename kokkos_buffer_t, typename kokkos_int_buffer_t>
@@ -813,6 +918,51 @@ void reconstruct_no_amc_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
             });
     }
 }
+
+/// Optimized for reconstruct without am correction
+template <typename simd_t, typename simd_mask_t, typename kokkos_backend_t,
+    typename kokkos_buffer_t, typename kokkos_int_buffer_t>
+void reconstruct_no_amc_teamless_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
+    typename Aggregated_Executor<hpx::kokkos::executor<kokkos_backend_t>>::Executor_Slice& agg_exec,
+    const double omega, const int nf_, const int angmom_index_,
+    const kokkos_int_buffer_t& smooth_field_, const kokkos_int_buffer_t& disc_detect_,
+    kokkos_buffer_t& combined_q, const kokkos_buffer_t& combined_x, kokkos_buffer_t& combined_u,
+    kokkos_buffer_t& AM, const kokkos_buffer_t& dx, const kokkos_buffer_t& cdiscs,
+    const int n_species_, const int ndir, const int nangmom,
+    const Kokkos::Array<long, 4>&& tiling_config) {
+    const int blocks =
+        (q_inx * q_inx * q_inx / simd_t::size()) / 64 + 1;
+    const int number_slices = agg_exec.number_slices;
+    if (agg_exec.sync_aggregation_slices()) {
+        auto policy = Kokkos::Experimental::require(
+            Kokkos::MDRangePolicy<decltype(agg_exec.get_underlying_executor().instance()),
+                Kokkos::Rank<4>>(agg_exec.get_underlying_executor().instance(), {0, 0, 0, 0},
+                {number_slices, blocks, 8, 8}, tiling_config),
+            Kokkos::Experimental::WorkItemProperty::HintLightWeight);
+        Kokkos::parallel_for(
+            "kernel hydro reconstruct_no_amc", policy,
+            KOKKOS_LAMBDA(int slice_id, int idx, int idy, int idz) {
+                const int index = (idx) * 64 + (idy) * 8 + (idz);
+                const int q_i = index * simd_t::size();
+
+                const int i = ((q_i / q_inx2) + 2) * inx_large * inx_large +
+                    (((q_i % q_inx2) / q_inx) + 2) * inx_large + (((q_i % q_inx2) % q_inx) + 2);
+                if (q_i < q_inx3) {
+                    cell_reconstruct_inner_loop_p1_simd<simd_t, simd_mask_t>(nf_, angmom_index_,
+                        smooth_field_.data(), disc_detect_.data(), combined_q.data(),
+                        combined_u.data(), AM.data(), dx[slice_id], cdiscs.data(), i, q_i, ndir,
+                        nangmom, slice_id);
+                    // Phase 2
+                    for (int d = 0; d < ndir; d++) {
+                        cell_reconstruct_inner_loop_p2_simd<simd_t, simd_mask_t>(omega,
+                            angmom_index_, combined_q.data(), combined_x.data(), combined_u.data(),
+                            AM.data(), dx[slice_id], d, i, q_i, ndir, nangmom, n_species_, nf_, slice_id);
+                    }
+                }
+            });
+    }
+}
+
 
 template <typename kokkos_backend_t, typename kokkos_buffer_t>
 void hydro_pre_recon_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
@@ -1104,13 +1254,19 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     auto reconstruct_timer = apex::start("kernel hydro_reconstruct kokkos");
 #endif
     if (angmom_index > -1) {
-        reconstruct_impl<host_simd_t, host_simd_mask_t>(exec, agg_exec, omega, nf, angmom_index,
+        /* reconstruct_impl<host_simd_t, host_simd_mask_t>(exec, agg_exec, omega, nf, angmom_index, */
+        /*     smooth_field, disc_detect, q, combined_x, combined_u, AM, dx, disc, n_species, ndir, */
+        /*     nangmom, 8, 1); */
+        reconstruct_teamless_impl<host_simd_t, host_simd_mask_t>(exec, agg_exec, omega, nf, angmom_index,
             smooth_field, disc_detect, q, combined_x, combined_u, AM, dx, disc, n_species, ndir,
-            nangmom, 8, 1);
+            nangmom, {1, 1, 8, 8});
     } else {
-        reconstruct_no_amc_impl<host_simd_t, host_simd_mask_t>(exec, agg_exec, omega, nf,
+        /* reconstruct_no_amc_impl<host_simd_t, host_simd_mask_t>(exec, agg_exec, omega, nf, */
+        /*     angmom_index, smooth_field, disc_detect, q, combined_x, combined_u, AM, dx, disc, */
+        /*     n_species, ndir, nangmom, 8, 1); */
+        reconstruct_no_amc_teamless_impl<host_simd_t, host_simd_mask_t>(exec, agg_exec, omega, nf,
             angmom_index, smooth_field, disc_detect, q, combined_x, combined_u, AM, dx, disc,
-            n_species, ndir, nangmom, 8, 1);
+            n_species, ndir, nangmom, {1, 1, 8, 8});
     }
 #ifdef HPX_HAVE_APEX
     apex::stop(reconstruct_timer);
