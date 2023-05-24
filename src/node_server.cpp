@@ -145,7 +145,7 @@ future<void> node_server::exchange_flux_corrections() {
 		}
 	}
 	return hpx::when_all(std::move(futs)).then(
-        hpx::util::annotated_function([](future<decltype(futs)> fout) {
+        hpx::annotated_function([](future<decltype(futs)> fout) {
 		auto fin = GET(fout);
 		for (auto &f : fin) {
 			GET(f);
@@ -168,7 +168,7 @@ void node_server::energy_hydro_bounds() {
 }
 
 void node_server::exchange_interlevel_hydro_data() {
-  hpx::util::annotated_function([&]() {
+  hpx::annotated_function([&]() {
     if (is_refined) {
       std::vector<real> outflow(opts().n_fields, ZERO);
       for (auto const &ci : geo::octant::full_set()) {
@@ -191,7 +191,7 @@ void node_server::exchange_interlevel_hydro_data() {
 }
 
 void node_server::collect_hydro_boundaries(bool energy_only) {
-  hpx::util::annotated_function([&]() {
+  hpx::annotated_function([&]() {
 	grid_ptr->clear_amr();
   const bool use_local_optimization = opts().optimize_local_communication;
   const bool use_local_amr_optimization = opts().optimize_local_communication;
@@ -356,7 +356,7 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
     if (!is_local || (neighbors[dir].empty() && !use_local_amr_optimization) ||
         (!neighbors[dir].empty() && !use_local_optimization)) {
       results[index++] = sibling_hydro_channels[dir].get_future(hcycle).then( // 3s?
-      hpx::util::annotated_function([this, energy_only, dir](future<sibling_hydro_type> &&f) -> void {
+      hpx::annotated_function([this, energy_only, dir](future<sibling_hydro_type> &&f) -> void {
         auto &&tmp = GET(f);
         if (!neighbors[dir].empty()) {
           grid_ptr->set_hydro_boundary(tmp.data, tmp.direction, energy_only); // 1.5s
@@ -379,7 +379,7 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
 	/* } */
 
 	amr_boundary_type kernel_type = opts().amr_boundary_kernel_type;
-  hpx::util::annotated_function([&]() {
+  hpx::annotated_function([&]() {
 	if (kernel_type == AMR_LEGACY) {
 		grid_ptr->complete_hydro_amr_boundary(energy_only);
 	} else {
@@ -423,7 +423,7 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
 }
 
 void node_server::send_hydro_amr_boundaries(bool energy_only) {
-  hpx::util::annotated_function([&]() {
+  hpx::annotated_function([&]() {
     if (is_refined) {
       // set promise 
       const bool use_local_optimization = opts().optimize_local_communication;
