@@ -99,7 +99,7 @@ pipeline {
 		            echo "Found std-experimental build log output! All good!"
 		            exit 0
 	    	        else
-		            echo "Error: Did not find std-experimental output in the build look!"
+		            echo "Error: Did not find std-experimental output in the build log!"
 		            exit 1
 		        fi
                     '''
