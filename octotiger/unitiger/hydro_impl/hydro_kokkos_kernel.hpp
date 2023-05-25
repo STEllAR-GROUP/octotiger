@@ -1253,21 +1253,28 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
 #ifdef HPX_HAVE_APEX
     auto reconstruct_timer = apex::start("kernel hydro_reconstruct kokkos");
 #endif
+#ifdef OCTOTIGER_HYDRO_HOST_HPX_EXECUTOR
+#pragma message "Using team impl for reconstruct"
     if (angmom_index > -1) {
-        /* reconstruct_impl<host_simd_t, host_simd_mask_t>(exec, agg_exec, omega, nf, angmom_index, */
-        /*     smooth_field, disc_detect, q, combined_x, combined_u, AM, dx, disc, n_species, ndir, */
-        /*     nangmom, 8, 1); */
+        reconstruct_impl<host_simd_t, host_simd_mask_t>(exec, agg_exec, omega, nf, angmom_index,
+            smooth_field, disc_detect, q, combined_x, combined_u, AM, dx, disc, n_species, ndir,
+            nangmom, 8, 1);
+    } else {
+        reconstruct_no_amc_impl<host_simd_t, host_simd_mask_t>(exec, agg_exec, omega, nf,
+            angmom_index, smooth_field, disc_detect, q, combined_x, combined_u, AM, dx, disc,
+            n_species, ndir, nangmom, 8, 1);
+    }
+#else
+    if (angmom_index > -1) {
         reconstruct_teamless_impl<host_simd_t, host_simd_mask_t>(exec, agg_exec, omega, nf, angmom_index,
             smooth_field, disc_detect, q, combined_x, combined_u, AM, dx, disc, n_species, ndir,
             nangmom, {1, 1, 8, 8});
     } else {
-        /* reconstruct_no_amc_impl<host_simd_t, host_simd_mask_t>(exec, agg_exec, omega, nf, */
-        /*     angmom_index, smooth_field, disc_detect, q, combined_x, combined_u, AM, dx, disc, */
-        /*     n_species, ndir, nangmom, 8, 1); */
         reconstruct_no_amc_teamless_impl<host_simd_t, host_simd_mask_t>(exec, agg_exec, omega, nf,
             angmom_index, smooth_field, disc_detect, q, combined_x, combined_u, AM, dx, disc,
             n_species, ndir, nangmom, {1, 1, 8, 8});
     }
+#endif
 #ifdef HPX_HAVE_APEX
     apex::stop(reconstruct_timer);
 #endif
