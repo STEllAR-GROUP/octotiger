@@ -89,10 +89,10 @@ pipeline {
             steps {
                 dir('octotiger') {
                     sh '''#!/bin/bash -l
+                        set -x
                         cd "../octo-buildscripts-std-simd"
                         rm -f build-log.txt
-                        sed -i 's/OCTOTIGER_KOKOS_SIMD_LIBRARY=KOKKOS/OCTOTIGER_KOKOS_SIMD_LIBRARY=STD/' build-octotiger.sh
-		        
+                        sed -i 's/OCTOTIGER_KOKKOS_SIMD_LIBRARY=KOKKOS/OCTOTIGER_KOKKOS_SIMD_LIBRARY=STD/' build-octotiger.sh
 	    	        srun -p medusa -N 1 -n 1 bash -lc 'module load gcc/11 && ./build-all.sh RelWithDebInfo with-CC without-cuda without-mpi without-papi without-apex with-kokkos with-simd without-hpx-backend-multipole without-hpx-backend-monopole without-hpx-cuda-polling without-otf2 cmake jemalloc boost hdf5 silo vc hpx kokkos cppuddle octotiger |& tee build-log.txt'
 	   	        if grep "Using std-experimental-simd SIMD types" build-log.txt
 		        then
