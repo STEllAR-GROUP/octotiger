@@ -122,7 +122,7 @@ void launch_reconstruct_cuda(
     dim3 const threads_per_block(1, 8, 8);
     int ndir = geo.NDIR;
     int nangmom = geo.NANGMOM;
-    hpx::lcos::future<void> fut;
+    hpx::future<void> fut;
 #if defined(OCTOTIGER_HAVE_CUDA)
     void* args[] = {&omega, &nf_, &angmom_index_, &(smooth_field_), &(disc_detect_), &(combined_q),
         &(combined_x), &(combined_u), &(AM), &(dx), &(cdiscs), &n_species_, &ndir, &nangmom};

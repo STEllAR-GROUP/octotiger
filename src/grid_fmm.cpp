@@ -549,7 +549,7 @@ void grid::compute_interactions(gsolve_type type) {
 				A0[i] = m0[0] * tmp;
 			}
 #ifdef OCTOTIGER_HAVE_GRAV_PAR
-                std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
+                std::lock_guard<hpx::spinlock> lock(*L_mtx);
 #endif
 
 			// potential and correction have been computed, no scatter the results
@@ -776,7 +776,7 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
 		}
 
 #ifdef OCTOTIGER_HAVE_GRAV_PAR
-                std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
+                std::lock_guard<hpx::spinlock> lock(*L_mtx);
 #endif
 		for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
 			const integer iii0 = bnd.first[li + i];
@@ -915,7 +915,7 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
 		}
 
 #ifdef OCTOTIGER_HAVE_GRAV_PAR
-                std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
+                std::lock_guard<hpx::spinlock> lock(*L_mtx);
 #endif
 		for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
 			const integer iii0 = bnd.first[li + i];
@@ -1028,7 +1028,7 @@ if (type != RHO) {
 		}
 
 #ifdef OCTOTIGER_HAVE_GRAV_PAR
-                std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
+                std::lock_guard<hpx::spinlock> lock(*L_mtx);
 #endif
 		for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
 			const integer iii0 = bnd.first[li + i];

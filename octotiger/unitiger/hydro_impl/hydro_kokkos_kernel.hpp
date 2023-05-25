@@ -86,11 +86,11 @@ void aggregated_deep_copy(
 }
 
 template <typename executor_t, typename TargetView_t, typename SourceView_t>
-hpx::lcos::shared_future<void> aggregrated_deep_copy_async(
+hpx::shared_future<void> aggregrated_deep_copy_async(
     typename Aggregated_Executor<executor_t>::Executor_Slice& agg_exec, TargetView_t& target,
     SourceView_t& source) {
     auto launch_copy_lambda = [](TargetView_t& target, SourceView_t& source,
-                                  executor_t& exec) -> hpx::lcos::shared_future<void> {
+                                  executor_t& exec) -> hpx::shared_future<void> {
         return hpx::kokkos::deep_copy_async(exec.instance(), target, source);
     };
     return agg_exec.wrap_async(
@@ -98,13 +98,13 @@ hpx::lcos::shared_future<void> aggregrated_deep_copy_async(
 }
 
 template <typename executor_t, typename TargetView_t, typename SourceView_t>
-hpx::lcos::shared_future<void> aggregrated_deep_copy_async(
+hpx::shared_future<void> aggregrated_deep_copy_async(
     typename Aggregated_Executor<executor_t>::Executor_Slice& agg_exec, TargetView_t& target,
     SourceView_t& source, int elements_per_slice) {
     const size_t number_slices = agg_exec.number_slices;
     auto launch_copy_lambda = [elements_per_slice, number_slices](TargetView_t& target,
                                   SourceView_t& source,
-                                  executor_t& exec) -> hpx::lcos::shared_future<void> {
+                                  executor_t& exec) -> hpx::shared_future<void> {
         auto target_slices = Kokkos::subview(
             target, std::make_pair<size_t, size_t>(0, number_slices * elements_per_slice));
         auto source_slices = Kokkos::subview(
@@ -1354,7 +1354,7 @@ timestep_t launch_hydro_kokkos_kernels(const hydro_computer<NDIM, INX, physics<N
     static const cell_geometry<NDIM, INX> geo;
 
     auto executor_slice_fut = hydro_kokkos_agg_executor_pool<executor_t>::request_executor_slice();
-    auto ret_fut = executor_slice_fut.value().then(hpx::util::annotated_function([&](auto && fut) {
+    auto ret_fut = executor_slice_fut.value().then(hpx::annotated_function([&](auto && fut) {
       typename Aggregated_Executor<executor_t>::Executor_Slice agg_exec = fut.get();
       // How many executor slices are working together and what's our ID?
       const size_t slice_id = agg_exec.id;

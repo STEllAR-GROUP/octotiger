@@ -140,7 +140,7 @@ private:
 	std::vector<space_vector> L_c;
 	std::vector<real> dphi_dt;
 #ifdef OCTOTIGER_HAVE_GRAV_PAR
-	std::unique_ptr<hpx::lcos::local::spinlock> L_mtx;
+	std::unique_ptr<hpx::spinlock> L_mtx;
 #endif
 
 //    std::shared_ptr<std::atomic<integer>> Muse_counter;
