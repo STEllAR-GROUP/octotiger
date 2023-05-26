@@ -88,6 +88,7 @@ pipeline {
             steps {
                 sh '''
                 srun -p knl -N 1 -n 1 -t 08:00:00 --exclusive -D /data/scratch/jenkins/octotiger-${JOB_BASE_NAME}/OctoTigerBuildChain bash -c "\
+                rm -rf build/octotiger && \
                 sed -i 's/OCTOTIGER_KOKOS_SIMD_EXTENSION=AVX512/OCTOTIGER_KOKOS_SIMD_EXTENSION=SCALAR/' build-octotiger.sh && \
                 sed -i 's/OCTOTIGER_WITH_HYDRO_HOST_HPX_EXECUTOR=ON/OCTOTIGER_WITH_HYDRO_HOST_HPX_EXECUTOR=OFF/' build-octotiger.sh && \
                 sed -i 's/OCTOTIGER_WITH_KOKKOS_HYDRO_TASKS=4/OCTOTIGER_WITH_KOKKOS_HYDRO_TASKS=1/' build-octotiger.sh && \
@@ -108,7 +109,7 @@ pipeline {
             steps {
                 sh '''
                 srun -p knl -N 1 -n 1 -t 08:00:00 --exclusive -D /data/scratch/jenkins/octotiger-${JOB_BASE_NAME}/OctoTigerBuildChain bash -c "\
-                
+                rm -rf build/octotiger && \
                 sed -i 's/OCTOTIGER_KOKOS_SIMD_EXTENSION=SCALAR/OCTOTIGER_KOKOS_SIMD_EXTENSION=AVX512/' build-octotiger.sh && \
                 ./build-all.sh Release with-CC without-cuda without-mpi without-papi without-apex with-kokkos with-simd without-hpx-backend-multipole without-hpx-backend-monopole without-hpx-cuda-polling octotiger"
                 '''
@@ -126,6 +127,7 @@ pipeline {
             steps {
                 sh '''
                 srun -p knl -N 1 -n 1 -t 08:00:00 --exclusive -D /data/scratch/jenkins/octotiger-${JOB_BASE_NAME}/OctoTigerBuildChain bash -c "\
+                rm -rf build/octotiger && \
                 sed -i 's/OCTOTIGER_WITH_HYDRO_HOST_HPX_EXECUTOR=OFF/OCTOTIGER_WITH_HYDRO_HOST_HPX_EXECUTOR=ON/' build-octotiger.sh && \
                 ./build-all.sh Release with-CC without-cuda without-mpi without-papi without-apex with-kokkos with-simd with-hpx-backend-multipole with-hpx-backend-monopole without-hpx-cuda-polling octotiger"
                 '''
@@ -142,6 +144,7 @@ pipeline {
             steps {
                 sh '''
                 srun -p knl -N 1 -n 1 -t 08:00:00 --exclusive -D /data/scratch/jenkins/octotiger-${JOB_BASE_NAME}/OctoTigerBuildChain bash -c "\
+                rm -rf build/octotiger && \
                 sed -i 's/OCTOTIGER_WITH_HYDRO_HOST_HPX_EXECUTOR=OFF/OCTOTIGER_WITH_HYDRO_HOST_HPX_EXECUTOR=ON/' build-octotiger.sh && \
                 sed -i 's/OCTOTIGER_WITH_KOKKOS_HYDRO_TASKS=1/OCTOTIGER_WITH_KOKKOS_HYDRO_TASKS=4/' build-octotiger.sh && \
                 sed -i 's/OCTOTIGER_WITH_KOKKOS_MULTIPOLE_TASKS=1/OCTOTIGER_WITH_KOKKOS_MULTIPOLE_TASKS=4/' build-octotiger.sh && \
