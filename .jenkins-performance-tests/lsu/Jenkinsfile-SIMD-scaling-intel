@@ -45,14 +45,14 @@ pipeline {
                     then
                         cd "octo-buildscripts-simd-scaling-intel"
                         git reset --hard # reset griddim modification in case of unclean directory
-                        git checkout espm2_icelake_build
+                        git checkout jenkins-performance-intel-simd-test
                         git pull
                         rm -rf build/octotiger
                         rm -rf src/octotiger
                     else # without cached dependencies
                         git clone https://github.com/diehlpk/PowerTiger.git "octo-buildscripts-simd-scaling-intel"
                         cd "octo-buildscripts-simd-scaling-intel"
-                        git checkout espm2_icelake_build
+                        git checkout jenkins-performance-intel-simd-test
                         mkdir src
                     fi
 
