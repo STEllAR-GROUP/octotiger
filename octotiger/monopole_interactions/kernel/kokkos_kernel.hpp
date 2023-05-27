@@ -312,9 +312,9 @@ namespace fmm {
                 Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<3>>(
                     executor.instance(), {0, 0, 0},
                     {cells_end.x - cells_start.x, cells_end.y - cells_start.y,
-                        (cells_end.z - cells_start.z) / simd_t::size() + workitem_offset},
+                        (cells_end.z - cells_start.z) / static_cast<int>(simd_t::size()) + workitem_offset},
                     {cells_end.x - cells_start.x, cells_end.y - cells_start.y,
-                        (cells_end.z - cells_start.z) / simd_t::size() + workitem_offset}),
+                        (cells_end.z - cells_start.z) / static_cast<int>(simd_t::size()) + workitem_offset}),
                 Kokkos::Experimental::WorkItemProperty::HintLightWeight);
 
             // Kokkos::parallel_for("kernel p2p", policy_1,
@@ -528,9 +528,9 @@ namespace fmm {
                 Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<3>>(
                     executor.instance(), {0, 0, 0},
                     {cells_end.x - cells_start.x, cells_end.y - cells_start.y,
-                        (cells_end.z - cells_start.z) / simd_t::size() + workitem_offset},
+                        (cells_end.z - cells_start.z) / static_cast<int>(simd_t::size()) + workitem_offset},
                     {cells_end.x - cells_start.x, cells_end.y - cells_start.y,
-                        (cells_end.z - cells_start.z) / simd_t::size() + workitem_offset}),
+                        (cells_end.z - cells_start.z) / static_cast<int>(simd_t::size()) + workitem_offset}),
                 Kokkos::Experimental::WorkItemProperty::HintLightWeight);
 
             Kokkos::parallel_for(
