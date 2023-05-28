@@ -4,6 +4,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --partition=cuda-A100
+#SBATCH --nodelist=toranj1
 #SBATCH -e intel_simd_scaling_test.out
 #SBATCH -o intel_simd_scaling_test.out
 
