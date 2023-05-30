@@ -3,6 +3,10 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+#ifndef MESA_STAR_HPP_
+#define MESA_STAR_HPP_
+
+
 #include "octotiger/config/export_definitions.hpp"
 #include "octotiger/real.hpp"
 #include "octotiger/defs.hpp"
@@ -21,3 +25,5 @@ OCTOTIGER_EXPORT bool mesa_refine_test(integer level, integer maxl, real, real, 
 
 //static mesa_profiles(
 //                const std::string& filename);//, std::vector<double>& P, std::vector<double>& rho, std::vector<double>& r, std::vector<double>& omega);
+
+#endif /* MESA_STAR_HPP_ */
