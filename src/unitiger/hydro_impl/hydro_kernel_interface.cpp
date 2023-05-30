@@ -14,7 +14,7 @@
 #endif
 
 #if defined(OCTOTIGER_HAVE_KOKKOS)
-hpx::lcos::local::once_flag init_hydro_kokkos_pool_flag;
+hpx::once_flag init_hydro_kokkos_pool_flag;
 #if defined(KOKKOS_ENABLE_CUDA)
 using device_executor = hpx::kokkos::cuda_executor;
 using device_pool_strategy = round_robin_pool<device_executor>;
@@ -28,11 +28,11 @@ using device_executor = hpx::kokkos::sycl_executor;
 using device_pool_strategy = round_robin_pool<device_executor>;
 using executor_interface_t = stream_interface<device_executor, device_pool_strategy>;
 #endif
-//#ifdef OCTOTIGER_MONOPOLE_HOST_HPX_EXECUTOR
+#ifdef OCTOTIGER_HYDRO_HOST_HPX_EXECUTOR
 using host_executor = hpx::kokkos::hpx_executor;
-//#else
-/* using host_executor = hpx::kokkos::serial_executor; */
-//#endif
+#else
+using host_executor = hpx::kokkos::serial_executor;
+#endif
 void init_hydro_kokkos_aggregation_pool(void) {
     const size_t max_slices = opts().max_executor_slices;
     constexpr size_t number_aggregation_executors = 128;
@@ -75,7 +75,7 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
             device_type == interaction_device_kernel_type::KOKKOS_SYCL) {
 #if defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_CUDA) || defined(KOKKOS_ENABLE_HIP)|| defined(KOKKOS_ENABLE_SYCL))
             // Init local kernel pool if not done already
-            hpx::lcos::local::call_once(init_hydro_kokkos_pool_flag, init_hydro_kokkos_aggregation_pool);
+            hpx::call_once(init_hydro_kokkos_pool_flag, init_hydro_kokkos_aggregation_pool);
             bool avail = true; 
             // Host execution is possible: Check if there is a launch slot for device - if not 
             // we will execute the kernel on the CPU instead
@@ -142,7 +142,7 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
     // Nothing is available or device execution is disabled - fallback to host execution
     if (host_type == interaction_host_kernel_type::KOKKOS) {
 #ifdef OCTOTIGER_HAVE_KOKKOS
-        hpx::lcos::local::call_once(init_hydro_kokkos_pool_flag, init_hydro_kokkos_aggregation_pool);
+        hpx::call_once(init_hydro_kokkos_pool_flag, init_hydro_kokkos_aggregation_pool);
         host_executor executor{hpx::kokkos::execution_space_mode::independent};
         max_lambda = launch_hydro_kokkos_kernels<host_executor>(
             hydro, U, X, omega, opts().n_species, executor, F);

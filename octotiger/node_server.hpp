@@ -75,12 +75,12 @@ private:
 	real dx;
 
   size_t number_hydro_exchange_promises;
-  std::vector<hpx::lcos::local::promise<void>> ready_for_hydro_exchange;
-  std::vector<hpx::lcos::local::promise<void>> ready_for_amr_hydro_exchange;
-  std::vector<hpx::lcos::local::promise<void>> boundaries_exchanged;
+  std::vector<hpx::promise<void>> ready_for_hydro_exchange;
+  std::vector<hpx::promise<void>> ready_for_amr_hydro_exchange;
+  std::vector<hpx::promise<void>> boundaries_exchanged;
 
-  std::vector<hpx::lcos::local::promise<void>> ready_for_hydro_update;
-  std::vector<hpx::lcos::future<void>> all_neighbors_got_hydro;
+  std::vector<hpx::promise<void>> ready_for_hydro_update;
+  std::vector<hpx::future<void>> all_neighbors_got_hydro;
 
 	/* this node*/
 	node_client me;
@@ -100,8 +100,8 @@ private:
 	std::vector<node_client> aunts;
 
 	std::vector<std::array<bool, geo::direction::count()>> amr_flags;
-	hpx::lcos::local::spinlock mtx;
-	hpx::lcos::local::spinlock prolong_mtx;
+	hpx::spinlock mtx;
+	hpx::spinlock prolong_mtx;
 	channel<expansion_pass_type> parent_gravity_channel;
 	std::array<semaphore, geo::direction::count()> neighbor_signals;
 	std::array<unordered_channel<std::vector<real>>, NCHILD> child_hydro_channels;

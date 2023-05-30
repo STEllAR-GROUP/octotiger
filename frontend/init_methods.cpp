@@ -94,6 +94,7 @@ void cleanup_puddle_on_this_locality(void) {
     hpx::sycl::experimental::detail::unregister_polling(hpx::resource::get_thread_pool(0));
 #endif
 #ifdef OCTOTIGER_HAVE_KOKKOS
+    stream_pool::cleanup<hpx::kokkos::hpx_executor, round_robin_pool<hpx::kokkos::hpx_executor>>();
     stream_pool::cleanup<hpx::kokkos::serial_executor, round_robin_pool<hpx::kokkos::serial_executor>>();
     Kokkos::finalize();
 #endif

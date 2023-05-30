@@ -45,14 +45,14 @@ pipeline {
                     then
                         cd "octo-buildscripts-simd-scaling-amd"
                         git reset --hard # reset griddim modification in case of unclean directory
-                        git checkout espm_epyc
+                        git checkout jenkins-performance-amd-simd-test
                         git pull
                         rm -rf build/octotiger
                         rm -rf src/octotiger
                     else # without cached dependencies
                         git clone https://github.com/diehlpk/PowerTiger.git "octo-buildscripts-simd-scaling-amd"
                         cd "octo-buildscripts-simd-scaling-amd"
-                        git checkout espm_epyc
+                        git checkout jenkins-performance-amd-simd-test
                         mkdir src
                     fi
 

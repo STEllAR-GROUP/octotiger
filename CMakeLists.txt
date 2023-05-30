@@ -58,9 +58,6 @@ option(OCTOTIGER_WITH_AVX512 "" OFF)
 
 option(OCTOTIGER_WITH_TESTS "Enable tests" ON)
 set(OCTOTIGER_WITH_GRIDDIM "8" CACHE STRING "Grid size")
-set(OCTOTIGER_WITH_KOKKOS_MULTIPOLE_TASKS "1" CACHE STRING "Tasks per multipole kernel launch with KOKKOS HPX (allowed values 1 4 16 64).")
-set(OCTOTIGER_WITH_KOKKOS_MONOPOLE_TASKS "1" CACHE STRING "Tasks per monopole kernel launch with KOKKOS HPX (allowed values 1 4 16).")
-set(OCTOTIGER_WITH_KOKKOS_HYDRO_TASKS "1" CACHE STRING "Tasks per hydro kernel launch with KOKKOS HPX.")
 set(OCTOTIGER_WITH_GRIDDIM "8" CACHE STRING "Grid size")
 set(OCTOTIGER_WITH_MAX_NUMBER_FIELDS "15" CACHE STRING "Maximum allowed nf_ (number fields)")
 set(OCTOTIGER_THETA_MINIMUM "0.34" CACHE STRING "Minimal allowed theta value - important for optimizations")
@@ -70,16 +67,21 @@ option(OCTOTIGER_WITH_FAST_FP_CONTRACT "Enable fp-contract=fast for CPU- and fma
 
 # Options for comparing different backends
 option(OCTOTIGER_WITH_MONOPOLE_HOST_HPX_EXECUTOR 
-  "Use Kokkos HPX backend for host execution of monopole kernels (ON) or serial host backend (OFF)" ON)
+  "Use Kokkos HPX backend for host execution of monopole kernels (ON) or serial host backend (OFF)" OFF)
 option(OCTOTIGER_WITH_MULTIPOLE_HOST_HPX_EXECUTOR 
-  "Use Kokkos HPX backend for host execution of monopole kernels (ON) or serial host backend (OFF)" ON)
+  "Use Kokkos HPX backend for host execution of multipole kernels (ON) or serial host backend (OFF)" OFF)
+option(OCTOTIGER_WITH_HYDRO_HOST_HPX_EXECUTOR 
+  "Use Kokkos HPX backend for host execution of hydro kernels (ON) or serial host backend (OFF)" OFF)
 option(OCTOTIGER_WITH_POLLING_EXECUTORS  
   "Use the polling executors, not the callback ones" ON)
+set(OCTOTIGER_WITH_KOKKOS_MULTIPOLE_TASKS "1" CACHE STRING "Tasks per multipole kernel launch with KOKKOS HPX (allowed values 1 4 16 64).")
+set(OCTOTIGER_WITH_KOKKOS_MONOPOLE_TASKS "1" CACHE STRING "Tasks per monopole kernel launch with KOKKOS HPX (allowed values 1 4 16).")
+set(OCTOTIGER_WITH_KOKKOS_HYDRO_TASKS "1" CACHE STRING "Tasks per hydro kernel launch with KOKKOS HPX.")
 
-option(OCTOTIGER_ARCH_FLAG
-  "Arch flag for compilations" "-march=native")
-option(OCTOTIGER_CUDA_ARCH
-  "Compile for this CUDA arch" sm_50)
+set(OCTOTIGER_ARCH_FLAG "-march=native"
+  CACHE STRING "Arch flag for compilations" )
+set(OCTOTIGER_CUDA_ARCH "sm_50"
+  CACHE STRING "Compile for this CUDA arch" )
 
 set(OCTOTIGER_KOKKOS_SIMD_LIBRARY "KOKKOS" CACHE STRING "Choose either KOKKOS (for kokkos simd types) or STD (for std::experimental::simd.") 
 set(OCTOTIGER_KOKKOS_SIMD_EXTENSION "DISCOVER" CACHE STRING "Choose either AVX512 AVX2 VSX NEON SVE SCALAR or DISCOVER (automatic discovery)") 
@@ -113,7 +115,7 @@ endif()
 # Find required packages
 ################################################################################
 find_package(Vc REQUIRED)
-find_package(HPX REQUIRED NO_CMAKE_PACKAGE_REGISTRY)
+find_package(HPX REQUIRED NO_CMAKE_PACKAGE_REGISTRY 1.8.1)
 find_package(CPPuddle REQUIRED)
 find_package(Silo REQUIRED)
 find_package(Boost COMPONENTS system filesystem program_options REQUIRED)
@@ -139,8 +141,13 @@ endif()
 
 if(OCTOTIGER_WITH_KOKKOS)
   message(INFO " KOKKOS support is turned on!")
-  find_package(Kokkos REQUIRED)
-  find_package(HPXKokkos REQUIRED)
+  if(OCTOTIGER_WITH_HYDRO_HOST_HPX_EXECUTOR)
+    message(INFO " requiring kokkos 4.0.99")
+    find_package(Kokkos REQUIRED 4.0.99) # contains fixes for the HPX team policy
+  else()
+    find_package(Kokkos REQUIRED 3.5.99)
+  endif()
+  find_package(HPXKokkos REQUIRED 0.3.0)
   if (OCTOTIGER_WITH_LEGACY_Vc)
     message(FATAL_ERROR " Kokkos cannot be used together with OCTOTIGER_WITH_LEGACY_Vc!")
   endif()
@@ -162,7 +169,7 @@ FetchContent_MakeAvailable(kokkossimd)
 FetchContent_Declare(
   svesimd
   GIT_REPOSITORY https://github.com/srinivasyadav18/sve.git
-  GIT_TAG        bedcf9374717fb1ed0f90e8e6d81dbf8b4a02699
+  GIT_TAG        a0582754c96f265b10e3c19d4fbd3e8d6debc321
 )
 FetchContent_MakeAvailable(svesimd)
 
@@ -479,9 +486,9 @@ if(OCTOTIGER_WITH_CUDA)
   endif()
 else()
   if (OCTOTIGER_WITH_FAST_FP_CONTRACT)
-        set_source_files_properties(src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS "-march=native -ffp-contract=fast")
+        set_source_files_properties(src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS "-ffp-contract=fast")
   else()
-        set_source_files_properties(src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS "-march=native -ffp-contract=off")
+        set_source_files_properties(src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS "-ffp-contract=off")
   endif()
 endif()
 
@@ -532,6 +539,9 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/io/silo_in.cpp
     src/radiation/rad_grid.cpp
     frontend/frontend-helper.cpp
+
+    src/eos.cpp
+    src/util.cpp
     
 
     #misc
@@ -561,6 +571,9 @@ if(OCTOTIGER_WITH_KOKKOS)
   endif()
   if(OCTOTIGER_WITH_MULTIPOLE_HOST_HPX_EXECUTOR)
     target_compile_definitions(octolib PUBLIC OCTOTIGER_MULTIPOLE_HOST_HPX_EXECUTOR)
+  endif()
+  if(OCTOTIGER_WITH_HYDRO_HOST_HPX_EXECUTOR)
+    target_compile_definitions(hydrolib PUBLIC OCTOTIGER_HYDRO_HOST_HPX_EXECUTOR)
   endif()
 endif()
 
@@ -853,6 +866,30 @@ message(STATUS "Octo-Tiger Kokkos-HPX number of Hydro tasks: ${OCTOTIGER_WITH_KO
 target_compile_definitions(optionslib PUBLIC OCTOTIGER_KOKKOS_HYDRO_TASKS=${OCTOTIGER_WITH_KOKKOS_HYDRO_TASKS})
 target_compile_definitions(octolib PUBLIC OCTOTIGER_KOKKOS_HYDRO_TASKS=${OCTOTIGER_WITH_KOKKOS_HYDRO_TASKS})
 target_compile_definitions(hydrolib PUBLIC OCTOTIGER_KOKKOS_HYDRO_TASKS=${OCTOTIGER_WITH_KOKKOS_HYDRO_TASKS})
+if (NOT OCTOTIGER_WITH_MULTIPOLE_HOST_HPX_EXECUTOR)
+  if (${OCTOTIGER_WITH_KOKKOS_MULTIPOLE_TASKS} GREATER 1)
+    message(FATAL_ERROR "Use OCTOTIGER_WITH_MULTIPOLE_HOST_HPX_EXECUTOR when using OCTOTIGER_WITH_KOKKOS_MULTIPOLE_TASKS > 1")
+  endif()
+  message(STATUS "Octo-Tiger will use Kokkos Serial Execution Space for (Kokkos CPU) Multipole kernels!")
+else()
+  message(STATUS "Octo-Tiger will use Kokkos HPX Execution Space for (Kokkos CPU) Multipole kernels!")
+endif()
+if (NOT OCTOTIGER_WITH_MONOPOLE_HOST_HPX_EXECUTOR)
+  if (${OCTOTIGER_WITH_KOKKOS_MONOPOLE_TASKS} GREATER 1)
+    message(FATAL_ERROR "Use OCTOTIGER_WITH_MONOPOLE_HOST_HPX_EXECUTOR when using OCTOTIGER_WITH_KOKKOS_MONOPOLE_TASKS > 1")
+  endif()
+  message(STATUS "Octo-Tiger will use Kokkos Serial Execution Space for (Kokkos CPU) Monopole kernels!")
+else()
+  message(STATUS "Octo-Tiger will use Kokkos HPX Execution Space for (Kokkos CPU) Monopole kernels!")
+endif()
+if (NOT OCTOTIGER_WITH_HYDRO_HOST_HPX_EXECUTOR)
+  if (${OCTOTIGER_WITH_KOKKOS_HYDRO_TASKS} GREATER 1)
+    message(FATAL_ERROR "Use OCTOTIGER_WITH_HYDRO_HOST_HPX_EXECUTOR when using OCTOTIGER_WITH_KOKKOS_HYDRO_TASKS > 1")
+  endif()
+  message(STATUS "Octo-Tiger will use Kokkos Serial Execution Space for (Kokkos CPU) Hydro kernels!")
+else()
+  message(STATUS "Octo-Tiger will use Kokkos HPX Execution Space for (Kokkos CPU) Hydro kernels!")
+endif()
 
 # Interaction list disabled?
 if(OCTOTIGER_DISABLE_ILIST)
