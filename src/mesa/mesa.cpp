@@ -14,8 +14,8 @@
 #include <vector>
 #include <memory>
 
-#define BUFFER_SIZE (1024 * 1024)
-#define HEADER_LINES 6
+#define BUFFER_SIZE (1024 * 16)
+#define HEADER_LINES 14
 #define NCOEF 4
 
 class cubic_table {
@@ -191,7 +191,9 @@ private:
 public:
 	mesa_profiles(
                 const std::string& filename) { //, std::vector<double>& P, std::vector<double>& rho, std::vector<double>& r, std::vector<double>& omega) {
+//		) {
 	// reads the profiles from the mesa file at initialization
+		printf("in profiles\n");
 		char line[BUFFER_SIZE];
 		char dummy[BUFFER_SIZE];
 		char log10_P[BUFFER_SIZE];
@@ -199,6 +201,8 @@ public:
 		char log10_rho[BUFFER_SIZE];
 		char vrot_kms[BUFFER_SIZE];
 		FILE* fp = fopen(filename.c_str(), "rt");
+//		std::string filename = "mesa_star.data"; 
+//		FILE* fp = fopen("mesa_star.data", "rt");
 		if (fp == NULL) {
 			printf("%s not found!\n", filename.c_str());
 			abort();
@@ -206,7 +210,7 @@ public:
 		//std::vector<double> P, rho, h, r, omega;
 		int linenum = 1;
 		while (fgets(line, sizeof line, fp) != NULL) {
-			//printf("%i: %s, %i\n\n\n\n", linenum, line, sizeof(line));  
+//			printf("%i: %s, %i\n\n\n\n", linenum, line, sizeof(line));  
 			//std::string substr = line.substr(0,100);
 			//printf("%i: %s\n\n\n\n", linenum, substr);
 			if (linenum > HEADER_LINES) {
@@ -215,15 +219,16 @@ public:
 //                                        dummy, dummy, dummy, log10_rho, dummy, 
 //					dummy, log10_P, log10_R, dummy, dummy, 
 //					vrot_kms, dummy, dummy, dummy, dummy, 
-                                                "%s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %.1000s \n",
-                                        dummy, dummy, log10_R, dummy, log10_rho,
-                                        log10_P, dummy, dummy, dummy, dummy,
-                                        dummy, dummy, dummy, dummy, dummy,
-					dummy, dummy, dummy, vrot_kms, dummy);
-				//printf("after read: %s, %s, %s\n\n\n", log10_rho, log10_P, log10_R);
+                                                "%s %s %s %s %s %s %[^\]",
+                                        dummy, dummy, log10_rho, log10_P, log10_R,
+                                   //     dummy, dummy, dummy, dummy, dummy,
+                                   //     dummy, dummy, dummy, dummy, dummy,
+				//	dummy, dummy, dummy, 
+					vrot_kms, dummy);
+//				printf("after read: %s, %s, %s\n\n\n", log10_rho, log10_P, log10_R);
 				P_.push_back(std::pow(10, std::atof(log10_P)) * std::pow(opts().code_to_s, 2) * opts().code_to_cm / opts().code_to_g);
-				const double tmp = std::pow(10, std::atof(log10_R)) * 6.957e+10 / opts().code_to_cm;
-				//printf("rho(%e) = %e\n",tmp, std::pow(10, std::atof(log10_rho)));
+				double tmp = std::pow(10, std::atof(log10_R)) * 6.957e+10 / opts().code_to_cm;
+				printf("rho(%e) = %e\n", tmp, std::pow(10, std::atof(log10_rho)));
 				r_.push_back(tmp);
 				rho_.push_back(std::pow(10, std::atof(log10_rho)) * std::pow(opts().code_to_cm, 3) / opts().code_to_g);
 				omega_.push_back(std::atof(vrot_kms) * 100 * 1000 * opts().code_to_s / opts().code_to_cm / tmp);
@@ -231,11 +236,11 @@ public:
 			linenum++;
 		}
 		lines_ = linenum - HEADER_LINES;
-		//printf("exiting read %i\n", linenum);
+		printf("exiting read %i\n", linenum);
 		fclose(fp);
 	}
 	double get_R0() {
-		//printf("lines: %d, size: %d, r0: %e, r(lines-1): %e\n", lines_, sizeof(r_), r_[20], r_[lines_-20]); 
+//		printf("lines: %d, size: %d, r0: %e, r(lines-1): %e\n", lines_, sizeof(r_), r_[20], r_[lines_-20]); 
 		return r_[0];
 	}
 	double cubic_hermit_interp(double x, double x0, double x1, double p0, double p1, double m0, double m1) const {
@@ -302,9 +307,8 @@ std::vector<real> mesa_star(real x, real y, real z, real dx) {
                                 ++nsamp;
                                 if (r <= R0) {
 					real rho_t, p_t, omega_t;
-                                 //       printf("rho(%e) = %e\n", r, R0);
 					mesa_p.state_at(rho_t, p_t, omega_t, r);
-        //                                printf("rho(%e) = %e, p = %e, omega = %e, (x,y,z) = (%e,%e,%e)\n", r, rho_t, p_t, omega_t, x, y, z);
+                       //                 printf("rho(%e) = %e, p = %e, omega = %e, (x,y,z) = (%e,%e,%e)\n", r, rho_t, p_t, omega_t, x, y, z);
                                         rho += rho_t;
                                         p += p_t;
 					auto sx_t = -y0 * rho_t * omega_t;
