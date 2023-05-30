@@ -20,7 +20,7 @@
 #include "octotiger/roe.hpp"
 #include "octotiger/scf_data.hpp"
 #include "octotiger/io/silo.hpp"
-// #include "octotiger/simd.hpp"
+// #include "octotiger/simd_legacy.hpp"
 #include "octotiger/space_vector.hpp"
 //#include "octotiger/taylor.hpp"
 #include "octotiger/unitiger/safe_real.hpp"
@@ -115,7 +115,7 @@ private:
 	static real fgamma;
         static integer min_level;
 	static integer max_level;
-	static hpx::lcos::local::spinlock omega_mtx;
+	static hpx::spinlock omega_mtx;
 	static OCTOTIGER_EXPORT real scaling_factor;
 	static double idle_rate;
 	hydro_computer<NDIM,INX,physics<NDIM>> hydro;
@@ -140,7 +140,7 @@ private:
 	std::vector<space_vector> L_c;
 	std::vector<real> dphi_dt;
 #ifdef OCTOTIGER_HAVE_GRAV_PAR
-	std::unique_ptr<hpx::lcos::local::spinlock> L_mtx;
+	std::unique_ptr<hpx::spinlock> L_mtx;
 #endif
 
 //    std::shared_ptr<std::atomic<integer>> Muse_counter;

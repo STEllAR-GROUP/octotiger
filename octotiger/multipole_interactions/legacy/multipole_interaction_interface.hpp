@@ -22,6 +22,9 @@
 #include <aligned_buffer_util.hpp>
 #include <buffer_manager.hpp>
 
+#ifdef HPX_HAVE_APEX
+#include <apex_api.hpp>
+#endif
 namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {
@@ -91,6 +94,9 @@ namespace fmm {
             expansion_soa_container& local_expansions_SoA,
             masses_soa_container& center_of_masses_SoA, std::shared_ptr<grid>& grid_ptr,
             bool is_root) {
+#ifdef HPX_HAVE_APEX
+            auto timer = apex::start("multipole soa conversion");
+#endif
             std::vector<space_vector> const& com0 = *(com_ptr[0]);
 
             if (is_root) {
@@ -269,6 +275,9 @@ namespace fmm {
                     }
                 }
             }
+#ifdef HPX_HAVE_APEX
+            apex::stop(timer);
+#endif
         }
     }    // namespace multipole_interactions
 }    // namespace fmm
