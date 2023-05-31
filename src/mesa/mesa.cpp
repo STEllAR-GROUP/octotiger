@@ -294,6 +294,9 @@ std::vector<real> mesa_star(real x, real y, real z, real dx) {
         std::vector<real> u(opts().n_fields, real(0));
         const real fgamma = grid::get_fgamma();
         static mesa_profiles mesa_p(opts().mesa_filename);
+	x = x - opts().star_xcenter;
+	y = y - opts().star_ycenter;
+	z = z - opts().star_zcenter;
         real R0 = mesa_p.get_R0();
 	//printf(" R0: %e, f: %e\n", mesa_p.get_R0(), opts().code_to_cm);
         real rho = 0.0;
@@ -308,7 +311,7 @@ std::vector<real> mesa_star(real x, real y, real z, real dx) {
                                 if (r <= R0) {
 					real rho_t, p_t, omega_t;
 					mesa_p.state_at(rho_t, p_t, omega_t, r);
-                       //                 printf("rho(%e) = %e, p = %e, omega = %e, (x,y,z) = (%e,%e,%e)\n", r, rho_t, p_t, omega_t, x, y, z);
+                                        //printf("rho(%e) = %e, p = %e, omega = %e, (x,y,z) = (%e,%e,%e)\n", r, rho_t, p_t, omega_t, x, y, z);
                                         rho += rho_t;
                                         p += p_t;
 					auto sx_t = -y0 * rho_t * omega_t;
