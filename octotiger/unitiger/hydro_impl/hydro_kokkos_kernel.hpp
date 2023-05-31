@@ -181,7 +181,7 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
         }
 
         Kokkos::parallel_for(
-            "kernel hydro flux", policy, KOKKOS_LAMBDA(int idx) {
+            "kernel hydro flux teamless", policy, KOKKOS_LAMBDA(int idx) {
                 // Index helpers:
                 const int slice_idx = idx % (number_blocks);
                 const int slice_id = idx / (number_blocks);
@@ -771,15 +771,15 @@ void reconstruct_teamless_impl(hpx::kokkos::executor<kokkos_backend_t>& executor
         (q_inx * q_inx * q_inx / simd_t::size()) / 64 + 1;
     
     if (agg_exec.sync_aggregation_slices()) {
-        const size_t number_slices = agg_exec.number_slices;
-        const size_t max_slices = opts().max_executor_slices;
+        const int number_slices = agg_exec.number_slices;
+        const int max_slices = opts().max_executor_slices;
         auto policy = Kokkos::Experimental::require(
             Kokkos::MDRangePolicy<decltype(agg_exec.get_underlying_executor().instance()),
                 Kokkos::Rank<4>>(agg_exec.get_underlying_executor().instance(), {0, 0, 0, 0},
                 {number_slices, blocks, 8, 8}, tiling_config),
             Kokkos::Experimental::WorkItemProperty::HintLightWeight);
         Kokkos::parallel_for(
-            "kernel hydro reconstruct_teamless", policy,
+            "kernel hydro reconstruct teamless", policy,
             KOKKOS_LAMBDA(int slice_id, int idx, int idy, int idz) {
                 const int index = (idx) * 64 + (idy) * 8 + (idz);
                 const int q_i = index * simd_t::size();
@@ -855,13 +855,13 @@ void reconstruct_teamless_impl(hpx::kokkos::executor<kokkos_backend_t>& executor
                         smooth_field_slice.data(), disc_detect_slice.data(),
                         combined_q_slice.data(), combined_u_slice.data(), AM_slice.data(),
                         dx_slice[0], cdiscs_slice.data(), i, q_i, ndir,
-                        nangmom, slice_id);
+                        nangmom);
                     // Phase 2
                     for (int d = 0; d < ndir; d++) {
                         cell_reconstruct_inner_loop_p2_simd<simd_t, simd_mask_t>(omega,
                             angmom_index_, combined_q_slice.data(), combined_x_slice.data(),
                             combined_u_slice.data(), AM_slice.data(), dx_slice[0], d, i, q_i, ndir,
-                            nangmom, n_species_, nf_, slice_id);
+                            nangmom, n_species_, nf_);
                           }
                       }
             });
@@ -969,15 +969,15 @@ void reconstruct_no_amc_teamless_impl(hpx::kokkos::executor<kokkos_backend_t>& e
     const int blocks =
         (q_inx * q_inx * q_inx / simd_t::size()) / 64 + 1;
     if (agg_exec.sync_aggregation_slices()) {
-        const size_t number_slices = agg_exec.number_slices;
-        const size_t max_slices = opts().max_executor_slices;
+        const int number_slices = agg_exec.number_slices;
+        const int max_slices = opts().max_executor_slices;
         auto policy = Kokkos::Experimental::require(
             Kokkos::MDRangePolicy<decltype(agg_exec.get_underlying_executor().instance()),
                 Kokkos::Rank<4>>(agg_exec.get_underlying_executor().instance(), {0, 0, 0, 0},
                 {number_slices, blocks, 8, 8}, tiling_config),
             Kokkos::Experimental::WorkItemProperty::HintLightWeight);
         Kokkos::parallel_for(
-            "kernel hydro reconstruct_no_amc", policy,
+            "kernel hydro reconstruct_no_amc teamless", policy,
             KOKKOS_LAMBDA(int slice_id, int idx, int idy, int idz) {
                 const int index = (idx) * 64 + (idy) * 8 + (idz);
                 const int q_i = index * simd_t::size();
@@ -994,14 +994,14 @@ void reconstruct_no_amc_teamless_impl(hpx::kokkos::executor<kokkos_backend_t>& e
                         smooth_field_slice.data(), disc_detect_slice.data(),
                         combined_q_slice.data(), combined_u_slice.data(), AM_slice.data(),
                         dx_slice[0], cdiscs_slice.data(), i, q_i, ndir,
-                        nangmom, slice_id);
+                        nangmom);
                     // Phase 2
                     for (int d = 0; d < ndir; d++) {
                         cell_reconstruct_inner_loop_p2_simd<simd_t, simd_mask_t>(omega,
                             angmom_index_, combined_q_slice.data(), combined_x_slice.data(),
                             combined_u_slice.data(), AM_slice.data(),
                             dx_slice[0], d, i, q_i, ndir,
-                            nangmom, n_species_, nf_, slice_id);
+                            nangmom, n_species_, nf_);
                     }
                 }
             });
@@ -1465,7 +1465,7 @@ timestep_t launch_hydro_kokkos_kernels(const hydro_computer<NDIM, INX, physics<N
 
       // Either handles the launches on the CPU or on the GPU depending on the passed executor
       max_lambda = device_interface_kokkos_hydro(executor, combined_x, combined_large_x,
-          combined_u, disc_detect, smooth_field, f, geo.NDIR, hydro.get_nf(),
+          combined_u, disc_detect, smooth_field, combined_f, geo.NDIR, hydro.get_nf(),
           hydro.get_angmom_index() != -1, n_species, omega, hydro.get_angmom_index(), geo.NANGMOM,
           dx, physics<NDIM>::A_, physics<NDIM>::B_, physics<NDIM>::fgamma_,
           physics<NDIM>::de_switch_1, agg_exec, alloc_host_double, alloc_host_int);
