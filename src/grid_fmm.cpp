@@ -353,7 +353,8 @@ void grid::compute_interactions(gsolve_type type) {
 		// (David)
 		// It is unclear what the underlying vectorization library does, if simd_len > architectural
 		// length (David)
-		hpx::for_loop_strided(for_loop_policy, 0, list_size, simd_len, [&com0, &this_ilist, list_size, type, this](std::size_t li) {
+		hpx::experimental::for_loop_strided(for_loop_policy, 0, list_size, simd_len, [&com0, &this_ilist, list_size, type, this](std::size_t li) {
+
 
 			// dX is distance between X and Y
 			// X and Y are the two cells interacting
@@ -642,7 +643,7 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
 	auto &mon = *mon_ptr;
 
 	std::vector<space_vector> const &com0 = *(com_ptr[0]);
-	hpx::for_loop(for_loop_policy, 0, ilist_n_bnd.size(), [&mpoles, &com0, &ilist_n_bnd, type, this, &M](std::size_t si) {
+	hpx::experimental::for_loop(for_loop_policy, 0, ilist_n_bnd.size(), [&mpoles, &com0, &ilist_n_bnd, type, this, &M](std::size_t si) {
 
 		taylor<4, simd_vector> m0;
 		taylor<4, simd_vector> n0;
@@ -810,7 +811,7 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
 	auto &mon = *mon_ptr;
 
 	std::vector<space_vector> const &com0 = *(com_ptr[0]);
-	hpx::for_loop(for_loop_policy, 0, ilist_n_bnd.size(), [&mpoles, &com0, &ilist_n_bnd, type, this](std::size_t si) {
+	hpx::experimental::for_loop(for_loop_policy, 0, ilist_n_bnd.size(), [&mpoles, &com0, &ilist_n_bnd, type, this](std::size_t si) {
 
 		taylor<4, simd_vector> m0;
 		taylor<4, simd_vector> n0;
@@ -947,7 +948,7 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type, co
 	std::array<real, NDIM> Xbase = { X[0][hindex(H_BW, H_BW, H_BW)], X[1][hindex(H_BW, H_BW, H_BW)], X[2][hindex(H_BW, H_BW, H_BW)] };
 
 	std::vector<space_vector> const &com0 = *(com_ptr[0]);
-	hpx::for_loop(for_loop_policy, 0, ilist_n_bnd.size(), [&mpoles, &Xbase, &com0, &ilist_n_bnd, type, this, &M](std::size_t si) {
+	hpx::experimental::for_loop(for_loop_policy, 0, ilist_n_bnd.size(), [&mpoles, &Xbase, &com0, &ilist_n_bnd, type, this, &M](std::size_t si) {
 		taylor<4, simd_vector> n0;
 		std::array<simd_vector, NDIM> dX;
 		std::array<simd_vector, NDIM> X;
@@ -1064,7 +1065,7 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type, con
 	alignas(64) double di0[8] = { 1. / dx, 1. / sqr(dx), 1. / sqr(dx), 1. / sqr(dx) };
 	const v4sd d0(di0, Vc::Aligned);
 
-	hpx::for_loop(for_loop_policy, 0, ilist_n_bnd.size(), [&mpoles, &ilist_n_bnd, &d0, this](std::size_t si) {
+	hpx::experimental::for_loop(for_loop_policy, 0, ilist_n_bnd.size(), [&mpoles, &ilist_n_bnd, &d0, this](std::size_t si) {
 
 		boundary_interaction_type const &bnd = ilist_n_bnd[si];
 		const integer dsize = bnd.first.size();
