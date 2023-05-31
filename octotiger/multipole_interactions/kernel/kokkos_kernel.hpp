@@ -14,6 +14,10 @@
 #include "octotiger/common_kernel/kokkos_util.hpp"
 #include "octotiger/common_kernel/kokkos_simd.hpp"
 
+#ifdef HPX_HAVE_APEX
+#include <apex_api.hpp>
+#endif
+
 namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {
@@ -855,31 +859,73 @@ namespace fmm {
             const double theta, const gsolve_type type, const bool use_root_stencil) {
             const host_buffer<int>& host_masks = get_host_masks<host_buffer<int>>(false);
             const host_buffer<int>& host_indicators = get_host_masks<host_buffer<int>>(true);
+            // check compile time invariants
+            static_assert(NUMBER_MULTIPOLE_TASKS == 1 || NUMBER_MULTIPOLE_TASKS == 4 || 
+                NUMBER_MULTIPOLE_TASKS == 16 || NUMBER_MULTIPOLE_TASKS == 64);
+            static_assert(INX % host_simd_t::size() == 0);
+            static_assert(INX / host_simd_t::size() <= INX && INX / host_simd_t::size() >= 1);
+            static_assert(NUMBER_MULTIPOLE_TASKS_X == 1 || NUMBER_MULTIPOLE_TASKS_X == 2 || 
+                NUMBER_MULTIPOLE_TASKS_X == 4 || NUMBER_MULTIPOLE_TASKS_X == 8);
+            static_assert(NUMBER_MULTIPOLE_TASKS_Y == NUMBER_MULTIPOLE_TASKS_X);
+            static_assert(NUMBER_MULTIPOLE_TASKS == NUMBER_MULTIPOLE_TASKS_X * NUMBER_MULTIPOLE_TASKS_Y);
+            static_assert(INX % NUMBER_MULTIPOLE_TASKS_Y == 0);
+            static_assert(INX / NUMBER_MULTIPOLE_TASKS_Y >= 1);
             if (type == RHO) {
                 // Launch kernel with angular corrections
                 if (!use_root_stencil) {
+#ifdef HPX_HAVE_APEX
+                    auto kernel_timer = apex::start("kernel multipole-rho kokkos");
+#endif
                     multipole_kernel_rho_impl<host_simd_t, host_simd_mask_t>(exec, monopoles,
                         centers_of_mass, multipoles, potential_expansions, angular_corrections,
                         theta, host_masks, host_indicators, 1,
-                        {1, 1, INX / 2, INX / 2, INX / host_simd_t::size()});
+                        {1, 1, INX / NUMBER_MULTIPOLE_TASKS_X, INX / NUMBER_MULTIPOLE_TASKS_Y,
+                        INX / host_simd_t::size()});
+                    sync_kokkos_host_kernel(exec);
+#ifdef HPX_HAVE_APEX
+                    apex::stop(kernel_timer);
+#endif
                 } else {
+#ifdef HPX_HAVE_APEX
+                    auto kernel_timer = apex::start("kernel multipole-root-rho kokkos");
+#endif
                     multipole_kernel_root_rho_impl<host_simd_t, host_simd_mask_t>(exec,
                         centers_of_mass, multipoles, potential_expansions, angular_corrections,
-                        host_indicators, 1, {INX / 2, INX / 2, INX / host_simd_t::size()});
+                        host_indicators, 1, {1, INX / NUMBER_MULTIPOLE_TASKS_X,
+                        INX / NUMBER_MULTIPOLE_TASKS_Y, INX / host_simd_t::size()});
+                    sync_kokkos_host_kernel(exec);
+#ifdef HPX_HAVE_APEX
+                    apex::stop(kernel_timer);
+#endif
                 }
             } else {
                 // Launch kernel without angular corrections
                 if (!use_root_stencil) {
+#ifdef HPX_HAVE_APEX
+                    auto kernel_timer = apex::start("kernel multipole-non-rho kokkos");
+#endif
                     multipole_kernel_non_rho_impl<host_simd_t, host_simd_mask_t>(exec, monopoles,
                         centers_of_mass, multipoles, potential_expansions, theta, host_masks,
-                        host_indicators, 1, {1, 1, INX / 2, INX / 2, INX / host_simd_t::size()});
+                        host_indicators, 1, {1, 1, INX / NUMBER_MULTIPOLE_TASKS_X,
+                        INX / NUMBER_MULTIPOLE_TASKS_Y, INX / host_simd_t::size()});
+                    sync_kokkos_host_kernel(exec);
+#ifdef HPX_HAVE_APEX
+                    apex::stop(kernel_timer);
+#endif
                 } else {
+#ifdef HPX_HAVE_APEX
+                    auto kernel_timer = apex::start("kernel multipole-root-non-rho kokkos");
+#endif
                     multipole_kernel_root_non_rho_impl<host_simd_t, host_simd_mask_t>(exec,
                         centers_of_mass, multipoles, potential_expansions, host_indicators, 1,
-                        {1, INX / 2, INX / 2, INX / host_simd_t::size()});
+                        {1, INX / NUMBER_MULTIPOLE_TASKS_X, INX / NUMBER_MULTIPOLE_TASKS_Y,
+                        INX / host_simd_t::size()});
+                    sync_kokkos_host_kernel(exec);
+#ifdef HPX_HAVE_APEX
+                    apex::stop(kernel_timer);
+#endif
                 }
             }
-            sync_kokkos_host_kernel(exec);
         }
 
         // --------------------------------------- Kernel interface

@@ -24,8 +24,8 @@
 #include <simd.hpp>
 using device_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>;
 using device_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::scalar>;
-#if !defined(HPX_COMPUTE_DEVICE_CODE) && !defined(OCTOTIGER_FORCE_SCALAR_KOKKOS_SIMD)
-#if defined(__VSX__)
+#if !defined(HPX_COMPUTE_DEVICE_CODE) && !defined(OCTOTIGER_KOKKOS_SIMD_SCALAR)
+#if (defined(__VSX__) && defined(OCTOTIGER_KOKKOS_SIMD_AUTOMATIC_DISCOVERY)) || defined(OCTOTIGER_KOKKOS_SIMD_VSX)
 // NVCC does not play fair with Altivec! See another project with similar issues:
 // See https://github.com/dealii/dealii/issues/7328
 #ifdef __CUDACC__ // hence: Use scalar when using nvcc
@@ -40,21 +40,33 @@ using host_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::vsx>;
 using host_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::vsx>;
 #warning "Using VSX SIMD types"
 #endif
-#elif defined(__AVX512F__)
+#elif (defined(__AVX512F__) && defined(OCTOTIGER_KOKKOS_SIMD_AUTOMATIC_DISCOVERY)) || defined(OCTOTIGER_KOKKOS_SIMD_AVX512)
 #include <avx512.hpp>
 using host_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::avx512>;
 using host_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::avx512>;
+/* using host_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>; */
+/* using host_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::scalar>; */
 #warning "Using AVX512 SIMD types"
-#elif defined(__AVX2__) || defined(__AVX__)
+#elif ((defined(__AVX2__) || defined(__AVX__)) && defined(OCTOTIGER_KOKKOS_SIMD_AUTOMATIC_DISCOVERY)) || defined(OCTOTIGER_KOKKOS_SIMD_AVX)
 #include <avx.hpp>
 using host_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::avx>;
 using host_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::avx>;
 #warning "Using AVX SIMD types"
+#elif (defined(__ARM_FEATURE_SVE)  && defined(OCTOTIGER_KOKKOS_SIMD_AUTOMATIC_DISCOVERY)) || defined(OCTOTIGER_KOKKOS_SIMD_SVE)
+#include <vector_size.hpp>
+using host_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::vector_size<64>>;
+using host_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::vector_size<64>>;
+#warning "Using SVE SIMD types"
+#elif (defined(__ARM_NEON) && defined(OCTOTIGER_KOKKOS_SIMD_AUTOMATIC_DISCOVERY)) || defined(OCTOTIGER_KOKKOS_SIMD_NEON)
+#include <neon.hpp>
+using host_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::neon>;
+using host_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::neon>;
+#warning "Using NEON SIMD types"
 #else
-#error "Could not detect any supported SIMD instruction set. Define OCTOTIGER_FORCE_SCALAR_KOKKOS_SIMD to continue anyway (or fix your arch flags if your platform supports AVX)!"
+#error "Could not detect any supported SIMD instruction set. Define OCTOTIGER_KOKKOS_SIMD_EXTENSION=SCALAR to build Kokkos kernels without SIMD!"
 #endif
 #else
-// drop in for nvcc device pass - is used on host side if FORCE_SCALAR_KOKKOS_SIMD is on
+// drop in for nvcc device pass - is used on host side if SCALAR is on
 // otherwise only used for compilation
 using host_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>;
 using host_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::scalar>;
@@ -102,6 +114,14 @@ struct has_simd_copysign : std::false_type {};
 template <class simd_t>
 struct has_simd_copysign<simd_t,
     std::void_t<decltype(copysign(std::declval<simd_t>(), std::declval<simd_t>()))>>
+  : std::true_type
+{
+};
+template<class simd_t, class=void>
+struct has_simd_abs : std::false_type {};
+template <class simd_t>
+struct has_simd_abs<simd_t,
+    std::void_t<decltype(abs(std::declval<simd_t>()))>>
   : std::true_type
 {
 };
@@ -175,6 +195,23 @@ CUDA_GLOBAL_METHOD inline simd_t copysign_with_serial_fallback(const simd_t inpu
       copysign_helper[i] = std::copysign(copysign_helper_input1[i], copysign_helper_input2[i]);
     }
     return simd_t{copysign_helper.data(), SIMD_NAMESPACE::element_aligned_tag{}};
+  }
+}
+template <typename simd_t>
+CUDA_GLOBAL_METHOD inline simd_t abs(const simd_t input1) {
+  if constexpr (detail::has_simd_abs<simd_t>::value) {
+    // should consider the SIMD_NAMESPACE for overloads due to argument-dependent name lookup
+    return abs(input1);
+  } else {
+    /* static_assert(!std::is_same<simd_t, simd_t>::value, "Using asinh serial fallback!" */
+    /*     "If this is intentional please remove this static assert for your build"); */
+    std::array<double, simd_t::size()> abs_helper;
+    std::array<double, simd_t::size()> abs_helper_input1;
+    input1.copy_to(abs_helper_input1.data(), SIMD_NAMESPACE::element_aligned_tag{});
+    for (auto i = 0; i < simd_t::size(); i++) {
+      abs_helper[i] = std::abs(abs_helper_input1[i]);
+    }
+    return simd_t{abs_helper.data(), SIMD_NAMESPACE::element_aligned_tag{}};
   }
 }
 } // end namespace simd_fallbacks

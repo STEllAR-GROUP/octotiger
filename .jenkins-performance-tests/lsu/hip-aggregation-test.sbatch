@@ -14,7 +14,7 @@ module load llvm/14 rocm/5 hwloc cmake
 module list
 echo "Building Octo-Tiger and toolchain..."
 echo ""
-./build-all.sh Release with-CC-clang without-cuda without-mpi without-papi without-apex without-kokkos with-simd without-hpx-backend-multipole without-hpx-backend-monopole with-hpx-cuda-polling without-otf2 boost jemalloc hdf5 silo vc hpx kokkos cppuddle octotiger 
+./build-all.sh Release with-CC-clang without-cuda without-mpi without-papi without-apex with-kokkos with-simd without-hpx-backend-multipole without-hpx-backend-monopole with-hpx-cuda-polling without-otf2 boost jemalloc hdf5 silo vc hpx kokkos cppuddle octotiger 
 echo "Running aggregation performance test..."
 ./src/octotiger/octotiger-performance-tests/rostam/aggregation-test/blast_aggregation_performance_hip.sh 
 echo "Upgrading required python modules..."

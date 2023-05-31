@@ -124,7 +124,7 @@ node_count_type node_server::regrid_gather(bool rebalance_only) {
 }
 
 future<hpx::id_type> node_server::create_child(hpx::id_type const &locality, integer ci) {
-	return hpx::async(hpx::util::annotated_function([ci, this](hpx::id_type const locality) {
+	return hpx::async(hpx::annotated_function([ci, this](hpx::id_type const locality) {
 
 		return hpx::new_<node_server>(locality, my_location.get_child(ci), me, current_time, rotational_time, step_num, hcycle, rcycle, gcycle).then([this, ci](future<hpx::id_type> &&child_idf) {
 		hpx::id_type child_id = child_idf.get();
@@ -145,7 +145,7 @@ future<hpx::id_type> node_server::create_child(hpx::id_type const &locality, int
 			if (current_time > ZERO || opts().restart_filename != "") {
 				std::vector<real> prolong;
 				{
-					std::unique_lock < hpx::lcos::local::spinlock > lk(prolong_mtx);
+					std::unique_lock < hpx::spinlock > lk(prolong_mtx);
 					prolong = grid_ptr->get_prolong(lb, ub);
 				}
 				GET(child.set_grid(std::move(prolong), std::move(outflows)));
@@ -167,7 +167,7 @@ future<hpx::id_type> node_server::create_child(hpx::id_type const &locality, int
 			if (current_time > ZERO) {
 				std::vector<real> prolong;
 				{
-					std::unique_lock < hpx::lcos::local::spinlock > lk(prolong_mtx);
+					std::unique_lock < hpx::spinlock > lk(prolong_mtx);
 					prolong = rad_grid_ptr->get_prolong(lb, ub);
 				}
 				child.set_rad_grid(std::move(prolong)/*, std::move(outflows)*/).get();

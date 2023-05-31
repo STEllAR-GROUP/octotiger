@@ -8,7 +8,7 @@
 #include "octotiger/grid.hpp"
 #include "octotiger/options.hpp"
 #include "octotiger/physcon.hpp"
-#include "octotiger/simd.hpp"
+#include "octotiger/simd_legacy.hpp"
 
 #include <array>
 #include <cassert>

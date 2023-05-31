@@ -115,12 +115,12 @@ void cleanup_buffers() {
 HPX_PLAIN_ACTION(cleanup_buffers, cleanup_buffers_action);
 
 void cleanup() {
-    std::vector<hpx::naming::id_type> localities = hpx::find_all_localities();
+    std::vector<hpx::id_type> localities = hpx::find_all_localities();
 
-    std::vector<hpx::lcos::future<void>> futures;
+    std::vector<hpx::future<void>> futures;
     futures.reserve(localities.size());
 
-    for (hpx::naming::id_type const& node : localities) {
+    for (hpx::id_type const& node : localities) {
         using action_type = cleanup_buffers_action;
         futures.push_back(hpx::async<action_type>(node));
     }
@@ -202,7 +202,6 @@ void start_octotiger(int argc, char* argv[]) {
             std::cerr << "Finished timings report!" << std::endl;
             std::cerr << "Start cleanup..." << std::endl;
             cleanup();    // cleanup buffer and executor pools
-            std::cerr << "Localities cleanup finished" << std::endl;
         }
     } catch (...) {
         throw;
