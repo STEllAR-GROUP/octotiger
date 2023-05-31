@@ -37,6 +37,7 @@ set(CMAKE_CXX_STANDARD ${OCTOTIGER_CXX_STANDARD})
 # Options
 ################################################################################
 option(OCTOTIGER_DISABLE_ILIST "Disables the interaction list to allow larger sub-grids for hydro-only scenarios!" OFF)
+option(OCTOTIGER_WITH_UNBUFFERED_STDOUT "Disable stdout buffering on all localities for debugging" OFF)
 option(OCTOTIGER_WITH_GRAV_PAR "Enable parallelism in gravitational solver" OFF)
 option(OCTOTIGER_WITH_RADIATION "Enable radiation transport solver" OFF)
 option(OCTOTIGER_WITH_CUDA "Enable CUDA kernels" OFF)
@@ -889,6 +890,15 @@ if (NOT OCTOTIGER_WITH_HYDRO_HOST_HPX_EXECUTOR)
   message(STATUS "Octo-Tiger will use Kokkos Serial Execution Space for (Kokkos CPU) Hydro kernels!")
 else()
   message(STATUS "Octo-Tiger will use Kokkos HPX Execution Space for (Kokkos CPU) Hydro kernels!")
+endif()
+
+# Interaction list disabled?
+if(OCTOTIGER_WITH_UNBUFFERED_STDOUT)
+  message(STATUS "Octo-Tiger: Using unbuffered stdout on all localities!")
+  target_compile_definitions(octotiger PUBLIC OCTOTIGER_HAVE_UNBUFFERED_STDOUT)
+  target_compile_definitions(optionslib PUBLIC OCTOTIGER_HAVE_UNBUFFERED_STDOUT)
+  target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_UNBUFFERED_STDOUT)
+  target_compile_definitions(hydrolib PUBLIC OCTOTIGER_HAVE_UNBUFFERED_STDOUT)
 endif()
 
 # Interaction list disabled?

@@ -66,8 +66,11 @@
 #if !defined(HPX_COMPUTE_DEVICE_CODE)
 
 void initialize_remotes(void) {
+#ifdef OCTOTIGER_HAVE_UNBUFFERED_STDOUT
     std::setbuf(stdout, nullptr);
-    std::cout << "Output set to unbuffered" << std::endl;
+    std::cout << "Set to unbuffered stdout for debugging on locality " 
+      << hpx::get_locality_id() << "..." << std::endl;
+#endif
 }
 
 void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
