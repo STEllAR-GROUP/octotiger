@@ -33,13 +33,19 @@
 #warning "Experimental HIP Build! Do not (yet) use for production runs"
 #endif
 
+#ifndef OCTOTIGER_GIT_COMMIT_HASH
+#define OCTOTIGER_GIT_COMMIT_HASH "unknown"
+#endif
+#ifndef OCTOTIGER_GIT_COMMIT_MESSAGE
+#define OCTOTIGER_GIT_COMMIT_MESSAGE "unknown"
+#endif
+
 int hpx_main(int argc, char* argv[]) {
 
 #ifdef OCTOTIGER_HAVE_KOKKOS
     // Initialize Kokkos on root
     std::cout << "Initializing Kokkos on Root locality" << std::endl;
     Kokkos::initialize(argc, argv);
-    Kokkos::print_configuration(std::cout, true);
 #endif
     // The ascii logo was created by combining, modifying and extending the ascii arts from:
     // http://ascii.co.uk/art/octopus (Author "jgs")
@@ -82,6 +88,13 @@ int hpx_main(int argc, char* argv[]) {
 
     )";
     std::cout << logo << std::endl;
+    std::cout << "GIT COMMIT: " << OCTOTIGER_GIT_COMMIT_HASH << std::endl 
+              << "            \""  << OCTOTIGER_GIT_COMMIT_MESSAGE << "\"" << std::endl;
+#ifdef OCTOTIGER_GIT_REPO_DIRTY
+    std::cout << "\nReproducibility Warning: Octo-Tiger source directory contained uncommitted "
+                 "changes during the CMake configuration step! " << std::endl;
+#endif
+    std::cout << std::endl;
 
     // hpx::kokkos::ScopeGuard g(argc, argv);
 
@@ -127,6 +140,12 @@ int hpx_main(int argc, char* argv[]) {
     printf("WARNING: Experimental HIP Build! Do not (yet) use for production runs!\n");
 #endif
     printf("###########################################################\n");
+
+#ifdef OCTOTIGER_HAVE_KOKKOS
+    Kokkos::print_configuration(std::cout, true);
+#endif
+
+    printf("\n###########################################################\n\n");
 
     printf("Running\n");
 
