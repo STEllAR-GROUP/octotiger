@@ -89,7 +89,7 @@ public:
 				return y0;
 			}
 		}
-		print("x0 not found\n");
+		printf("x0 not found\n");
 		abort();
 		return 1.0 / 0.0;
 	}
@@ -108,7 +108,7 @@ public:
 				return y0;
 			}
 		}
-		print("x0 not found\n");
+		printf("x0 not found\n");
 		abort();
 		return 1.0 / 0.0;
 	}
@@ -124,7 +124,7 @@ std::function<double(double)> build_rho_of_h_from_mesa(
 	char vrot_kms[BUFFER_SIZE];
 	FILE* fp = fopen(filename.c_str(), "rt");
 	if (fp == NULL) {
-		print("%s not found!\n", filename.c_str());
+		printf("%s not found!\n", filename.c_str());
 		abort();
 	}
 	std::vector<double> P, rho, h;

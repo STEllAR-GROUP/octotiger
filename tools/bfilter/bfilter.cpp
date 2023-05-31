@@ -4,7 +4,6 @@
  *  Created on: Jul 25, 2019
  *      Author: dmarce1
  */
-#include "../../octotiger/print.hpp"
 #include <stdio.h>
 #include <ctype.h>
 #include <stdlib.h>
@@ -154,7 +153,7 @@ struct options {
 		}
 		FILE *fp = fopen(input.c_str(), "rb");
 		if (fp == NULL) {
-			print("Unable to open %s\n", input.c_str());
+			printf("Unable to open %s\n", input.c_str());
 			return -1;
 		} else {
 			fclose(fp);
@@ -210,15 +209,15 @@ int main(int argc, char *argv[]) {
 
 		auto Pc = 2.0 * opts.pmax * opts.pmin / (opts.pmax + opts.pmin);
 		auto Ps = 4.0 * opts.pmax * opts.pmin / (opts.pmax - opts.pmin);
-		print("sinc period      = %e\n", Pc);
-		print("Blackmann period = %e\n", Ps);
+		printf("sinc period      = %e\n", Pc);
+		printf("Blackmann period = %e\n", Ps);
 		const auto P = 2.0 * M_PI / v1[0][2];
 
-		print("Window is +/- %.12e orbits\n", Pc / 2.0);
+		printf("Window is +/- %.12e orbits\n", Pc / 2.0);
 
 		auto v2 = filter(v1, v1[0][2], Pc, Ps);
 		if (v2.size() == 0) {
-			print("Not enough data to produce output\n");
+			printf("Not enough data to produce output\n");
 		} else {
 			if (opts.normalize) {
 				for (auto &line : v2) {
