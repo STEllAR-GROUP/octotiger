@@ -977,6 +977,36 @@ if(OCTOTIGER_WITH_DOCU)
   add_subdirectory(doc)    
 endif()
 
+find_package(Git)
+if(GIT_FOUND)
+  execute_process(
+    COMMAND "${GIT_EXECUTABLE}" "log" "--pretty=%H" "-1"
+            "${PROJECT_SOURCE_DIR}"
+    WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+    OUTPUT_VARIABLE OCTOTIGER_WITH_GIT_COMMIT
+    ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+  execute_process(
+    COMMAND "${GIT_EXECUTABLE}" "log" "--pretty=%s" "-1"
+            "${PROJECT_SOURCE_DIR}"
+    WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+    OUTPUT_VARIABLE OCTOTIGER_WITH_GIT_COMMIT_MESSAGE
+    ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+  execute_process(
+    COMMAND "${GIT_EXECUTABLE}" "status" "-s" 
+            "${PROJECT_SOURCE_DIR}"
+    WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+    OUTPUT_VARIABLE OCTOTIGER_WITH_GIT_REPO_MODIFIED
+    ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+  message(INFO " Used Octo-Tiger commit: ${OCTOTIGER_WITH_GIT_COMMIT}")
+  target_compile_definitions(octotiger PUBLIC -DOCTOTIGER_GIT_COMMIT_HASH="${OCTOTIGER_WITH_GIT_COMMIT}")
+  target_compile_definitions(octotiger PUBLIC -DOCTOTIGER_GIT_COMMIT_MESSAGE="${OCTOTIGER_WITH_GIT_COMMIT_MESSAGE}")
+  if (NOT ("${OCTOTIGER_WITH_GIT_REPO_MODIFIED}" STREQUAL ""))
+    target_compile_definitions(octotiger PUBLIC -DOCTOTIGER_GIT_REPO_DIRTY)
+  endif()
+endif()
 
 ################################################################################
 # Tool targets
