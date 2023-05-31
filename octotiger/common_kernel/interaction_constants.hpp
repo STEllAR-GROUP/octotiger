@@ -67,6 +67,24 @@ namespace fmm {
 
     constexpr int NUMBER_P2P_BLOCKS = STENCIL_MAX - STENCIL_MIN + 1;
     constexpr int NUMBER_MULTIPOLE_BLOCKS = STENCIL_MAX - STENCIL_MIN + 1;
+    // Number of tasks when using the Kokkos HPX backend for multipoles
+    // Allowed values 1 4 8 64
+    constexpr int NUMBER_MULTIPOLE_TASKS = OCTOTIGER_KOKKOS_MULTIPOLE_TASKS;
+    // constexpr sqrt of NUMBER_MULTIPOLE_TASKS
+    constexpr int NUMBER_MULTIPOLE_TASKS_X = (NUMBER_MULTIPOLE_TASKS == 1) ? 1 : 
+      ((NUMBER_MULTIPOLE_TASKS == 4) ? 2 :
+      ((NUMBER_MULTIPOLE_TASKS == 16) ? 4 : 8));
+    constexpr int NUMBER_MULTIPOLE_TASKS_Y = NUMBER_MULTIPOLE_TASKS_X;
+
+    // Number of tasks when using the Kokkos HPX backend for monopoles
+    // Allowed values 1 4 8 64
+    constexpr int NUMBER_MONOPOLE_TASKS = OCTOTIGER_KOKKOS_MONOPOLE_TASKS;
+    // constexpr sqrt of NUMBER_MONOPOLE_TASKS
+    constexpr int NUMBER_MONOPOLE_TASKS_X = (NUMBER_MONOPOLE_TASKS == 1) ? 1 : 
+      ((NUMBER_MONOPOLE_TASKS == 4) ? 2 :
+      ((NUMBER_MONOPOLE_TASKS == 16) ? 4 : 8));
+    constexpr int NUMBER_MONOPOLE_TASKS_Y = NUMBER_MONOPOLE_TASKS_X;
+
 
     constexpr uint64_t P2P_CHUNKSIZE = 128;
     constexpr uint64_t P2P_CHUNK_STENCIL_SIZE = P2P_CHUNKSIZE + 1;

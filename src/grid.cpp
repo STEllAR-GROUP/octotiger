@@ -746,7 +746,7 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 	return rc;
 }
 
-hpx::lcos::local::spinlock grid::omega_mtx;
+hpx::spinlock grid::omega_mtx;
 real grid::omega = ZERO;
 real grid::scaling_factor = 1.0;
 
@@ -1251,7 +1251,7 @@ void grid::set_omega(real omega, bool bcast) {
 			}
 		}
 	}
-	std::unique_lock<hpx::lcos::local::spinlock> l(grid::omega_mtx, std::try_to_lock);
+	std::unique_lock<hpx::spinlock> l(grid::omega_mtx, std::try_to_lock);
 // if someone else has the lock, it's fine, we just return and have it set
 // by the other thread
 	if (!l)
@@ -1807,7 +1807,7 @@ void grid::allocate() {
 	set_coordinates();
 
 #ifdef OCTOTIGER_HAVE_GRAV_PAR
-	L_mtx.reset(new hpx::lcos::local::spinlock);
+	L_mtx.reset(new hpx::spinlock);
 #endif
 
 }
@@ -1888,8 +1888,8 @@ void grid::rad_init() {
 
 timestep_t grid::compute_fluxes() {
 	PROFILE();
-	static hpx::lcos::local::once_flag flag;
-	hpx::lcos::local::call_once(flag, [this]() {
+	static hpx::once_flag flag;
+	hpx::call_once(flag, [this]() {
 		physics<NDIM>::set_fgamma(fgamma);
 		if (opts().eos == WD) {
 //			print("%e %e\n", physcon().A, physcon().B);

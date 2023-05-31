@@ -21,7 +21,7 @@
 static const char amr_cuda_kernel_identifier[] = "amr_kernel_aggregator_cuda";
 using amr_cuda_agg_executor_pool = aggregation_pool<amr_cuda_kernel_identifier, hpx::cuda::experimental::cuda_executor,
                                        pool_strategy>;
-hpx::lcos::local::once_flag init_pool_flag;
+hpx::once_flag init_pool_flag;
 
 void init_aggregation_pool(void) {
     const size_t max_slices = opts().max_executor_slices;
@@ -44,7 +44,7 @@ __host__ void launch_complete_hydro_amr_boundary_cuda(double dx, bool
     if (early_exit)
       return;
     // Init local kernel pool if not done already
-    hpx::lcos::local::call_once(init_pool_flag, init_aggregation_pool);
+    hpx::call_once(init_pool_flag, init_aggregation_pool);
 
     auto executor_slice_fut =
       amr_cuda_agg_executor_pool::request_executor_slice();

@@ -339,7 +339,7 @@ diagnostics_t node_server::root_diagnostics(const diagnostics_t &diags) {
 
 diagnostics_t node_server::diagnostics(const diagnostics_t &diags) {
 	if (is_refined) {
-		auto rc = hpx::async(hpx::util::annotated_function([&]() {
+		auto rc = hpx::async(hpx::annotated_function([&]() {
 			return child_diagnostics(diags);
 		}, "diagnostics::return_child_diagnostics"));
 		all_hydro_bounds();
@@ -358,7 +358,7 @@ diagnostics_t node_server::child_diagnostics(const diagnostics_t &diags) {
 	for (integer ci = 0; ci != NCHILD; ++ci) {
 		futs[index++] = children[ci].diagnostics(diags);
 	}
-	auto child_sums = hpx::util::unwrap(futs);
+	auto child_sums = hpx::unwrap(futs);
 	return std::accumulate(child_sums.begin(), child_sums.end(), sums);
 }
 
@@ -492,7 +492,7 @@ int node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std::
 							}
 						}
 					}
-					cfuts[index++] = hpx::dataflow(hpx::launch::sync, [this, ci](std::array<future<hpx::id_type>, geo::direction::count()> &&cns) {
+					cfuts[index++] = hpx::dataflow(hpx::launch::async, [this, ci](std::array<future<hpx::id_type>, geo::direction::count()> &&cns) {
 						std::vector<hpx::id_type> child_neighbors(geo::direction::count());
 						for (auto dir : geo::direction::full_set()) {
 							child_neighbors[dir] = GET(cns[dir]);
@@ -524,7 +524,7 @@ int node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std::
 			const auto &neighbor = neighbors[f.to_direction()];
 			if (!neighbor.empty()) {
 				nfuts.push_back(neighbor.set_child_aunt(me.get_gid(), f ^ 1).then(
-                    hpx::util::annotated_function([this, f](future<set_child_aunt_type> &&n) {
+                    hpx::annotated_function([this, f](future<set_child_aunt_type> &&n) {
 					nieces[f] = GET(n);
 				}, "node_server::form_tree::sync")));
 			} else {
@@ -573,7 +573,7 @@ future<hpx::id_type> node_client::get_child_client(const node_location &parent_l
 			++misses;
 		}
 		if (!found) {
-			rfut = hpx::async(hpx::util::annotated_function([=]() {
+			rfut = hpx::async(hpx::annotated_function([=]() {
 						return sfut.get();
 					}), "return_future_get_child_client");
 		}
@@ -637,7 +637,7 @@ std::uintptr_t node_server::get_ptr() {
 }
 
 future<node_server*> node_client::get_ptr() const {
-	return hpx::async<typename node_server::get_ptr_action>(get_unmanaged_gid()).then(hpx::util::annotated_function([this](future<std::uintptr_t> &&fut) {
+	return hpx::async<typename node_server::get_ptr_action>(get_unmanaged_gid()).then(hpx::annotated_function([this](future<std::uintptr_t> &&fut) {
 		if (hpx::find_here() != hpx::get_colocation_id(get_gid()).get()) {
 			print("get_ptr called non-locally\n");
 			abort();

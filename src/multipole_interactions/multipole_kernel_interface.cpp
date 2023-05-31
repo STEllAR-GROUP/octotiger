@@ -119,7 +119,7 @@ namespace fmm {
 
             if (host_type == interaction_host_kernel_type::KOKKOS) {
 #ifdef OCTOTIGER_HAVE_KOKKOS
-                host_executor executor{};
+                host_executor executor{hpx::kokkos::execution_space_mode::independent};
                 multipole_kernel<host_executor>(executor, monopoles, M_ptr, com_ptr, neighbors,
                     type, dx, opts().theta, is_direction_empty, xbase, grid, use_root_stencil);
                 return;

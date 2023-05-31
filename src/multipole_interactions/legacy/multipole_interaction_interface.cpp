@@ -117,10 +117,10 @@ namespace fmm {
 
                 multipole_cpu_kernel kernel;
                 if (!use_root_stencil) {
+#ifdef HPX_HAVE_APEX
                     std::string kernel_name = "kernel multipole-rho vc";
                     if (type != RHO)
                         kernel_name = "kernel multipole-non-rho vc";
-#ifdef HPX_HAVE_APEX
                     auto multipole_timer = apex::start(kernel_name);
 #endif
                     kernel.apply_stencil_non_blocked(local_expansions_SoA, center_of_masses_SoA,
@@ -130,10 +130,10 @@ namespace fmm {
                     apex::stop(multipole_timer);
 #endif
                 } else {
+#ifdef HPX_HAVE_APEX
                     std::string kernel_name = "kernel multipole-root-rho vc";
                     if (type != RHO)
                         kernel_name = "kernel multipole-root-non-rho vc";
-#ifdef HPX_HAVE_APEX
                     auto multipole_timer = apex::start(kernel_name);
 #endif
                     kernel.apply_stencil_root_non_blocked(local_expansions_SoA,
@@ -152,10 +152,10 @@ namespace fmm {
                 abort();
 #endif
             } else if (m2m_type == interaction_host_kernel_type::LEGACY) {
+#ifdef HPX_HAVE_APEX
                 std::string kernel_name = "kernel multipole-rho legacy";
                 if (type != RHO)
                     kernel_name = "kernel multipole-non-rho legacy";
-#ifdef HPX_HAVE_APEX
                 auto multipole_timer = apex::start(kernel_name);
 #endif
                 // old-style interaction calculation

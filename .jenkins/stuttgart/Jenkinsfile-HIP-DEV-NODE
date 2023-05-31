@@ -75,7 +75,7 @@ pipeline {
             steps {
                 dir('octotiger') {
                     sh '''
-		    export ROCM_PATH=/opt/rocm-4.3.1
+		    export ROCM_PATH=/opt/rocm-4.5.0
 		    export HIP_PATH=${ROCM_PATH}/hip
 		    export PATH=${HIP_PATH}/bin:${ROCM_PATH}/bin:${PATH}
 		    export LD_LIBRARY_PATH=${HIP_PATH}/lib:${ROCM_PATH}/lib:${LD_LIBRARY_PATH}
@@ -90,7 +90,7 @@ pipeline {
             steps {
                 dir('octotiger') {
                     sh '''
-		    export ROCM_PATH=/opt/rocm-4.3.1
+		    export ROCM_PATH=/opt/rocm-4.5.0
 		    export HIP_PATH=${ROCM_PATH}/hip
 		    export PATH=${HIP_PATH}/bin:${ROCM_PATH}/bin:${PATH}
 		    export LD_LIBRARY_PATH=${HIP_PATH}/lib:${ROCM_PATH}/lib:${LD_LIBRARY_PATH}
@@ -104,7 +104,7 @@ pipeline {
             steps {
                 dir('octotiger') {
                     sh '''
-		    export ROCM_PATH=/opt/rocm-4.3.1
+		    export ROCM_PATH=/opt/rocm-4.5.0
 		    export HIP_PATH=${ROCM_PATH}/hip
 		    export PATH=${HIP_PATH}/bin:${ROCM_PATH}/bin:${PATH}
 		    export LD_LIBRARY_PATH=${HIP_PATH}/lib:${ROCM_PATH}/lib:${LD_LIBRARY_PATH}

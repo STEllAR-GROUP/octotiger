@@ -110,7 +110,7 @@ future<void> node_server::exchange_flux_corrections() {
 		if (this->nieces[f] == +1) {
 			for (auto const &quadrant : geo::quadrant::full_set()) {
 				futs[index++] = niece_hydro_channels[f][quadrant].get_future().then(
-				hpx::util::annotated_function([this, f, quadrant](future<std::vector<real> > &&fdata) -> void {
+				hpx::annotated_function([this, f, quadrant](future<std::vector<real> > &&fdata) -> void {
 					const auto face_dim = f.get_dimension();
 					std::array<integer, NDIM> lb, ub;
 					switch (face_dim) {
@@ -145,7 +145,7 @@ future<void> node_server::exchange_flux_corrections() {
 		}
 	}
 	return hpx::when_all(std::move(futs)).then(
-        hpx::util::annotated_function([](future<decltype(futs)> fout) {
+        hpx::annotated_function([](future<decltype(futs)> fout) {
 		auto fin = GET(fout);
 		for (auto &f : fin) {
 			GET(f);
@@ -168,7 +168,7 @@ void node_server::energy_hydro_bounds() {
 }
 
 void node_server::exchange_interlevel_hydro_data() {
-  hpx::util::annotated_function([&]() {
+  hpx::annotated_function([&]() {
     if (is_refined) {
       std::vector<real> outflow(opts().n_fields, ZERO);
       for (auto const &ci : geo::octant::full_set()) {
@@ -191,18 +191,18 @@ void node_server::exchange_interlevel_hydro_data() {
 }
 
 void node_server::collect_hydro_boundaries(bool energy_only) {
-  hpx::util::annotated_function([&]() {
+  hpx::annotated_function([&]() {
 	grid_ptr->clear_amr();
   const bool use_local_optimization = opts().optimize_local_communication;
   const bool use_local_amr_optimization = opts().optimize_local_communication;
 
   if (use_local_optimization)
     ready_for_hydro_exchange[hcycle%number_hydro_exchange_promises].set_value();
-	std::vector<hpx::lcos::shared_future<void>> neighbors_ready; 
+	std::vector<hpx::shared_future<void>> neighbors_ready; 
   bool local_amr_handling = false;
 	for (auto const &dir : geo::direction::full_set()) {
 		if (!neighbors[dir].empty() && neighbors[dir].is_local() && use_local_optimization) {
-      /* std::vector<hpx::lcos::local::promise<void>> *neighbor_promises = neighbors[dir].hydro_ready_vec; */
+      /* std::vector<hpx::promise<void>> *neighbor_promises = neighbors[dir].hydro_ready_vec; */
       hpx::future<std::shared_ptr<node_server>> pf = hpx::get_ptr<node_server>(neighbors[dir].get_gid());
       auto direct_access = pf.get();
       neighbors_ready.emplace_back((
@@ -213,7 +213,7 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
       }
   }
   if (local_amr_handling && my_location.level() != 0) {
-    /* std::vector<hpx::lcos::local::promise<void>> *parent_promise = parent.amr_hydro_ready_vec; */
+    /* std::vector<hpx::promise<void>> *parent_promise = parent.amr_hydro_ready_vec; */
     /* neighbors_ready.emplace_back((*parent_promise)[hcycle%number_hydro_exchange_promises].get_shared_future()); */
     hpx::future<std::shared_ptr<node_server>> pf = hpx::get_ptr<node_server>(parent.get_gid());
     auto direct_access = pf.get();
@@ -226,7 +226,7 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
     get_neighbors.get();
   }
 
-  std::vector<hpx::lcos::shared_future<void>> neighbors_finished_reading;
+  std::vector<hpx::shared_future<void>> neighbors_finished_reading;
 	for (auto const &dir : geo::direction::full_set()) {
     const integer width = H_BW;
     if (neighbors[dir].is_local() && use_local_optimization && !neighbors[dir].empty()) {
@@ -356,7 +356,7 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
     if (!is_local || (neighbors[dir].empty() && !use_local_amr_optimization) ||
         (!neighbors[dir].empty() && !use_local_optimization)) {
       results[index++] = sibling_hydro_channels[dir].get_future(hcycle).then( // 3s?
-      hpx::util::annotated_function([this, energy_only, dir](future<sibling_hydro_type> &&f) -> void {
+      hpx::annotated_function([this, energy_only, dir](future<sibling_hydro_type> &&f) -> void {
         auto &&tmp = GET(f);
         if (!neighbors[dir].empty()) {
           grid_ptr->set_hydro_boundary(tmp.data, tmp.direction, energy_only); // 1.5s
@@ -379,7 +379,7 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
 	/* } */
 
 	amr_boundary_type kernel_type = opts().amr_boundary_kernel_type;
-  hpx::util::annotated_function([&]() {
+  hpx::annotated_function([&]() {
 	if (kernel_type == AMR_LEGACY) {
 		grid_ptr->complete_hydro_amr_boundary(energy_only);
 	} else {
@@ -423,7 +423,7 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
 }
 
 void node_server::send_hydro_amr_boundaries(bool energy_only) {
-  hpx::util::annotated_function([&]() {
+  hpx::annotated_function([&]() {
     if (is_refined) {
       // set promise 
       const bool use_local_optimization = opts().optimize_local_communication;
@@ -617,7 +617,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 		for (auto &ci : geo::octant::full_set()) {
 			future<multipole_pass_type> m_in_future = child_gravity_channels[ci].get_future();
 
-			futs[index++] = m_in_future.then(hpx::util::annotated_function([&m_out, ci](future<multipole_pass_type> &&fut) {
+			futs[index++] = m_in_future.then(hpx::annotated_function([&m_out, ci](future<multipole_pass_type> &&fut) {
 				const integer x0 = ci.get_side(XDIM) * INX / 2;
 				const integer y0 = ci.get_side(YDIM) * INX / 2;
 				const integer z0 = ci.get_side(ZDIM) * INX / 2;
