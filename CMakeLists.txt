@@ -896,9 +896,6 @@ endif()
 if(OCTOTIGER_WITH_UNBUFFERED_STDOUT)
   message(STATUS "Octo-Tiger: Using unbuffered stdout on all localities!")
   target_compile_definitions(octotiger PUBLIC OCTOTIGER_HAVE_UNBUFFERED_STDOUT)
-  target_compile_definitions(optionslib PUBLIC OCTOTIGER_HAVE_UNBUFFERED_STDOUT)
-  target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_UNBUFFERED_STDOUT)
-  target_compile_definitions(hydrolib PUBLIC OCTOTIGER_HAVE_UNBUFFERED_STDOUT)
 endif()
 
 # Interaction list disabled?
