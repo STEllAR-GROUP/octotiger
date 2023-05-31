@@ -296,6 +296,9 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 			erad_init();
 		}
 	}
+        if (opts().Part_M.size() > 0) {
+                printf("Initilaize particles\n");
+        }
 	printf("Starting run...\n");
 	auto fut_ptr = me.get_ptr();
 	node_server *root_ptr = GET(fut_ptr);

@@ -491,12 +491,94 @@ void grid::compute_interactions(gsolve_type type) {
 			const integer iii1 = ele.second;
 			// fetch both interacting bodies (monopoles) (David)
 			// broadcasts a single value
+
+			space_vector const &com_f = (*(com_ptr[0]))[iii0];
+			space_vector const &com_s = (*(com_ptr[0]))[iii1];
+			if (((com_f[0] == -0.0234375) && (com_f[1] == -0.1171875) && (com_f[2] == -0.1171875))|| ((com_s[0] == -0.0234375) && (com_s[1] == -0.1171875) && (com_s[2] == -0.1171875))) {	
+				//printf("mono-mono interaction, first: m=%e , pos=(%e, %e, %e), expansion=%e\n", mon[iii0], com_f[0], com_f[1], com_f[2], L[iii0]());
+				//printf("mono-mono interaction, second: m=%e , pos=(%e, %e, %e), expansion=%e\n", mon[iii1], com_s[0], com_s[1], com_s[2], L[iii1]());
+			}
 			L[iii0] += mon[iii1] * ele.four * d0;
 			L[iii1] += mon[iii0] * ele.four * d1;
+			if (((com_f[0] == -0.0234375) && (com_f[1] == -0.1171875) && (com_f[2] == -0.1171875))|| ((com_s[0] == -0.0234375) && (com_s[1] == -0.1171875) && (com_s[2] == -0.1171875))) {
+				//printf("mono-mono after, first %e, second %e\n", L[iii0](), L[iii1]());
+			}
 
 		}
-	}
+		std::vector<particle> particles_in_cell;
 
+		space_vector const &com0 = (*(com_ptr[0]))[0];
+		space_vector const &comL = (*(com_ptr[0]))[INX * INX * INX - 1];
+		space_vector bmin;
+		space_vector bmax;
+		for (integer d = 0; d < NDIM; ++d) {
+			bmin[d] = com0[d] - 0.5 * dx;
+			bmax[d] = comL[d] + 0.5 * dx;
+		}
+		for (integer part_i = 0; part_i < opts().Part_M.size(); part_i++) {
+                	space_vector part_pos;
+                        part_pos[XDIM] = opts().Part_X[part_i];
+                        if (NDIM > 1) {
+                        	part_pos[YDIM] = opts().Part_Y[part_i];
+                                if (NDIM > 2) {
+                                	part_pos[ZDIM] = opts().Part_Z[part_i];
+                                }
+                        }
+			particle p = particle(opts().Part_M[part_i], part_pos);
+                        if (p.is_in_boundary(bmin, bmax)) {
+                                integer const i_part = (part_pos[XDIM] - bmin[XDIM]) / dx;
+                                integer const j_part = (part_pos[YDIM] - bmin[YDIM]) / dx;
+                                integer const k_part = (part_pos[ZDIM] - bmin[ZDIM]) / dx;
+                                const std::array<integer, NDIM> p_in_cell = { i_part, j_part, k_part };
+		//		printf("bmin = (%e, %e, %e), bmax = (%e, %e, %e)\n pmass = %e, pos = (%e, %e, %e), index = (%i, %i, %i)\n", bmin[0], bmin[1], bmin[2], bmax[0], bmax[1], bmax[2], p.mass,
+//																	p.pos[0], p.pos[1], p.pos[2], i_part, j_part, k_part);  
+                                const std::array<integer, NDIM> p_in_parent_cell = {0 , 0, 0 };
+				p.update_cell_indexes(p_in_cell, p_in_parent_cell);
+				particles_in_cell.push_back(p);
+			}
+		}
+
+		// dynamic partices - static particles (cells) interaction, the particle interact with the cells that his containing cell interact with (to keep consistent the opening criterion)
+//		printf("in interaction old, particles size %i\n", particles_in_cell.size());
+		for (integer pi = 0; pi < particles_in_cell.size(); ++pi) {
+			particle p = particles_in_cell[pi];
+			p.L = 0;
+			const auto p_inds = p.containing_cell_index;
+			const integer pindex = gindex(p_inds[XDIM], p_inds[YDIM], p_inds[ZDIM]);
+			for (integer li = 0; li < dsize; ++li) {
+				const auto &ele = ilist_d[li];
+				integer partner_index = pindex == ele.first? ele.second : (pindex == ele.second? ele.first : -1);
+				if (partner_index != -1) {
+		//			printf("interaction of pmass %e, in (%i, %i, %i), first %i, second %i, partner %i\n", p.mass, p_inds[XDIM], p_inds[YDIM], p_inds[ZDIM], ele.first, ele.second, partner_index);
+                                	space_vector const &com_partner = (*(com_ptr[0]))[partner_index];
+		//			printf("com (%e, %e, %e)\n", com_partner[XDIM], com_partner[YDIM], com_partner[ZDIM]);
+					auto x = p.pos[XDIM] - com_partner[XDIM]; 
+					auto y = p.pos[YDIM] - com_partner[YDIM];
+					auto z = p.pos[ZDIM] - com_partner[ZDIM];
+                                        const real tmp = sqr(x) + sqr(y) + sqr(z);
+                                        const real r = (tmp == 0) ? 0 : std::sqrt(tmp);
+                                        const real r3 = r * r * r;
+                                        v4sd four;
+					v4sd four_partner;
+                                        if (r > 0.0) {
+	                	                four[0] = four_partner[0] = -1.0 / r;
+        		        	        four[1] = x / r3;
+                                        	four[2] = y / r3;
+                                        	four[3] = z / r3;
+						four_partner[1] = -four[1];
+						four_partner[2] = -four[2];
+						four_partner[3] = -four[3];
+                                        } else {
+   	                                     for (integer i = 0; i != 4; ++i) {
+         		                             four[i] = four_partner[i] = 0.0;
+                                             }
+                                       }
+		                       L[partner_index] +=  p.mass * four_partner;
+                		       p.L += mon[partner_index] * four;
+				}
+			}
+		}
+	}
 }
 
 void grid::compute_boundary_interactions(gsolve_type type, const geo::direction &dir, bool is_monopole, const gravity_boundary_type &mpoles) {
@@ -538,7 +620,6 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
 		load_multipole(m0, Y, mpoles, index, false);
 
 		std::array<simd_vector, NDIM> simdY = { simd_vector(real(Y[0])), simd_vector(real(Y[1])), simd_vector(real(Y[2])), };
-
 		const integer list_size = bnd.first.size();
 		for (integer li = 0; li < list_size; li += simd_len) {
 #ifndef __GNUG__
@@ -931,8 +1012,86 @@ if (type != RHO) {
 	}
 }
 }
-}	);
+	if (type == RHO) {
+		space_vector bmin;
+		space_vector bmax;
+                for (integer d = 0; d != NDIM; ++d) {
+                        bmin[d] = Xbase[d] + bnd.x[d] * dx - 0.5 * dx;
+			bmax[d] = bmin[d] + dx;
+                }
 
+		std::vector<particle> particles = load_particles(bmin, bmax);
+		for (auto p : particles) {
+	                m0 = p.mass;
+	                for (integer d = 0; d != NDIM; ++d) {
+				Y[d] = p.pos[d];
+			}
+        	        for (integer li = 0; li < list_size; li += simd_len) {
+                	        for (integer i = 0; i != simd_len && li + i < list_size; ++i) {
+                        	        const integer iii0 = bnd.first[li + i];
+                                	space_vector const &com0iii0 = com0[iii0];
+#pragma GCC ivdep
+	                		for (integer d = 0; d < NDIM; ++d) {
+	        		                X[d][i] = com0iii0[d];
+        		        	}
+		        	        multipole const &Miii0 = M[iii0];
+                			real const tmp = m0[i] / Miii0();
+#pragma GCC ivdep
+	 		               for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
+        	        		        n0[j][i] = -Miii0[j] * tmp;
+		                	}	        		
+				}
+		                for (integer d = 0; d < NDIM; ++d) {
+        		                dX[d] = X[d] - Y[d];
+		                }
+
+                		taylor<5, simd_vector> D;
+		                taylor<4, simd_vector> A0;
+                		std::array<simd_vector, NDIM> BB0 = { simd_vector(0.0), simd_vector(0.0), simd_vector(0.0) };
+
+		                D.set_basis(dX);
+
+ 		                A0[0] = m0 * D[0];
+                		for (integer i = taylor_sizes[0]; i != taylor_sizes[2]; ++i) {
+		                        A0[i] = m0 * D[i];
+                		}
+		                for (integer i = taylor_sizes[2]; i != taylor_sizes[3]; ++i) {
+                		        A0[i] = m0 * D[i];
+		                }
+
+	                        for (integer a = 0; a != NDIM; ++a) {
+        	                        int const *abcd_idx_map = to_abcd_idx_map3[a];
+                	                for (integer i = 0; i != 10; ++i) {
+                        	                const integer bcd_idx = bcd_idx_map[i];
+                                	        const auto tmp = D[abcd_idx_map[i]] * (factor[bcd_idx] * SIXTH);
+                                        	BB0[a] -= n0[bcd_idx] * tmp;
+	                                }
+        	                }                
+#ifdef OCTOTIGER_HAVE_GRAV_PAR
+		                std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
+#endif
+                		for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
+		                        const integer iii0 = bnd.first[li + i];
+
+                	        	expansion tmp;
+#pragma GCC ivdep
+			                for (integer j = 0; j != taylor_sizes[3]; ++j) {
+        	        		        tmp[j] = A0[j][i];
+			                }
+                			L[iii0] += tmp;
+
+                        		space_vector &L_ciii0 = L_c[iii0];
+#pragma GCC ivdep
+			                for (integer j = 0; j != NDIM; ++j) {
+        	        	        	L_ciii0[j] += BB0[j][i];
+	                		}
+
+				}
+			}
+		}
+	}
+}
+);
 }
 
 void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type, const std::vector<boundary_interaction_type> &ilist_n_bnd,
@@ -961,6 +1120,55 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type, con
 			for (integer i = 0; i != 4; ++i) {
 				Liii0[i] += tmp1[i];
 			}
+		}
+	
+		// interaction of particles in boundary (exterior) cell (second) with the interior cells (firsts)
+		//
+		// find position and boundaries of the current boundary cell
+		const std::array<real, NDIM> Xbase = { X[0][hindex(H_BW, H_BW, H_BW)], X[1][hindex(H_BW, H_BW, H_BW)], X[2][hindex(H_BW, H_BW, H_BW)] };
+		space_vector cell_pos;
+		space_vector cell_bmin;
+		space_vector cell_bmax;
+		for (integer d = 0; d < NDIM; ++d) {
+			cell_pos[d] = Xbase[d] + bnd.x[d] * dx;
+			cell_bmin[d] = cell_pos[d] - 0.5 * dx;
+			cell_bmax[d] = cell_pos[d] + 0.5 * dx;
+//			printf("direction %i: index=%e, base=%e, pos=%e, min=%e, max=%e\n", d, bnd.x[d], Xbase[d], cell_pos[d], cell_bmin[d], cell_bmax[d]);
+		}
+
+		// retrieve the particles in the cell
+		std::vector<particle> particles_in_cell = load_particles(cell_bmin, cell_bmax);
+
+		// interaction between the exterior particles and the interior cells
+		for (auto p : particles_in_cell) {
+                	for (integer li = 0; li < dsize; ++li) {
+                                const integer iii0 = bnd.first[li];
+				space_vector const &com_partner = (*(com_ptr[0]))[iii0]; 
+//				printf("boundary interaction between particle %e, (%e, %e, %e) external cell (%e, %e, %e), and inside cell (%e, %e, %e)\n",
+//						p.mass, p.pos[XDIM], p.pos[YDIM], p.pos[ZDIM], cell_pos[XDIM], cell_pos[YDIM], cell_pos[ZDIM], com_partner[XDIM], com_partner[YDIM], com_partner[ZDIM]);
+				auto x = p.pos[XDIM] - com_partner[XDIM];
+	                        auto y = p.pos[YDIM] - com_partner[YDIM];
+        	                auto z = p.pos[ZDIM] - com_partner[ZDIM];
+                     		const real tmp = sqr(x) + sqr(y) + sqr(z);
+                        	const real r = (tmp == 0) ? 0 : std::sqrt(tmp);
+                        	const real r3 = r * r * r;
+                                v4sd four;
+                                if (r > 0.0) {
+                                	four[0] = -1.0 / r;
+                                        four[1] = -x / r3;
+                                        four[2] = -y / r3;
+                                        four[3] = -z / r3;
+                                } else {
+                                	for (integer i = 0; i != 4; ++i) {
+                                        	four[i] = 0.0;
+                                        }
+                                }
+	                        auto tmp1 = p.mass * four;
+        	                expansion &Liii0 = L[iii0];
+                	        for (integer i = 0; i != 4; ++i) {
+                        	        Liii0[i] += tmp1[i];
+	                        }	
+                	}
 		}
 	});
 
@@ -1032,6 +1240,7 @@ void compute_ilist() {
 	};
 	integer max_d = 0;
 	integer width = INX;
+	printf("in ilist\n");
 	for (integer i0 = 0; i0 != nx; ++i0) {
 		for (integer j0 = 0; j0 != nx; ++j0) {
 			for (integer k0 = 0; k0 != nx; ++k0) {
@@ -1087,6 +1296,8 @@ void compute_ilist() {
 								if (interior(i1, j1, k1) && interior(i0, j0, k0)) {
 									if (iii1 > iii0) {
 										ilist_n0.push_back(np);
+										printf("i0 = (%i, %i, %i), i1 = (%i, %i, %i), n len = %i\n",
+											i0, j0, k0, i1, j1, k1, ilist_n0.size());
 									}
 								} else if (interior(i0, j0, k0)) {
 									ilist_n0_bnd[neighbor_dir(i1, j1, k1)].push_back(np);
@@ -1103,6 +1314,8 @@ void compute_ilist() {
 								if (interior(i1, j1, k1) && interior(i0, j0, k0)) {
 									if (iii1 > iii0) {
 										ilist_d0.push_back(dp);
+                                                                                printf("i0 = (%i, %i, %i), i1 = (%i, %i, %i), d len = %i\n",
+                                                                                        i0, j0, k0, i1, j1, k1, ilist_d0.size());
 									}
 								} else if (interior(i0, j0, k0)) {
 									ilist_d0_bnd[neighbor_dir(i1, j1, k1)].push_back(dp);
@@ -1118,6 +1331,8 @@ void compute_ilist() {
 								if (interior(i1, j1, k1) && interior(i0, j0, k0)) {
 									if (iii1 > iii0) {
 										ilist_r0.push_back(np);
+                                                                                printf("i0 = (%i, %i, %i), i1 = (%i, %i, %i), r len = %i\n",
+                                                                                        i0, j0, k0, i1, j1, k1, ilist_r0.size());
 									}
 								}
 							}
@@ -1438,10 +1653,19 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
 						lc[j] = 0.0;
 					}
 				}
+				integer temp_ci = -1;
 				for (integer ci = 0; ci != NCHILD; ++ci) {
 					const integer iiic = child_index(ip, jp, kp, ci);
 					for (integer d = 0; d < NDIM; ++d) {
 						X[d][ci] = (*(com_ptr[0]))[iiic][d];
+						if ((d==2) && (X[0][ci] == -0.0234375) && (X[1][ci] == -0.1171875) && (X[2][ci] == -0.1171875)) {
+							temp_ci = ci;
+							//printf("cell pos=(%e, %e, %e), parent pos=(%e, %e, %e)\n", (*(com_ptr[0]))[iiic][0], (*(com_ptr[0]))[iiic][1], (*(com_ptr[0]))[iiic][2], (*(com_ptr[1]))[iiip][0], (*(com_ptr[1]))[iiip][1], (*(com_ptr[1]))[iiip][2]);
+		                                        for (integer j = 0; j != 20; ++j) {
+								real temp = 6.67259e-8 * l[j][ci];
+							//	printf("l[%i] = %e\n", j, temp);
+                                		        }
+						}
 					}
 				}
 				const auto &Y = (*(com_ptr[1]))[iiip];
@@ -1452,10 +1676,15 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
 				for (integer ci = 0; ci != NCHILD; ++ci) {
 					const integer iiic = child_index(ip, jp, kp, ci);
 					expansion &Liiic = L[iiic];
+					if (ci == temp_ci) {
+				//		printf("expand before, l=%e\n", 6.67259e-8 * L[iiic][0]);
+					}
 					for (integer j = 0; j != 20; ++j) {
 						Liiic[j] += l[j][ci];
 					}
-
+					if (ci == temp_ci) {
+				//		printf("expand after, l=%e\n", 6.67259e-8 * L[iiic][0]);	
+					}
 					space_vector &L_ciiic = L_c[iiic];
 					if (type == RHO) {
 						for (integer j = 0; j != NDIM; ++j) {
@@ -1529,6 +1758,9 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 		com_ptr[0] = std::make_shared<std::vector<space_vector>>(G_N3);
 		const integer iii0 = hindex(H_BW, H_BW, H_BW);
 		const std::array<real, NDIM> x0 = { X[XDIM][iii0], X[YDIM][iii0], X[ZDIM][iii0] };
+		//printf("grid bmin = (%e, %e, %e), index=%i, dx=%e\n", x0[0] - 0.5 * dx, x0[1] - 0.5 * dx, x0[2] - 0.5 * dx, iii0, dx);
+		const integer iiin = hindex(H_BW + G_NX - 1, H_BW + G_NX - 1, H_BW + G_NX - 1);
+		//printf("grid bmax = (%e, %e, %e), index=%i, dx=%e\n", X[XDIM][iiin] + 0.5 * dx, X[YDIM][iiin] + 0.5 * dx, X[ZDIM][iiin] + 0.5 * dx, iiin, dx);
 		for (integer i = 0; i != G_NX; ++i) {
 			for (integer j = 0; j != G_NX; ++j) {
 				for (integer k = 0; k != G_NX; ++k) {
@@ -1553,6 +1785,7 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 	taylor<4, real> MM;
 	integer index = 0;
 	for (integer inx = INX; (inx >= INX / 2); inx >>= 1) {
+		//printf("inx = %i, lev = %i\n", inx, lev);
 		const integer nxp = inx;
 		const integer nxc = (2 * inx);
 
@@ -1560,6 +1793,7 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 			const integer ic = (2 * ip) + ((ci >> 0) & 1);
 			const integer jc = (2 * jp) + ((ci >> 1) & 1);
 			const integer kc = (2 * kp) + ((ci >> 2) & 1);
+//			printf("cell (%i, %i, %i), child = %i -> (%i, %i, %i)\n", ip, jp, kp, ci, ic, jc, kc);
 			return nxc * nxc * ic + nxc * jc + kc;
 		};
 
@@ -1568,33 +1802,106 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 				for (integer kp = 0; kp != nxp; ++kp) {
 					const integer iiip = nxp * nxp * ip + nxp * jp + kp;
 					if (lev != 0) {
+						std::vector<particle> particles_in_cell;
 						if (type == RHO) {
 							simd_vector mc;
 							std::array<simd_vector, NDIM> X;
 							for (integer ci = 0; ci != NCHILD; ++ci) {
 								const integer iiic = child_index(ip, jp, kp, ci);
+						//		printf("in child loop: index = %i, iiip = %i, iiic = %i\n", index, iiip, iiic);
 								if (is_leaf) {
+						//			printf("leaf\n");
 									mc[ci] = mon[iiic];
 								} else {
+						//			printf("no leaf\n");
 									mc[ci] = M[iiic]();
 								}
 								for (integer d = 0; d < NDIM; ++d) {
 									X[d][ci] = (*(com_ptr[0]))[iiic][d];
+						//			printf("cell center in %i direction of child %i is: %e\n", d, ci, (*(com_ptr[0]))[iiic][d]);
+								}
+							}
+							if (is_leaf) {
+//								integer part_index = NCHILD;
+								space_vector b_min;
+								space_vector b_max;
+								for (integer d = 0; d < NDIM; ++d) {
+									b_min[d] = X[d].min() - 0.5 * dx;
+									b_max[d] = X[d].max() + 0.5 * dx;
+								}
+                                                                space_vector b_min2;
+                                                                space_vector b_max2;
+                                                                for (integer d = 0; d < NDIM; ++d) {
+                                                                        b_min2[d] = X[d][0] - 0.5 * dx;
+                                                                        b_max2[d] = X[d][7] + 0.5 * dx;
+                                                                }
+								for (integer d = 0; d < NDIM; ++d) {
+									if ((b_min[d] != b_min2[d]) || (b_max[d] != b_max2[d])) {
+										printf("oh no, %e != %e or %e != %e, %i!!!!!\n\n", b_min[d], b_min2[d], b_max[d], b_max2[d], d);
+									}
+                                                                }
+								//printf("min boundary: (%e, %e, %e), max boundary: (%e, %e, %e)\n", b_min[0], b_min[1], b_min[2], b_max[0], b_max[1], b_max[2]);
+								for (integer part_i = 0; part_i < opts().Part_M.size(); part_i++) {
+									space_vector part_pos;
+									part_pos[XDIM] = opts().Part_X[part_i];
+									if (NDIM > 1) {
+										part_pos[YDIM] = opts().Part_Y[part_i];
+										if (NDIM > 2) {
+											part_pos[ZDIM] = opts().Part_Z[part_i];
+										}
+									}
+//									printf("particle %i, mc index %i, mass %e, pos: (%e, %e, %e)\n", part_i, part_index, opts().Part_M[part_i], opts().Part_X[part_i], opts().Part_Y[part_i], opts().Part_Z[part_i]);
+									particle p = particle(opts().Part_M[part_i], part_pos);
+									if (p.is_in_boundary(b_min, b_max)) {
+										particles_in_cell.push_back(p);
+										const integer iii0 = hindex(H_BW, H_BW, H_BW);
+										const std::array<real, NDIM> x0 = { X[XDIM][iii0], X[YDIM][iii0], X[ZDIM][iii0] };
+										integer const i_part = (part_pos[XDIM] - x0[XDIM]) / dx;
+										integer const j_part = (part_pos[YDIM] - x0[YDIM]) / dx;
+										integer const k_part = (part_pos[ZDIM] - x0[ZDIM]) / dx;
+										const std::array<integer, NDIM> p_in_cell = { i_part, j_part, k_part };
+										const std::array<integer, NDIM> p_in_parent_cell = {ip , jp, kp };
+										//const space_vecor rel_pos = { part_pos[XDIM] - (0.5 + i_part) * dx, part_pos[YDIM] - (0.5 + j_part) * dx, part_pos[ZDIM] - (0.5 + k_part) * dx };
+										p.update_cell_indexes(p_in_cell, p_in_parent_cell);
+										//p.update_rel_pos(rel_pos);
+										//particles[0] = p;
+//										printf("part index: %i\n", part_index);
+//										for (integer d = 0; d < NDIM; ++d) {
+//											X[d][part_index] = p.pos[d];
+//										}										
+  //                                                                              mc[part_index++] = p.mass;
+//								printf("part index: %i, mc size: %i\n", part_index, mc.size());
+//										printf("inside cell, mass: %e\n", p.mass);
+//										printf("inside cell, x: %e\n", p.pos[0]);
+//										printf("inside cell, y: %e\n", p.pos[1]);
+//										printf("inside cell, z: %e\n", p.pos[2]);
+									}
 								}
 							}
 #if !defined(HPX_HAVE_DATAPAR_VC) || (defined(Vc_IS_VERSION_1) && Vc_IS_VERSION_1)
 							real mtot = mc.sum();
 #else
-                            real mtot = Vc::reduce(mc);
+                            				real mtot = Vc::reduce(mc);
 #endif
+                                                        for (integer part_i = 0; part_i < particles_in_cell.size(); part_i++) {
+								//printf("inside sum tot mass: %e\n", particles_in_cell[part_i].mass);
+                                                                mtot += particles_in_cell[part_i].mass;
+                                                        }
+ 
+//							printf("size: %i, total mass: %e\n", mc.size(), mtot);
 							for (integer d = 0; d < NDIM; ++d) {
 #if !defined(HPX_HAVE_DATAPAR_VC) || (defined(Vc_IS_VERSION_1) && Vc_IS_VERSION_1)
 								(*(com_ptr[1]))[iiip][d] = (X[d] * mc).sum() / mtot;
 #else
-                                (*(com_ptr[1]))[iiip][d] = Vc::reduce(X[d] * mc) / mtot;
+                                				(*(com_ptr[1]))[iiip][d] = Vc::reduce(X[d] * mc) / mtot;
 #endif
+        	                                                for (integer part_i = 0; part_i < particles_in_cell.size(); part_i++) {
+	                                                                (*(com_ptr[1]))[iiip][d] += particles_in_cell[part_i].pos[d] * particles_in_cell[part_i].mass / mtot;
+                	                                        }
 							}
+							
 						}
+
 						taylor<4, simd_vector> mc, mp;
 						std::array<simd_vector, NDIM> x, y, dx;
 						for (integer ci = 0; ci != NCHILD; ++ci) {
@@ -1621,23 +1928,54 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 
 							}
 						}
+						//printf("com of %i (index %i): (%e, %e, %e)\n", iiip, index, (*(com_ptr[lev]))[iiip][0], (*(com_ptr[lev]))[iiip][1], (*(com_ptr[lev]))[iiip][2]);
 						const space_vector &Y = (*(com_ptr[lev]))[iiip];
 						for (integer d = 0; d < NDIM; ++d) {
 							dx[d] = x[d] - simd_vector(Y[d]);
 						}
-
 						mp = mc >> dx;
 						for (integer j = 0; j != 20; ++j) {
 #if !defined(HPX_HAVE_DATAPAR_VC) || (defined(Vc_IS_VERSION_1) && Vc_IS_VERSION_1)
 							MM[j] = mp[j].sum();
 #else
-                            MM[j] = Vc::reduce(mp[j]);
+                            				MM[j] = Vc::reduce(mp[j]);
 #endif
 						}
-
+                                                if (particles_in_cell.size() > 0) { // for now assume no more than 8 particles per cell
+	                                                taylor<4, simd_vector> mc_part, mp_part;
+							taylor<4, real> MM_part;
+        	                                        std::array<simd_vector, NDIM> dx_part;
+                	                                for (integer ci = 0; ci != NCHILD; ++ci) {
+								if (ci < particles_in_cell.size()) {
+	                                                                mc_part()[ci] = particles_in_cell[ci].mass;
+                                                			for (integer d = 0; d < NDIM; ++d) {
+			                                                        dx_part[d][ci] = particles_in_cell[ci].pos[d] - Y[d];
+                        			                        }
+								}
+								else {
+									mc_part()[ci] = 0.0;
+                                                                        for (integer d = 0; d < NDIM; ++d) {
+                                                                                dx_part[d][ci] = 0.0;
+                                                                        }
+								}
+                                                                for (integer j = 1; j != 20; ++j) {
+                                                                        mc_part.ptr()[j][ci] = 0.0;
+                                                                }
+							}
+							mp_part = mc_part >> dx_part;
+	                                                for (integer j = 0; j != 20; ++j) {
+        	                                                //printf("mp_part[%i] size = %i, part1 = %e, part2 = %e, sum = %e, sum cells = %e\n", j, mp_part[j].size(), (double)(mp_part[j][0]), (double)(mp_part[j][1]), mp_part[j].sum(), MM[j]);
+#if !defined(HPX_HAVE_DATAPAR_VC) || (defined(Vc_IS_VERSION_1) && Vc_IS_VERSION_1)
+	                                                        MM[j] += mp_part[j].sum();
+#else
+	                                                        MM[j] += Vc::reduce(mp_part[j]);
+#endif
+        	                                        }
+                                                }
 					} else {
 
 						if (child_poles == nullptr) {
+							//printf("in comp mult: no childs. index = %i, iiip = %i\n", index, iiip);
 							const integer iiih = hindex(ip + H_BW, jp + H_BW, kp + H_BW);
 							const integer iii0 = h0index(ip, jp, kp);
 							if (type == RHO) {
@@ -1646,6 +1984,7 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 								mon[iiip] = dUdt[rho_i][iii0] * dx3;
 							}
 						} else {
+							//printf("in comp mult: has childs. index = %i, iiip = %i\n", index, iiip);
 							assert(M.size());
 							M[iiip] = child_poles->first[index];
 							if (type == RHO) {
