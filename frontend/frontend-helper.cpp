@@ -65,14 +65,6 @@
 
 #if !defined(HPX_COMPUTE_DEVICE_CODE)
 
-void initialize_remotes(void) {
-#ifdef OCTOTIGER_HAVE_UNBUFFERED_STDOUT
-    std::setbuf(stdout, nullptr);
-    std::cout << "Set to unbuffered stdout for debugging on locality " 
-      << hpx::get_locality_id() << "..." << std::endl;
-#endif
-}
-
 void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 
     scf_options::read_option_file();
@@ -137,10 +129,6 @@ void cleanup() {
     f.get();
 }
 
-HPX_PLAIN_ACTION(initialize_remotes, initialize_remotes_action);
-HPX_REGISTER_BROADCAST_ACTION_DECLARATION(initialize_remotes_action);
-HPX_REGISTER_BROADCAST_ACTION(initialize_remotes_action);
-
 HPX_PLAIN_ACTION(initialize, initialize_action);
 HPX_REGISTER_BROADCAST_ACTION_DECLARATION(initialize_action);
 HPX_REGISTER_BROADCAST_ACTION(initialize_action);
@@ -151,10 +139,7 @@ void start_octotiger(int argc, char* argv[]) {
         std::cerr << "Start processing options" << std::endl;
         if (opts().process_options(argc, argv)) {
             std::cerr << "Finished processing options" << std::endl;
-            if (hpx::get_num_localities().get() > 1) {
-                auto remote_locs = hpx::find_remote_localities();
-                hpx::lcos::broadcast<initialize_remotes_action>(remote_locs).get();
-            }
+
             auto all_locs = hpx::find_all_localities();
             hpx::lcos::broadcast<initialize_action>(all_locs, opts(), all_locs).get();
             std::cerr << "Finished init" << std::endl;
