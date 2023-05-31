@@ -1740,7 +1740,7 @@ analytic_t grid::compute_analytic(real t) {
 						}
 					}
 					const auto this_rho = A[rho_i];
-					const auto err = std::abs(std::abs((nrho - this_rho) / (nrho - last_rho)) - 1.0);
+					const real err = std::abs(std::abs((nrho - this_rho) / (nrho - last_rho)) - 1.0);
 					if (M > INX) {
 						printf("%i %e\n", M, err);
 					}
