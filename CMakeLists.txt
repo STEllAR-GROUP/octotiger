@@ -111,6 +111,7 @@ set(source_files
     src/node_server_actions_2.cpp
     src/node_server_actions_3.cpp
     src/options.cpp
+    src/particles.cpp
     src/physcon.cpp
     src/problem.cpp
     src/profiler.cpp
@@ -172,6 +173,7 @@ set(header_files
     octotiger/node_server.hpp
     octotiger/options.hpp
     octotiger/options_enum.hpp
+    octotiger/particles.hpp
     octotiger/physcon.hpp
     octotiger/problem.hpp
     octotiger/profiler.hpp

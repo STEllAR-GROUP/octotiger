@@ -156,6 +156,11 @@ bool options::process_options(int argc, char *argv[]) {
 	("atomic_number", po::value<std::vector<real>>(&(opts().atomic_number))->multitoken(), "atomic numbers") //
 	("X", po::value<std::vector<real>>(&(opts().X))->multitoken(), "X - hydrogen mass fraction") //
 	("Z", po::value<std::vector<real>>(&(opts().Z))->multitoken(), "Z - metallicity") //
+	("particles_x", po::value<std::vector<real>>(&(opts().Part_X))->multitoken(), "particles x-positions") //
+	("particles_y", po::value<std::vector<real>>(&(opts().Part_Y))->multitoken(), "particles y-positions") //
+	("particles_z", po::value<std::vector<real>>(&(opts().Part_Z))->multitoken(), "particles z-positions") //
+	("particles_mass", po::value<std::vector<real>>(&(opts().Part_M))->multitoken(), "particles masses") //
+	("particles_type", po::value<std::vector<real>>(&(opts().Part_T))->multitoken(), "particles types") //
 	("code_to_g", po::value<real>(&(opts().code_to_g))->default_value(1), "code units to grams") //
 	("code_to_cm", po::value<real>(&(opts().code_to_cm))->default_value(1), "code units to centimeters") //
 	("code_to_s", po::value<real>(&(opts().code_to_s))->default_value(1), "code units to seconds") //
@@ -229,6 +234,31 @@ bool options::process_options(int argc, char *argv[]) {
 			std::cout << std::to_string(r) << ',';
 		}
 		std::cout << '\n';
+                std::cout << "particles_x=";
+                for (auto r : Part_X) {
+                        std::cout << std::to_string(r) << ',';
+                }
+                std::cout << '\n';
+                std::cout << "particles_y=";
+                for (auto r : Part_Y) {
+                        std::cout << std::to_string(r) << ',';
+                }
+                std::cout << '\n';
+                std::cout << "particles_z=";
+                for (auto r : Part_Z) {
+                        std::cout << std::to_string(r) << ',';
+                }
+                std::cout << '\n';
+                std::cout << "particles_mass=";
+                for (auto r : Part_M) {
+                        std::cout << std::to_string(r) << ',';
+                }
+                std::cout << '\n';
+                std::cout << "particles_type=";
+                for (auto r : Part_T) {
+                        std::cout << std::to_string(r) << ',';
+                }
+                std::cout << '\n';
 		const auto num_loc = hpx::find_all_localities().size();
 		if (silo_num_groups > num_loc) {
 			printf("Number of SILO file groups cannot be greater than number of localities. Setting silo_num_groupds to %li\n", num_loc);

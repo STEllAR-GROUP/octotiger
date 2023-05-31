@@ -144,6 +144,11 @@ public:
 	std::vector<real> atomic_number;
 	std::vector<real> X;
 	std::vector<real> Z;
+	std::vector<real> Part_X;
+	std::vector<real> Part_Y;
+	std::vector<real> Part_Z;
+	std::vector<real> Part_M;
+	std::vector<real> Part_T;
 
 	template<class Arc>
 	void serialize(Arc &arc, unsigned) {
@@ -253,6 +258,11 @@ public:
 		arc & atomic_number;
 		arc & X;
 		arc & Z;
+		arc & Part_X;
+		arc & Part_Y;
+		arc & Part_Z;
+		arc & Part_M;
+		arc & Part_T;
 		arc & code_to_g;
 		arc & code_to_s;
 		arc & code_to_cm;
