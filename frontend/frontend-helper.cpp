@@ -4,6 +4,8 @@
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 #include "frontend-helper.hpp"
+#include <hpx/runtime_distributed/find_all_localities.hpp>
+#include <hpx/runtime_distributed/get_num_localities.hpp>
 
 #include "octotiger/compute_factor.hpp"
 #include "octotiger/defs.hpp"
@@ -63,6 +65,10 @@
 
 #if !defined(HPX_COMPUTE_DEVICE_CODE)
 
+void initialize_remotes(void) {
+    std::setbuf(stdout, nullptr);
+    std::cout << "Output set to unbuffered" << std::endl;
+}
 
 void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 
@@ -128,6 +134,10 @@ void cleanup() {
     f.get();
 }
 
+HPX_PLAIN_ACTION(initialize_remotes, initialize_remotes_action);
+HPX_REGISTER_BROADCAST_ACTION_DECLARATION(initialize_remotes_action);
+HPX_REGISTER_BROADCAST_ACTION(initialize_remotes_action);
+
 HPX_PLAIN_ACTION(initialize, initialize_action);
 HPX_REGISTER_BROADCAST_ACTION_DECLARATION(initialize_action);
 HPX_REGISTER_BROADCAST_ACTION(initialize_action);
@@ -138,6 +148,10 @@ void start_octotiger(int argc, char* argv[]) {
         std::cerr << "Start processing options" << std::endl;
         if (opts().process_options(argc, argv)) {
             std::cerr << "Finished processing options" << std::endl;
+            if (hpx::get_num_localities().get() > 1) {
+                auto remote_locs = hpx::find_remote_localities();
+                hpx::lcos::broadcast<initialize_remotes_action>(remote_locs).get();
+            }
             auto all_locs = hpx::find_all_localities();
             hpx::lcos::broadcast<initialize_action>(all_locs, opts(), all_locs).get();
             std::cerr << "Finished init" << std::endl;

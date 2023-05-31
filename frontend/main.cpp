@@ -136,6 +136,7 @@ int hpx_main(int argc, char* argv[]) {
 }
 
 int main(int argc, char* argv[]) {
+    std::setbuf(stdout, nullptr);
     hpx::init_params p;
     p.cfg = {
         "hpx.commandline.allow_unknown=1",    // HPX should not complain about unknown command line
