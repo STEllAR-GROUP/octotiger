@@ -11,7 +11,7 @@
 #if defined(KOKKOS_ENABLE_SYCL) && defined( __SYCL_DEVICE_ONLY__)
 #define sycl_pow_wrapper sycl::pow
 #else
-#define sycl_pow_wrapper std::pow
+#define sycl_pow_wrapper pow
 #endif
 
 #if defined(__clang__)
