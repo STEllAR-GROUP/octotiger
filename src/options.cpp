@@ -81,6 +81,7 @@ bool options::process_options(int argc, char *argv[]) {
         ("solid_sphere_radius", po::value<real>(&(opts().solid_sphere_radius))->default_value(1.0 / 3.0), "radius of the sphere")     //
         ("solid_sphere_mass", po::value<real>(&(opts().solid_sphere_mass))->default_value(1.0), "total mass enclosed inside the sphere")     //
         ("solid_sphere_rho_min", po::value<real>(&(opts().solid_sphere_rho_min))->default_value(1.0e-12), "minimal density outside (and within) the sphere")     //
+	("second_solid_sphere_radius", po::value<real>(&(opts().second_solid_sphere_radius))->default_value(0.01 / 3), "radius of a second sphere in the double solid sphere problem")     //
         ("star_xcenter", po::value<real>(&(opts().star_xcenter))->default_value(0.0), "x-position of the star center")     //
         ("star_ycenter", po::value<real>(&(opts().star_ycenter))->default_value(0.0), "y-position of the star center")     //
         ("star_zcenter", po::value<real>(&(opts().star_zcenter))->default_value(0.0), "z-position of the star center")     //

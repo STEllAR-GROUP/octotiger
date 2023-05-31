@@ -269,17 +269,17 @@ std::vector<real> solid_sphere_analytic_phi(real x, real y, real z, real xshift)
 
 std::vector<real> double_solid_sphere(real x0, real y0, real z0, real dx) {
 	std::vector<real> u(opts().n_fields, real(0));
-	auto u1 = solid_sphere(x0, y0, z0, dx, dxs);
-	auto u2 = solid_sphere(x0, y0, z0, dx, dys);
+	auto u1 = solid_sphere(x0, y0, z0, dx, opts().solid_sphere_radius)
+	auto u2 = solid_sphere(x0, y0, z0, dx, opts().second_solid_sphere_radius);	
 	for (integer f = 0; f != opts().n_fields; ++f) {
 		u[f] = u1[f] + u2[f];
 	}
 	return u;
 }
 
-std::vector<real> solid_sphere(real x0, real y0, real z0, real dx, real xshift) {
+std::vector<real> solid_sphere(real x0, real y0, real z0, real dx, real radius) {
 	const integer N = 25;
-	const real r0 = opts().solid_sphere_radius;
+	const real r0 = radius;
 	const real M = opts().solid_sphere_mass;
 	const real V = 4.0 / 3.0 * M_PI * r0 * r0 * r0;
 	const real drho = M / real(N * N * N) / V;

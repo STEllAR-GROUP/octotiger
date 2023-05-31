@@ -24,7 +24,7 @@
  COMMAND_LINE_ENUM(eos_type,IDEAL,WD);
  */
 
-COMMAND_LINE_ENUM(problem_type, DWD, SOD, BLAST, NONE, SOLID_SPHERE, STAR, MOVING_STAR, RADIATION_TEST, ROTATING_STAR, MARSHAK, AMR_TEST, ADVECTION, MESA_STAR);
+COMMAND_LINE_ENUM(problem_type, DWD, SOD, BLAST, NONE, SOLID_SPHERE, DOUBLE_SOLID_SPHERE, HERNQUIST, STAR, MOVING_STAR, RADIATION_TEST, ROTATING_STAR, MARSHAK, AMR_TEST, ADVECTION);
 
 COMMAND_LINE_ENUM(eos_type, IDEAL, WD);
 
@@ -103,6 +103,7 @@ public:
 	real solid_sphere_radius;
 	real solid_sphere_mass;
 	real solid_sphere_rho_min;
+	real second_solid_sphere_radius;
 
 	real star_xcenter;
 	real star_ycenter;
@@ -168,6 +169,7 @@ public:
 		arc & solid_sphere_radius;
 		arc & solid_sphere_mass;
 		arc & solid_sphere_rho_min;
+		arc & second_solid_sphere_radius;
 		arc & star_xcenter;
 		arc & star_ycenter;
 		arc & star_zcenter;

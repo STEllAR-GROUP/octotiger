@@ -233,12 +233,20 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 	} else if (opts().problem == SOLID_SPHERE) {
 	//	opts().hydro = false;
 		set_analytic([](real x, real y, real z, real dx) {
-			return solid_sphere(x,y,z,dx,0.25);
+			return solid_sphere(x,y,z,dx,opts().solid_sphere_radius);
 		});
 		set_refine_test(refine_test_center);
 		set_problem(init_func_type([](real x, real y, real z, real dx) {
-			return solid_sphere(x,y,z,dx,0.25);
+			return solid_sphere(x,y,z,dx,opts().solid_sphere_radius);
 		}));
+        } else if (opts().problem == DOUBLE_SOLID_SPHERE) {
+                 set_analytic([](real x, real y, real z, real dx) {
+                         return double_solid_sphere(x,y,z,dx);
+                 });
+                 set_refine_test(refine_test_center);
+                 set_problem(init_func_type([](real x, real y, real z, real dx) {
+                         return double_solid_sphere(x,y,z,dx);
+                 }));
 	} else {
 		printf("No problem specified\n");
 		throw;
