@@ -22,6 +22,7 @@
 #include "octotiger/io/silo.hpp"
 #include "octotiger/simd.hpp"
 #include "octotiger/space_vector.hpp"
+#include "octotiger/particles.hpp"
 //#include "octotiger/taylor.hpp"
 #include "octotiger/unitiger/safe_real.hpp"
 
@@ -134,6 +135,7 @@ private:
 	std::shared_ptr<std::vector<real>> mon_ptr;
 	std::vector<expansion> L;
 	std::vector<space_vector> L_c;
+	std::shared_ptr<std::vector<particle>> particles;
 	std::vector<real> dphi_dt;
 #ifdef OCTOTIGER_HAVE_GRAV_PAR
 	std::unique_ptr<hpx::lcos::local::spinlock> L_mtx;
