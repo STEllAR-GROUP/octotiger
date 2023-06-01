@@ -155,15 +155,12 @@ void init_executors(void) {
 #if HPX_KOKKOS_CUDA_FUTURE_TYPE == 0
 #if (defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP) || defined(KOKKOS_ENABLE_CUDA) || defined(KOKKOS_ENABLE_HIP))  
     std::cerr << "Registering HPX CUDA polling..." << std::endl;
-    //std::cin.get();
     hpx::cuda::experimental::detail::register_polling(hpx::resource::get_thread_pool(0));
     std::cerr << "Registered HPX CUDA polling..." << std::endl;
-    /* std::cin.get(); */
 #endif
 #endif
 #if defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_SYCL)
     std::cerr << "Registering HPX SYCL polling..." << std::endl;
-    //std::cin.get();
     hpx::sycl::experimental::detail::register_polling(hpx::resource::get_thread_pool(0));
     std::cerr << "Registered HPX SYCL polling..." << std::endl;
 #endif
