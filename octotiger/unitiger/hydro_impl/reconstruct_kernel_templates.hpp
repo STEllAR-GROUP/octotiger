@@ -7,6 +7,13 @@
 
 #pragma once
 #include "octotiger/common_kernel/kokkos_simd.hpp"
+
+#if defined(KOKKOS_ENABLE_SYCL) && defined( __SYCL_DEVICE_ONLY__)
+#define sycl_pow_wrapper sycl::pow
+#else
+#define sycl_pow_wrapper pow
+#endif
+
 #if defined(__clang__)
 constexpr int number_dirs = 27;
 constexpr int inx_large = INX + 6;
@@ -109,9 +116,13 @@ CUDA_CALLABLE_METHOD const int xloc[27][3] = {
 CUDA_GLOBAL_METHOD inline double deg_pres(double x, double A_) {
     double p;
     if (x < 0.001) {
-        p = 1.6 * A_ * pow(x, 5);
+        p = 1.6 * A_ * sycl_pow_wrapper(x, 5.0);
     } else {
+#if defined(KOKKOS_ENABLE_SYCL) && defined( __SYCL_DEVICE_ONLY__)
+        p = A_ * (x * (2 * x * x - 3) * sycl::sqrt(x * x + 1) + 3 * sycl::asinh(x));
+#else
         p = A_ * (x * (2 * x * x - 3) * sqrt(x * x + 1) + 3 * asinh(x));
+#endif
     }
     return p;
 }
@@ -140,8 +151,12 @@ CUDA_GLOBAL_METHOD inline void cell_find_contact_discs_phase1(container_t &P,
     double pdeg = 0.0, edeg = 0.0;
 
     if (A_ != 0.0) {
-        const auto x = std::pow(rho / B_, 1.0 / 3.0);
+        const auto x = sycl_pow_wrapper(rho / B_, 1.0 / 3.0);
+#if defined(KOKKOS_ENABLE_SYCL) && defined( __SYCL_DEVICE_ONLY__)
+        const double hdeg = 8.0 * A_ / B_ * (sycl::sqrt(x * x + 1.0) - 1.0);
+#else
         const double hdeg = 8.0 * A_ / B_ * (std::sqrt(x * x + 1.0) - 1.0);
+#endif
         pdeg = deg_pres(x, A_);
         edeg = rho * hdeg - pdeg;
     }
@@ -154,7 +169,7 @@ CUDA_GLOBAL_METHOD inline void cell_find_contact_discs_phase1(container_t &P,
 
     auto ein = combined_u[u_slice_offset + egas_i * u_face_offset + i] - ek - edeg;
     if (ein < de_switch_1 * combined_u[u_slice_offset + egas_i * u_face_offset + i]) {
-        ein = pow(combined_u[u_slice_offset + tau_i * u_face_offset + i], fgamma_);
+        ein = sycl_pow_wrapper(combined_u[u_slice_offset + tau_i * u_face_offset + i], fgamma_);
     }
     P[p_slice_offset + i] = (fgamma_ - 1.0) * ein + pdeg;
 }

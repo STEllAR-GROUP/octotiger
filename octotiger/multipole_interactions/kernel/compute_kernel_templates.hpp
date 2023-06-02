@@ -8,9 +8,17 @@
 #include "octotiger/common_kernel/interaction_constants.hpp"
 #include "octotiger/cuda_util/cuda_global_def.hpp"
 
+#if defined(KOKKOS_ENABLE_SYCL) && defined( __SYCL_DEVICE_ONLY__)
+// Workaround to use sycl::sqrt with double types on GPU
+// when using sycl.
+#include "simd_common.hpp"
+#include <simd.hpp>
+#endif
+
 namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {
+
 #if defined(__clang__) // Clang can handle cuda device constexpr better
         constexpr double factor[20] = {1.000000, 1.000000, 1.000000, 1.000000,
             1.000000, 2.000000, 2.000000, 1.000000, 2.000000, 1.000000, 1.000000, 3.000000,
@@ -66,7 +74,15 @@ namespace fmm {
             T r2 = X_00 + X_11 + X_22;
             T r2inv = T(1.0) / max(r2, T(1.0e-20));
 
+#if defined(KOKKOS_ENABLE_SYCL) && defined( __SYCL_DEVICE_ONLY__)
+            // Workaround to use sycl::sqrt with double types on GPU
+            // when using sycl. 
+            double r2inv_tmp; 
+            r2inv.copy_to(&r2inv_tmp, SIMD_NAMESPACE::element_aligned_tag{});
+            T d0 = -sycl::sqrt(r2inv_tmp);
+#else
             T d0 = -sqrt(r2inv);
+#endif
             T d1 = -d0 * r2inv;
             d2 = -3.0 * d1 * r2inv;
             d3 = -5.0 * d2 * r2inv;
