@@ -156,7 +156,7 @@ namespace fmm {
             dim3 const threads_per_block, const double *monopoles, 
             double *tmp_potential_expansions,
             const double theta, const double dx,
-            hipStream_t& stream) {
+            hipStream_t const& stream) {
             hipLaunchKernelGGL(cuda_p2p_interactions_kernel, grid_spec, threads_per_block,
                 0, stream, monopoles, tmp_potential_expansions, 
                 theta, dx);
@@ -174,7 +174,7 @@ namespace fmm {
             dim3 const threads_per_block, 
             double *tmp_potential_expansions,
             double *potential_expansions,
-            hipStream_t& stream) {
+            hipStream_t const& stream) {
             hipLaunchKernelGGL(cuda_sum_p2p_results, grid_spec, threads_per_block,
                 0, stream, tmp_potential_expansions, 
                 potential_expansions);
