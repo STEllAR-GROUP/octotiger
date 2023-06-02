@@ -712,7 +712,7 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 					rc.lsum[2] += U[lz_i][iii] * dV - lz;
 					const auto nonvac = (1.0 - U[spc_i + opts().n_species - 1][iii] / U[rho_i][iii]);
 					rc.nonvacj += lz * nonvac;
-					rc.nonvacjlz == U[lz_i][iii] * nonvac * dV;
+					rc.nonvacjlz = U[lz_i][iii] * nonvac * dV;
 				}
 
 				for (integer s = 0; s != nspec; ++s) {
