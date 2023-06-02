@@ -45,7 +45,7 @@ int hpx_main(int argc, char* argv[]) {
 #ifdef OCTOTIGER_HAVE_KOKKOS
     // Initialize Kokkos on root
     std::cout << "Initializing Kokkos on Root locality" << std::endl;
-    Kokkos::initialize();
+    Kokkos::initialize(argc, argv);
 #endif
     // The ascii logo was created by combining, modifying and extending the ascii arts from:
     // http://ascii.co.uk/art/octopus (Author "jgs")
@@ -142,7 +142,7 @@ int hpx_main(int argc, char* argv[]) {
     printf("###########################################################\n");
 
 #ifdef OCTOTIGER_HAVE_KOKKOS
-    Kokkos::print_configuration(std::cout);
+    Kokkos::print_configuration(std::cout, true);
 #endif
 
     printf("\n###########################################################\n\n");

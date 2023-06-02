@@ -164,7 +164,7 @@ namespace fmm {
         void hip_multipole_interactions_kernel_rho_ggl_wrapper(dim3 const grid_spec,
             dim3 const threads_per_block, const double* monopoles, const double* center_of_masses,
             const double* multipoles, double* potential_expansions, double* angular_corrections,
-            const double theta, const bool computing_second_half, hipStream_t& stream) {
+            const double theta, const bool computing_second_half, hipStream_t const& stream) {
             hipLaunchKernelGGL(cuda_multipole_interactions_kernel_rho, grid_spec, threads_per_block,
                 0, stream, monopoles, center_of_masses, multipoles, potential_expansions,
                 angular_corrections, theta, computing_second_half);
@@ -181,7 +181,7 @@ namespace fmm {
 
         void hip_sum_multipole_angular_corrections_results_ggl_wrapper(dim3 const grid_spec,
             dim3 const threads_per_block, int block_numbers, double* tmp_angular_corrections,
-            double* angular_corrections, hipStream_t& stream) {
+            double* angular_corrections, hipStream_t const& stream) {
             hipLaunchKernelGGL(cuda_sum_multipole_angular_corrections_results, grid_spec,
                 threads_per_block, 0, stream, block_numbers, tmp_angular_corrections,
                 angular_corrections);
@@ -304,7 +304,7 @@ namespace fmm {
 #if defined(OCTOTIGER_HAVE_HIP)
         void hip_multipole_interactions_kernel_root_rho_ggl_wrapper(dim3 const grid_spec,
             dim3 const threads_per_block, const double* center_of_masses, const double* multipoles,
-            double* potential_expansions, double* angular_corrections, hipStream_t& stream) {
+            double* potential_expansions, double* angular_corrections, hipStream_t const& stream) {
             hipLaunchKernelGGL(cuda_multipole_interactions_kernel_root_rho, grid_spec,
                 threads_per_block, 0, stream, center_of_masses, multipoles, potential_expansions,
                 angular_corrections);
@@ -438,7 +438,7 @@ namespace fmm {
         void hip_multipole_interactions_kernel_non_rho_ggl_wrapper(dim3 const grid_spec,
             dim3 const threads_per_block, const double* monopoles, const double* center_of_masses,
             const double* multipoles, double* potential_expansions, const double theta,
-            const bool computing_second_half, hipStream_t& stream) {
+            const bool computing_second_half, hipStream_t const& stream) {
             hipLaunchKernelGGL(cuda_multipole_interactions_kernel_non_rho, grid_spec,
                 threads_per_block, 0, stream, monopoles, center_of_masses, multipoles,
                 potential_expansions, theta, computing_second_half);
@@ -455,7 +455,7 @@ namespace fmm {
 
         void hip_sum_multipole_potential_expansions_results_ggl_wrapper(dim3 const grid_spec,
             dim3 const threads_per_block, int block_numbers, double* tmp_potential_expansions,
-            double* potential_expansions, hipStream_t& stream) {
+            double* potential_expansions, hipStream_t const& stream) {
             hipLaunchKernelGGL(cuda_sum_multipole_potential_expansions_results, grid_spec,
                 threads_per_block, 0, stream, block_numbers, tmp_potential_expansions,
                 potential_expansions);
@@ -564,7 +564,7 @@ namespace fmm {
 #if defined(OCTOTIGER_HAVE_HIP)
         void hip_multipole_interactions_kernel_root_non_rho_ggl_wrapper(dim3 const grid_spec,
             dim3 const threads_per_block, const double* center_of_masses, const double* multipoles,
-            double* potential_expansions, hipStream_t& stream) {
+            double* potential_expansions, hipStream_t const& stream) {
             hipLaunchKernelGGL(cuda_multipole_interactions_kernel_root_non_rho, grid_spec,
                 threads_per_block, 0, stream, center_of_masses, multipoles, potential_expansions);
         }
