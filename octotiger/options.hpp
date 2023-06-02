@@ -53,6 +53,7 @@ public:
 	bool rotating_star_amr;
 	bool idle_rates;
 	bool ipr_test;
+  bool detected_intel_compiler;
 
 	integer scf_output_frequency;
 	integer silo_num_groups;

@@ -81,12 +81,17 @@ void cleanup_puddle_on_this_locality(void) {
       stream_pool::cleanup<hpx::kokkos::cuda_executor, round_robin_pool<hpx::kokkos::cuda_executor>>();
 #elif defined(KOKKOS_ENABLE_HIP) 
       stream_pool::cleanup<hpx::kokkos::hip_executor, round_robin_pool<hpx::kokkos::hip_executor>>();
+#elif defined(KOKKOS_ENABLE_SYCL) 
+      stream_pool::cleanup<hpx::kokkos::sycl_executor, round_robin_pool<hpx::kokkos::sycl_executor>>();
 #endif
     }
     // Disable polling
 #if (defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)) && HPX_KOKKOS_CUDA_FUTURE_TYPE == 0 
     std::cout << "Unregistering cuda polling..." << std::endl;
     hpx::cuda::experimental::detail::unregister_polling(hpx::resource::get_thread_pool(0));
+#endif
+#if defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_SYCL)
+    hpx::sycl::experimental::detail::unregister_polling(hpx::resource::get_thread_pool(0));
 #endif
 #ifdef OCTOTIGER_HAVE_KOKKOS
     stream_pool::cleanup<hpx::kokkos::hpx_executor, round_robin_pool<hpx::kokkos::hpx_executor>>();
@@ -118,6 +123,7 @@ void init_executors(void) {
     std::cout << "Initialize executors and masks..." << std::endl;
 #ifdef OCTOTIGER_HAVE_KOKKOS
     if (!Kokkos::is_initialized()) { // gets initialized earlier on root locality
+      // TODO SYCL Need args for distributed build...
       Kokkos::initialize();
       Kokkos::print_configuration(std::cout);
       std::cout << "Initialized Kokkos on this locality..." << std::endl;
@@ -149,11 +155,14 @@ void init_executors(void) {
 #if HPX_KOKKOS_CUDA_FUTURE_TYPE == 0
 #if (defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP) || defined(KOKKOS_ENABLE_CUDA) || defined(KOKKOS_ENABLE_HIP))  
     std::cerr << "Registering HPX CUDA polling..." << std::endl;
-    //std::cin.get();
     hpx::cuda::experimental::detail::register_polling(hpx::resource::get_thread_pool(0));
     std::cerr << "Registered HPX CUDA polling..." << std::endl;
-    /* std::cin.get(); */
 #endif
+#endif
+#if defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_SYCL)
+    std::cerr << "Registering HPX SYCL polling..." << std::endl;
+    hpx::sycl::experimental::detail::register_polling(hpx::resource::get_thread_pool(0));
+    std::cerr << "Registered HPX SYCL polling..." << std::endl;
 #endif
 
 #if defined(OCTOTIGER_HAVE_KOKKOS)
@@ -170,8 +179,12 @@ void init_executors(void) {
     std::cout << "KOKKOS/HIP is enabled!" << std::endl;
     stream_pool::init<hpx::kokkos::hip_executor, round_robin_pool<hpx::kokkos::hip_executor>>(
         opts().cuda_streams_per_gpu, hpx::kokkos::execution_space_mode::independent);
+#elif defined(KOKKOS_ENABLE_SYCL)
+    std::cout << "KOKKOS/SYCL is enabled!" << std::endl;
+    stream_pool::init<hpx::kokkos::sycl_executor, round_robin_pool<hpx::kokkos::sycl_executor>>(
+        opts().cuda_streams_per_gpu, hpx::kokkos::execution_space_mode::independent);
 #endif
-#if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)
+#if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP) || defined(KOKKOS_ENABLE_SYCL)
     kokkos_device_executor mover{};
     octotiger::fmm::monopole_interactions::get_device_masks<device_buffer<int>, host_buffer<int>,
         kokkos_device_executor>(mover);
@@ -312,8 +325,8 @@ void init_problem(void) {
         set_problem(init_func_type(
             [](real x, real y, real z, real dx) { return solid_sphere(x, y, z, dx, 0.25); }));
     } else {
-        printf("No problem specified\n");
-        throw;
+        std::cerr << "Error: No problem specified\n";
+        std::terminate();
     }
 
     if (OCTOTIGER_MAX_NUMBER_FIELDS > physics<NDIM>::nf_) {

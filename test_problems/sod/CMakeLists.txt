@@ -224,8 +224,12 @@ if(OCTOTIGER_WITH_KOKKOS)
   test_sod_scenario(test_problems.cpu.am_hydro_off.sod_kokkos sod_kokkos_log.txt  ${ini_scenario_filename} ${silo_reference_filename} ON
   "--correct_am_hydro=0 --hydro_device_kernel_type=OFF --hydro_host_kernel_type=KOKKOS")
   if(OCTOTIGER_WITH_CUDA)
-    test_sod_scenario(test_problems.gpu.am_hydro_off.sod_kokkos sod_kokkos_cuda_log.txt ${ini_scenario_filename} ${silo_reference_filename} ON
+    test_sod_scenario(test_problems.gpu.am_hydro_off.sod_kokkos_cuda sod_kokkos_cuda_log.txt ${ini_scenario_filename} ${silo_reference_filename} ON
     "--correct_am_hydro=0 --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=KOKKOS_CUDA --hydro_host_kernel_type=DEVICE_ONLY")
+  endif()
+  if(Kokkos_ENABLE_SYCL)
+    test_sod_scenario(test_problems.gpu.am_hydro_off.sod_kokkos_sycl sod_kokkos_sycl_log.txt ${ini_scenario_filename} ${silo_reference_filename} ON
+      "--correct_am_hydro=0 --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=KOKKOS_SYCL --hydro_host_kernel_type=DEVICE_ONLY")
   endif()
 endif()
 
@@ -264,13 +268,17 @@ if (OCTOTIGER_WITH_GRIDDIM EQUAL 8)
     test_sod_scenario(test_problems.cpu.am_hydro_off.sod_big_kokkos sod_kokkos_log.txt  ${ini_scenario_filename} ${silo_reference_filename} ON
     "--correct_am_hydro=0 --hydro_device_kernel_type=OFF --hydro_host_kernel_type=KOKKOS")
     if(OCTOTIGER_WITH_CUDA)
-      test_sod_scenario(test_problems.gpu.am_hydro_off.sod_big_kokkos sod_kokkos_cuda_log.txt ${ini_scenario_filename} ${silo_reference_filename} ON
+      test_sod_scenario(test_problems.gpu.am_hydro_off.sod_big_kokkos_cuda sod_kokkos_cuda_log.txt ${ini_scenario_filename} ${silo_reference_filename} ON
       "--correct_am_hydro=0 --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=KOKKOS_CUDA --hydro_host_kernel_type=DEVICE_ONLY")
       # Test combined cpu + gpu execution: Only makes sense when kernels use the same FP_Contract (otherwise there'll be an ~ 1e-20 error due to interactions between kernels executed on different devices)
       if(NOT OCTOTIGER_WITH_FAST_FP_CONTRACT)
         test_sod_scenario(test_problems.cpu_gpu.am_hydro_off.sod_big_kokkos sod_kokkos_cuda_log.txt ${ini_scenario_filename} ${silo_reference_filename} ON
         "--correct_am_hydro=0 --cuda_number_gpus=1 --cuda_streams_per_gpu=4 --cuda_buffer_capacity=1 --hydro_device_kernel_type=KOKKOS_CUDA --hydro_host_kernel_type=KOKKOS")
       endif()
+    endif()
+    if(Kokkos_ENABLE_SYCL)
+      test_sod_scenario(test_problems.gpu.am_hydro_off.sod_big_kokkos_sycl sod_kokkos_sycl_log.txt ${ini_scenario_filename} ${silo_reference_filename} ON
+        "--correct_am_hydro=0 --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=KOKKOS_SYCL --hydro_host_kernel_type=DEVICE_ONLY")
     endif()
   endif()
 

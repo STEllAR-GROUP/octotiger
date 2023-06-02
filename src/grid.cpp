@@ -1835,8 +1835,8 @@ grid::grid(const init_func_type &init_func, real _dx, std::array<real, NDIM> _xm
 						U[field][iii] = this_u[field];
 					}
 				} else {
-					printf("No problem specified\n");
-					abort();
+          std::cerr <<"Error: No problem specified\n";
+          std::terminate();
 				}
 			}
 		}
