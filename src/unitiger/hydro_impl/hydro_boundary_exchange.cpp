@@ -248,10 +248,10 @@ void complete_hydro_amr_boundary_cpu(const double dx, const bool energy_only,
 
     // std::vector<double, recycler::aggressive_recycle_aligned<double, 32>> unified_u(
     //     opts().n_fields * H_N3);
-    std::vector<double, recycler::aggressive_recycle_aligned<double, 32>> unified_ushad(
+    std::vector<double, recycler::numa_aware_aggressive_recycle_aligned<double, 32>> unified_ushad(
         opts().n_fields * HS_N3);
     // Create non-atomic copy
-    std::vector<int, recycler::aggressive_recycle_aligned<int, 32>> coarse(HS_N3);
+    std::vector<int, recycler::numa_aware_aggressive_recycle_aligned<int, 32>> coarse(HS_N3);
 
     for (int f = 0; f < opts().n_fields; f++) {
         if (!energy_only || f == egas_i) {

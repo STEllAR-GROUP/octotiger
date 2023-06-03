@@ -78,34 +78,46 @@ template <class T>
 using kokkos_um_device_array = Kokkos::View<T*, Kokkos::CudaSpace, Kokkos::MemoryUnmanaged>;
 template <class T>
 using kokkos_device_array = Kokkos::View<T*, Kokkos::CudaSpace>;
+/* template <class T> */
+/* using recycled_device_view = recycler::recycled_view<kokkos_um_device_array<T>, */
+/*     recycler::recycle_allocator_cuda_device<T>, T>; */
 template <class T>
 using recycled_device_view = recycler::recycled_view<kokkos_um_device_array<T>,
-    recycler::recycle_allocator_cuda_device<T>, T>;
+    recycler::hpx_aware_recycle_allocator_cuda_device<T>, T>;
 #elif defined(KOKKOS_ENABLE_HIP)
 template <class T>
 using kokkos_um_device_array = Kokkos::View<T*, Kokkos::Experimental::HIPSpace, Kokkos::MemoryUnmanaged>;
 template <class T>
 using kokkos_device_array = Kokkos::View<T*, Kokkos::Experimental::HIPSpace>;
+/* template <class T> */
+/* using recycled_device_view = recycler::recycled_view<kokkos_um_device_array<T>, */
+/*     recycler::recycle_allocator_hip_device<T>, T>; */
 template <class T>
 using recycled_device_view = recycler::recycled_view<kokkos_um_device_array<T>,
-    recycler::recycle_allocator_hip_device<T>, T>;
+    recycler::hpx_aware_recycle_allocator_hip_device<T>, T>;
 #elif defined(KOKKOS_ENABLE_SYCL)
 template <class T>
 using kokkos_um_device_array = Kokkos::View<T*, Kokkos::Experimental::SYCLDeviceUSMSpace, Kokkos::MemoryUnmanaged>;
 template <class T>
 using kokkos_device_array = Kokkos::View<T*, Kokkos::Experimental::SYCLDeviceUSMSpace>;
+/* template <class T> */
+/* using recycled_device_view = recycler::recycled_view<kokkos_um_device_array<T>, */
+/*     recycler::recycle_allocator_sycl_device<T>, T>; */
 template <class T>
 using recycled_device_view = recycler::recycled_view<kokkos_um_device_array<T>,
-    recycler::recycle_allocator_sycl_device<T>, T>;
+    recycler::hpx_aware_recycle_allocator_sycl_device<T>, T>;
 #else
 // Fallback without cuda
 template <class T>
 using kokkos_um_device_array = Kokkos::View<T*, Kokkos::HostSpace, Kokkos::MemoryUnmanaged>;
 template <class T>
 using kokkos_device_array = Kokkos::View<T*, Kokkos::HostSpace>;
+/* template <class T> */
+/* using recycled_device_view = recycler::recycled_view<kokkos_um_device_array<T>, */
+/*     recycler::recycle_std<T>, T>; */
 template <class T>
 using recycled_device_view = recycler::recycled_view<kokkos_um_device_array<T>,
-    recycler::recycle_std<T>, T>;
+    recycler::numa_aware_recycle_std<T>, T>;
 #endif
 
 
@@ -116,8 +128,10 @@ using kokkos_um_array = Kokkos::View<T*, typename kokkos_um_device_array<T>::arr
 template <class T>
 using kokkos_host_array =
     Kokkos::View<T*, typename kokkos_device_array<T>::array_layout, Kokkos::HostSpace>;
+/* template <class T> */
+/* using recycled_host_view = recycler::recycled_view<kokkos_um_array<T>, recycler::recycle_std<T>, T>; */
 template <class T>
-using recycled_host_view = recycler::recycled_view<kokkos_um_array<T>, recycler::recycle_std<T>, T>;
+using recycled_host_view = recycler::recycled_view<kokkos_um_array<T>, recycler::numa_aware_recycle_std<T>, T>;
 
 // NOTE: Must use the same layout to be able to use e.g. cudaMemcpyAsync
 #if defined(KOKKOS_ENABLE_CUDA)
@@ -128,9 +142,12 @@ using kokkos_device_allocator = recycler::detail::cuda_device_allocator<T>;
 template <class T>
 using kokkos_um_pinned_array = Kokkos::View<T*, typename kokkos_um_device_array<T>::array_layout,
     Kokkos::CudaHostPinnedSpace, Kokkos::MemoryUnmanaged>;
+/* template <class T> */
+/* using recycled_pinned_view = */
+/*     recycler::recycled_view<kokkos_um_pinned_array<T>, recycler::recycle_allocator_cuda_host<T>, T>; */
 template <class T>
 using recycled_pinned_view =
-    recycler::recycled_view<kokkos_um_pinned_array<T>, recycler::recycle_allocator_cuda_host<T>, T>;
+    recycler::recycled_view<kokkos_um_pinned_array<T>, recycler::numa_aware_recycle_allocator_cuda_host<T>, T>;
 #elif defined(KOKKOS_ENABLE_HIP)
 template <typename T>
 using kokkos_host_allocator = recycler::detail::hip_pinned_allocator<T>;
@@ -139,9 +156,12 @@ using kokkos_device_allocator = recycler::detail::hip_device_allocator<T>;
 template <class T>
 using kokkos_um_pinned_array = Kokkos::View<T*, typename kokkos_um_device_array<T>::array_layout,
     Kokkos::Experimental::HIPHostPinnedSpace, Kokkos::MemoryUnmanaged>;
+/* template <class T> */
+/* using recycled_pinned_view = */
+/*     recycler::recycled_view<kokkos_um_pinned_array<T>, recycler::recycle_allocator_hip_host<T>, T>; */
 template <class T>
 using recycled_pinned_view =
-    recycler::recycled_view<kokkos_um_pinned_array<T>, recycler::recycle_allocator_hip_host<T>, T>;
+    recycler::recycled_view<kokkos_um_pinned_array<T>, recycler::numa_aware_recycle_allocator_hip_host<T>, T>;
 #elif defined(KOKKOS_ENABLE_SYCL)
 template <typename T>
 using kokkos_host_allocator = recycler::detail::sycl_host_default_allocator<T>;
@@ -150,9 +170,12 @@ using kokkos_device_allocator = recycler::detail::sycl_device_default_allocator<
 template <class T>
 using kokkos_um_pinned_array = Kokkos::View<T*, typename kokkos_um_device_array<T>::array_layout,
     Kokkos::Experimental::SYCLHostUSMSpace, Kokkos::MemoryUnmanaged>;
+/* template <class T> */
+/* using recycled_pinned_view = */
+/*     recycler::recycled_view<kokkos_um_pinned_array<T>, recycler::recycle_allocator_sycl_host<T>, T>; */
 template <class T>
 using recycled_pinned_view =
-    recycler::recycled_view<kokkos_um_pinned_array<T>, recycler::recycle_allocator_sycl_host<T>, T>;
+    recycler::recycled_view<kokkos_um_pinned_array<T>, recycler::numa_aware_recycle_allocator_sycl_host<T>, T>;
 #else
 template <typename T>
 using kokkos_host_allocator = std::allocator<T>;
@@ -163,7 +186,7 @@ using kokkos_um_pinned_array = Kokkos::View<T*, typename kokkos_um_device_array<
     Kokkos::HostSpace, Kokkos::MemoryUnmanaged>;
 template <class T>
 using recycled_pinned_view =
-    recycler::recycled_view<kokkos_um_pinned_array<T>, recycler::recycle_std<T>, T>;
+    recycler::recycled_view<kokkos_um_pinned_array<T>, recycler::numa_aware_aggressive_recycle_std<T>, T>;
 #endif
 
 template <typename Executor, typename ViewType>
