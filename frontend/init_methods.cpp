@@ -67,8 +67,8 @@
 #endif
 
 void cleanup_puddle_on_this_locality(void) {
-    // Cleaning up of cuda buffers before the runtime gets shutdown
-    recycler::force_cleanup();
+    // Cleaning up 
+    recycler::cleanup();
     // Shutdown stream manager
     if (opts().cuda_streams_per_gpu > 0) {
 #if defined(OCTOTIGER_HAVE_CUDA) 
