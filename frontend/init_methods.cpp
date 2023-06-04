@@ -67,8 +67,6 @@
 #endif
 
 void cleanup_puddle_on_this_locality(void) {
-    // Cleaning up 
-    recycler::cleanup();
     // Shutdown stream manager
     if (opts().cuda_streams_per_gpu > 0) {
 #if defined(OCTOTIGER_HAVE_CUDA) 
@@ -96,6 +94,9 @@ void cleanup_puddle_on_this_locality(void) {
 #ifdef OCTOTIGER_HAVE_KOKKOS
     stream_pool::cleanup<hpx::kokkos::hpx_executor, round_robin_pool<hpx::kokkos::hpx_executor>>();
     stream_pool::cleanup<hpx::kokkos::serial_executor, round_robin_pool<hpx::kokkos::serial_executor>>();
+    // Finalize cppuddle - makes sure that even static buffers using the cppuddle allocators are cleaned
+    // before HPX is finalized (which would cause trouble with the used hpx mutexes within...
+    recycler::finalize();
     Kokkos::finalize();
 #endif
     
