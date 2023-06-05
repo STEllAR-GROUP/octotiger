@@ -242,7 +242,7 @@ void flux_hip_kernel_ggl_wrapper(dim3 const grid_spec, dim3 const threads_per_bl
     double* device_q, double* device_x, double* device_f, double* device_amax,
     int* device_amax_indices, int* device_amax_d, const bool* masks, const double omega,
     const double *dx, const double A_, const double B_, const size_t nf_, const double fgamma,
-    const double de_switch_1, const int number_blocks, cudaStream_t &stream) {
+    const double de_switch_1, const int number_blocks, cudaStream_t const &stream) {
     hipLaunchKernelGGL(flux_cuda_kernel, grid_spec, threads_per_block, 0,
         stream, device_q, device_x, device_f, device_amax, device_amax_indices,
         device_amax_d, masks, omega, dx, A_, B_, nf_, fgamma, de_switch_1,

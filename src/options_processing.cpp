@@ -198,7 +198,7 @@ bool options::process_options(int argc, char *argv[]) {
 		if (cfg_fs) {
 			po::store(po::parse_config_file(cfg_fs, command_opts), vm);
 		} else {
-			print("Configuration file %s not found!\n", config_file.c_str());
+			printf("Configuration file %s not found!\n", config_file.c_str());
 			return false;
 		}
 	}
@@ -217,7 +217,7 @@ bool options::process_options(int argc, char *argv[]) {
 	if (!opts().restart_filename.empty()) {
 		FILE *fp = fopen(opts().restart_filename.c_str(), "rb");
 		if (fp == NULL) {
-			print("restart.silo does not exist or invalid permissions\n");
+			printf("restart.silo does not exist or invalid permissions\n");
 			sleep(10);
 			abort();
 		} else {
@@ -233,6 +233,16 @@ bool options::process_options(int argc, char *argv[]) {
 		std::cerr << "Either increase theta or recompile with a new theta minimum using the cmake parameter OCTOTIGER_THETA_MINIMUM";
 		abort();
 	}
+  opts().detected_intel_compiler=true;
+
+#ifdef __VERSION__
+  std::string compiler_version = std::string(__VERSION__);
+  std::cout << "Using compiler " << compiler_version << std::endl;
+  if (compiler_version.find("intel") != std::string::npos) {
+    std::cout << "Detected Intel compiler..." << '\n';
+    opts().detected_intel_compiler=true;
+  }
+#endif
 	{
 #define SHOW( opt ) std::cout << std::string( #opt ) << " = " << to_string(opt) << '\n';
 		std::cout << "atomic_number=";
@@ -257,7 +267,7 @@ bool options::process_options(int argc, char *argv[]) {
 		std::cout << '\n';
 		const auto num_loc = hpx::find_all_localities().size();
 		if (silo_num_groups > num_loc) {
-			print("Number of SILO file groups cannot be greater than number of localities. Setting silo_num_groupds to %li\n", num_loc);
+			printf("Number of SILO file groups cannot be greater than number of localities. Setting silo_num_groupds to %li\n", num_loc);
 			silo_num_groups = num_loc;
 		}
 		SHOW(accretor_refine);
@@ -345,7 +355,7 @@ bool options::process_options(int argc, char *argv[]) {
 	normalize_constants();
 	if (opts().problem == DWD) {
 		if (opts().restart_filename == "" && opts().disable_diagnostics) {
-			print("Diagnostics must be enabled for DWD\n");
+			printf("Diagnostics must be enabled for DWD\n");
 			sleep(10);
 			abort();
 		}
@@ -431,15 +441,13 @@ bool options::process_options(int argc, char *argv[]) {
 #endif
 
 #ifndef OCTOTIGER_HAVE_CUDA
-        if (opts().monopole_device_kernel_type == interaction_device_kernel_type::CUDA ||
-            opts().monopole_device_kernel_type == interaction_device_kernel_type::KOKKOS_CUDA) {
+        if (opts().monopole_device_kernel_type == interaction_device_kernel_type::CUDA) {
             std::cerr << std::endl << "ERROR: "; 
             std::cerr << "Octotiger has been compiled without CUDA support!" 
             << " Choose a different --monopole_device_kernel_type!" << std::endl;
             abort();
         }
-        if (opts().multipole_device_kernel_type == interaction_device_kernel_type::CUDA ||
-            opts().monopole_device_kernel_type == interaction_device_kernel_type::KOKKOS_CUDA) {
+        if (opts().multipole_device_kernel_type == interaction_device_kernel_type::CUDA) {
             std::cerr << std::endl << "ERROR: "; 
             std::cerr << "Octotiger has been compiled without CUDA support! " <<
             " Choose a different --multipole_device_kernel_type!" << std::endl;

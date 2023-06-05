@@ -4,7 +4,7 @@
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 //
 
-#undef NDEBUG
+//#undef NDEBUG
 #include "octotiger/unitiger/hydro_impl/hydro_kernel_interface.hpp"
 #include "octotiger/unitiger/hydro_impl/flux_kernel_interface.hpp"
 #ifdef OCTOTIGER_HAVE_KOKKOS
@@ -23,6 +23,10 @@ using executor_interface_t = stream_interface<device_executor, device_pool_strat
 using device_executor = hpx::kokkos::hip_executor;
 using device_pool_strategy = round_robin_pool<device_executor>;
 using executor_interface_t = stream_interface<device_executor, device_pool_strategy>;
+#elif defined(KOKKOS_ENABLE_SYCL)
+using device_executor = hpx::kokkos::sycl_executor;
+using device_pool_strategy = round_robin_pool<device_executor>;
+using executor_interface_t = stream_interface<device_executor, device_pool_strategy>;
 #endif
 #ifdef OCTOTIGER_HYDRO_HOST_HPX_EXECUTOR
 using host_executor = hpx::kokkos::hpx_executor;
@@ -32,12 +36,17 @@ using host_executor = hpx::kokkos::serial_executor;
 void init_hydro_kokkos_aggregation_pool(void) {
     const size_t max_slices = opts().max_executor_slices;
     constexpr size_t number_aggregation_executors = 128;
-    constexpr Aggregated_Executor_Modes executor_mode = Aggregated_Executor_Modes::EAGER;
+    Aggregated_Executor_Modes executor_mode = Aggregated_Executor_Modes::EAGER;
+    if (max_slices == 1) {
+      executor_mode = Aggregated_Executor_Modes::STRICT;
+    }
     if (opts().cuda_streams_per_gpu > 0) {
 #if defined(KOKKOS_ENABLE_CUDA)
     hydro_kokkos_agg_executor_pool<hpx::kokkos::cuda_executor>::init(number_aggregation_executors, max_slices, executor_mode);
 #elif defined(KOKKOS_ENABLE_HIP)
     hydro_kokkos_agg_executor_pool<hpx::kokkos::hip_executor>::init(number_aggregation_executors, max_slices, executor_mode);
+#elif defined(KOKKOS_ENABLE_SYCL)
+    hydro_kokkos_agg_executor_pool<hpx::kokkos::sycl_executor>::init(number_aggregation_executors, max_slices, executor_mode);
 #endif
     }
     hydro_kokkos_agg_executor_pool<host_executor>::init(number_aggregation_executors, max_slices, executor_mode);
@@ -62,8 +71,9 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
     // Try accelerator implementation
     if (device_type != interaction_device_kernel_type::OFF) {
         if (device_type == interaction_device_kernel_type::KOKKOS_CUDA ||
-            device_type == interaction_device_kernel_type::KOKKOS_HIP) {
-#if defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_CUDA) || defined(KOKKOS_ENABLE_HIP))
+            device_type == interaction_device_kernel_type::KOKKOS_HIP ||
+            device_type == interaction_device_kernel_type::KOKKOS_SYCL) {
+#if defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_CUDA) || defined(KOKKOS_ENABLE_HIP)|| defined(KOKKOS_ENABLE_SYCL))
             // Init local kernel pool if not done already
             hpx::call_once(init_hydro_kokkos_pool_flag, init_hydro_kokkos_aggregation_pool);
             bool avail = true; 

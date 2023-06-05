@@ -42,7 +42,7 @@ inline real ipr_pressure(real t, real rho, real mu) {
 inline real ztwd_enthalpy(real d, real A = physcon().A, real B = physcon().B) {
 #ifndef NDEBUG
 	if (d < 0.0) {
-		print("d = %e in ztwd_enthalpy\n", d);
+		printf("d = %e in ztwd_enthalpy\n", d);
 		abort();
 	}
 #endif
