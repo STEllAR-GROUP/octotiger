@@ -198,7 +198,7 @@ bool options::process_options(int argc, char *argv[]) {
 		if (cfg_fs) {
 			po::store(po::parse_config_file(cfg_fs, command_opts), vm);
 		} else {
-			print("Configuration file %s not found!\n", config_file.c_str());
+			printf("Configuration file %s not found!\n", config_file.c_str());
 			return false;
 		}
 	}
@@ -217,7 +217,7 @@ bool options::process_options(int argc, char *argv[]) {
 	if (!opts().restart_filename.empty()) {
 		FILE *fp = fopen(opts().restart_filename.c_str(), "rb");
 		if (fp == NULL) {
-			print("restart.silo does not exist or invalid permissions\n");
+			printf("restart.silo does not exist or invalid permissions\n");
 			sleep(10);
 			abort();
 		} else {
@@ -267,7 +267,7 @@ bool options::process_options(int argc, char *argv[]) {
 		std::cout << '\n';
 		const auto num_loc = hpx::find_all_localities().size();
 		if (silo_num_groups > num_loc) {
-			print("Number of SILO file groups cannot be greater than number of localities. Setting silo_num_groupds to %li\n", num_loc);
+			printf("Number of SILO file groups cannot be greater than number of localities. Setting silo_num_groupds to %li\n", num_loc);
 			silo_num_groups = num_loc;
 		}
 		SHOW(accretor_refine);
@@ -355,7 +355,7 @@ bool options::process_options(int argc, char *argv[]) {
 	normalize_constants();
 	if (opts().problem == DWD) {
 		if (opts().restart_filename == "" && opts().disable_diagnostics) {
-			print("Diagnostics must be enabled for DWD\n");
+			printf("Diagnostics must be enabled for DWD\n");
 			sleep(10);
 			abort();
 		}

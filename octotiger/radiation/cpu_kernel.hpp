@@ -71,7 +71,7 @@ namespace octotiger { namespace radiation {
                 }
             }
             // Error is not smaller that error tolerance after performed iterations. Abort.
-            print("Implicit radiation solver failed to converge\n");
+            printf("Implicit radiation solver failed to converge\n");
             abort();
         }    // abort_if_solver_not_converged
 
@@ -110,7 +110,7 @@ namespace octotiger { namespace radiation {
                 u2_0 += u[d] * u[d];
                 F2_0 += F[d] * F[d];
             }
-            // print( "%e %e\n", (double) u2_0, (double) (F2_0/E/E));
+            // printf( "%e %e\n", (double) u2_0, (double) (F2_0/E/E));
             auto const test = [&](real de) {
                 E = E0 + de;
                 real u2 = 0.0;
@@ -237,7 +237,7 @@ namespace octotiger { namespace radiation {
                     tau[iiih] = std::pow(e, INVERSE(fgamma));
                     if (U[er_i][iiir] <= 0.0)
                     {
-                        print("2231242!!! %e %e %e \n", E0, U[er_i][iiir],
+                        printf("2231242!!! %e %e %e \n", E0, U[er_i][iiir],
                             dE_dt * dt);
                         abort();
                     }

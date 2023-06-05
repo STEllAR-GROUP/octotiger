@@ -5,8 +5,6 @@
 
 /* MODIFIED FROM THIS ORIGINAL SOURCE : http://stackoverflow.com/questions/77005/how-to-generate-a-stacktrace-when-my-gcc-c-app-crashes */
 
-#include "octotiger/print.hpp"
-
 #if !defined(_MSC_VER)
 #include <execinfo.h>
 #include <signal.h>
@@ -26,7 +24,7 @@ void handler(int sig) {
 		goto UNABLE;
 	}
 	goto ABLE;
-	UNABLE: print("UNABLE TO PRINT STACK FROM GDB!\n");
+	UNABLE: printf("UNABLE TO PRINT STACK FROM GDB!\n");
 	ABLE:
 	exit(0);
 }
