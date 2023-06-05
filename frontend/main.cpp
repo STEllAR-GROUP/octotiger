@@ -155,6 +155,10 @@ int hpx_main(int argc, char* argv[]) {
 }
 
 int main(int argc, char* argv[]) {
+#ifdef OCTOTIGER_HAVE_UNBUFFERED_STDOUT
+    std::setbuf(stdout, nullptr);
+    std::cout << "Set to unbuffered stdout on current process... " << std::endl;
+#endif
     hpx::init_params p;
     p.cfg = {
         "hpx.commandline.allow_unknown=1",    // HPX should not complain about unknown command line

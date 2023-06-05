@@ -8,7 +8,6 @@
 
 
 
-#include "octotiger/print.hpp"
 #include "octotiger/defs.hpp"
 #include "octotiger/real.hpp"
 
@@ -36,7 +35,7 @@ real LambertW(real z) {
 			W -= WeWmz / (eW + WeW - 0.5 * ((W + 2.0) * WeWmz) / (W + 1.0));
 		}
 	} else {
-		print("LambertW not uniquely defined for z <= 0.0\n");
+		printf("LambertW not uniquely defined for z <= 0.0\n");
 		abort();
 	}
 	return W;

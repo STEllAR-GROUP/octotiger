@@ -9,8 +9,6 @@
 
 #include "octotiger/test_problems/exact_sod.hpp"
 
-#include "octotiger/print.hpp"
-
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -103,7 +101,7 @@ static double rtbis(double x1, double x2, double xacc) {
 	fmid = func(x2);
 	f = func(x1);
 	if (f * fmid >= 0.) {
-		print("root must be bracketed in rtbis\n ");
+		printf("root must be bracketed in rtbis\n ");
 		abort();
 	}
 	if (f < 0.) {
@@ -127,7 +125,7 @@ static double rtbis(double x1, double x2, double xacc) {
 		}
 	}
 	if (done == 0) {
-		print("too many bisections in rtbis\n");
+		printf("too many bisections in rtbis\n");
 		abort();
 	}
 	return rc;

@@ -265,7 +265,7 @@
 // 	}
 // 	inline v4sd(const std::initializer_list<double>& other) {
 // 		if( other.size() != 4 ) {
-// 			print( "Error file %s line %i\n", __FILE__, __LINE__);
+// 			printf( "Error file %s line %i\n", __FILE__, __LINE__);
 // 			abort();
 // 		}
 // //		std::array<double, 4> n;
