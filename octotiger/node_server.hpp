@@ -126,7 +126,7 @@ public:
 		return *grid_ptr;
 	}
 	real get_rotation_count() const;
-	node_server& operator=(node_server&&) = default;
+	node_server& operator=(node_server&&) = delete;
 	static std::uint64_t cumulative_nodes_count(bool);
 	static std::uint64_t cumulative_leafs_count(bool);
 	static std::uint64_t cumulative_amrs_count(bool);
