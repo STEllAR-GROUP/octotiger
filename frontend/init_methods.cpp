@@ -67,8 +67,6 @@
 #endif
 
 void cleanup_puddle_on_this_locality(void) {
-    // Cleaning up of cuda buffers before the runtime gets shutdown
-    recycler::force_cleanup();
     // Shutdown stream manager
     if (opts().cuda_streams_per_gpu > 0) {
 #if defined(OCTOTIGER_HAVE_CUDA) 
@@ -92,6 +90,13 @@ void cleanup_puddle_on_this_locality(void) {
 #endif
 #if defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_SYCL)
     hpx::sycl::experimental::detail::unregister_polling(hpx::resource::get_thread_pool(0));
+#endif
+#ifdef CPPUDDLE_HAVE_HPX // define added in 0.20 cppuddle version
+    // Use new finalize functionality. This works with a wider range of builds
+    recycler::finalize();
+#else
+    // Use old cleanup method for cppuddle versions < 0.2.0 and certain builds
+    recycler::force_cleanup();
 #endif
 #ifdef OCTOTIGER_HAVE_KOKKOS
     stream_pool::cleanup<hpx::kokkos::hpx_executor, round_robin_pool<hpx::kokkos::hpx_executor>>();
