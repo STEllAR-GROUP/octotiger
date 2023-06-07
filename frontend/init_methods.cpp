@@ -91,11 +91,11 @@ void cleanup_puddle_on_this_locality(void) {
 #if defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_SYCL)
     hpx::sycl::experimental::detail::unregister_polling(hpx::resource::get_thread_pool(0));
 #endif
-#ifdef CPPUDDLE_HAVE_HPX // define added in 0.20 cppuddle version
-    // Use new finalize functionality. This works with a wider range of builds
+#ifdef CPPUDDLE_HAVE_HPX // define added in 0.2.0 cppuddle version
+    // Use new finalize functionality. This works with a wider range of cppuddle configurations
     recycler::finalize();
 #else
-    // Use old cleanup method for cppuddle versions < 0.2.0 and certain builds
+    // Use old cleanup method for cppuddle versions < 0.2.0 
     recycler::force_cleanup();
 #endif
 #ifdef OCTOTIGER_HAVE_KOKKOS
