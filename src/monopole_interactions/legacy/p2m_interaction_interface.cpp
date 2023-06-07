@@ -233,7 +233,7 @@ namespace fmm {
 #ifdef HPX_HAVE_APEX
                         auto p2m_timer = apex::start(kernel_name);
 #endif
-                        kernel.apply_stencil_neighbor<INX * INX * STENCIL_MAX>(neighbor_size,
+                        kernel.apply_stencil_neighbor<INX, INX, STENCIL_MAX>(neighbor_size,
                             start_index, end_index, local_expansions_staging_area,
                             center_of_masses_staging_area,
                             center_of_masses_inner_cells_staging_area, potential_expansions_SoA,
@@ -262,7 +262,7 @@ namespace fmm {
 #ifdef HPX_HAVE_APEX
                         auto p2m_timer = apex::start(kernel_name);
 #endif
-                        kernel.apply_stencil_neighbor<INX * STENCIL_MAX * STENCIL_MAX>(
+                        kernel.apply_stencil_neighbor<INX, STENCIL_MAX, STENCIL_MAX>(
                             neighbor_size, start_index, end_index, local_expansions_staging_area,
                             center_of_masses_staging_area,
                             center_of_masses_inner_cells_staging_area, potential_expansions_SoA,
@@ -291,7 +291,7 @@ namespace fmm {
 #ifdef HPX_HAVE_APEX
                         auto p2m_timer = apex::start(kernel_name);
 #endif
-                        kernel.apply_stencil_neighbor<STENCIL_MAX * STENCIL_MAX * STENCIL_MAX>(
+                        kernel.apply_stencil_neighbor<STENCIL_MAX, STENCIL_MAX, STENCIL_MAX>(
                             neighbor_size, start_index, end_index, local_expansions_staging_area,
                             center_of_masses_staging_area,
                             center_of_masses_inner_cells_staging_area, potential_expansions_SoA,

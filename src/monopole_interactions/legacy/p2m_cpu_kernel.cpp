@@ -674,13 +674,13 @@ namespace fmm {
                 potential_expansions_SoA.template pointer<3>(cell_flat_index_unpadded));
         }
 
-        template <size_t buffer_size>
+        template <size_t x, size_t y, size_t z>
         void p2m_kernel::apply_stencil_neighbor(const multiindex<>& neighbor_size,
             const multiindex<>& neighbor_start_index, const multiindex<>& neighbor_end_index,
-            const struct_of_array_data<expansion, real, 20, buffer_size, SOA_PADDING,
+            const struct_of_array_data<expansion, real, 20, x * y * z, SOA_PADDING,
                 std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&
                 local_expansions_SoA,
-            const struct_of_array_data<space_vector, real, 3, buffer_size, SOA_PADDING,
+            const struct_of_array_data<space_vector, real, 3, x * y * z, SOA_PADDING,
                 std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&
                 center_of_masses_SoA,
             const struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
@@ -730,14 +730,14 @@ namespace fmm {
                         cell_index_coarse.transform_coarse();
 
                         if (type == RHO) {
-                            neighbor_interaction_rho<buffer_size>(neighbor_size,
+                            neighbor_interaction_rho<x * y * z>(neighbor_size,
                                 neighbor_start_index, neighbor_end_index, local_expansions_SoA,
                                 center_of_masses_SoA, center_of_masses_inner_cells_SoA,
                                 potential_expansions_SoA, angular_corrections_SoA, cell_index,
                                 cell_flat_index, cell_index_coarse, cell_index_unpadded,
                                 cell_flat_index_unpadded, stencil_masks, dir, theta);
                         } else {
-                            neighbor_interaction_non_rho<buffer_size>(neighbor_size,
+                            neighbor_interaction_non_rho<x * y * z>(neighbor_size,
                                 neighbor_start_index, neighbor_end_index, local_expansions_SoA,
                                 center_of_masses_SoA, center_of_masses_inner_cells_SoA,
                                 potential_expansions_SoA, cell_index, cell_flat_index,
@@ -749,7 +749,7 @@ namespace fmm {
             }
         }
         // Required template instances (as template declaration is in the header)
-        template void p2m_kernel::apply_stencil_neighbor<INX * INX * STENCIL_MAX>(
+        template void p2m_kernel::apply_stencil_neighbor<INX, INX, STENCIL_MAX>(
             const multiindex<>&, const multiindex<>&, const multiindex<>&,
             const struct_of_array_data<expansion, real, 20, INX * INX * STENCIL_MAX, SOA_PADDING,
                 std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&,
@@ -759,7 +759,7 @@ namespace fmm {
                 std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&,
             cpu_expansion_result_buffer_t&, cpu_angular_result_t&, const std::vector<bool>&,
             gsolve_type, const geo::direction&);
-        template void p2m_kernel::apply_stencil_neighbor<INX * STENCIL_MAX * STENCIL_MAX>(
+        template void p2m_kernel::apply_stencil_neighbor<INX, STENCIL_MAX, STENCIL_MAX>(
             const multiindex<>&, const multiindex<>&, const multiindex<>&,
             const struct_of_array_data<expansion, real, 20, INX * STENCIL_MAX * STENCIL_MAX, SOA_PADDING,
                 std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&,
@@ -769,7 +769,7 @@ namespace fmm {
                 std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&,
             cpu_expansion_result_buffer_t&, cpu_angular_result_t&, const std::vector<bool>&,
             gsolve_type, const geo::direction&);
-        template void p2m_kernel::apply_stencil_neighbor<STENCIL_MAX * STENCIL_MAX * STENCIL_MAX>(
+        template void p2m_kernel::apply_stencil_neighbor<STENCIL_MAX, STENCIL_MAX, STENCIL_MAX>(
             const multiindex<>&, const multiindex<>&, const multiindex<>&,
             const struct_of_array_data<expansion, real, 20, STENCIL_MAX * STENCIL_MAX * STENCIL_MAX, SOA_PADDING,
                 std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&,
