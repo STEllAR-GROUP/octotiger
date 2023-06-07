@@ -150,24 +150,30 @@ std::vector<real> radiation_diffusion_analytic(real x, real y, real z, real t) {
 	const double D0 = 1.0 / 3.0 * physcon().c / (1e2);
 	const double er = 1.0e-6 * std::max(pow(t + 1.0, -1.5) * exp(-r2 / (4.0 * D0 * (t + 1.0))), 1e-10);
 
+//	const real A = 4.0 * dt * kap_p * sigma * pow(mmw[iiih] * mh * (fgamma - 1.) / (kb * rho[iiih]), 4.0);
+//	const real B = (1.0 + clight * dt * kap_p);
+//	const real C = -(1.0 + clight * dt * kap_p) * e0 - U[er_i][iiir] * dt * clight * kap_p;
+
+
 	double T = pow(er / (4.0 * physcon().sigma / physcon().c), 0.25);
 	double Pgas = u[rho_i] * T * physcon().kb / (physcon().mh * mmw);
 	const real fgamma = grid::get_fgamma();
 	double ei = (1.0 / (fgamma - 1.0)) * Pgas;
+//printf( "1. %e\n", 4.0 * physcon().sigma * pow(physcon().mh * mmw * (fgamma - 1.) / (physcon().kb * u[rho_i]), 4.0) );
 	u[tau_i] = POWER(ei, 1.0 / grid::get_fgamma());
 	u[egas_i] = POWER(u[tau_i], fgamma);
 	const double derdr = -0.5 * (r) / (1 + t) * er / D0;
 	double fx, fy, fz;
-	double vx = 1e-2 * physcon().c;
+	double vx = 1e-3 * physcon().c;
 	if (r == 0.0) {
 		fx = fy = fz = 0.0;
 	} else {
-		fx = -derdr * x / r * D0 + vx * er;
+		fx = -derdr * x / r * D0;// + vx * er;
 		fy = -derdr * y / r * D0;
 		fz = -derdr * z / r * D0;
 	}
-	u[egas_i] += 0.5 * vx * vx * u[rho_i];
-	u[sx_i] = u[rho_i] * vx;
+	//u[egas_i] += 0.5 * vx * vx * u[rho_i];
+	//u[sx_i] = u[rho_i] * vx;
 	double nx = fx;
 	double ny = fy;
 	double nz = fz;

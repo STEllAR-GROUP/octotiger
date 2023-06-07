@@ -26,7 +26,7 @@
 
 using real = double;
 
-#define CHECK_FLUX( er, fx, fy, fz) if( ((fx)*(fx)+(fy)*(fy)+(fz)*(fz))/(er*er*physcon().c*physcon().c) > 1 ) {printf( "flux exceded %s %i %e\n", __FILE__, __LINE__, sqrt(((fx)*(fx)+(fy)*(fy)+(fz)*(fz))/(er*er*physcon().c*physcon().c))); abort();}
+#define CHECK_FLUX( er, fx, fy, fz) if( ((fx)*(fx)+(fy)*(fy)+(fz)*(fz))/(er*er*physcon().c*physcon().c) > 1 ) {printf( "flux exceded %s %i %e fx %e fy %e fz %e er %e\n", __FILE__, __LINE__, sqrt(((fx)*(fx)+(fy)*(fy)+(fz)*(fz))/(er*er*physcon().c*physcon().c)), fx, fy, fz, er*physcon().c); abort();}
 
 std::unordered_map<std::string, int> rad_grid::str_to_index;
 std::unordered_map<int, std::string> rad_grid::index_to_str;
@@ -188,6 +188,7 @@ void rad_grid::rad_imp(std::vector<real> &egas, std::vector<real> &tau, std::vec
 				const integer D = H_BW - RAD_BW;
 				const integer iiir = rindex(xi, yi, zi);
 				const integer iiih = hindex(xi + D, yi + D, zi + D);
+				CHECK_FLUX(U[er_i][iiir], U[fx_i][iiir], U[fy_i][iiir], U[fz_i][iiir]);
 				const real rhoinv = INVERSE(rho[iiih]);
 				real vx = sx[iiih] * rhoinv;
 				real vy = sy[iiih] * rhoinv;
@@ -202,62 +203,72 @@ void rad_grid::rad_imp(std::vector<real> &egas, std::vector<real> &tau, std::vec
 				if (e0 < egas[iiih] * 0.001) {
 					e0 = std::pow(tau[iiih], fgamma);
 				}
-				const real kap_p = kappa_p(rho[iiih], e0, mmw[iiih], X_spc[iiih], Z_spc[iiih]);
-				const real kap_r = kappa_R(rho[iiih], e0, mmw[iiih], X_spc[iiih], Z_spc[iiih]);
+				real kap_p = kappa_p(rho[iiih], e0, mmw[iiih], X_spc[iiih], Z_spc[iiih]);
+				real kap_r = kappa_R(rho[iiih], e0, mmw[iiih], X_spc[iiih], Z_spc[iiih]);
+
+				auto dFx = kap_r * (4.0 / 3.0) * (sx[iiih] / rho[iiih]) * U[er_i][iiir];
+				auto dFy = kap_r * (4.0 / 3.0) * (sy[iiih] / rho[iiih]) * U[er_i][iiir];
+				auto dFz = kap_r * (4.0 / 3.0) * (sz[iiih] / rho[iiih]) * U[er_i][iiir];
+
+				auto dEx = kap_r * (sx[iiih] / rho[iiih] / clight) * U[fx_i][iiir];
+				auto dEy = kap_r * (sy[iiih] / rho[iiih] / clight) * U[fy_i][iiir];
+				auto dEz = kap_r * (sz[iiih] / rho[iiih] / clight) * U[fz_i][iiir];
+
+				U[fx_i][iiir] += dFx * dt;
+				U[fy_i][iiir] += dFy * dt;
+				U[fz_i][iiir] += dFz * dt;
+				sx[iiih] -= dFx * dt;
+				sy[iiih] -= dFy * dt;
+				sz[iiih] -= dFz * dt;
+				egas[iiih] -= dEx * dt;
+				egas[iiih] -= dEy * dt;
+				egas[iiih] -= dEz * dt;
+				U[er_i][iiir] += dEx * dt;
+				U[er_i][iiir] += dEy * dt;
+				U[er_i][iiir] += dEz * dt;
+
+				kap_p = kappa_p(rho[iiih], e0, mmw[iiih], X_spc[iiih], Z_spc[iiih]);
+				kap_r = kappa_R(rho[iiih], e0, mmw[iiih], X_spc[iiih], Z_spc[iiih]);
+				vx = sx[iiih] * rhoinv;
+				vy = sy[iiih] * rhoinv;
+				vz = sz[iiih] * rhoinv;
+				e0 = egas[iiih];
+				e0 -= 0.5 * vx * vx * rho[iiih];
+				e0 -= 0.5 * vy * vy * rho[iiih];
+				e0 -= 0.5 * vz * vz * rho[iiih];
+				if (opts().eos == WD) {
+					e0 -= ztwd_energy(rho[iiih]);
+				}
+				if (e0 < egas[iiih] * 0.001) {
+					e0 = std::pow(tau[iiih], fgamma);
+				}
+		//		printf( "%e\n", mmw[iiih]); cm * g / s^2  (g /  (1/ s^2 / cm, 4)
 				const real A = 4.0 * dt * kap_p * sigma * pow(mmw[iiih] * mh * (fgamma - 1.) / (kb * rho[iiih]), 4.0);
 				const real B = (1.0 + clight * dt * kap_p);
 				const real C = -(1.0 + clight * dt * kap_p) * e0 - U[er_i][iiir] * dt * clight * kap_p;
+		//		printf( "2. %e %e %e\n", A, B, C );
 				real newE = find4root(A, B, C);
-				//	printf( "%e %e %e\n", A, B, C);
 				real dE = e0 - newE;
-				dE += kap_r * (sx[iiih] / rho[iiih] / clight) * U[fx_i][iiir] * dt;
-				dE += kap_r * (sy[iiih] / rho[iiih] / clight) * U[fy_i][iiir] * dt;
-				dE += kap_r * (sz[iiih] / rho[iiih] / clight) * U[fz_i][iiir] * dt;
-				real de = newE - e0;
-				e0 += de;
-				egas[iiih] += de;
-				CHECK_FLUX(U[er_i][iiir], U[fx_i][iiir], U[fy_i][iiir], U[fz_i][iiir]);
-			//	U[er_i][iiir] += dE;
-				double fx0 = U[fx_i][iiir];
-				double fy0 = U[fy_i][iiir];
-				double fz0 = U[fz_i][iiir];
-				tau[iiih] = pow(e0, 1.0 / fgamma);
-				auto dfx = kap_r * (4.0 / 3.0) * (sx[iiih] / rho[iiih] / clight) * U[er_i][iiir];
-				auto dfy = kap_r * (4.0 / 3.0) * (sy[iiih] / rho[iiih] / clight) * U[er_i][iiir];
-				auto dfz = kap_r * (4.0 / 3.0) * (sz[iiih] / rho[iiih] / clight) * U[er_i][iiir];
-				if (opts().hydro == false) {
-					sx[iiih] = 0.0;
-					sy[iiih] = 0.0;
-					sz[iiih] = 0.0;
-				} else {
-					U[fx_i][iiir] += dfx * dt;
-					U[fy_i][iiir] += dfy * dt;
-					U[fz_i][iiir] += dfz * dt;
-				}
-				if (opts().hydro == false) {
-					sx[iiih] = 0.0;
-					sy[iiih] = 0.0;
-					sz[iiih] = 0.0;
-				} else {
-					sx[iiih] -= dfx * dt;
-					sy[iiih] -= dfy * dt;
-					sz[iiih] -= dfz * dt;
-				}
-				dfx = U[fx_i][iiir];
-				dfy = U[fy_i][iiir];
-				dfz = U[fz_i][iiir];
-				U[fx_i][iiir] = U[fx_i][iiir] / (1.0 + clight * dt * kap_r);
-				U[fy_i][iiir] = U[fy_i][iiir] / (1.0 + clight * dt * kap_r);
-				U[fz_i][iiir] = U[fz_i][iiir] / (1.0 + clight * dt * kap_r);
-				sx[iiih] += dfx - U[fx_i][iiir];
-				sy[iiih] += dfy - U[fy_i][iiir];
-				sz[iiih] += dfz - U[fz_i][iiir];
-				if (((U[fx_i][iiir]) * (U[fx_i][iiir]) + (U[fy_i][iiir]) * (U[fy_i][iiir])
-						+ (U[fz_i][iiir]) * (U[fz_i][iiir])) / (U[er_i][iiir] * U[er_i][iiir] * physcon().c * physcon().c)
-						> 1) {
-					printf("%e %e %e %e %i %i %i\n", U[fx_i][iiir], U[fy_i][iiir], U[fz_i][iiir],
-							U[er_i][iiir] * (physcon().c), xi, yi, zi);
-				}
+				egas[iiih] -= dE;
+				U[er_i][iiir] += dE;
+				tau[iiih] = pow(e0 - dE, 1.0 / fgamma);
+
+				auto fx0 = U[fx_i][iiir];
+				auto fy0 = U[fy_i][iiir];
+				auto fz0 = U[fz_i][iiir];
+				U[fx_i][iiir] = fx0 / (1.0 + clight * dt * kap_r);
+				U[fy_i][iiir] = fy0 / (1.0 + clight * dt * kap_r);
+				U[fz_i][iiir] = fz0 / (1.0 + clight * dt * kap_r);
+				U[sx_i][iiir] += fx0 - U[fx_i][iiir];
+				U[sy_i][iiir] += fy0 - U[fy_i][iiir];
+				U[sz_i][iiir] += fz0 - U[fz_i][iiir];
+
+				/*	if (((U[fx_i][iiir]) * (U[fx_i][iiir]) + (U[fy_i][iiir]) * (U[fy_i][iiir])
+				 + (U[fz_i][iiir]) * (U[fz_i][iiir])) / (U[er_i][iiir] * U[er_i][iiir] * physcon().c * physcon().c)
+				 > 1) {
+				 printf("%e %e %e %e %i %i %i\n", U[fx_i][iiir], U[fy_i][iiir], U[fz_i][iiir],
+				 U[er_i][iiir] * (physcon().c), xi, yi, zi);
+				 }*/
 				CHECK_FLUX(U[er_i][iiir], U[fx_i][iiir], U[fy_i][iiir], U[fz_i][iiir]);
 			}
 		}
@@ -357,7 +368,7 @@ void node_server::compute_radiation(real dt, real omega) {
 	rad_grid_ptr->compute_mmw(grid_ptr->U);
 	const real min_dx = TWO * grid::get_scaling_factor() / real(INX << opts().max_level);
 	const real clight = physcon().c / opts().clight_retard;
-	const real max_dt = min_dx / clight / 4;
+	const real max_dt = min_dx / clight / 10;
 	const real ns = std::ceil(dt * INVERSE(max_dt));
 	if (ns > std::numeric_limits<int>::max()) {
 		printf("Number of substeps greater than %i. dt = %e max_dt = %e\n", std::numeric_limits<int>::max(), dt, max_dt);
