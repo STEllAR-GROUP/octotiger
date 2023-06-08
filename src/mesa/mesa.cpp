@@ -228,7 +228,9 @@ public:
 //				printf("after read: %s, %s, %s\n\n\n", log10_rho, log10_P, log10_R);
 				P_.push_back(std::pow(10, std::atof(log10_P)) * std::pow(opts().code_to_s, 2) * opts().code_to_cm / opts().code_to_g);
 				double tmp = std::pow(10, std::atof(log10_R)) * 6.957e+10 / opts().code_to_cm;
-				printf("rho(%e) = %e\n", tmp, std::pow(10, std::atof(log10_rho)));
+				if (hpx::get_locality_id() == 0) {
+					printf("rho(%e) = %e\n", tmp, std::pow(10, std::atof(log10_rho)));
+				}
 				r_.push_back(tmp);
 				rho_.push_back(std::pow(10, std::atof(log10_rho)) * std::pow(opts().code_to_cm, 3) / opts().code_to_g);
 				omega_.push_back(std::atof(vrot_kms) * 100 * 1000 * opts().code_to_s / opts().code_to_cm / tmp);

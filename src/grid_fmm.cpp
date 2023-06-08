@@ -1296,8 +1296,8 @@ void compute_ilist() {
 								if (interior(i1, j1, k1) && interior(i0, j0, k0)) {
 									if (iii1 > iii0) {
 										ilist_n0.push_back(np);
-										printf("i0 = (%i, %i, %i), i1 = (%i, %i, %i), n len = %i\n",
-											i0, j0, k0, i1, j1, k1, ilist_n0.size());
+										//printf("i0 = (%i, %i, %i), i1 = (%i, %i, %i), n len = %i\n",
+										//	i0, j0, k0, i1, j1, k1, ilist_n0.size());
 									}
 								} else if (interior(i0, j0, k0)) {
 									ilist_n0_bnd[neighbor_dir(i1, j1, k1)].push_back(np);
@@ -1314,8 +1314,8 @@ void compute_ilist() {
 								if (interior(i1, j1, k1) && interior(i0, j0, k0)) {
 									if (iii1 > iii0) {
 										ilist_d0.push_back(dp);
-                                                                                printf("i0 = (%i, %i, %i), i1 = (%i, %i, %i), d len = %i\n",
-                                                                                        i0, j0, k0, i1, j1, k1, ilist_d0.size());
+                                                                                //printf("i0 = (%i, %i, %i), i1 = (%i, %i, %i), d len = %i\n",
+                                                                                //        i0, j0, k0, i1, j1, k1, ilist_d0.size());
 									}
 								} else if (interior(i0, j0, k0)) {
 									ilist_d0_bnd[neighbor_dir(i1, j1, k1)].push_back(dp);
@@ -1331,8 +1331,8 @@ void compute_ilist() {
 								if (interior(i1, j1, k1) && interior(i0, j0, k0)) {
 									if (iii1 > iii0) {
 										ilist_r0.push_back(np);
-                                                                                printf("i0 = (%i, %i, %i), i1 = (%i, %i, %i), r len = %i\n",
-                                                                                        i0, j0, k0, i1, j1, k1, ilist_r0.size());
+                                                                                //printf("i0 = (%i, %i, %i), i1 = (%i, %i, %i), r len = %i\n",
+                                                                                //        i0, j0, k0, i1, j1, k1, ilist_r0.size());
 									}
 								}
 							}
