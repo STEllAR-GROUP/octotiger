@@ -76,20 +76,29 @@ void init_hydro_aggregation_pool(void) {
     hydro_cuda_agg_executor_pool::init(number_aggregation_executors, max_slices, executor_mode);
 }
 
-__host__ void init_gpu_masks(bool* masks) {
+__host__ void init_gpu_masks(std::array<bool*, max_number_gpus>& masks) {
     boost::container::vector<bool> masks_boost(NDIM * q_inx * q_inx * q_inx);
     fill_masks(masks_boost);
-    cudaMemcpy(masks, masks_boost.data(), NDIM * q_inx3 * sizeof(bool), cudaMemcpyHostToDevice);
+    for (size_t gpu_id = 0; gpu_id < max_number_gpus; gpu_id++) {
+      const size_t location_id = gpu_id * instances_per_gpu;
+#if defined(OCTOTIGER_HAVE_CUDA)
+      masks[gpu_id] = recycler::detail::buffer_recycler::get<bool,
+          typename recycler::recycle_allocator_cuda_device<bool>::underlying_allocator_type>(
+          NDIM * q_inx3, false, location_id);
+#elif defined(OCTOTIGER_HAVE_HIP)
+      masks[gpu_id] = recycler::detail::buffer_recycler::get<bool,
+          typename recycler::recycle_allocator_hip_device<bool>::underlying_allocator_type>(
+          NDIM * q_inx3, false, location_id);
+#endif
+      cudaMemcpy(masks[gpu_id], masks_boost.data(), NDIM * q_inx3 * sizeof(bool), cudaMemcpyHostToDevice);
+    }
 }
 
-__host__ const bool* get_gpu_masks(void) {
-#if defined(OCTOTIGER_HAVE_CUDA)
-    static bool* masks = recycler::recycle_allocator_cuda_device<bool>{}.allocate(NDIM * q_inx3);
-#elif defined(OCTOTIGER_HAVE_HIP)
-    static bool* masks = recycler::recycle_allocator_hip_device<bool>{}.allocate(NDIM * q_inx3);
-#endif
+__host__ bool* get_gpu_masks(const size_t gpu_id = 0) {
+     const size_t location_id = gpu_id * instances_per_gpu;
+    static std::array<bool*, max_number_gpus> masks;
     hpx::call_once(flag1, init_gpu_masks, masks);
-    return masks;
+    return masks[gpu_id];
 }
 
 // Input U, X, omega, executor, device_id

@@ -49,16 +49,20 @@ const storage& get_flux_host_masks() {
 }
 
 template <typename storage, typename storage_host, typename executor_t>
-const storage& get_flux_device_masks(executor_t& exec) {
-    static storage masks(NDIM * q_inx3);
+const storage& get_flux_device_masks(executor_t& exec, const size_t gpu_id = 0) {
+    static std::array<storage, max_number_gpus> masks{NDIM * q_inx3};
     static bool initialized = false;
     if (!initialized) {
         const storage_host& tmp_masks = get_flux_host_masks<storage_host>();
-        Kokkos::deep_copy(exec.instance(), masks, tmp_masks);
-        exec.instance().fence();
+        for (size_t gpu_id_loop = 0; gpu_id_loop < max_number_gpus; gpu_id_loop++) {
+          const size_t location_id = gpu_id_loop * instances_per_gpu;
+          masks[gpu_id_loop] = storage{location_id, NDIM * q_inx3};
+          Kokkos::deep_copy(exec.instance(), masks[gpu_id_loop], tmp_masks);
+          exec.instance().fence();
+        }
         initialized = true;
     }
-    return masks;
+    return masks[gpu_id];
 }
 
 template<typename Agg_executor_t, typename TargetView_t, typename SourceView_t>
