@@ -177,8 +177,14 @@ void init_executors(void) {
     stream_pool::init<hpx::kokkos::hpx_executor, round_robin_pool<hpx::kokkos::hpx_executor>>(
         256, hpx::kokkos::execution_space_mode::independent);
     std::cerr << "Initializing Kokkos device executors..." << std::endl;
-    std::cerr << "Using " << max_number_gpus << std::endl;
+    std::cerr << "CPPuddle config: Using " << max_number_gpus << " devices!" << std::endl;
+    std::cerr << "CPPuddle config: Using " << number_instances << " internal pool instances!"
+              << std::endl;
 #if defined(KOKKOS_ENABLE_CUDA)
+    stream_pool::set_device_selector<hpx::kokkos::cuda_executor,
+          round_robin_pool<hpx::kokkos::cuda_executor>>([](size_t gpu_id) {
+              cudaSetDevice(gpu_id);
+              });
     // initialize stencils / executor pool in kokkos device
     for (size_t gpu_id = 0; gpu_id < max_number_gpus; gpu_id++) {
       stream_pool::init_executor_pool<hpx::kokkos::cuda_executor,
@@ -208,8 +214,8 @@ void init_executors(void) {
     kokkos_device_executor mover{};
     octotiger::fmm::monopole_interactions::get_device_masks<device_buffer<int>, host_buffer<int>,
         kokkos_device_executor>(mover);
-    octotiger::fmm::monopole_interactions::get_device_constants<device_buffer<double>, host_buffer<double>,
-        kokkos_device_executor>(mover);
+    octotiger::fmm::monopole_interactions::get_device_constants<device_buffer<double>,
+        host_buffer<double>, kokkos_device_executor>(mover);
     octotiger::fmm::multipole_interactions::get_device_masks<device_buffer<int>, host_buffer<int>,
         kokkos_device_executor>(mover, true);
     get_flux_device_masks<device_buffer<bool>, host_buffer<bool>,
@@ -225,9 +231,12 @@ void init_executors(void) {
 
 #if defined(OCTOTIGER_HAVE_CUDA)
     std::cout << "CUDA is enabled!" << std::endl;
+    stream_pool::set_device_selector<hpx::cuda::experimental::cuda_executor,
+          round_robin_pool<hpx::cuda::experimental::cuda_executor>>([](size_t gpu_id) {
+              cudaSetDevice(gpu_id);
+              });
 #if HPX_KOKKOS_CUDA_FUTURE_TYPE == 0 
     std::cout << "CUDA with polling futures enabled!" << std::endl;
-
     for (size_t gpu_id = 0; gpu_id < max_number_gpus; gpu_id++)
       stream_pool::init_executor_pool<hpx::cuda::experimental::cuda_executor, pool_strategy>(gpu_id,
           opts().cuda_streams_per_gpu, gpu_id, true);

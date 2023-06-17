@@ -50,13 +50,13 @@ const storage& get_flux_host_masks() {
 
 template <typename storage, typename storage_host, typename executor_t>
 const storage& get_flux_device_masks(executor_t& exec, const size_t gpu_id = 0) {
-    static std::array<storage, max_number_gpus> masks{NDIM * q_inx3};
+    static std::vector<storage> masks;
     static bool initialized = false;
     if (!initialized) {
         const storage_host& tmp_masks = get_flux_host_masks<storage_host>();
         for (size_t gpu_id_loop = 0; gpu_id_loop < max_number_gpus; gpu_id_loop++) {
           const size_t location_id = gpu_id_loop * instances_per_gpu;
-          masks[gpu_id_loop] = storage{location_id, NDIM * q_inx3};
+          masks.emplace_back(location_id, NDIM * q_inx3);
           Kokkos::deep_copy(exec.instance(), masks[gpu_id_loop], tmp_masks);
           exec.instance().fence();
         }
@@ -1135,7 +1135,7 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     const device_buffer<bool>& masks =
         get_flux_device_masks<device_buffer<bool>, host_buffer<bool>,
       executor_t>(
-            agg_exec.get_underlying_executor());
+            agg_exec.get_underlying_executor(), agg_exec.parent.gpu_id);
     const int number_blocks_small = (q_inx3 / 128 + 1) * 1;
 
     aggregated_device_buffer<double, executor_t> amax(

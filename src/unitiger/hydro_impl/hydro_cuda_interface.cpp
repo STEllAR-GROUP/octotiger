@@ -24,8 +24,8 @@
 #include "octotiger/unitiger/hydro_impl/reconstruct_kernel_templates.hpp"    // required for constants
 
 static const char hydro_cuda_kernel_identifier[] = "hydro_kernel_aggregator_cuda";
-using hydro_cuda_agg_executor_pool = aggregation_pool<hydro_cuda_kernel_identifier, hpx::cuda::experimental::cuda_executor,
-                                       pool_strategy>;
+using hydro_cuda_agg_executor_pool = aggregation_pool<hydro_cuda_kernel_identifier,
+    hpx::cuda::experimental::cuda_executor, pool_strategy>;
 
 hpx::once_flag flag1;
 hpx::once_flag init_hydro_pool_flag;
@@ -147,9 +147,9 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
 
 
       // Device buffers
-      aggregated_device_buffer_t<double, decltype(alloc_device_double)>
-        device_q(
-          (hydro.get_nf() * 27 * q_inx * q_inx * q_inx + 128) * max_slices, device_id, alloc_device_double);
+      aggregated_device_buffer_t<double, decltype(alloc_device_double)> device_q(
+          (hydro.get_nf() * 27 * q_inx * q_inx * q_inx + 128) * max_slices, device_id,
+          alloc_device_double);
       aggregated_device_buffer_t<double, decltype(alloc_device_double)> device_x(
           (NDIM * q_inx3 + 128) * max_slices, device_id, alloc_device_double);
       aggregated_device_buffer_t<double, decltype(alloc_device_double)> device_large_x(
@@ -191,13 +191,16 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
       const int f_slice_offset = (NDIM* hydro.get_nf() *  q_inx3 + 128);
       constexpr int disc_offset = geo.NDIR / 2 * H_N3 + 128;
 
-      hpx::annotated_function([&]() {
-        // Convert input
-        convert_x_structure(X, combined_x.data() + x_slice_offset * slice_id);
-        for (int f = 0; f < hydro.get_nf(); f++) {
-            std::copy(U[f].begin(), U[f].end(), combined_u.data() + f * H_N3 + u_slice_offset * slice_id);
-        }
-      }, "cuda_hydro_solver::convert_input")();
+      hpx::annotated_function(
+          [&]() {
+              // Convert input
+              convert_x_structure(X, combined_x.data() + x_slice_offset * slice_id);
+              for (int f = 0; f < hydro.get_nf(); f++) {
+                  std::copy(U[f].begin(), U[f].end(),
+                      combined_u.data() + f * H_N3 + u_slice_offset * slice_id);
+              }
+          },
+          "cuda_hydro_solver::convert_input")();
 
       const auto& disc_detect_bool = hydro.get_disc_detect();
       const auto& smooth_bool = hydro.get_smooth_field();
@@ -206,21 +209,16 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
           smooth_field[f + smooth_slice_offset * slice_id] = smooth_bool[f];
       }
 
-      hpx::apply(exec_slice, cudaMemcpyAsync,
-          device_u.device_side_buffer, combined_u.data(),
+      hpx::apply(exec_slice, cudaMemcpyAsync, device_u.device_side_buffer, combined_u.data(),
           (hydro.get_nf() * H_N3 + 128) * sizeof(double) * number_slices, cudaMemcpyHostToDevice);
-      hpx::apply(exec_slice, cudaMemcpyAsync,
-          device_x.device_side_buffer, combined_x.data(), (NDIM * q_inx3 + 128) * sizeof(double) * number_slices,
+      hpx::apply(exec_slice, cudaMemcpyAsync, device_x.device_side_buffer, combined_x.data(),
+          (NDIM * q_inx3 + 128) * sizeof(double) * number_slices, cudaMemcpyHostToDevice);
+      hpx::apply(exec_slice, cudaMemcpyAsync, device_disc_detect.device_side_buffer,
+          disc_detect.data(), (hydro.get_nf()) * sizeof(int) * number_slices,
           cudaMemcpyHostToDevice);
-      hpx::apply(exec_slice, cudaMemcpyAsync,
-          device_disc_detect.device_side_buffer, disc_detect.data(), (hydro.get_nf()) * sizeof(int) * number_slices,
+      hpx::apply(exec_slice, cudaMemcpyAsync, device_smooth_field.device_side_buffer,
+          smooth_field.data(), (hydro.get_nf()) * sizeof(int) * number_slices,
           cudaMemcpyHostToDevice);
-      hpx::apply(exec_slice, cudaMemcpyAsync,
-          device_smooth_field.device_side_buffer, smooth_field.data(), (hydro.get_nf()) * sizeof(int) * number_slices,
-          cudaMemcpyHostToDevice);
-
-
-
 
       // get discs
       launch_find_contact_discs_cuda(exec_slice, device_u.device_side_buffer,
@@ -228,11 +226,13 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
           physics<NDIM>::B_, physics<NDIM>::fgamma_, physics<NDIM>::de_switch_1, hydro.get_nf());
 
       for (int n = 0; n < NDIM; n++) {
-          std::copy(X[n].begin(), X[n].end(), combined_large_x.data() + large_x_slice_offset * slice_id + n * H_N3);
+          std::copy(X[n].begin(), X[n].end(),
+              combined_large_x.data() + large_x_slice_offset * slice_id + n *
+              H_N3);
       }
-      hpx::apply(exec_slice, cudaMemcpyAsync,
-          device_large_x.device_side_buffer, combined_large_x.data(),
-          (NDIM * H_N3 + 128) * sizeof(double) * number_slices, cudaMemcpyHostToDevice);
+      hpx::apply(exec_slice, cudaMemcpyAsync, device_large_x.device_side_buffer,
+          combined_large_x.data(), (NDIM * H_N3 + 128) * sizeof(double) * number_slices,
+          cudaMemcpyHostToDevice);
 
       launch_hydro_pre_recon_cuda(exec_slice, device_large_x.device_side_buffer, omega,
           hydro.get_angmom_index() != -1, device_u.device_side_buffer, hydro.get_nf(),
@@ -240,8 +240,10 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
 
       const double dx = X[0][geo.H_DNX] - X[0][0];
       std::vector<double, decltype(alloc_host_double)> dx_host(
-          max_slices * 1, double{}, alloc_host_double);    
-      aggregated_device_buffer_t<double, decltype(alloc_device_double)> dx_device(max_slices, device_id, alloc_device_double);
+          max_slices * 1, double{}, alloc_host_double);
+      aggregated_device_buffer_t<double, decltype(alloc_device_double)>
+        dx_device(
+          max_slices, device_id, alloc_device_double);
       dx_host[slice_id] = dx;
       hpx::apply(exec_slice, cudaMemcpyAsync, dx_device.device_side_buffer, dx_host.data(),
           number_slices * sizeof(double), cudaMemcpyHostToDevice);
@@ -258,7 +260,7 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
 
       int number_blocks = (q_inx3 / 128 + 1);
 
-      const bool* masks = get_gpu_masks();
+      const bool* masks = get_gpu_masks(exec_slice.parent.gpu_id);
       aggregated_device_buffer_t<double, decltype(alloc_device_double)> device_amax(
           max_slices * number_blocks * NDIM * (1 + 2 * nf_), device_id, alloc_device_double);
       aggregated_device_buffer_t<int, decltype(alloc_device_int)>
@@ -302,15 +304,19 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
           max_slices * number_blocks * NDIM, int{}, alloc_host_int);
 
       hpx::apply(exec_slice, cudaMemcpyAsync, amax.data(), device_amax.device_side_buffer,
-          (number_slices * number_blocks * NDIM * (1 + 2 * nf_local)) * sizeof(double), cudaMemcpyDeviceToHost);
-      hpx::apply(exec_slice, cudaMemcpyAsync,
-          amax_indices.data(), device_amax_indices.device_side_buffer,
-          number_slices * number_blocks * NDIM * sizeof(int), cudaMemcpyDeviceToHost);
-      hpx::apply(exec_slice, cudaMemcpyAsync,
-          amax_d.data(), device_amax_d.device_side_buffer, number_slices * number_blocks * NDIM * sizeof(int),
+          (number_slices * number_blocks * NDIM * (1 + 2 * nf_local)) *
+          sizeof(double),
           cudaMemcpyDeviceToHost);
-      auto flux_kernel_fut = hpx::async(exec_slice, cudaMemcpyAsync, f.data(), device_f.device_side_buffer,
-          number_slices * (NDIM * nf_local * q_inx3 + 128) * sizeof(double), cudaMemcpyDeviceToHost);
+      hpx::apply(exec_slice, cudaMemcpyAsync, amax_indices.data(),
+          device_amax_indices.device_side_buffer,
+          number_slices * number_blocks * NDIM * sizeof(int), cudaMemcpyDeviceToHost);
+      hpx::apply(exec_slice, cudaMemcpyAsync, amax_d.data(), device_amax_d.device_side_buffer,
+          number_slices * number_blocks * NDIM * sizeof(int), cudaMemcpyDeviceToHost);
+      auto flux_kernel_fut =
+          hpx::async(exec_slice, cudaMemcpyAsync, f.data(), device_f.device_side_buffer,
+              number_slices * (NDIM * nf_local * q_inx3 + 128) *
+              sizeof(double),
+              cudaMemcpyDeviceToHost);
       flux_kernel_fut.get();
 
       // Find Maximum
@@ -321,8 +327,9 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
         if (amax[dim_i + amax_slice_offset] > amax[current_dim + amax_slice_offset]) { 
           current_dim = dim_i;
         } else if (amax[dim_i + amax_slice_offset] == amax[current_dim + amax_slice_offset]) {
-          if (amax_indices[dim_i + max_indices_slice_offset] < amax_indices[current_dim + max_indices_slice_offset]) {
-            current_dim = dim_i;
+          if (amax_indices[dim_i + max_indices_slice_offset] <
+              amax_indices[current_dim + max_indices_slice_offset]) {
+              current_dim = dim_i;
           }
         }
       }
@@ -338,7 +345,9 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
       current_dim = current_dim / number_blocks;
       for (int f = 0; f < nf_local; f++) {
           URs[f] = amax[NDIM * number_blocks + current_i * 2 * nf_local + f + amax_slice_offset];
-          ULs[f] = amax[NDIM * number_blocks + current_i * 2 * nf_local + nf_local + f + amax_slice_offset];
+          ULs[f] = amax[NDIM * number_blocks + current_i * 2 * nf_local +
+            nf_local + f +
+              amax_slice_offset];
       }
       ts.ul = std::move(URs);
       ts.ur = std::move(ULs);
@@ -346,7 +355,8 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
       auto max_lambda = ts;
 
       /* auto max_lambda = launch_flux_cuda(executor, device_q.device_side_buffer, f, combined_x, */
-      /*     device_x.device_side_buffer, omega, hydro.get_nf(), X[0][geo.H_DNX] - X[0][0], device_id); */
+      /*     device_x.device_side_buffer, omega, hydro.get_nf(), X[0][geo.H_DNX] - */
+      /*     X[0][0], device_id); */
 
       // Convert output
       hpx::annotated_function([&]() {
@@ -359,7 +369,8 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
                             const auto i0 = findex(i, j, k);
                             const auto input_index =
                                 (i + 1) * q_inx * q_inx + (j + 1) * q_inx + (k + 1);
-                            F[dim][field][i0] = f[dim_offset + input_index + f_slice_offset * slice_id];
+                            F[dim][field][i0] =
+                                f[dim_offset + input_index + f_slice_offset * slice_id];
                             // std::cout << F[dim][field][i0] << " ";
                         }
                     }
