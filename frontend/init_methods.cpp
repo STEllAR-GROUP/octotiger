@@ -246,7 +246,7 @@ void init_executors(void) {
       stream_pool::init_executor_pool<hpx::cuda::experimental::cuda_executor, pool_strategy>(gpu_id,
           opts().cuda_streams_per_gpu, gpu_id, false);
 #endif
-    octotiger::fmm::kernel_scheduler::init_constants();
+    octotiger::fmm::init_fmm_constants();
 
 #endif
 
@@ -264,7 +264,7 @@ void init_executors(void) {
       stream_pool::init<hpx::cuda::experimental::cuda_executor, pool_strategy>(gpu_id,
           opts().cuda_streams_per_gpu, gpu_id, false);
 #endif
-    octotiger::fmm::kernel_scheduler::init_constants();
+    octotiger::fmm::init_fmm_constants();
 #endif
     std::cout << "Stencils initialized!" << std::endl;
 }
