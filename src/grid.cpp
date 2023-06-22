@@ -1743,6 +1743,12 @@ grid::grid(const init_func_type &init_func, real _dx, std::array<real, NDIM> _xm
 
 	dx = _dx;
 	xmin = _xmin;
+        space_vector bmin, bmax;
+        for (integer i = 0; i < NDIM; i++) {
+                bmin[i] = _xmin[i];
+                bmax[i] = _xmin[i] + _dx * INX;
+        }
+        particles = load_particles(bmin, bmax);
 	allocate();
 	for (integer i = 0; i != H_NX; ++i) {
 		for (integer j = 0; j != H_NX; ++j) {
