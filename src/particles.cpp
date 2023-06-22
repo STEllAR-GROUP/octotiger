@@ -22,6 +22,7 @@ std::vector<particle> load_particles(space_vector bmin, space_vector bmax) {
         std::vector<particle> particles;
         for (integer part_i = 0; part_i < opts().Part_M.size(); part_i++) {
                 space_vector part_pos;
+		space_vector part_vel;
                 part_pos[XDIM] = opts().Part_X[part_i];
 		part_vel[XDIM] = opts().Part_VX[part_i];
                 if (NDIM > 1) {

@@ -51,13 +51,14 @@ struct particle {
 
 	particle() = default;
 	~particle() = default;
-	particle(real m, space_vector x, integer ptype = 0) {
+	particle(real m, space_vector x, integer pid, integer ptype = 0) {
 		(*this).mass = m;
 		for (integer d = 0; d < NDIM; ++d) {
 			(*this).pos[d] = x[d];
 			(*this).vel[d] = 0.0;
 		}
 		(*this).part_type = ptype;
+		(*this).id = pid;
          //       printf("created particle m: %e=%e, pos: (%e,%e,%e)=(%e,%e,%e)\n", (*this).mass, m, (*this).pos[0], (*this).pos[1], (*this).pos[2], x[0], x[1], x[2]);
 	}
         particle(real m, space_vector x, space_vector v, integer ptype = 0) {
