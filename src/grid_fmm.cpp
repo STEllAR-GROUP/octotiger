@@ -978,19 +978,19 @@ if (type == RHO) {
 		auto const &Liii0 = L[iii0];
                 for (integer i = 0; i != simd_len && i < part_mono.size(); ++i) {
                         particle& p = particles[part_mono[i]];
-			printf("interaction of part %i, (%e, %e, %e) in cell (%e, %e, %e) with multipole (%e, %e, %e)\n", p.id, p.pos[0], p.pos[1], p.pos[2], com0iii0[0], com0iii0[1], com0iii0[2], Y[0], Y[1], Y[2]);
-			printf("before %e (%e, %e, %e)\n", p.L(), p.L_c[0], p.L_c[1], p.L_c[2]);
+			//printf("interaction of part %i, (%e, %e, %e) in cell (%e, %e, %e) with multipole (%e, %e, %e)\n", p.id, p.pos[0], p.pos[1], p.pos[2], com0iii0[0], com0iii0[1], com0iii0[2], Y[0], Y[1], Y[2]);
+			//printf("before %e (%e, %e, %e)\n", p.L(), p.L_c[0], p.L_c[1], p.L_c[2]);
 #pragma GCC ivdep
                 	for (integer j = 0; j != 4; ++j) {
-				printf("adding to p.L[%i]\n", j);
+			//	printf("adding to p.L[%i]\n", j);
                         	p.L[j] += A0[j][i];
                 	}
 #pragma GCC ivdep
                 	for (integer j = 0; j != NDIM; ++j) {
-				printf("adding to p.L_c[%i]\n", j);
+			//	printf("adding to p.L_c[%i]\n", j);
                         	p.L_c[j] += BB0[j][i];
                		}
-			printf("after %e (%e, %e, %e), cell %e\n", p.L(), p.L_c[0], p.L_c[1], p.L_c[2], Liii0());
+			//printf("after %e (%e, %e, %e), cell %e\n", p.L(), p.L_c[0], p.L_c[1], p.L_c[2], Liii0());
         	}
 	} //close ilist loop
 } // close type==RHO condition
