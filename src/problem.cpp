@@ -113,7 +113,10 @@ bool refine_blast(integer level, integer max_level, real x, real y, real z, std:
 
 bool refine_test_center(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U,
 		std::array<std::vector<real>, NDIM> const& dudx) {
-	if( x*x + y*y + z*z < ssr0) {
+	x -= opts().solid_sphere_xcenter;
+	y -= opts().solid_sphere_ycenter;
+	z -= opts().solid_sphere_zcenter;
+	if( x*x + y*y + z*z < opts().solid_sphere_radius) {
 		return level < max_level;
 	}
 	return false;
