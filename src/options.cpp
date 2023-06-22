@@ -157,11 +157,15 @@ bool options::process_options(int argc, char *argv[]) {
 	("atomic_number", po::value<std::vector<real>>(&(opts().atomic_number))->multitoken(), "atomic numbers") //
 	("X", po::value<std::vector<real>>(&(opts().X))->multitoken(), "X - hydrogen mass fraction") //
 	("Z", po::value<std::vector<real>>(&(opts().Z))->multitoken(), "Z - metallicity") //
-	("particles_x", po::value<std::vector<real>>(&(opts().Part_X))->multitoken(), "particles x-positions") //
-	("particles_y", po::value<std::vector<real>>(&(opts().Part_Y))->multitoken(), "particles y-positions") //
-	("particles_z", po::value<std::vector<real>>(&(opts().Part_Z))->multitoken(), "particles z-positions") //
-	("particles_mass", po::value<std::vector<real>>(&(opts().Part_M))->multitoken(), "particles masses") //
-	("particles_type", po::value<std::vector<real>>(&(opts().Part_T))->multitoken(), "particles types") //
+	("particle_x", po::value<std::vector<real>>(&(opts().Part_X))->multitoken(), "particles x-positions") //
+	("particle_y", po::value<std::vector<real>>(&(opts().Part_Y))->multitoken(), "particles y-positions") //
+	("particle_z", po::value<std::vector<real>>(&(opts().Part_Z))->multitoken(), "particles z-positions") //
+	("particle_vx", po::value<std::vector<real>>(&(opts().Part_VX))->multitoken(), "particle x-velocity") //
+	("particle_vy", po::value<std::vector<real>>(&(opts().Part_VY))->multitoken(), "particle y-velocity") //
+	("particle_vz", po::value<std::vector<real>>(&(opts().Part_VZ))->multitoken(), "particle z-velocity") //
+	("particle_mass", po::value<std::vector<real>>(&(opts().Part_M))->multitoken(), "particles masses") //
+	("particle_type", po::value<std::vector<real>>(&(opts().Part_T))->multitoken(), "particles types") //
+	("particle_self_interact", po::value<bool>(&(opts().part_self_interact))->default_value(false), "allow inter-cell cell-particle and particle-particle interactions") //
 	("code_to_g", po::value<real>(&(opts().code_to_g))->default_value(1), "code units to grams") //
 	("code_to_cm", po::value<real>(&(opts().code_to_cm))->default_value(1), "code units to centimeters") //
 	("code_to_s", po::value<real>(&(opts().code_to_s))->default_value(1), "code units to seconds") //
@@ -213,6 +217,15 @@ bool options::process_options(int argc, char *argv[]) {
 		std::cerr << "Either increase theta or recompile with a new theta minimum using the cmake parameter OCTOTIGER_THETA_MINIMUM";
 		abort();
 	}
+        if (opts().Part_M.size() != opts().Part_X.size() ||
+            opts().Part_M.size() != opts().Part_Y.size() ||
+            opts().Part_M.size() != opts().Part_Z.size() ||
+            opts().Part_M.size() != opts().Part_VX.size() ||
+            opts().Part_M.size() != opts().Part_VY.size() ||
+            opts().Part_M.size() != opts().Part_VZ.size()) {
+		std::cerr << "Number of particles is incossistent. Please make sure you provided the same amount of particle masses, positions and velocities" << std::endl;
+                abort();
+        }
 	{
 #define SHOW( opt ) std::cout << std::string( #opt ) << " = " << to_string(opt) << '\n';
 		std::cout << "atomic_number=";
@@ -235,27 +248,42 @@ bool options::process_options(int argc, char *argv[]) {
 			std::cout << std::to_string(r) << ',';
 		}
 		std::cout << '\n';
-                std::cout << "particles_x=";
+                std::cout << "particle_x=";
                 for (auto r : Part_X) {
                         std::cout << std::to_string(r) << ',';
                 }
                 std::cout << '\n';
-                std::cout << "particles_y=";
+                std::cout << "particle_y=";
                 for (auto r : Part_Y) {
                         std::cout << std::to_string(r) << ',';
                 }
                 std::cout << '\n';
-                std::cout << "particles_z=";
+                std::cout << "particle_z=";
                 for (auto r : Part_Z) {
                         std::cout << std::to_string(r) << ',';
                 }
                 std::cout << '\n';
-                std::cout << "particles_mass=";
+                std::cout << "particle_vx=";
+                for (auto r : Part_VX) {
+                        std::cout << std::to_string(r) << ',';
+                }
+                std::cout << '\n';
+                std::cout << "particle_vy=";
+                for (auto r : Part_VY) {
+                        std::cout << std::to_string(r) << ',';
+                }
+                std::cout << '\n';
+                std::cout << "particle_vz=";
+                for (auto r : Part_VZ) {
+                        std::cout << std::to_string(r) << ',';
+                }
+                std::cout << '\n';
+                std::cout << "particle_mass=";
                 for (auto r : Part_M) {
                         std::cout << std::to_string(r) << ',';
                 }
                 std::cout << '\n';
-                std::cout << "particles_type=";
+                std::cout << "particle_type=";
                 for (auto r : Part_T) {
                         std::cout << std::to_string(r) << ',';
                 }

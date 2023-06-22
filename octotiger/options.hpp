@@ -50,6 +50,7 @@ public:
 	bool correct_am_hydro;
 	bool rotating_star_amr;
 	bool idle_rates;
+	bool part_self_interact;
 
 	integer scf_output_frequency;
 	integer silo_num_groups;
@@ -148,6 +149,9 @@ public:
 	std::vector<real> Part_X;
 	std::vector<real> Part_Y;
 	std::vector<real> Part_Z;
+	std::vector<real> Part_VX;
+	std::vector<real> Part_VY;
+	std::vector<real> Part_VZ;
 	std::vector<real> Part_M;
 	std::vector<real> Part_T;
 
@@ -243,6 +247,7 @@ public:
 		arc & extra_regrid;
 		arc & accretor_refine;
 		arc & idle_rates;
+		arc & part_self_interact;
 		int tmp = problem;
 		arc & tmp;
 		problem = static_cast<problem_type>(tmp);
@@ -263,6 +268,9 @@ public:
 		arc & Part_X;
 		arc & Part_Y;
 		arc & Part_Z;
+		arc & Part_VX;
+		arc & Part_VY;
+		arc & Part_VZ;
 		arc & Part_M;
 		arc & Part_T;
 		arc & code_to_g;
