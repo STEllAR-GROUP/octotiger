@@ -558,7 +558,7 @@ void grid::compute_interactions(gsolve_type type) {
                         	                v4sd four_partner = make_four_partner(four);
                                 	        p_s.L +=  p_f.mass * four_partner;
                                         	p_f.L +=  p_s.mass * four;
-						printf("pf L %e ps L %e\n", p_f.L[0], p_s.L[0]);
+						//printf("pf L %e ps L %e\n", p_f.L[0], p_s.L[0]);
 		                        }
 			}
 			// p2c1 interactions
@@ -583,7 +583,7 @@ void grid::compute_interactions(gsolve_type type) {
                                 v4sd four = make_four(com_cell, p.pos);
                                 v4sd four_partner = make_four_partner(four);
                                 L[iii0] +=  p.mass * four_partner;
-				printf("mono-mono interaction of particle %i, (%e, %e, %e) with containing cell (%e, %e, %e), m %e phi %e, g (%e, %e, %e)\n", p.id, p.pos[0], p.pos[1], p.pos[2], com_cell[0], com_cell[1], com_cell[2], mon[iii0], mon[iii0] * four[0], mon[iii0] * four[1], mon[iii0] * four[2], mon[iii0] * four[3]);
+				//printf("mono-mono interaction of particle %i, (%e, %e, %e) with containing cell (%e, %e, %e), m %e phi %e, g (%e, %e, %e)\n", p.id, p.pos[0], p.pos[1], p.pos[2], com_cell[0], com_cell[1], com_cell[2], mon[iii0], mon[iii0] * four[0], mon[iii0] * four[1], mon[iii0] * four[2], mon[iii0] * four[3]);
                                 p.L += mon[iii0] * four;
 
 				auto particles_in_cells = get_particles_inds(particles, iii0);
