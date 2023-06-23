@@ -83,8 +83,8 @@ namespace fmm {
                     if (contains_multipole_neighbor) // TODO Add device_only warning
                         avail = false;
 #elif (defined(KOKKOS_ENABLE_CUDA) && defined(__clang__) )
-                    if (contains_multipole_neighbor && opts().detected_intel_compiler) // TODO Add device_only warning
-                        avail = false;
+                    /* if (contains_multipole_neighbor && opts().detected_intel_compiler) // TODO Add device_only warning */
+                    /*     avail = false; */
 #endif
                     if (avail) {
                         executor_interface_t executor;

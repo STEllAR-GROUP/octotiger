@@ -67,29 +67,39 @@ namespace fmm {
         }
 
         template <typename storage, typename storage_host, typename executor_t>
-        const storage& get_device_masks(executor_t& exec) {
-            static storage stencil_masks(FULL_STENCIL_SIZE);
+        const storage& get_device_masks(executor_t& exec2, const size_t gpu_id = 0) {
+            static std::vector<storage> stencil_masks;
             static bool initialized = false;
             if (!initialized) {
                 const storage_host& tmp = get_host_masks<storage_host>();
-                Kokkos::deep_copy(exec.instance(), stencil_masks, tmp);
-                exec.instance().fence();
+                for (int gpu_id_loop = 0; gpu_id_loop < max_number_gpus; gpu_id_loop++) {
+                    kokkos_device_executor exec{gpu_id_loop};
+                    const size_t location_id = gpu_id_loop * instances_per_gpu;
+                    stencil_masks.emplace_back(location_id, FULL_STENCIL_SIZE);
+                    Kokkos::deep_copy(exec.instance(), stencil_masks[gpu_id_loop], tmp);
+                    exec.instance().fence();
+                }
                 initialized = true;
             }
-            return stencil_masks;
+            return stencil_masks[gpu_id];
         }
 
         template <typename storage, typename storage_host, typename executor_t>
-        const storage& get_device_constants(executor_t& exec) {
-            static storage stencil_constants(4 * FULL_STENCIL_SIZE);
+        const storage& get_device_constants(executor_t& exec2, const size_t gpu_id = 0) {
+            static std::vector<storage> stencil_constants;
             static bool initialized = false;
             if (!initialized) {
                 const storage_host& tmp = get_host_constants<storage_host>();
-                Kokkos::deep_copy(exec.instance(), stencil_constants, tmp);
-                exec.instance().fence();
+                for (int gpu_id_loop = 0; gpu_id_loop < max_number_gpus; gpu_id_loop++) {
+                    kokkos_device_executor exec{gpu_id_loop};
+                    const size_t location_id = gpu_id_loop * instances_per_gpu;
+                    stencil_constants.emplace_back(location_id, 4 * FULL_STENCIL_SIZE);
+                    Kokkos::deep_copy(exec.instance(), stencil_constants[gpu_id_loop], tmp);
+                    exec.instance().fence();
+                }
                 initialized = true;
             }
-            return stencil_constants;
+            return stencil_constants[gpu_id];
         }
 
         // --------------------------------------- P2P Kernel implementations
@@ -730,11 +740,13 @@ namespace fmm {
             std::enable_if_t<is_kokkos_device_executor<executor_t>::value, int> = 0>
         void launch_interface_p2p(executor_t& exec, host_buffer<double>& monopoles,
             host_buffer<double>& results, double dx, double theta) {
+            auto gpu_id = get_device_id();
+            cudaSetDevice(gpu_id);
             // create device buffers
             const device_buffer<int>& device_masks =
-                get_device_masks<device_buffer<int>, host_buffer<int>, executor_t>(exec);
+                get_device_masks<device_buffer<int>, host_buffer<int>, executor_t>(exec, gpu_id);
             const device_buffer<double>& device_constants =
-                get_device_constants<device_buffer<double>, host_buffer<double>, executor_t>(exec);
+                get_device_constants<device_buffer<double>, host_buffer<double>, executor_t>(exec, gpu_id);
             device_buffer<double> device_monopoles(NUMBER_LOCAL_MONOPOLE_VALUES);
             device_buffer<double> device_tmp_results(
                 NUMBER_P2P_BLOCKS * NUMBER_POT_EXPANSIONS_SMALL);
@@ -749,7 +761,7 @@ namespace fmm {
                 {1, 2, INX, INX / device_simd_t::size()});
             sum_p2p_results(exec, device_tmp_results, device_results, {1, 1, INX, INX});
 
-            auto fut = hpx::kokkos::deep_copy_async(exec.instance(), results, device_results);
+            auto fut = hpx::kokkos::deep_copy_async(exec.device_id, exec.instance(), results, device_results);
             fut.get();
         }
         template <typename executor_t,
@@ -794,11 +806,13 @@ namespace fmm {
             std::vector<host_buffer<double>>& center_of_masses, double dx, double theta,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
             const size_t number_p2m_kernels) {
+            auto gpu_id = get_device_id();
+            cudaSetDevice(gpu_id);
             // create device buffers
             const device_buffer<int>& device_masks =
-                get_device_masks<device_buffer<int>, host_buffer<int>, executor_t>(exec);
+                get_device_masks<device_buffer<int>, host_buffer<int>, executor_t>(exec, gpu_id);
             const device_buffer<double>& device_constants =
-                get_device_constants<device_buffer<double>, host_buffer<double>, executor_t>(exec);
+                get_device_constants<device_buffer<double>, host_buffer<double>, executor_t>(exec, gpu_id);
             device_buffer<double> device_monopoles(NUMBER_LOCAL_MONOPOLE_VALUES);
             device_buffer<double> device_tmp_results(
                 NUMBER_P2P_BLOCKS * NUMBER_POT_EXPANSIONS_SMALL);
@@ -894,7 +908,7 @@ namespace fmm {
             if (type == RHO)
                 Kokkos::deep_copy(exec.instance(), ang_corr_results, device_corrections);
 
-            auto fut = hpx::kokkos::deep_copy_async(exec.instance(), results, device_results);
+            auto fut = hpx::kokkos::deep_copy_async(exec.device_id, exec.instance(), results, device_results);
             fut.get();
         }
 

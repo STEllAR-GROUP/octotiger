@@ -172,9 +172,9 @@ void init_executors(void) {
 
 #if defined(OCTOTIGER_HAVE_KOKKOS)
     std::cerr << "Initializing Kokkos host executors..." << std::endl;
-    stream_pool::init<hpx::kokkos::serial_executor, round_robin_pool<hpx::kokkos::serial_executor>>(
+    stream_pool::init_all_executor_pools<hpx::kokkos::serial_executor, round_robin_pool<hpx::kokkos::serial_executor>>(
         256, hpx::kokkos::execution_space_mode::independent);
-    stream_pool::init<hpx::kokkos::hpx_executor, round_robin_pool<hpx::kokkos::hpx_executor>>(
+    stream_pool::init_all_executor_pools<hpx::kokkos::hpx_executor, round_robin_pool<hpx::kokkos::hpx_executor>>(
         256, hpx::kokkos::execution_space_mode::independent);
     std::cerr << "Initializing Kokkos device executors..." << std::endl;
     std::cerr << "CPPuddle config: Using " << max_number_gpus << " devices!" << std::endl;
@@ -190,7 +190,7 @@ void init_executors(void) {
       stream_pool::init_executor_pool<hpx::kokkos::cuda_executor,
           round_robin_pool<hpx::kokkos::cuda_executor>>(
           gpu_id, opts().cuda_streams_per_gpu,
-          hpx::kokkos::execution_space_mode::independent);
+          gpu_id);
     }
     std::cout << "KOKKOS/CUDA is enabled!" << std::endl;
 #elif defined(KOKKOS_ENABLE_HIP)
@@ -198,7 +198,7 @@ void init_executors(void) {
       stream_pool::init_executor_pool<hpx::kokkos::hip_executor,
           round_robin_pool<hpx::kokkos::hip_executor>>(
           gpu_id, opts().cuda_streams_per_gpu,
-          hpx::kokkos::execution_space_mode::independent);
+          gpu_id);
     }
     std::cout << "KOKKOS/HIP is enabled!" << std::endl;
 #elif defined(KOKKOS_ENABLE_SYCL)
@@ -206,7 +206,7 @@ void init_executors(void) {
       stream_pool::init_executor_pool<hpx::kokkos::sycl_executor,
           round_robin_pool<hpx::kokkos::sycl_executor>>(
           gpu_id, opts().cuda_streams_per_gpu,
-          hpx::kokkos::execution_space_mode::independent);
+          gpu_id);
     }
     std::cout << "KOKKOS/SYCL is enabled!" << std::endl;
 #endif
