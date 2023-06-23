@@ -63,7 +63,9 @@ namespace fmm {
                 const storage_host& tmp_masks = get_host_masks<storage_host>(false);
                 const storage_host& tmp_indicators = get_host_masks<storage_host>(true);
                 for (int gpu_id_loop = 0; gpu_id_loop < max_number_gpus; gpu_id_loop++) {
-                    kokkos_device_executor exec{gpu_id_loop};
+                    stream_pool::select_device<executor_t,
+                          round_robin_pool<executor_t>>(gpu_id_loop);
+                    kokkos_device_executor exec{hpx::kokkos::execution_space_mode::independent};
                     const size_t location_id = gpu_id_loop * instances_per_gpu;
                     stencil_masks.emplace_back(location_id, FULL_STENCIL_SIZE);
                     Kokkos::deep_copy(exec.instance(), stencil_masks[gpu_id_loop], tmp_masks);
@@ -770,7 +772,8 @@ namespace fmm {
             host_buffer<double>& potential_expansions, host_buffer<double>& angular_corrections,
             const double theta, const gsolve_type type, const bool use_root_stencil) {
             auto gpu_id = get_device_id();
-            cudaSetDevice(gpu_id);
+            stream_pool::select_device<executor_t,
+                  round_robin_pool<executor_t>>(gpu_id);
             const device_buffer<int>& device_masks =
                 get_device_masks<device_buffer<int>, host_buffer<int>, executor_t>(exec, false, gpu_id);
             const device_buffer<int>& device_indicators =
@@ -853,7 +856,7 @@ namespace fmm {
             }
             // Copy back potential expansions results and sync
             // std::cout << "device buffer deep copy" << std::endl;
-            auto fut = hpx::kokkos::deep_copy_async(exec.device_id,
+            auto fut = hpx::kokkos::deep_copy_async(
                 exec.instance(), potential_expansions, device_expansions);
             // std::cin.get();
             fut.get();

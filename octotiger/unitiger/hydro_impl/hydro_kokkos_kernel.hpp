@@ -56,7 +56,9 @@ const storage& get_flux_device_masks(executor_t& exec2, const size_t gpu_id = 0)
     if (!initialized) {
         const storage_host& tmp_masks = get_flux_host_masks<storage_host>();
         for (int gpu_id_loop = 0; gpu_id_loop < max_number_gpus; gpu_id_loop++) {
-          kokkos_device_executor exec{gpu_id_loop};
+            stream_pool::select_device<executor_t,
+                  round_robin_pool<executor_t>>(gpu_id_loop);
+          kokkos_device_executor exec{hpx::kokkos::execution_space_mode::independent};
           const size_t location_id = gpu_id_loop * instances_per_gpu;
           masks.emplace_back(location_id, NDIM * q_inx3);
           Kokkos::deep_copy(exec.instance(), masks[gpu_id_loop], tmp_masks);
@@ -97,7 +99,7 @@ hpx::shared_future<void> aggregrated_deep_copy_async(
     SourceView_t& source) {
     auto launch_copy_lambda = [](TargetView_t& target, SourceView_t& source,
                                   executor_t& exec) -> hpx::shared_future<void> {
-        return hpx::kokkos::deep_copy_async(exec.device_id, exec.instance(), target, source);
+        return hpx::kokkos::deep_copy_async(exec.instance(), target, source);
     };
     return agg_exec.wrap_async(
         launch_copy_lambda, target, source, agg_exec.get_underlying_executor());
@@ -116,7 +118,7 @@ hpx::shared_future<void> aggregrated_deep_copy_async(
         auto source_slices = Kokkos::subview(
             source, std::make_pair<size_t, size_t>(0, number_slices *
               elements_per_slice));
-        return hpx::kokkos::deep_copy_async(exec.device_id, exec.instance(), target_slices, source_slices);
+        return hpx::kokkos::deep_copy_async(exec.instance(), target_slices, source_slices);
     };
     return agg_exec.wrap_async(
         launch_copy_lambda, target, source, agg_exec.get_underlying_executor());
@@ -1094,7 +1096,8 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
         alloc_device_double, (H_N3 + padding) * max_slices);
     aggregated_device_buffer<double, executor_t> disc(
         alloc_device_double, (ndir / 2 * H_N3 + padding) * max_slices);
-    cudaSetDevice(agg_exec.parent.gpu_id);
+    stream_pool::select_device<executor_t,
+        round_robin_pool<executor_t>>(agg_exec.parent.gpu_id);
     find_contact_discs_impl(exec, agg_exec, u, P, disc, physics<NDIM>::A_, physics<NDIM>::B_,
         physics<NDIM>::fgamma_, physics<NDIM>::de_switch_1, ndir, nf, {1, 1, 8,
         8}, {1, 1, 8, 8});
@@ -1103,7 +1106,8 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     aggregated_device_buffer<double, executor_t> large_x(
         alloc_device_double, (NDIM * H_N3 + padding) * max_slices);
     aggregated_deep_copy(agg_exec, large_x, combined_large_x, (NDIM * H_N3 + padding));
-    cudaSetDevice(agg_exec.parent.gpu_id);
+    stream_pool::select_device<executor_t,
+        round_robin_pool<executor_t>>(agg_exec.parent.gpu_id);
     hydro_pre_recon_impl(exec, agg_exec, large_x, omega, angmom, u, nf, n_species, {1, 1,
         8, 8});
 
@@ -1125,7 +1129,8 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     aggregated_device_buffer<double, executor_t> dx_device(alloc_device_double, max_slices);
     aggregated_deep_copy(agg_exec, dx_device, dx);
 
-    cudaSetDevice(agg_exec.parent.gpu_id);
+    stream_pool::select_device<executor_t,
+        round_robin_pool<executor_t>>(agg_exec.parent.gpu_id);
     if (angmom_index > -1) {
         reconstruct_impl<device_simd_t, device_simd_mask_t>(exec, agg_exec, omega, nf,
             angmom_index, device_smooth_field, device_disc_detect, q, x, u, AM, dx_device,
@@ -1152,7 +1157,8 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
 
     aggregated_device_buffer<double, executor_t> f(
         alloc_device_double, (NDIM * nf * q_inx3 + padding) * max_slices);
-    cudaSetDevice(agg_exec.parent.gpu_id);
+    stream_pool::select_device<executor_t,
+        round_robin_pool<executor_t>>(agg_exec.parent.gpu_id);
     flux_impl(exec, agg_exec, q, x, f, amax, amax_indices, amax_d, masks, omega, dx_device, A_, B_,
         nf, fgamma, de_switch_1, NDIM * number_blocks_small, 128);
     aggregated_host_buffer<double, executor_t> host_amax(
