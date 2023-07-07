@@ -1744,7 +1744,7 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
 		const integer kc = (2 * (kp) + bw) + ((ci >> 2) & 1);
 		return (inx + 2 * bw) * (inx + 2 * bw) * ic + (inx + 2 * bw) * jc + kc;
 	};
-
+	//printf("in expansion\n");
 	for (integer ip = 0; ip != nxp; ++ip) {
 		for (integer jp = 0; jp != nxp; ++jp) {
 			for (integer kp = 0; kp != nxp; ++kp) {
@@ -1931,7 +1931,7 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 		const integer iii0 = hindex(H_BW, H_BW, H_BW);
 		const std::array<real, NDIM> x0 = { X[XDIM][iii0], X[YDIM][iii0], X[ZDIM][iii0] };
 		//printf("grid bmin = (%e, %e, %e), index=%i, dx=%e\n", x0[0] - 0.5 * dx, x0[1] - 0.5 * dx, x0[2] - 0.5 * dx, iii0, dx);
-		//const integer iiin = hindex(H_BW + G_NX - 1, H_BW + G_NX - 1, H_BW + G_NX - 1);
+		const integer iiin = hindex(H_BW + G_NX - 1, H_BW + G_NX - 1, H_BW + G_NX - 1);
 		//printf("grid bmax = (%e, %e, %e), index=%i, dx=%e\n", X[XDIM][iiin] + 0.5 * dx, X[YDIM][iiin] + 0.5 * dx, X[ZDIM][iiin] + 0.5 * dx, iiin, dx);
 		for (integer i = 0; i != G_NX; ++i) {
 			for (integer j = 0; j != G_NX; ++j) {
@@ -1941,6 +1941,18 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 					com0iii[1] = x0[1] + j * dx;
 					com0iii[2] = x0[2] + k * dx;
 				}
+			}
+		}
+		if (is_leaf) { // for now read particles from configuration file at each step (static particles)
+			space_vector bmin, bmax;
+			for (integer i=0; i< NDIM; i++) {
+				bmin[i] = x0[i] - 0.5 * dx;
+				bmax[i] = X[i][iiin] + 0.5 * dx;
+			}
+			particles.resize(0);
+			std::vector<particle> particles_tmp = load_particles(bmin, bmax);
+			for (auto& p : particles_tmp) {
+				particles.push_back(p);
 			}
 		}
 	}
