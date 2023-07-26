@@ -37,10 +37,6 @@ From <https://doi.org/10.1145/3204919.3204938>:
 
   [Octo-Tiger Issue Tracker](https://github.com/STEllAR-GROUP/octotiger/issues)
 
-  * **Wiki pages**:
-
-  [Octo-Tiger Wiki](https://github.com/STEllAR-GROUP/octotiger/wiki)
-
   * **Documentation**:
   
   The [documentation](https://stellar-group.github.io/octotiger/doc/html/) of the master branch.
