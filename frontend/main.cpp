@@ -159,15 +159,14 @@ int main(int argc, char* argv[]) {
     std::setbuf(stdout, nullptr);
     std::cout << "Set to unbuffered stdout on current process... " << std::endl;
 #endif
+    std::cerr << "Starting main..." << std::endl;
     hpx::init_params p;
     p.cfg = {
-        "hpx.commandline.allow_unknown=1",    // HPX should not complain about unknown command line
-                                              // options
-        "hpx.scheduler=local-priority-lifo",          // Use LIFO scheduler by default
-        "hpx.parcel.mpi.zero_copy_optimization!=0"    // Disable the usage of zero copy optimization
-                                                      // for MPI...
+        "hpx.commandline.allow_unknown=1"    // HPX should not complain about unknown command line
     };
+    std::cerr << "Registering functions ..." << std::endl;
     register_hpx_functions();
+    std::cerr << "Starting hpx init ..." << std::endl;
     hpx::init(argc, argv, p);
 #ifdef OCTOTIGER_HAVE_HIP
     std::cout << std::endl << "WARNING: Experimental HIP Build! Do not (yet) use for production runs!\n" << std::endl;
