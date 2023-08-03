@@ -3,13 +3,24 @@
 # Distributed under the Boost Software License, Version 1.0. (See accompanying
 # file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+
+################################################################################
+# Additional dependencies as a workaround: These ensure the sycl libs are found
+################################################################################
+
+if(OCTOTIGER_WITH_KOKKOS)
+  list(APPEND dependencies_workaround Kokkos::kokkos )
+else()
+  list(APPEND dependencies_workaround )
+endif()
+
 ################################################################################
 # Set up bfilter target
 ################################################################################
 add_hpx_executable(
   bfilter
   DEPENDENCIES
-    Silo::silo Boost::boost Boost::program_options
+    Silo::silo Boost::boost Boost::program_options ${dependencies_workaround}
   SOURCES
     bfilter/bfilter.cpp
 )
@@ -34,7 +45,7 @@ endif()
 add_hpx_executable(
   silo_convert
   DEPENDENCIES
-    Silo::silo Boost::boost Boost::program_options
+    Silo::silo Boost::boost Boost::program_options  ${dependencies_workaround}
   SOURCES
     silo_convert/plain_silo.cpp
     silo_convert/silo_convert.cpp 
@@ -49,7 +60,7 @@ add_hpx_executable(
 add_hpx_executable(
   silo_post
   DEPENDENCIES
-    Silo::silo Boost::boost Boost::program_options
+    Silo::silo Boost::boost Boost::program_options ${dependencies_workaround}
   SOURCES
     silo_post/silo_post.cpp 
 )
