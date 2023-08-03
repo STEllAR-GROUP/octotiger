@@ -172,6 +172,7 @@ bool options::process_options(int argc, char *argv[]) {
 	("max_executor_slices", po::value<size_t>(&(opts().max_executor_slices))->default_value(size_t(1)), "Can be aggregated?") //
 	("root_node_on_device", po::value<bool>(&(opts().root_node_on_device))->default_value(true), "Offload root node gravity kernels to the GPU? May degrade performance given weak GPUs") //
 	("optimize_local_communication", po::value<bool>(&(opts().optimize_local_communication))->default_value(true), "Use pointers of neighbors in local subgrids directly") //
+	("print_times_per_timestep", po::value<bool>(&(opts().print_times_per_timestep))->default_value(false), "Print times per timestep during cleanup") //
 	("input_file", po::value<std::string>(&(opts().input_file))->default_value(""), "input file for test problems") //
 	("config_file", po::value<std::string>(&(opts().config_file))->default_value(""), "configuration file") //
 	("n_species", po::value<integer>(&(opts().n_species))->default_value(5), "number of mass species") //
@@ -233,7 +234,7 @@ bool options::process_options(int argc, char *argv[]) {
 		std::cerr << "Either increase theta or recompile with a new theta minimum using the cmake parameter OCTOTIGER_THETA_MINIMUM";
 		abort();
 	}
-  opts().detected_intel_compiler=true;
+  opts().detected_intel_compiler = false;
 
 #ifdef __VERSION__
   std::string compiler_version = std::string(__VERSION__);

@@ -54,6 +54,7 @@ public:
 	bool idle_rates;
 	bool ipr_test;
   bool detected_intel_compiler;
+  bool print_times_per_timestep;
 
 	integer scf_output_frequency;
 	integer silo_num_groups;
@@ -271,6 +272,8 @@ public:
 		arc & max_executor_slices;
 	  arc & root_node_on_device;
 	  arc & optimize_local_communication;
+    arc & detected_intel_compiler;
+    arc & print_times_per_timestep;
 		arc & atomic_mass;
 		arc & atomic_number;
 		arc & X;
