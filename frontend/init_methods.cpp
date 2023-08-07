@@ -85,11 +85,22 @@ void cleanup_puddle_on_this_locality(void) {
     }
     // Disable polling
 #if (defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)) && HPX_KOKKOS_CUDA_FUTURE_TYPE == 0 
-    std::cout << "Unregistering cuda polling..." << std::endl;
-    hpx::cuda::experimental::detail::unregister_polling(hpx::resource::get_thread_pool(0));
+    if (opts().polling_threads>0) {
+      std::cout << "Unregistering cuda polling on polling pool... " << std::endl;
+      hpx::cuda::experimental::detail::unregister_polling(hpx::resource::get_thread_pool("polling"));
+    } else {
+        std::cout << "Unregistering cuda polling..." << std::endl;
+        hpx::cuda::experimental::detail::unregister_polling(hpx::resource::get_thread_pool(0));
+    }
 #endif
 #if defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_SYCL)
-    hpx::sycl::experimental::detail::unregister_polling(hpx::resource::get_thread_pool(0));
+    if (opts().polling_threads>0) {
+      std::cout << "Unregistering sycl polling on polling pool... " << std::endl;
+      hpx::sycl::experimental::detail::unregister_polling(hpx::resource::get_thread_pool("polling"));
+    } else {
+      std::cout << "Unregistering sycl polling..." << std::endl;
+      hpx::sycl::experimental::detail::unregister_polling(hpx::resource::get_thread_pool(0));
+    }
 #endif
 #ifdef CPPUDDLE_HAVE_HPX // define added in 0.2.0 cppuddle version
     // Use new finalize functionality. This works with a wider range of cppuddle configurations
@@ -159,15 +170,25 @@ void init_executors(void) {
 
 #if HPX_KOKKOS_CUDA_FUTURE_TYPE == 0
 #if (defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP) || defined(KOKKOS_ENABLE_CUDA) || defined(KOKKOS_ENABLE_HIP))  
-    std::cerr << "Registering HPX CUDA polling..." << std::endl;
-    hpx::cuda::experimental::detail::register_polling(hpx::resource::get_thread_pool(0));
-    std::cerr << "Registered HPX CUDA polling..." << std::endl;
+    if (opts().polling_threads>0) {
+      std::cerr << "Registering HPX CUDA polling on polling pool..." << std::endl;
+      hpx::cuda::experimental::detail::register_polling(hpx::resource::get_thread_pool("polling"));
+    } else {
+      std::cerr << "Registering HPX CUDA polling..." << std::endl;
+      hpx::cuda::experimental::detail::register_polling(hpx::resource::get_thread_pool(0));
+    }
+    std::cerr << "Registered HPX CUDA polling!" << std::endl;
 #endif
 #endif
 #if defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_SYCL)
-    std::cerr << "Registering HPX SYCL polling..." << std::endl;
-    hpx::sycl::experimental::detail::register_polling(hpx::resource::get_thread_pool(0));
-    std::cerr << "Registered HPX SYCL polling..." << std::endl;
+    if (opts().polling_threads>0) {
+      std::cerr << "Registering HPX SYCL polling on polling pool..." << std::endl;
+      hpx::sycl::experimental::detail::register_polling(hpx::resource::get_thread_pool("polling"));
+    } else {
+      std::cerr << "Registering HPX SYCL polling..." << std::endl;
+      hpx::sycl::experimental::detail::register_polling(hpx::resource::get_thread_pool(0));
+    }
+    std::cerr << "Registered HPX SYCL polling!" << std::endl;
 #endif
 
 #if defined(OCTOTIGER_HAVE_KOKKOS)

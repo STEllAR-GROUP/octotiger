@@ -7,6 +7,7 @@
 #if !defined(HPX_COMPUTE_DEVICE_CODE)
 
 #include <hpx/hpx_init.hpp>
+#include <hpx/resource_partitioner/partitioner.hpp>
 #ifdef OCTOTIGER_HAVE_KOKKOS
 #include <hpx/kokkos.hpp>
 #endif
@@ -154,22 +155,69 @@ int hpx_main(int argc, char* argv[]) {
     return hpx::finalize();
 }
 
+void init_resource_partitioner_handler(hpx::resource::partitioner& rp,
+    const hpx::program_options::variables_map &vm) {
+    // how many threads are reserved for polling
+    int polling_threads = vm["polling-threads"].as<int>();
+    const std::string pool_name = "polling";
+    if (polling_threads > 0) {
+        // background work will be done by polling pool
+        using namespace hpx::threads::policies;
+        rp.create_thread_pool(pool_name, hpx::resource::scheduling_policy::shared_priority,
+            scheduler_mode::do_background_work);
+        // add N pus to polling pool
+        int count = 0;
+        for (const hpx::resource::numa_domain& d : rp.numa_domains()) {
+            for (const hpx::resource::core& c : d.cores()) {
+                for (const hpx::resource::pu& p : c.pus()) {
+                    if (count < polling_threads) {
+                        std::cout << "Added pu " << count++ << " to pool \"" <<
+                          pool_name << "\"\n";
+                        rp.add_resource(p, pool_name);
+                    }
+                }
+            }
+        }
+
+        {
+            // remove background work flag from the default pool as this will be done by polling pool
+            using namespace hpx::threads::policies;
+            auto deft = scheduler_mode::default_;
+            auto idle = scheduler_mode::enable_idle_backoff;
+            auto back = scheduler_mode::do_background_work;
+            std::uint32_t mode = deft & ~idle & ~back;
+            //
+            rp.create_thread_pool("default",
+                                  hpx::resource::scheduling_policy::unspecified,
+                                  hpx::threads::policies::scheduler_mode(mode));
+        }
+    }
+}
+
 int main(int argc, char* argv[]) {
 #ifdef OCTOTIGER_HAVE_UNBUFFERED_STDOUT
     std::setbuf(stdout, nullptr);
     std::cout << "Set to unbuffered stdout on current process... " << std::endl;
 #endif
     std::cerr << "Starting main..." << std::endl;
-    hpx::init_params p;
-    p.cfg = {
-        "hpx.commandline.allow_unknown=1"    // HPX should not complain about unknown command line
-    };
     std::cerr << "Registering functions ..." << std::endl;
     register_hpx_functions();
+
+    hpx::program_options::options_description desc_cmdline("Options");
+    desc_cmdline.add_options()
+        ("polling-threads", hpx::program_options::value<int>()->default_value(0),
+         "Enable dedicated HPX thread pool for cuda/network polling using N threads");
+    hpx::init_params init_args;
+    init_args.desc_cmdline = desc_cmdline;
+    init_args.rp_callback = &init_resource_partitioner_handler;
+    init_args.cfg = {
+        "hpx.commandline.allow_unknown=1"    // HPX should not complain about unknown command line
+    };
     std::cerr << "Starting hpx init ..." << std::endl;
-    hpx::init(argc, argv, p);
+    hpx::init(argc, argv, init_args);
 #ifdef OCTOTIGER_HAVE_HIP
     std::cout << std::endl << "WARNING: Experimental HIP Build! Do not (yet) use for production runs!\n" << std::endl;
 #endif
+
 }
 #endif

@@ -134,6 +134,7 @@ public:
 	size_t max_executor_slices;
 	bool root_node_on_device;
 	bool optimize_local_communication;
+  int polling_threads;
 
 	std::string input_file;
 	std::string config_file;
