@@ -168,8 +168,8 @@ void init_resource_partitioner_handler(hpx::resource::partitioner& rp,
         // add N pus to polling pool
         int count = 0;
         for (const hpx::resource::numa_domain& d : rp.numa_domains()) {
-            for (const hpx::resource::core& c : d.cores()) {
-                for (const hpx::resource::pu& p : c.pus()) {
+            for (auto it = d.cores().rbegin(); it != d.cores().rend(); it++) {
+                for (const hpx::resource::pu& p : (*it).pus()) {
                     if (count < polling_threads) {
                         std::cout << "Added pu " << count++ << " to pool \"" <<
                           pool_name << "\"\n";
