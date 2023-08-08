@@ -184,8 +184,7 @@ void init_resource_partitioner_handler(hpx::resource::partitioner& rp,
             using namespace hpx::threads::policies;
             auto deft = scheduler_mode::default_;
             auto idle = scheduler_mode::enable_idle_backoff;
-            auto back = scheduler_mode::do_background_work;
-            std::uint32_t mode = deft & ~idle & ~back;
+            std::uint32_t mode = deft & ~idle; 
             //
             rp.create_thread_pool("default",
                                   hpx::resource::scheduling_policy::unspecified,
