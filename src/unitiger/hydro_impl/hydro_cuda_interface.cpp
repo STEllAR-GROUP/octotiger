@@ -23,6 +23,8 @@
 #include "octotiger/unitiger/hydro_impl/reconstruct_kernel_interface.hpp"
 #include "octotiger/unitiger/hydro_impl/reconstruct_kernel_templates.hpp"    // required for constants
 
+#include "octotiger/unitiger/hydro_impl/hydro_performance_counters.hpp"
+
 static const char hydro_cuda_kernel_identifier[] = "hydro_kernel_aggregator_cuda";
 using hydro_cuda_agg_executor_pool = aggregation_pool<hydro_cuda_kernel_identifier,
     hpx::cuda::experimental::cuda_executor, pool_strategy>;
@@ -317,6 +319,11 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
               number_slices * (NDIM * nf_local * q_inx3 + 128) *
               sizeof(double),
               cudaMemcpyDeviceToHost);
+
+      octotiger::hydro::hydro_cuda_gpu_subgrids_processed++;
+      if(slice_id == 0)
+        octotiger::hydro::hydro_cuda_gpu_aggregated_subgrids_launches++;
+
       flux_kernel_fut.get();
 
       // Find Maximum

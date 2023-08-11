@@ -22,6 +22,8 @@
 #include "octotiger/unitiger/hydro_impl/hydro_kernel_interface.hpp"
 #include "octotiger/unitiger/hydro_impl/reconstruct_kernel_templates.hpp"
 
+#include "octotiger/unitiger/hydro_impl/hydro_performance_counters.hpp"
+
 #ifdef HPX_HAVE_APEX
 #include <apex_api.hpp>
 #endif
@@ -1198,6 +1200,10 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
         agg_exec, host_f, f, (NDIM * nf * q_inx3 + padding));
     fut.get();
 
+    octotiger::hydro::hydro_kokkos_gpu_subgrids_processed++;
+    if (slice_id == 0)
+        octotiger::hydro::hydro_kokkos_gpu_aggregated_subgrids_launches++;
+
     const int amax_slice_offset = NDIM * (1 + 2 * nf) * number_blocks_small * slice_id;
     const int max_indices_slice_offset = NDIM * number_blocks_small * slice_id;
 
@@ -1343,6 +1349,10 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     apex::stop(flux_timer);
 #endif
     sync_kokkos_host_kernel(agg_exec.get_underlying_executor());
+
+    octotiger::hydro::hydro_kokkos_cpu_subgrids_processed++;
+    if (slice_id == 0)
+        octotiger::hydro::hydro_kokkos_cpu_aggregated_subgrids_launches++;
 
 
     const int amax_slice_offset = (1 + 2 * nf) * blocks * slice_id;

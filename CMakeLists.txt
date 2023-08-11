@@ -362,6 +362,7 @@ set(hydro_header_files
     octotiger/unitiger/hydro_impl/hydro.hpp
     octotiger/unitiger/hydro_impl/reconstruct.hpp
     octotiger/unitiger/hydro_impl/flux.hpp
+    octotiger/unitiger/hydro_impl/hydro_performance_counters.hpp
     octotiger/unitiger/radiation/radiation_physics.hpp
     octotiger/unitiger/radiation/radiation_physics_impl.hpp
     octotiger/test_problems/exact_sod.hpp
@@ -374,6 +375,7 @@ set(hydro_source_files
    src/unitiger/hydro_impl/reconstruct_cuda_kernel.cpp
    src/unitiger/hydro_impl/hydro_kernel_interface.cpp
    src/unitiger/hydro_impl/hydro_cuda_interface.cpp
+   src/unitiger/hydro_impl/hydro_performance_counters.cpp
    src/test_problems/sod/exact_sod.cpp)
 
 set(cu_source_files

@@ -7,6 +7,7 @@
 //#undef NDEBUG
 #include "octotiger/unitiger/hydro_impl/hydro_kernel_interface.hpp"
 #include "octotiger/unitiger/hydro_impl/flux_kernel_interface.hpp"
+#include "octotiger/unitiger/hydro_impl/hydro_performance_counters.hpp"
 #ifdef OCTOTIGER_HAVE_KOKKOS
 #include <hpx/kokkos/executors.hpp>
 #include <hpx/kokkos.hpp>
@@ -165,6 +166,7 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
         auto flux_timer = apex::start("kernel hydro_flux legacy");
 #endif
         max_lambda = hydro.flux(U, q, f, X, omega);
+        octotiger::hydro::hydro_legacy_subgrids_processed++;
 #ifdef HPX_HAVE_APEX
         apex::stop(flux_timer);
 #endif
