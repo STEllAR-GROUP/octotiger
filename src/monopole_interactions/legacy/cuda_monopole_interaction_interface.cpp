@@ -3,6 +3,7 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+#include <stdexcept>
 #if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)
 
 #include "octotiger/monopole_interactions/legacy/cuda_monopole_interaction_interface.hpp"
@@ -108,6 +109,11 @@ namespace fmm {
                 monopole_interaction_interface::compute_interactions(monopoles, com_ptr, neighbors,
                     type, dx, is_direction_empty, grid_ptr, contains_multipole_neighbor);
             } else {
+                constexpr size_t constant_stencil_size = (FULL_STENCIL_SIZE > 1331) ? 1 : FULL_STENCIL_SIZE;
+                if constexpr (constant_stencil_size == 1) {
+                    throw std::runtime_error("Stencil is too large (theta too small)"
+                                       "Use KOKKOS_CUDA instead or recompile with larger minimal theta!");
+                }
                 // run on CUDA device
                 cuda_launch_counter()++;
 

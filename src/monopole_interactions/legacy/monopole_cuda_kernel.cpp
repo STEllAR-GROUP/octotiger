@@ -12,9 +12,13 @@
 namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
+        // This disables the constant memory optimization when the stencil gets too large
+        // Note: This renders the CUDA versions non-functional -- however there is a mechanism
+        // in place which throws an error if a user tries to use the CUDA kernel in this configuration
+        constexpr size_t constant_stencil_size = (FULL_STENCIL_SIZE > 1331) ? 1 : FULL_STENCIL_SIZE;
         // __constant__ octotiger::fmm::multiindex<> device_stencil_const[P2P_PADDED_STENCIL_SIZE];
-        __device__ __constant__ bool device_stencil_masks[FULL_STENCIL_SIZE];
-        __device__ __constant__ double device_four_constants[FULL_STENCIL_SIZE * 4];
+        __device__ __constant__ bool device_stencil_masks[constant_stencil_size];
+        __device__ __constant__ double device_four_constants[constant_stencil_size];
 
         __host__ void init_stencil(size_t gpu_id, std::unique_ptr<bool[]> stencil_masks,
             std::unique_ptr<double[]> four_constants_tmp) {
