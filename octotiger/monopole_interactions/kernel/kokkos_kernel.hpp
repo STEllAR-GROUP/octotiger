@@ -75,7 +75,7 @@ namespace fmm {
                 for (int gpu_id_loop = 0; gpu_id_loop < max_number_gpus; gpu_id_loop++) {
                     stream_pool::select_device<executor_t,
                           round_robin_pool<executor_t>>(gpu_id_loop);
-                    kokkos_device_executor exec{hpx::kokkos::execution_space_mode::independent};
+                    executor_t exec{hpx::kokkos::execution_space_mode::independent};
                     const size_t location_id = gpu_id_loop * instances_per_gpu;
                     stencil_masks.emplace_back(location_id, FULL_STENCIL_SIZE);
                     Kokkos::deep_copy(exec.instance(), stencil_masks[gpu_id_loop], tmp);
@@ -95,7 +95,7 @@ namespace fmm {
                 for (int gpu_id_loop = 0; gpu_id_loop < max_number_gpus; gpu_id_loop++) {
                     stream_pool::select_device<executor_t,
                           round_robin_pool<executor_t>>(gpu_id_loop);
-                    kokkos_device_executor exec{hpx::kokkos::execution_space_mode::independent};
+                    executor_t exec{hpx::kokkos::execution_space_mode::independent};
                     const size_t location_id = gpu_id_loop * instances_per_gpu;
                     stencil_constants.emplace_back(location_id, 4 * FULL_STENCIL_SIZE);
                     Kokkos::deep_copy(exec.instance(), stencil_constants[gpu_id_loop], tmp);
