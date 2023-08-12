@@ -141,7 +141,7 @@ void init_executors(void) {
     if (!Kokkos::is_initialized()) { // gets initialized earlier on root locality
       // TODO SYCL Need args for distributed build...
       Kokkos::initialize();
-      Kokkos::print_configuration(std::cout);
+      /* Kokkos::print_configuration(std::cout); */
       std::cout << "Initialized Kokkos on this locality..." << std::endl;
     } else {
       std::cout << "Kokkos already initialized" << std::endl;
