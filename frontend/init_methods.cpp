@@ -6,6 +6,13 @@
 #include "octotiger/monopole_interactions/legacy/cuda_monopole_interaction_interface.hpp"
 #include "octotiger/multipole_interactions/legacy/cuda_multipole_interaction_interface.hpp"
 
+#include <cuda_buffer_util.hpp>
+#endif
+#ifdef OCTOTIGER_HAVE_HIP
+#include <hip_buffer_util.hpp>
+#endif
+#if defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_SYCL)
+#include <sycl_buffer_util.hpp>
 #endif
 #include "octotiger/common_kernel/interaction_constants.hpp"
 #include "octotiger/monopole_interactions/util/calculate_stencil.hpp"
@@ -399,4 +406,68 @@ void init_problem(void) {
       std::cout << "Compiled with max nf -DOCTOTIGER_WITH_MAX_NUMBER_FIELDS=" << OCTOTIGER_MAX_NUMBER_FIELDS << std::endl;
     }
     std::cout << "Problem initialized!" << std::endl;
+}
+
+
+void register_cppuddle_allocator_counters(void)  {
+
+    // default host allocators
+    hpx::register_startup_function(
+        &recycler::detail::buffer_recycler::register_allocator_counters_with_hpx<
+            double, boost::alignment::aligned_allocator<double, 32>>);
+    hpx::register_startup_function(
+        &recycler::detail::buffer_recycler::register_allocator_counters_with_hpx<
+            int, boost::alignment::aligned_allocator<int, 32>>);
+    hpx::register_startup_function(
+        &recycler::detail::buffer_recycler::register_allocator_counters_with_hpx<
+            double, std::allocator<double>>);
+    hpx::register_startup_function(
+        &recycler::detail::buffer_recycler::register_allocator_counters_with_hpx<
+            int, std::allocator<int>>);
+
+    // CUDA host / device allocators -- also used by KOKKOS
+#if defined(OCTOTIGER_HAVE_CUDA)
+    hpx::register_startup_function(
+        &recycler::detail::buffer_recycler::register_allocator_counters_with_hpx<
+            double, recycler::detail::cuda_pinned_allocator<double>>);
+    hpx::register_startup_function(
+        &recycler::detail::buffer_recycler::register_allocator_counters_with_hpx<
+            int, recycler::detail::cuda_pinned_allocator<int>>);
+    hpx::register_startup_function(
+        &recycler::detail::buffer_recycler::register_allocator_counters_with_hpx<
+            double, recycler::detail::cuda_device_allocator<double>>);
+    hpx::register_startup_function(
+        &recycler::detail::buffer_recycler::register_allocator_counters_with_hpx<
+            int, recycler::detail::cuda_device_allocator<int>>);
+#endif
+    // HIP host / device allocators -- also used by KOKKOS
+#if defined(OCTOTIGER_HAVE_HIP)
+    hpx::register_startup_function(
+        &recycler::detail::buffer_recycler::register_allocator_counters_with_hpx<
+            double, recycler::detail::hip_pinned_allocator<double>>);
+    hpx::register_startup_function(
+        &recycler::detail::buffer_recycler::register_allocator_counters_with_hpx<
+            int, recycler::detail::hip_pinned_allocator<int>>);
+    hpx::register_startup_function(
+        &recycler::detail::buffer_recycler::register_allocator_counters_with_hpx<
+            double, recycler::detail::hip_device_allocator<double>>);
+    hpx::register_startup_function(
+        &recycler::detail::buffer_recycler::register_allocator_counters_with_hpx<
+            int, recycler::detail::hip_device_allocator<int>>);
+#endif
+    // SYCL host / device allocators 
+#if defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_SYCL)
+    hpx::register_startup_function(
+        &recycler::detail::buffer_recycler::register_allocator_counters_with_hpx<
+            double, detail::sycl_host_default_allocator<double>>);
+    hpx::register_startup_function(
+        &recycler::detail::buffer_recycler::register_allocator_counters_with_hpx<
+            int, detail::sycl_host_default_allocator<int>>);
+    hpx::register_startup_function(
+        &recycler::detail::buffer_recycler::register_allocator_counters_with_hpx<
+            double, detail::sycl_device_default_allocator<double>>);
+    hpx::register_startup_function(
+        &recycler::detail::buffer_recycler::register_allocator_counters_with_hpx<
+            int, detail::sycl_device_default_allocator<int>>);
+#endif
 }

@@ -201,6 +201,7 @@ int main(int argc, char* argv[]) {
     std::cerr << "Starting main..." << std::endl;
     std::cerr << "Registering functions ..." << std::endl;
     register_hpx_functions();
+    register_cppuddle_allocator_counters();
 
     hpx::program_options::options_description desc_cmdline("Options");
     desc_cmdline.add_options()
