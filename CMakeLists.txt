@@ -211,6 +211,7 @@ set(source_files
     src/taylor.cpp
     src/util.cpp
     src/common_kernel/interactions_iterators.cpp
+    src/common_kernel/gravity_performance_counters.cpp
     src/cuda_util/cuda_scheduler.cpp
     src/monopole_interactions/legacy/cuda_monopole_interaction_interface.cpp
     src/monopole_interactions/legacy/monopole_cuda_kernel.cpp
@@ -287,6 +288,7 @@ set(header_files
     octotiger/common_kernel/struct_of_array_data.hpp
     octotiger/common_kernel/kokkos_util.hpp
     octotiger/common_kernel/std_simd.hpp
+    octotiger/common_kernel/gravity_performance_counters.hpp
     octotiger/compute_factor.hpp
     octotiger/cuda_util/cuda_global_def.hpp
     octotiger/cuda_util/cuda_helper.hpp

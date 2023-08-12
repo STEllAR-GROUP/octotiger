@@ -40,6 +40,7 @@
 #include "octotiger/multipole_interactions/util/calculate_stencil.hpp"
 
 #include "octotiger/unitiger/hydro_impl/hydro_performance_counters.hpp"
+#include "octotiger/common_kernel/gravity_performance_counters.hpp"
 
 #include <hpx/collectives/broadcast_direct.hpp>
 #include <hpx/hpx_init.hpp>
@@ -219,6 +220,7 @@ void start_octotiger(int argc, char* argv[]) {
 void register_hpx_functions(void) {
     hpx::register_startup_function(&node_server::register_counters);
     hpx::register_startup_function(&octotiger::hydro::register_performance_counters);
+    hpx::register_startup_function(&octotiger::fmm::register_performance_counters);
     hpx::register_pre_shutdown_function([]() { options::all_localities.clear(); });
 }
 #endif

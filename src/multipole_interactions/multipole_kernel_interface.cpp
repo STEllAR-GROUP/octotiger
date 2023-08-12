@@ -11,6 +11,7 @@
 #include "octotiger/common_kernel/interactions_iterators.hpp"
 #include "octotiger/multipole_interactions/legacy/multipole_interaction_interface.hpp"
 #include "octotiger/multipole_interactions/util/calculate_stencil.hpp"
+#include "octotiger/common_kernel/gravity_performance_counters.hpp"
 #include "octotiger/options.hpp"
 
 #include <algorithm>
@@ -77,10 +78,13 @@ namespace fmm {
                                 opts().cuda_buffer_capacity);
                     }
                     if (avail) {
+
                         executor_interface_t executor;
                         multipole_kernel<device_executor>(executor, monopoles, M_ptr, com_ptr,
                             neighbors, type, dx, opts().theta, is_direction_empty, xbase, grid,
                             use_root_stencil);
+
+                        octotiger::fmm::multipole_kokkos_gpu_subgrids_launched++;
                         return;
                     }
                 }
@@ -97,6 +101,7 @@ namespace fmm {
                     multipole_interactor.set_grid_ptr(grid);
                     multipole_interactor.compute_multipole_interactions(monopoles, M_ptr, com_ptr,
                         neighbors, type, dx, is_direction_empty, xbase, use_root_stencil);
+                    octotiger::fmm::multipole_cuda_gpu_subgrids_launched++;
                     return;
                 }
 #else
@@ -111,6 +116,7 @@ namespace fmm {
                     multipole_interactor.set_grid_ptr(grid);
                     multipole_interactor.compute_multipole_interactions(monopoles, M_ptr, com_ptr,
                         neighbors, type, dx, is_direction_empty, xbase, use_root_stencil);
+                    octotiger::fmm::multipole_cuda_gpu_subgrids_launched++;
                     return;
                 }
 #else
@@ -127,6 +133,7 @@ namespace fmm {
                 host_executor executor{hpx::kokkos::execution_space_mode::independent};
                 multipole_kernel<host_executor>(executor, monopoles, M_ptr, com_ptr, neighbors,
                     type, dx, opts().theta, is_direction_empty, xbase, grid, use_root_stencil);
+                octotiger::fmm::multipole_kokkos_cpu_subgrids_launched++;
                 return;
 #else
                 std::cerr
