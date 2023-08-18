@@ -13,6 +13,7 @@
 #ifdef OCTOTIGER_HAVE_KOKKOS
 #include "octotiger/common_kernel/kokkos_util.hpp"
 #include "octotiger/common_kernel/kokkos_simd.hpp"
+#include "octotiger/options.hpp"
 
 #ifdef HPX_HAVE_APEX
 #include <apex_api.hpp>
@@ -742,7 +743,7 @@ namespace fmm {
             std::enable_if_t<is_kokkos_device_executor<executor_t>::value, int> = 0>
         void launch_interface_p2p(executor_t& exec, host_buffer<double>& monopoles,
             host_buffer<double>& results, double dx, double theta) {
-            auto gpu_id = get_device_id();
+            auto gpu_id = get_device_id(opts().cuda_number_gpus);
             stream_pool::select_device<executor_t,
                   round_robin_pool<executor_t>>(gpu_id);
             // create device buffers
@@ -809,7 +810,7 @@ namespace fmm {
             std::vector<host_buffer<double>>& center_of_masses, double dx, double theta,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
             const size_t number_p2m_kernels) {
-            auto gpu_id = get_device_id();
+            auto gpu_id = get_device_id(opts().cuda_number_gpus);
             stream_pool::select_device<executor_t,
                   round_robin_pool<executor_t>>(gpu_id);
             // create device buffers

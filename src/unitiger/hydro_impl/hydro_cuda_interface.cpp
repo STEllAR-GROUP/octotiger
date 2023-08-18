@@ -75,7 +75,8 @@ void init_hydro_aggregation_pool(void) {
     const size_t max_slices = opts().max_executor_slices;
     constexpr size_t number_aggregation_executors = 16;
     constexpr Aggregated_Executor_Modes executor_mode = Aggregated_Executor_Modes::EAGER;
-    hydro_cuda_agg_executor_pool::init(number_aggregation_executors, max_slices, executor_mode);
+    hydro_cuda_agg_executor_pool::init(number_aggregation_executors, max_slices,
+        executor_mode, opts().cuda_number_gpus);
 }
 
 __host__ void init_gpu_masks(std::array<bool*, max_number_gpus>& masks) {

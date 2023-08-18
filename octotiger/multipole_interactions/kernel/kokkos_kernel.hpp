@@ -13,6 +13,7 @@
 #ifdef OCTOTIGER_HAVE_KOKKOS
 #include "octotiger/common_kernel/kokkos_util.hpp"
 #include "octotiger/common_kernel/kokkos_simd.hpp"
+#include "octotiger/options.hpp"
 
 #ifdef HPX_HAVE_APEX
 #include <apex_api.hpp>
@@ -770,7 +771,7 @@ namespace fmm {
             const host_buffer<double>& centers_of_mass, const host_buffer<double>& multipoles,
             host_buffer<double>& potential_expansions, host_buffer<double>& angular_corrections,
             const double theta, const gsolve_type type, const bool use_root_stencil) {
-            auto gpu_id = get_device_id();
+            auto gpu_id = get_device_id(opts().cuda_number_gpus);
             stream_pool::select_device<executor_t,
                   round_robin_pool<executor_t>>(gpu_id);
             const device_buffer<int>& device_masks =
