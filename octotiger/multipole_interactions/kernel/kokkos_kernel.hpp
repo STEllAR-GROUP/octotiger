@@ -1,4 +1,4 @@
-//  Copyright (c) 2020-2021 Gregor Daiß
+//  Copyright (c) 2020-2023 Gregor Daiß
 //
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -66,10 +66,9 @@ namespace fmm {
                     stream_pool::select_device<executor_t,
                           round_robin_pool<executor_t>>(gpu_id_loop);
                     executor_t exec{hpx::kokkos::execution_space_mode::independent};
-                    const size_t location_id = gpu_id_loop * instances_per_gpu;
-                    stencil_masks.emplace_back(location_id, FULL_STENCIL_SIZE);
+                    stencil_masks.emplace_back(gpu_id_loop, FULL_STENCIL_SIZE);
                     Kokkos::deep_copy(exec.instance(), stencil_masks[gpu_id_loop], tmp_masks);
-                    stencil_indicators.emplace_back(location_id, FULL_STENCIL_SIZE);
+                    stencil_indicators.emplace_back(gpu_id_loop, FULL_STENCIL_SIZE);
                     Kokkos::deep_copy(exec.instance(), stencil_indicators[gpu_id_loop], tmp_indicators);
                     exec.instance().fence();
                 }

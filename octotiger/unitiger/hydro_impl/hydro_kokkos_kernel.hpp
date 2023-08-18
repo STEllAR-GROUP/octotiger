@@ -1,4 +1,4 @@
-//  Copyright (c) 2021-2022 Gregor Daiß
+//  Copyright (c) 2021-2023 Gregor Daiß
 //
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -61,8 +61,7 @@ const storage& get_flux_device_masks(executor_t& exec2, const size_t gpu_id = 0)
             stream_pool::select_device<executor_t,
                   round_robin_pool<executor_t>>(gpu_id_loop);
           executor_t exec{hpx::kokkos::execution_space_mode::independent};
-          const size_t location_id = gpu_id_loop * instances_per_gpu;
-          masks.emplace_back(location_id, NDIM * q_inx3);
+          masks.emplace_back(gpu_id_loop, NDIM * q_inx3);
           Kokkos::deep_copy(exec.instance(), masks[gpu_id_loop], tmp_masks);
           exec.instance().fence();
         }
