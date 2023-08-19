@@ -365,13 +365,6 @@ bool options::process_options(int argc, char *argv[]) {
 	}
     // Check parameters if we hit any implementation limitation as in
     // unsupported kernel configurations
-    if (opts().cuda_number_gpus > 1) {
-        std::cerr << std::endl << "ERROR: "; 
-        std::cerr << "Currently there is no multi-GPU support. " << std::endl;
-        std::cerr << "To use multiple GPUs per node, use one HPX locality per GPU " 
-                  << "and use slurm or CUDA_VISIBLE_DEVICES to have each locality access a different GPU" << std::endl;
-        abort();
-    }
     if (opts().gravity) {
 #ifdef OCTOTIGER_DISABLE_ILIST
         std::cerr << "ERROR! Gravity is turned on but Octo-Tiger was compiled without interaction list" << std::endl

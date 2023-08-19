@@ -50,7 +50,7 @@ void init_hydro_kokkos_aggregation_pool(void) {
     hydro_kokkos_agg_executor_pool<hpx::kokkos::sycl_executor>::init(number_aggregation_executors, max_slices, executor_mode, opts().cuda_number_gpus);
 #endif
     }
-    hydro_kokkos_agg_executor_pool<host_executor>::init(number_aggregation_executors, max_slices, executor_mode);
+    hydro_kokkos_agg_executor_pool<host_executor>::init(number_aggregation_executors, max_slices, executor_mode, 1);
 }
 #endif
 
@@ -81,13 +81,18 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
             // Host execution is possible: Check if there is a launch slot for device - if not 
             // we will execute the kernel on the CPU instead
             if (host_type != interaction_host_kernel_type::DEVICE_ONLY) {
-                avail = stream_pool::interface_available<device_executor, device_pool_strategy>(
-                    cuda_buffer_capacity);
+                // TODO CPU/GPU currently not working with work aggregation 
+                /* avail = stream_pool::interface_available<device_executor, device_pool_strategy>( */
+                /*     cuda_buffer_capacity); */
+                std::cerr << "hydro_host_kernel_type should be DEVICE_ONLY when hydro_device_kernel_type != OFF "
+                             "Aborting..."
+                          << std::endl;
+                abort();
             }
             if (avail) {
-                executor_interface_t executor;
+                // executor_interface_t executor;
                 max_lambda = launch_hydro_kokkos_kernels<device_executor>(
-                    hydro, U, X, omega, opts().n_species, executor, F);
+                    hydro, U, X, omega, opts().n_species, F);
                 return max_lambda;
             }
         }
@@ -104,8 +109,13 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
             // Host execution is possible: Check if there is a launch slot for device - if not 
             // we will execute the kernel on the CPU instead
             if (host_type != interaction_host_kernel_type::DEVICE_ONLY) {
-                avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
-                    pool_strategy>(cuda_buffer_capacity);
+                // TODO CPU/GPU currently not working with work aggregation 
+                /* avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor, */
+                /*     pool_strategy>(cuda_buffer_capacity); */
+                std::cerr << "hydro_host_kernel_type should be DEVICE_ONLY when hydro_device_kernel_type != OFF "
+                             "Aborting..."
+                          << std::endl;
+                abort();
             }
             if (avail) {
                 size_t device_id = 0;
@@ -144,9 +154,8 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
     if (host_type == interaction_host_kernel_type::KOKKOS) {
 #ifdef OCTOTIGER_HAVE_KOKKOS
         hpx::call_once(init_hydro_kokkos_pool_flag, init_hydro_kokkos_aggregation_pool);
-        host_executor executor{hpx::kokkos::execution_space_mode::independent};
         max_lambda = launch_hydro_kokkos_kernels<host_executor>(
-            hydro, U, X, omega, opts().n_species, executor, F);
+            hydro, U, X, omega, opts().n_species, F);
         return max_lambda;
 #else
         std::cerr << "Trying to call Hydro Kokkos kernels in a non-kokkos build! Aborting..."

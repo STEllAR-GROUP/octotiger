@@ -94,10 +94,13 @@ namespace fmm {
             std::shared_ptr<grid>& grid_ptr, const bool contains_multipole_neighbor) {
             // Check where we want to run this:
             bool avail = true;
+            size_t device_id =
+                stream_pool::get_next_device_id<hpx::cuda::experimental::cuda_executor,
+                    pool_strategy>(opts().cuda_number_gpus);
             if (p2p_type != interaction_host_kernel_type::DEVICE_ONLY) {
                 // Check where we want to run this:
                 avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
-                    pool_strategy>(opts().cuda_buffer_capacity);
+                    pool_strategy>(opts().cuda_buffer_capacity, device_id);
             }
 #if defined(OCTOTIGER_HAVE_HIP)
             if (contains_multipole_neighbor) // TODO Add DEVICE_ONLY error/warning
@@ -118,10 +121,7 @@ namespace fmm {
                 cuda_launch_counter()++;
 
                 // Pick device and stream
-                size_t device_id =
-                    stream_pool::get_next_device_id<hpx::cuda::experimental::cuda_executor,
-                        pool_strategy>();
-                stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy> executor;
+                stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy> executor{device_id};
 
                 cuda_expansion_result_buffer_t potential_expansions_SoA;
                 cuda_monopole_buffer_t local_monopoles(ENTRIES);

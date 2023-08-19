@@ -139,6 +139,8 @@ namespace fmm {
             const kokkos_buffer_t& constants, kokkos_buffer_t& tmp_potential_expansions,
             const double dx, const double theta, const long p2p_blocks,
             const Kokkos::Array<long, 4>&& tiling_config) {
+            static_assert(std::is_same<kokkos_backend_t, decltype(executor.instance())>::value,
+                  "backend mismatch!");
             auto policy_1 = Kokkos::Experimental::require(
                 Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<4>>(
                     executor.instance(), {0, 0, 0, 0},
@@ -742,8 +744,8 @@ namespace fmm {
         template <typename executor_t,
             std::enable_if_t<is_kokkos_device_executor<executor_t>::value, int> = 0>
         void launch_interface_p2p(executor_t& exec, host_buffer<double>& monopoles,
-            host_buffer<double>& results, double dx, double theta) {
-            auto gpu_id = get_device_id(opts().cuda_number_gpus);
+            host_buffer<double>& results, double dx, double theta, const size_t device_id) {
+            auto gpu_id = device_id;
             stream_pool::select_device<executor_t,
                   round_robin_pool<executor_t>>(gpu_id);
             // create device buffers
@@ -751,10 +753,10 @@ namespace fmm {
                 get_device_masks<device_buffer<int>, host_buffer<int>, executor_t>(exec, gpu_id);
             const device_buffer<double>& device_constants =
                 get_device_constants<device_buffer<double>, host_buffer<double>, executor_t>(exec, gpu_id);
-            device_buffer<double> device_monopoles(NUMBER_LOCAL_MONOPOLE_VALUES);
-            device_buffer<double> device_tmp_results(
+            device_buffer<double> device_monopoles(gpu_id, NUMBER_LOCAL_MONOPOLE_VALUES);
+            device_buffer<double> device_tmp_results(gpu_id, 
                 NUMBER_P2P_BLOCKS * NUMBER_POT_EXPANSIONS_SMALL);
-            device_buffer<double> device_results(NUMBER_POT_EXPANSIONS_SMALL);
+            device_buffer<double> device_results(gpu_id, NUMBER_POT_EXPANSIONS_SMALL);
 
             // move device buffers
             Kokkos::deep_copy(exec.instance(), device_monopoles, monopoles);
@@ -771,7 +773,7 @@ namespace fmm {
         template <typename executor_t,
             std::enable_if_t<is_kokkos_host_executor<executor_t>::value, int> = 0>
         void launch_interface_p2p(executor_t& exec, host_buffer<double>& monopoles,
-            host_buffer<double>& results, double dx, double theta) {
+            host_buffer<double>& results, double dx, double theta, const size_t device_id) {
             const host_buffer<int>& host_masks = get_host_masks<host_buffer<int>>();
             const host_buffer<double>& host_constants = get_host_constants<host_buffer<double>>();
 
@@ -809,8 +811,8 @@ namespace fmm {
             std::vector<host_buffer<double>>& local_expansions,
             std::vector<host_buffer<double>>& center_of_masses, double dx, double theta,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
-            const size_t number_p2m_kernels) {
-            auto gpu_id = get_device_id(opts().cuda_number_gpus);
+            const size_t number_p2m_kernels, const size_t device_id) {
+            auto gpu_id = device_id;
             stream_pool::select_device<executor_t,
                   round_robin_pool<executor_t>>(gpu_id);
             // create device buffers
@@ -818,10 +820,10 @@ namespace fmm {
                 get_device_masks<device_buffer<int>, host_buffer<int>, executor_t>(exec, gpu_id);
             const device_buffer<double>& device_constants =
                 get_device_constants<device_buffer<double>, host_buffer<double>, executor_t>(exec, gpu_id);
-            device_buffer<double> device_monopoles(NUMBER_LOCAL_MONOPOLE_VALUES);
-            device_buffer<double> device_tmp_results(
+            device_buffer<double> device_monopoles(gpu_id, NUMBER_LOCAL_MONOPOLE_VALUES);
+            device_buffer<double> device_tmp_results(gpu_id, 
                 NUMBER_P2P_BLOCKS * NUMBER_POT_EXPANSIONS_SMALL);
-            device_buffer<double> device_results(NUMBER_POT_EXPANSIONS_SMALL);
+            device_buffer<double> device_results(gpu_id, NUMBER_POT_EXPANSIONS_SMALL);
 
             // move device buffers
             Kokkos::deep_copy(exec.instance(), device_monopoles, monopoles);
@@ -832,7 +834,7 @@ namespace fmm {
                 {1, 2, INX, INX / device_simd_t::size()});
             sum_p2p_results(exec, device_tmp_results, device_results, {1, 1, INX, INX});
 
-            device_buffer<double> device_center_of_masses_inner_cells(
+            device_buffer<double> device_center_of_masses_inner_cells(gpu_id, 
                 (INNER_CELLS + SOA_PADDING) * 3);
             Kokkos::deep_copy(
                 exec.instance(), device_center_of_masses_inner_cells, center_of_masses_inner_cells);
@@ -840,7 +842,7 @@ namespace fmm {
             std::vector<device_buffer<double>> device_center_of_masses_neighbors;
             std::vector<device_buffer<double>> device_local_expansions_neighbors;
 
-            device_buffer<double> device_corrections(NUMBER_ANG_CORRECTIONS);
+            device_buffer<double> device_corrections(gpu_id, NUMBER_ANG_CORRECTIONS);
 
             // - Launch Kernel
             size_t counter_kernel = 0;
@@ -881,11 +883,11 @@ namespace fmm {
                     if (dir[2] == -1)
                         cells_end.z = (STENCIL_MAX + 1);
 
-                    device_local_expansions_neighbors.emplace_back((size + SOA_PADDING) * 20);
+                    device_local_expansions_neighbors.emplace_back(gpu_id, (size + SOA_PADDING) * 20);
                     Kokkos::deep_copy(exec.instance(),
                         device_local_expansions_neighbors[counter_kernel],
                         local_expansions[counter_kernel]);
-                    device_center_of_masses_neighbors.emplace_back((size + SOA_PADDING) * 3);
+                    device_center_of_masses_neighbors.emplace_back(gpu_id, (size + SOA_PADDING) * 3);
                     Kokkos::deep_copy(exec.instance(),
                         device_center_of_masses_neighbors[counter_kernel],
                         center_of_masses[counter_kernel]);
@@ -925,7 +927,7 @@ namespace fmm {
             std::vector<host_buffer<double>>& local_expansions,
             std::vector<host_buffer<double>>& center_of_masses, double dx, double theta,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
-            const size_t number_p2m_kernels) {
+            const size_t number_p2m_kernels, const size_t device_id) {
             const host_buffer<int>& host_masks = get_host_masks<host_buffer<int>>();
             const host_buffer<double>& host_constants = get_host_constants<host_buffer<double>>();
 
@@ -1034,7 +1036,8 @@ namespace fmm {
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx, real theta,
             std::array<bool, geo::direction::count()>& is_direction_empty,
-            std::shared_ptr<grid> grid_ptr, const bool contains_multipole_neighbor) {
+            std::shared_ptr<grid> grid_ptr, const bool contains_multipole_neighbor,
+            const size_t device_id) {
             // Create host buffers
             host_buffer<double> host_monopoles(NUMBER_LOCAL_MONOPOLE_VALUES);
             host_buffer<double> host_results(NUMBER_POT_EXPANSIONS_SMALL);
@@ -1081,7 +1084,7 @@ namespace fmm {
                 }
                 launch_interface_p2p_p2m(exec, host_monopoles, host_results, host_corrections,
                     host_center_of_masses_inner_cells, host_local_expansions, host_center_of_masses,
-                    dx, theta, neighbors, type, number_kernels);
+                    dx, theta, neighbors, type, number_kernels, device_id);
                 if (type == RHO) {
                     std::vector<space_vector>& corrections = grid_ptr->get_L_c();
                     for (size_t component = 0; component < 3; component++) {
@@ -1092,7 +1095,7 @@ namespace fmm {
                     }
                 }
             } else {
-                launch_interface_p2p(exec, host_monopoles, host_results, dx, theta);
+                launch_interface_p2p(exec, host_monopoles, host_results, dx, theta, device_id);
             }
 
             // Add results back into non-SoA array
