@@ -92,7 +92,7 @@ void cleanup_puddle_on_this_locality(void) {
     }
     // Disable polling
 #if (defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)) && HPX_KOKKOS_CUDA_FUTURE_TYPE == 0 
-    if (opts().polling_threads>0) {
+    if (opts().polling_threads > 0) {
       std::cout << "Unregistering cuda polling on polling pool... " << std::endl;
       hpx::cuda::experimental::detail::unregister_polling(hpx::resource::get_thread_pool("polling"));
     } else {
@@ -101,7 +101,7 @@ void cleanup_puddle_on_this_locality(void) {
     }
 #endif
 #if defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_SYCL)
-    if (opts().polling_threads>0) {
+    if (opts().polling_threads > 0) {
       std::cout << "Unregistering sycl polling on polling pool... " << std::endl;
       hpx::sycl::experimental::detail::unregister_polling(hpx::resource::get_thread_pool("polling"));
     } else {
@@ -126,34 +126,12 @@ void cleanup_puddle_on_this_locality(void) {
 
 void init_executors(void) {
 
-  // workaround for bug when using HIP without KOKKOS
-#if defined(OCTOTIGER_HAVE_HIP)  && !defined(OCTOTIGER_HAVE_KOKKOS) 
-    // BUG:
-    // ----
-    // As for rocm/5 we need to reset the device before actually starting octotiger (otherwise we
-    // get a segfault within the AMD driver. I am not entirely sure if this is
-    // a rocm/hip/AMD problem or a
-    // machine-specific one, but for now we will use this as a workaround.
-    //
-    // Note, interestingly this does not seem to happen when a) we let
-    // Octo-Tiger sleep for a second
-    // here or b) we use Kokkos (presumably because Kokkos::init already takes more than a second)
-    //
-    // TODO Try again with newer ROCM version and/or different machine without the explicit device reset
-    hipDeviceReset();
-#endif
-
     std::cout << "Initialize executors and masks..." << std::endl;
+    // Init Kokkos
 #ifdef OCTOTIGER_HAVE_KOKKOS
-    if (!Kokkos::is_initialized()) { // gets initialized earlier on root locality
-      // TODO SYCL Need args for distributed build...
-      Kokkos::initialize();
-      /* Kokkos::print_configuration(std::cout); */
-      std::cout << "Initialized Kokkos on this locality..." << std::endl;
-    } else {
-      std::cout << "Kokkos already initialized" << std::endl;
-    }
-    
+    Kokkos::initialize();
+		if (hpx::get_locality_id() == 0)
+      Kokkos::print_configuration(std::cout, true);
 #ifdef OCTOTIGER_MULTIPOLE_HOST_HPX_EXECUTOR
     std::cout << "Using Kokkos HPX executors for multipole FMM kernels..." << std::endl;
     std::cout << "Number of tasks per KOKKOS multipole kernel: " << OCTOTIGER_KOKKOS_MULTIPOLE_TASKS << std::endl;
@@ -199,7 +177,7 @@ void init_executors(void) {
     } else {
       std::cerr << "Registering HPX SYCL polling..." << std::endl;
       hpx::sycl::experimental::detail::register_polling(hpx::resource::get_thread_pool(0));
-    }
+    }/
     std::cerr << "Registered HPX SYCL polling!" << std::endl;
 #endif
 
@@ -227,6 +205,7 @@ void init_executors(void) {
     }
     std::cout << "KOKKOS/CUDA is enabled!" << std::endl;
 #elif defined(KOKKOS_ENABLE_HIP)
+
     stream_pool::set_device_selector<hpx::kokkos::hip_executor,
           round_robin_pool<hpx::kokkos::hip_executor>>([](size_t gpu_id) {
               hipSetDevice(gpu_id);
@@ -288,6 +267,7 @@ void init_executors(void) {
 #endif
 
 #if defined(OCTOTIGER_HAVE_HIP)
+
     std::cout << "HIP is enabled!" << std::endl;
     stream_pool::set_device_selector<hpx::cuda::experimental::cuda_executor,
           round_robin_pool<hpx::cuda::experimental::cuda_executor>>([](size_t gpu_id) {

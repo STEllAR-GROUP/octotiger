@@ -32,6 +32,7 @@
 
 #ifdef OCTOTIGER_HAVE_HIP
 #warning "Experimental HIP Build! Do not (yet) use for production runs"
+#include <hip/hip_runtime.h>
 #endif
 
 #ifndef OCTOTIGER_GIT_COMMIT_HASH
@@ -40,14 +41,8 @@
 #ifndef OCTOTIGER_GIT_COMMIT_MESSAGE
 #define OCTOTIGER_GIT_COMMIT_MESSAGE "unknown"
 #endif
-
 int hpx_main(int argc, char* argv[]) {
 
-#ifdef OCTOTIGER_HAVE_KOKKOS
-    // Initialize Kokkos on root
-    std::cout << "Initializing Kokkos on Root locality" << std::endl;
-    Kokkos::initialize(argc, argv);
-#endif
     // The ascii logo was created by combining, modifying and extending the ascii arts from:
     // http://ascii.co.uk/art/octopus (Author "jgs")
     // and
@@ -142,9 +137,6 @@ int hpx_main(int argc, char* argv[]) {
 #endif
     printf("###########################################################\n");
 
-#ifdef OCTOTIGER_HAVE_KOKKOS
-    Kokkos::print_configuration(std::cout, true);
-#endif
 
     printf("\n###########################################################\n\n");
 
@@ -194,6 +186,23 @@ void init_resource_partitioner_handler(hpx::resource::partitioner& rp,
 }
 
 int main(int argc, char* argv[]) {
+
+#if defined(OCTOTIGER_HAVE_HIP) || (defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_HIP))
+    // Touch all AMDGPUs before before starting HPX.
+    //
+    // This avoids problems (bug) during the initizalization executor pools later on in the init
+    // method (Without this workaround we encounter a segfault in the amdgpu driver when
+    // initializing the first stream)
+    //
+    // TODO See if/how this can be reproduced with a simpler HPX example
+    int numDevices = 0;
+    hipGetDeviceCount(&numDevices);
+    for (size_t gpu_id = 0; gpu_id < numDevices; gpu_id++) {
+      hipSetDevice(gpu_id);
+      hipStream_t gpu1;
+      hipStreamCreate(&gpu1);
+    }
+#endif
 #ifdef OCTOTIGER_HAVE_UNBUFFERED_STDOUT
     std::setbuf(stdout, nullptr);
     std::cout << "Set to unbuffered stdout on current process... " << std::endl;
