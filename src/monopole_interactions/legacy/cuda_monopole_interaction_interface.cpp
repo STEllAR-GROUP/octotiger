@@ -106,7 +106,6 @@ namespace fmm {
             if (contains_multipole_neighbor) // TODO Add DEVICE_ONLY error/warning
               avail = false;
 #endif
-
             if (!avail) {
                 // Run CPU implementation
                 monopole_interaction_interface::compute_interactions(monopoles, com_ptr, neighbors,
@@ -144,11 +143,6 @@ namespace fmm {
 #if defined(OCTOTIGER_HAVE_CUDA)
                 void* args[] = {&(device_local_monopoles.device_side_buffer),
                     &(tmp_ergs.device_side_buffer), &theta, &dx};
-                // hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
-                //     cudalaunchkernel<decltype(cuda_p2p_interactions_kernel)>,
-                //     cuda_p2p_interactions_kernel, grid_spec, threads_per_block, args, 0);
-                // executor.post(cudaLaunchKernel<decltype(cuda_p2p_interactions_kernel)>,
-                //  cuda_p2p_interactions_kernel, grid_spec, threads_per_block, args, 0);
 
                 launch_p2p_cuda_kernel_post(executor, grid_spec, threads_per_block, args);
                 void* args_sum[] = {&(tmp_ergs.device_side_buffer),
@@ -184,7 +178,7 @@ namespace fmm {
                     
                     // Get and reset (as it is recycled) buffer for the angular correction results
                     // Same for all p2m kernel types
-                    device_buffer_t<double> device_erg_corrs(NUMBER_ANG_CORRECTIONS);
+                    device_buffer_t<double> device_erg_corrs(NUMBER_ANG_CORRECTIONS, device_id);
                     if (type == RHO)
                       hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                           cudaMemsetAsync, device_erg_corrs.device_side_buffer, 0,

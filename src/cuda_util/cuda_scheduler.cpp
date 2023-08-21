@@ -29,7 +29,7 @@ namespace fmm {
     }
 #endif
     void init_fmm_constants() {
-        std::size_t gpu_count = max_number_gpus;
+        std::size_t gpu_count = opts().cuda_number_gpus;
         // Create necessary data and add padding
         two_phase_stencil const stencil = multipole_interactions::calculate_stencil();
         auto p2p_stencil_pair = monopole_interactions::calculate_stencil();
