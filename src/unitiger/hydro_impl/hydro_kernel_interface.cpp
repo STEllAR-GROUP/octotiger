@@ -133,8 +133,13 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
 #ifdef OCTOTIGER_HAVE_HIP
             bool avail = true;
             if (host_type != interaction_host_kernel_type::DEVICE_ONLY) {
-              avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
-                  pool_strategy>(cuda_buffer_capacity);
+              // TODO CPU/GPU currently not working with work aggregation 
+              /* avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor, */
+              /*     pool_strategy>(cuda_buffer_capacity); */
+              std::cerr << "hydro_host_kernel_type should be DEVICE_ONLY when hydro_device_kernel_type != OFF "
+                           "Aborting..."
+                        << std::endl;
+              abort();
             }
             if (avail) {
                 size_t device_id = 0;

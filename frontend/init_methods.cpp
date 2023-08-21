@@ -291,13 +291,13 @@ void init_executors(void) {
 #if HPX_KOKKOS_CUDA_FUTURE_TYPE == 0  // cuda in the name is correct
     std::cout << "HIP with polling futures enabled!" << std::endl;
     for (size_t gpu_id = 0; gpu_id < opts().cuda_number_gpus; gpu_id++)
-      stream_pool::init<hpx::cuda::experimental::cuda_executor, pool_strategy>(gpu_id,
+      stream_pool::init_executor_pool<hpx::cuda::experimental::cuda_executor, pool_strategy>(gpu_id,
           opts().cuda_streams_per_gpu, gpu_id, true);
     std::cout << "HIP with polling futures created!" << std::endl;
 #else
     std::cout << "HIP with callback futures enabled!" << std::endl;
     for (size_t gpu_id = 0; gpu_id < opts().cuda_number_gpus; gpu_id++)
-      stream_pool::init<hpx::cuda::experimental::cuda_executor, pool_strategy>(gpu_id,
+      stream_pool::init_executor_pool<hpx::cuda::experimental::cuda_executor, pool_strategy>(gpu_id,
           opts().cuda_streams_per_gpu, gpu_id, false);
 #endif
     octotiger::fmm::init_fmm_constants();
