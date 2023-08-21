@@ -18,7 +18,7 @@ namespace fmm {
         constexpr size_t constant_stencil_size = (FULL_STENCIL_SIZE > 1331) ? 1 : FULL_STENCIL_SIZE;
         // __constant__ octotiger::fmm::multiindex<> device_stencil_const[P2P_PADDED_STENCIL_SIZE];
         __device__ __constant__ bool device_stencil_masks[constant_stencil_size];
-        __device__ __constant__ double device_four_constants[constant_stencil_size];
+        __device__ __constant__ double device_four_constants[constant_stencil_size * 4];
 
         __host__ void init_stencil(size_t gpu_id, std::unique_ptr<bool[]> stencil_masks,
             std::unique_ptr<double[]> four_constants_tmp) {
