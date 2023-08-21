@@ -73,7 +73,7 @@ namespace fmm {
             static bool initialized = false;
             if (!initialized) {
                 const storage_host& tmp = get_host_masks<storage_host>();
-                for (int gpu_id_loop = 0; gpu_id_loop < max_number_gpus; gpu_id_loop++) {
+                for (int gpu_id_loop = 0; gpu_id_loop < opts().cuda_number_gpus; gpu_id_loop++) {
                     stream_pool::select_device<executor_t,
                           round_robin_pool<executor_t>>(gpu_id_loop);
                     executor_t exec{hpx::kokkos::execution_space_mode::independent};
@@ -92,7 +92,7 @@ namespace fmm {
             static bool initialized = false;
             if (!initialized) {
                 const storage_host& tmp = get_host_constants<storage_host>();
-                for (int gpu_id_loop = 0; gpu_id_loop < max_number_gpus; gpu_id_loop++) {
+                for (int gpu_id_loop = 0; gpu_id_loop < opts().cuda_number_gpus; gpu_id_loop++) {
                     stream_pool::select_device<executor_t,
                           round_robin_pool<executor_t>>(gpu_id_loop);
                     executor_t exec{hpx::kokkos::execution_space_mode::independent};

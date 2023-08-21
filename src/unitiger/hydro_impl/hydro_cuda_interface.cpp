@@ -82,7 +82,7 @@ void init_hydro_aggregation_pool(void) {
 __host__ void init_gpu_masks(std::array<bool*, max_number_gpus>& masks) {
     boost::container::vector<bool> masks_boost(NDIM * q_inx * q_inx * q_inx);
     fill_masks(masks_boost);
-    for (size_t gpu_id = 0; gpu_id < max_number_gpus; gpu_id++) {
+    for (size_t gpu_id = 0; gpu_id < opts().cuda_number_gpus; gpu_id++) {
       const size_t location_id = 0;
 #if defined(OCTOTIGER_HAVE_CUDA)
       masks[gpu_id] = recycler::detail::buffer_recycler::get<bool,

@@ -166,7 +166,12 @@ void init_executors(void) {
 #else
     std::cout << "Using Kokkos serial executors for monopole FMM kernels..." << std::endl;
 #endif
+#ifdef OCTOTIGER_WITH_HYDRO_HOST_HPX_EXECUTOR
+    std::cout << "Using Kokkos HPX executors for hydro kernels..." << std::endl;
     std::cout << "Number of tasks per KOKKOS hydro kernel: " << OCTOTIGER_KOKKOS_HYDRO_TASKS << std::endl;
+#else
+    std::cout << "Using Kokkos serial executors for hydro kernels..." << std::endl;
+#endif
     // initialize stencils in kokkos host memory
     octotiger::fmm::monopole_interactions::get_host_masks<host_buffer<int>>();
     octotiger::fmm::monopole_interactions::get_host_constants<host_buffer<double>>();
