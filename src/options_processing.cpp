@@ -166,7 +166,7 @@ bool options::process_options(int argc, char *argv[]) {
 	("hydro_host_kernel_type", po::value<interaction_host_kernel_type>(&(opts().hydro_host_kernel_type))->default_value(LEGACY), "Host kernel type for the hydro solver ") //
 	("hydro_device_kernel_type", po::value<interaction_device_kernel_type>(&(opts().hydro_device_kernel_type))->default_value(OFF), "Device kernel type for the hydro solver ") //
 #endif
-	("cuda_number_gpus", po::value<size_t>(&(opts().cuda_number_gpus))->default_value(size_t(0)), "cuda streams per HPX locality") //
+	("number_gpus", po::value<size_t>(&(opts().number_gpus))->default_value(size_t(0)), "cuda streams per HPX locality") //
 	("cuda_streams_per_gpu", po::value<size_t>(&(opts().cuda_streams_per_gpu))->default_value(size_t(0)), "cuda streams per GPU (per locality)") //
 	("cuda_buffer_capacity", po::value<size_t>(&(opts().cuda_buffer_capacity))->default_value(size_t(5)), "How many launches should be buffered before using the CPU") //
 ("polling-threads", po::value<int>(&(opts().polling_threads))->default_value(0), "Enable dedicated HPX thread pool for cuda/network polling using N threads!") //
@@ -228,8 +228,8 @@ bool options::process_options(int argc, char *argv[]) {
 		}
 		load_options_from_silo(opts().restart_filename);
 	}
-    if (opts().cuda_streams_per_gpu > 0 && opts().cuda_number_gpus == 0) {
-        opts().cuda_number_gpus = 1;
+    if (opts().cuda_streams_per_gpu > 0 && opts().number_gpus == 0) {
+        opts().number_gpus = 1;
 	}
 	if (opts().theta < octotiger::fmm::THETA_FLOOR) {
 		std::cerr << "theta " << theta << " is too small since Octo-Tiger was compiled for a minimum of " << octotiger::fmm::THETA_FLOOR << std::endl;
@@ -328,7 +328,7 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(v1309);
 		SHOW(idle_rates);
 		SHOW(xscale);
-		SHOW(cuda_number_gpus);
+		SHOW(number_gpus);
 		SHOW(cuda_streams_per_gpu);
 		SHOW(cuda_buffer_capacity);
 		SHOW(max_executor_slices);

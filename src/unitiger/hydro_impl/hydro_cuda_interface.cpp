@@ -76,13 +76,13 @@ void init_hydro_aggregation_pool(void) {
     constexpr size_t number_aggregation_executors = 16;
     constexpr Aggregated_Executor_Modes executor_mode = Aggregated_Executor_Modes::EAGER;
     hydro_cuda_agg_executor_pool::init(number_aggregation_executors, max_slices,
-        executor_mode, opts().cuda_number_gpus);
+        executor_mode, opts().number_gpus);
 }
 
 __host__ void init_gpu_masks(std::array<bool*, recycler::max_number_gpus>& masks) {
     boost::container::vector<bool> masks_boost(NDIM * q_inx * q_inx * q_inx);
     fill_masks(masks_boost);
-    for (size_t gpu_id = 0; gpu_id < opts().cuda_number_gpus; gpu_id++) {
+    for (size_t gpu_id = 0; gpu_id < opts().number_gpus; gpu_id++) {
       const size_t location_id = 0;
 #if defined(OCTOTIGER_HAVE_CUDA)
       masks[gpu_id] = recycler::detail::buffer_recycler::get<bool,

@@ -63,7 +63,7 @@ namespace fmm {
             if (!initialized) {
                 const storage_host& tmp_masks = get_host_masks<storage_host>(false);
                 const storage_host& tmp_indicators = get_host_masks<storage_host>(true);
-                for (int gpu_id_loop = 0; gpu_id_loop < opts().cuda_number_gpus; gpu_id_loop++) {
+                for (int gpu_id_loop = 0; gpu_id_loop < opts().number_gpus; gpu_id_loop++) {
                     stream_pool::select_device<executor_t,
                           round_robin_pool<executor_t>>(gpu_id_loop);
                     executor_t exec{hpx::kokkos::execution_space_mode::independent};

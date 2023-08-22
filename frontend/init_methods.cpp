@@ -135,13 +135,13 @@ void init_executors(void) {
     std::cout << "Found " << num_devices << " HIP devices! " << std::endl;
 #endif
     if (num_devices > 0) { // some devices were found
-      if (opts().cuda_number_gpus > num_devices) {
-          std::cerr << "ERROR: Requested " << opts().cuda_number_gpus << " GPUs but only "
+      if (opts().number_gpus > num_devices) {
+          std::cerr << "ERROR: Requested " << opts().number_gpus << " GPUs but only "
                     << num_devices << " were found!" << std::endl;
           abort();
       }
-      if (opts().cuda_number_gpus > recycler::max_number_gpus) {
-        std::cerr << "ERROR: Requested " << opts().cuda_number_gpus
+      if (opts().number_gpus > recycler::max_number_gpus) {
+        std::cerr << "ERROR: Requested " << opts().number_gpus
                   << " GPUs but CPPuddle was built with CPPUDDLE_MAX_NUMBER_GPUS="
                   << recycler::max_number_gpus << std::endl;
         abort();
@@ -220,7 +220,7 @@ void init_executors(void) {
               cudaSetDevice(gpu_id);
               });
     // initialize stencils / executor pool in kokkos device
-    for (size_t gpu_id = 0; gpu_id < opts().cuda_number_gpus; gpu_id++) {
+    for (size_t gpu_id = 0; gpu_id < opts().number_gpus; gpu_id++) {
       stream_pool::init_executor_pool<hpx::kokkos::cuda_executor,
           round_robin_pool<hpx::kokkos::cuda_executor>>(
           gpu_id, opts().cuda_streams_per_gpu,
@@ -233,7 +233,7 @@ void init_executors(void) {
           round_robin_pool<hpx::kokkos::hip_executor>>([](size_t gpu_id) {
               hipSetDevice(gpu_id);
               });
-    for (size_t gpu_id = 0; gpu_id < opts().cuda_number_gpus; gpu_id++) {
+    for (size_t gpu_id = 0; gpu_id < opts().number_gpus; gpu_id++) {
       stream_pool::init_executor_pool<hpx::kokkos::hip_executor,
           round_robin_pool<hpx::kokkos::hip_executor>>(
           gpu_id, opts().cuda_streams_per_gpu,
@@ -241,7 +241,7 @@ void init_executors(void) {
     }
     std::cout << "KOKKOS/HIP is enabled!" << std::endl;
 #elif defined(KOKKOS_ENABLE_SYCL)
-    for (size_t gpu_id = 0; gpu_id < opts().cuda_number_gpus; gpu_id++) {
+    for (size_t gpu_id = 0; gpu_id < opts().number_gpus; gpu_id++) {
       stream_pool::init_executor_pool<hpx::kokkos::sycl_executor,
           round_robin_pool<hpx::kokkos::sycl_executor>>(
           gpu_id, opts().cuda_streams_per_gpu,
@@ -276,13 +276,13 @@ void init_executors(void) {
               });
 #if HPX_KOKKOS_CUDA_FUTURE_TYPE == 0 
     std::cout << "CUDA with polling futures enabled!" << std::endl;
-    for (size_t gpu_id = 0; gpu_id < opts().cuda_number_gpus; gpu_id++) {
+    for (size_t gpu_id = 0; gpu_id < opts().number_gpus; gpu_id++) {
       stream_pool::init_executor_pool<hpx::cuda::experimental::cuda_executor, pool_strategy>(gpu_id,
           opts().cuda_streams_per_gpu, gpu_id, true);
     }
 #else
     std::cout << "CUDA with callback futures enabled!" << std::endl;
-    for (size_t gpu_id = 0; gpu_id < opts().cuda_number_gpus; gpu_id++) {
+    for (size_t gpu_id = 0; gpu_id < opts().number_gpus; gpu_id++) {
       stream_pool::init_executor_pool<hpx::cuda::experimental::cuda_executor, pool_strategy>(gpu_id,
           opts().cuda_streams_per_gpu, gpu_id, false);
     }
@@ -300,7 +300,7 @@ void init_executors(void) {
               });
 #if HPX_KOKKOS_CUDA_FUTURE_TYPE == 0  // cuda in the name is correct
     std::cout << "HIP with polling futures enabled!" << std::endl;
-    for (size_t gpu_id = 0; gpu_id < opts().cuda_number_gpus; gpu_id++) {
+    for (size_t gpu_id = 0; gpu_id < opts().number_gpus; gpu_id++) {
       stream_pool::init_executor_pool<hpx::cuda::experimental::cuda_executor, pool_strategy>(gpu_id,
           opts().cuda_streams_per_gpu, gpu_id, true);
       hipDeviceSynchronize();
@@ -308,7 +308,7 @@ void init_executors(void) {
     std::cout << "HIP with polling futures created!" << std::endl;
 #else
     std::cout << "HIP with callback futures enabled!" << std::endl;
-    for (size_t gpu_id = 0; gpu_id < opts().cuda_number_gpus; gpu_id++) {
+    for (size_t gpu_id = 0; gpu_id < opts().number_gpus; gpu_id++) {
       stream_pool::init_executor_pool<hpx::cuda::experimental::cuda_executor, pool_strategy>(gpu_id,
           opts().cuda_streams_per_gpu, gpu_id, false);
       hipDeviceSynchronize();

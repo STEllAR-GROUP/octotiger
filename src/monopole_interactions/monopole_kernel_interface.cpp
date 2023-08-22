@@ -73,7 +73,7 @@ namespace fmm {
     defined(KOKKOS_ENABLE_HIP)|| defined(KOKKOS_ENABLE_SYCL))
                     bool avail = true;
                     size_t device_id =
-                        stream_pool::get_next_device_id<device_executor, device_pool_strategy>(opts().cuda_number_gpus);
+                        stream_pool::get_next_device_id<device_executor, device_pool_strategy>(opts().number_gpus);
                     if (host_type != interaction_host_kernel_type::DEVICE_ONLY) {
                         // Check where we want to run this:
                         avail =

@@ -57,7 +57,7 @@ const storage& get_flux_device_masks(executor_t& exec2, const size_t gpu_id = 0)
     /* if (agg_exec.parent.gpu_id == 1) */
     if (!initialized) {
         const storage_host& tmp_masks = get_flux_host_masks<storage_host>();
-        for (int gpu_id_loop = 0; gpu_id_loop < opts().cuda_number_gpus; gpu_id_loop++) {
+        for (int gpu_id_loop = 0; gpu_id_loop < opts().number_gpus; gpu_id_loop++) {
             stream_pool::select_device<executor_t,
                   round_robin_pool<executor_t>>(gpu_id_loop);
           executor_t exec{hpx::kokkos::execution_space_mode::independent};

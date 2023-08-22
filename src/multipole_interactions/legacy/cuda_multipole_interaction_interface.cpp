@@ -62,7 +62,7 @@ namespace fmm {
             bool avail = true;
             size_t device_id =
                 stream_pool::get_next_device_id<hpx::cuda::experimental::cuda_executor,
-                    pool_strategy>(opts().cuda_number_gpus);
+                    pool_strategy>(opts().number_gpus);
             if (m2m_type != interaction_host_kernel_type::DEVICE_ONLY) {
                 avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
                     pool_strategy>(opts().cuda_buffer_capacity, device_id);
