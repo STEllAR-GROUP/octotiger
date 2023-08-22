@@ -506,7 +506,7 @@ bool options::process_options(int argc, char *argv[]) {
    if (opts().monopole_host_kernel_type == DEVICE_ONLY) {
      std::cerr << "\nWARNING: Monopole DEVICE_ONLY is currently not fully supported in HIP builds!!" << std::endl;
      std::cerr << "p2m kernel always executed on the cpu in this build..." << std::endl << std::endl;
-     sleep(10);
+     sleep(1);
    }
 
 #endif

@@ -201,6 +201,7 @@ int main(int argc, char* argv[]) {
       hipSetDevice(gpu_id);
       hipStream_t gpu1;
       hipStreamCreate(&gpu1);
+      hipDeviceSynchronize();
     }
 #endif
 #ifdef OCTOTIGER_HAVE_UNBUFFERED_STDOUT

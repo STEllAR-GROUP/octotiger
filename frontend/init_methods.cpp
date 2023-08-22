@@ -125,6 +125,29 @@ void cleanup_puddle_on_this_locality(void) {
 }
 
 void init_executors(void) {
+    std::cout << "Check number of available GPUs..." << std::endl;
+    int num_devices = 0; 
+#if defined(OCTOTIGER_HAVE_CUDA) || defined(KOKKOS_ENABLE_CUDA) 
+    cudaGetDeviceCount(&num_devices);
+    std::cout << "Found " << num_devices << " CUDA devices! " << std::endl;
+#elif defined(OCTOTIGER_HAVE_HIP) || defined(KOKKOS_ENABLE_HIP) 
+    hipGetDeviceCount(&num_devices);
+    std::cout << "Found " << num_devices << " HIP devices! " << std::endl;
+#endif
+    if (num_devices > 0) { // some devices were found
+      if (opts().cuda_number_gpus > num_devices) {
+          std::cerr << "ERROR: Requested " << opts().cuda_number_gpus << " GPUs but only "
+                    << num_devices << " were found!" << std::endl;
+          abort();
+      }
+      if (opts().cuda_number_gpus > max_number_gpus) {
+        std::cerr << "ERROR: Requested " << opts().cuda_number_gpus
+                  << " GPUs but CPPuddle was built with CPPUDDLE_MAX_NUMBER_GPUS="
+                  << max_number_gpus << std::endl;
+        abort();
+      }
+    }
+
 
     std::cout << "Initialize executors and masks..." << std::endl;
     // Init Kokkos
@@ -253,14 +276,18 @@ void init_executors(void) {
               });
 #if HPX_KOKKOS_CUDA_FUTURE_TYPE == 0 
     std::cout << "CUDA with polling futures enabled!" << std::endl;
-    for (size_t gpu_id = 0; gpu_id < opts().cuda_number_gpus; gpu_id++)
+    for (size_t gpu_id = 0; gpu_id < opts().cuda_number_gpus; gpu_id++) {
       stream_pool::init_executor_pool<hpx::cuda::experimental::cuda_executor, pool_strategy>(gpu_id,
           opts().cuda_streams_per_gpu, gpu_id, true);
+      hipDeviceSynchronize();
+    }
 #else
     std::cout << "CUDA with callback futures enabled!" << std::endl;
-    for (size_t gpu_id = 0; gpu_id < opts().cuda_number_gpus; gpu_id++)
+    for (size_t gpu_id = 0; gpu_id < opts().cuda_number_gpus; gpu_id++) {
       stream_pool::init_executor_pool<hpx::cuda::experimental::cuda_executor, pool_strategy>(gpu_id,
           opts().cuda_streams_per_gpu, gpu_id, false);
+      hipDeviceSynchronize();
+    }
 #endif
     octotiger::fmm::init_fmm_constants();
 
