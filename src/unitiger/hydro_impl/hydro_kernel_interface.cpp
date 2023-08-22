@@ -41,7 +41,7 @@ void init_hydro_kokkos_aggregation_pool(void) {
     if (max_slices == 1) {
       executor_mode = Aggregated_Executor_Modes::STRICT;
     }
-    if (opts().cuda_streams_per_gpu > 0) {
+    if (opts().executors_per_gpu > 0) {
 #if defined(KOKKOS_ENABLE_CUDA)
     hydro_kokkos_agg_executor_pool<hpx::kokkos::cuda_executor>::init(number_aggregation_executors, max_slices, executor_mode, opts().number_gpus);
 #elif defined(KOKKOS_ENABLE_HIP)

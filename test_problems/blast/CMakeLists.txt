@@ -140,15 +140,15 @@ test_blast_scenario(test_problems.cpu.am_hydro_on.blast_legacy blast_with_am_hyd
 "  --correct_am_hydro=1 --hydro_device_kernel_type=OFF --hydro_host_kernel_type=LEGACY")
 if(OCTOTIGER_WITH_CUDA)
   test_blast_scenario(test_problems.gpu.am_hydro_on.blast_cuda blast_with_am_hydro_cuda_log.txt ${silo_scenario_filename}
-  "  --correct_am_hydro=1 --number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=LEGACY")
+  "  --correct_am_hydro=1 --number_gpus=1 --executors_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=LEGACY")
 #if(NOT OCTOTIGER_WITH_FAST_FP_CONTRACT)
 #   test_blast_scenario(test_problems.cpu_gpu.am_hydro_on.blast_cuda blast_without_am_hydro_cuda_log.txt ${silo_scenario_filename}
-#     " --correct_am_hydro=1 --number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1 --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=LEGACY")
+#     " --correct_am_hydro=1 --number_gpus=1 --executors_per_gpu=32 --cuda_buffer_capacity=1 --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=LEGACY")
 # endif()
 endif()
 if(OCTOTIGER_WITH_HIP)
   test_blast_scenario(test_problems.gpu.am_hydro_off.blast_hip blast_without_am_hydro_hip_log.txt ${silo_scenario_filename}
-  " --correct_am_hydro=1 --number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=HIP --hydro_host_kernel_type=LEGACY")
+  " --correct_am_hydro=1 --number_gpus=1 --executors_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=HIP --hydro_host_kernel_type=LEGACY")
 endif()
 
 if(OCTOTIGER_WITH_KOKKOS)
@@ -156,15 +156,15 @@ if(OCTOTIGER_WITH_KOKKOS)
   "  --correct_am_hydro=1 --hydro_device_kernel_type=OFF --hydro_host_kernel_type=KOKKOS")
   if(OCTOTIGER_WITH_CUDA)
     test_blast_scenario(test_problems.gpu.am_hydro_on.blast_kokkos blast_without_am_hydro_kokkos_cuda_log.txt ${silo_scenario_filename}
-    " --correct_am_hydro=1 --number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=KOKKOS_CUDA --hydro_host_kernel_type=DEVICE_ONLY")
+    " --correct_am_hydro=1 --number_gpus=1 --executors_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=KOKKOS_CUDA --hydro_host_kernel_type=DEVICE_ONLY")
   #   if(NOT OCTOTIGER_WITH_FAST_FP_CONTRACT)
   #   test_blast_scenario(test_problems.cpu_gpu.am_hydro_on.blast_kokkos blast_with_am_hydro_kokkos_cuda_log.txt ${silo_scenario_filename}
-  #   "  --correct_am_hydro=1 --number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1 --hydro_device_kernel_type=KOKKOS_CUDA --hydro_host_kernel_type=KOKKOS")
+  #   "  --correct_am_hydro=1 --number_gpus=1 --executors_per_gpu=32 --cuda_buffer_capacity=1 --hydro_device_kernel_type=KOKKOS_CUDA --hydro_host_kernel_type=KOKKOS")
   # endif()
   endif()
   if(OCTOTIGER_WITH_HIP)
     test_blast_scenario(test_problems.gpu.am_hydro_on.blast_kokkos blast_with_am_hydro_kokkos_hip_log.txt ${silo_scenario_filename}
-    "  --correct_am_hydro=1 --number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=KOKKOS_HIP --hydro_host_kernel_type=KOKKOS")
+    "  --correct_am_hydro=1 --number_gpus=1 --executors_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=KOKKOS_HIP --hydro_host_kernel_type=KOKKOS")
   endif()
 endif()
 
@@ -218,15 +218,15 @@ test_blast_scenario(test_problems.cpu.am_hydro_off.blast_legacy blast_without_am
 " --correct_am_hydro=0 --hydro_device_kernel_type=OFF --hydro_host_kernel_type=LEGACY")
 if(OCTOTIGER_WITH_CUDA)
   test_blast_scenario(test_problems.gpu.am_hydro_off.blast_cuda blast_without_am_hydro_cuda_log.txt ${silo_scenario_filename}
-  " --correct_am_hydro=0 --number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=DEVICE_ONLY")
+  " --correct_am_hydro=0 --number_gpus=1 --executors_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=DEVICE_ONLY")
 #if(NOT OCTOTIGER_WITH_FAST_FP_CONTRACT)
 #   test_blast_scenario(test_problems.cpu_gpu.am_hydro_off.blast_cuda blast_without_am_hydro_cuda_log.txt ${silo_scenario_filename}
-#   " --correct_am_hydro=0 --number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1 --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=LEGACY")
+#   " --correct_am_hydro=0 --number_gpus=1 --executors_per_gpu=32 --cuda_buffer_capacity=1 --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=LEGACY")
 # endif()
 endif()
 if(OCTOTIGER_WITH_HIP)
   test_blast_scenario(test_problems.gpu.am_hydro_off.blast_hip blast_without_am_hydro_hip_log.txt ${silo_scenario_filename}
-  " --correct_am_hydro=0 --number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=HIP --hydro_host_kernel_type=DEVICE_ONLY")
+  " --correct_am_hydro=0 --number_gpus=1 --executors_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=HIP --hydro_host_kernel_type=DEVICE_ONLY")
 endif()
 
 if(OCTOTIGER_WITH_KOKKOS)
@@ -235,13 +235,13 @@ if(OCTOTIGER_WITH_KOKKOS)
   if(OCTOTIGER_WITH_CUDA)
     #   if(NOT OCTOTIGER_WITH_FAST_FP_CONTRACT)
     # test_blast_scenario(test_problems.cpu_gpu.am_hydro_off.blast_kokkos blast_without_am_hydro_kokkos_cuda_log.txt ${silo_scenario_filename}
-    # " --correct_am_hydro=0 --number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1 --hydro_device_kernel_type=KOKKOS_CUDA --hydro_host_kernel_type=KOKKOS")
+    # " --correct_am_hydro=0 --number_gpus=1 --executors_per_gpu=32 --cuda_buffer_capacity=1 --hydro_device_kernel_type=KOKKOS_CUDA --hydro_host_kernel_type=KOKKOS")
     #endif()
     test_blast_scenario(test_problems.gpu.am_hydro_off.blast_kokkos blast_without_am_hydro_kokkos_cuda_log.txt ${silo_scenario_filename}
-    " --correct_am_hydro=0 --number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=KOKKOS_CUDA --hydro_host_kernel_type=DEVICE_ONLY")
+    " --correct_am_hydro=0 --number_gpus=1 --executors_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=KOKKOS_CUDA --hydro_host_kernel_type=DEVICE_ONLY")
   endif()
   if(OCTOTIGER_WITH_HIP)
     test_blast_scenario(test_problems.gpu.am_hydro_off.blast_kokkos blast_without_am_hydro_kokkos_hip_log.txt ${silo_scenario_filename}
-   " --correct_am_hydro=0 --number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=KOKKOS_HIP --hydro_host_kernel_type=DEVICE_ONLY")
+   " --correct_am_hydro=0 --number_gpus=1 --executors_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=KOKKOS_HIP --hydro_host_kernel_type=DEVICE_ONLY")
   endif()
 endif()
