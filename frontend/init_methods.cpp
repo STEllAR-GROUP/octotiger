@@ -425,7 +425,7 @@ void init_problem(void) {
 
 
 void register_cppuddle_allocator_counters(void)  {
-
+#ifdef CPPUDDLE_HAVE_COUNTERS
     // default host allocators
     hpx::register_startup_function(
         &recycler::detail::buffer_recycler::register_allocator_counters_with_hpx<
@@ -484,5 +484,7 @@ void register_cppuddle_allocator_counters(void)  {
     hpx::register_startup_function(
         &recycler::detail::buffer_recycler::register_allocator_counters_with_hpx<
             int, detail::sycl_device_default_allocator<int>>);
+#endif
+
 #endif
 }

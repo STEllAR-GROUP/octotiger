@@ -79,7 +79,7 @@ void init_hydro_aggregation_pool(void) {
         executor_mode, opts().cuda_number_gpus);
 }
 
-__host__ void init_gpu_masks(std::array<bool*, max_number_gpus>& masks) {
+__host__ void init_gpu_masks(std::array<bool*, recycler::max_number_gpus>& masks) {
     boost::container::vector<bool> masks_boost(NDIM * q_inx * q_inx * q_inx);
     fill_masks(masks_boost);
     for (size_t gpu_id = 0; gpu_id < opts().cuda_number_gpus; gpu_id++) {
@@ -98,7 +98,7 @@ __host__ void init_gpu_masks(std::array<bool*, max_number_gpus>& masks) {
 }
 
 __host__ bool* get_gpu_masks(const size_t gpu_id = 0) {
-    static std::array<bool*, max_number_gpus> masks;
+    static std::array<bool*, recycler::max_number_gpus> masks;
     hpx::call_once(flag1, init_gpu_masks, masks);
     return masks[gpu_id];
 }
