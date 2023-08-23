@@ -28,6 +28,8 @@ COMMAND_LINE_ENUM(problem_type, DWD, SOD, BLAST, NONE, SOLID_SPHERE, STAR, MOVIN
 
 COMMAND_LINE_ENUM(eos_type, IDEAL, WD);
 
+COMMAND_LINE_ENUM(particles_smoothing_type, EXACT, RUFFERT, MONAGHAN);
+
 class options {
 public:
 	bool inflow_bc;
@@ -135,6 +137,9 @@ public:
 	integer n_fields;
 
 	eos_type eos;
+
+        particles_smoothing_type p_smooth;
+        real p_smooth_l;
 
 	problem_type problem;
 
@@ -248,12 +253,16 @@ public:
 		arc & accretor_refine;
 		arc & idle_rates;
 		arc & part_self_interact;
+		arc & p_smooth_l;
 		int tmp = problem;
 		arc & tmp;
 		problem = static_cast<problem_type>(tmp);
 		tmp = eos;
 		arc & tmp;
 		eos = static_cast<eos_type>(tmp);
+                tmp = p_smooth;
+                arc & tmp;
+                p_smooth = static_cast<particles_smoothing_type>(tmp);
 		arc & data_dir;
 		arc & m2m_kernel_type;
 		arc & p2p_kernel_type;

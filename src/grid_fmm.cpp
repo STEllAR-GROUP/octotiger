@@ -67,6 +67,72 @@ void load_multipole(taylor<4, T> &m, space_vector &c, const gravity_boundary_typ
 	}
 }
 
+real compute_part_pot(real r) {
+        if (opts().p_smooth == EXACT) {
+                return -1.0 / r;
+        } else if (opts().p_smooth == RUFFERT) { // As in Ruffert 1993 (as well as in Sandquist et al. 1998)
+                const real r2 = sqr(r);
+                const real l2 = sqr(opts().p_smooth_l);
+                const real denom = sqrt(r2 + l2 * exp(-r2/l2));
+                return -1.0 / denom;
+        }
+        else if (opts().p_smooth == MONAGHAN) { // As in Monaghan 1992
+                const real h = opts().p_smooth_l;
+                if ( h <= 0.0 ) {
+                        std::cerr << "Could not procceed with zero smoothing length!";
+                        abort();
+                } else {
+                        const real x = r / h;
+                                if ((0.0 <= x) && (x <= 1.0)) {
+                        const real pol = (2.0 / 3.0) * pow(x, 3) - 0.3 * pow(x, 4) + 0.1 * pow(x, 5) - 1.4;
+                        return pol / h;
+                        } else if ((1.0 <= x) && (x <= 2.0)) {
+                                const real pol = (4.0 / 3.0) * pow(x, 2) - 1.0 * pow(x, 3) + 0.3 * pow(x, 4) - (1.0 / 30.0) * pow(x, 5) - 1.6;
+                                return pol / h + 1.0 / (15.0 * r);
+                        } else {
+                                return -1.0 / r;
+                        }
+                }
+        } else {
+                std::cerr << "Could not find particles smoothing type!";
+                abort();
+        }
+        return 0;
+}
+
+real compute_part_force(real r, real y) {
+        if (opts().p_smooth == EXACT) {
+                return y / (r * r * r);
+        } else if (opts().p_smooth == RUFFERT) { // As in Ruffert 1993 (as well as in Sandquist et al. 1998)
+                const real r2 = sqr(r);
+                const real l2 = sqr(opts().p_smooth_l);
+                const real denom = sqrt(r2 + l2 * exp(-r2/l2));
+                return y * (1.0 - exp(-r2/l2)) / (denom * denom * denom);
+        }
+        else if (opts().p_smooth == MONAGHAN) { // As in Monaghan 1992
+                const real h = opts().p_smooth_l;
+                const real x = r / h;
+                if ( h <= 0.0 ) {
+                        std::cerr << "Could not procceed with zero smoothing length!";
+                        abort();
+                }
+                else {
+                        if ((0.0 <= x) && (x <= 1.0)) {
+                                const real pol = 2 * x - 1.2 * pow(x, 2) + 0.5 * pow(x, 3);
+                                return y * pol / (h * h * h);
+                        } else if ((1.0 <= x) && (x <= 2.0)) {
+                                const real pol = (8.0 / 3.0) - 3 * x + 1.2 * pow(x, 2) - (1.0 / 6.0) * pow(x, 3) - 1.0 / (15.0 * x * x * x);
+                                return y * pol / (h * h * h);
+                        } else {
+                                return y / (r * r * r);
+                        }
+                }
+        } else {
+                std::cerr << "Could not find particles smoothing type!";
+                abort();
+        }
+        return 0;
+}
 
 v4sd make_four(space_vector orig, space_vector dest) {
 	auto x = dest[XDIM] - orig[XDIM];
@@ -77,10 +143,10 @@ v4sd make_four(space_vector orig, space_vector dest) {
         const real r3 = r * r * r;
         v4sd four;
         if (r > 0.0) {
-        	four[0] = -1.0 / r;
-	        four[1] = x / r3;
-        	four[2] = y / r3;
-	        four[3] = z / r3;
+                four[0] = compute_part_pot(r);
+                four[1] = compute_part_force(r, x);
+                four[2] = compute_part_force(r, y);
+                four[3] = compute_part_force(r, z);
         } else {
         	for (integer i = 0; i != 4; ++i) {
 		        four[i] = 0.0;
