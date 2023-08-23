@@ -109,13 +109,8 @@ void cleanup_puddle_on_this_locality(void) {
       hpx::sycl::experimental::detail::unregister_polling(hpx::resource::get_thread_pool(0));
     }
 #endif
-#ifdef CPPUDDLE_HAVE_HPX // define added in 0.2.0 cppuddle version
-    // Use new finalize functionality. This works with a wider range of cppuddle configurations
+    // Use finalize functionality. Cleans up all buffers and prevents further use
     recycler::finalize();
-#else
-    // Use old cleanup method for cppuddle versions < 0.2.0 
-    recycler::force_cleanup();
-#endif
 #ifdef OCTOTIGER_HAVE_KOKKOS
     stream_pool::cleanup<hpx::kokkos::hpx_executor, round_robin_pool<hpx::kokkos::hpx_executor>>();
     stream_pool::cleanup<hpx::kokkos::serial_executor, round_robin_pool<hpx::kokkos::serial_executor>>();
