@@ -137,7 +137,7 @@ void init_executors(void) {
       }
       if (opts().number_gpus > recycler::max_number_gpus) {
         std::cerr << "ERROR: Requested " << opts().number_gpus
-                  << " GPUs but CPPuddle was built with CPPUDDLE_MAX_NUMBER_GPUS="
+                  << " GPUs but CPPuddle was built with CPPUDDLE_WITH_MAX_NUMBER_GPUS="
                   << recycler::max_number_gpus << std::endl;
         abort();
       }
