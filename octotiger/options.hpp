@@ -131,8 +131,7 @@ public:
 	size_t number_gpus;
 	size_t executors_per_gpu;
 	size_t max_gpu_executor_queue_length;
-	size_t max_executor_slices;
-	/* size_t max_gpu_kernels_fused; */
+	size_t max_kernels_fused;
   
 	bool root_node_on_device;
 	bool optimize_local_communication;
@@ -272,7 +271,7 @@ public:
 		arc & number_gpus;
 		arc & executors_per_gpu;
 		arc & max_gpu_executor_queue_length;
-		arc & max_executor_slices;
+		arc & max_kernels_fused;
 	  arc & root_node_on_device;
 	  arc & optimize_local_communication;
     arc & detected_intel_compiler;

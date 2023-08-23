@@ -72,7 +72,7 @@ using aggregated_host_buffer_t = std::vector<T, Alloc>;
 #endif
 
 void init_hydro_aggregation_pool(void) {
-    const size_t max_slices = opts().max_executor_slices;
+    const size_t max_slices = opts().max_kernels_fused;
     constexpr size_t number_aggregation_executors = 16;
     constexpr Aggregated_Executor_Modes executor_mode = Aggregated_Executor_Modes::EAGER;
     hydro_cuda_agg_executor_pool::init(number_aggregation_executors, max_slices,
@@ -139,7 +139,7 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
 
       static const cell_geometry<NDIM, INX> geo;
 
-      const size_t max_slices = opts().max_executor_slices;
+      const size_t max_slices = opts().max_kernels_fused;
 
       // Move input to device
       aggregated_host_buffer_t<double, decltype(alloc_host_double)> combined_u(

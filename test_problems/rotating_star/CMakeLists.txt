@@ -239,7 +239,7 @@ if(OCTOTIGER_WITH_CUDA)
   test_rotating_star_scenario(test_problems.gpu.am_hydro_off.rotating_star_cuda rotating_star_am_hydro_off_cuda_log.txt ${silo_scenario_filename}
   " --correct_am_hydro=0 --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --monopole_host_kernel_type=DEVICE_ONLY --multipole_host_kernel_type=DEVICE_ONLY --monopole_device_kernel_type=CUDA --multipole_device_kernel_type=CUDA --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=DEVICE_ONLY")
   test_rotating_star_scenario(test_problems.gpu.am_hydro_off.rotating_star_cuda_work_aggregation rotating_star_am_hydro_off_cuda_work_aggregation_log.txt ${silo_scenario_filename}
-  " --correct_am_hydro=0 --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --monopole_host_kernel_type=DEVICE_ONLY --multipole_host_kernel_type=DEVICE_ONLY --monopole_device_kernel_type=CUDA --multipole_device_kernel_type=CUDA --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=DEVICE_ONLY --max_executor_slices=8")
+  " --correct_am_hydro=0 --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --monopole_host_kernel_type=DEVICE_ONLY --multipole_host_kernel_type=DEVICE_ONLY --monopole_device_kernel_type=CUDA --multipole_device_kernel_type=CUDA --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=DEVICE_ONLY --max_kernels_fused=8")
   if(NOT OCTOTIGER_WITH_FAST_FP_CONTRACT)
   # combined cpu+gpu
     test_rotating_star_scenario(test_problems.cpu_gpu.am_hydro_off.rotating_star_cuda rotating_star_am_hydro_off_cuda_log.txt ${silo_scenario_filename} 
@@ -250,7 +250,7 @@ if(OCTOTIGER_WITH_HIP)
   test_rotating_star_scenario(test_problems.gpu.am_hydro_off.rotating_star_hip rotating_star_am_hydro_off_hip_log.txt ${silo_scenario_filename}
     " --correct_am_hydro=0 --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --monopole_host_kernel_type=DEVICE_ONLY --multipole_host_kernel_type=DEVICE_ONLY --monopole_device_kernel_type=HIP --multipole_device_kernel_type=HIP --hydro_device_kernel_type=HIP --hydro_host_kernel_type=DEVICE_ONLY")
   test_rotating_star_scenario(test_problems.gpu.am_hydro_off.rotating_star_hip_work_aggregation rotating_star_am_hydro_off_hip_work_aggregation_log.txt ${silo_scenario_filename}
-  " --correct_am_hydro=0 --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --monopole_host_kernel_type=DEVICE_ONLY --multipole_host_kernel_type=DEVICE_ONLY --monopole_device_kernel_type=HIP --multipole_device_kernel_type=HIP --hydro_device_kernel_type=HIP --hydro_host_kernel_type=DEVICE_ONLY --max_executor_slices=8")
+  " --correct_am_hydro=0 --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --monopole_host_kernel_type=DEVICE_ONLY --multipole_host_kernel_type=DEVICE_ONLY --monopole_device_kernel_type=HIP --multipole_device_kernel_type=HIP --hydro_device_kernel_type=HIP --hydro_host_kernel_type=DEVICE_ONLY --max_kernels_fused=8")
 endif()
 
 if(OCTOTIGER_WITH_KOKKOS)
@@ -260,7 +260,7 @@ if(OCTOTIGER_WITH_KOKKOS)
     test_rotating_star_scenario(test_problems.gpu.am_hydro_off.rotating_star_kokkos_cuda rotating_star_am_hydro_off_kokkos_cuda_log.txt ${silo_scenario_filename}
     " --correct_am_hydro=0 --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --monopole_host_kernel_type=DEVICE_ONLY --multipole_host_kernel_type=DEVICE_ONLY --monopole_device_kernel_type=KOKKOS_CUDA --multipole_device_kernel_type=KOKKOS_CUDA --hydro_device_kernel_type=KOKKOS_CUDA --hydro_host_kernel_type=DEVICE_ONLY")
   test_rotating_star_scenario(test_problems.gpu.am_hydro_off.rotating_star_kokkos_cuda_work_aggregation rotating_star_am_hydro_off_kokkos_cuda_work_aggregation_log.txt ${silo_scenario_filename}
-  " --correct_am_hydro=0 --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --monopole_host_kernel_type=DEVICE_ONLY --multipole_host_kernel_type=DEVICE_ONLY --monopole_device_kernel_type=KOKKOS_CUDA --multipole_device_kernel_type=KOKKOS_CUDA --hydro_device_kernel_type=KOKKOS_CUDA --hydro_host_kernel_type=DEVICE_ONLY --max_executor_slices=8")
+  " --correct_am_hydro=0 --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --monopole_host_kernel_type=DEVICE_ONLY --multipole_host_kernel_type=DEVICE_ONLY --monopole_device_kernel_type=KOKKOS_CUDA --multipole_device_kernel_type=KOKKOS_CUDA --hydro_device_kernel_type=KOKKOS_CUDA --hydro_host_kernel_type=DEVICE_ONLY --max_kernels_fused=8")
     if(NOT OCTOTIGER_WITH_FAST_FP_CONTRACT)
       # combined cpu+gpu
       test_rotating_star_scenario(test_problems.cpu_gpu.am_hydro_off.rotating_star_kokkos_cuda rotating_star_am_hydro_off_kokkos_cuda_log.txt ${silo_scenario_filename} 
@@ -271,13 +271,13 @@ if(OCTOTIGER_WITH_KOKKOS)
     test_rotating_star_scenario(test_problems.gpu.am_hydro_off.rotating_star_kokkos_hip rotating_star_am_hydro_off_kokkos_hip_log.txt ${silo_scenario_filename}
       " --correct_am_hydro=0 --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --monopole_host_kernel_type=DEVICE_ONLY --multipole_host_kernel_type=DEVICE_ONLY --monopole_device_kernel_type=KOKKOS_HIP --multipole_device_kernel_type=KOKKOS_HIP --hydro_device_kernel_type=KOKKOS_HIP --hydro_host_kernel_type=DEVICE_ONLY")
   test_rotating_star_scenario(test_problems.gpu.am_hydro_off.rotating_star_kokkos_hip_work_aggregation rotating_star_am_hydro_off_kokkos_hip_work_aggregation_log.txt ${silo_scenario_filename}
-  " --correct_am_hydro=0 --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --monopole_host_kernel_type=DEVICE_ONLY --multipole_host_kernel_type=DEVICE_ONLY --monopole_device_kernel_type=KOKKOS_HIP --multipole_device_kernel_type=KOKKOS_HIP --hydro_device_kernel_type=KOKKOS_HIP --hydro_host_kernel_type=DEVICE_ONLY --max_executor_slices=8")
+  " --correct_am_hydro=0 --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --monopole_host_kernel_type=DEVICE_ONLY --multipole_host_kernel_type=DEVICE_ONLY --monopole_device_kernel_type=KOKKOS_HIP --multipole_device_kernel_type=KOKKOS_HIP --hydro_device_kernel_type=KOKKOS_HIP --hydro_host_kernel_type=DEVICE_ONLY --max_kernels_fused=8")
   endif()
   if(Kokkos_ENABLE_SYCL)
     test_rotating_star_scenario(test_problems.gpu.am_hydro_off.rotating_star_kokkos_sycl rotating_star_am_hydro_off_kokkos_sycl_log.txt ${silo_scenario_filename}
       " --correct_am_hydro=0 --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --monopole_host_kernel_type=DEVICE_ONLY --multipole_host_kernel_type=DEVICE_ONLY --monopole_device_kernel_type=KOKKOS_SYCL --multipole_device_kernel_type=KOKKOS_SYCL --hydro_device_kernel_type=KOKKOS_SYCL --hydro_host_kernel_type=DEVICE_ONLY")
     test_rotating_star_scenario(test_problems.gpu.am_hydro_off.rotating_star_kokkos_sycl_work_aggregation rotating_star_am_hydro_off_kokkos_sycl_work_aggregation_log.txt ${silo_scenario_filename}
-    " --correct_am_hydro=0 --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --monopole_host_kernel_type=DEVICE_ONLY --multipole_host_kernel_type=DEVICE_ONLY --monopole_device_kernel_type=KOKKOS_SYCL --multipole_device_kernel_type=KOKKOS_SYCL --hydro_device_kernel_type=KOKKOS_SYCL --hydro_host_kernel_type=DEVICE_ONLY --max_executor_slices=8")
+    " --correct_am_hydro=0 --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --monopole_host_kernel_type=DEVICE_ONLY --multipole_host_kernel_type=DEVICE_ONLY --monopole_device_kernel_type=KOKKOS_SYCL --multipole_device_kernel_type=KOKKOS_SYCL --hydro_device_kernel_type=KOKKOS_SYCL --hydro_host_kernel_type=DEVICE_ONLY --max_kernels_fused=8")
   endif()
 endif()
 

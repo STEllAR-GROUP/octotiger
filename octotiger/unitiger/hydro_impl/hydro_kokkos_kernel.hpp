@@ -1138,7 +1138,7 @@ timestep_t device_interface_kokkos_hydro(
     // How many executor slices are working together and what's our ID?
     const size_t slice_id = agg_exec.id;
     const size_t number_slices = agg_exec.number_slices;
-    const size_t max_slices = opts().max_executor_slices;
+    const size_t max_slices = opts().max_kernels_fused;
 
     // Slice offsets
     const int u_slice_offset = nf * H_N3 + padding;
@@ -1300,7 +1300,7 @@ timestep_t device_interface_kokkos_hydro(
     // How many executor slices are working together and what's our ID?
     const size_t slice_id = agg_exec.id;
     const size_t number_slices = agg_exec.number_slices;
-    const size_t max_slices = opts().max_executor_slices;
+    const size_t max_slices = opts().max_kernels_fused;
 
     // Slice offsets
     const int u_slice_offset = nf * H_N3 + padding;
@@ -1445,7 +1445,7 @@ timestep_t launch_hydro_kokkos_kernels(const hydro_computer<NDIM, INX, physics<N
       // How many executor slices are working together and what's our ID?
       const size_t slice_id = agg_exec.id;
       const size_t number_slices = agg_exec.number_slices;
-      const size_t max_slices = opts().max_executor_slices;
+      const size_t max_slices = opts().max_kernels_fused;
 
       // Slice offsets
       const int u_slice_offset = hydro.get_nf() * H_N3 + padding;

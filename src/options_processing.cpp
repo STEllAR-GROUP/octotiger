@@ -170,7 +170,7 @@ bool options::process_options(int argc, char *argv[]) {
 	("executors_per_gpu", po::value<size_t>(&(opts().executors_per_gpu))->default_value(size_t(0)), "cuda streams per GPU (per locality)") //
 	("max_gpu_executor_queue_length", po::value<size_t>(&(opts().max_gpu_executor_queue_length))->default_value(size_t(5)), "How many launches should be buffered before using the CPU") //
 ("polling-threads", po::value<int>(&(opts().polling_threads))->default_value(0), "Enable dedicated HPX thread pool for cuda/network polling using N threads!") //
-	("max_executor_slices", po::value<size_t>(&(opts().max_executor_slices))->default_value(size_t(1)), "Can be aggregated?") //
+	("max_kernels_fused", po::value<size_t>(&(opts().max_kernels_fused))->default_value(size_t(1)), "Maximum numbers of kernels combined into one by the dynamic work aggegation") //
 	("root_node_on_device", po::value<bool>(&(opts().root_node_on_device))->default_value(true), "Offload root node gravity kernels to the GPU? May degrade performance given weak GPUs") //
 	("optimize_local_communication", po::value<bool>(&(opts().optimize_local_communication))->default_value(true), "Use pointers of neighbors in local subgrids directly") //
 	("print_times_per_timestep", po::value<bool>(&(opts().print_times_per_timestep))->default_value(false), "Print times per timestep during cleanup") //
@@ -331,7 +331,7 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(number_gpus);
 		SHOW(executors_per_gpu);
 		SHOW(max_gpu_executor_queue_length);
-		SHOW(max_executor_slices);
+		SHOW(max_kernels_fused);
 		SHOW(amr_boundary_kernel_type);
 		SHOW(root_node_on_device);
 		SHOW(optimize_local_communication);
@@ -512,7 +512,7 @@ bool options::process_options(int argc, char *argv[]) {
 #endif
 #endif
 
-   if (opts().hydro_host_kernel_type == KOKKOS && opts().max_executor_slices > 1) {
+   if (opts().hydro_host_kernel_type == KOKKOS && opts().max_kernels_fused > 1) {
      std::cerr << "\nERROR: work aggregation not yet supported for Kokkos host kernel!" << std::endl;
      abort();
    }
