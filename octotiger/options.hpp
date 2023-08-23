@@ -130,9 +130,8 @@ public:
 
 	size_t number_gpus;
 	size_t executors_per_gpu;
-	size_t cuda_buffer_capacity;
+	size_t max_gpu_executor_queue_length;
 	size_t max_executor_slices;
-	/* size_t max_gpu_executor_queue_length; */
 	/* size_t max_gpu_kernels_fused; */
   
 	bool root_node_on_device;
@@ -272,7 +271,7 @@ public:
 		arc & data_dir;
 		arc & number_gpus;
 		arc & executors_per_gpu;
-		arc & cuda_buffer_capacity;
+		arc & max_gpu_executor_queue_length;
 		arc & max_executor_slices;
 	  arc & root_node_on_device;
 	  arc & optimize_local_communication;

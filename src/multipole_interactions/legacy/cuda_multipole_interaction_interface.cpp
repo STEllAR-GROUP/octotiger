@@ -65,7 +65,7 @@ namespace fmm {
                     pool_strategy>(opts().number_gpus);
             if (m2m_type != interaction_host_kernel_type::DEVICE_ONLY) {
                 avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
-                    pool_strategy>(opts().cuda_buffer_capacity, device_id);
+                    pool_strategy>(opts().max_gpu_executor_queue_length, device_id);
             }
             // if (!avail || m2m_type == interaction_host_kernel_type::LEGACY ||
             //     (use_root_stencil && !opts().root_node_on_device)) {

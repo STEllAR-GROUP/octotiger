@@ -60,7 +60,7 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
     const std::vector<std::vector<safe_real>>& U, std::vector<std::vector<safe_real>>& X,
     const double omega, std::vector<hydro_state_t<std::vector<safe_real>>>& F,
     const interaction_host_kernel_type host_type, const interaction_device_kernel_type device_type,
-    const size_t cuda_buffer_capacity) {
+    const size_t max_gpu_executor_queue_length) {
     static const cell_geometry<NDIM, INX> geo;
 
     // interaction_host_kernel_type host_type = opts().hydro_host_kernel_type;
@@ -83,7 +83,7 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
             if (host_type != interaction_host_kernel_type::DEVICE_ONLY) {
                 // TODO CPU/GPU currently not working with work aggregation 
                 /* avail = stream_pool::interface_available<device_executor, device_pool_strategy>( */
-                /*     cuda_buffer_capacity); */
+                /*     max_gpu_executor_queue_length); */
                 std::cerr << "hydro_host_kernel_type should be DEVICE_ONLY when hydro_device_kernel_type != OFF "
                              "Aborting..."
                           << std::endl;
@@ -111,7 +111,7 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
             if (host_type != interaction_host_kernel_type::DEVICE_ONLY) {
                 // TODO CPU/GPU currently not working with work aggregation 
                 /* avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor, */
-                /*     pool_strategy>(cuda_buffer_capacity); */
+                /*     pool_strategy>(max_gpu_executor_queue_length); */
                 std::cerr << "hydro_host_kernel_type should be DEVICE_ONLY when hydro_device_kernel_type != OFF "
                              "Aborting..."
                           << std::endl;
@@ -135,7 +135,7 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
             if (host_type != interaction_host_kernel_type::DEVICE_ONLY) {
               // TODO CPU/GPU currently not working with work aggregation 
               /* avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor, */
-              /*     pool_strategy>(cuda_buffer_capacity); */
+              /*     pool_strategy>(max_gpu_executor_queue_length); */
               std::cerr << "hydro_host_kernel_type should be DEVICE_ONLY when hydro_device_kernel_type != OFF "
                            "Aborting..."
                         << std::endl;

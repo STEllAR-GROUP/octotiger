@@ -77,7 +77,7 @@ namespace fmm {
                         // Check where we want to run this:
                         avail =
                             stream_pool::interface_available<device_executor, device_pool_strategy>(
-                                opts().cuda_buffer_capacity, device_id);
+                                opts().max_gpu_executor_queue_length, device_id);
                     }
                     if (avail) {
 

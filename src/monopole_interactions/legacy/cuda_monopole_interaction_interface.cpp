@@ -100,7 +100,7 @@ namespace fmm {
             if (p2p_type != interaction_host_kernel_type::DEVICE_ONLY) {
                 // Check where we want to run this:
                 avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
-                    pool_strategy>(opts().cuda_buffer_capacity, device_id);
+                    pool_strategy>(opts().max_gpu_executor_queue_length, device_id);
             }
 #if defined(OCTOTIGER_HAVE_HIP)
             if (contains_multipole_neighbor) // TODO Add DEVICE_ONLY error/warning
