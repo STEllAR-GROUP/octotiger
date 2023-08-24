@@ -27,9 +27,11 @@ class timestep_util {
         std::cout << "Min time-per-timestep: "
                   << *(std::min_element(std::begin(times), std::end(times))) << std::endl;
         std::cout << "Median time-per-timestep: " << median << std::endl;
-        std::cout << "Average time-per-timestep: "
-                  << std::reduce(std::begin(times), std::end(times)) /
-                  times.size() << std::endl;
+        if (times.size() > 0) {
+          std::cout << "Average time-per-timestep: "
+                    << std::accumulate(std::begin(times), std::end(times), 0.0) /
+                    static_cast<float>(times.size()) << std::endl;
+        }
         std::cout << "Max time-per-timestep: "
                   << *(std::max_element(std::begin(times), std::end(times))) << std::endl;
         std::cout << "List of times-per-timestep:";
