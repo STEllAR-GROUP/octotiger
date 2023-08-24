@@ -135,6 +135,14 @@ int hpx_main(int argc, char* argv[]) {
 #ifdef OCTOTIGER_HAVE_HIP
     printf("WARNING: Experimental HIP Build! Do not (yet) use for production runs!\n");
 #endif
+#if defined(CPPUDDLE_DEACTIVATE_BUFFER_RECYCLING)
+    printf("WARNING: Using build without buffer recycling enabled. This will cause a major degradation of GPU performance !\n");
+    printf("         Consider recompiling CPPuddle (and Octo-Tiger) with CPPUDDLE_WITH_BUFFER_RECYCLING=ON !\n");
+#endif
+#if defined(CPPUDDLE_DEACTIVATE_AGGRESSIVE_ALLOCATORS)
+    printf("WARNING: Using build without buffer content recycling enabled. This will cause a slight degradation performance !\n");
+    printf("         Consider recompiling CPPuddle (and Octo-Tiger) with CPPUDDLE_WITH_AGGRESSIVE_CONTENT_RECYCLING=ON !\n");
+#endif
     printf("###########################################################\n");
 
 
@@ -226,6 +234,18 @@ int main(int argc, char* argv[]) {
     hpx::init(argc, argv, init_args);
 #ifdef OCTOTIGER_HAVE_HIP
     std::cout << std::endl << "WARNING: Experimental HIP Build! Do not (yet) use for production runs!\n" << std::endl;
+#endif
+#if defined(CPPUDDLE_DEACTIVATE_BUFFER_RECYCLING)
+    std::cout << "WARNING: Using build without buffer recycling enabled. " 
+              << "This will cause a major degradation of GPU performance !\n";
+    std::cout << "         Consider recompiling CPPuddle (and Octo-Tiger) with "
+              << "CPPUDDLE_WITH_BUFFER_RECYCLING=ON !\n";
+#endif
+#if defined(CPPUDDLE_DEACTIVATE_AGGRESSIVE_ALLOCATORS)
+    std::cout << "WARNING: Using build without buffer content recycling enabled. "
+              << "This will cause a slight degradation performance !\n";
+    std::cout << "         Consider recompiling CPPuddle (and Octo-Tiger) with "
+              << "CPPUDDLE_WITH_AGGRESSIVE_CONTENT_RECYCLING=ON !\n";
 #endif
 
 }
