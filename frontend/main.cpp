@@ -188,19 +188,18 @@ void init_resource_partitioner_handler(hpx::resource::partitioner& rp,
 int main(int argc, char* argv[]) {
 
 #if defined(OCTOTIGER_HAVE_HIP) || (defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_HIP))
-    // Touch all AMDGPUs before before starting HPX.
+    // Touch all AMDGPUs before before starting HPX. This initializes all GPUs before starting HPX
+    // which avoids multithreaded initialization later on which makes the driver segfault
     //
-    // This avoids problems (bug) during the initizalization executor pools later on in the init
-    // method (Without this workaround we encounter a segfault in the amdgpu driver when
-    // initializing the first stream)
+    // See bug https://github.com/ROCm-Developer-Tools/HIP/issues/3063
     //
-    // TODO See if/how this can be reproduced with a simpler HPX example
     int numDevices = 0;
     hipGetDeviceCount(&numDevices);
     for (size_t gpu_id = 0; gpu_id < numDevices; gpu_id++) {
       hipSetDevice(gpu_id);
       hipStream_t gpu1;
       hipStreamCreate(&gpu1);
+      hipStreamDestroy(gpu1);
       hipDeviceSynchronize();
     }
 #endif

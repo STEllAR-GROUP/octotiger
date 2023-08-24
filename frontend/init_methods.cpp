@@ -298,7 +298,6 @@ void init_executors(void) {
     for (size_t gpu_id = 0; gpu_id < opts().number_gpus; gpu_id++) {
       stream_pool::init_executor_pool<hpx::cuda::experimental::cuda_executor, pool_strategy>(gpu_id,
           opts().executors_per_gpu, gpu_id, true);
-      hipDeviceSynchronize();
     }
     std::cout << "HIP with polling futures created!" << std::endl;
 #else
@@ -306,7 +305,6 @@ void init_executors(void) {
     for (size_t gpu_id = 0; gpu_id < opts().number_gpus; gpu_id++) {
       stream_pool::init_executor_pool<hpx::cuda::experimental::cuda_executor, pool_strategy>(gpu_id,
           opts().executors_per_gpu, gpu_id, false);
-      hipDeviceSynchronize();
     }
     std::cout << "HIP with callback futures created!" << std::endl;
 #endif
