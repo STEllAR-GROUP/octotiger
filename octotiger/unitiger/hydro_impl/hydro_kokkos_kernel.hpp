@@ -184,6 +184,13 @@ void flux_impl_teamless(
                 const int blocks_per_dim = (number_blocks) / NDIM;
                 const int dim = (slice_idx / blocks_per_dim);
                 const int index = (slice_idx % blocks_per_dim) * team_size * simd_t::size();
+
+
+                const int index_small = ((index / q_inx2) - 1 ) * (INX + 1) * (INX + 1) +
+                    (((index % q_inx2) / q_inx) - 1 ) * (INX + 1) +
+                    (((index % q_inx2) % q_inx) - 1 );
+
+
                 const int block_id = slice_idx;
 
                 const int q_slice_offset = (nf * 27 * q_inx3 + padding) * slice_id;
@@ -221,7 +228,9 @@ void flux_impl_teamless(
                 // Reset (as we only add to the results...)
                 for (int f = 0; f < nf; f++) {
                     for (int i = 0; i < simd_t::size(); i++) {
-                      f_combined_slice[dim * nf * q_inx3 + f * q_inx3 + index + i] = 0.0;
+                    if (index_small >= 0 && index_small < 9*9*9) {
+                      f_combined_slice[dim * nf * q_inx3 + f * q_inx3 + index_small + i] = 0.0;
+                    }
                     }
                 }
                 amax[block_id + amax_slice_offset] = 0.0;
@@ -245,6 +254,8 @@ void flux_impl_teamless(
                         mask_helper2_array.data(), SIMD_NAMESPACE::element_aligned_tag{});
                     const simd_mask_t mask = mask_helper1 == mask_helper2;
                     if (SIMD_NAMESPACE::any_of(mask)) {
+                        if (index_small < 0 || index_small >= 9*9*9)
+                          printf("%i   ", index_small);
                         for (int fi = 0; fi < 9; fi++) { // TODO replace 9 with the actual constexpr
                             simd_t this_ap = 0.0, this_am = 0.0;
                             const int d = faces[dim][fi];
@@ -298,31 +309,33 @@ void flux_impl_teamless(
                             // Add results to the final flux buffer
                             for (int f = 1; f < nf; f++) {
                               simd_t current_val(
-                                  f_combined_slice.data() + dim * nf * q_inx3 + f * q_inx3 + index,
+                                  f_combined_slice.data() + dim * nf * q_inx3 + f * q_inx3 + index_small,
                                   SIMD_NAMESPACE::element_aligned_tag{});
                               current_val = current_val +
                                 SIMD_NAMESPACE::choose(mask, quad_weights[fi] * local_f[f],
                                     simd_t(0.0));
                               current_val.copy_to(f_combined_slice.data() + dim
-                                * nf * q_inx3 + f * q_inx3 + index,
+                                * nf * q_inx3 + f * q_inx3 + index_small,
                                 SIMD_NAMESPACE::element_aligned_tag{});
                             }
                         }
                     }
+                    if (index_small >= 0 && index_small < 9*9*9) {
                     simd_t current_val(
-                      f_combined_slice.data() + dim * nf * q_inx3 + index,
+                      f_combined_slice.data() + dim * nf * q_inx3 + index_small,
                       SIMD_NAMESPACE::element_aligned_tag{});
                     for (int f = 10; f < nf; f++) {
                         simd_t current_field_val(
-                            f_combined_slice.data() + dim * nf * q_inx3 + f * q_inx3 + index,
+                            f_combined_slice.data() + dim * nf * q_inx3 + f * q_inx3 + index_small,
                             SIMD_NAMESPACE::element_aligned_tag{});
                         current_val = current_val +
                           SIMD_NAMESPACE::choose(mask, current_field_val,
                               simd_t(0.0));
                     }
                     current_val.copy_to(
-                      f_combined_slice.data() + dim * nf * q_inx3 + index,
+                      f_combined_slice.data() + dim * nf * q_inx3 + index_small,
                       SIMD_NAMESPACE::element_aligned_tag{});
+                    }
                 }
 
                 // Write Maximum of local team to amax:
@@ -1519,8 +1532,10 @@ timestep_t launch_hydro_kokkos_kernels(const hydro_computer<NDIM, INX, physics<N
               for (integer i = 0; i <= INX; ++i) {
                   for (integer j = 0; j <= INX; ++j) {
                         const auto i0 = i * (INX + 1) * (INX + 1) + j * (INX + 1) + 0;
+                        /* const auto input_index = */
+                        /*     (i + 1) * q_inx * q_inx + (j + 1) * q_inx + 1; */
                         const auto input_index =
-                            (i + 1) * q_inx * q_inx + (j + 1) * q_inx + 1;
+                            i0;
                         std::copy(f.data() + (dim_offset + input_index + f_slice_offset * slice_id),
                                   f.data() + (dim_offset + input_index + f_slice_offset * slice_id) + (INX + 1),
                                   F[dim][field].data() + i0);
