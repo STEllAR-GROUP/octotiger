@@ -1518,12 +1518,18 @@ timestep_t launch_hydro_kokkos_kernels(const hydro_computer<NDIM, INX, physics<N
               const auto dim_offset = dim * opts().n_fields * q_inx3 + field * q_inx3;
               for (integer i = 0; i <= INX; ++i) {
                   for (integer j = 0; j <= INX; ++j) {
-                      for (integer k = 0; k <= INX; ++k) {
-                          const auto i0 = findex(i, j, k);
-                          const auto input_index =
-                              (i + 1) * q_inx * q_inx + (j + 1) * q_inx + (k + 1);
-                          F[dim][field][i0] = f[dim_offset + input_index + f_slice_offset * slice_id];
-                      }
+                        const auto i0 = i * (INX + 1) * (INX + 1) + j * (INX + 1) + 0;
+                        const auto input_index =
+                            (i + 1) * q_inx * q_inx + (j + 1) * q_inx + 1;
+                        std::copy(f.data() + (dim_offset + input_index + f_slice_offset * slice_id),
+                                  f.data() + (dim_offset + input_index + f_slice_offset * slice_id) + (INX + 1),
+                                  F[dim][field].data() + i0);
+                      /* for (integer k = 0; k <= INX; ++k) { */
+                      /*     const auto i0 = i * (INX + 1) * (INX + 1) + j * (INX + 1) + k; */
+                      /*     const auto input_index = */
+                      /*         (i + 1) * q_inx * q_inx + (j + 1) * q_inx + (k + 1); */
+                      /*     F[dim][field][i0] = f[dim_offset + input_index + f_slice_offset * slice_id]; */
+                      /* } */
                   }
               }
           }
