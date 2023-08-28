@@ -58,7 +58,9 @@ void init_hydro_kokkos_aggregation_pool(void) {
 
 timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
     const std::vector<std::vector<safe_real>>& U, std::vector<std::vector<safe_real>>& X,
-    const double omega, std::vector<hydro_state_t<std::vector<safe_real>>>& F,
+    const double omega,
+    std::vector<hydro_state_t<std::vector<safe_real>>>& F,
+    std::vector<real>& F_flat,
     const interaction_host_kernel_type host_type, const interaction_device_kernel_type device_type,
     const size_t max_gpu_executor_queue_length) {
     static const cell_geometry<NDIM, INX> geo;
@@ -92,7 +94,7 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
             if (avail) {
                 // executor_interface_t executor;
                 max_lambda = launch_hydro_kokkos_kernels<device_executor>(
-                    hydro, U, X, omega, opts().n_species, F);
+                    hydro, U, X, omega, opts().n_species, F_flat);
                 return max_lambda;
             }
         }
@@ -160,7 +162,7 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
 #ifdef OCTOTIGER_HAVE_KOKKOS
         hpx::call_once(init_hydro_kokkos_pool_flag, init_hydro_kokkos_aggregation_pool);
         max_lambda = launch_hydro_kokkos_kernels<host_executor>(
-            hydro, U, X, omega, opts().n_species, F);
+            hydro, U, X, omega, opts().n_species, F_flat);
         return max_lambda;
 #else
         std::cerr << "Trying to call Hydro Kokkos kernels in a non-kokkos build! Aborting..."

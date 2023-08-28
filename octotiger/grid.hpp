@@ -127,7 +127,8 @@ private:
 	std::vector<std::vector<safe_real>> U;
 	std::vector<std::vector<safe_real>> U0;
 	std::vector<std::vector<safe_real>> dUdt;
-	std::vector<hydro_state_t<std::vector<safe_real>>> F;
+	std::vector<hydro_state_t<std::vector<safe_real>>> F2;
+	std::vector<real> F_flat;
 	std::vector<std::vector<safe_real>> X;
 #if defined(__AVX2__) && defined(OCTOTIGER_LEGACY_VC)
 	std::vector<v4sd> G;

@@ -1448,7 +1448,8 @@ template <typename executor_t>
 timestep_t launch_hydro_kokkos_kernels(const hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
     const std::vector<std::vector<safe_real>>& U, const std::vector<std::vector<safe_real>>& X,
     const double omega, const size_t n_species, 
-    std::vector<hydro_state_t<std::vector<safe_real>>>& F) {
+    /* std::vector<hydro_state_t<std::vector<safe_real>>>& F) { */
+    auto& F_flat) {
     static const cell_geometry<NDIM, INX> geo;
 
     auto executor_slice_fut = hydro_kokkos_agg_executor_pool<executor_t>::request_executor_slice();
@@ -1466,7 +1467,7 @@ timestep_t launch_hydro_kokkos_kernels(const hydro_computer<NDIM, INX, physics<N
       const int smooth_slice_offset = hydro.get_nf();
       constexpr int large_x_slice_offset = (H_N3 * NDIM + padding); 
       //const int q_slice_offset = (nf_ * 27 * H_N3 + padding) 
-      const int f_slice_offset = (NDIM * hydro.get_nf()   *  f_inx3 + padding);
+      const int f_slice_offset = (NDIM * hydro.get_nf() * f_inx3 + padding);
       const int disc_offset = geo.NDIR / 2 * H_N3 + padding;
 
       // Get allocators of all the executors working together
@@ -1524,14 +1525,19 @@ timestep_t launch_hydro_kokkos_kernels(const hydro_computer<NDIM, INX, physics<N
           dx, physics<NDIM>::A_, physics<NDIM>::B_, physics<NDIM>::fgamma_,
           physics<NDIM>::de_switch_1, agg_exec, alloc_host_double, alloc_host_int);
 
-      // Convert output
-      for (int dim = 0; dim < NDIM; dim++) {
-          for (integer field = 0; field != opts().n_fields; ++field) {
-              const auto dim_offset = dim * opts().n_fields * f_inx3 + field * f_inx3;
+      std::copy(f.data() + f_slice_offset * slice_id,
+                f.data() + f_slice_offset * slice_id + NDIM * hydro.get_nf() * f_inx3,
+                F_flat.data());
 
-              std::copy(f.data() + (dim_offset + f_slice_offset * slice_id),
-                        f.data() + (dim_offset + f_slice_offset * slice_id) + f_inx3,
-                        F[dim][field].data());
+      // Convert output
+      /* for (int dim = 0; dim < NDIM; dim++) { */
+      /*     for (integer field = 0; field != opts().n_fields; ++field) { */
+      /*         const auto dim_offset = dim * opts().n_fields * f_inx3 + field * f_inx3; */
+
+      /*         std::copy(f.data() + (dim_offset + f_slice_offset * slice_id), */
+      /*                   f.data() + (dim_offset + f_slice_offset * slice_id) + f_inx3, */
+      /*                   F[dim][field].data()); */
+
               /* for (integer i = 0; i <= INX; ++i) { */
               /*     for (integer j = 0; j <= INX; ++j) { */
               /*           const auto i0 = i * (INX + 1) * (INX + 1) + j * (INX + 1) + 0; */
@@ -1551,8 +1557,8 @@ timestep_t launch_hydro_kokkos_kernels(const hydro_computer<NDIM, INX, physics<N
 
                   /* } */
               /* } */
-          }
-      }
+          /* } */
+      /* } */
       }
       return max_lambda;
           }, "kokkos_hydro_solver"));

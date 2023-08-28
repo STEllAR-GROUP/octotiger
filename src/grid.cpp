@@ -1056,6 +1056,29 @@ std::vector<real> grid::get_flux_restrict(const std::array<integer, NDIM> &lb, c
 	data.reserve(size);
 	const integer stride1 = (dim == XDIM) ? (INX + 1) : (INX + 1) * (INX + 1);
 	const integer stride2 = (dim == ZDIM) ? (INX + 1) : 1;
+
+  // Legacy F
+	/* for (integer field = 0; field != opts().n_fields; ++field) { */
+	/* 	for (integer i = lb[XDIM]; i < ub[XDIM]; i += 2) { */
+	/* 		for (integer j = lb[YDIM]; j < ub[YDIM]; j += 2) { */
+	/* 			for (integer k = lb[ZDIM]; k < ub[ZDIM]; k += 2) { */
+	/* 				const integer i00 = findex(i, j, k); */
+	/* 				const integer i10 = i00 + stride1; */
+	/* 				const integer i01 = i00 + stride2; */
+	/* 				const integer i11 = i00 + stride1 + stride2; */
+	/* 				real value = ZERO; */
+	/* 				value += F[dim][field][i00]; */
+	/* 				value += F[dim][field][i10]; */
+	/* 				value += F[dim][field][i01]; */
+	/* 				value += F[dim][field][i11]; */
+	/* 				value /= real(4); */
+	/* 				data.push_back(value); */
+	/* 			} */
+	/* 		} */
+	/* 	} */
+	/* } */
+
+  const size_t dim_offset = opts().n_fields * F_N3;
 	for (integer field = 0; field != opts().n_fields; ++field) {
 		for (integer i = lb[XDIM]; i < ub[XDIM]; i += 2) {
 			for (integer j = lb[YDIM]; j < ub[YDIM]; j += 2) {
@@ -1065,10 +1088,10 @@ std::vector<real> grid::get_flux_restrict(const std::array<integer, NDIM> &lb, c
 					const integer i01 = i00 + stride2;
 					const integer i11 = i00 + stride1 + stride2;
 					real value = ZERO;
-					value += F[dim][field][i00];
-					value += F[dim][field][i10];
-					value += F[dim][field][i01];
-					value += F[dim][field][i11];
+					value += F_flat[dim * dim_offset + field * F_N3 + i00];
+					value += F_flat[dim * dim_offset + field * F_N3 + i10];
+					value += F_flat[dim * dim_offset + field * F_N3 + i01];
+					value += F_flat[dim * dim_offset + field * F_N3 + i11];
 					value /= real(4);
 					data.push_back(value);
 				}
@@ -1082,12 +1105,25 @@ void grid::set_flux_restrict(const std::vector<real> &data, const std::array<int
 		const geo::dimension &dim) {
 	PROFILE();
 	integer index = 0;
+  // Legacy F
+	/* for (integer field = 0; field != opts().n_fields; ++field) { */
+	/* 	for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) { */
+	/* 		for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) { */
+	/* 			for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) { */
+	/* 				const integer iii = findex(i, j, k); */
+	/* 				F[dim][field][iii] = data[index]; */
+	/* 				++index; */
+	/* 			} */
+	/* 		} */
+	/* 	} */
+	/* } */
+  const size_t dim_offset = opts().n_fields * F_N3;
 	for (integer field = 0; field != opts().n_fields; ++field) {
 		for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
 			for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
 				for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
 					const integer iii = findex(i, j, k);
-					F[dim][field][iii] = data[index];
+					F_flat[dim * dim_offset + field * F_N3 + iii] = data[index];
 					++index;
 				}
 			}
@@ -1596,7 +1632,7 @@ space_vector grid::center_of_mass() const {
 }
 
 grid::grid(real _dx, std::array<real, NDIM> _xmin) :
-		is_coarse(H_N3), has_coarse(H_N3), Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(NDIM), X(NDIM), G(NGF), is_root(
+		is_coarse(H_N3), has_coarse(H_N3), Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F2(NDIM), X(NDIM), G(NGF), is_root(
 				false), is_leaf(true) {
 	dx = _dx;
 	xmin = _xmin;
@@ -1796,9 +1832,10 @@ void grid::allocate() {
 		Ushad[field].resize(HS_N3, 1.0);
 		dUdt[field].resize(INX * INX * INX);
 		for (integer dim = 0; dim != NDIM; ++dim) {
-			F[dim][field].resize(F_N3);
+			F2[dim][field].resize(F_N3);
 		}
 	}
+  F_flat.resize(NDIM * opts().n_fields * F_N3);
 	L.resize(G_N3);
 	L_c.resize(G_N3);
 	integer nlevel = 0;
@@ -1813,13 +1850,13 @@ void grid::allocate() {
 }
 
 grid::grid() :
-		is_coarse(H_N3), has_coarse(H_N3), Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(NDIM), X(NDIM), G(NGF), dphi_dt(
+		is_coarse(H_N3), has_coarse(H_N3), Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F2(NDIM), X(NDIM), G(NGF), dphi_dt(
 				H_N3), is_root(false), is_leaf(true), U_out(opts().n_fields, ZERO), U_out0(opts().n_fields, ZERO) {
 //	allocate();
 }
 
 grid::grid(const init_func_type &init_func, real _dx, std::array<real, NDIM> _xmin) :
-		is_coarse(H_N3), has_coarse(H_N3), Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(NDIM), X(NDIM), G(NGF), is_root(
+		is_coarse(H_N3), has_coarse(H_N3), Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F2(NDIM), X(NDIM), G(NGF), is_root(
 				false), is_leaf(true), U_out(opts().n_fields, ZERO), U_out0(opts().n_fields, ZERO), dphi_dt(H_N3) {
 
 	dx = _dx;
@@ -1918,31 +1955,33 @@ timestep_t grid::compute_fluxes() {
   const interaction_host_kernel_type host_type = opts().hydro_host_kernel_type;
   const interaction_device_kernel_type device_type = opts().hydro_device_kernel_type;
   const size_t device_queue_length = opts().max_gpu_executor_queue_length;
-  return launch_hydro_kernels(hydro, U, X, omega, F, host_type, device_type, device_queue_length);
+  return launch_hydro_kernels(hydro, U, X, omega, F2, F_flat, host_type, device_type, device_queue_length);
 
 }
 
 real grid::compute_positivity_speed_limit() const {
-	double max_lambda = 0.0;
-	for (integer i = 0; i < INX; ++i) {
-		for (integer j = 0; j < INX; ++j) {
-			for (integer k = 0; k < INX; ++k) {
-				double drho_dt = 0.0;
-				double dtau_dt = 0.0;
-				drho_dt -= (F[0][rho_i][findex(i + 1, j, k)] - F[0][rho_i][findex(i, j, k)]) / dx;
-				drho_dt -= (F[1][rho_i][findex(i, j + 1, k)] - F[1][rho_i][findex(i, j, k)]) / dx;
-				drho_dt -= (F[2][rho_i][findex(i, j, k + 1)] - F[2][rho_i][findex(i, j, k)]) / dx;
-				max_lambda = std::max(max_lambda, -drho_dt * dx / U[rho_i][hindex(i + H_BW, j + H_BW, k + H_BW)]);
-				if (opts().eos != IPR) {  // For ipr eos, tau does not have the usual meanings
-					dtau_dt -= (F[0][tau_i][findex(i + 1, j, k)] - F[0][tau_i][findex(i, j, k)]) / dx;
-					dtau_dt -= (F[1][tau_i][findex(i, j + 1, k)] - F[1][tau_i][findex(i, j, k)]) / dx;
-					dtau_dt -= (F[2][tau_i][findex(i, j, k + 1)] - F[2][tau_i][findex(i, j, k)]) / dx;
-					max_lambda = std::max(max_lambda, -dtau_dt * dx / U[tau_i][hindex(i + H_BW, j + H_BW, k + H_BW)]);
-				}
-			}
-		}
-	}
-	return max_lambda / opts().dt_max;
+  std::cerr << "compute_positivity_speed_limit not implemented with flat 1D F" << std::endl;
+  abort();
+	/* double max_lambda = 0.0; */
+	/* for (integer i = 0; i < INX; ++i) { */
+	/* 	for (integer j = 0; j < INX; ++j) { */
+	/* 		for (integer k = 0; k < INX; ++k) { */
+	/* 			double drho_dt = 0.0; */
+	/* 			double dtau_dt = 0.0; */
+	/* 			drho_dt -= (F[0][rho_i][findex(i + 1, j, k)] - F[0][rho_i][findex(i, j, k)]) / dx; */
+	/* 			drho_dt -= (F[1][rho_i][findex(i, j + 1, k)] - F[1][rho_i][findex(i, j, k)]) / dx; */
+	/* 			drho_dt -= (F[2][rho_i][findex(i, j, k + 1)] - F[2][rho_i][findex(i, j, k)]) / dx; */
+	/* 			max_lambda = std::max(max_lambda, -drho_dt * dx / U[rho_i][hindex(i + H_BW, j + H_BW, k + H_BW)]); */
+	/* 			if (opts().eos != IPR) {  // For ipr eos, tau does not have the usual meanings */
+	/* 				dtau_dt -= (F[0][tau_i][findex(i + 1, j, k)] - F[0][tau_i][findex(i, j, k)]) / dx; */
+	/* 				dtau_dt -= (F[1][tau_i][findex(i, j + 1, k)] - F[1][tau_i][findex(i, j, k)]) / dx; */
+	/* 				dtau_dt -= (F[2][tau_i][findex(i, j, k + 1)] - F[2][tau_i][findex(i, j, k)]) / dx; */
+	/* 				max_lambda = std::max(max_lambda, -dtau_dt * dx / U[tau_i][hindex(i + H_BW, j + H_BW, k + H_BW)]); */
+	/* 			} */
+	/* 		} */
+	/* 	} */
+	/* } */
+	/* return max_lambda / opts().dt_max; */
 }
 
 void grid::set_min_level(integer l) {
@@ -2212,8 +2251,44 @@ void grid::compute_sources(real t, real rotational_time) {
 	}
 }
 
+/* void grid::compute_dudt_legacy() { */
+/* 	PROFILE(); */
+/* 	for (integer i = H_BW; i != H_NX - H_BW; ++i) { */
+/* 		for (integer j = H_BW; j != H_NX - H_BW; ++j) { */
+/* 			for (integer field = 0; field != opts().n_fields; ++field) { */
+/* #pragma GCC ivdep */
+/* 				for (integer k = H_BW; k != H_NX - H_BW; ++k) { */
+/* 					const integer iii0 = h0index(i - H_BW, j - H_BW, k - H_BW); */
+/* 					const integer iiif = findex(i - H_BW, j - H_BW, k - H_BW); */
+/* 					dUdt[field][iii0] -= (F[XDIM][field][iiif + F_DNX] - F[XDIM][field][iiif]) / dx; */
+/* 					dUdt[field][iii0] -= (F[YDIM][field][iiif + F_DNY] - F[YDIM][field][iiif]) / dx; */
+/* 					dUdt[field][iii0] -= (F[ZDIM][field][iiif + F_DNZ] - F[ZDIM][field][iiif]) / dx; */
+/* 				} */
+/* 			} */
+/* 			if (opts().gravity) { */
+
+/* #pragma GCC ivdep */
+/* 				for (integer k = H_BW; k != H_NX - H_BW; ++k) { */
+/* 					const integer iii0 = h0index(i - H_BW, j - H_BW, k - H_BW); */
+/* 					dUdt[egas_i][iii0] += dUdt[pot_i][iii0]; */
+/* 					dUdt[pot_i][iii0] = ZERO; */
+/* 				} */
+/* 			} */
+/* #pragma GCC ivdep */
+/* 			for (integer k = H_BW; k != H_NX - H_BW; ++k) { */
+/* 				const integer iii0 = h0index(i - H_BW, j - H_BW, k - H_BW); */
+/* 				const integer iiig = gindex(i - H_BW, j - H_BW, k - H_BW); */
+/* 				if (opts().gravity) { */
+/* 					dUdt[egas_i][iii0] -= (dUdt[rho_i][iii0] * G[iiig][phi_i]) * HALF; */
+/* 				} */
+/* 			} */
+/* 		} */
+/* 	} */
+/* //	solve_gravity(DRHODT); */
+/* } */
 void grid::compute_dudt() {
 	PROFILE();
+  const size_t dim_offset = opts().n_fields * F_N3;
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
 			for (integer field = 0; field != opts().n_fields; ++field) {
@@ -2221,9 +2296,9 @@ void grid::compute_dudt() {
 				for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 					const integer iii0 = h0index(i - H_BW, j - H_BW, k - H_BW);
 					const integer iiif = findex(i - H_BW, j - H_BW, k - H_BW);
-					dUdt[field][iii0] -= (F[XDIM][field][iiif + F_DNX] - F[XDIM][field][iiif]) / dx;
-					dUdt[field][iii0] -= (F[YDIM][field][iiif + F_DNY] - F[YDIM][field][iiif]) / dx;
-					dUdt[field][iii0] -= (F[ZDIM][field][iiif + F_DNZ] - F[ZDIM][field][iiif]) / dx;
+					dUdt[field][iii0] -= (F_flat[XDIM * dim_offset + field * F_N3 + iiif + F_DNX] - F_flat[XDIM * dim_offset + field * F_N3 + iiif]) / dx;
+					dUdt[field][iii0] -= (F_flat[YDIM * dim_offset + field * F_N3 + iiif + F_DNY] - F_flat[YDIM * dim_offset + field * F_N3 + iiif]) / dx;
+					dUdt[field][iii0] -= (F_flat[ZDIM * dim_offset + field * F_N3 + iiif + F_DNZ] - F_flat[ZDIM * dim_offset + field * F_N3 + iiif]) / dx;
 				}
 			}
 			if (opts().gravity) {
@@ -2319,6 +2394,52 @@ void grid::next_u(integer rk, real t, real dt) {
 	du_out[sx_i] += omega * U_out[sy_i] * dt;
 	du_out[sy_i] -= omega * U_out[sx_i] * dt;
 
+  /* // Legacy F */
+	/* for (integer i = H_BW; i != H_NX - H_BW; ++i) { */
+/* #pragma GCC ivdep */
+		/* for (integer j = H_BW; j != H_NX - H_BW; ++j) { */
+			/* const real dx2 = sqr(dx); */
+			/* const integer iii_p0 = findex(INX, i - H_BW, j - H_BW); */
+			/* const integer jjj_p0 = findex(j - H_BW, INX, i - H_BW); */
+			/* const integer kkk_p0 = findex(i - H_BW, j - H_BW, INX); */
+			/* const integer iii_m0 = findex(0, i - H_BW, j - H_BW); */
+			/* const integer jjj_m0 = findex(j - H_BW, 0, i - H_BW); */
+			/* const integer kkk_m0 = findex(i - H_BW, j - H_BW, 0); */
+			/* const integer iii_p = H_DNX * (H_NX - H_BW) + H_DNY * i + H_DNZ * j; */
+			/* const integer jjj_p = H_DNY * (H_NX - H_BW) + H_DNZ * i + H_DNX * j; */
+			/* const integer kkk_p = H_DNZ * (H_NX - H_BW) + H_DNX * i + H_DNY * j; */
+			/* const integer iii_m = H_DNX * (H_BW) + H_DNY * i + H_DNZ * j; */
+			/* const integer jjj_m = H_DNY * (H_BW) + H_DNZ * i + H_DNX * j; */
+			/* const integer kkk_m = H_DNZ * (H_BW) + H_DNX * i + H_DNY * j; */
+			/* std::vector<real> du(opts().n_fields); */
+			/* for (integer field = 0; field != opts().n_fields; ++field) { */
+				/* du[field] = ZERO; */
+				/* if (X[XDIM][iii_p] > scaling_factor) { */
+					/* du[field] += (F[XDIM][field][iii_p0]) * dx2; */
+				/* } */
+				/* if (X[YDIM][jjj_p] > scaling_factor) { */
+					/* du[field] += (F[YDIM][field][jjj_p0]) * dx2; */
+				/* } */
+				/* if (X[ZDIM][kkk_p] > scaling_factor) { */
+					/* du[field] += (F[ZDIM][field][kkk_p0]) * dx2; */
+				/* } */
+				/* if (X[XDIM][iii_m] < -scaling_factor + dx) { */
+					/* du[field] += (-F[XDIM][field][iii_m0]) * dx2; */
+				/* } */
+				/* if (X[YDIM][jjj_m] < -scaling_factor + dx) { */
+					/* du[field] += (-F[YDIM][field][jjj_m0]) * dx2; */
+				/* } */
+				/* if (X[ZDIM][kkk_m] < -scaling_factor + dx) { */
+					/* du[field] += (-F[ZDIM][field][kkk_m0]) * dx2; */
+				/* } */
+			/* } */
+			/* for (integer field = 0; field != opts().n_fields; ++field) { */
+				/* du_out[field] += du[field] * dt; */
+			/* } */
+		/* } */
+	/* } */
+
+  const size_t dim_offset = opts().n_fields * F_N3;
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 #pragma GCC ivdep
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
@@ -2339,22 +2460,22 @@ void grid::next_u(integer rk, real t, real dt) {
 			for (integer field = 0; field != opts().n_fields; ++field) {
 				du[field] = ZERO;
 				if (X[XDIM][iii_p] > scaling_factor) {
-					du[field] += (F[XDIM][field][iii_p0]) * dx2;
+					du[field] += (F_flat[XDIM * dim_offset + field * F_N3 + iii_p0]) * dx2;
 				}
 				if (X[YDIM][jjj_p] > scaling_factor) {
-					du[field] += (F[YDIM][field][jjj_p0]) * dx2;
+					du[field] += (F_flat[YDIM * dim_offset + field * F_N3 + jjj_p0]) * dx2;
 				}
 				if (X[ZDIM][kkk_p] > scaling_factor) {
-					du[field] += (F[ZDIM][field][kkk_p0]) * dx2;
+					du[field] += (F_flat[ZDIM * dim_offset + field * F_N3 + kkk_p0]) * dx2;
 				}
 				if (X[XDIM][iii_m] < -scaling_factor + dx) {
-					du[field] += (-F[XDIM][field][iii_m0]) * dx2;
+					du[field] += (-F_flat[XDIM * dim_offset + field * F_N3 + iii_m0]) * dx2;
 				}
 				if (X[YDIM][jjj_m] < -scaling_factor + dx) {
-					du[field] += (-F[YDIM][field][jjj_m0]) * dx2;
+					du[field] += (-F_flat[YDIM * dim_offset + field * F_N3 + jjj_m0]) * dx2;
 				}
 				if (X[ZDIM][kkk_m] < -scaling_factor + dx) {
-					du[field] += (-F[ZDIM][field][kkk_m0]) * dx2;
+					du[field] += (-F_flat[ZDIM * dim_offset + field * F_N3 + kkk_m0]) * dx2;
 				}
 			}
 			for (integer field = 0; field != opts().n_fields; ++field) {
