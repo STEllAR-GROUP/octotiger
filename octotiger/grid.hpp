@@ -34,6 +34,9 @@
 #include <vector>
 //#include "octotiger/unitiger/hydro.hpp"
 
+#if defined(OCTOTIGER_HAVE_CUDA) || (defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_CUDA)))
+#include <cuda_buffer_util.hpp>
+#endif
 class struct_eos;
 
 class analytic_t {
@@ -128,7 +131,11 @@ private:
 	std::vector<std::vector<safe_real>> U0;
 	std::vector<std::vector<safe_real>> dUdt;
 	std::vector<hydro_state_t<std::vector<safe_real>>> F2;
+#if defined(OCTOTIGER_HAVE_CUDA) || (defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_CUDA)))
+	std::vector<real, recycler::detail::cuda_pinned_allocator<real>> F_flat;
+#else
 	std::vector<real> F_flat;
+#endif
 	std::vector<std::vector<safe_real>> X;
 #if defined(__AVX2__) && defined(OCTOTIGER_LEGACY_VC)
 	std::vector<v4sd> G;

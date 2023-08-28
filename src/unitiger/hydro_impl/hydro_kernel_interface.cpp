@@ -60,7 +60,11 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
     const std::vector<std::vector<safe_real>>& U, std::vector<std::vector<safe_real>>& X,
     const double omega,
     std::vector<hydro_state_t<std::vector<safe_real>>>& F,
+#if defined(OCTOTIGER_HAVE_CUDA) || (defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_CUDA)))
+    std::vector<real, recycler::detail::cuda_pinned_allocator<real>>& F_flat,
+#else
     std::vector<real>& F_flat,
+#endif
     const interaction_host_kernel_type host_type, const interaction_device_kernel_type device_type,
     const size_t max_gpu_executor_queue_length) {
     static const cell_geometry<NDIM, INX> geo;
