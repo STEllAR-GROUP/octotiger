@@ -1261,6 +1261,8 @@ timestep_t device_interface_kokkos_hydro(
     auto f_current_slice = Kokkos::subview(
         f, std::make_pair<size_t, size_t>(f_slice_offset * slice_id, f_slice_offset * slice_id + (NDIM * nf * f_inx3)));
     fut.get();
+    stream_pool::select_device<executor_t,
+          round_robin_pool<executor_t>>(agg_exec.parent.gpu_id);
     auto fut2 = hpx::kokkos::deep_copy_async(
         agg_exec.get_underlying_executor().instance(), vector_wrapper_f, f_current_slice);
     fut2.get();
