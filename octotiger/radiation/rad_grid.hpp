@@ -64,18 +64,24 @@ public:
 		arc & dx;
 		arc & U;
 	}
-	void compute_mmw(const std::vector<std::vector<safe_real>>& U);
+	void compute_mmw(const auto& U);
 	void change_units(real m, real l, real t, real k);
 	real rad_imp_comoving(real& E, real& e, real rho, real mmw, real X, real Z, real dt);
 	void sanity_check();
 	void compute_flux(real);
-	void initialize_erad(const std::vector<safe_real> rho, const std::vector<safe_real> tau);
+#if defined(OCTOTIGER_HAVE_CUDA) || (defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_CUDA)))
+	void initialize_erad(const std::vector<real, recycler::detail::cuda_pinned_allocator<real>> rho,
+      const std::vector<real, recycler::detail::cuda_pinned_allocator<real>> tau);
+#else
+	void initialize_erad(const std::vector<real> rho, const std::vector<real> tau);
+#endif
+
 	void set_dx(real dx);
 	//void compute_fEdd();
 	void compute_fluxes();
 	void advance(real dt, real beta);
-	void rad_imp(std::vector<real>& egas, std::vector<real>& tau, std::vector<real>& sx, std::vector<real>& sy, std::vector<real>& sz,
-			const std::vector<real>& rho, real dt);
+	void rad_imp(auto& egas, auto& tau, auto& sx, auto& sy, auto& sz,
+			const auto& rho, real dt);
 	std::vector<real> get_restrict() const;
 	std::vector<real> get_prolong(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub);
 	void set_prolong(const std::vector<real>&);

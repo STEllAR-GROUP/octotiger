@@ -151,8 +151,8 @@ void node_client::send_rad_children(std::vector<real> &&data, const geo::octant 
 	hpx::apply<typename node_server::send_rad_children_action>(get_unmanaged_gid(), std::move(data), ci, cycle);
 }
 
-void rad_grid::rad_imp(std::vector<real> &egas, std::vector<real> &tau, std::vector<real> &sx, std::vector<real> &sy, std::vector<real> &sz,
-		const std::vector<real> &rho, real dt) {
+void rad_grid::rad_imp(auto &egas, auto &tau, auto &sx, auto &sy, auto &sz,
+		const auto &rho, real dt) {
 	PROFILE()
 	;
 	const integer d = H_BW - RAD_BW;
@@ -222,7 +222,7 @@ real rad_grid::hydro_signal_speed(const std::vector<real> &egas, const std::vect
 	return SQRT(a);
 }
 
-void rad_grid::compute_mmw(const std::vector<std::vector<safe_real>> &U) {
+void rad_grid::compute_mmw(const auto &U) {
 	mmw.resize(RAD_N3);
 	X_spc.resize(RAD_N3);
 	Z_spc.resize(RAD_N3);
@@ -673,7 +673,12 @@ void node_server::collect_radiation_bounds() {
 
 }
 
-void rad_grid::initialize_erad(const std::vector<safe_real> rho, const std::vector<safe_real> tau) {
+#if defined(OCTOTIGER_HAVE_CUDA) || (defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_CUDA)))
+void rad_grid::initialize_erad(const std::vector<real, recycler::detail::cuda_pinned_allocator<real>> rho,
+    const std::vector<real, recycler::detail::cuda_pinned_allocator<real>> tau) {
+#else
+void rad_grid::initialize_erad(const std::vector<real> rho, const std::vector<real> tau) {
+#endif
 	const real fgamma = grid::get_fgamma();
 	for (integer xi = 0; xi != RAD_NX; ++xi) {
 		for (integer yi = 0; yi != RAD_NX; ++yi) {

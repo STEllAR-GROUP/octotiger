@@ -33,7 +33,12 @@ void init_aggregation_pool(void) {
 __host__ void launch_complete_hydro_amr_boundary_cuda(double dx, bool
     energy_only,
     const std::vector<std::vector<real>>& Ushad, const std::vector<int>& is_coarse,
-    const std::array<double, NDIM>& xmin, std::vector<std::vector<real>>& U) {
+    const std::array<double, NDIM>& xmin,
+#if defined(OCTOTIGER_HAVE_CUDA) || (defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_CUDA)))
+    std::vector<std::vector<safe_real, recycler::detail::cuda_pinned_allocator<real>>>& U) {
+#else
+    std::vector<std::vector<safe_real>>& U) {
+#endif
     bool early_exit = true;
     for (int i = 0; i < HS_N3; i++) {
         if (early_exit && is_coarse[i]) {
@@ -243,7 +248,7 @@ __host__ void launch_complete_hydro_amr_boundary_cuda(double dx, bool
 
 void complete_hydro_amr_boundary_cpu(const double dx, const bool energy_only,
     const std::vector<std::vector<real>>& Ushad, const std::vector<int>& is_coarse,
-    const std::array<double, NDIM>& xmin, std::vector<std::vector<double>>& U) {
+    const std::array<double, NDIM>& xmin, auto& U) {
     // std::cout << "Calling hydro cpu version!" << std::endl;
 
     // std::vector<double, recycler::aggressive_recycle_aligned<double, 32>> unified_u(

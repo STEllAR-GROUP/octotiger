@@ -74,7 +74,7 @@ struct physics {
 			std::array<safe_real, NDIM> &vg);
 
 	template<int INX>
-	static void post_process(hydro::state_type &U, const hydro::x_type& X, safe_real dx);
+	static void post_process(auto &U, const hydro::x_type& X, safe_real dx);
 
 	static void set_degenerate_eos(safe_real, safe_real);
         static void set_ideal_plus_rad_eos(safe_real, safe_real, safe_real, int, bool, safe_real);

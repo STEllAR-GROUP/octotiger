@@ -18,10 +18,21 @@
 
 void complete_hydro_amr_boundary_cpu(const double dx, const bool energy_only,
     const std::vector<std::vector<real>>& ushad, const std::vector<int>& is_coarse,
-    const std::array<double, NDIM>& xmin, std::vector<std::vector<real>>& u);
+    const std::array<double, NDIM>& xmin,
+#if defined(OCTOTIGER_HAVE_CUDA) || (defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_CUDA)))
+    std::vector<std::vector<safe_real, recycler::detail::cuda_pinned_allocator<real>>>& u);
+#else
+    std::vector<std::vector<safe_real>>& u);
+#endif
 void complete_hydro_amr_boundary_vc(const double dx, const bool energy_only,
     const std::vector<std::vector<real>>& Ushad, const std::vector<int>& is_coarse,
-    const std::array<double, NDIM>& xmin, std::vector<std::vector<double>>& U);
+    const std::array<double, NDIM>& xmin,
+#if defined(OCTOTIGER_HAVE_CUDA) || (defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_CUDA)))
+    std::vector<std::vector<safe_real, recycler::detail::cuda_pinned_allocator<real>>>& U);
+#else
+    std::vector<std::vector<safe_real>>& U);
+#endif
+
 #ifdef OCTOTIGER_HAVE_CUDA
 
 #include <aggregation_manager.hpp>
@@ -35,7 +46,11 @@ void launch_complete_hydro_amr_boundary_cuda(
     double dx,
     bool energy_only, const std::vector<std::vector<real>>& ushad,
     const std::vector<int>& is_coarse, const std::array<double, NDIM>& xmin,
-    std::vector<std::vector<real>>& u);
+#if defined(OCTOTIGER_HAVE_CUDA) || (defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_CUDA)))
+    std::vector<std::vector<safe_real, recycler::detail::cuda_pinned_allocator<real>>>& U);
+#else
+    std::vector<std::vector<safe_real>>& U);
+#endif
 void launch_complete_hydro_amr_boundary_cuda_post(
     aggregated_executor_t& executor,
     dim3 const grid_spec, dim3 const threads_per_block, void *args[]);

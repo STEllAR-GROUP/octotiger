@@ -129,6 +129,9 @@ template <class T>
 using kokkos_um_pinned_array = Kokkos::View<T*, typename kokkos_um_device_array<T>::array_layout,
     Kokkos::CudaHostPinnedSpace, Kokkos::MemoryUnmanaged>;
 template <class T>
+using kokkos_um_pinned_array_const = Kokkos::View<const T*, typename kokkos_um_device_array<T>::array_layout,
+    Kokkos::CudaHostPinnedSpace, Kokkos::MemoryUnmanaged>;
+template <class T>
 using recycled_pinned_view =
     recycler::recycled_view<kokkos_um_pinned_array<T>, recycler::recycle_allocator_cuda_host<T>, T>;
 #elif defined(KOKKOS_ENABLE_HIP)

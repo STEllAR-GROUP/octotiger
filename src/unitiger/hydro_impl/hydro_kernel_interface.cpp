@@ -57,7 +57,12 @@ void init_hydro_kokkos_aggregation_pool(void) {
 
 
 timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
-    const std::vector<std::vector<safe_real>>& U, std::vector<std::vector<safe_real>>& X,
+#if defined(OCTOTIGER_HAVE_CUDA) || (defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_CUDA)))
+    const std::vector<std::vector<safe_real, recycler::detail::cuda_pinned_allocator<real>>>& U,
+#else
+    const std::vector<std::vector<safe_real>>& U,
+#endif
+    std::vector<std::vector<safe_real>>& X,
     const double omega,
     std::vector<hydro_state_t<std::vector<safe_real>>>& F,
 #if defined(OCTOTIGER_HAVE_CUDA) || (defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_CUDA)))
@@ -180,12 +185,12 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
 #ifdef HPX_HAVE_APEX
         auto reconstruct_timer = apex::start("kernel hydro_reconstruct legacy");
 #endif
-        const auto& q = hydro.reconstruct(U, X, omega);
+        /* const auto& q = hydro.reconstruct(U, X, omega); */
 #ifdef HPX_HAVE_APEX
         apex::stop(reconstruct_timer);
         auto flux_timer = apex::start("kernel hydro_flux legacy");
 #endif
-        max_lambda = hydro.flux(U, q, f, X, omega);
+        /* max_lambda = hydro.flux(U, q, f, X, omega); */
         octotiger::hydro::hydro_legacy_subgrids_processed++;
 #ifdef HPX_HAVE_APEX
         apex::stop(flux_timer);

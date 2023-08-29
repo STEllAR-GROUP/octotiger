@@ -239,7 +239,7 @@ void physics<NDIM>::physical_flux_experimental(const std::vector<safe_real> &U, 
 
 template<int NDIM>
 template<int INX>
-void physics<NDIM>::post_process(hydro::state_type &U, const hydro::x_type &X, safe_real dx) {
+void physics<NDIM>::post_process(auto &U, const hydro::x_type &X, safe_real dx) {
 	static const cell_geometry<NDIM, INX> geo;
 	constexpr
 	auto dir = geo.direction();

@@ -19,7 +19,12 @@
 
 void complete_hydro_amr_boundary_vc(const double dx, const bool energy_only,
     const std::vector<std::vector<real>>& Ushad, const std::vector<int>& is_coarse,
-    const std::array<double, NDIM>& xmin, std::vector<std::vector<double>>& U) {
+    const std::array<double, NDIM>& xmin,
+#if defined(OCTOTIGER_HAVE_CUDA) || (defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_CUDA)))
+    std::vector<std::vector<safe_real, recycler::detail::cuda_pinned_allocator<real>>>& U) {
+#else
+    std::vector<std::vector<safe_real>>& U) {
+#endif
 
     std::vector<double, recycler::aggressive_recycle_aligned<double, 32>> unified_u(
         opts().n_fields * H_N3);

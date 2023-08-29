@@ -107,7 +107,8 @@ __host__ bool* get_gpu_masks(const size_t gpu_id = 0) {
 // Output F
 // TODO remove obsolete executor
 timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
-    const std::vector<std::vector<safe_real>>& U, const std::vector<std::vector<safe_real>>& X,
+    const std::vector<std::vector<safe_real, recycler::detail::cuda_pinned_allocator<real>>>& U,
+    const std::vector<std::vector<safe_real>>& X,
     const double omega, const size_t device_id,
     std::vector<hydro_state_t<std::vector<safe_real>>>& F) {
 

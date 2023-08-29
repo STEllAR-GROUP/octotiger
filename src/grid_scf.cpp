@@ -446,9 +446,9 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 		}
 	}
 	init_z_field();
-	if (opts().radiation) {
-		rad_grid_ptr->initialize_erad(U[rho_i], U[tau_i]);
-	}
+	/* if (opts().radiation) { */
+	/* 	rad_grid_ptr->initialize_erad(U[rho_i], U[tau_i]); */
+	/* } */
 	return 0.0;
 }
 

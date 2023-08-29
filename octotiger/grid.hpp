@@ -127,8 +127,13 @@ private:
 	std::vector<int> is_coarse;
 	std::vector<int> has_coarse;
 	std::vector<std::vector<real>> Ushad;
+#if defined(OCTOTIGER_HAVE_CUDA) || (defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_CUDA)))
+	std::vector<std::vector<safe_real, recycler::detail::cuda_pinned_allocator<real>>> U;
+	std::vector<std::vector<safe_real, recycler::detail::cuda_pinned_allocator<real>>> U0;
+#else
 	std::vector<std::vector<safe_real>> U;
 	std::vector<std::vector<safe_real>> U0;
+#endif
 	std::vector<std::vector<safe_real>> dUdt;
 	std::vector<hydro_state_t<std::vector<safe_real>>> F2;
 #if defined(OCTOTIGER_HAVE_CUDA) || (defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_CUDA)))
@@ -220,16 +225,16 @@ public:
 	}
 	static std::vector<std::pair<std::string,std::string>> get_scalar_expressions();
 	static std::vector<std::pair<std::string,std::string>> get_vector_expressions();
-	std::vector<safe_real>& get_field(integer f) {
+	auto& get_field(integer f) {
 		return U[f];
 	}
-	const std::vector<safe_real>& get_field(integer f) const {
+	const auto& get_field(integer f) const {
 		return U[f];
 	}
-	void set_field(std::vector<safe_real>&& data, integer f) {
+	void set_field(auto&& data, integer f) {
 		U[f] = std::move(data);
 	}
-	void set_field(const std::vector<safe_real>& data, integer f) {
+	void set_field(const auto& data, integer f) {
 		U[f] = data;
 	}
 	analytic_t compute_analytic(real);
