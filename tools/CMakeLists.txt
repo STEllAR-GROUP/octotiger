@@ -107,3 +107,7 @@ set_property(TARGET silo_counter PROPERTY FOLDER "Tools")
 if(MSVC)
   target_compile_options(silo_counter PRIVATE /EHsc)
 endif()
+
+# non-hpx targets need this to be intalled
+install(TARGETS silo_planes silo_counter gen_rotating_star_init RUNTIME DESTINATION bin)
+

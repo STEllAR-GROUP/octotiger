@@ -1,4 +1,4 @@
-//  Copyright (c) 2021-2022 Gregor Daiß
+//  Copyright (c) 2021-2023 Gregor Daiß
 //
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -21,6 +21,8 @@
 #include "octotiger/unitiger/hydro_impl/flux_kernel_templates.hpp"
 #include "octotiger/unitiger/hydro_impl/hydro_kernel_interface.hpp"
 #include "octotiger/unitiger/hydro_impl/reconstruct_kernel_templates.hpp"
+
+#include "octotiger/unitiger/hydro_impl/hydro_performance_counters.hpp"
 
 #ifdef HPX_HAVE_APEX
 #include <apex_api.hpp>
@@ -49,16 +51,23 @@ const storage& get_flux_host_masks() {
 }
 
 template <typename storage, typename storage_host, typename executor_t>
-const storage& get_flux_device_masks(executor_t& exec) {
-    static storage masks(NDIM * q_inx3);
+const storage& get_flux_device_masks(executor_t& exec2, const size_t gpu_id = 0) {
+    static std::vector<storage> masks;
     static bool initialized = false;
+    /* if (agg_exec.parent.gpu_id == 1) */
     if (!initialized) {
         const storage_host& tmp_masks = get_flux_host_masks<storage_host>();
-        Kokkos::deep_copy(exec.instance(), masks, tmp_masks);
-        exec.instance().fence();
+        for (int gpu_id_loop = 0; gpu_id_loop < opts().number_gpus; gpu_id_loop++) {
+            stream_pool::select_device<executor_t,
+                  round_robin_pool<executor_t>>(gpu_id_loop);
+          executor_t exec{hpx::kokkos::execution_space_mode::independent};
+          masks.emplace_back(gpu_id_loop, NDIM * q_inx3);
+          Kokkos::deep_copy(exec.instance(), masks[gpu_id_loop], tmp_masks);
+          exec.instance().fence();
+        }
         initialized = true;
     }
-    return masks;
+    return masks[gpu_id];
 }
 
 template<typename Agg_executor_t, typename TargetView_t, typename SourceView_t>
@@ -89,8 +98,11 @@ template <typename executor_t, typename TargetView_t, typename SourceView_t>
 hpx::shared_future<void> aggregrated_deep_copy_async(
     typename Aggregated_Executor<executor_t>::Executor_Slice& agg_exec, TargetView_t& target,
     SourceView_t& source) {
-    auto launch_copy_lambda = [](TargetView_t& target, SourceView_t& source,
+    const size_t gpu_id = agg_exec.parent.gpu_id;
+    auto launch_copy_lambda = [gpu_id](TargetView_t& target, SourceView_t& source,
                                   executor_t& exec) -> hpx::shared_future<void> {
+        stream_pool::select_device<executor_t,
+              round_robin_pool<executor_t>>(gpu_id);
         return hpx::kokkos::deep_copy_async(exec.instance(), target, source);
     };
     return agg_exec.wrap_async(
@@ -102,9 +114,12 @@ hpx::shared_future<void> aggregrated_deep_copy_async(
     typename Aggregated_Executor<executor_t>::Executor_Slice& agg_exec, TargetView_t& target,
     SourceView_t& source, int elements_per_slice) {
     const size_t number_slices = agg_exec.number_slices;
-    auto launch_copy_lambda = [elements_per_slice, number_slices](TargetView_t& target,
+    const size_t gpu_id = agg_exec.parent.gpu_id;
+    auto launch_copy_lambda = [gpu_id, elements_per_slice, number_slices](TargetView_t& target,
                                   SourceView_t& source,
                                   executor_t& exec) -> hpx::shared_future<void> {
+        stream_pool::select_device<executor_t,
+              round_robin_pool<executor_t>>(gpu_id);
         auto target_slices = Kokkos::subview(
             target, std::make_pair<size_t, size_t>(0, number_slices * elements_per_slice));
         auto source_slices = Kokkos::subview(
@@ -122,11 +137,11 @@ hpx::shared_future<void> aggregrated_deep_copy_async(
  * (Kokkos serial) when using one execution space per kernel execution (not thread-safe it appears).
  * This is a stop-gap solution until teams work properly on host as well.
  */
-template <typename simd_t, typename simd_mask_t, typename kokkos_backend_t,
+template <typename simd_t, typename simd_mask_t, typename agg_executor_t,
          typename kokkos_buffer_t, typename kokkos_int_buffer_t,
          typename kokkos_mask_t>
-void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
-    typename Aggregated_Executor<hpx::kokkos::executor<kokkos_backend_t>>::Executor_Slice &agg_exec,
+void flux_impl_teamless(
+    agg_executor_t &agg_exec,
     const kokkos_buffer_t& q_combined, const kokkos_buffer_t& x_combined,
     kokkos_buffer_t& f_combined,
     kokkos_buffer_t& amax, kokkos_int_buffer_t& amax_indices, kokkos_int_buffer_t& amax_d,
@@ -138,6 +153,14 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
     // with the serial kokkos backend:
     assert((team_size == 1));
     if (agg_exec.sync_aggregation_slices()) {
+        using kokkos_executor_t = typename std::remove_reference<decltype(agg_exec.get_underlying_executor())>::type;
+        using kokkos_backend_t = decltype(agg_exec.get_underlying_executor().instance());
+        static_assert(std::is_same<hpx::kokkos::executor<kokkos_backend_t>,
+                          typename std::remove_reference<decltype(agg_exec.get_underlying_executor())>::type>::value,
+            " backend mismatch!");
+        const size_t gpu_id = agg_exec.parent.gpu_id;
+        stream_pool::select_device<hpx::kokkos::executor<kokkos_backend_t>,
+              round_robin_pool<hpx::kokkos::executor<kokkos_backend_t>>>(gpu_id);
         const int number_slices = agg_exec.number_slices;
         auto policy = Kokkos::Experimental::require(
             Kokkos::RangePolicy<decltype(agg_exec.get_underlying_executor().instance())>(
@@ -323,11 +346,9 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
     }
 }
 
-template <typename kokkos_backend_t,
-    typename kokkos_buffer_t, typename kokkos_int_buffer_t, typename
-    kokkos_mask_t>
-void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
-    typename Aggregated_Executor<hpx::kokkos::executor<kokkos_backend_t>>::Executor_Slice& agg_exec,
+template <typename agg_executor_t, typename kokkos_buffer_t, typename kokkos_int_buffer_t, typename kokkos_mask_t>
+void flux_impl(
+    agg_executor_t& agg_exec,
     const kokkos_buffer_t& q_combined, const kokkos_buffer_t& x_combined,
     kokkos_buffer_t& f_combined, kokkos_buffer_t& amax, kokkos_int_buffer_t& amax_indices,
     kokkos_int_buffer_t& amax_d, const kokkos_mask_t& masks, const double omega,
@@ -339,10 +360,18 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
         (team_size == 1));
 
     if (agg_exec.sync_aggregation_slices()) {
+        using kokkos_executor_t = typename std::remove_reference<decltype(agg_exec.get_underlying_executor())>::type;
+        using kokkos_backend_t = decltype(agg_exec.get_underlying_executor().instance());
+        static_assert(std::is_same<hpx::kokkos::executor<kokkos_backend_t>,
+                          typename std::remove_reference<decltype(agg_exec.get_underlying_executor())>::type>::value,
+            " backend mismatch!");
+        const size_t gpu_id = agg_exec.parent.gpu_id;
+        stream_pool::select_device<hpx::kokkos::executor<kokkos_backend_t>,
+              round_robin_pool<hpx::kokkos::executor<kokkos_backend_t>>>(gpu_id);
         const int number_slices = agg_exec.number_slices;
         // Set policy via executor and allocate enough scratch memory:
         auto policy =
-            Kokkos::Experimental::require(Kokkos::TeamPolicy<decltype(executor.instance())>(
+            Kokkos::Experimental::require(Kokkos::TeamPolicy<decltype(agg_exec.get_underlying_executor().instance())>(
                                               agg_exec.get_underlying_executor().instance(),
                                               number_blocks * number_slices, team_size),
                 Kokkos::Experimental::WorkItemProperty::HintLightWeight);
@@ -606,10 +635,10 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
 }
 
 /// Reconstruct with or without am
-template <typename simd_t, typename simd_mask_t, typename kokkos_backend_t,
+template <typename simd_t, typename simd_mask_t, typename agg_executor_t,
     typename kokkos_buffer_t, typename kokkos_int_buffer_t>
-void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
-    typename Aggregated_Executor<hpx::kokkos::executor<kokkos_backend_t>>::Executor_Slice& agg_exec,
+void reconstruct_impl(
+    agg_executor_t& agg_exec,
     const double omega, const int nf_, const int angmom_index_,
     const kokkos_int_buffer_t& smooth_field_, const kokkos_int_buffer_t& disc_detect_,
     kokkos_buffer_t& combined_q, const kokkos_buffer_t& combined_x, kokkos_buffer_t& combined_u,
@@ -622,6 +651,14 @@ void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
     const int number_slices = agg_exec.number_slices;
     
     if (agg_exec.sync_aggregation_slices()) {
+        using kokkos_executor_t = typename std::remove_reference<decltype(agg_exec.get_underlying_executor())>::type;
+        using kokkos_backend_t = decltype(agg_exec.get_underlying_executor().instance());
+        static_assert(std::is_same<hpx::kokkos::executor<kokkos_backend_t>,
+                          typename std::remove_reference<decltype(agg_exec.get_underlying_executor())>::type>::value,
+            " backend mismatch!");
+        const size_t gpu_id = agg_exec.parent.gpu_id;
+        stream_pool::select_device<hpx::kokkos::executor<kokkos_backend_t>,
+              round_robin_pool<hpx::kokkos::executor<kokkos_backend_t>>>(gpu_id);
         auto policy = Kokkos::Experimental::require(
             Kokkos::TeamPolicy<decltype(agg_exec.get_underlying_executor().instance())>(
                 agg_exec.get_underlying_executor().instance(), blocks * number_slices,
@@ -741,10 +778,10 @@ void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
 }
 
 /// Reconstruct with or without am
-template <typename simd_t, typename simd_mask_t, typename kokkos_backend_t,
+template <typename simd_t, typename simd_mask_t, typename agg_executor_t,
     typename kokkos_buffer_t, typename kokkos_int_buffer_t>
-void reconstruct_teamless_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
-    typename Aggregated_Executor<hpx::kokkos::executor<kokkos_backend_t>>::Executor_Slice& agg_exec,
+void reconstruct_teamless_impl(
+    agg_executor_t& agg_exec,
     const double omega, const int nf_, const int angmom_index_,
     const kokkos_int_buffer_t& smooth_field_, const kokkos_int_buffer_t& disc_detect_,
     kokkos_buffer_t& combined_q, const kokkos_buffer_t& combined_x, kokkos_buffer_t& combined_u,
@@ -756,6 +793,14 @@ void reconstruct_teamless_impl(hpx::kokkos::executor<kokkos_backend_t>& executor
     const int number_slices = agg_exec.number_slices;
     
     if (agg_exec.sync_aggregation_slices()) {
+        using kokkos_executor_t = typename std::remove_reference<decltype(agg_exec.get_underlying_executor())>::type;
+        using kokkos_backend_t = decltype(agg_exec.get_underlying_executor().instance());
+        static_assert(std::is_same<hpx::kokkos::executor<kokkos_backend_t>,
+                          typename std::remove_reference<decltype(agg_exec.get_underlying_executor())>::type>::value,
+            " backend mismatch!");
+        const size_t gpu_id = agg_exec.parent.gpu_id;
+        stream_pool::select_device<hpx::kokkos::executor<kokkos_backend_t>,
+              round_robin_pool<hpx::kokkos::executor<kokkos_backend_t>>>(gpu_id);
         auto policy = Kokkos::Experimental::require(
             Kokkos::MDRangePolicy<decltype(agg_exec.get_underlying_executor().instance()),
                 Kokkos::Rank<4>>(agg_exec.get_underlying_executor().instance(), {0, 0, 0, 0},
@@ -846,10 +891,10 @@ void reconstruct_teamless_impl(hpx::kokkos::executor<kokkos_backend_t>& executor
 }
 
 /// Optimized for reconstruct without am correction
-template <typename simd_t, typename simd_mask_t, typename kokkos_backend_t,
+template <typename simd_t, typename simd_mask_t, typename agg_executor_t,
     typename kokkos_buffer_t, typename kokkos_int_buffer_t>
-void reconstruct_no_amc_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
-    typename Aggregated_Executor<hpx::kokkos::executor<kokkos_backend_t>>::Executor_Slice& agg_exec,
+void reconstruct_no_amc_impl(
+    agg_executor_t& agg_exec,
     const double omega, const int nf_, const int angmom_index_,
     const kokkos_int_buffer_t& smooth_field_, const kokkos_int_buffer_t& disc_detect_,
     kokkos_buffer_t& combined_q, const kokkos_buffer_t& combined_x, kokkos_buffer_t& combined_u,
@@ -861,6 +906,14 @@ void reconstruct_no_amc_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
         (q_inx * q_inx * q_inx / simd_t::size() + (q_inx3 % simd_t::size() > 0 ? 1 : 0)) / workgroup_size + 1;
     const int number_slices = agg_exec.number_slices;
     if (agg_exec.sync_aggregation_slices()) {
+        using kokkos_executor_t = typename std::remove_reference<decltype(agg_exec.get_underlying_executor())>::type;
+        using kokkos_backend_t = decltype(agg_exec.get_underlying_executor().instance());
+        static_assert(std::is_same<hpx::kokkos::executor<kokkos_backend_t>,
+                          typename std::remove_reference<decltype(agg_exec.get_underlying_executor())>::type>::value,
+            " backend mismatch!");
+        const size_t gpu_id = agg_exec.parent.gpu_id;
+        stream_pool::select_device<hpx::kokkos::executor<kokkos_backend_t>,
+              round_robin_pool<hpx::kokkos::executor<kokkos_backend_t>>>(gpu_id);
         auto policy = Kokkos::Experimental::require(
             Kokkos::TeamPolicy<decltype(agg_exec.get_underlying_executor().instance())>(
                 agg_exec.get_underlying_executor().instance(), blocks * number_slices, team_size),
@@ -920,10 +973,10 @@ void reconstruct_no_amc_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
 }
 
 /// Optimized for reconstruct without am correction
-template <typename simd_t, typename simd_mask_t, typename kokkos_backend_t,
+template <typename simd_t, typename simd_mask_t, typename agg_executor_t,
     typename kokkos_buffer_t, typename kokkos_int_buffer_t>
-void reconstruct_no_amc_teamless_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
-    typename Aggregated_Executor<hpx::kokkos::executor<kokkos_backend_t>>::Executor_Slice& agg_exec,
+void reconstruct_no_amc_teamless_impl(
+    agg_executor_t& agg_exec,
     const double omega, const int nf_, const int angmom_index_,
     const kokkos_int_buffer_t& smooth_field_, const kokkos_int_buffer_t& disc_detect_,
     kokkos_buffer_t& combined_q, const kokkos_buffer_t& combined_x, kokkos_buffer_t& combined_u,
@@ -934,6 +987,14 @@ void reconstruct_no_amc_teamless_impl(hpx::kokkos::executor<kokkos_backend_t>& e
         (q_inx * q_inx * q_inx / simd_t::size()) / 64 + 1;
     const int number_slices = agg_exec.number_slices;
     if (agg_exec.sync_aggregation_slices()) {
+        using kokkos_executor_t = typename std::remove_reference<decltype(agg_exec.get_underlying_executor())>::type;
+        using kokkos_backend_t = decltype(agg_exec.get_underlying_executor().instance());
+        static_assert(std::is_same<hpx::kokkos::executor<kokkos_backend_t>,
+                          typename std::remove_reference<decltype(agg_exec.get_underlying_executor())>::type>::value,
+            " backend mismatch!");
+        const size_t gpu_id = agg_exec.parent.gpu_id;
+        stream_pool::select_device<hpx::kokkos::executor<kokkos_backend_t>,
+              round_robin_pool<hpx::kokkos::executor<kokkos_backend_t>>>(gpu_id);
         auto policy = Kokkos::Experimental::require(
             Kokkos::MDRangePolicy<decltype(agg_exec.get_underlying_executor().instance()),
                 Kokkos::Rank<4>>(agg_exec.get_underlying_executor().instance(), {0, 0, 0, 0},
@@ -964,14 +1025,22 @@ void reconstruct_no_amc_teamless_impl(hpx::kokkos::executor<kokkos_backend_t>& e
 }
 
 
-template <typename kokkos_backend_t, typename kokkos_buffer_t>
-void hydro_pre_recon_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
-    typename Aggregated_Executor<hpx::kokkos::executor<kokkos_backend_t>>::Executor_Slice &agg_exec,
+template <typename agg_executor_t, typename kokkos_buffer_t>
+void hydro_pre_recon_impl(
+    agg_executor_t &agg_exec,
     const kokkos_buffer_t& large_x, const double omega, const bool angmom, kokkos_buffer_t& u,
     const int nf, const int n_species, const Kokkos::Array<long, 4>&& tiling_config) {
     const int number_slices = agg_exec.number_slices;
 
     if (agg_exec.sync_aggregation_slices()) {
+        using kokkos_executor_t = typename std::remove_reference<decltype(agg_exec.get_underlying_executor())>::type;
+        using kokkos_backend_t = decltype(agg_exec.get_underlying_executor().instance());
+        static_assert(std::is_same<hpx::kokkos::executor<kokkos_backend_t>,
+                          typename std::remove_reference<decltype(agg_exec.get_underlying_executor())>::type>::value,
+            " backend mismatch!");
+        const size_t gpu_id = agg_exec.parent.gpu_id;
+        stream_pool::select_device<hpx::kokkos::executor<kokkos_backend_t>,
+              round_robin_pool<hpx::kokkos::executor<kokkos_backend_t>>>(gpu_id);
       const int blocks = (inx_large * inx_large * inx_large) / 64 + 1;
       auto policy = Kokkos::Experimental::require(
           Kokkos::MDRangePolicy<decltype(agg_exec.get_underlying_executor().instance()),
@@ -993,15 +1062,23 @@ void hydro_pre_recon_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
     }
 }
 
-template <typename kokkos_backend_t, typename kokkos_buffer_t>
-void find_contact_discs_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
-    typename Aggregated_Executor<hpx::kokkos::executor<kokkos_backend_t>>::Executor_Slice &agg_exec,
+template <typename agg_executor_t, typename kokkos_buffer_t>
+void find_contact_discs_impl(
+    agg_executor_t &agg_exec,
     const kokkos_buffer_t& u, kokkos_buffer_t& P, kokkos_buffer_t& disc, const double A_,
     const double B_, const double fgamma_, const double de_switch_1, const size_t ndir, const size_t nf,
     const Kokkos::Array<long, 4>&& tiling_config_phase1,
     const Kokkos::Array<long, 4>&& tiling_config_phase2) {
     const int number_slices = agg_exec.number_slices;
     if (agg_exec.sync_aggregation_slices()) {
+        using kokkos_executor_t = typename std::remove_reference<decltype(agg_exec.get_underlying_executor())>::type;
+        using kokkos_backend_t = decltype(agg_exec.get_underlying_executor().instance());
+        static_assert(std::is_same<hpx::kokkos::executor<kokkos_backend_t>,
+                          typename std::remove_reference<decltype(agg_exec.get_underlying_executor())>::type>::value,
+            " backend mismatch!");
+        const size_t gpu_id = agg_exec.parent.gpu_id;
+        stream_pool::select_device<hpx::kokkos::executor<kokkos_backend_t>,
+              round_robin_pool<hpx::kokkos::executor<kokkos_backend_t>>>(gpu_id);
         const int blocks = (inx_normal * inx_normal * inx_normal) / 64 + 1;
         auto policy_phase_1 = Kokkos::Experimental::require(
             Kokkos::MDRangePolicy<decltype(agg_exec.get_underlying_executor().instance()),
@@ -1044,7 +1121,7 @@ void find_contact_discs_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
 
 template <typename executor_t,
     std::enable_if_t<is_kokkos_device_executor<executor_t>::value, int> = 0>
-timestep_t device_interface_kokkos_hydro(executor_t& exec,
+timestep_t device_interface_kokkos_hydro(
     const aggregated_host_buffer<double, executor_t>& combined_x,
     const aggregated_host_buffer<double, executor_t>& combined_large_x,
     aggregated_host_buffer<double, executor_t>& combined_u,
@@ -1061,7 +1138,7 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     // How many executor slices are working together and what's our ID?
     const size_t slice_id = agg_exec.id;
     const size_t number_slices = agg_exec.number_slices;
-    const size_t max_slices = opts().max_executor_slices;
+    const size_t max_slices = opts().max_kernels_fused;
 
     // Slice offsets
     const int u_slice_offset = nf * H_N3 + padding;
@@ -1088,7 +1165,7 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
         alloc_device_double, (H_N3 + padding) * max_slices);
     aggregated_device_buffer<double, executor_t> disc(
         alloc_device_double, (ndir / 2 * H_N3 + padding) * max_slices);
-    find_contact_discs_impl(exec, agg_exec, u, P, disc, physics<NDIM>::A_, physics<NDIM>::B_,
+    find_contact_discs_impl(agg_exec, u, P, disc, physics<NDIM>::A_, physics<NDIM>::B_,
         physics<NDIM>::fgamma_, physics<NDIM>::de_switch_1, ndir, nf, {1, 1, 8,
         8}, {1, 1, 8, 8});
 
@@ -1096,7 +1173,7 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     aggregated_device_buffer<double, executor_t> large_x(
         alloc_device_double, (NDIM * H_N3 + padding) * max_slices);
     aggregated_deep_copy(agg_exec, large_x, combined_large_x, (NDIM * H_N3 + padding));
-    hydro_pre_recon_impl(exec, agg_exec, large_x, omega, angmom, u, nf, n_species, {1, 1,
+    hydro_pre_recon_impl(agg_exec, large_x, omega, angmom, u, nf, n_species, {1, 1,
         8, 8});
 
     // Reconstruct
@@ -1118,11 +1195,11 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     aggregated_deep_copy(agg_exec, dx_device, dx);
 
     if (angmom_index > -1) {
-        reconstruct_impl<device_simd_t, device_simd_mask_t>(exec, agg_exec, omega, nf, angmom_index,
-            device_smooth_field, device_disc_detect, q, x, u, AM, dx_device, disc, n_species, ndir,
-            nangmom, 64, 64);
+        reconstruct_impl<device_simd_t, device_simd_mask_t>(agg_exec, omega, nf,
+            angmom_index, device_smooth_field, device_disc_detect, q, x, u, AM, dx_device,
+            disc, n_species, ndir, nangmom, 64, 64);
     } else {
-        reconstruct_no_amc_impl<device_simd_t, device_simd_mask_t>(exec, agg_exec, omega, nf,
+        reconstruct_no_amc_impl<device_simd_t, device_simd_mask_t>(agg_exec, omega, nf,
             angmom_index, device_smooth_field, device_disc_detect, q, x, u, AM, dx_device, disc,
             n_species, ndir, nangmom, 64, 64);
     }
@@ -1131,7 +1208,7 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     const device_buffer<bool>& masks =
         get_flux_device_masks<device_buffer<bool>, host_buffer<bool>,
       executor_t>(
-            agg_exec.get_underlying_executor());
+            agg_exec.get_underlying_executor(), agg_exec.parent.gpu_id);
     const int number_blocks_small = (q_inx3 / 128 + 1) * 1;
 
     aggregated_device_buffer<double, executor_t> amax(
@@ -1143,7 +1220,7 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
 
     aggregated_device_buffer<double, executor_t> f(
         alloc_device_double, (NDIM * nf * q_inx3 + padding) * max_slices);
-    flux_impl(exec, agg_exec, q, x, f, amax, amax_indices, amax_d, masks, omega, dx_device, A_, B_,
+    flux_impl(agg_exec, q, x, f, amax, amax_indices, amax_d, masks, omega, dx_device, A_, B_,
         nf, fgamma, de_switch_1, NDIM * number_blocks_small, 128);
     aggregated_host_buffer<double, executor_t> host_amax(
         alloc_host_double, number_blocks_small * NDIM * (1 + 2 * nf) * max_slices);
@@ -1156,8 +1233,13 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     aggregated_deep_copy(agg_exec, host_amax_indices, amax_indices);
     aggregated_deep_copy(agg_exec, host_amax_d, amax_d);
 
-    auto fut = aggregrated_deep_copy_async<executor_t>(agg_exec, host_f, f, (NDIM * nf * q_inx3 + padding));
+    auto fut = aggregrated_deep_copy_async<executor_t>(
+        agg_exec, host_f, f, (NDIM * nf * q_inx3 + padding));
     fut.get();
+
+    octotiger::hydro::hydro_kokkos_gpu_subgrids_processed++;
+    if (slice_id == 0)
+        octotiger::hydro::hydro_kokkos_gpu_aggregated_subgrids_launches++;
 
     const int amax_slice_offset = NDIM * (1 + 2 * nf) * number_blocks_small * slice_id;
     const int max_indices_slice_offset = NDIM * number_blocks_small * slice_id;
@@ -1184,7 +1266,6 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     ts.a = host_amax[current_max_slot + amax_slice_offset];
     ts.x = combined_x[current_max_index + x_slice_offset * slice_id];
     ts.y = combined_x[current_max_index + q_inx3 + x_slice_offset * slice_id];
-    ts.z = combined_x[current_max_index + 2 * q_inx3+ x_slice_offset * slice_id];
     ts.z = combined_x[current_max_index + 2 * q_inx3 + x_slice_offset * slice_id];
     const size_t current_i = current_max_slot;
     const size_t current_dim = current_max_slot / number_blocks_small;
@@ -1192,7 +1273,8 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     constexpr int compressedH_DN[3] = {q_inx2, q_inx, 1};
     for (int f = 0; f < nf; f++) {
         URs[f] = host_amax[NDIM * number_blocks_small + current_i * 2 * nf + f + amax_slice_offset];
-        ULs[f] = host_amax[NDIM * number_blocks_small + current_i * 2 * nf + nf + f + amax_slice_offset];
+        ULs[f] =
+            host_amax[NDIM * number_blocks_small + current_i * 2 * nf + nf + f + amax_slice_offset];
     }
     ts.ul = std::move(URs);
     ts.ur = std::move(ULs);
@@ -1202,7 +1284,7 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
 
 template <typename executor_t,
     std::enable_if_t<is_kokkos_host_executor<executor_t>::value, int> = 0>
-timestep_t device_interface_kokkos_hydro(executor_t& exec,
+timestep_t device_interface_kokkos_hydro(
     const aggregated_host_buffer<double, executor_t>& combined_x,
     const aggregated_host_buffer<double, executor_t>& combined_large_x,
     aggregated_host_buffer<double, executor_t>& combined_u,
@@ -1218,7 +1300,7 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     // How many executor slices are working together and what's our ID?
     const size_t slice_id = agg_exec.id;
     const size_t number_slices = agg_exec.number_slices;
-    const size_t max_slices = opts().max_executor_slices;
+    const size_t max_slices = opts().max_kernels_fused;
 
     // Slice offsets
     const int u_slice_offset = nf * H_N3 + padding;
@@ -1234,12 +1316,12 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
     aggregated_host_buffer<double, executor_t> P(alloc_host_double, (H_N3 + padding) * max_slices);
     aggregated_host_buffer<double, executor_t> disc(
         alloc_host_double, (ndir / 2 * H_N3 + padding) * max_slices);
-    find_contact_discs_impl(exec, agg_exec, combined_u, P, disc, physics<NDIM>::A_, physics<NDIM>::B_,
-        physics<NDIM>::fgamma_, physics<NDIM>::de_switch_1, ndir, nf,
+    find_contact_discs_impl(agg_exec, combined_u, P, disc, physics<NDIM>::A_,
+        physics<NDIM>::B_, physics<NDIM>::fgamma_, physics<NDIM>::de_switch_1, ndir, nf,
         {1, 32, 8, 8}, {1, 32, 8, 8});
 
     // Pre recon
-    hydro_pre_recon_impl(exec, agg_exec, combined_large_x, omega, angmom, combined_u, nf, n_species,
+    hydro_pre_recon_impl(agg_exec, combined_large_x, omega, angmom, combined_u, nf, n_species,
         {1, 64, 8, 8});
 
     // Reconstruct
@@ -1256,21 +1338,21 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
 #ifdef OCTOTIGER_HYDRO_HOST_HPX_EXECUTOR
 #pragma message "Using team impl for reconstruct"
     if (angmom_index > -1) {
-        reconstruct_impl<host_simd_t, host_simd_mask_t>(exec, agg_exec, omega, nf, angmom_index,
+        reconstruct_impl<host_simd_t, host_simd_mask_t>(agg_exec, omega, nf, angmom_index,
             smooth_field, disc_detect, q, combined_x, combined_u, AM, dx, disc, n_species, ndir,
             nangmom, 8, 1);
     } else {
-        reconstruct_no_amc_impl<host_simd_t, host_simd_mask_t>(exec, agg_exec, omega, nf,
+        reconstruct_no_amc_impl<host_simd_t, host_simd_mask_t>(agg_exec, omega, nf,
             angmom_index, smooth_field, disc_detect, q, combined_x, combined_u, AM, dx, disc,
             n_species, ndir, nangmom, 8, 1);
     }
 #else
     if (angmom_index > -1) {
-        reconstruct_teamless_impl<host_simd_t, host_simd_mask_t>(exec, agg_exec, omega, nf, angmom_index,
+        reconstruct_teamless_impl<host_simd_t, host_simd_mask_t>(agg_exec, omega, nf, angmom_index,
             smooth_field, disc_detect, q, combined_x, combined_u, AM, dx, disc, n_species, ndir,
             nangmom, {1, 1, 8, 8});
     } else {
-        reconstruct_no_amc_teamless_impl<host_simd_t, host_simd_mask_t>(exec, agg_exec, omega, nf,
+        reconstruct_no_amc_teamless_impl<host_simd_t, host_simd_mask_t>(agg_exec, omega, nf,
             angmom_index, smooth_field, disc_detect, q, combined_x, combined_u, AM, dx, disc,
             n_species, ndir, nangmom, {1, 1, 8, 8});
     }
@@ -1297,13 +1379,17 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
 #ifdef HPX_HAVE_APEX
     auto flux_timer = apex::start("kernel hydro_flux kokkos");
 #endif
-    flux_impl_teamless<host_simd_t, host_simd_mask_t>(exec, agg_exec, q, combined_x, f,
+    flux_impl_teamless<host_simd_t, host_simd_mask_t>(agg_exec, q, combined_x, f,
         amax, amax_indices, amax_d, masks, omega, dx, A_, B_, nf, fgamma,
         de_switch_1, blocks, 1);
 #ifdef HPX_HAVE_APEX
     apex::stop(flux_timer);
 #endif
     sync_kokkos_host_kernel(agg_exec.get_underlying_executor());
+
+    octotiger::hydro::hydro_kokkos_cpu_subgrids_processed++;
+    if (slice_id == 0)
+        octotiger::hydro::hydro_kokkos_cpu_aggregated_subgrids_launches++;
 
 
     const int amax_slice_offset = (1 + 2 * nf) * blocks * slice_id;
@@ -1349,7 +1435,7 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec,
 template <typename executor_t>
 timestep_t launch_hydro_kokkos_kernels(const hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
     const std::vector<std::vector<safe_real>>& U, const std::vector<std::vector<safe_real>>& X,
-    const double omega, const size_t n_species, executor_t& executor,
+    const double omega, const size_t n_species, 
     std::vector<hydro_state_t<std::vector<safe_real>>>& F) {
     static const cell_geometry<NDIM, INX> geo;
 
@@ -1359,7 +1445,7 @@ timestep_t launch_hydro_kokkos_kernels(const hydro_computer<NDIM, INX, physics<N
       // How many executor slices are working together and what's our ID?
       const size_t slice_id = agg_exec.id;
       const size_t number_slices = agg_exec.number_slices;
-      const size_t max_slices = opts().max_executor_slices;
+      const size_t max_slices = opts().max_kernels_fused;
 
       // Slice offsets
       const int u_slice_offset = hydro.get_nf() * H_N3 + padding;
@@ -1420,7 +1506,7 @@ timestep_t launch_hydro_kokkos_kernels(const hydro_computer<NDIM, INX, physics<N
       dx[slice_id] = X[0][geo.H_DNX] - X[0][0];
 
       // Either handles the launches on the CPU or on the GPU depending on the passed executor
-      max_lambda = device_interface_kokkos_hydro(executor, combined_x, combined_large_x,
+      max_lambda = device_interface_kokkos_hydro(combined_x, combined_large_x,
           combined_u, disc_detect, smooth_field, f, geo.NDIR, hydro.get_nf(),
           hydro.get_angmom_index() != -1, n_species, omega, hydro.get_angmom_index(), geo.NANGMOM,
           dx, physics<NDIM>::A_, physics<NDIM>::B_, physics<NDIM>::fgamma_,
