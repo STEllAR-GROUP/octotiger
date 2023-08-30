@@ -17,7 +17,7 @@
 template<class T = real>
 struct specie_state_t: public std::vector<T> {
 	specie_state_t() :
-			std::vector<T>(opts().n_species) {
+			std::vector<T>(opts().n_species,0.0) {
 	}
 	specie_state_t(std::initializer_list<T> list ) : std::vector<T>(list) {
 

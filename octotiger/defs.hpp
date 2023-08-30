@@ -92,7 +92,7 @@ constexpr real DEFAULT_OMEGA = 0.0;
 
 #include "hydro_defs.hpp"
 
-constexpr integer R_BW = 2;
+constexpr integer R_BW = 3;
 
 constexpr integer HS_NX = (2 * H_BW + INX/2);
 constexpr integer G_NX = INX;

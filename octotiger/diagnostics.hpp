@@ -59,6 +59,9 @@ struct diagnostics_t {
 	std::array<safe_real, NDIM> lsum;
 	safe_real nonvacj;
 	safe_real nonvacjlz;
+	std::vector<std::pair<real,std::vector<real>>> xline;
+	safe_real Trad0;
+	safe_real Tgas0;
 	diagnostics_t() {
 		failed = false;
 		stage = 1;
@@ -66,6 +69,7 @@ struct diagnostics_t {
 		grid_com = 0.0;
 		munbound1 = 0.0;
 		munbound2 = 0.0;
+		Trad0 = Tgas0 =0.0;
 		for (integer f = 0; f != opts().n_fields; ++f) {
 			grid_sum[f] = 0.0;
 			grid_out[f] = 0.0;
@@ -152,6 +156,13 @@ struct diagnostics_t {
 					}
 				}
 			}
+		}
+		xline.insert(xline.end(),other.xline.begin(),other.xline.end());
+		if( other.Tgas0 ) {
+			Tgas0 = other.Tgas0;
+		}
+		if( other.Trad0 ) {
+			Trad0 = other.Trad0;
 		}
 		munbound1 += other.munbound1;
 		munbound2 += other.munbound2;
