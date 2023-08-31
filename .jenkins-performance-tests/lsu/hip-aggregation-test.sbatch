@@ -10,7 +10,7 @@
 
 echo "Aggregation Test running on $(hostname):"
 echo "Loading modules..."
-module load llvm/14 rocm/5 hwloc cmake
+module load rocm/5.4 hwloc llvm/14
 module list
 echo "Building Octo-Tiger and toolchain..."
 echo ""
