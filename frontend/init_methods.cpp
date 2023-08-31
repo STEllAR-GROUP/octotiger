@@ -195,7 +195,7 @@ void init_executors(void) {
     } else {
       std::cerr << "Registering HPX SYCL polling..." << std::endl;
       hpx::sycl::experimental::detail::register_polling(hpx::resource::get_thread_pool(0));
-    }/
+    }
     std::cerr << "Registered HPX SYCL polling!" << std::endl;
 #endif
 
