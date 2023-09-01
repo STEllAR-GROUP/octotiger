@@ -11,6 +11,7 @@
 #include "octotiger/problem.hpp"
 #include "octotiger/real.hpp"
 #include "octotiger/util.hpp"
+#include "octotiger/util/timestep_util.hpp"
 
 #include <cerrno>
 
@@ -435,7 +436,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 					const auto vr = sqrt(sqr(dt_.ur[sx_i]) + sqr(dt_.ur[sy_i]) + sqr(dt_.ur[sz_i])) / dt_.ur[0];
 					const auto vl = sqrt(sqr(dt_.ul[sx_i]) + sqr(dt_.ul[sy_i]) + sqr(dt_.ul[sz_i])) / dt_.ul[0];
 					printf("TS %i:: t: %e, dt: %e, time_elapsed: %e, rotational_time: %e, x: %e, y: %e, z: %e, ",
-						int(next_step - 1), double(t), double(dt_.dt), time_elapsed, rotational_time,
+						int(next_step), double(t), double(dt_.dt), time_elapsed, rotational_time,
 						dt_.x, dt_.y, dt_.z);
 					printf("a: %e, ur: %e, ul: %e, vr: %e, vl: %e, dim: %i, ngrids: %i, leafs: %i, amr_boundaries: %i\n", 
 						dt_.a, dt_.ur[0], dt_.ul[0], vr, vl, dt_.dim, int(ngrids.total),
@@ -673,9 +674,12 @@ future<real> node_server::local_step(integer steps) {
 
 			if (my_location.level() == 0) {
 				double time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::high_resolution_clock::now() - time_start).count();
+        const int local_step_num = step_num + 1;
+        if (opts().print_times_per_timestep)
+          timestep_util::add_time_per_timestep(time_elapsed);
 
 				hpx::threads::run_as_os_thread([=]() {
-					printf("%i %e %e %e %e\n", int(step_num), double(current_time), double(dt_.dt), time_elapsed, rotational_time);
+					printf("%i %e %e %e %e\n", local_step_num, double(current_time), double(dt_.dt), time_elapsed, rotational_time);
 				});  // do not wait for output to finish
 			}
 			++step_num;

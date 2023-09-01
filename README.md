@@ -28,6 +28,9 @@ From <https://doi.org/10.1145/3204919.3204938>:
  | HIP Development environment tests 	|  [![Build Status](https://simsgs.informatik.uni-stuttgart.de/jenkins/buildStatus/icon?job=Octo-Tiger+HIP+DEV%2Fmaster&config=hip-devbuild)](https://simsgs.informatik.uni-stuttgart.de/jenkins/view/Octo-Tiger%20and%20Dependencies/job/Octo-Tiger%20HIP%20DEV/job/master/)
 
 ## Quick Reference
+  * **Building Octo-Tiger**:
+    - Option 1: Use the [Octo-Tiger Spack Package](https://github.com/G-071/octotiger-spack) (recommended)
+    - Option 2: Use the [Octo-Tiger buildscripts](https://github.com/STEllAR-GROUP/OctoTigerBuildChain)
 
   * **Where to get help**:
 
@@ -36,10 +39,6 @@ From <https://doi.org/10.1145/3204919.3204938>:
   * **Where to file issues**:
 
   [Octo-Tiger Issue Tracker](https://github.com/STEllAR-GROUP/octotiger/issues)
-
-  * **Wiki pages**:
-
-  [Octo-Tiger Wiki](https://github.com/STEllAR-GROUP/octotiger/wiki)
 
   * **Documentation**:
   

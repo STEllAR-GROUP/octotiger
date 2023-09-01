@@ -712,7 +712,7 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 					rc.lsum[2] += U[lz_i][iii] * dV - lz;
 					const auto nonvac = (1.0 - U[spc_i + opts().n_species - 1][iii] / U[rho_i][iii]);
 					rc.nonvacj += lz * nonvac;
-					rc.nonvacjlz == U[lz_i][iii] * nonvac * dV;
+					rc.nonvacjlz += U[lz_i][iii] * nonvac * dV;
 				}
 
 				for (integer s = 0; s != nspec; ++s) {
@@ -1917,7 +1917,7 @@ timestep_t grid::compute_fluxes() {
     
   const interaction_host_kernel_type host_type = opts().hydro_host_kernel_type;
   const interaction_device_kernel_type device_type = opts().hydro_device_kernel_type;
-  const size_t device_queue_length = opts().cuda_buffer_capacity;
+  const size_t device_queue_length = opts().max_gpu_executor_queue_length;
   return launch_hydro_kernels(hydro, U, X, omega, F, host_type, device_type, device_queue_length);
 
 }

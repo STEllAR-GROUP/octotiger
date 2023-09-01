@@ -6,6 +6,13 @@
 #include "octotiger/monopole_interactions/legacy/cuda_monopole_interaction_interface.hpp"
 #include "octotiger/multipole_interactions/legacy/cuda_multipole_interaction_interface.hpp"
 
+#include <cuda_buffer_util.hpp>
+#endif
+#ifdef OCTOTIGER_HAVE_HIP
+#include <hip_buffer_util.hpp>
+#endif
+#if defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_SYCL)
+#include <sycl_buffer_util.hpp>
 #endif
 #include "octotiger/common_kernel/interaction_constants.hpp"
 #include "octotiger/monopole_interactions/util/calculate_stencil.hpp"
@@ -67,10 +74,8 @@
 #endif
 
 void cleanup_puddle_on_this_locality(void) {
-    // Cleaning up of cuda buffers before the runtime gets shutdown
-    recycler::force_cleanup();
     // Shutdown stream manager
-    if (opts().cuda_streams_per_gpu > 0) {
+    if (opts().executors_per_gpu > 0) {
 #if defined(OCTOTIGER_HAVE_CUDA) 
       stream_pool::cleanup<hpx::cuda::experimental::cuda_executor, pool_strategy>();
 #elif defined(OCTOTIGER_HAVE_HIP)  // TODO verify 
@@ -87,12 +92,25 @@ void cleanup_puddle_on_this_locality(void) {
     }
     // Disable polling
 #if (defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)) && HPX_KOKKOS_CUDA_FUTURE_TYPE == 0 
-    std::cout << "Unregistering cuda polling..." << std::endl;
-    hpx::cuda::experimental::detail::unregister_polling(hpx::resource::get_thread_pool(0));
+    if (opts().polling_threads > 0) {
+      std::cout << "Unregistering cuda polling on polling pool... " << std::endl;
+      hpx::cuda::experimental::detail::unregister_polling(hpx::resource::get_thread_pool("polling"));
+    } else {
+        std::cout << "Unregistering cuda polling..." << std::endl;
+        hpx::cuda::experimental::detail::unregister_polling(hpx::resource::get_thread_pool(0));
+    }
 #endif
 #if defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_SYCL)
-    hpx::sycl::experimental::detail::unregister_polling(hpx::resource::get_thread_pool(0));
+    if (opts().polling_threads > 0) {
+      std::cout << "Unregistering sycl polling on polling pool... " << std::endl;
+      hpx::sycl::experimental::detail::unregister_polling(hpx::resource::get_thread_pool("polling"));
+    } else {
+      std::cout << "Unregistering sycl polling..." << std::endl;
+      hpx::sycl::experimental::detail::unregister_polling(hpx::resource::get_thread_pool(0));
+    }
 #endif
+    // Use finalize functionality. Cleans up all buffers and prevents further use
+    recycler::finalize();
 #ifdef OCTOTIGER_HAVE_KOKKOS
     stream_pool::cleanup<hpx::kokkos::hpx_executor, round_robin_pool<hpx::kokkos::hpx_executor>>();
     stream_pool::cleanup<hpx::kokkos::serial_executor, round_robin_pool<hpx::kokkos::serial_executor>>();
@@ -102,35 +120,36 @@ void cleanup_puddle_on_this_locality(void) {
 }
 
 void init_executors(void) {
-
-  // workaround for bug when using HIP without KOKKOS
-#if defined(OCTOTIGER_HAVE_HIP)  && !defined(OCTOTIGER_HAVE_KOKKOS) 
-    // BUG:
-    // ----
-    // As for rocm/5 we need to reset the device before actually starting octotiger (otherwise we
-    // get a segfault within the AMD driver. I am not entirely sure if this is
-    // a rocm/hip/AMD problem or a
-    // machine-specific one, but for now we will use this as a workaround.
-    //
-    // Note, interestingly this does not seem to happen when a) we let
-    // Octo-Tiger sleep for a second
-    // here or b) we use Kokkos (presumably because Kokkos::init already takes more than a second)
-    //
-    // TODO Try again with newer ROCM version and/or different machine without the explicit device reset
-    hipDeviceReset();
+    std::cout << "Check number of available GPUs..." << std::endl;
+    int num_devices = 0; 
+#if defined(OCTOTIGER_HAVE_CUDA) || defined(KOKKOS_ENABLE_CUDA) 
+    cudaGetDeviceCount(&num_devices);
+    std::cout << "Found " << num_devices << " CUDA devices! " << std::endl;
+#elif defined(OCTOTIGER_HAVE_HIP) || defined(KOKKOS_ENABLE_HIP) 
+    hipGetDeviceCount(&num_devices);
+    std::cout << "Found " << num_devices << " HIP devices! " << std::endl;
 #endif
+    if (num_devices > 0) { // some devices were found
+      if (opts().number_gpus > num_devices) {
+          std::cerr << "ERROR: Requested " << opts().number_gpus << " GPUs but only "
+                    << num_devices << " were found!" << std::endl;
+          abort();
+      }
+      if (opts().number_gpus > recycler::max_number_gpus) {
+        std::cerr << "ERROR: Requested " << opts().number_gpus
+                  << " GPUs but CPPuddle was built with CPPUDDLE_WITH_MAX_NUMBER_GPUS="
+                  << recycler::max_number_gpus << std::endl;
+        abort();
+      }
+    }
+
 
     std::cout << "Initialize executors and masks..." << std::endl;
+    // Init Kokkos
 #ifdef OCTOTIGER_HAVE_KOKKOS
-    if (!Kokkos::is_initialized()) { // gets initialized earlier on root locality
-      // TODO SYCL Need args for distributed build...
-      Kokkos::initialize();
-      Kokkos::print_configuration(std::cout);
-      std::cout << "Initialized Kokkos on this locality..." << std::endl;
-    } else {
-      std::cout << "Kokkos already initialized" << std::endl;
-    }
-    
+    Kokkos::initialize();
+		if (hpx::get_locality_id() == 0)
+      Kokkos::print_configuration(std::cout, true);
 #ifdef OCTOTIGER_MULTIPOLE_HOST_HPX_EXECUTOR
     std::cout << "Using Kokkos HPX executors for multipole FMM kernels..." << std::endl;
     std::cout << "Number of tasks per KOKKOS multipole kernel: " << OCTOTIGER_KOKKOS_MULTIPOLE_TASKS << std::endl;
@@ -143,7 +162,12 @@ void init_executors(void) {
 #else
     std::cout << "Using Kokkos serial executors for monopole FMM kernels..." << std::endl;
 #endif
+#ifdef OCTOTIGER_WITH_HYDRO_HOST_HPX_EXECUTOR
+    std::cout << "Using Kokkos HPX executors for hydro kernels..." << std::endl;
     std::cout << "Number of tasks per KOKKOS hydro kernel: " << OCTOTIGER_KOKKOS_HYDRO_TASKS << std::endl;
+#else
+    std::cout << "Using Kokkos serial executors for hydro kernels..." << std::endl;
+#endif
     // initialize stencils in kokkos host memory
     octotiger::fmm::monopole_interactions::get_host_masks<host_buffer<int>>();
     octotiger::fmm::monopole_interactions::get_host_constants<host_buffer<double>>();
@@ -154,90 +178,137 @@ void init_executors(void) {
 
 #if HPX_KOKKOS_CUDA_FUTURE_TYPE == 0
 #if (defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP) || defined(KOKKOS_ENABLE_CUDA) || defined(KOKKOS_ENABLE_HIP))  
-    std::cerr << "Registering HPX CUDA polling..." << std::endl;
-    hpx::cuda::experimental::detail::register_polling(hpx::resource::get_thread_pool(0));
-    std::cerr << "Registered HPX CUDA polling..." << std::endl;
+    if (opts().polling_threads>0) {
+      std::cerr << "Registering HPX CUDA polling on polling pool..." << std::endl;
+      hpx::cuda::experimental::detail::register_polling(hpx::resource::get_thread_pool("polling"));
+    } else {
+      std::cerr << "Registering HPX CUDA polling..." << std::endl;
+      hpx::cuda::experimental::detail::register_polling(hpx::resource::get_thread_pool(0));
+    }
+    std::cerr << "Registered HPX CUDA polling!" << std::endl;
 #endif
 #endif
 #if defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_SYCL)
-    std::cerr << "Registering HPX SYCL polling..." << std::endl;
-    hpx::sycl::experimental::detail::register_polling(hpx::resource::get_thread_pool(0));
-    std::cerr << "Registered HPX SYCL polling..." << std::endl;
+    if (opts().polling_threads>0) {
+      std::cerr << "Registering HPX SYCL polling on polling pool..." << std::endl;
+      hpx::sycl::experimental::detail::register_polling(hpx::resource::get_thread_pool("polling"));
+    } else {
+      std::cerr << "Registering HPX SYCL polling..." << std::endl;
+      hpx::sycl::experimental::detail::register_polling(hpx::resource::get_thread_pool(0));
+    }/
+    std::cerr << "Registered HPX SYCL polling!" << std::endl;
 #endif
 
 #if defined(OCTOTIGER_HAVE_KOKKOS)
-    stream_pool::init<hpx::kokkos::serial_executor, round_robin_pool<hpx::kokkos::serial_executor>>(
+    std::cerr << "Initializing Kokkos host executors..." << std::endl;
+    stream_pool::init_all_executor_pools<hpx::kokkos::serial_executor, round_robin_pool<hpx::kokkos::serial_executor>>(
         256, hpx::kokkos::execution_space_mode::independent);
-    stream_pool::init<hpx::kokkos::hpx_executor, round_robin_pool<hpx::kokkos::hpx_executor>>(
+    stream_pool::init_all_executor_pools<hpx::kokkos::hpx_executor, round_robin_pool<hpx::kokkos::hpx_executor>>(
         256, hpx::kokkos::execution_space_mode::independent);
+    std::cerr << "Initializing Kokkos device executors..." << std::endl;
+    std::cerr << "CPPuddle config: Using " << recycler::max_number_gpus << " devices!" << std::endl;
+    std::cerr << "CPPuddle config: Using " << recycler::number_instances << " internal pool instances!"
+              << std::endl;
 #if defined(KOKKOS_ENABLE_CUDA)
+    stream_pool::set_device_selector<hpx::kokkos::cuda_executor,
+          round_robin_pool<hpx::kokkos::cuda_executor>>([](size_t gpu_id) {
+              cudaSetDevice(gpu_id);
+              });
     // initialize stencils / executor pool in kokkos device
+    for (size_t gpu_id = 0; gpu_id < opts().number_gpus; gpu_id++) {
+      stream_pool::init_executor_pool<hpx::kokkos::cuda_executor,
+          round_robin_pool<hpx::kokkos::cuda_executor>>(
+          gpu_id, opts().executors_per_gpu,
+          hpx::kokkos::execution_space_mode::independent);
+    }
     std::cout << "KOKKOS/CUDA is enabled!" << std::endl;
-    stream_pool::init<hpx::kokkos::cuda_executor, round_robin_pool<hpx::kokkos::cuda_executor>>(
-        opts().cuda_streams_per_gpu, hpx::kokkos::execution_space_mode::independent);
 #elif defined(KOKKOS_ENABLE_HIP)
+
+    stream_pool::set_device_selector<hpx::kokkos::hip_executor,
+          round_robin_pool<hpx::kokkos::hip_executor>>([](size_t gpu_id) {
+              hipSetDevice(gpu_id);
+              });
+    for (size_t gpu_id = 0; gpu_id < opts().number_gpus; gpu_id++) {
+      stream_pool::init_executor_pool<hpx::kokkos::hip_executor,
+          round_robin_pool<hpx::kokkos::hip_executor>>(
+          gpu_id, opts().executors_per_gpu,
+          hpx::kokkos::execution_space_mode::independent);
+    }
     std::cout << "KOKKOS/HIP is enabled!" << std::endl;
-    stream_pool::init<hpx::kokkos::hip_executor, round_robin_pool<hpx::kokkos::hip_executor>>(
-        opts().cuda_streams_per_gpu, hpx::kokkos::execution_space_mode::independent);
 #elif defined(KOKKOS_ENABLE_SYCL)
+    for (size_t gpu_id = 0; gpu_id < opts().number_gpus; gpu_id++) {
+      stream_pool::init_executor_pool<hpx::kokkos::sycl_executor,
+          round_robin_pool<hpx::kokkos::sycl_executor>>(
+          gpu_id, opts().executors_per_gpu,
+          hpx::kokkos::execution_space_mode::independent);
+    }
     std::cout << "KOKKOS/SYCL is enabled!" << std::endl;
-    stream_pool::init<hpx::kokkos::sycl_executor, round_robin_pool<hpx::kokkos::sycl_executor>>(
-        opts().cuda_streams_per_gpu, hpx::kokkos::execution_space_mode::independent);
 #endif
 #if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP) || defined(KOKKOS_ENABLE_SYCL)
     kokkos_device_executor mover{};
     octotiger::fmm::monopole_interactions::get_device_masks<device_buffer<int>, host_buffer<int>,
         kokkos_device_executor>(mover);
-    octotiger::fmm::monopole_interactions::get_device_constants<device_buffer<double>, host_buffer<double>,
-        kokkos_device_executor>(mover);
+    octotiger::fmm::monopole_interactions::get_device_constants<device_buffer<double>,
+        host_buffer<double>, kokkos_device_executor>(mover);
     octotiger::fmm::multipole_interactions::get_device_masks<device_buffer<int>, host_buffer<int>,
         kokkos_device_executor>(mover, true);
     get_flux_device_masks<device_buffer<bool>, host_buffer<bool>,
         kokkos_device_executor>(mover);
     Kokkos::fence();
 #if HPX_KOKKOS_CUDA_FUTURE_TYPE == 0 
-    std::cout << "KOKKOS with polling futures enabled!" << std::endl;
+    std::cerr << "KOKKOS with polling futures enabled!" << std::endl;
 #else
-    std::cout << "KOKKOS with callback futures enabled!" << std::endl;
+    std::cerr << "KOKKOS with callback futures enabled!" << std::endl;
 #endif
 #endif
 #endif
 
 #if defined(OCTOTIGER_HAVE_CUDA)
     std::cout << "CUDA is enabled!" << std::endl;
+    stream_pool::set_device_selector<hpx::cuda::experimental::cuda_executor,
+          round_robin_pool<hpx::cuda::experimental::cuda_executor>>([](size_t gpu_id) {
+              cudaSetDevice(gpu_id);
+              });
 #if HPX_KOKKOS_CUDA_FUTURE_TYPE == 0 
     std::cout << "CUDA with polling futures enabled!" << std::endl;
-
-    /* stream_pool::init<hpx::cuda::experimental::cuda_executor, pool_strategy>( */
-    /*     opts().cuda_streams_per_gpu, opts().cuda_number_gpus, true); */
-    stream_pool::init<hpx::cuda::experimental::cuda_executor, pool_strategy>(
-        opts().cuda_streams_per_gpu, 0, true);
+    for (size_t gpu_id = 0; gpu_id < opts().number_gpus; gpu_id++) {
+      stream_pool::init_executor_pool<hpx::cuda::experimental::cuda_executor, pool_strategy>(gpu_id,
+          opts().executors_per_gpu, gpu_id, true);
+    }
 #else
     std::cout << "CUDA with callback futures enabled!" << std::endl;
-    stream_pool::init<hpx::cuda::experimental::cuda_executor, pool_strategy>(
-        opts().cuda_streams_per_gpu, 0, false);
+    for (size_t gpu_id = 0; gpu_id < opts().number_gpus; gpu_id++) {
+      stream_pool::init_executor_pool<hpx::cuda::experimental::cuda_executor, pool_strategy>(gpu_id,
+          opts().executors_per_gpu, gpu_id, false);
+    }
 #endif
-    octotiger::fmm::kernel_scheduler::init_constants();
+    octotiger::fmm::init_fmm_constants();
 
 #endif
 
 #if defined(OCTOTIGER_HAVE_HIP)
+
     std::cout << "HIP is enabled!" << std::endl;
+    stream_pool::set_device_selector<hpx::cuda::experimental::cuda_executor,
+          round_robin_pool<hpx::cuda::experimental::cuda_executor>>([](size_t gpu_id) {
+              hipSetDevice(gpu_id);
+              });
 #if HPX_KOKKOS_CUDA_FUTURE_TYPE == 0  // cuda in the name is correct
-    std::cerr << "HIP with polling futures enabled!" << std::endl;
-    /*stream_pool::init<hpx::cuda::experimental::cuda_executor, pool_strategy>(
-        opts().cuda_streams_per_gpu, opts().cuda_number_gpus, true);*/
-    stream_pool::init<hpx::cuda::experimental::cuda_executor, pool_strategy>(
-        opts().cuda_streams_per_gpu, 0, true);
-    std::cerr << "HIP with polling futures created!" << std::endl;
+    std::cout << "HIP with polling futures enabled!" << std::endl;
+    for (size_t gpu_id = 0; gpu_id < opts().number_gpus; gpu_id++) {
+      stream_pool::init_executor_pool<hpx::cuda::experimental::cuda_executor, pool_strategy>(gpu_id,
+          opts().executors_per_gpu, gpu_id, true);
+    }
+    std::cout << "HIP with polling futures created!" << std::endl;
 #else
     std::cout << "HIP with callback futures enabled!" << std::endl;
-    /*stream_pool::init<hpx::cuda::experimental::cuda_executor, pool_strategy>(
-        opts().cuda_streams_per_gpu, opts().cuda_number_gpus, false);*/
-    stream_pool::init<hpx::cuda::experimental::cuda_executor, pool_strategy>(
-        opts().cuda_streams_per_gpu, 0, false);
+    for (size_t gpu_id = 0; gpu_id < opts().number_gpus; gpu_id++) {
+      stream_pool::init_executor_pool<hpx::cuda::experimental::cuda_executor, pool_strategy>(gpu_id,
+          opts().executors_per_gpu, gpu_id, false);
+    }
+    std::cout << "HIP with callback futures created!" << std::endl;
 #endif
-    octotiger::fmm::kernel_scheduler::init_constants();
+    octotiger::fmm::init_fmm_constants();
 #endif
     std::cout << "Stencils initialized!" << std::endl;
 }
@@ -343,4 +414,70 @@ void init_problem(void) {
       std::cout << "Compiled with max nf -DOCTOTIGER_WITH_MAX_NUMBER_FIELDS=" << OCTOTIGER_MAX_NUMBER_FIELDS << std::endl;
     }
     std::cout << "Problem initialized!" << std::endl;
+}
+
+
+void register_cppuddle_allocator_counters(void)  {
+#ifdef CPPUDDLE_HAVE_COUNTERS
+    // default host allocators
+    hpx::register_startup_function(
+        &recycler::detail::buffer_recycler::register_allocator_counters_with_hpx<
+            double, boost::alignment::aligned_allocator<double, 32>>);
+    hpx::register_startup_function(
+        &recycler::detail::buffer_recycler::register_allocator_counters_with_hpx<
+            int, boost::alignment::aligned_allocator<int, 32>>);
+    hpx::register_startup_function(
+        &recycler::detail::buffer_recycler::register_allocator_counters_with_hpx<
+            double, std::allocator<double>>);
+    hpx::register_startup_function(
+        &recycler::detail::buffer_recycler::register_allocator_counters_with_hpx<
+            int, std::allocator<int>>);
+
+    // CUDA host / device allocators -- also used by KOKKOS
+#if defined(OCTOTIGER_HAVE_CUDA)
+    hpx::register_startup_function(
+        &recycler::detail::buffer_recycler::register_allocator_counters_with_hpx<
+            double, recycler::detail::cuda_pinned_allocator<double>>);
+    hpx::register_startup_function(
+        &recycler::detail::buffer_recycler::register_allocator_counters_with_hpx<
+            int, recycler::detail::cuda_pinned_allocator<int>>);
+    hpx::register_startup_function(
+        &recycler::detail::buffer_recycler::register_allocator_counters_with_hpx<
+            double, recycler::detail::cuda_device_allocator<double>>);
+    hpx::register_startup_function(
+        &recycler::detail::buffer_recycler::register_allocator_counters_with_hpx<
+            int, recycler::detail::cuda_device_allocator<int>>);
+#endif
+    // HIP host / device allocators -- also used by KOKKOS
+#if defined(OCTOTIGER_HAVE_HIP)
+    hpx::register_startup_function(
+        &recycler::detail::buffer_recycler::register_allocator_counters_with_hpx<
+            double, recycler::detail::hip_pinned_allocator<double>>);
+    hpx::register_startup_function(
+        &recycler::detail::buffer_recycler::register_allocator_counters_with_hpx<
+            int, recycler::detail::hip_pinned_allocator<int>>);
+    hpx::register_startup_function(
+        &recycler::detail::buffer_recycler::register_allocator_counters_with_hpx<
+            double, recycler::detail::hip_device_allocator<double>>);
+    hpx::register_startup_function(
+        &recycler::detail::buffer_recycler::register_allocator_counters_with_hpx<
+            int, recycler::detail::hip_device_allocator<int>>);
+#endif
+    // SYCL host / device allocators 
+#if defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_SYCL)
+    hpx::register_startup_function(
+        &recycler::detail::buffer_recycler::register_allocator_counters_with_hpx<
+            double, detail::sycl_host_default_allocator<double>>);
+    hpx::register_startup_function(
+        &recycler::detail::buffer_recycler::register_allocator_counters_with_hpx<
+            int, detail::sycl_host_default_allocator<int>>);
+    hpx::register_startup_function(
+        &recycler::detail::buffer_recycler::register_allocator_counters_with_hpx<
+            double, detail::sycl_device_default_allocator<double>>);
+    hpx::register_startup_function(
+        &recycler::detail::buffer_recycler::register_allocator_counters_with_hpx<
+            int, detail::sycl_device_default_allocator<int>>);
+#endif
+
+#endif
 }
