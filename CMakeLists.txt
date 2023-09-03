@@ -59,7 +59,6 @@ option(OCTOTIGER_WITH_AVX512 "" OFF)
 
 option(OCTOTIGER_WITH_TESTS "Enable tests" ON)
 set(OCTOTIGER_WITH_GRIDDIM "8" CACHE STRING "Grid size")
-set(OCTOTIGER_WITH_GRIDDIM "8" CACHE STRING "Grid size")
 set(OCTOTIGER_WITH_MAX_NUMBER_FIELDS "15" CACHE STRING "Maximum allowed nf_ (number fields)")
 set(OCTOTIGER_THETA_MINIMUM "0.34" CACHE STRING "Minimal allowed theta value - important for optimizations")
 option(OCTOTIGER_WITH_DOCU "Enable the target to build the documentation" OFF)
@@ -211,6 +210,7 @@ set(source_files
     src/taylor.cpp
     src/util.cpp
     src/common_kernel/interactions_iterators.cpp
+    src/common_kernel/gravity_performance_counters.cpp
     src/cuda_util/cuda_scheduler.cpp
     src/monopole_interactions/legacy/cuda_monopole_interaction_interface.cpp
     src/monopole_interactions/legacy/monopole_cuda_kernel.cpp
@@ -287,6 +287,7 @@ set(header_files
     octotiger/common_kernel/struct_of_array_data.hpp
     octotiger/common_kernel/kokkos_util.hpp
     octotiger/common_kernel/std_simd.hpp
+    octotiger/common_kernel/gravity_performance_counters.hpp
     octotiger/compute_factor.hpp
     octotiger/cuda_util/cuda_global_def.hpp
     octotiger/cuda_util/cuda_helper.hpp
@@ -362,6 +363,7 @@ set(hydro_header_files
     octotiger/unitiger/hydro_impl/hydro.hpp
     octotiger/unitiger/hydro_impl/reconstruct.hpp
     octotiger/unitiger/hydro_impl/flux.hpp
+    octotiger/unitiger/hydro_impl/hydro_performance_counters.hpp
     octotiger/unitiger/radiation/radiation_physics.hpp
     octotiger/unitiger/radiation/radiation_physics_impl.hpp
     octotiger/test_problems/exact_sod.hpp
@@ -374,6 +376,7 @@ set(hydro_source_files
    src/unitiger/hydro_impl/reconstruct_cuda_kernel.cpp
    src/unitiger/hydro_impl/hydro_kernel_interface.cpp
    src/unitiger/hydro_impl/hydro_cuda_interface.cpp
+   src/unitiger/hydro_impl/hydro_performance_counters.cpp
    src/test_problems/sod/exact_sod.cpp)
 
 set(cu_source_files

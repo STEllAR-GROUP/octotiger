@@ -12,6 +12,7 @@
 #include "octotiger/common_kernel/interactions_iterators.hpp"
 #include "octotiger/monopole_interactions/legacy/monopole_interaction_interface.hpp"
 #include "octotiger/monopole_interactions/util/calculate_stencil.hpp"
+#include "octotiger/common_kernel/gravity_performance_counters.hpp"
 #include "octotiger/options.hpp"
 
 #include <algorithm>
@@ -71,11 +72,13 @@ namespace fmm {
 #if defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_CUDA) || \
     defined(KOKKOS_ENABLE_HIP)|| defined(KOKKOS_ENABLE_SYCL))
                     bool avail = true;
+                    size_t device_id =
+                        stream_pool::get_next_device_id<device_executor, device_pool_strategy>(opts().number_gpus);
                     if (host_type != interaction_host_kernel_type::DEVICE_ONLY) {
                         // Check where we want to run this:
                         avail =
                             stream_pool::interface_available<device_executor, device_pool_strategy>(
-                                opts().cuda_buffer_capacity);
+                                opts().max_gpu_executor_queue_length, device_id);
                     }
                     // TODO p2m kokkos bug - probably not enough threads for a wavefront
                     // TODO how to identify the intel sycl compile here?
@@ -83,14 +86,15 @@ namespace fmm {
                     if (contains_multipole_neighbor) // TODO Add device_only warning
                         avail = false;
 #elif (defined(KOKKOS_ENABLE_CUDA) && defined(__clang__) )
-                    if (contains_multipole_neighbor && opts().detected_intel_compiler) // TODO Add device_only warning
-                        avail = false;
+                    /* if (contains_multipole_neighbor && opts().detected_intel_compiler) // TODO Add device_only warning */
+                    /*     avail = false; */
 #endif
                     if (avail) {
-                        executor_interface_t executor;
+                        executor_interface_t executor{device_id};
                         monopole_kernel<device_executor>(executor, monopoles, com_ptr, neighbors,
                             type, dx, opts().theta, is_direction_empty, grid_ptr,
-                            contains_multipole_neighbor);
+                            contains_multipole_neighbor, device_id);
+                        p2p_kokkos_gpu_subgrids_launched++;
                         return;
                     }
                 }
@@ -106,6 +110,7 @@ namespace fmm {
                     cuda_monopole_interaction_interface monopole_interactor{};
                     monopole_interactor.compute_interactions(monopoles, com_ptr, neighbors, type,
                         dx, is_direction_empty, grid_ptr, contains_multipole_neighbor);
+                    p2p_cuda_gpu_subgrids_launched++;
                     return;
                 }
 #else
@@ -119,6 +124,7 @@ namespace fmm {
                     cuda_monopole_interaction_interface monopole_interactor{};
                     monopole_interactor.compute_interactions(monopoles, com_ptr, neighbors, type,
                         dx, is_direction_empty, grid_ptr, contains_multipole_neighbor);
+                    p2p_cuda_gpu_subgrids_launched++;
                     return;
                 }
 #else
@@ -134,7 +140,8 @@ namespace fmm {
 #ifdef OCTOTIGER_HAVE_KOKKOS
                 host_executor executor{hpx::kokkos::execution_space_mode::independent};
                 monopole_kernel<host_executor>(executor, monopoles, com_ptr, neighbors, type, dx,
-                    opts().theta, is_direction_empty, grid_ptr, contains_multipole_neighbor);
+                    opts().theta, is_direction_empty, grid_ptr, contains_multipole_neighbor, 0);
+                p2p_kokkos_cpu_subgrids_launched++;
                 return;
 #else
                 std::cerr << "Trying to call P2P Kokkos kernel in a non-kokkos build! Aborting..."

@@ -3,6 +3,7 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+#include <stdexcept>
 #if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)
 
 #include "octotiger/monopole_interactions/legacy/cuda_monopole_interaction_interface.hpp"
@@ -93,29 +94,33 @@ namespace fmm {
             std::shared_ptr<grid>& grid_ptr, const bool contains_multipole_neighbor) {
             // Check where we want to run this:
             bool avail = true;
+            size_t device_id =
+                stream_pool::get_next_device_id<hpx::cuda::experimental::cuda_executor,
+                    pool_strategy>(opts().number_gpus);
             if (p2p_type != interaction_host_kernel_type::DEVICE_ONLY) {
                 // Check where we want to run this:
                 avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
-                    pool_strategy>(opts().cuda_buffer_capacity);
+                    pool_strategy>(opts().max_gpu_executor_queue_length, device_id);
             }
 #if defined(OCTOTIGER_HAVE_HIP)
             if (contains_multipole_neighbor) // TODO Add DEVICE_ONLY error/warning
               avail = false;
 #endif
-
             if (!avail) {
                 // Run CPU implementation
                 monopole_interaction_interface::compute_interactions(monopoles, com_ptr, neighbors,
                     type, dx, is_direction_empty, grid_ptr, contains_multipole_neighbor);
             } else {
+                constexpr size_t constant_stencil_size = (FULL_STENCIL_SIZE > 1331) ? 1 : FULL_STENCIL_SIZE;
+                if constexpr (constant_stencil_size == 1) {
+                    throw std::runtime_error("Stencil is too large (theta too small)"
+                                       "Use KOKKOS_CUDA instead or recompile with larger minimal theta!");
+                }
                 // run on CUDA device
                 cuda_launch_counter()++;
 
                 // Pick device and stream
-                size_t device_id =
-                    stream_pool::get_next_device_id<hpx::cuda::experimental::cuda_executor,
-                        pool_strategy>();
-                stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy> executor;
+                stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy> executor{device_id};
 
                 cuda_expansion_result_buffer_t potential_expansions_SoA;
                 cuda_monopole_buffer_t local_monopoles(ENTRIES);
@@ -138,15 +143,10 @@ namespace fmm {
 #if defined(OCTOTIGER_HAVE_CUDA)
                 void* args[] = {&(device_local_monopoles.device_side_buffer),
                     &(tmp_ergs.device_side_buffer), &theta, &dx};
-                // hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
-                //     cudalaunchkernel<decltype(cuda_p2p_interactions_kernel)>,
-                //     cuda_p2p_interactions_kernel, grid_spec, threads_per_block, args, 0);
-                // executor.post(cudaLaunchKernel<decltype(cuda_p2p_interactions_kernel)>,
-                //  cuda_p2p_interactions_kernel, grid_spec, threads_per_block, args, 0);
 
                 launch_p2p_cuda_kernel_post(executor, grid_spec, threads_per_block, args);
                 void* args_sum[] = {&(tmp_ergs.device_side_buffer),
-                    &(erg.device_side_buffer), &theta, &dx};
+                    &(erg.device_side_buffer)};
                 launch_sum_p2p_results_post(executor, grid_spec_sum, threads_per_block, args_sum);
 #elif defined(OCTOTIGER_HAVE_HIP)
                 hip_p2p_interactions_kernel_post(executor, grid_spec,
@@ -178,7 +178,7 @@ namespace fmm {
                     
                     // Get and reset (as it is recycled) buffer for the angular correction results
                     // Same for all p2m kernel types
-                    device_buffer_t<double> device_erg_corrs(NUMBER_ANG_CORRECTIONS);
+                    device_buffer_t<double> device_erg_corrs(NUMBER_ANG_CORRECTIONS, device_id);
                     if (type == RHO)
                       hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                           cudaMemsetAsync, device_erg_corrs.device_side_buffer, 0,

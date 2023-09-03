@@ -54,6 +54,7 @@ public:
 	bool idle_rates;
 	bool ipr_test;
   bool detected_intel_compiler;
+  bool print_times_per_timestep;
 
 	integer scf_output_frequency;
 	integer silo_num_groups;
@@ -127,12 +128,14 @@ public:
         real moving_star_yvelocity;
         real moving_star_zvelocity;
 
-	size_t cuda_number_gpus;
-	size_t cuda_streams_per_gpu;
-	size_t cuda_buffer_capacity;
-	size_t max_executor_slices;
+	size_t number_gpus;
+	size_t executors_per_gpu;
+	size_t max_gpu_executor_queue_length;
+	size_t max_kernels_fused;
+  
 	bool root_node_on_device;
 	bool optimize_local_communication;
+  int polling_threads;
 
 	std::string input_file;
 	std::string config_file;
@@ -265,12 +268,14 @@ public:
 		arc & tmp;
 		eos = static_cast<eos_type>(tmp);
 		arc & data_dir;
-		arc & cuda_number_gpus;
-		arc & cuda_streams_per_gpu;
-		arc & cuda_buffer_capacity;
-		arc & max_executor_slices;
+		arc & number_gpus;
+		arc & executors_per_gpu;
+		arc & max_gpu_executor_queue_length;
+		arc & max_kernels_fused;
 	  arc & root_node_on_device;
 	  arc & optimize_local_communication;
+    arc & detected_intel_compiler;
+    arc & print_times_per_timestep;
 		arc & atomic_mass;
 		arc & atomic_number;
 		arc & X;

@@ -166,12 +166,14 @@ bool options::process_options(int argc, char *argv[]) {
 	("hydro_host_kernel_type", po::value<interaction_host_kernel_type>(&(opts().hydro_host_kernel_type))->default_value(LEGACY), "Host kernel type for the hydro solver ") //
 	("hydro_device_kernel_type", po::value<interaction_device_kernel_type>(&(opts().hydro_device_kernel_type))->default_value(OFF), "Device kernel type for the hydro solver ") //
 #endif
-	("cuda_number_gpus", po::value<size_t>(&(opts().cuda_number_gpus))->default_value(size_t(0)), "cuda streams per HPX locality") //
-	("cuda_streams_per_gpu", po::value<size_t>(&(opts().cuda_streams_per_gpu))->default_value(size_t(0)), "cuda streams per GPU (per locality)") //
-	("cuda_buffer_capacity", po::value<size_t>(&(opts().cuda_buffer_capacity))->default_value(size_t(5)), "How many launches should be buffered before using the CPU") //
-	("max_executor_slices", po::value<size_t>(&(opts().max_executor_slices))->default_value(size_t(1)), "Can be aggregated?") //
+	("number_gpus", po::value<size_t>(&(opts().number_gpus))->default_value(size_t(0)), "cuda streams per HPX locality") //
+	("executors_per_gpu", po::value<size_t>(&(opts().executors_per_gpu))->default_value(size_t(0)), "cuda streams per GPU (per locality)") //
+	("max_gpu_executor_queue_length", po::value<size_t>(&(opts().max_gpu_executor_queue_length))->default_value(size_t(5)), "How many launches should be buffered before using the CPU") //
+("polling-threads", po::value<int>(&(opts().polling_threads))->default_value(0), "Enable dedicated HPX thread pool for cuda/network polling using N threads!") //
+	("max_kernels_fused", po::value<size_t>(&(opts().max_kernels_fused))->default_value(size_t(1)), "Maximum numbers of kernels combined into one by the dynamic work aggegation") //
 	("root_node_on_device", po::value<bool>(&(opts().root_node_on_device))->default_value(true), "Offload root node gravity kernels to the GPU? May degrade performance given weak GPUs") //
 	("optimize_local_communication", po::value<bool>(&(opts().optimize_local_communication))->default_value(true), "Use pointers of neighbors in local subgrids directly") //
+	("print_times_per_timestep", po::value<bool>(&(opts().print_times_per_timestep))->default_value(false), "Print times per timestep during cleanup") //
 	("input_file", po::value<std::string>(&(opts().input_file))->default_value(""), "input file for test problems") //
 	("config_file", po::value<std::string>(&(opts().config_file))->default_value(""), "configuration file") //
 	("n_species", po::value<integer>(&(opts().n_species))->default_value(5), "number of mass species") //
@@ -187,7 +189,8 @@ bool options::process_options(int argc, char *argv[]) {
 			;
 
 	boost::program_options::variables_map vm;
-	po::store(po::parse_command_line(argc, argv, command_opts), vm);
+	//po::store(po::parse_command_line(argc, argv, command_opts), vm);
+  po::store(po::command_line_parser(argc, argv).options(command_opts).allow_unregistered().run(), vm);
 	po::notify(vm);
 	if (vm.count("help")) {
 		std::cout << command_opts << "\n";
@@ -225,15 +228,15 @@ bool options::process_options(int argc, char *argv[]) {
 		}
 		load_options_from_silo(opts().restart_filename);
 	}
-    if (opts().cuda_streams_per_gpu > 0 && opts().cuda_number_gpus == 0) {
-        opts().cuda_number_gpus = 1;
+    if (opts().executors_per_gpu > 0 && opts().number_gpus == 0) {
+        opts().number_gpus = 1;
 	}
 	if (opts().theta < octotiger::fmm::THETA_FLOOR) {
 		std::cerr << "theta " << theta << " is too small since Octo-Tiger was compiled for a minimum of " << octotiger::fmm::THETA_FLOOR << std::endl;
 		std::cerr << "Either increase theta or recompile with a new theta minimum using the cmake parameter OCTOTIGER_THETA_MINIMUM";
 		abort();
 	}
-  opts().detected_intel_compiler=true;
+  opts().detected_intel_compiler = false;
 
 #ifdef __VERSION__
   std::string compiler_version = std::string(__VERSION__);
@@ -325,10 +328,10 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(v1309);
 		SHOW(idle_rates);
 		SHOW(xscale);
-		SHOW(cuda_number_gpus);
-		SHOW(cuda_streams_per_gpu);
-		SHOW(cuda_buffer_capacity);
-		SHOW(max_executor_slices);
+		SHOW(number_gpus);
+		SHOW(executors_per_gpu);
+		SHOW(max_gpu_executor_queue_length);
+		SHOW(max_kernels_fused);
 		SHOW(amr_boundary_kernel_type);
 		SHOW(root_node_on_device);
 		SHOW(optimize_local_communication);
@@ -362,13 +365,6 @@ bool options::process_options(int argc, char *argv[]) {
 	}
     // Check parameters if we hit any implementation limitation as in
     // unsupported kernel configurations
-    if (opts().cuda_number_gpus > 1) {
-        std::cerr << std::endl << "ERROR: "; 
-        std::cerr << "Currently there is no multi-GPU support. " << std::endl;
-        std::cerr << "To use multiple GPUs per node, use one HPX locality per GPU " 
-                  << "and use slurm or CUDA_VISIBLE_DEVICES to have each locality access a different GPU" << std::endl;
-        abort();
-    }
     if (opts().gravity) {
 #ifdef OCTOTIGER_DISABLE_ILIST
         std::cerr << "ERROR! Gravity is turned on but Octo-Tiger was compiled without interaction list" << std::endl
@@ -488,6 +484,19 @@ bool options::process_options(int argc, char *argv[]) {
             abort();
         }
     }
+    if (opts().executors_per_gpu < 1 && (opts().monopole_device_kernel_type != OFF ||
+          opts().multipole_device_kernel_type != OFF || opts().hydro_device_kernel_type != OFF)) {
+        std::cerr << std::endl << "ERROR: "; 
+        std::cerr << "You have chosen an GPU kernel, however, you did not specify --executors_per_gpu > 0" << std::endl
+        << " Choose a different kernel or add at least one or more executors via --executors_per_gpu=X" << std::endl;
+        abort();
+    }
+    if (opts().max_kernels_fused < 1 && (opts().monopole_device_kernel_type != OFF ||
+          opts().multipole_device_kernel_type != OFF || opts().hydro_device_kernel_type != OFF)) {
+        std::cerr << std::endl << "ERROR: "; 
+        std::cerr << "minimum value for --max_kernels_fused is 1 when a GPU kernel is active!" << std::endl;
+        abort();
+    }
     if (opts().monopole_device_kernel_type == OFF && opts().monopole_host_kernel_type == DEVICE_ONLY ||
         opts().multipole_device_kernel_type == OFF && opts().multipole_host_kernel_type == DEVICE_ONLY ||
 	opts().hydro_device_kernel_type == OFF && opts().hydro_host_kernel_type == DEVICE_ONLY) {
@@ -510,13 +519,13 @@ bool options::process_options(int argc, char *argv[]) {
    if (opts().monopole_host_kernel_type == DEVICE_ONLY) {
      std::cerr << "\nWARNING: Monopole DEVICE_ONLY is currently not fully supported in HIP builds!!" << std::endl;
      std::cerr << "p2m kernel always executed on the cpu in this build..." << std::endl << std::endl;
-     sleep(10);
+     sleep(1);
    }
 
 #endif
 #endif
 
-   if (opts().hydro_host_kernel_type == KOKKOS && opts().max_executor_slices > 1) {
+   if (opts().hydro_host_kernel_type == KOKKOS && opts().max_kernels_fused > 1) {
      std::cerr << "\nERROR: work aggregation not yet supported for Kokkos host kernel!" << std::endl;
      abort();
    }

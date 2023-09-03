@@ -7,6 +7,7 @@
 #include "octotiger/monopole_interactions/legacy/p2m_interaction_interface.hpp"
 #include "octotiger/monopole_interactions/legacy/p2p_cpu_kernel.hpp"    //VC ?
 #include "octotiger/monopole_interactions/util/calculate_stencil.hpp"
+#include "octotiger/common_kernel/gravity_performance_counters.hpp"
 #include "octotiger/options.hpp"
 
 #include <algorithm>
@@ -110,6 +111,7 @@ namespace fmm {
 #endif
                 kernel_monopoles.apply_stencil(local_monopoles_staging_area,
                     potential_expansions_SoA, stencil_masks(), stencil_four_constants(), dx);
+                octotiger::fmm::p2p_vc_cpu_subgrids_launched++;
 #ifdef HPX_HAVE_APEX
                 apex::stop(p2p_timer);
 #endif
@@ -133,6 +135,7 @@ namespace fmm {
                         }
                     }
                 }
+                octotiger::fmm::p2p_legacy_cpu_subgrids_launched++;
 #ifdef HPX_HAVE_APEX
                 apex::stop(p2p_timer);
 #endif
