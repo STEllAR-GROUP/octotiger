@@ -2078,6 +2078,22 @@ void grid::compute_sources(real t, real rotational_time) {
 					src[egas_i][iii0] -= omega * X[YDIM][iii] * rho * G[iiig][gx_i];
 					src[egas_i][iii0] += omega * X[XDIM][iii] * rho * G[iiig][gy_i];
 				}
+                                if (opts().damping_period > 0.0) {
+                                        const auto tau2 = opts().damping_period;
+                                        const auto tau1 = tau2 / 10.0; 
+                                        real tau = 0.0;
+                                        if (rotational_time < 2.0 * tau2) {
+                                                tau = tau1;
+                                        } else if (rotational_time < 5.0 * tau2) {
+                                                const real expo = (rotational_time - 2.0 * tau2) / (3.0 * tau2);
+                                                tau = tau1 * std::pow(tau2 / tau1, expo); 
+                                        }
+                                        if (tau > 0) {
+                                                src[sx_i][iii0] -= U[sx_i][iii] / tau;
+                                                src[sy_i][iii0] -= U[sy_i][iii] / tau;
+                                                src[sz_i][iii0] -= U[sz_i][iii] / tau;
+                                        }                                       
+                                }
 				if (opts().driving_rate != 0.0) {
 					const real period_len = 2.0 * M_PI / grid::omega;
 					if (opts().driving_time > rotational_time / (2.0 * M_PI)) {

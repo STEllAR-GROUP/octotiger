@@ -79,6 +79,7 @@ public:
 	real driving_time;
 	real entropy_driving_rate;
 	real entropy_driving_time;
+	real damping_period;
 	real omega;
 	real output_dt;
 	real refinement_floor;
@@ -228,6 +229,7 @@ public:
 		arc & entropy_driving_time;
 		arc & driving_rate;
 		arc & driving_time;
+		arc & damping_period;
 		arc & refinement_floor;
 		arc & ngrids;
 		arc & v1309;

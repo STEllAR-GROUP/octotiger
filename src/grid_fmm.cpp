@@ -83,12 +83,12 @@ real compute_part_pot(real r) {
                         abort();
                 } else {
                         const real x = r / h;
-                                if ((0.0 <= x) && (x <= 1.0)) {
-                        const real pol = (2.0 / 3.0) * pow(x, 3) - 0.3 * pow(x, 4) + 0.1 * pow(x, 5) - 1.4;
-                        return pol / h;
+                        if ((0.0 <= x) && (x <= 1.0)) {
+                        	const real pol = (2.0 / 3.0) * pow(x, 2) - 0.3 * pow(x, 4) + 0.1 * pow(x, 5) - 1.4;
+                        	return pol / h;
                         } else if ((1.0 <= x) && (x <= 2.0)) {
-                                const real pol = (4.0 / 3.0) * pow(x, 2) - 1.0 * pow(x, 3) + 0.3 * pow(x, 4) - (1.0 / 30.0) * pow(x, 5) - 1.6;
-                                return pol / h + 1.0 / (15.0 * r);
+                                const real pol = (4.0 / 3.0) * pow(x, 2) - 1.0 * pow(x, 3) + 0.3 * pow(x, 4) - (1.0 / 30.0) * pow(x, 5) - 1.6 + 1.0 / (15.0 * x);
+                                return pol / h;
                         } else {
                                 return -1.0 / r;
                         }
@@ -118,7 +118,7 @@ real compute_part_force(real r, real y) {
                 }
                 else {
                         if ((0.0 <= x) && (x <= 1.0)) {
-                                const real pol = 2 * x - 1.2 * pow(x, 2) + 0.5 * pow(x, 3);
+                                const real pol = (4.0 / 3.0) - 1.2 * pow(x, 2) + 0.5 * pow(x, 3);
                                 return y * pol / (h * h * h);
                         } else if ((1.0 <= x) && (x <= 2.0)) {
                                 const real pol = (8.0 / 3.0) - 3 * x + 1.2 * pow(x, 2) - (1.0 / 6.0) * pow(x, 3) - 1.0 / (15.0 * x * x * x);
