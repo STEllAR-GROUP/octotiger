@@ -45,12 +45,14 @@ struct read_silo_var {
 
 struct node_entry_t {
 	bool load;
+	bool has_particle;
 	integer position;
 	integer locality_id;
 	std::string filename;
 	template<class Arc>
 	void serialize(Arc &arc, unsigned) {
 		arc & load;
+		arc & has_particle;
 		arc & position;
 		arc & locality_id;
 		arc & filename;
@@ -206,6 +208,31 @@ node_server::node_server(const node_location &loc) :
 				std::memcpy(load.vars[f].second.data(), var->vals[0], sizeof(real) * nvar);
 				DBFreeQuadvar(var);
 			}
+                        if (iter->second.has_particle) {
+                                const auto this_name_part = suffix + std::string("p/pointmesh");
+                                auto pointmesh = DBGetPointmesh(db, this_name_part.c_str());
+                                auto coords = pointmesh->coords;
+                                const int ndims = pointmesh->ndims;
+                                const int nels = pointmesh->nels;
+                                load.particle_vars.resize(ndims + 5);
+                                for (int d = 0; d < ndims; d++) {
+                                        load.particle_vars[d].resize(nels);
+                                        std::memcpy(load.particle_vars[d].data(), pointmesh->coords[d], sizeof(real) * nels);                                   
+                                }
+                                DBFreePointmesh(pointmesh);                     
+                                std::vector<std::string> str_names;
+                                str_names.push_back(suffix + "p/p_mass");
+                                str_names.push_back(suffix + "p/p_id");
+                                str_names.push_back(suffix + "p/p_vx");
+                                str_names.push_back(suffix + "p/p_vy");
+                                str_names.push_back(suffix + "p/p_vz");
+                                for (int f = ndims; f != ndims + 5; f++) {
+                                        auto pointvar = DBGetPointvar(db, str_names[f - ndims].c_str());
+                                        load.particle_vars[f].resize(nels);
+                                        std::memcpy(load.particle_vars[f].data(), pointvar->vals[0], sizeof(real) * nels);
+                                        DBFreePointvar(pointvar);
+                                }
+                        }
 			DBClose(db);
 		}).get();
 		is_refined = false;
@@ -214,6 +241,10 @@ node_server::node_server(const node_location &loc) :
 			grid_ptr->set_outflow(std::move(load.outflows[f]));
 		}
 		grid_ptr->rho_from_species();
+                if (load.particle_vars.size() > 0) {
+	                printf("loading %i particles into the grid\n", load.particle_vars[0].size());
+                        grid_ptr->set_particles(std::move(load.particle_vars));
+                 }
 	}
 	current_time = silo_output_time();
 	rotational_time = silo_output_rotation_time();
@@ -247,7 +278,9 @@ auto split_mesh_id(const std::string id) {
 	i += 2;
 	std::string tmp;
 	for (; i != id.size(); i++) {
-		tmp.push_back(id[i]);
+	        if ((id[i] >= '0') && (id[i] <= '9')) {
+ 	               tmp.push_back(id[i]);
+                }
 	}
 	rc.first = std::strtoll(tmp.c_str(), nullptr, 8);
 //	printf("%li %s\n", rc.first, rc.second.c_str());
@@ -268,6 +301,7 @@ void load_data_from_silo(std::string fname, node_server *root_ptr, hpx::id_type 
 	std::vector<integer> positions;
 	std::vector<hpx::future<void>> futs;
 	int node_count;
+	int particle_count;
 	if (db != nullptr) {
 		DBmultimesh *master_mesh = GET(hpx::threads::run_as_os_thread([&]() {
 			return DBGetMultimesh(db, "quadmesh");
@@ -275,12 +309,31 @@ void load_data_from_silo(std::string fname, node_server *root_ptr, hpx::id_type 
 		const int chunk_size = std::ceil(real(master_mesh->nblocks) / real(sz));
 		hpx::threads::run_as_os_thread([&]() {
 			const read_silo_var<integer> ri;
+                        try {
+				if (DBReadVar(db, "particle_count", &particle_count)) {
+				    particle_count = 0;
+				}
+                        }
+                        catch (...) {
+                                particle_count = 0;
+                        }
 			node_count = ri(db, "node_count");
 			node_list.resize(node_count);
 			positions.resize(node_count);
 			DBReadVar(db, "node_list", node_list.data());
 			DBReadVar(db, "node_positions", positions.data());
 		}).get();
+                std::map<node_location::node_id, std::string> load_parts;
+                if (particle_count > 0) {
+                        printf("Reading particles from file\n");
+                        DBmultimesh *pointmesh = GET(hpx::threads::run_as_os_thread([&]() {
+                         return DBGetMultimesh(db, "pointmesh");
+                        }));
+                        for (int i = 0; i < pointmesh->nblocks; i++) {
+                                //printf("block %i, %s\n", i, pointmesh->meshnames[i]);
+                                load_parts.insert(split_mesh_id(pointmesh->meshnames[i]));
+                        }
+                }
 		GET(hpx::threads::run_as_os_thread(DBClose, db));
 		std::map<node_location::node_id, std::string> load_locs;
 		for (int i = 0; i < master_mesh->nblocks; i++) {
@@ -291,6 +344,8 @@ void load_data_from_silo(std::string fname, node_server *root_ptr, hpx::id_type 
 			entry.position = positions[i];
 			const auto tmp = load_locs.find(node_list[i]);
 			entry.load = bool(tmp != load_locs.end());
+                        const auto tmp2 = load_parts.find(node_list[i]);
+                        entry.has_particle = bool(tmp2 != load_parts.end());
 			entry.locality_id = positions[i] * nprocs / positions.size();
 			if (entry.load) {
 				entry.filename = tmp->second;

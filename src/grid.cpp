@@ -67,6 +67,25 @@ void grid::set_outflow(std::pair<std::string, real> &&p) {
 	}
 }
 
+std::vector<particle> grid::get_restrict_particles() const {
+        return particles;
+}
+
+void grid::set_particles(std::vector<std::vector<real>> p) {
+	printf("particles size before loading: %i\n", particles.size());
+        for (integer i = 0;  i < p[0].size(); i++) {
+		space_vector part_pos;
+                space_vector part_vel;
+                for (int d = 0; d < NDIM; d++) {
+                        part_pos[d] = p[d][i];
+                        part_vel[d] = p[NDIM + 2 + d][i]; 
+                }
+                particle part = particle(p[NDIM][i], part_pos, part_vel, p[NDIM + 1][i], 1);
+                particles.push_back(part);
+        }
+        printf("particles size after loading: %i\n", particles.size());
+}
+
 void grid::static_init() {
 	field_bw.resize(opts().n_fields, 3);
 	energy_bw.resize(opts().n_fields, 0);

@@ -249,6 +249,8 @@ public:
 	std::vector<real> get_outflows_raw() {
 		return U_out;
 	}
+	void set_particles(std::vector<std::vector<real>> p);
+	std::vector<particle> get_restrict_particles() const;
 	void set_root(bool flag = true) {
 		is_root = flag;
 	}

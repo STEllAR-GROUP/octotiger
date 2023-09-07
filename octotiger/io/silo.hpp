@@ -72,11 +72,13 @@ struct  silo_load_t {
 	integer nx;
 	std::vector<std::pair<std::string,std::vector<real>>> vars;
 	std::vector<std::pair<std::string,real>> outflows;
+	std::vector<std::vector<real>> particle_vars;
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {
 		arc & nx;
 		arc & vars;
 		arc & outflows;
+		arc & particle_vars;
 	}
 };
 

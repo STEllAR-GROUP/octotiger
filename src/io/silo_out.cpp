@@ -30,6 +30,7 @@ HPX_PLAIN_ACTION(output_stage3, output_stage3_action);
 
 struct node_list_t {
 	std::vector<node_location::node_id> silo_leaves;
+	std::vector<int> num_particles;
 	std::vector<int> group_num;
 	std::vector<node_location::node_id> all;
 	std::vector<integer> positions;
@@ -38,6 +39,7 @@ struct node_list_t {
 	template<class Arc>
 	void serialize(Arc &arc, unsigned) {
 		arc & silo_leaves;
+		arc & num_particles;
 		arc & all;
 		arc & positions;
 		arc & extents;
@@ -49,6 +51,7 @@ struct mesh_vars_t {
 	std::vector<silo_var_t> vars;
 	std::vector<std::string> var_names;
 	std::vector<std::pair<std::string, real>> outflow;
+	std::vector<particle> parts;
 	std::string mesh_name;
 	std::vector<std::vector<real>> X;
 	std::array<int, NDIM> X_dims;
@@ -107,6 +110,7 @@ void output_stage1(std::string fname, int cycle) {
 				const grid &gridref = this_ptr->get_hydro_grid();
 				rc.vars = gridref.var_data();
 				rc.outflow = gridref.get_outflows();
+				rc.parts = gridref.get_restrict_particles();
 				return std::move(rc);
 			}, i->first, i->second));
 		}
@@ -125,6 +129,7 @@ node_list_t output_stage2(std::string fname, int cycle) {
 		all_mesh_vars.push_back(std::move(GET(this_fut)));
 	}
 	std::vector<node_location::node_id> ids;
+	std::vector<int> parts_sizes;
 	node_list_t nl;
 	nl.extents.resize(nfields);
 	ids.reserve(all_mesh_vars.size());
@@ -133,6 +138,7 @@ node_list_t output_stage2(std::string fname, int cycle) {
 	}
 	for (const auto &mv : all_mesh_vars) {
 		ids.push_back(mv.location.to_id());
+		parts_sizes.push_back(mv.parts.size());
 		nl.zone_count.push_back(mv.var_dims[0] * mv.var_dims[1] * mv.var_dims[2]);
 		for (int f = 0; f < nfields; f++) {
 			//		printf( "%s %e %e\n", mv.vars[f].name(), mv.vars[f].min(), mv.vars[f].max());
@@ -150,6 +156,7 @@ node_list_t output_stage2(std::string fname, int cycle) {
 		positions.push_back(i->second.get_ptr().get()->get_position());
 	}
 	nl.silo_leaves = std::move(ids);
+	nl.num_particles = std::move(parts_sizes);
 	nl.all = std::move(all);
 	nl.positions = std::move(positions);
 	printf("Closing output stage 2 on locality %i\n", hpx::get_locality_id());
@@ -199,6 +206,7 @@ void output_stage3(std::string fname, int cycle, int gn, int gb, int ge) {
 		int count = 0;
 		for (const auto &mesh_vars : all_mesh_vars) {
 			const auto &X = mesh_vars.X;
+			const auto parts = mesh_vars.parts;
 			const real *coords[NDIM];
 			for (int d = 0; d < NDIM; d++) {
 				coords[d] = X[d].data();
@@ -236,6 +244,63 @@ void output_stage3(std::string fname, int cycle, int gn, int gb, int ge) {
 				DBFreeOptlist(optlist_var);
 			}
 			DBSetDir(db, "/");
+
+                        if (parts.size() > 0) {
+                                const auto &dir_name_p = (dir_name + std::string("p")).c_str();
+                                DBMkDir(db, dir_name_p);
+                                DBSetDir(db, dir_name_p);
+                                const auto pnum = parts.size();
+                                std::vector<std::vector<real>> X_parts(NDIM);
+                                std::vector<std::vector<real>> V_parts(NDIM);
+                                std::vector<real> M_parts(pnum);
+                                std::vector<real> ID_parts(pnum);
+                                for (int i = 0; i < pnum; i++) {
+                                                 M_parts[i] = parts[i].mass * opts().code_to_g;
+                                                 ID_parts[i] = parts[i].id;
+                                 }
+                                for (int d = 0; d < NDIM; d++) {
+                                        X_parts[d].resize(pnum);
+                                        V_parts[d].resize(pnum);
+                                        for (int i = 0; i < pnum; i++) {
+                                                X_parts[d][i] = parts[i].pos[d] * opts().code_to_cm;
+                                                V_parts[d][i] = parts[i].vel[d] * opts().code_to_cm / opts().code_to_s; 
+                                        }
+                                }
+                                const real *coords_parts[NDIM];
+                                for (int d = 0; d < NDIM; d++) {
+                                        coords_parts[d] = X_parts[d].data();                            
+                                }
+
+                                auto optlist_pointmesh = DBMakeOptlist(100);
+                                int three = 3;
+                                DBAddOption(optlist_pointmesh, DBOPT_CYCLE, &cycle);
+                                DBAddOption(optlist_pointmesh, DBOPT_XLABEL, xstr);
+                                DBAddOption(optlist_pointmesh, DBOPT_YLABEL, ystr);
+                                DBAddOption(optlist_pointmesh, DBOPT_ZLABEL, zstr);
+                                DBAddOption(optlist_pointmesh, DBOPT_TIME, &ftime);
+                                DBAddOption(optlist_pointmesh, DBOPT_DTIME, &dtime);
+                                DBAddOption(optlist_pointmesh, DBOPT_HIDE_FROM_GUI, &one);
+                                
+                                DBPutPointmesh(db, "pointmesh", ndim, coords_parts, pnum, DB_DOUBLE, optlist_pointmesh);
+                               
+                                DBFreeOptlist(optlist_pointmesh);
+
+                                // output particle mass velocities and id                               
+                                auto optlist_pointvar = DBMakeOptlist(100);
+                                DBAddOption(optlist_pointvar, DBOPT_CYCLE, &cycle);
+                                DBAddOption(optlist_pointvar, DBOPT_TIME, &ftime);
+                                DBAddOption(optlist_pointvar, DBOPT_DTIME, &dtime);
+                                DBAddOption(optlist_pointvar, DBOPT_HIDE_FROM_GUI, &one);
+                                DBPutPointvar1(db, "p_mass", "pointmesh", M_parts.data(), pnum, DB_DOUBLE, optlist_pointvar);
+                                DBPutPointvar1(db, "p_id", "pointmesh", ID_parts.data(), pnum, DB_DOUBLE, optlist_pointvar);
+                                DBPutPointvar1(db, "p_vx", "pointmesh", V_parts[0].data(), pnum, DB_DOUBLE, optlist_pointvar);
+                                DBPutPointvar1(db, "p_vy", "pointmesh", V_parts[1].data(), pnum, DB_DOUBLE, optlist_pointvar);
+                                DBPutPointvar1(db, "p_vz", "pointmesh", V_parts[2].data(), pnum, DB_DOUBLE, optlist_pointvar);
+                                 
+                                DBFreeOptlist(optlist_pointvar);
+        
+                                DBSetDir(db, "/");
+                        }
 		}
 		DBFreeOptlist(optlist_mesh);
 		DBClose(db);
@@ -260,6 +325,9 @@ void output_stage4(std::string fname, int cycle) {
 		float ftime = dtime;
 		std::vector<std::pair<int, node_location>> node_locs;
 		std::vector<char*> mesh_names;
+                std::vector<std::vector<char*>> mesh_names_with_particles(6); // 6 fields: pointmesh, mass, id, vx, vy, vz
+                std::vector<int> parts_count;
+                int total_parts_count = 0;
 		std::vector<std::vector<char*>> field_names(nfields);
 		node_locs.reserve(node_list_.silo_leaves.size());
 		int j = 0;
@@ -274,17 +342,35 @@ void output_stage4(std::string fname, int cycle) {
 		for (int f = 0; f < nfields; f++)
 			field_names[f].reserve(node_locs.size());
 		for (int i = 0; i < node_locs.size(); i++) {
-			const auto prefix = fname + ".silo.data/" + std::to_string(node_locs[i].first) + ".silo:/" + oct_to_str(node_locs[i].second.to_id()) + "/";
-			const auto str = prefix + "quadmesh";
+			const auto prefix = fname + ".silo.data/" + std::to_string(node_locs[i].first) + ".silo:/" + oct_to_str(node_locs[i].second.to_id());
+			const auto str = prefix + "/quadmesh";
 			char *ptr = new char[str.size() + 1];
 			std::strcpy(ptr, str.c_str());
 			mesh_names.push_back(ptr);
 			for (int f = 0; f < nfields; f++) {
-				const auto str = prefix + top_field_names[f];
+				const auto str = prefix + "/" + top_field_names[f];
 				char *ptr = new char[str.size() + 1];
 				strcpy(ptr, str.c_str());
 				field_names[f].push_back(ptr);
 			}
+
+                        if (node_list_.num_particles[i] > 0) {
+	                        parts_count.push_back(node_list_.num_particles[i]);
+                                total_parts_count += node_list_.num_particles[i];
+                                std::vector<std::string> str_names;
+                                str_names.push_back(prefix + "p/pointmesh");
+                                str_names.push_back(prefix + "p/p_mass");
+                                str_names.push_back(prefix + "p/p_id");
+                                str_names.push_back(prefix + "p/p_vx");
+                                str_names.push_back(prefix + "p/p_vy");
+                                str_names.push_back(prefix + "p/p_vz");
+                                for (int part_f = 0; part_f < str_names.size(); part_f++) {
+	                                const auto cname = str_names[part_f];
+                                        char* name_copy = new char[cname.size() + 1];
+                                        strcpy(name_copy, cname.c_str());
+                                        mesh_names_with_particles[part_f].push_back(name_copy);
+                                }
+                         }
 		}
 
 		const int n_total_domains = mesh_names.size();
@@ -347,6 +433,44 @@ void output_stage4(std::string fname, int cycle) {
 			DBPutMultivar(db, top_field_names[f].c_str(), n_total_domains, field_names[f].data(), std::vector<int>(n_total_domains, DB_QUADVAR).data(), optlist);
 			DBFreeOptlist(optlist);
 		}
+
+                if (mesh_names_with_particles[0].size() > 0) {
+	                auto const mesh_num = mesh_names_with_particles[0].size();
+                        int pmesh = DB_POINTMESH;
+                        auto optlist = DBMakeOptlist(100);
+                        DBAddOption(optlist, DBOPT_CYCLE, &cycle);
+                        DBAddOption(optlist, DBOPT_TIME, &ftime);
+                        DBAddOption(optlist, DBOPT_DTIME, &dtime);
+                        DBAddOption(optlist, DBOPT_EXTENTS_SIZE, &six);
+                        //DBAddOption(optlist, DBOPT_EXTENTS, extents.data());
+                        DBAddOption(optlist, DBOPT_ZONECOUNTS, parts_count.data());
+                        //DBAddOption(optlist, DBOPT_DISJOINT_MODE, &dj);
+                        DBAddOption(optlist, DBOPT_TOPO_DIM, &three);
+                        DBAddOption(optlist, DBOPT_MB_BLOCK_TYPE, &pmesh);
+                        printf("Writing %i total sub-grids with particles\n", mesh_num);
+                        DBPutMultimesh(db, "pointmesh", mesh_num, mesh_names_with_particles[0].data(), nullptr, optlist);
+                        DBFreeOptlist(optlist);
+
+                        char pmmesh[] = "pointmesh";
+                        optlist = DBMakeOptlist(100);
+                        int pvar = DB_POINTVAR;
+                        DBAddOption(optlist, DBOPT_CYCLE, &cycle);
+                        DBAddOption(optlist, DBOPT_TIME, &ftime);
+                        DBAddOption(optlist, DBOPT_DTIME, &dtime);
+                        //DBAddOption(optlist, DBOPT_CONSERVED, &one);
+                        //DBAddOption(optlist, DBOPT_EXTENSIVE, &one);
+                        DBAddOption(optlist, DBOPT_EXTENTS_SIZE, &two);
+                        //DBAddOption(optlist, DBOPT_EXTENTS, node_list_.extents[f].data());
+                        DBAddOption(optlist, DBOPT_MMESH_NAME, pmmesh);
+                        DBAddOption(optlist, DBOPT_MB_BLOCK_TYPE, &pvar);
+                        DBPutMultivar(db, "p_mass", mesh_num, mesh_names_with_particles[1].data(), nullptr, optlist);
+                        DBPutMultivar(db, "p_id", mesh_num, mesh_names_with_particles[2].data(), nullptr, optlist);
+                        DBPutMultivar(db, "p_vx", mesh_num, mesh_names_with_particles[3].data(), nullptr, optlist);
+                        DBPutMultivar(db, "p_vy", mesh_num, mesh_names_with_particles[4].data(), nullptr, optlist);
+                        DBPutMultivar(db, "p_vz", mesh_num, mesh_names_with_particles[5].data(), nullptr, optlist);
+                        DBFreeOptlist(optlist);
+                }
+
 		write_silo_var<integer> fi;
 		write_silo_var<real> fr;
 		fi(db, "version", SILO_VERSION);
@@ -378,6 +502,7 @@ void output_stage4(std::string fname, int cycle) {
 		DBWrite(db, "atomic_number", opts().atomic_number.data(), &nspc, 1, db_type<real>::d);
 		fi(db, "node_count", integer(nnodes));
 		fi(db, "leaf_count", integer(node_list_.silo_leaves.size()));
+		fi(db, "particle_count", integer(total_parts_count));
 		write_silo_var<integer>()(db, "timestamp", timestamp);
 		write_silo_var<integer>()(db, "epoch", silo_epoch());
 		write_silo_var<integer>()(db, "locality_count", localities.size());
@@ -540,6 +665,7 @@ void output_all(node_server *root_ptr, std::string fname, int cycle, bool block)
 		id_futs.push_back(hpx::async < output_stage2_action > (hpx::launch::async(hpx::threads::thread_priority_boost), id, fname, cycle));
 	}
 	node_list_.silo_leaves.clear();
+	node_list_.num_particles.clear();
 	node_list_.group_num.clear();
 	node_list_.all.clear();
 	node_list_.positions.clear();
@@ -554,6 +680,7 @@ void output_all(node_server *root_ptr, std::string fname, int cycle, bool block)
 			node_list_.group_num.push_back(gn);
 		}
 		node_list_.silo_leaves.insert(node_list_.silo_leaves.end(), this_list.silo_leaves.begin(), this_list.silo_leaves.end());
+		node_list_.num_particles.insert(node_list_.num_particles.end(), this_list.num_particles.begin(), this_list.num_particles.end());
 		node_list_.all.insert(node_list_.all.end(), this_list.all.begin(), this_list.all.end());
 		node_list_.positions.insert(node_list_.positions.end(), this_list.positions.begin(), this_list.positions.end());
 		node_list_.zone_count.insert(node_list_.zone_count.end(), this_list.zone_count.begin(), this_list.zone_count.end());
