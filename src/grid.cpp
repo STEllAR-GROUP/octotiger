@@ -403,22 +403,22 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 								rc.xline.back().second.push_back(tmp);
 								//			PRINT( "!!!!!!!!!!!1\n");
 							}
-						}
-						if (std::abs(X[XDIM][iii]) < dx) {
-							specie_state_t<> species;
-							for( int si = spc_i; si < opts().n_fields; si++) {
-								species[si-spc_i] = U[si][iii];
-							}
-							real mmw;
-							real X;
-							real Z;
-							mean_ion_weight(species, mmw, X, Z);
-							rc.Trad0 = rad_grid_ptr->get_field(0, j-H_BW+R_BW, k-H_BW+R_BW, l-H_BW+R_BW);
-							rc.Trad0 /= 4.0 * physcon().sigma / physcon().c;
-							rc.Trad0 = pow(rc.Trad0, 0.25);
-							rc.Tgas0 = POWER(U[tau_i][iii], fgamma) / U[rho_i][iii] / physcon().kb * (physcon().mh * mmw) * (fgamma-1.0);
+              if (std::abs(X[XDIM][iii]) < dx) {
+                specie_state_t<> species;
+                for( int si = spc_i; si < opts().n_fields; si++) {
+                  species[si-spc_i] = U[si][iii];
+                }
+                real mmw;
+                real X;
+                real Z;
+                mean_ion_weight(species, mmw, X, Z);
+                rc.Trad0 = rad_grid_ptr->get_field(0, j-H_BW+R_BW, k-H_BW+R_BW, l-H_BW+R_BW);
+                rc.Trad0 /= 4.0 * physcon().sigma / physcon().c;
+                rc.Trad0 = pow(rc.Trad0, 0.25);
+                rc.Tgas0 = POWER(U[tau_i][iii], fgamma) / U[rho_i][iii] / physcon().kb * (physcon().mh * mmw) * (fgamma-1.0);
 
-						}
+              }
+            }
 					}
 					const integer iiig = gindex(j - H_BW, k - H_BW, l - H_BW);
 					real ek = ZERO;
