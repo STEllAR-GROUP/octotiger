@@ -96,8 +96,6 @@ pipeline {
                                 srun -p cuda-A100 -N 1 -n 1 --time=300 bash -lc "\
                                   module load gcc/11 cuda/12 && \
                                   spack compiler find && \
-                                  module load llvm/12 cuda/12 && \
-                                  spack compiler find && \
                                   spack external find && \
                                   spack external find cuda python bzip2 && \
                                   spack install octotiger@master ${spack_spec} && \
