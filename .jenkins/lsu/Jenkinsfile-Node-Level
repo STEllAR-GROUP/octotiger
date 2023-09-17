@@ -109,12 +109,17 @@ pipeline {
                                   spack external find && \
                                   spack external find cuda python bzip2 && \
                                   spack external find hip llvm-amdgpu hsa-rocr-dev && \
-                                  spack install --fresh octotiger@develop ${spack_spec} && \
+                                  echo 'installing...' && \
+                                  spack install --verbose --fresh octotiger@develop ${spack_spec} && \
+                                  echo 'dev-build...' && \
                                   spack dev-build --fresh --until cmake --test=root octotiger@develop ${spack_spec} && \
                                   cd spack-build && \
+                                  echo 'build-env...' && \
                                   spack build-env --fresh --dump build-env.sh octotiger@develop ${spack_spec} -- && \
+                                  echo 'sourcing...' && \
                                   source build-env.sh && \
-                                  make -j32 && \
+                                  echo 'building...' && \
+                                  make -j32 VERBOSE=1 && \
                                   ctest --output-on-failure "
                                 '''
                             }
