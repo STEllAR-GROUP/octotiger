@@ -92,15 +92,15 @@ pipeline {
                                 cp -r octotiger octotiger-${build_description}
                                 cd octotiger-${build_description}
                                 srun -p cuda-A100 -N 1 -n 1 --time=300 bash -lc '\
-                                  module load gcc/11 cuda/12 hwloc \
-                                  spack external find \
-                                  spack external find cuda \
-                                  spack install --fresh octotiger@master ${spack_spec} \
-                                  spack dev-build --fresh --until cmake --test=root octotiger@master ${spack_spec} \
-                                  cd spack-build \
-                                  spack build-env --dump build-env.sh octotiger@master ${spack_spec} \
-                                  source build-env.sh \
-                                  make -j32 \
+                                  module load gcc/11 cuda/12 && \
+                                  spack external find && \
+                                  spack external find cuda && \
+                                  spack install --fresh octotiger@master ${spack_spec} && \
+                                  spack dev-build --fresh --until cmake --test=root octotiger@master ${spack_spec} && \
+                                  cd spack-build && \
+                                  spack build-env --dump build-env.sh octotiger@master ${spack_spec} && \
+                                  source build-env.sh && \
+                                  make -j32 && \
                                   ctest --output-on-failure '
                                 '''
                             }
