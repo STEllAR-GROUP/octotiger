@@ -88,7 +88,7 @@ pipeline {
                                 spack_spec=$(echo "${build_spec}" | cut -d ";" -f 1)
                                 build_description=$(echo "${build_spec}" | cut -d ";" -f 2)
                                 source ${HOME}/jenkins_spack_install/share/spack/setup-env.sh
-                                cat ${HOME}/.spack/linux/compiler.yaml 
+                                cat ${HOME}/.spack/linux/compilers.yaml 
                                 cd ..
                                 rm -rf octotiger-${build_description}
                                 cp -r octotiger octotiger-${build_description}
