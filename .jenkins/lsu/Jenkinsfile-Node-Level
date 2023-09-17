@@ -52,8 +52,8 @@ pipeline {
                                ' ~cuda ~kokkos %gcc@11 ^hpx max_cpu_count=128 malloc=jemalloc ^silo~mpi ;with-CC-without-cuda-without-kokkos;gcc/11 cuda/12',\
                                ' +cuda +kokkos cuda_arch=80 %clang@12 ^hpx max_cpu_count=128 ^silo~mpi ;with-CC-clang-with-cuda-with-kokkos;llvm/12 cuda/12',\
                                ' ~cuda +kokkos %clang@12^hpx max_cpu_count=128 malloc=jemalloc ^silo~mpi ;with-CC-clang-without-cuda-with-kokkos;llvm/12 cuda/12',\
-                               ' +cuda ~kokkos cuda_arch=80 %clang@12 ^hpx max_cpu_count=128 ^silo~mpi ;with-CC-clang-with-cuda-without-kokkos;llvm/12 cuda/12'',\
-                               ' ~cuda ~kokkos %clang@12 ^hpx max_cpu_count=128 malloc=jemalloc ^silo~mpi ;with-CC-clang-without-cuda-without-kokkos;llvm/12 cuda/12''
+                               ' +cuda ~kokkos cuda_arch=80 %clang@12 ^hpx max_cpu_count=128 ^silo~mpi ;with-CC-clang-with-cuda-without-kokkos;llvm/12 cuda/12',\
+                               ' ~cuda ~kokkos %clang@12 ^hpx max_cpu_count=128 malloc=jemalloc ^silo~mpi ;with-CC-clang-without-cuda-without-kokkos;llvm/12 cuda/12'
                     }
                 }
                 stages {
