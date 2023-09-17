@@ -59,7 +59,7 @@ pipeline {
                                ' +kokkos_kokkos_kernels simd_extension=AVX512 simd_library=STD %gcc@11^hpx max_cpu_count=128 malloc=jemalloc ^silo~mpi ;with-CC-with-std-with-avx512;gcc/11;medusa',\
                                ' +kokkos_kokkos_kernels simd_extension=SCALAR simd_library=KOKKOS %gcc@11^hpx max_cpu_count=128 malloc=jemalloc ^silo~mpi ;with-CC-with-kokkos-with-scalar;gcc/11;medusa',\
                                ' +kokkos_kokkos_kernels simd_extension=AVX512 simd_library=KOKKOS %gcc@11^hpx max_cpu_count=128 malloc=jemalloc ^silo~mpi ;with-CC-with-kokkos-with-avx512;gcc/11;medusa',\
-                               ' -cuda -rocm +sycl %gcc@11 ^kokkos use_unsupported_sycl_arch=70 ^hpx sycl_target_arch=70;with-CC-with-kokkos-with-sycl;gcc/11;cuda-V100'
+                               ' -cuda -rocm +sycl %gcc@11 ^kokkos use_unsupported_sycl_arch=70 ^hpx sycl_target_arch=70;with-CC-with-kokkos-with-sycl;gcc/11 cuda/12;cuda-V100'
                     }
                 }
                 stages {
