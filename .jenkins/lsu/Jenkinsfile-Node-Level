@@ -101,7 +101,7 @@ pipeline {
                                   spack install octotiger@master ${spack_spec} && \
                                   spack dev-build --until cmake --test=root octotiger@master ${spack_spec} && \
                                   cd spack-build && \
-                                  spack build-env --dump build-env.sh octotiger@master ${spack_spec} && \
+                                  spack build-env --dump build-env.sh octotiger@master ${spack_spec} -- && \
                                   source build-env.sh && \
                                   make -j32 && \
                                   ctest --output-on-failure "
