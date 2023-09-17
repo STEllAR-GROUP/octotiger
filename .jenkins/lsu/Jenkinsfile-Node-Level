@@ -90,8 +90,8 @@ pipeline {
                                 required_modules=$(echo "${build_spec}" | cut -d ";" -f 3)
                                 source ${HOME}/jenkins_spack_install/share/spack/setup-env.sh
                                 cat ${HOME}/.spack/linux/compilers.yaml 
-                                flock ${HOME}/.spack/linux/compilers.yaml sed -i 's/f77: null/usr\/bin\/gfortran/' ${HOME}/.spack/linux/compilers.yaml
-                                flock ${HOME}/.spack/linux/compilers.yaml sed -i 's/fc: null/usr\/bin\/gfortran/' ${HOME}/.spack/linux/compilers.yaml
+                                flock ${HOME}/.spack/linux/compilers.yaml sed -i 's/f77: null/f77: gfortran/' ${HOME}/.spack/linux/compilers.yaml
+                                flock ${HOME}/.spack/linux/compilers.yaml sed -i 's/fc: null/fc: gfortran/' ${HOME}/.spack/linux/compilers.yaml
                                 cd ..
                                 rm -rf octotiger-${build_description}
                                 cp -r octotiger octotiger-${build_description}
