@@ -95,6 +95,8 @@ pipeline {
                                   module load gcc/11 cuda/12 && \
                                   spack external find && \
                                   spack external find cuda && \
+                                  spack spec --fresh octotiger@master ${spack_spec} && \
+                                  echo ${space_spec} && \
                                   spack install --fresh octotiger@master ${spack_spec} && \
                                   spack dev-build --fresh --until cmake --test=root octotiger@master ${spack_spec} && \
                                   cd spack-build && \
