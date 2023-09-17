@@ -91,19 +91,18 @@ pipeline {
                                 rm -rf octotiger-${build_description}
                                 cp -r octotiger octotiger-${build_description}
                                 cd octotiger-${build_description}
-                                srun -p cuda-A100 -N 1 -n 1 --time=300 bash -lc '\
+                                srun -p cuda-A100 -N 1 -n 1 --time=300 bash -lc "\
                                   module load gcc/11 cuda/12 && \
                                   spack external find && \
                                   spack external find cuda && \
                                   spack spec --fresh octotiger@master ${spack_spec} && \
-                                  echo ${space_spec} && \
                                   spack install --fresh octotiger@master ${spack_spec} && \
                                   spack dev-build --fresh --until cmake --test=root octotiger@master ${spack_spec} && \
                                   cd spack-build && \
                                   spack build-env --dump build-env.sh octotiger@master ${spack_spec} && \
                                   source build-env.sh && \
                                   make -j32 && \
-                                  ctest --output-on-failure '
+                                  ctest --output-on-failure "
                                 '''
                             }
                         }
