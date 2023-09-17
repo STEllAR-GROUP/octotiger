@@ -46,14 +46,14 @@ pipeline {
                 axes {
                     axis {
                         name 'build_spec'
-                        values ' +cuda +kokkos cuda_arch=80 %gcc@11 ^hpx max_cpu_count=128 malloc=jemalloc ^silo~mpi ^kokkos@4.0.1 ;with-CC-with-cuda-with-kokkos',\
-                               ' ~cuda +kokkos %gcc@11 ^hpx max_cpu_count=128 malloc=jemalloc ^silo~mpi^kokkos@4.0.1~cuda ;with-CC-without-cuda-with-kokkos',\
-                               ' +cuda ~kokkos cuda_arch=80 ^hpx max_cpu_count=128 malloc=jemalloc ^silo~mpi%gcc@11 ;with-CC-with-cuda-without-kokkos',\
-                               ' ~cuda ~kokkos %gcc@11 ^hpx max_cpu_count=128 malloc=jemalloc ^silo~mpi ;with-CC-without-cuda-without-kokkos',\
-                               ' +cuda +kokkos cuda_arch=80 %clang@12 ^hpx max_cpu_count=128 ^silo~mpi ;with-CC-clang-with-cuda-with-kokkos',\
-                               ' ~cuda +kokkos %clang@12^hpx max_cpu_count=128 malloc=jemalloc ^silo~mpi ;with-CC-clang-without-cuda-with-kokkos',\
-                               ' +cuda ~kokkos cuda_arch=80 %clang@12 ^hpx max_cpu_count=128 ^silo~mpi ;with-CC-clang-with-cuda-without-kokkos',\
-                               ' ~cuda ~kokkos %clang@12 ^hpx max_cpu_count=128 malloc=jemalloc ^silo~mpi ;with-CC-clang-without-cuda-without-kokkos'
+                        values ' +cuda +kokkos cuda_arch=80 %gcc@11 ^hpx max_cpu_count=128 malloc=jemalloc ^silo~mpi ^kokkos@4.0.1 ;with-CC-with-cuda-with-kokkos;gcc/11 cuda/12',\
+                               ' ~cuda +kokkos %gcc@11 ^hpx max_cpu_count=128 malloc=jemalloc ^silo~mpi^kokkos@4.0.1~cuda ;with-CC-without-cuda-with-kokkos;gcc/11 cuda/12',\
+                               ' +cuda ~kokkos cuda_arch=80 ^hpx max_cpu_count=128 malloc=jemalloc ^silo~mpi%gcc@11 ;with-CC-with-cuda-without-kokkos;gcc/11 cuda/12',\
+                               ' ~cuda ~kokkos %gcc@11 ^hpx max_cpu_count=128 malloc=jemalloc ^silo~mpi ;with-CC-without-cuda-without-kokkos;gcc/11 cuda/12',\
+                               ' +cuda +kokkos cuda_arch=80 %clang@12 ^hpx max_cpu_count=128 ^silo~mpi ;with-CC-clang-with-cuda-with-kokkos;llvm/12 cuda/12',\
+                               ' ~cuda +kokkos %clang@12^hpx max_cpu_count=128 malloc=jemalloc ^silo~mpi ;with-CC-clang-without-cuda-with-kokkos;llvm/12 cuda/12',\
+                               ' +cuda ~kokkos cuda_arch=80 %clang@12 ^hpx max_cpu_count=128 ^silo~mpi ;with-CC-clang-with-cuda-without-kokkos;llvm/12 cuda/12'',\
+                               ' ~cuda ~kokkos %clang@12 ^hpx max_cpu_count=128 malloc=jemalloc ^silo~mpi ;with-CC-clang-without-cuda-without-kokkos;llvm/12 cuda/12''
                     }
                 }
                 stages {
@@ -87,14 +87,17 @@ pipeline {
                                 set -x
                                 spack_spec=$(echo "${build_spec}" | cut -d ";" -f 1)
                                 build_description=$(echo "${build_spec}" | cut -d ";" -f 2)
+                                required_modules=$(echo "${build_spec}" | cut -d ";" -f 3)
                                 source ${HOME}/jenkins_spack_install/share/spack/setup-env.sh
                                 cat ${HOME}/.spack/linux/compilers.yaml 
+                                flock ${HOME}/.spack/linux/compilers.yaml sed -i 's/f77: null/usr\/bin\/gfortran/' ${HOME}/.spack/linux/compilers.yaml
+                                flock ${HOME}/.spack/linux/compilers.yaml sed -i 's/fc: null/usr\/bin\/gfortran/' ${HOME}/.spack/linux/compilers.yaml
                                 cd ..
                                 rm -rf octotiger-${build_description}
                                 cp -r octotiger octotiger-${build_description}
                                 cd octotiger-${build_description}
                                 srun -p cuda-A100 -N 1 -n 1 --time=300 bash -lc "\
-                                  module load gcc/11 cuda/12 && \
+                                  module load ${required_modules} && \
                                   spack compiler find && \
                                   spack external find && \
                                   spack external find cuda python bzip2 && \
