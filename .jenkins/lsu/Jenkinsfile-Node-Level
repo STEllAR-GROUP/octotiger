@@ -84,6 +84,7 @@ pipeline {
                             dir('octotiger') {
                                 sh '''
                                 #!/bin/bash -l
+                                set -x
                                 spack_spec=$(echo "${build_spec}" | cut -d ";" -f 1)
                                 build_description=$(echo "${build_spec}" | cut -d ";" -f 2)
                                 source ${HOME}/jenkins_spack_install/share/spack/setup-env.sh
@@ -93,6 +94,9 @@ pipeline {
                                 cd octotiger-${build_description}
                                 srun -p cuda-A100 -N 1 -n 1 --time=300 bash -lc "\
                                   module load gcc/11 cuda/12 && \
+                                  spack compiler find && \
+                                  module load llvm/12 cuda/12 && \
+                                  spack compiler find && \
                                   spack external find && \
                                   spack external find cuda && \
                                   spack spec --fresh octotiger@master ${spack_spec} && \
