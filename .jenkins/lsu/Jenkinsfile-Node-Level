@@ -91,7 +91,7 @@ pipeline {
                                 rm -rf octotiger-${build_description}
                                 cp -r octotiger octotiger-${build_description}
                                 cd octotiger-${build_description}
-                                srun -w toranj0,nasrin0,anvil -N 1 -n 1 --time=300 bash -lc '\
+                                srun -p cuda-A100 -N 1 -n 1 --time=300 bash -lc '\
                                   module load gcc/11 cuda/12 hwloc \
                                   spack external find \
                                   spack external find cuda \
