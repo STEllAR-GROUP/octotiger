@@ -101,10 +101,10 @@ pipeline {
                                   spack compiler find && \
                                   spack external find && \
                                   spack external find cuda python bzip2 && \
-                                  spack install --fresh octotiger@master ${spack_spec} && \
-                                  spack dev-build --fresh --until cmake --test=root octotiger@master ${spack_spec} && \
+                                  spack install --fresh octotiger@develop ${spack_spec} && \
+                                  spack dev-build --fresh --until cmake --test=root octotiger@develop ${spack_spec} && \
                                   cd spack-build && \
-                                  spack build-env --fresh --dump build-env.sh octotiger@master ${spack_spec} -- && \
+                                  spack build-env --fresh --dump build-env.sh octotiger@develop ${spack_spec} -- && \
                                   source build-env.sh && \
                                   make -j32 && \
                                   ctest --output-on-failure "
