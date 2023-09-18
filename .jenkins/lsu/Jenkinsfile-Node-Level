@@ -109,7 +109,8 @@ pipeline {
                                 cd octotiger-${build_description}
                                 srun -p ${slurm_partition} -N 1 -n 1 --time=300 bash -lc "\
                                   module load ${required_modules} && \
-                                  spack external find git libffi && \
+                                  spack extenral find && \
+                                  spack external find cmake git libffi && \
                                   spack find git && \
                                   spack external find cuda hip llvm-amdgpu hsa-rocr-dev && \
                                   echo 'spec...' && \
