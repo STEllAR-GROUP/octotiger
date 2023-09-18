@@ -24,6 +24,7 @@ using host_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::__avx
 using host_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::__avx512>;
 static_assert(host_simd_t::size() == 8);
 static_assert(host_simd_mask_t::size() == 8);
+#error "Testing failure"
 #elif defined(OCTOTIGER_KOKKOS_SIMD_AVX)
 #if !(defined(__AVX2__) || defined(__AVX__))
 #error "AVX Kokkos kernels are specified explicitly but build is without AVX support."

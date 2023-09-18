@@ -195,7 +195,7 @@ void init_executors(void) {
     } else {
       std::cout << "Registering HPX SYCL polling..." << std::endl;
       hpx::sycl::experimental::detail::register_polling(hpx::resource::get_thread_pool(0));
-    }
+    }\
     std::cout << "Registered HPX SYCL polling!" << std::endl;
 #if HPX_KOKKOS_SYCL_FUTURE_TYPE == 0 
     std::cout << "Using HPX SYCL futures with polling!" << std::endl;
