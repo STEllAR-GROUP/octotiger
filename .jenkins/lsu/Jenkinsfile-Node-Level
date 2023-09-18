@@ -63,7 +63,7 @@ pipeline {
                     }
                 }
                 stages {
-                    stage('init') {
+                    stage('init-${build_spec}') {
                         steps {
                             dir('octotiger') {
                                 sh '''
@@ -85,7 +85,7 @@ pipeline {
                             }
                         }
                     }
-                    stage('build-and-test') {
+                    stage('build-and-test-${build_spec}') {
                         steps {
                             dir('octotiger') {
                                 sh '''
