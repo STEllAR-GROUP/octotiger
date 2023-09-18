@@ -96,19 +96,13 @@ pipeline {
                                 required_modules=$(echo "${build_spec}" | cut -d ";" -f 3)
                                 slurm_partition=$(echo "${build_spec}" | cut -d ";" -f 4)
                                 source ${HOME}/jenkins_spack_install/share/spack/setup-env.sh
-                                cat ${HOME}/.spack/linux/compilers.yaml 
-                                flock ${HOME}/.spack/linux/compilers.yaml sed -i 's/f77: null/f77: gfortran/' ${HOME}/.spack/linux/compilers.yaml
-                                flock ${HOME}/.spack/linux/compilers.yaml sed -i 's/fc: null/fc: gfortran/' ${HOME}/.spack/linux/compilers.yaml
                                 cd ..
                                 rm -rf octotiger-${build_description}
                                 cp -r octotiger octotiger-${build_description}
                                 cd octotiger-${build_description}
                                 srun -p ${slurm_partition} -N 1 -n 1 --time=300 bash -lc "\
                                   module load ${required_modules} && \
-                                  spack compiler find && \
-                                  spack external find && \
-                                  spack external find cuda python bzip2 && \
-                                  spack external find hip llvm-amdgpu hsa-rocr-dev && \
+                                  spack external find cuda hip llvm-amdgpu hsa-rocr-dev && \
                                   echo 'spec...' && \
                                   spack spec --fresh octotiger@develop ${spack_spec} && \
                                   echo 'installing...' && \
