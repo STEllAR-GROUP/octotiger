@@ -109,6 +109,8 @@ pipeline {
                                   spack external find && \
                                   spack external find cuda python bzip2 && \
                                   spack external find hip llvm-amdgpu hsa-rocr-dev && \
+                                  echo 'spec...' && \
+                                  spack spec --fresh octotiger@develop ${spack_spec} && \
                                   echo 'installing...' && \
                                   spack install --verbose --fresh octotiger@develop ${spack_spec} && \
                                   echo 'dev-build...' && \
