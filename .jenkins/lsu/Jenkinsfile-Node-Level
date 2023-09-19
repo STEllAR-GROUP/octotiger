@@ -114,14 +114,14 @@ pipeline {
                                   spack find git && \
                                   spack external find cuda hip llvm-amdgpu hsa-rocr-dev && \
                                   echo 'spec...' && \
-                                  spack spec --fresh octotiger@develop ${spack_spec} && \
+                                  spack spec octotiger@develop ${spack_spec} && \
                                   echo 'installing...' && \
-                                  spack install --verbose --fresh octotiger@develop ${spack_spec} && \
+                                  spack install --verbose octotiger@develop ${spack_spec} && \
                                   echo 'dev-build...' && \
-                                  spack dev-build --fresh --until cmake --test=root octotiger@develop ${spack_spec} && \
+                                  spack dev-build --until cmake --test=root octotiger@develop ${spack_spec} && \
                                   cd spack-build && \
                                   echo 'build-env...' && \
-                                  spack build-env --fresh --dump build-env.sh octotiger@develop ${spack_spec} -- && \
+                                  spack build-env --dump build-env.sh octotiger@develop ${spack_spec} -- && \
                                   echo 'sourcing...' && \
                                   source build-env.sh && \
                                   echo 'building...' && \
