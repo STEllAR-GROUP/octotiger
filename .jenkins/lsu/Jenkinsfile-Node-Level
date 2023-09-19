@@ -110,7 +110,7 @@ pipeline {
                                 srun -p ${slurm_partition} -N 1 -n 1 --time=300 bash -lc "\
                                   module load ${required_modules} && \
                                   spack external find && \
-                                  spack external find cmake git libffi && \
+                                  spack external find cmake git libffi python && \
                                   spack find git && \
                                   spack external find cuda hip llvm-amdgpu hsa-rocr-dev && \
                                   echo 'spec...' && \
