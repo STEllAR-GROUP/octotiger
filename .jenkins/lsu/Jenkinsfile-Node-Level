@@ -119,7 +119,6 @@ pipeline {
                                   module load ${required_modules} && \
                                   spack external find && \
                                   spack external find cmake git libffi python && \
-                                  spack find git && \
                                   spack external find cuda hip llvm-amdgpu hsa-rocr-dev && \
                                   echo 'spec...' && \
                                   spack spec octotiger@develop ${spack_spec} && \
