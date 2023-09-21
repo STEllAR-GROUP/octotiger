@@ -4,7 +4,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --partition=cuda-A100-amd
-#SBATCH --nodelist=nasrin1
+#SBATCH --nodelist=nasrin0
 #SBATCH -e amd_simd_scaling_test.out
 #SBATCH -o amd_simd_scaling_test.out
 
