@@ -4,7 +4,7 @@
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 //
 
-//#undef NDEBUG
+/* #undef NDEBUG */
 #include "octotiger/unitiger/hydro_impl/hydro_kernel_interface.hpp"
 #include "octotiger/unitiger/hydro_impl/flux_kernel_interface.hpp"
 #include "octotiger/unitiger/hydro_impl/hydro_performance_counters.hpp"
@@ -50,11 +50,17 @@ void init_hydro_kokkos_aggregation_pool(void) {
     hydro_kokkos_agg_executor_pool<hpx::kokkos::sycl_executor>::init(number_aggregation_executors, max_slices, executor_mode, opts().number_gpus);
 #endif
     }
-    hydro_kokkos_agg_executor_pool<host_executor>::init(number_aggregation_executors, max_slices, executor_mode, 1);
+    hydro_kokkos_agg_executor_pool<host_executor>::init(number_aggregation_executors, 1, Aggregated_Executor_Modes::STRICT, 1);
 }
 #endif
 
 
+#if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)
+#include <hpx/async_cuda/cuda_executor.hpp>
+using device_executor_cuda = hpx::cuda::experimental::cuda_executor;
+using device_pool_strategy_cuda = round_robin_pool<device_executor_cuda>;
+using executor_interface_cuda_t = stream_interface<device_executor_cuda, device_pool_strategy_cuda>;
+#endif
 
 timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
     const std::vector<std::vector<safe_real>>& U, std::vector<std::vector<safe_real>>& X,
@@ -81,13 +87,10 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
             // Host execution is possible: Check if there is a launch slot for device - if not 
             // we will execute the kernel on the CPU instead
             if (host_type != interaction_host_kernel_type::DEVICE_ONLY) {
-                // TODO CPU/GPU currently not working with work aggregation 
-                /* avail = stream_pool::interface_available<device_executor, device_pool_strategy>( */
-                /*     max_gpu_executor_queue_length); */
-                std::cerr << "hydro_host_kernel_type should be DEVICE_ONLY when hydro_device_kernel_type != OFF "
-                             "Aborting..."
-                          << std::endl;
-                abort();
+                size_t device_id =
+                    stream_pool::get_next_device_id<device_executor, device_pool_strategy>(opts().number_gpus);
+                avail = stream_pool::interface_available<device_executor, device_pool_strategy>(
+                    max_gpu_executor_queue_length, device_id);
             }
             if (avail) {
                 // executor_interface_t executor;
@@ -109,13 +112,10 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
             // Host execution is possible: Check if there is a launch slot for device - if not 
             // we will execute the kernel on the CPU instead
             if (host_type != interaction_host_kernel_type::DEVICE_ONLY) {
-                // TODO CPU/GPU currently not working with work aggregation 
-                /* avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor, */
-                /*     pool_strategy>(max_gpu_executor_queue_length); */
-                std::cerr << "hydro_host_kernel_type should be DEVICE_ONLY when hydro_device_kernel_type != OFF "
-                             "Aborting..."
-                          << std::endl;
-                abort();
+                size_t device_id =
+                    stream_pool::get_next_device_id<device_executor_cuda, device_pool_strategy_cuda>(opts().number_gpus);
+                avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
+                    device_pool_strategy_cuda>(max_gpu_executor_queue_length, device_id);
             }
             if (avail) {
                 size_t device_id = 0;
@@ -133,13 +133,10 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
 #ifdef OCTOTIGER_HAVE_HIP
             bool avail = true;
             if (host_type != interaction_host_kernel_type::DEVICE_ONLY) {
-              // TODO CPU/GPU currently not working with work aggregation 
-              /* avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor, */
-              /*     pool_strategy>(max_gpu_executor_queue_length); */
-              std::cerr << "hydro_host_kernel_type should be DEVICE_ONLY when hydro_device_kernel_type != OFF "
-                           "Aborting..."
-                        << std::endl;
-              abort();
+                size_t device_id =
+                    stream_pool::get_next_device_id<device_executor_cuda, device_pool_strategy_cuda>(opts().number_gpus);
+              avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
+                  device_pool_strategy_cuda>(max_gpu_executor_queue_length, device_id);
             }
             if (avail) {
                 size_t device_id = 0;
