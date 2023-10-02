@@ -16,8 +16,7 @@ From <https://doi.org/10.1145/3204919.3204938>:
 #### Jenkins - All CPU / GPU node-level tests for the 8 major build configurations:
 |   	|   	|
 |---	|---	|
-|  gcc/clang, with/without-cuda, with/without-kokkos 	| [![Build Status](https://rostam.cct.lsu.edu/jenkins/buildStatus/icon?job=Octo-Tiger+Node-Level%2Fmaster&config=nodelevel)](https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger%20Node-Level/job/master/) |
-| HIP + Kokkos Tests | [![Build Status](https://rostam.cct.lsu.edu/jenkins/buildStatus/icon?job=Octo-Tiger+HIP%2Fmaster&config=HIP)](https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger%20HIP/job/master/) |
+| CPU/GPU Tests with Kokkos, CUDA, HIP, SYCL | [![Build Status](https://rostam.cct.lsu.edu/jenkins/buildStatus/icon?job=Octo-Tiger+Node-Level%2Fmaster&config=nodelevel)](https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger%20Node-Level/job/master/) |
 
 #### Jenkins - Special machine tests:
 
@@ -25,7 +24,6 @@ From <https://doi.org/10.1145/3204919.3204938>:
 |---	|---	|
 |  KNL Kokkos HPX Backend / SIMD tests 	| [![Build Status](https://simsgs.informatik.uni-stuttgart.de/jenkins/buildStatus/icon?job=Octo-Tiger+KNL%2Fmaster&config=knlbuild)](https://simsgs.informatik.uni-stuttgart.de/jenkins/view/Octo-Tiger%20and%20Dependencies/job/Octo-Tiger%20KNL/job/master/)  	|
 | Development environment tests 	|  [![Build Status](https://simsgs.informatik.uni-stuttgart.de/jenkins/buildStatus/icon?job=Octo-Tiger+DEV%2Fmaster&config=devbuild)](https://simsgs.informatik.uni-stuttgart.de/jenkins/view/Octo-Tiger%20and%20Dependencies/job/Octo-Tiger%20DEV/job/master/)
- | HIP Development environment tests 	|  [![Build Status](https://simsgs.informatik.uni-stuttgart.de/jenkins/buildStatus/icon?job=Octo-Tiger+HIP+DEV%2Fmaster&config=hip-devbuild)](https://simsgs.informatik.uni-stuttgart.de/jenkins/view/Octo-Tiger%20and%20Dependencies/job/Octo-Tiger%20HIP%20DEV/job/master/)
 
 ## Quick Reference
   * **Building Octo-Tiger**:
