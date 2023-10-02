@@ -139,3 +139,26 @@ endfunction()
 test_radiation_diffusion_scenario(test_problems.cpu.am_hydro_on.radiation_diffusion_legacy radiation_diffusion_am_hydro_on_old_log.txt ${silo_scenario_filename} 
 " ")
 
+function(test_radiation_coupling_scenario test_name test_log_file reference_filename kernel_parameters)
+  add_test(NAME ${test_name}
+    COMMAND sh -c "${PROJECT_BINARY_DIR}/octotiger --problem=radiation_coupling --radiation=on  --gravity=off --max_level=2 --stop_time=1 --hydro=off --odt=1e-5 --hard_dt=1e-2 ${kernel_parameters} > ${test_log_file}")
+  set_tests_properties(${test_name} PROPERTIES
+    FIXTURES_SETUP ${test_name})
+
+  add_test(NAME ${test_name}.diff
+    COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
+     ${PROJECT_SOURCE_DIR}/octotiger-testdata/radiation_coupling_test.silo ${PROJECT_BINARY_DIR}/test_problems/radiation_coupling/final.silo.data/0.silo)
+  set_tests_properties(${test_name}.diff PROPERTIES
+    FIXTURES_REQUIRED ${test_name}
+    FAIL_REGULAR_EXPRESSION ${OCTOTIGER_SILODIFF_FAIL_PATTERN})
+
+  add_test(${test_name}.fixture_cleanup ${CMAKE_COMMAND} -E remove ${PROJECT_BINARY_DIR}/test_problems/radiation_coupling/final.silo ${PROJECT_BINARY_DIR}/test_problems/radiation_coupling/final.silo.data/0.silo ${test_log_file})
+  set_tests_properties(${test_name}.fixture_cleanup PROPERTIES
+      FIXTURES_CLEANUP ${test_name}
+  )
+endfunction()
+
+# Rotating Star - OLD CPU
+# TODO Add radiation kernel variants once there is more than one available...
+test_radiation_coupling_scenario(test_problems.cpu.am_hydro_on.radiation_coupling_legacy radiation_coupling_am_hydro_on_old_log.txt ${silo_scenario_filename} 
+" ")
