@@ -122,11 +122,11 @@ pipeline {
                                   spack external find cuda hip llvm-amdgpu hsa-rocr-dev && \
                                   echo 'spec...' && \
                                   spack spec octotiger@develop  && \
-                                  echo 'starting dev-build...' && {
-                                    spack dev-build -j32 --until build --test=root octotiger@develop ${spack_spec}  
+                                  spack dev-build -j32 --until build --test=root octotiger@develop ${spack_spec} || {
                                     cat spack-build0*
                                     cat install-time-test-log.txt
-                                  }"
+                                    exit 1 # test failed 
+                                  } && cat install-time-test-log.txt"
                                 '''
                             }
                         }
