@@ -121,19 +121,12 @@ pipeline {
                                   spack external find cmake git libffi python && \
                                   spack external find cuda hip llvm-amdgpu hsa-rocr-dev && \
                                   echo 'spec...' && \
-                                  spack spec octotiger@develop ${spack_spec} && \
-                                  echo 'installing...' && \
-                                  spack install --verbose octotiger@develop ${spack_spec} && \
-                                  echo 'dev-build...' && \
-                                  spack dev-build --until cmake --test=root octotiger@develop ${spack_spec} && \
-                                  cd spack-build && \
-                                  echo 'build-env...' && \
-                                  spack build-env --dump build-env.sh octotiger@develop ${spack_spec} -- && \
-                                  echo 'sourcing...' && \
-                                  source build-env.sh && \
-                                  echo 'building...' && \
-                                  make -j32 VERBOSE=1 && \
-                                  ctest --output-on-failure "
+                                  spack spec octotiger@develop  && \
+                                  echo 'starting dev-build...' && {
+                                    spack dev-build -j32 --until build --test=root octotiger@develop ${spack_spec}  
+                                    cat spack-build0*
+                                    cat install-time-test-log.txt
+                                  }
                                 '''
                             }
                         }
