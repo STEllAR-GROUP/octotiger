@@ -3,6 +3,7 @@
 #SBATCH --time=24:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
+#SBATCH --gpus=1
 #SBATCH --partition=cuda-A100
 #SBATCH --nodelist=toranj0
 #SBATCH -e aggregation_test_cuda.out
