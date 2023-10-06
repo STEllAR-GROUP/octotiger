@@ -121,7 +121,7 @@ pipeline {
                                   spack external find cmake git libffi python && \
                                   spack external find cuda hip llvm-amdgpu hsa-rocr-dev && \
                                   echo 'spec...' && \
-                                  spack spec octotiger@develop  && \
+                                  spack spec octotiger@develop ${spack_spec} && \
                                   spack dev-build -j32 --until build --test=root octotiger@develop ${spack_spec} || {
                                     cat spack-build0*
                                     cat install-time-test-log.txt
