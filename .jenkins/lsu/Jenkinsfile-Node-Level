@@ -126,7 +126,7 @@ pipeline {
                                     spack dev-build -j32 --until build --test=root octotiger@develop ${spack_spec}  
                                     cat spack-build0*
                                     cat install-time-test-log.txt
-                                  }
+                                  }"
                                 '''
                             }
                         }
