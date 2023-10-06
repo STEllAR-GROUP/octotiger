@@ -49,9 +49,9 @@ pipeline {
                         // List of "tuples" containing the test run infomation
                         // Format: 
                         // spack octotiger spec ; run name ; required modules ; SLURM partition for this test
-                        values ' +cuda +kokkos cuda_arch=80 %gcc@11 ^hpx max_cpu_count=128 malloc=jemalloc %gcc@11 ^cppuddle%gcc@11 ^hpx-kokkos%gcc@11 ^kokkos@4.0.1%gcc@11 ^silo~mpi ;with-CC-with-cuda-with-kokkos;gcc/11 cuda/12;jenkins-A100 --gpus=1 --exclusive',\
-                               ' +cuda +kokkos cuda_arch=80 griddim=16 %gcc@11 ^hpx max_cpu_count=128 malloc=jemalloc%gcc@11 ^cppuddle%gcc@11 ^hpx-kokkos%gcc@11^kokkos@4.0.1%gcc@11 ^silo~mpi ;with-CC-with-cuda-with-kokkos-griddim16;gcc/11 cuda/12;jenkins-A100 --gpus=1 --exclusive',\
-                               ' ~cuda +kokkos %gcc@11 ^hpx max_cpu_count=128 malloc=jemalloc%gcc@11 ^cppuddle%gcc@11 ^hpx-kokkos%gcc@11 ^kokkos@4.0.1~cuda%gcc@11 ^silo~mpi ;with-CC-without-cuda-with-kokkos;gcc/11 cuda/12;jenkins-A100 --gpus=1 --exclusive',\
+                        values ' +cuda +kokkos cuda_arch=80 %gcc@11 ^hpx max_cpu_count=128 malloc=jemalloc %gcc@11 ^cppuddle%gcc@11 ^hpx-kokkos%gcc@11 ^kokkos@4.0.01%gcc@11 ^silo~mpi ;with-CC-with-cuda-with-kokkos;gcc/11 cuda/12;jenkins-A100 --gpus=1 --exclusive',\
+                               ' +cuda +kokkos cuda_arch=80 griddim=16 %gcc@11 ^hpx max_cpu_count=128 malloc=jemalloc%gcc@11 ^cppuddle%gcc@11 ^hpx-kokkos%gcc@11^kokkos@4.0.01%gcc@11 ^silo~mpi ;with-CC-with-cuda-with-kokkos-griddim16;gcc/11 cuda/12;jenkins-A100 --gpus=1 --exclusive',\
+                               ' ~cuda +kokkos %gcc@11 ^hpx max_cpu_count=128 malloc=jemalloc%gcc@11 ^cppuddle%gcc@11 ^hpx-kokkos%gcc@11 ^kokkos@4.0.01~cuda%gcc@11 ^silo~mpi ;with-CC-without-cuda-with-kokkos;gcc/11 cuda/12;jenkins-A100 --gpus=1 --exclusive',\
                                ' +cuda ~kokkos cuda_arch=80 ^hpx max_cpu_count=128 malloc=jemalloc%gcc@11 ^cppuddle%gcc@11 ^silo~mpi%gcc@11 ;with-CC-with-cuda-without-kokkos;gcc/11 cuda/12;jenkins-A100 --gpus=1 --exclusive',\
                                ' ~cuda ~kokkos %gcc@11 ^hpx max_cpu_count=128 malloc=jemalloc%gcc@11 ^cppuddle%gcc@11 ^silo~mpi ;with-CC-without-cuda-without-kokkos;gcc/11 cuda/12;jenkins-A100 --gpus=1 --exclusive',\
                                ' +cuda +kokkos cuda_arch=80 %clang@12 ^hpx max_cpu_count=128 malloc=jemalloc%clang@12 ^cppuddle%clang@12 ^hpx-kokkos%clang@12 ^kokkos%clang@12 ^silo~mpi ;with-CC-clang-with-cuda-with-kokkos;llvm/12 cuda/12;jenkins-A100 --gpus=1 --exclusive',\
@@ -121,12 +121,12 @@ pipeline {
                                   spack external find cmake git libffi python && \
                                   spack external find cuda hip llvm-amdgpu hsa-rocr-dev && \
                                   echo 'spec...' && \
-                                  spack spec octotiger@develop  && \
-                                  echo 'starting dev-build...' && {
-                                    spack dev-build -j32 --until build --test=root octotiger@develop ${spack_spec}  
+                                  spack spec octotiger@develop ${spack_spec} && \
+                                  spack dev-build -j32 --until build --test=root octotiger@develop ${spack_spec} || {
                                     cat spack-build0*
                                     cat install-time-test-log.txt
-                                  }"
+                                    exit 1 # test failed 
+                                  } && cat install-time-test-log.txt"
                                 '''
                             }
                         }
