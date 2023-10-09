@@ -48,25 +48,25 @@ pipeline {
                         name 'build_spec'
                         // List of "tuples" containing the test run infomation
                         // Format: 
-                        // spack octotiger spec ; run name ; required modules ; SLURM partition for this test
-                        values ' +cuda +kokkos cuda_arch=80 %gcc@11 ^hpx max_cpu_count=128 malloc=jemalloc %gcc@11 ^cppuddle%gcc@11 ^hpx-kokkos%gcc@11 ^kokkos@4.0.1%gcc@11 ^silo~mpi ;with-CC-with-cuda-with-kokkos;gcc/11 cuda/12;jenkins-A100 --gpus=1 --exclusive',\
-                               ' +cuda +kokkos cuda_arch=80 griddim=16 %gcc@11 ^hpx max_cpu_count=128 malloc=jemalloc%gcc@11 ^cppuddle%gcc@11 ^hpx-kokkos%gcc@11^kokkos@4.0.1%gcc@11 ^silo~mpi ;with-CC-with-cuda-with-kokkos-griddim16;gcc/11 cuda/12;jenkins-A100 --gpus=1 --exclusive',\
-                               ' ~cuda +kokkos %gcc@11 ^hpx max_cpu_count=128 malloc=jemalloc%gcc@11 ^cppuddle%gcc@11 ^hpx-kokkos%gcc@11 ^kokkos@4.0.1~cuda%gcc@11 ^silo~mpi ;with-CC-without-cuda-with-kokkos;gcc/11 cuda/12;jenkins-A100 --gpus=1 --exclusive',\
-                               ' +cuda ~kokkos cuda_arch=80 ^hpx max_cpu_count=128 malloc=jemalloc%gcc@11 ^cppuddle%gcc@11 ^silo~mpi%gcc@11 ;with-CC-with-cuda-without-kokkos;gcc/11 cuda/12;jenkins-A100 --gpus=1 --exclusive',\
-                               ' ~cuda ~kokkos %gcc@11 ^hpx max_cpu_count=128 malloc=jemalloc%gcc@11 ^cppuddle%gcc@11 ^silo~mpi ;with-CC-without-cuda-without-kokkos;gcc/11 cuda/12;jenkins-A100 --gpus=1 --exclusive',\
-                               ' +cuda +kokkos cuda_arch=80 %clang@12 ^hpx max_cpu_count=128 malloc=jemalloc%clang@12 ^cppuddle%clang@12 ^hpx-kokkos%clang@12 ^kokkos%clang@12 ^silo~mpi ;with-CC-clang-with-cuda-with-kokkos;llvm/12 cuda/12;jenkins-A100 --gpus=1 --exclusive',\
-                               ' +cuda +kokkos cuda_arch=80 griddim=16 %clang@12 ^hpx max_cpu_count=128 malloc=jemalloc%clang@12 ^cppuddle%clang@12 ^hpx-kokkos%clang@12 ^kokkos%clang@12^silo~mpi ;with-CC-clang-with-cuda-with-kokkos-griddim16;llvm/12 cuda/12;jenkins-A100 --gpus=1 --exclusive',\
-                               ' ~cuda +kokkos %clang@12^hpx max_cpu_count=128 malloc=jemalloc%clang@12 ^cppuddle%clang@12 ^hpx-kokkos%clang@12 ^kokkos%clang@12 ^silo~mpi ;with-CC-clang-without-cuda-with-kokkos;llvm/12 cuda/12;jenkins-A100 --gpus=1 --exclusive',\
-                               ' +cuda ~kokkos cuda_arch=80 %clang@12 ^hpx max_cpu_count=128 malloc=jemalloc%clang@12 ^cppuddle%clang@12 ^silo~mpi ;with-CC-clang-with-cuda-without-kokkos;llvm/12 cuda/12;jenkins-A100 --gpus=1 --exclusive',\
-                               ' ~cuda ~kokkos %clang@12 ^hpx max_cpu_count=128 malloc=jemalloc%clang@12 ^cppuddle%clang@12 ^silo~mpi ;with-CC-clang-without-cuda-without-kokkos;llvm/12 cuda/12;jenkins-A100 --gpus=1 --exclusive',\
-                               ' +rocm+kokkos amdgpu_target=gfx908%rocmcc@5.4.6 ^asio@1.16.0^hpx max_cpu_count=128 amdgpu_target=gfx908%rocmcc@5.4.6 ^kokkos@4.0.01 amdgpu_target=gfx908%rocmcc@5.4.6 ^cppuddle%rocmcc@5.4.6 ^hpx-kokkos%rocmcc@5.4.6 ^silo~mpi%gcc@11 ;with-CC-clang-with-hip-with-kokkos;rocm/5.4.6 gcc/11;jenkins-amdgpu --exclusive',\
-                               ' +kokkos simd_extension=SCALAR simd_library=STD %gcc@11^hpx max_cpu_count=128 malloc=jemalloc%gcc@11 ^kokkos%gcc@11 ^hpx-kokkos%gcc@11 ^cppuddle%gcc@11 ^silo~mpi ;with-CC-with-std-with-scalar;gcc/11;medusa --exclusive',\
-                               ' +kokkos simd_extension=AVX512 simd_library=STD %gcc@11^hpx max_cpu_count=128 malloc=jemalloc%gcc@11 ^kokkos%gcc@11 ^hpx-kokkos%gcc@11 ^cppuddle%gcc@11 ^silo~mpi ;with-CC-with-std-with-avx512;gcc/11;medusa --exclusive',\
-                               ' +kokkos +kokkos_hpx_kernels multipole_host_tasks=16 monopole_host_tasks=4 hydro_host_tasks=4 simd_extension=AVX512 simd_library=STD %gcc@11^hpx max_cpu_count=128 malloc=jemalloc%gcc@11 ^kokkos%gcc@11 ^hpx-kokkos%gcc@11 ^cppuddle%gcc@11 ^silo~mpi ;with-CC-with-std-with-avx512-with-hpx-kokkos-kernels;gcc/11;medusa --exclusive',\
-                               ' +kokkos simd_extension=SCALAR simd_library=KOKKOS %gcc@11^hpx max_cpu_count=128 malloc=jemalloc%gcc@11 ^kokkos%gcc@11 ^hpx-kokkos%gcc@11 ^cppuddle%gcc@11 ^silo~mpi ;with-CC-with-kokkos-with-scalar;gcc/11;medusa --exclusive',\
-                               ' +kokkos simd_extension=AVX512 simd_library=KOKKOS %gcc@11^hpx max_cpu_count=128 malloc=jemalloc%gcc@11 ^kokkos%gcc@11 ^hpx-kokkos%gcc@11 ^cppuddle%gcc@11 ^silo~mpi ;with-CC-with-kokkos-with-avx512;gcc/11;medusa --exclusive',\
-                               ' +kokkos +kokkos_hpx_kernels multipole_host_tasks=16 monopole_host_tasks=4 hydro_host_tasks=4 simd_extension=AVX512 simd_library=KOKKOS %gcc@11^hpx max_cpu_count=128 malloc=jemalloc%gcc@11 ^kokkos%gcc@11 ^hpx-kokkos%gcc@11 ^cppuddle%gcc@11 ^silo~mpi ;with-CC-with-kokkos-with-avx512-with-hpx-kokkos-kernels;gcc/11;medusa --exclusive',\
-                               ' -cuda -rocm +sycl %gcc@11 ^kokkos@4.0.01 use_unsupported_sycl_arch=70 ^hpx sycl_target_arch=70;with-CC-with-kokkos-with-sycl;gcc/11 cuda/12;cuda-V100 --gpus=1 --exclusive'
+                        // spack octotiger spec ; run name ; required modules ; SLURM partition for this test ; additional flags for spack dev-build
+                        values ' +cuda +kokkos cuda_arch=80 %gcc@11 ^hpx max_cpu_count=128 malloc=jemalloc %gcc@11 ^cppuddle%gcc@11 ^hpx-kokkos%gcc@11 ^kokkos@4.0.01%gcc@11 ^silo~mpi ;with-CC-with-cuda-with-kokkos;gcc/11 cuda/12;jenkins-A100 --gpus=1 --exclusive;--fresh',\
+                               ' +cuda +kokkos cuda_arch=80 griddim=16 %gcc@11 ^hpx max_cpu_count=128 malloc=jemalloc%gcc@11 ^cppuddle%gcc@11 ^hpx-kokkos%gcc@11^kokkos@4.0.01%gcc@11 ^silo~mpi ;with-CC-with-cuda-with-kokkos-griddim16;gcc/11 cuda/12;jenkins-A100 --gpus=1 --exclusive;--fresh',\
+                               ' ~cuda +kokkos %gcc@11 ^hpx max_cpu_count=128 malloc=jemalloc%gcc@11 ^cppuddle%gcc@11 ^hpx-kokkos%gcc@11 ^kokkos@4.0.01~cuda%gcc@11 ^silo~mpi ;with-CC-without-cuda-with-kokkos;gcc/11 cuda/12;jenkins-A100 --gpus=1 --exclusive;--fresh',\
+                               ' +cuda ~kokkos cuda_arch=80 ^hpx max_cpu_count=128 malloc=jemalloc%gcc@11 ^cppuddle%gcc@11 ^silo~mpi%gcc@11 ;with-CC-with-cuda-without-kokkos;gcc/11 cuda/12;jenkins-A100 --gpus=1 --exclusive;--fresh',\
+                               ' ~cuda ~kokkos %gcc@11 ^hpx max_cpu_count=128 malloc=jemalloc%gcc@11 ^cppuddle%gcc@11 ^silo~mpi ;with-CC-without-cuda-without-kokkos;gcc/11 cuda/12;jenkins-A100 --gpus=1 --exclusive;--fresh',\
+                               ' +cuda +kokkos cuda_arch=80 %clang@12 ^hpx max_cpu_count=128 malloc=jemalloc%clang@12 ^cppuddle%clang@12 ^hpx-kokkos%clang@12 ^kokkos%clang@12 ^silo~mpi ;with-CC-clang-with-cuda-with-kokkos;llvm/12 cuda/12;jenkins-A100 --gpus=1 --exclusive;--fresh',\
+                               ' +cuda +kokkos cuda_arch=80 griddim=16 %clang@12 ^hpx max_cpu_count=128 malloc=jemalloc%clang@12 ^cppuddle%clang@12 ^hpx-kokkos%clang@12 ^kokkos%clang@12^silo~mpi ;with-CC-clang-with-cuda-with-kokkos-griddim16;llvm/12 cuda/12;jenkins-A100 --gpus=1 --exclusive;--fresh',\
+                               ' ~cuda +kokkos %clang@12^hpx max_cpu_count=128 malloc=jemalloc%clang@12 ^cppuddle%clang@12 ^hpx-kokkos%clang@12 ^kokkos%clang@12 ^silo~mpi ;with-CC-clang-without-cuda-with-kokkos;llvm/12 cuda/12;jenkins-A100 --gpus=1 --exclusive;--fresh',\
+                               ' +cuda ~kokkos cuda_arch=80 %clang@12 ^hpx max_cpu_count=128 malloc=jemalloc%clang@12 ^cppuddle%clang@12 ^silo~mpi ;with-CC-clang-with-cuda-without-kokkos;llvm/12 cuda/12;jenkins-A100 --gpus=1 --exclusive;--fresh',\
+                               ' ~cuda ~kokkos %clang@12 ^hpx max_cpu_count=128 malloc=jemalloc%clang@12 ^cppuddle%clang@12 ^silo~mpi ;with-CC-clang-without-cuda-without-kokkos;llvm/12 cuda/12;jenkins-A100 --gpus=1 --exclusive;--fresh',\
+                               ' +rocm+kokkos amdgpu_target=gfx908%rocmcc@5.4.6 ^asio@1.16.0^hpx max_cpu_count=128 amdgpu_target=gfx908%rocmcc@5.4.6 ^kokkos@4.0.01 amdgpu_target=gfx908%rocmcc@5.4.6 ^cppuddle%rocmcc@5.4.6 ^hpx-kokkos%rocmcc@5.4.6 ^silo~mpi%gcc@11 ;with-CC-clang-with-hip-with-kokkos;rocm/5.4.6 gcc/11;jenkins-amdgpu --exclusive;--fresh --dirty',\
+                               ' +kokkos simd_extension=SCALAR simd_library=STD %gcc@11^hpx max_cpu_count=128 malloc=jemalloc%gcc@11 ^kokkos%gcc@11 ^hpx-kokkos%gcc@11 ^cppuddle%gcc@11 ^silo~mpi ;with-CC-with-std-with-scalar;gcc/11;medusa --exclusive;--fresh',\
+                               ' +kokkos simd_extension=AVX512 simd_library=STD %gcc@11^hpx max_cpu_count=128 malloc=jemalloc%gcc@11 ^kokkos%gcc@11 ^hpx-kokkos%gcc@11 ^cppuddle%gcc@11 ^silo~mpi ;with-CC-with-std-with-avx512;gcc/11;medusa --exclusive;--fresh',\
+                               ' +kokkos +kokkos_hpx_kernels multipole_host_tasks=16 monopole_host_tasks=4 hydro_host_tasks=4 simd_extension=AVX512 simd_library=STD %gcc@11^hpx max_cpu_count=128 malloc=jemalloc%gcc@11 ^kokkos%gcc@11 ^hpx-kokkos%gcc@11 ^cppuddle%gcc@11 ^silo~mpi ;with-CC-with-std-with-avx512-with-hpx-kokkos-kernels;gcc/11;medusa --exclusive;--fresh',\
+                               ' +kokkos simd_extension=SCALAR simd_library=KOKKOS %gcc@11^hpx max_cpu_count=128 malloc=jemalloc%gcc@11 ^kokkos%gcc@11 ^hpx-kokkos%gcc@11 ^cppuddle%gcc@11 ^silo~mpi ;with-CC-with-kokkos-with-scalar;gcc/11;medusa --exclusive;--fresh',\
+                               ' +kokkos simd_extension=AVX512 simd_library=KOKKOS %gcc@11^hpx max_cpu_count=128 malloc=jemalloc%gcc@11 ^kokkos%gcc@11 ^hpx-kokkos%gcc@11 ^cppuddle%gcc@11 ^silo~mpi ;with-CC-with-kokkos-with-avx512;gcc/11;medusa --exclusive;--fresh',\
+                               ' +kokkos +kokkos_hpx_kernels multipole_host_tasks=16 monopole_host_tasks=4 hydro_host_tasks=4 simd_extension=AVX512 simd_library=KOKKOS %gcc@11^hpx max_cpu_count=128 malloc=jemalloc%gcc@11 ^kokkos%gcc@11 ^hpx-kokkos%gcc@11 ^cppuddle%gcc@11 ^silo~mpi ;with-CC-with-kokkos-with-avx512-with-hpx-kokkos-kernels;gcc/11;medusa --exclusive;--fresh',\
+                               ' -cuda -rocm +sycl %gcc@11 ^kokkos@4.0.01 use_unsupported_sycl_arch=70 ^hpx sycl_target_arch=70;with-CC-with-kokkos-with-sycl;gcc/11 cuda/12;cuda-V100 --gpus=1 --exclusive;--fresh'
                     }
                 }
                 stages {
@@ -104,6 +104,7 @@ pipeline {
                                 build_description=$(echo "${build_spec}" | cut -d ";" -f 2)
                                 required_modules=$(echo "${build_spec}" | cut -d ";" -f 3)
                                 slurm_partition=$(echo "${build_spec}" | cut -d ";" -f 4)
+                                extra_spack_flags=$(echo "${build_spec}" | cut -d ";" -f 5)
                                 # Setup Spack
                                 # The jenkins_spack_install folder is initialized by a separate, manual jenkisn pipeline
                                 source ${HOME}/jenkins_spack_install/share/spack/setup-env.sh
@@ -120,20 +121,11 @@ pipeline {
                                   spack external find && \
                                   spack external find cmake git libffi python && \
                                   spack external find cuda hip llvm-amdgpu hsa-rocr-dev && \
-                                  echo 'spec...' && \
-                                  spack spec octotiger@develop ${spack_spec} && \
-                                  echo 'installing...' && \
-                                  spack install --verbose octotiger@develop ${spack_spec} && \
-                                  echo 'dev-build...' && \
-                                  spack dev-build --until cmake --test=root octotiger@develop ${spack_spec} && \
-                                  cd spack-build && \
-                                  echo 'build-env...' && \
-                                  spack build-env --dump build-env.sh octotiger@develop ${spack_spec} -- && \
-                                  echo 'sourcing...' && \
-                                  source build-env.sh && \
-                                  echo 'building...' && \
-                                  make -j32 VERBOSE=1 && \
-                                  ctest --output-on-failure "
+                                  spack spec --fresh octotiger@develop ${spack_spec} && \
+                                  spack dev-build -j32 ${extra_spack_flags} --until build --test=root octotiger@develop ${spack_spec} || {
+                                    cat install-time-test-log.txt
+                                    exit 1 # test failed 
+                                  } && cat install-time-test-log.txt"
                                 '''
                             }
                         }
