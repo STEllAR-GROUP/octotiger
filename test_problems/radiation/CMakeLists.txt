@@ -134,9 +134,11 @@ function(test_radiation_diffusion_scenario test_name test_log_file reference_fil
   )
 endfunction()
 
-# Rotating Star - OLD CPU
-# TODO Add radiation kernel variants once there is more than one available...
-test_radiation_diffusion_scenario(test_problems.cpu.am_hydro_on.radiation_diffusion_legacy radiation_diffusion_am_hydro_on_old_log.txt ${silo_scenario_filename} " --hydro_device_kernel_type=OFF ")
+if (OCTOTIGER_WITH_GRIDDIM EQUAL 8)
+  # Rotating Star - OLD CPU
+  # TODO Add radiation kernel variants once there is more than one available...
+  test_radiation_diffusion_scenario(test_problems.cpu.am_hydro_on.radiation_diffusion_legacy radiation_diffusion_am_hydro_on_old_log.txt ${silo_scenario_filename} " --hydro_device_kernel_type=OFF ")
+endif()
 
 function(test_radiation_coupling_scenario test_name test_log_file kernel_parameters)
   add_test(NAME ${test_name}
@@ -157,6 +159,8 @@ function(test_radiation_coupling_scenario test_name test_log_file kernel_paramet
   )
 endfunction()
 
-# Rotating Star - OLD CPU
-# TODO Add radiation kernel variants once there is more than one available...
-test_radiation_coupling_scenario(test_problems.cpu.am_hydro_on.radiation_coupling_legacy radiation_coupling_am_hydro_on_old_log.txt " --hydro_device_kernel_type=OFF ")
+if (OCTOTIGER_WITH_GRIDDIM EQUAL 8)
+  # Rotating Star - OLD CPU
+  # TODO Add radiation kernel variants once there is more than one available...
+  test_radiation_coupling_scenario(test_problems.cpu.am_hydro_on.radiation_coupling_legacy radiation_coupling_am_hydro_on_old_log.txt " --hydro_device_kernel_type=OFF ")
+endif()
