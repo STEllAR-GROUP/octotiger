@@ -1,7 +1,8 @@
 #include "frontend-helper.hpp"
+#ifdef OCTOTIGER_HAVE_KOKKOS
+#include "octotiger/common_kernel/kokkos_util.hpp"
+#endif
 #ifdef OCTOTIGER_HAVE_CUDA
-#include <stream_manager.hpp>
-#include "octotiger/cuda_util/cuda_helper.hpp"
 #include "octotiger/cuda_util/cuda_scheduler.hpp"
 #include "octotiger/monopole_interactions/legacy/cuda_monopole_interaction_interface.hpp"
 #include "octotiger/multipole_interactions/legacy/cuda_multipole_interaction_interface.hpp"
@@ -59,10 +60,13 @@
 #endif
 
 #ifdef OCTOTIGER_HAVE_KOKKOS
-#include "octotiger/common_kernel/kokkos_util.hpp"
 #include "octotiger/monopole_interactions/kernel/kokkos_kernel.hpp"
 #include "octotiger/multipole_interactions/kernel/kokkos_kernel.hpp"
 #include "octotiger/unitiger/hydro_impl/hydro_kokkos_kernel.hpp"
+#endif
+#ifdef OCTOTIGER_HAVE_CUDA
+#include <stream_manager.hpp>
+#include "octotiger/cuda_util/cuda_helper.hpp"
 #endif
 
 // In case we build without kokkos we want the cuda futures to default
