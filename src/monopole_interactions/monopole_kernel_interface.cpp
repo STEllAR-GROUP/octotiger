@@ -5,6 +5,10 @@
 //
 //
 
+#ifdef OCTOTIGER_HAVE_KOKKOS
+#include <hpx/kokkos.hpp>
+#endif
+
 #include "octotiger/monopole_interactions/monopole_kernel_interface.hpp"
 #include "octotiger/monopole_interactions/legacy/cuda_monopole_interaction_interface.hpp"
 #include "octotiger/options.hpp"
@@ -22,10 +26,6 @@
 #include <aligned_buffer_util.hpp>
 #include <buffer_manager.hpp>
 #include <stream_manager.hpp>
-
-#ifdef OCTOTIGER_HAVE_KOKKOS
-#include <hpx/kokkos.hpp>
-#endif
 
 #include "octotiger/options.hpp"
 

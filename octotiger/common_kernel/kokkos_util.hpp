@@ -4,7 +4,6 @@
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 //
 #pragma once
-#include <aggregation_manager.hpp>
 #include <hpx/futures/future.hpp>
 #include <hpx/kokkos/executors.hpp>
 #ifdef OCTOTIGER_HAVE_KOKKOS
@@ -20,6 +19,7 @@
 // Executor types / helpers
 // ============================================================ 
 #include <stream_manager.hpp>
+#include <aggregation_manager.hpp>
 
 #if defined(KOKKOS_ENABLE_CUDA)
 using kokkos_device_executor = hpx::kokkos::cuda_executor;
