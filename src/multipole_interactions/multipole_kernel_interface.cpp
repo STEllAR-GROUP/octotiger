@@ -4,6 +4,11 @@
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 //
 //
+
+#ifdef OCTOTIGER_HAVE_KOKKOS
+#include <hpx/kokkos.hpp>
+#endif
+
 #include "octotiger/multipole_interactions/multipole_kernel_interface.hpp"
 #include "octotiger/multipole_interactions/legacy/cuda_multipole_interaction_interface.hpp"
 #include "octotiger/options.hpp"
@@ -21,10 +26,6 @@
 #include <aligned_buffer_util.hpp>
 #include <buffer_manager.hpp>
 #include <stream_manager.hpp>
-
-#ifdef OCTOTIGER_HAVE_KOKKOS
-#include <hpx/kokkos.hpp>
-#endif
 
 #include "octotiger/options.hpp"
 

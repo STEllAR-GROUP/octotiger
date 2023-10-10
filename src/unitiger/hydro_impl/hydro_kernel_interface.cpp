@@ -5,15 +5,16 @@
 //
 
 /* #undef NDEBUG */
+#ifdef OCTOTIGER_HAVE_KOKKOS
+#include <hpx/kokkos/executors.hpp>
+#include <hpx/kokkos.hpp>
+#endif
 #include "octotiger/unitiger/hydro_impl/hydro_kernel_interface.hpp"
 #include "octotiger/unitiger/hydro_impl/flux_kernel_interface.hpp"
 #include "octotiger/unitiger/hydro_impl/hydro_performance_counters.hpp"
 #ifdef OCTOTIGER_HAVE_KOKKOS
-#include <hpx/kokkos/executors.hpp>
-#include <hpx/kokkos.hpp>
 #include "octotiger/unitiger/hydro_impl/hydro_kokkos_kernel.hpp"
 #endif
-
 #if defined(OCTOTIGER_HAVE_KOKKOS)
 hpx::once_flag init_hydro_kokkos_pool_flag;
 #if defined(KOKKOS_ENABLE_CUDA)
