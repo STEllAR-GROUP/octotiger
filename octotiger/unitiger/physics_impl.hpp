@@ -99,7 +99,7 @@ void physics<NDIM>::to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v
 		const auto t0 = mu_avg * ein * (fgamma_ - 1.0) / (IPR_IC_ * rho); // the first guess assumes only thermal pressure
 		// gets temperature according to total internal energy by the Newton-Raphson method
 		auto t = pres_IPR(t0, 1.0, IPR_IC_ * rho / (mu_avg * ein * (fgamma_ - 1.0)), IPR_RC_ / ein, it_num, IPR_NR_tol, IPR_NR_maxiter);
-//		print("Tgas = %.15e,  %.15e * %.15e * %.15e + %.15e * %.15e^4 = %.15e\n", t0, IC_ / mu_avg / (fgamma_ - 1.0), rho, t, RC_, t, ein);
+//		printf("Tgas = %.15e,  %.15e * %.15e * %.15e + %.15e * %.15e^4 = %.15e\n", t0, IC_ / mu_avg / (fgamma_ - 1.0), rho, t, RC_, t, ein);
 //		printf("Newton solution: %15e after %i\n", t, it_num);		
 		p = IPR_IC_ * rho * t / mu_avg + IPR_RC_ * t * t * t * t / 3.0;
 
@@ -128,7 +128,7 @@ void physics<NDIM>::to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v
 		z = p * gamma1 * rhoinv;
 	//	printf("p = %e, cs^2 = %e, gamma = %e\n", p, z, fgamma_);
 		if( z < 0.0 ) {
-			print( "%e %e %e %e %e %e %e %e %e\n", p, rhoinv, gamma1, t, ein, beta, mu_avg, ek, edeg);
+			printf( "%e %e %e %e %e %e %e %e %e\n", p, rhoinv, gamma1, t, ein, beta, mu_avg, ek, edeg);
 		}
 	} else { // WD or ideal eos
                 if (ein <= de_switch_1 * u[egas_i]) {
@@ -139,7 +139,7 @@ void physics<NDIM>::to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v
                 p = (fgamma_ - 1.0) * ein + pdeg;
                 z = p * rhoinv * rhoinv * dp_deps + dp_drho;
                 if( z < 0.0 ) {
-                        print( "%e %e %e %e %e %e %e %e %e\n", p, rhoinv, dpdeg_drho, dp_deps, ein, dp_drho, u[tau_i], ek, edeg);
+                        printf( "%e %e %e %e %e %e %e %e %e\n", p, rhoinv, dpdeg_drho, dp_deps, ein, dp_drho, u[tau_i], ek, edeg);
                 }
 	}
 	v = u[sx_i + dim] * rhoinv;
@@ -481,7 +481,7 @@ const std::vector<std::vector<safe_real>>& physics<NDIM>::find_contact_discs(con
 				}
 				auto ein = U[egas_i][i] - ek - edeg;
 				if (ein < de_switch_1 * U[egas_i][i]) {
-					//	print( "%e\n", U[tau_i][i]);
+					//	printf( "%e\n", U[tau_i][i]);
 					ein = pow(U[tau_i][i], fgamma_);
 				}
 				P[i] = (fgamma_ - 1.0) * ein + pdeg;
@@ -600,7 +600,7 @@ void physics<NDIM>::post_recon(std::vector<std::vector<std::vector<safe_real>>> 
 							Q[spc_i + si][d][i] *= rho;
 						}
 						if (w <= 0.0) {
-							print("NO SPECIES %i\n", i);
+							printf("NO SPECIES %i\n", i);
 							abort();
 						}
 						w = 1.0 / w;

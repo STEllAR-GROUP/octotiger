@@ -37,6 +37,7 @@ set(CMAKE_CXX_STANDARD ${OCTOTIGER_CXX_STANDARD})
 # Options
 ################################################################################
 option(OCTOTIGER_DISABLE_ILIST "Disables the interaction list to allow larger sub-grids for hydro-only scenarios!" OFF)
+option(OCTOTIGER_WITH_UNBUFFERED_STDOUT "Disable stdout buffering on all localities for debugging" OFF)
 option(OCTOTIGER_WITH_GRAV_PAR "Enable parallelism in gravitational solver" OFF)
 option(OCTOTIGER_WITH_RADIATION "Enable radiation transport solver" OFF)
 option(OCTOTIGER_WITH_CUDA "Enable CUDA kernels" OFF)
@@ -57,7 +58,6 @@ option(OCTOTIGER_WITH_AVX2 "" OFF)
 option(OCTOTIGER_WITH_AVX512 "" OFF)
 
 option(OCTOTIGER_WITH_TESTS "Enable tests" ON)
-set(OCTOTIGER_WITH_GRIDDIM "8" CACHE STRING "Grid size")
 set(OCTOTIGER_WITH_GRIDDIM "8" CACHE STRING "Grid size")
 set(OCTOTIGER_WITH_MAX_NUMBER_FIELDS "15" CACHE STRING "Maximum allowed nf_ (number fields)")
 set(OCTOTIGER_THETA_MINIMUM "0.34" CACHE STRING "Minimal allowed theta value - important for optimizations")
@@ -210,6 +210,7 @@ set(source_files
     src/taylor.cpp
     src/util.cpp
     src/common_kernel/interactions_iterators.cpp
+    src/common_kernel/gravity_performance_counters.cpp
     src/cuda_util/cuda_scheduler.cpp
     src/monopole_interactions/legacy/cuda_monopole_interaction_interface.cpp
     src/monopole_interactions/legacy/monopole_cuda_kernel.cpp
@@ -286,6 +287,7 @@ set(header_files
     octotiger/common_kernel/struct_of_array_data.hpp
     octotiger/common_kernel/kokkos_util.hpp
     octotiger/common_kernel/std_simd.hpp
+    octotiger/common_kernel/gravity_performance_counters.hpp
     octotiger/compute_factor.hpp
     octotiger/cuda_util/cuda_global_def.hpp
     octotiger/cuda_util/cuda_helper.hpp
@@ -361,6 +363,7 @@ set(hydro_header_files
     octotiger/unitiger/hydro_impl/hydro.hpp
     octotiger/unitiger/hydro_impl/reconstruct.hpp
     octotiger/unitiger/hydro_impl/flux.hpp
+    octotiger/unitiger/hydro_impl/hydro_performance_counters.hpp
     octotiger/unitiger/radiation/radiation_physics.hpp
     octotiger/unitiger/radiation/radiation_physics_impl.hpp
     octotiger/test_problems/exact_sod.hpp
@@ -373,6 +376,7 @@ set(hydro_source_files
    src/unitiger/hydro_impl/reconstruct_cuda_kernel.cpp
    src/unitiger/hydro_impl/hydro_kernel_interface.cpp
    src/unitiger/hydro_impl/hydro_cuda_interface.cpp
+   src/unitiger/hydro_impl/hydro_performance_counters.cpp
    src/test_problems/sod/exact_sod.cpp)
 
 set(cu_source_files
@@ -445,23 +449,23 @@ if(OCTOTIGER_WITH_CUDA)
       # -DSTRICT_ANSI__ resolves the issue of clang trying to pull in float128 stuff in the standard libs for the GPU pass
       #set_source_files_properties(${cu_source_files} ${hydro_cu_source_files} PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
       if (OCTOTIGER_WITH_FAST_FP_CONTRACT)
-        set_source_files_properties(${source_files} ${header_files} ${hydro_source_files} ${hydro_header_files} frontend/frontend-helper.cpp PROPERTIES COMPILE_FLAGS "  -x c++")
+        set_source_files_properties(${source_files} ${header_files} ${hydro_source_files} ${hydro_header_files} frontend/frontend-helper.cpp PROPERTIES COMPILE_FLAGS " ${OCTOTIGER_ARCH_FLAG} -x c++")
         set_source_files_properties(${hydro_cu_source_files} ${cu_source_files} src/monopole_interactions/monopole_kernel_interface.cpp
-        src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
+          src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast ${OCTOTIGER_ARCH_FLAG} --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
         #-fassociative-math  kills it?
-        set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
-        set_source_files_properties(src/multipole_interactions/monopole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
+        set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast ${OCTOTIGER_ARCH_FLAG} --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
+        set_source_files_properties(src/multipole_interactions/monopole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast ${OCTOTIGER_ARCH_FLAG} --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
         # hydro needs no assiociate math
-        set_source_files_properties(src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
+        set_source_files_properties(src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast ${OCTOTIGER_ARCH_FLAG} --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
       else()
-        set_source_files_properties(${source_files} ${header_files} ${hydro_source_files} ${hydro_header_files} frontend/frontend-helper.cpp PROPERTIES COMPILE_FLAGS "  -x c++")
+        set_source_files_properties(${source_files} ${header_files} ${hydro_source_files} ${hydro_header_files} frontend/frontend-helper.cpp PROPERTIES COMPILE_FLAGS " ${OCTOTIGER_ARCH_FLAG} -x c++")
         set_source_files_properties(${hydro_cu_source_files} ${cu_source_files} src/monopole_interactions/monopole_kernel_interface.cpp
-        src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=off --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
+        src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=off ${OCTOTIGER_ARCH_FLAG} --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
         #-fassociative-math  kills it?
-        set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=off --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
-        set_source_files_properties(src/multipole_interactions/monopole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=off --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
+        set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=off ${OCTOTIGER_ARCH_FLAG} --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
+        set_source_files_properties(src/multipole_interactions/monopole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=off ${OCTOTIGER_ARCH_FLAG} --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
         # hydro needs no assiociate math
-        set_source_files_properties(src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=off --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
+        set_source_files_properties(src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=off ${OCTOTIGER_ARCH_FLAG} --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
       endif()
 
     else()
@@ -892,6 +896,12 @@ else()
 endif()
 
 # Interaction list disabled?
+if(OCTOTIGER_WITH_UNBUFFERED_STDOUT)
+  message(STATUS "Octo-Tiger: Using unbuffered stdout on all localities!")
+  target_compile_definitions(octotiger PUBLIC OCTOTIGER_HAVE_UNBUFFERED_STDOUT)
+endif()
+
+# Interaction list disabled?
 if(OCTOTIGER_DISABLE_ILIST)
   message(STATUS "Octo-Tiger: Interaction list is disabled -> hydro-only build!")
   target_compile_definitions(octotiger PUBLIC OCTOTIGER_DISABLE_ILIST)
@@ -970,6 +980,36 @@ if(OCTOTIGER_WITH_DOCU)
   add_subdirectory(doc)    
 endif()
 
+find_package(Git)
+if(GIT_FOUND)
+  execute_process(
+    COMMAND "${GIT_EXECUTABLE}" "log" "--pretty=%H" "-1"
+            "${PROJECT_SOURCE_DIR}"
+    WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+    OUTPUT_VARIABLE OCTOTIGER_WITH_GIT_COMMIT
+    ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+  execute_process(
+    COMMAND "${GIT_EXECUTABLE}" "log" "--pretty=%s" "-1"
+            "${PROJECT_SOURCE_DIR}"
+    WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+    OUTPUT_VARIABLE OCTOTIGER_WITH_GIT_COMMIT_MESSAGE
+    ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+  execute_process(
+    COMMAND "${GIT_EXECUTABLE}" "status" "-s" 
+            "${PROJECT_SOURCE_DIR}"
+    WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+    OUTPUT_VARIABLE OCTOTIGER_WITH_GIT_REPO_MODIFIED
+    ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+  message(INFO " Used Octo-Tiger commit: ${OCTOTIGER_WITH_GIT_COMMIT}")
+  target_compile_definitions(octotiger PUBLIC -DOCTOTIGER_GIT_COMMIT_HASH="${OCTOTIGER_WITH_GIT_COMMIT}")
+  target_compile_definitions(octotiger PUBLIC -DOCTOTIGER_GIT_COMMIT_MESSAGE="${OCTOTIGER_WITH_GIT_COMMIT_MESSAGE}")
+  if (NOT ("${OCTOTIGER_WITH_GIT_REPO_MODIFIED}" STREQUAL ""))
+    target_compile_definitions(octotiger PUBLIC -DOCTOTIGER_GIT_REPO_DIRTY)
+  endif()
+endif()
 
 ################################################################################
 # Tool targets

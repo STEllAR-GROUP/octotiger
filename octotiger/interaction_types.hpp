@@ -156,6 +156,6 @@ struct boundary_interaction_type
 #include <boost/algorithm/string.hpp>
 
 COMMAND_LINE_ENUM(interaction_host_kernel_type,DEVICE_ONLY,LEGACY,VC,KOKKOS);
-COMMAND_LINE_ENUM(interaction_device_kernel_type,OFF,CUDA,HIP,KOKKOS_CUDA,KOKKOS_HIP);
+COMMAND_LINE_ENUM(interaction_device_kernel_type,OFF,CUDA,HIP,KOKKOS_CUDA,KOKKOS_HIP,KOKKOS_SYCL);
 COMMAND_LINE_ENUM(amr_boundary_type,AMR_LEGACY,AMR_OPTIMIZED,AMR_CUDA);
 

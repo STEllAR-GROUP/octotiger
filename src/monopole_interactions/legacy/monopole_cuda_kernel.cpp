@@ -12,9 +12,13 @@
 namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
+        // This disables the constant memory optimization when the stencil gets too large
+        // Note: This renders the CUDA versions non-functional -- however there is a mechanism
+        // in place which throws an error if a user tries to use the CUDA kernel in this configuration
+        constexpr size_t constant_stencil_size = (FULL_STENCIL_SIZE > 1331) ? 1 : FULL_STENCIL_SIZE;
         // __constant__ octotiger::fmm::multiindex<> device_stencil_const[P2P_PADDED_STENCIL_SIZE];
-        __device__ __constant__ bool device_stencil_masks[FULL_STENCIL_SIZE];
-        __device__ __constant__ double device_four_constants[FULL_STENCIL_SIZE * 4];
+        __device__ __constant__ bool device_stencil_masks[constant_stencil_size];
+        __device__ __constant__ double device_four_constants[constant_stencil_size * 4];
 
         __host__ void init_stencil(size_t gpu_id, std::unique_ptr<bool[]> stencil_masks,
             std::unique_ptr<double[]> four_constants_tmp) {
@@ -156,7 +160,7 @@ namespace fmm {
             dim3 const threads_per_block, const double *monopoles, 
             double *tmp_potential_expansions,
             const double theta, const double dx,
-            hipStream_t& stream) {
+            hipStream_t const& stream) {
             hipLaunchKernelGGL(cuda_p2p_interactions_kernel, grid_spec, threads_per_block,
                 0, stream, monopoles, tmp_potential_expansions, 
                 theta, dx);
@@ -174,7 +178,7 @@ namespace fmm {
             dim3 const threads_per_block, 
             double *tmp_potential_expansions,
             double *potential_expansions,
-            hipStream_t& stream) {
+            hipStream_t const& stream) {
             hipLaunchKernelGGL(cuda_sum_p2p_results, grid_spec, threads_per_block,
                 0, stream, tmp_potential_expansions, 
                 potential_expansions);

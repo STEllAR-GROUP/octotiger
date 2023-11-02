@@ -60,9 +60,12 @@ namespace fmm {
             std::array<bool, geo::direction::count()>& is_direction_empty,
             std::array<real, NDIM> xbase, const bool use_root_stencil) {
             bool avail = true;
+            size_t device_id =
+                stream_pool::get_next_device_id<hpx::cuda::experimental::cuda_executor,
+                    pool_strategy>(opts().number_gpus);
             if (m2m_type != interaction_host_kernel_type::DEVICE_ONLY) {
                 avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
-                    pool_strategy>(opts().cuda_buffer_capacity);
+                    pool_strategy>(opts().max_gpu_executor_queue_length, device_id);
             }
             // if (!avail || m2m_type == interaction_host_kernel_type::LEGACY ||
             //     (use_root_stencil && !opts().root_node_on_device)) {
@@ -76,10 +79,7 @@ namespace fmm {
                 else
                     cuda_launch_counter_non_rho()++;
 
-                size_t device_id =
-                    stream_pool::get_next_device_id<hpx::cuda::experimental::cuda_executor,
-                        pool_strategy>();
-                stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy> executor;
+                stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy> executor{device_id};
 
                 cuda_monopole_buffer_t local_monopoles(ENTRIES);
                 cuda_expansion_buffer_t local_expansions_SoA;
@@ -94,7 +94,7 @@ namespace fmm {
 
 
                 device_buffer_t<double> device_erg_exp(NUMBER_POT_EXPANSIONS, device_id);
-                device_buffer_t<double> device_erg_corrs(NUMBER_ANG_CORRECTIONS);
+                device_buffer_t<double> device_erg_corrs(NUMBER_ANG_CORRECTIONS, device_id);
 
                 // Move data into SoA arrays
                 this->dX = dx;
@@ -119,7 +119,7 @@ namespace fmm {
                     block_numbers = INX;
                 }
                 device_buffer_t<double> device_tmp_erg_exp(block_numbers * NUMBER_POT_EXPANSIONS, device_id);
-                device_buffer_t<double> device_tmp_erg_corrs(block_numbers * NUMBER_ANG_CORRECTIONS);
+                device_buffer_t<double> device_tmp_erg_corrs(block_numbers * NUMBER_ANG_CORRECTIONS, device_id);
 
                 if (use_root_stencil) {
                     dim3 const grid_spec(INX, INX, 1);

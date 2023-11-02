@@ -21,7 +21,7 @@ node_ptr get(const node_location& loc) {
 	std::lock_guard<hpx::spinlock> lock(mtx_);
 	const auto i = table_.find(loc);
 	if (i == table_.end()) {
-		print("Error in node_registry::get %s\n", loc.to_str().c_str());
+		printf("Error in node_registry::get %s\n", loc.to_str().c_str());
 		abort();
 	}
 	return i->second;

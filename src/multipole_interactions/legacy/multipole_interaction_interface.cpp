@@ -8,6 +8,7 @@
 #include "octotiger/multipole_interactions/util/calculate_stencil.hpp"
 
 #include "octotiger/common_kernel/interactions_iterators.hpp"
+#include "octotiger/common_kernel/gravity_performance_counters.hpp"
 
 #include "octotiger/options.hpp"
 
@@ -146,6 +147,7 @@ namespace fmm {
                 if (type == RHO) {
                     angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());
                 }
+                octotiger::fmm::multipole_vc_cpu_subgrids_launched++;
                 potential_expansions_SoA.add_to_non_SoA(grid_ptr->get_L());
 #else    // should not happen - option gets already checked at application startup
                 std::cerr << "Tried to call Vc kernel in non-Vc build!" << std::endl;
@@ -169,6 +171,7 @@ namespace fmm {
                             neighbor_data.is_monopole, neighbor_data.data);
                     }
                 }
+                octotiger::fmm::multipole_legacy_cpu_subgrids_launched++;
 #ifdef HPX_HAVE_APEX
                 apex::stop(multipole_timer);
 #endif

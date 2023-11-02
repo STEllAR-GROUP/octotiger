@@ -13,7 +13,7 @@
 
 template <>
 CUDA_GLOBAL_METHOD inline void select_wrapper<double, bool>(
-    double_t& target, const bool cond, const double& tmp1, const double& tmp2) {
+    double& target, const bool cond, const double& tmp1, const double& tmp2) {
     target = cond ? tmp1 : tmp2;
 }
 template <>

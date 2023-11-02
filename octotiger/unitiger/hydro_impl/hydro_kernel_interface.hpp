@@ -15,7 +15,7 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
     const std::vector<std::vector<safe_real>>& U, std::vector<std::vector<safe_real>>& X,
     const double omega, std::vector<hydro_state_t<std::vector<safe_real>>>& F,
     const interaction_host_kernel_type host_type, const interaction_device_kernel_type device_type,
-    const size_t cuda_buffer_capacity);
+    const size_t max_gpu_executor_queue_length);
 
 #if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)
 timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDIM>>& hydro,

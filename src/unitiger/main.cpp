@@ -71,7 +71,7 @@ void run_test(typename PHYS::test_type problem, bool with_correction, bool writi
 	computer.output(U, X, oter++, 0);
 //	const safe_real omega = 2.0 * M_PI / tmax / 10.0;
 	const safe_real omega = 0.0;
-	print("omega = %e\n", (double) omega);
+	printf("omega = %e\n", (double) omega);
 
 	constexpr int RK = 2;
 
@@ -107,7 +107,7 @@ void run_test(typename PHYS::test_type problem, bool with_correction, bool writi
 			computer.output(U, X, oter++, t);
 		}
 		iter++;
-		print("%i %e %e\n", iter, double(t), double(dt));
+		printf("%i %e %e\n", iter, double(t), double(dt));
 		if (writingForTest) {
 			computer.outputU(U, iter, type_test_string);
 			computer.outputQ(q, iter, type_test_string);
@@ -118,9 +118,9 @@ void run_test(typename PHYS::test_type problem, bool with_correction, bool writi
 			int testQ = computer.compareQ(q, iter, type_test_string);
 			int testF = computer.compareF(F, iter, type_test_string);
 			if ((testU == -1) or (testQ == -1) or (testF == -1))
-				print("Could not test, output files do not exist! Create test files by running unitiger with -C\n");
+				printf("Could not test, output files do not exist! Create test files by running unitiger with -C\n");
 			if (testU * testQ * testF == 1)
-				print("%s tests are OK!\n", type_test_string.c_str());
+				printf("%s tests are OK!\n", type_test_string.c_str());
 		}
 	}
 //      U0 = U;
@@ -163,9 +163,9 @@ void run_test(typename PHYS::test_type problem, bool with_correction, bool writi
 	int testQ = computer.compareQ(q, -1, type_test_string);
 	int testF = computer.compareF(F, -1, type_test_string);
 	if ((testU == -1) or (testQ == -1) or (testF == -1))
-		print("Could not test, output files do not exist! Create test files by running unitiger with -C\n");
+		printf("Could not test, output files do not exist! Create test files by running unitiger with -C\n");
 	if (testU * testF * testQ == 1)
-		print("Final %s tests are OK!!\n", type_test_string.c_str());
+		printf("Final %s tests are OK!!\n", type_test_string.c_str());
 }
 
 int main(int argc, char *argv[]) {
@@ -178,7 +178,7 @@ int main(int argc, char *argv[]) {
 	if (argc > 1) {
 		std::string input = argv[1];
 		if (input == "-C") {
-			print("Creating Tests.\n");
+			printf("Creating Tests.\n");
 			createTests = true;
 		}
 	}

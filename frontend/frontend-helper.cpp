@@ -4,6 +4,8 @@
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 #include "frontend-helper.hpp"
+#include <hpx/runtime_distributed/find_all_localities.hpp>
+#include <hpx/runtime_distributed/get_num_localities.hpp>
 
 #include "octotiger/compute_factor.hpp"
 #include "octotiger/defs.hpp"
@@ -37,6 +39,9 @@
 #include "octotiger/multipole_interactions/legacy/multipole_interaction_interface.hpp"
 #include "octotiger/multipole_interactions/util/calculate_stencil.hpp"
 
+#include "octotiger/unitiger/hydro_impl/hydro_performance_counters.hpp"
+#include "octotiger/common_kernel/gravity_performance_counters.hpp"
+
 #include <hpx/collectives/broadcast_direct.hpp>
 #include <hpx/hpx_init.hpp>
 #include <hpx/include/actions.hpp>
@@ -62,7 +67,6 @@
 #endif
 
 #if !defined(HPX_COMPUTE_DEVICE_CODE)
-
 
 void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 
@@ -138,6 +142,7 @@ void start_octotiger(int argc, char* argv[]) {
         std::cerr << "Start processing options" << std::endl;
         if (opts().process_options(argc, argv)) {
             std::cerr << "Finished processing options" << std::endl;
+
             auto all_locs = hpx::find_all_localities();
             hpx::lcos::broadcast<initialize_action>(all_locs, opts(), all_locs).get();
             std::cerr << "Finished init" << std::endl;
@@ -214,6 +219,8 @@ void start_octotiger(int argc, char* argv[]) {
 
 void register_hpx_functions(void) {
     hpx::register_startup_function(&node_server::register_counters);
+    hpx::register_startup_function(&octotiger::hydro::register_performance_counters);
+    hpx::register_startup_function(&octotiger::fmm::register_performance_counters);
     hpx::register_pre_shutdown_function([]() { options::all_localities.clear(); });
 }
 #endif

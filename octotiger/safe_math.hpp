@@ -20,7 +20,7 @@ inline T safe_power(const T& a, const U& b, const char* file, const int line) {
 		return std::pow(a, T(b));
 #ifdef SAFE_MATH_ON
 	} else {
-		print("Power of a negative. File:%s Line:%i\n", file, line);
+		printf("Power of a negative. File:%s Line:%i\n", file, line);
 		abort();
 	}
 #endif
@@ -34,7 +34,7 @@ inline T safe_inverse(const T& a, const char* file, const int line) {
 		return T(1) / a;
 #ifdef SAFE_MATH_ON
 	} else {
-		print("Divide by zero. File:%s Line:%i\n", file, line);
+		printf("Divide by zero. File:%s Line:%i\n", file, line);
 		abort();
 	}
 #endif
@@ -48,7 +48,7 @@ inline T safe_sqrt(const T& a, const char* file, const int line) {
 		return std::sqrt(a);
 #ifdef SAFE_MATH_ON
 	} else {
-		print("Square root of a negative = %e. File:%s Line:%i\n", (double) a, file, line);
+		printf("Square root of a negative = %e. File:%s Line:%i\n", (double) a, file, line);
 		abort();
 	}
 #endif
