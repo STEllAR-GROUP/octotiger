@@ -1309,10 +1309,9 @@ timestep_t device_interface_kokkos_hydro(
     /* const size_t current_d = host_amax_d[current_max_slot]; */
     timestep_t ts;
     ts.a = host_amax_slice[current_max_slot];
-    ts.x = combined_x[current_max_index];
-    ts.y = combined_x[current_max_index + q_inx3];
-    ts.z = combined_x[current_max_index + 2 * q_inx3];
-    ts.z = combined_x[current_max_index + 2 * q_inx3];
+    ts.x = combined_x_slice[current_max_index];
+    ts.y = combined_x_slice[current_max_index + q_inx3];
+    ts.z = combined_x_slice[current_max_index + 2 * q_inx3];
     const size_t current_i = current_max_slot;
     const size_t current_dim = current_max_slot / number_blocks_small;
     /* const auto flipped_dim = flip_dim(current_d, current_dim); */
