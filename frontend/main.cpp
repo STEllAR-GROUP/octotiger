@@ -165,6 +165,7 @@ int hpx_main(int argc, char* argv[]) {
 
     start_octotiger(argc, argv);
 
+    std::cerr << "Before HPX finalize ..." << std::endl;
     return hpx::finalize();
 }
 
@@ -245,6 +246,7 @@ int main(int argc, char* argv[]) {
     };
     std::cerr << "Starting hpx init ..." << std::endl;
     hpx::init(argc, argv, init_args);
+    std::cerr << "After HPX finalize ..." << std::endl;
 #ifdef OCTOTIGER_HAVE_HIP
     std::cout << std::endl << "WARNING: Experimental HIP Build! Do not (yet) use for production runs!\n" << std::endl;
     // The new direct dispatch does not seem to be entirely threadsafe as of yet. At least on the MI100 it seems best
