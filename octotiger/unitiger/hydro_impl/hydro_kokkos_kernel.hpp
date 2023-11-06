@@ -28,6 +28,10 @@
 #include <apex_api.hpp>
 #endif
 
+#ifdef __NVCC__
+#include <cuda/std/tuple>
+#endif
+
 static const char hydro_kokkos_kernel_identifier[] = "hydro_kernel_aggregator_kokkos";
 template<typename executor_t>
 using hydro_kokkos_agg_executor_pool = aggregation_pool<hydro_kokkos_kernel_identifier, executor_t,
@@ -84,12 +88,21 @@ CUDA_GLOBAL_METHOD auto map_views_to_slice(const Integer slice_id, const Integer
     const Agg_view_t& current_arg, const Args&... rest) {
     static_assert(
         Kokkos::is_view<typename Agg_view_t::view_type>::value, "Argument not an aggregated view");
+#if defined(HPX_COMPUTE_DEVICE_CODE) && defined(__NVCC__)
+    if constexpr (sizeof...(Args) > 0) {
+        return cuda::std::tuple_cat(cuda::std::make_tuple(get_slice_subview(slice_id, max_slices, current_arg)),
+            map_views_to_slice(slice_id, max_slices, rest...));
+    } else {
+        return cuda::std::make_tuple(get_slice_subview(slice_id, max_slices, current_arg));
+    }
+#else
     if constexpr (sizeof...(Args) > 0) {
         return std::tuple_cat(std::make_tuple(get_slice_subview(slice_id, max_slices, current_arg)),
             map_views_to_slice(slice_id, max_slices, rest...));
     } else {
         return std::make_tuple(get_slice_subview(slice_id, max_slices, current_arg));
     }
+#endif
 }
 
 template <typename Agg_executor_t, typename... Args>
@@ -213,7 +226,14 @@ void flux_impl_teamless(
                 const int index = (slice_idx % blocks_per_dim) * team_size * simd_t::size();
                 const int block_id = slice_idx;
 
-                // Default values for relevant buffers/variables:
+                // Map to slice subviews
+                /* auto q_combined_slice = get_slice_subview(slice_id, max_slices, q_combined); */
+                /* auto x_combined_slice = get_slice_subview(slice_id, max_slices, x_combined); */
+                /* auto f_combined_slice = get_slice_subview(slice_id, max_slices, f_combined); */
+                /* auto amax_slice = get_slice_subview(slice_id, max_slices, amax); */
+                /* auto amax_indices_slice = get_slice_subview(slice_id, max_slices, amax_indices); */
+                /* auto amax_d_slice = get_slice_subview(slice_id, max_slices, amax_d); */
+
                 auto [q_combined_slice, x_combined_slice, f_combined_slice] =
                       map_views_to_slice(slice_id, max_slices, q_combined, x_combined, f_combined);
                 auto [amax_slice, amax_indices_slice, amax_d_slice] =
@@ -420,7 +440,13 @@ void flux_impl(
                 const int index = (unsliced_team_league % blocks_per_dim) * team_size + tid;
                 const int block_id = unsliced_team_league;
 
-                // Default values for relevant buffers/variables:
+
+                /* auto q_combined_slice = get_slice_subview(slice_id, max_slices, q_combined); */
+                /* auto x_combined_slice = get_slice_subview(slice_id, max_slices, x_combined); */
+                /* auto f_combined_slice = get_slice_subview(slice_id, max_slices, f_combined); */
+                /* auto amax_slice = get_slice_subview(slice_id, max_slices, amax); */
+                /* auto amax_indices_slice = get_slice_subview(slice_id, max_slices, amax_indices); */
+                /* auto amax_d_slice = get_slice_subview(slice_id, max_slices, amax_d); */
                 auto [q_combined_slice, x_combined_slice, f_combined_slice] =
                       map_views_to_slice(slice_id, max_slices, q_combined, x_combined, f_combined);
                 auto [amax_slice, amax_indices_slice, amax_d_slice] =
@@ -699,6 +725,14 @@ void reconstruct_impl(
                             (((q_i % q_inx2) / q_inx) + 2) * inx_large +
                             (((q_i % q_inx2) % q_inx) + 2);
 
+                        /* auto smooth_field_slice = get_slice_subview(slice_id, max_slices, smooth_field_); */
+                        /* auto disc_detect_slice = get_slice_subview(slice_id, max_slices, disc_detect_); */
+                        /* auto combined_q_slice = get_slice_subview(slice_id, max_slices, combined_q); */
+                        /* auto combined_x_slice = get_slice_subview(slice_id, max_slices, combined_x); */
+                        /* auto combined_u_slice = get_slice_subview(slice_id, max_slices, combined_u); */
+                        /* auto AM_slice = get_slice_subview(slice_id, max_slices, AM); */
+                        /* auto dx_slice = get_slice_subview(slice_id, max_slices, dx); */
+                        /* auto cdiscs_slice = get_slice_subview(slice_id, max_slices, cdiscs); */
                         auto [smooth_field_slice, disc_detect_slice, combined_q_slice, combined_x_slice,
                             combined_u_slice, AM_slice, dx_slice, cdiscs_slice] =
                             map_views_to_slice(slice_id, max_slices, smooth_field_, disc_detect_,
@@ -774,6 +808,14 @@ void reconstruct_impl(
                             (((q_i % q_inx2) / q_inx) + 2) * inx_large +
                             (((q_i % q_inx2) % q_inx) + 2);
 
+                        /* auto smooth_field_slice = get_slice_subview(slice_id, max_slices, smooth_field_); */
+                        /* auto disc_detect_slice = get_slice_subview(slice_id, max_slices, disc_detect_); */
+                        /* auto combined_q_slice = get_slice_subview(slice_id, max_slices, combined_q); */
+                        /* auto combined_x_slice = get_slice_subview(slice_id, max_slices, combined_x); */
+                        /* auto combined_u_slice = get_slice_subview(slice_id, max_slices, combined_u); */
+                        /* auto AM_slice = get_slice_subview(slice_id, max_slices, AM); */
+                        /* auto dx_slice = get_slice_subview(slice_id, max_slices, dx); */
+                        /* auto cdiscs_slice = get_slice_subview(slice_id, max_slices, cdiscs); */
                         auto [smooth_field_slice, disc_detect_slice, combined_q_slice, combined_x_slice,
                             combined_u_slice, AM_slice, dx_slice, cdiscs_slice] =
                             map_views_to_slice(slice_id, max_slices, smooth_field_, disc_detect_,
@@ -837,6 +879,14 @@ void reconstruct_teamless_impl(
                 const int u_slice_offset = (nf_ * H_N3 + padding) * slice_id;
                 const int am_slice_offset = (NDIM * q_inx3 + padding) * slice_id;
                 if (q_i < q_inx3) {
+                    /* auto smooth_field_slice = get_slice_subview(slice_id, max_slices, smooth_field_); */
+                    /* auto disc_detect_slice = get_slice_subview(slice_id, max_slices, disc_detect_); */
+                    /* auto combined_q_slice = get_slice_subview(slice_id, max_slices, combined_q); */
+                    /* auto combined_x_slice = get_slice_subview(slice_id, max_slices, combined_x); */
+                    /* auto combined_u_slice = get_slice_subview(slice_id, max_slices, combined_u); */
+                    /* auto AM_slice = get_slice_subview(slice_id, max_slices, AM); */
+                    /* auto dx_slice = get_slice_subview(slice_id, max_slices, dx); */
+                    /* auto cdiscs_slice = get_slice_subview(slice_id, max_slices, cdiscs); */
                     auto [smooth_field_slice, disc_detect_slice, combined_q_slice, combined_x_slice,
                         combined_u_slice, AM_slice, dx_slice, cdiscs_slice] =
                         map_views_to_slice(slice_id, max_slices, smooth_field_, disc_detect_,
@@ -968,6 +1018,15 @@ void reconstruct_no_amc_impl(
                             (((q_i % q_inx2) / q_inx) + 2) * inx_large +
                             (((q_i % q_inx2) % q_inx) + 2);
 
+                        /* auto smooth_field_slice = get_slice_subview(slice_id, max_slices, smooth_field_); */
+                        /* auto disc_detect_slice = get_slice_subview(slice_id, max_slices, disc_detect_); */
+                        /* auto combined_q_slice = get_slice_subview(slice_id, max_slices, combined_q); */
+                        /* auto combined_x_slice = get_slice_subview(slice_id, max_slices, combined_x); */
+                        /* auto combined_u_slice = get_slice_subview(slice_id, max_slices, combined_u); */
+                        /* auto AM_slice = get_slice_subview(slice_id, max_slices, AM); */
+                        /* auto dx_slice = get_slice_subview(slice_id, max_slices, dx); */
+                        /* auto cdiscs_slice = get_slice_subview(slice_id, max_slices, cdiscs); */
+
                         auto [smooth_field_slice, disc_detect_slice, combined_q_slice, combined_x_slice,
                             combined_u_slice, AM_slice, dx_slice, cdiscs_slice] =
                             map_views_to_slice(slice_id, max_slices, smooth_field_, disc_detect_,
@@ -990,6 +1049,14 @@ void reconstruct_no_amc_impl(
                             (((q_i % q_inx2) / q_inx) + 2) * inx_large +
                             (((q_i % q_inx2) % q_inx) + 2);
 
+                        /* auto smooth_field_slice = get_slice_subview(slice_id, max_slices, smooth_field_); */
+                        /* auto disc_detect_slice = get_slice_subview(slice_id, max_slices, disc_detect_); */
+                        /* auto combined_q_slice = get_slice_subview(slice_id, max_slices, combined_q); */
+                        /* auto combined_x_slice = get_slice_subview(slice_id, max_slices, combined_x); */
+                        /* auto combined_u_slice = get_slice_subview(slice_id, max_slices, combined_u); */
+                        /* auto AM_slice = get_slice_subview(slice_id, max_slices, AM); */
+                        /* auto dx_slice = get_slice_subview(slice_id, max_slices, dx); */
+                        /* auto cdiscs_slice = get_slice_subview(slice_id, max_slices, cdiscs); */
                         auto [smooth_field_slice, disc_detect_slice, combined_q_slice, combined_x_slice,
                             combined_u_slice, AM_slice, dx_slice, cdiscs_slice] =
                             map_views_to_slice(slice_id, max_slices, smooth_field_, disc_detect_,
@@ -1046,6 +1113,14 @@ void reconstruct_no_amc_teamless_impl(
                 const int i = ((q_i / q_inx2) + 2) * inx_large * inx_large +
                     (((q_i % q_inx2) / q_inx) + 2) * inx_large + (((q_i % q_inx2) % q_inx) + 2);
                 if (q_i < q_inx3) {
+                    /* auto smooth_field_slice = get_slice_subview(slice_id, max_slices, smooth_field_); */
+                    /* auto disc_detect_slice = get_slice_subview(slice_id, max_slices, disc_detect_); */
+                    /* auto combined_q_slice = get_slice_subview(slice_id, max_slices, combined_q); */
+                    /* auto combined_x_slice = get_slice_subview(slice_id, max_slices, combined_x); */
+                    /* auto combined_u_slice = get_slice_subview(slice_id, max_slices, combined_u); */
+                    /* auto AM_slice = get_slice_subview(slice_id, max_slices, AM); */
+                    /* auto dx_slice = get_slice_subview(slice_id, max_slices, dx); */
+                    /* auto cdiscs_slice = get_slice_subview(slice_id, max_slices, cdiscs); */
                     auto [smooth_field_slice, disc_detect_slice, combined_q_slice, combined_x_slice,
                         combined_u_slice, AM_slice, dx_slice, cdiscs_slice] =
                         map_views_to_slice(slice_id, max_slices, smooth_field_, disc_detect_,
@@ -1101,6 +1176,8 @@ void hydro_pre_recon_impl(
                 const int grid_x = index / (inx_large * inx_large);
                 const int grid_y = (index % (inx_large * inx_large)) / inx_large;
                 const int grid_z = (index % (inx_large * inx_large)) % inx_large;
+                /* auto large_x_slice = get_slice_subview(slice_id, max_slices, large_x); */
+                /* auto u_slice = get_slice_subview(slice_id, max_slices, u); */
                 auto [large_x_slice, u_slice] =
                       map_views_to_slice(slice_id, max_slices, large_x, u);
                 cell_hydro_pre_recon(
@@ -1142,6 +1219,8 @@ void find_contact_discs_impl(
                   const int grid_x = index / (inx_normal * inx_normal);
                   const int grid_y = (index % (inx_normal * inx_normal)) / inx_normal;
                   const int grid_z = (index % (inx_normal * inx_normal)) % inx_normal;
+                  /* auto P_slice = get_slice_subview(slice_id, max_slices, P); */
+                  /* auto u_slice = get_slice_subview(slice_id, max_slices, u); */
                   auto [P_slice, u_slice] =
                         map_views_to_slice(slice_id, max_slices, P, u);
                   cell_find_contact_discs_phase1(
@@ -1165,6 +1244,8 @@ void find_contact_discs_impl(
                   const int grid_x = index / (q_inx * q_inx);
                   const int grid_y = (index % (q_inx * q_inx)) / q_inx;
                   const int grid_z = (index % (q_inx * q_inx)) % q_inx;
+                  /* auto P_slice = get_slice_subview(slice_id, max_slices, P); */
+                  /* auto disc_slice = get_slice_subview(slice_id, max_slices, disc); */
                   auto [P_slice, disc_slice] =
                         map_views_to_slice(slice_id, max_slices, P, disc);
                   cell_find_contact_discs_phase2(disc_slice, P_slice, fgamma_, ndir,
