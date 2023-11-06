@@ -221,7 +221,9 @@ int main(int argc, char* argv[]) {
       hipSetDevice(gpu_id);
       hipStream_t gpu1;
       hipStreamCreate(&gpu1);
-      hipStreamDestroy(gpu1);
+      // Keep this stream alive until the hip runtime shuts down at the end.
+      // This seems to prevent some rare hip runtime crashes when the application exits
+      /* hipStreamDestroy(gpu1); */
       hipDeviceSynchronize();
     }
 #endif
@@ -277,6 +279,5 @@ int main(int argc, char* argv[]) {
     std::cout << "         Consider recompiling CPPuddle (and Octo-Tiger) with "
               << "CPPUDDLE_WITH_AGGRESSIVE_CONTENT_RECYCLING=ON !\n";
 #endif
-
 }
 #endif
