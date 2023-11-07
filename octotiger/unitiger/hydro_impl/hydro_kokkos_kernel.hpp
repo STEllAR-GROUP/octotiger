@@ -5,6 +5,7 @@
 //
 
 #pragma once
+#include <hpx/config/compiler_specific.hpp>
 
 #include <Kokkos_Core.hpp>
 #include <aggregation_manager.hpp>
@@ -30,8 +31,24 @@
 
 #ifdef __NVCC__
 #include <cuda/std/tuple>
+// TODO check with cuda 12.2
+#if defined(HPX_CUDA_VERSION) && (HPX_CUDA_VERSION < 1203)
+// cuda::std::tuple structured bindings are broken in CUDA < 1203
+// See https://github.com/NVIDIA/libcudacxx/issues/316
+// According to https://github.com/NVIDIA/libcudacxx/pull/317 the fix for this 
+// is to move tuple element and tuple size into the std namespace
+// which the following snippet does. This is only necessary for old CUDA versions
+// the newer ones contain a fix for this issue
+namespace std {
+    template<size_t _Ip, class... _Tp>
+    struct tuple_element<_Ip, _CUDA_VSTD::tuple<_Tp...>> 
+      : _CUDA_VSTD::tuple_element<_Ip, _CUDA_VSTD::tuple<_Tp...>> {};
+    template <class... _Tp>
+    struct tuple_size<_CUDA_VSTD::tuple<_Tp...>> 
+      : _CUDA_VSTD::tuple_size<_CUDA_VSTD::tuple<_Tp...>> {};
+}
 #endif
-
+#endif
 static const char hydro_kokkos_kernel_identifier[] = "hydro_kernel_aggregator_kokkos";
 template<typename executor_t>
 using hydro_kokkos_agg_executor_pool = aggregation_pool<hydro_kokkos_kernel_identifier, executor_t,
@@ -105,11 +122,19 @@ CUDA_GLOBAL_METHOD auto map_views_to_slice(const Integer slice_id, const Integer
 #endif
 }
 
-template <typename Agg_executor_t, typename... Args>
-CUDA_GLOBAL_METHOD auto map_views_to_slice(const Agg_executor_t& agg_exec, const Args&... rest) {
+template <typename Agg_executor_t, typename Agg_view_t, typename... Args>
+CUDA_GLOBAL_METHOD auto map_views_to_slice(const Agg_executor_t& agg_exec, const Agg_view_t& current_arg,
+    const Args&... rest) {
     const size_t slice_id = agg_exec.id;
     const size_t max_slices = opts().max_kernels_fused;
-    return map_views_to_slice(slice_id, max_slices, rest...);
+    static_assert(
+        Kokkos::is_view<typename Agg_view_t::view_type>::value, "Argument not an aggregated view");
+    if constexpr (sizeof...(Args) > 0) {
+        return std::tuple_cat(std::make_tuple(get_slice_subview(slice_id, max_slices, current_arg)),
+            map_views_to_slice(agg_exec, rest...));
+    } else {
+        return std::make_tuple(get_slice_subview(slice_id, max_slices, current_arg));
+    }
 }
 
 template <typename Agg_executor_t, typename TargetView_t, typename SourceView_t>
