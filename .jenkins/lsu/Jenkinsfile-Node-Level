@@ -121,6 +121,7 @@ pipeline {
                                   spack external find && \
                                   spack external find cmake git libffi python && \
                                   spack external find cuda hip llvm-amdgpu hsa-rocr-dev && \
+                                  rm -rf /tmp/jenkins/spack-stage && \
                                   spack clean -a && \
                                   spack spec --fresh octotiger@develop ${spack_spec} && \
                                   export AMD_DIRECT_DISPATCH=0 && \
