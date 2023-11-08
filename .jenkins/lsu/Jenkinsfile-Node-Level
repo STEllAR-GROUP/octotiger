@@ -122,7 +122,6 @@ pipeline {
                                   spack external find && \
                                   spack external find cmake git libffi python && \
                                   spack external find cuda hip llvm-amdgpu hsa-rocr-dev && \
-                                  spack clean -a && \
                                   spack spec --fresh octotiger@develop ${spack_spec} && \
                                   export AMD_DIRECT_DISPATCH=0 && \
                                   export HIP_VISIBLE_DEVICES=1 && \
