@@ -487,8 +487,8 @@ bool options::process_options(int argc, char *argv[]) {
     if (opts().executors_per_gpu < 1 && (opts().monopole_device_kernel_type != OFF ||
           opts().multipole_device_kernel_type != OFF || opts().hydro_device_kernel_type != OFF)) {
         std::cerr << std::endl << "ERROR: "; 
-        std::cerr << "You have chosen an GPU kernel, however, you did not specify --executor_per_gpu > 0" << std::endl
-        << " Choose a different kernel or add at least one or more executors via --executor_per_gpu=X" << std::endl;
+        std::cerr << "You have chosen an GPU kernel, however, you did not specify --executors_per_gpu > 0" << std::endl
+        << " Choose a different kernel or add at least one or more executors via --executors_per_gpu=X" << std::endl;
         abort();
     }
     if (opts().max_kernels_fused < 1 && (opts().monopole_device_kernel_type != OFF ||
@@ -524,11 +524,6 @@ bool options::process_options(int argc, char *argv[]) {
 
 #endif
 #endif
-
-   if (opts().hydro_host_kernel_type == KOKKOS && opts().max_kernels_fused > 1) {
-     std::cerr << "\nERROR: work aggregation not yet supported for Kokkos host kernel!" << std::endl;
-     abort();
-   }
 
     return true;
 }

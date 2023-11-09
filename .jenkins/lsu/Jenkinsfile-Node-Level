@@ -1,11 +1,11 @@
 #!groovy
 
-//  Copyright (c) 2021-2022 Gregor Daiß
+//  Copyright (c) 2021-2023 Gregor Daiß
 //
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-def buildbadge = addEmbeddableBadgeConfiguration(id: "nodelevel", subject: "CPU / GPU Kernel Tests", status: "skipped")
+def buildbadge = addEmbeddableBadgeConfiguration(id: "nodelevel", subject: "CPU / GPU Node-Level Tests", status: "skipped")
 
 pipeline {
     agent any
@@ -45,20 +45,28 @@ pipeline {
             matrix {
                 axes {
                     axis {
-                        name 'compiler_config'
-                        values 'with-CC', 'with-CC-clang'
-                    }
-                    axis {
-                        name 'cuda_config'
-                        values 'with-cuda', 'without-cuda'
-                    }
-                    axis {
-                        name 'kokkos_config'
-                        values 'with-kokkos', 'without-kokkos'
-                    }
-                    axis {
-                         name 'build_type'
-                         values 'Release'
+                        name 'build_spec'
+                        // List of "tuples" containing the test run infomation
+                        // Format: 
+                        // spack octotiger spec ; run name ; required modules ; SLURM partition for this test ; additional flags for spack dev-build
+                        values ' +cuda +kokkos cuda_arch=80 %gcc@11 ^hpx max_cpu_count=128 malloc=jemalloc %gcc@11 ^cppuddle%gcc@11 ^hpx-kokkos%gcc@11 ^kokkos@4.0.01%gcc@11 ^silo~mpi ;with-CC-with-cuda-with-kokkos;gcc/11 cuda/12;jenkins-A100 --gpus=1 --exclusive;--fresh',\
+                               ' +cuda +kokkos cuda_arch=80 griddim=16 %gcc@11 ^hpx max_cpu_count=128 malloc=jemalloc%gcc@11 ^cppuddle%gcc@11 ^hpx-kokkos%gcc@11^kokkos@4.0.01%gcc@11 ^silo~mpi ;with-CC-with-cuda-with-kokkos-griddim16;gcc/11 cuda/12;jenkins-A100 --gpus=1 --exclusive;--fresh',\
+                               ' ~cuda +kokkos %gcc@11 ^hpx max_cpu_count=128 malloc=jemalloc%gcc@11 ^cppuddle%gcc@11 ^hpx-kokkos%gcc@11 ^kokkos@4.0.01~cuda%gcc@11 ^silo~mpi ;with-CC-without-cuda-with-kokkos;gcc/11 cuda/12;jenkins-A100 --gpus=1 --exclusive;--fresh',\
+                               ' +cuda ~kokkos cuda_arch=80 ^hpx max_cpu_count=128 malloc=jemalloc%gcc@11 ^cppuddle%gcc@11 ^silo~mpi%gcc@11 ;with-CC-with-cuda-without-kokkos;gcc/11 cuda/12;jenkins-A100 --gpus=1 --exclusive;--fresh',\
+                               ' ~cuda ~kokkos %gcc@11 ^hpx max_cpu_count=128 malloc=jemalloc%gcc@11 ^cppuddle%gcc@11 ^silo~mpi ;with-CC-without-cuda-without-kokkos;gcc/11 cuda/12;jenkins-A100 --gpus=1 --exclusive;--fresh',\
+                               ' +cuda +kokkos cuda_arch=80 %clang@12 ^hpx max_cpu_count=128 malloc=jemalloc%clang@12 ^cppuddle%clang@12 ^hpx-kokkos%clang@12 ^kokkos%clang@12 ^silo~mpi ;with-CC-clang-with-cuda-with-kokkos;llvm/12 cuda/12;jenkins-A100 --gpus=1 --exclusive;--fresh',\
+                               ' +cuda +kokkos cuda_arch=80 griddim=16 %clang@12 ^hpx max_cpu_count=128 malloc=jemalloc%clang@12 ^cppuddle%clang@12 ^hpx-kokkos%clang@12 ^kokkos%clang@12^silo~mpi ;with-CC-clang-with-cuda-with-kokkos-griddim16;llvm/12 cuda/12;jenkins-A100 --gpus=1 --exclusive;--fresh',\
+                               ' ~cuda +kokkos %clang@12^hpx max_cpu_count=128 malloc=jemalloc%clang@12 ^cppuddle%clang@12 ^hpx-kokkos%clang@12 ^kokkos%clang@12 ^silo~mpi ;with-CC-clang-without-cuda-with-kokkos;llvm/12 cuda/12;jenkins-A100 --gpus=1 --exclusive;--fresh',\
+                               ' +cuda ~kokkos cuda_arch=80 %clang@12 ^hpx max_cpu_count=128 malloc=jemalloc%clang@12 ^cppuddle%clang@12 ^silo~mpi ;with-CC-clang-with-cuda-without-kokkos;llvm/12 cuda/12;jenkins-A100 --gpus=1 --exclusive;--fresh',\
+                               ' ~cuda ~kokkos %clang@12 ^hpx max_cpu_count=128 malloc=jemalloc%clang@12 ^cppuddle%clang@12 ^silo~mpi ;with-CC-clang-without-cuda-without-kokkos;llvm/12 cuda/12;jenkins-A100 --gpus=1 --exclusive;--fresh',\
+                               ' +rocm+kokkos amdgpu_target=gfx908%rocmcc@5.4.6 ^asio@1.16.0^hpx max_cpu_count=128 amdgpu_target=gfx908%rocmcc@5.4.6 ^kokkos@4.0.01 amdgpu_target=gfx908%rocmcc@5.4.6 ^cppuddle%rocmcc@5.4.6 ^hpx-kokkos%rocmcc@5.4.6 ^silo~mpi%gcc@11 ;with-CC-clang-with-hip-with-kokkos;rocm/5.4.6 gcc/11;jenkins-amdgpu --exclusive;--fresh --dirty',\
+                               ' +kokkos simd_extension=SCALAR simd_library=STD %gcc@11^hpx max_cpu_count=128 malloc=jemalloc%gcc@11 ^kokkos%gcc@11 ^hpx-kokkos%gcc@11 ^cppuddle%gcc@11 ^silo~mpi ;with-CC-with-std-with-scalar;gcc/11;medusa --exclusive;--fresh',\
+                               ' +kokkos simd_extension=AVX512 simd_library=STD %gcc@11^hpx max_cpu_count=128 malloc=jemalloc%gcc@11 ^kokkos%gcc@11 ^hpx-kokkos%gcc@11 ^cppuddle%gcc@11 ^silo~mpi ;with-CC-with-std-with-avx512;gcc/11;medusa --exclusive;--fresh',\
+                               ' +kokkos +kokkos_hpx_kernels multipole_host_tasks=16 monopole_host_tasks=4 hydro_host_tasks=4 simd_extension=AVX512 simd_library=STD %gcc@11^hpx max_cpu_count=128 malloc=jemalloc%gcc@11 ^kokkos%gcc@11 ^hpx-kokkos%gcc@11 ^cppuddle%gcc@11 ^silo~mpi ;with-CC-with-std-with-avx512-with-hpx-kokkos-kernels;gcc/11;medusa --exclusive;--fresh',\
+                               ' +kokkos simd_extension=SCALAR simd_library=KOKKOS %gcc@11^hpx max_cpu_count=128 malloc=jemalloc%gcc@11 ^kokkos%gcc@11 ^hpx-kokkos%gcc@11 ^cppuddle%gcc@11 ^silo~mpi ;with-CC-with-kokkos-with-scalar;gcc/11;medusa --exclusive;--fresh',\
+                               ' +kokkos simd_extension=AVX512 simd_library=KOKKOS %gcc@11^hpx max_cpu_count=128 malloc=jemalloc%gcc@11 ^kokkos%gcc@11 ^hpx-kokkos%gcc@11 ^cppuddle%gcc@11 ^silo~mpi ;with-CC-with-kokkos-with-avx512;gcc/11;medusa --exclusive;--fresh',\
+                               ' +kokkos +kokkos_hpx_kernels multipole_host_tasks=16 monopole_host_tasks=4 hydro_host_tasks=4 simd_extension=AVX512 simd_library=KOKKOS %gcc@11^hpx max_cpu_count=128 malloc=jemalloc%gcc@11 ^kokkos%gcc@11 ^hpx-kokkos%gcc@11 ^cppuddle%gcc@11 ^silo~mpi ;with-CC-with-kokkos-with-avx512-with-hpx-kokkos-kernels;gcc/11;medusa --exclusive;--fresh',\
+                               ' -cuda -rocm +sycl %gcc@11 ^kokkos@4.0.01 use_unsupported_sycl_arch=70 ^hpx sycl_target_arch=70;with-CC-with-kokkos-with-sycl;gcc/11 cuda/12;cuda-V100 --gpus=1 --exclusive;--fresh'
                     }
                 }
                 stages {
@@ -66,6 +74,9 @@ pipeline {
                         steps {
                             dir('octotiger') {
                                 sh '''
+                                # Unpack tuples:
+                                spack_spec=$(echo "${build_spec}" | cut -d ";" -f 1)
+                                build_description=$(echo "${build_spec}" | cut -d ";" -f 2)
                                 github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
                                 curl --verbose\
                                     --request POST \
@@ -74,43 +85,10 @@ pipeline {
                                     --header "authorization: Bearer ${github_token}" \
                                     --data "{
                                         \\"state\\": \\"pending\\",
-                                        \\"context\\": \\"jenkins-${compiler_config}-${cuda_config}-${kokkos_config}\\",
-                                        \\"description\\": \\"Jenkins CI Job: ${compiler_config}-${cuda_config}-${kokkos_config}\\",
+                                        \\"context\\": \\"jenkins-${build_description}\\",
+                                        \\"description\\": \\"Jenkins CI Job: ${build_description}\\",
                                         \\"target_url\\": \\"https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger%20Node-Level/job/$JOB_BASE_NAME/$BUILD_NUMBER/console\\"
                                     }"
-                                '''
-                            }
-                        }
-                    }
-                    stage('checkout_buildscripts') {
-                        steps {
-                            dir('octotiger') {
-                                sh '''
-                                #!/bin/bash -l
-                                cd ..
-                                #rm -rf octo-buildscripts/src/octotiger
-                                rm -rf "octo-buildscripts-${compiler_config}-${cuda_config}-${kokkos_config}" #remove line for dependency caching
-                                if [[ -d "octo-buildscripts-${compiler_config}-${cuda_config}-${kokkos_config}" ]]
-                                then
-                                    cd "octo-buildscripts-${compiler_config}-${cuda_config}-${kokkos_config}"
-                                    git reset --hard # reset griddim modification in case of unclean directory
-                                    git checkout jenkins-aggregation-test-cuda
-                                    git pull
-                                    rm -rf build/octotiger
-                                    rm -rf build/kokkos
-                                    rm -rf src/octotiger
-                                else
-                                    git clone https://github.com/diehlpk/PowerTiger.git "octo-buildscripts-${compiler_config}-${cuda_config}-${kokkos_config}"
-                                    cd "octo-buildscripts-${compiler_config}-${cuda_config}-${kokkos_config}"
-                                    git checkout jenkins-aggregation-test-cuda # change to different branch if needed for target machine
-                                    mkdir src
-                                    rm -rf build/octotiger
-                                    rm -rf build/kokkos
-                                    rm -rf src/octotiger
-                                fi
-
-                                cd ..
-                                cp -r octotiger "octo-buildscripts-${compiler_config}-${cuda_config}-${kokkos_config}/src/octotiger"
                                 '''
                             }
                         }
@@ -120,8 +98,34 @@ pipeline {
                             dir('octotiger') {
                                 sh '''
                                 #!/bin/bash -l
-                                cd "../octo-buildscripts-${compiler_config}-${cuda_config}-${kokkos_config}"
-                                src/octotiger/.jenkins/lsu/node-level-tests-entry.sh
+                                set -x
+                                # Unpack tuples:
+                                spack_spec=$(echo "${build_spec}" | cut -d ";" -f 1)
+                                build_description=$(echo "${build_spec}" | cut -d ";" -f 2)
+                                required_modules=$(echo "${build_spec}" | cut -d ";" -f 3)
+                                slurm_partition=$(echo "${build_spec}" | cut -d ";" -f 4)
+                                extra_spack_flags=$(echo "${build_spec}" | cut -d ";" -f 5)
+                                # Setup Spack
+                                # The jenkins_spack_install folder is initialized by a separate, manual jenkisn pipeline
+                                source ${HOME}/jenkins_spack_install/share/spack/setup-env.sh
+                                cd ..
+                                # Setup src to test
+                                rm -rf octotiger-${build_description}
+                                cp -r octotiger octotiger-${build_description}
+                                cd octotiger-${build_description}
+                                # Runs test on node
+                                # We do not use --fresh builds as these tend to act up and suddenly ignore external packages
+                                # which is a problem in the hip node
+                                srun -p ${slurm_partition} -N 1 -n 1 --time=300 bash -lc "\
+                                  module load ${required_modules} && \
+                                  spack external find && \
+                                  spack external find cmake git libffi python && \
+                                  spack external find cuda hip llvm-amdgpu hsa-rocr-dev && \
+                                  spack spec --fresh octotiger@develop ${spack_spec} && \
+                                  spack dev-build -j32 ${extra_spack_flags} --until build --test=root octotiger@develop ${spack_spec} || {
+                                    cat install-time-test-log.txt
+                                    exit 1 # test failed 
+                                  } && cat install-time-test-log.txt"
                                 '''
                             }
                         }
@@ -130,6 +134,7 @@ pipeline {
                 post {
                     success {
                         sh '''
+                        build_description=$(echo "${build_spec}" | cut -d ";" -f 2)
                         github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
                         curl --verbose\
                             --request POST \
@@ -138,14 +143,15 @@ pipeline {
                             --header "authorization: Bearer ${github_token}" \
                             --data "{
                                 \\"state\\": \\"success\\",
-                                \\"context\\": \\"jenkins-${compiler_config}-${cuda_config}-${kokkos_config}\\",
-                                \\"description\\": \\"Jenkins CI Job: ${compiler_config}-${cuda_config}-${kokkos_config}\\",
+                                \\"context\\": \\"jenkins-${build_description}\\",
+                                \\"description\\": \\"Jenkins CI Job: ${build_description}\\",
                                 \\"target_url\\": \\"https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger%20Node-Level/job/$JOB_BASE_NAME/$BUILD_NUMBER/console\\"
                             }"
                         '''
                     }
                     failure {
                         sh '''
+                        build_description=$(echo "${build_spec}" | cut -d ";" -f 2)
                         github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
                         curl --verbose\
                             --request POST \
@@ -154,14 +160,15 @@ pipeline {
                             --header "authorization: Bearer ${github_token}" \
                             --data "{
                                 \\"state\\": \\"failure\\",
-                                \\"context\\": \\"jenkins-${compiler_config}-${cuda_config}-${kokkos_config}\\",
-                                \\"description\\": \\"Jenkins CI Job: ${compiler_config}-${cuda_config}-${kokkos_config}\\",
+                                \\"context\\": \\"jenkins-${build_description}\\",
+                                \\"description\\": \\"Jenkins CI Job: ${build_description}\\",
                                 \\"target_url\\": \\"https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger%20Node-Level/job/$JOB_BASE_NAME/$BUILD_NUMBER/console\\"
                             }"
                         '''
                     }
                     aborted {
                         sh '''
+                        build_description=$(echo "${build_spec}" | cut -d ";" -f 2)
                         github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
                         curl --verbose\
                             --request POST \
@@ -170,8 +177,8 @@ pipeline {
                             --header "authorization: Bearer ${github_token}" \
                             --data "{
                                 \\"state\\": \\"error\\",
-                                \\"context\\": \\"jenkins-${compiler_config}-${cuda_config}-${kokkos_config}\\",
-                                \\"description\\": \\"Jenkins CI Job: ${compiler_config}-${cuda_config}-${kokkos_config}\\",
+                                \\"context\\": \\"jenkins-${build_description}\\",
+                                \\"description\\": \\"Jenkins CI Job: ${build_description}\\",
                                 \\"target_url\\": \\"https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger%20Node-Level/job/$JOB_BASE_NAME/$BUILD_NUMBER/console\\"
                             }"
                         '''

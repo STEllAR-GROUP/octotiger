@@ -1,7 +1,8 @@
 #include "frontend-helper.hpp"
+#ifdef OCTOTIGER_HAVE_KOKKOS
+#include "octotiger/common_kernel/kokkos_util.hpp"
+#endif
 #ifdef OCTOTIGER_HAVE_CUDA
-#include <stream_manager.hpp>
-#include "octotiger/cuda_util/cuda_helper.hpp"
 #include "octotiger/cuda_util/cuda_scheduler.hpp"
 #include "octotiger/monopole_interactions/legacy/cuda_monopole_interaction_interface.hpp"
 #include "octotiger/multipole_interactions/legacy/cuda_multipole_interaction_interface.hpp"
@@ -59,10 +60,13 @@
 #endif
 
 #ifdef OCTOTIGER_HAVE_KOKKOS
-#include "octotiger/common_kernel/kokkos_util.hpp"
 #include "octotiger/monopole_interactions/kernel/kokkos_kernel.hpp"
 #include "octotiger/multipole_interactions/kernel/kokkos_kernel.hpp"
 #include "octotiger/unitiger/hydro_impl/hydro_kokkos_kernel.hpp"
+#endif
+#ifdef OCTOTIGER_HAVE_CUDA
+#include <stream_manager.hpp>
+#include "octotiger/cuda_util/cuda_helper.hpp"
 #endif
 
 // In case we build without kokkos we want the cuda futures to default
@@ -179,35 +183,41 @@ void init_executors(void) {
 #if HPX_KOKKOS_CUDA_FUTURE_TYPE == 0
 #if (defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP) || defined(KOKKOS_ENABLE_CUDA) || defined(KOKKOS_ENABLE_HIP))  
     if (opts().polling_threads>0) {
-      std::cerr << "Registering HPX CUDA polling on polling pool..." << std::endl;
+      std::cout << "Registering HPX CUDA polling on polling pool..." << std::endl;
       hpx::cuda::experimental::detail::register_polling(hpx::resource::get_thread_pool("polling"));
     } else {
-      std::cerr << "Registering HPX CUDA polling..." << std::endl;
+      std::cout << "Registering HPX CUDA polling..." << std::endl;
       hpx::cuda::experimental::detail::register_polling(hpx::resource::get_thread_pool(0));
     }
-    std::cerr << "Registered HPX CUDA polling!" << std::endl;
+    std::cout << "Registered HPX CUDA polling!" << std::endl;
 #endif
 #endif
 #if defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_SYCL)
     if (opts().polling_threads>0) {
-      std::cerr << "Registering HPX SYCL polling on polling pool..." << std::endl;
+      std::cout << "Registering HPX SYCL polling on polling pool..." << std::endl;
       hpx::sycl::experimental::detail::register_polling(hpx::resource::get_thread_pool("polling"));
     } else {
-      std::cerr << "Registering HPX SYCL polling..." << std::endl;
+      std::cout << "Registering HPX SYCL polling..." << std::endl;
       hpx::sycl::experimental::detail::register_polling(hpx::resource::get_thread_pool(0));
-    }/
-    std::cerr << "Registered HPX SYCL polling!" << std::endl;
+    }
+    std::cout << "Registered HPX SYCL polling!" << std::endl;
+#if HPX_KOKKOS_SYCL_FUTURE_TYPE == 0 
+    std::cout << "Using HPX SYCL futures with polling!" << std::endl;
+#endif
+#if HPX_KOKKOS_SYCL_FUTURE_TYPE == 1 
+    std::cout << "Using HPX SYCL futures with host_tasks!" << std::endl;
+#endif
 #endif
 
 #if defined(OCTOTIGER_HAVE_KOKKOS)
-    std::cerr << "Initializing Kokkos host executors..." << std::endl;
+    std::cout << "Initializing Kokkos host executors..." << std::endl;
     stream_pool::init_all_executor_pools<hpx::kokkos::serial_executor, round_robin_pool<hpx::kokkos::serial_executor>>(
         256, hpx::kokkos::execution_space_mode::independent);
     stream_pool::init_all_executor_pools<hpx::kokkos::hpx_executor, round_robin_pool<hpx::kokkos::hpx_executor>>(
         256, hpx::kokkos::execution_space_mode::independent);
-    std::cerr << "Initializing Kokkos device executors..." << std::endl;
-    std::cerr << "CPPuddle config: Using " << recycler::max_number_gpus << " devices!" << std::endl;
-    std::cerr << "CPPuddle config: Using " << recycler::number_instances << " internal pool instances!"
+    std::cout << "Initializing Kokkos device executors..." << std::endl;
+    std::cout << "CPPuddle config: Max number GPUs: " << recycler::max_number_gpus << " devices!" << std::endl;
+    std::cout << "CPPuddle config: Using " << recycler::number_instances << " internal buffer buckets!"
               << std::endl;
 #if defined(KOKKOS_ENABLE_CUDA)
     stream_pool::set_device_selector<hpx::kokkos::cuda_executor,
@@ -256,9 +266,9 @@ void init_executors(void) {
         kokkos_device_executor>(mover);
     Kokkos::fence();
 #if HPX_KOKKOS_CUDA_FUTURE_TYPE == 0 
-    std::cerr << "KOKKOS with polling futures enabled!" << std::endl;
+    std::cout << "KOKKOS with polling futures enabled!" << std::endl;
 #else
-    std::cerr << "KOKKOS with callback futures enabled!" << std::endl;
+    std::cout << "KOKKOS with callback futures enabled!" << std::endl;
 #endif
 #endif
 #endif

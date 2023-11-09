@@ -3,6 +3,7 @@
 newgit
 cmake-build-*
 cmake-cuda-*
+spack-build*
 .spack-env/*
 .clangd/*
 .cache

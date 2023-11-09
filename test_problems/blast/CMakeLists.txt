@@ -140,7 +140,7 @@ test_blast_scenario(test_problems.cpu.am_hydro_on.blast_legacy blast_with_am_hyd
 "  --correct_am_hydro=1 --hydro_device_kernel_type=OFF --hydro_host_kernel_type=LEGACY")
 if(OCTOTIGER_WITH_CUDA)
   test_blast_scenario(test_problems.gpu.am_hydro_on.blast_cuda blast_with_am_hydro_cuda_log.txt ${silo_scenario_filename}
-  "  --correct_am_hydro=1 --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=LEGACY")
+    "  --correct_am_hydro=1 --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=DEVICE_ONLY")
 #if(NOT OCTOTIGER_WITH_FAST_FP_CONTRACT)
 #   test_blast_scenario(test_problems.cpu_gpu.am_hydro_on.blast_cuda blast_without_am_hydro_cuda_log.txt ${silo_scenario_filename}
 #     " --correct_am_hydro=1 --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1 --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=LEGACY")
