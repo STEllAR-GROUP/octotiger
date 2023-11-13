@@ -37,15 +37,25 @@ __global__ void reconstruct_cuda_kernel_no_amc(double omega,
     const int i = ((q_i / q_inx2) + 2) * inx_large * inx_large +
         (((q_i % q_inx2) / q_inx) + 2) * inx_large + (((q_i % q_inx2) % q_inx) + 2);
     const int slice_id = blockIdx.x;
+
+    const int q_slice_offset = (nf_ * 27 * q_inx3 + 128) * slice_id;
+    const int u_slice_offset = (nf_ * H_N3 + 128) * slice_id;
+    const int am_slice_offset = (NDIM * q_inx3 + 128) * slice_id;
+    const int disc_slice_offset = (ndir / 2 * H_N3 + 128) * slice_id; 
+    const int x_slice_offset = (NDIM * q_inx3 + 128) * slice_id;
+
     if (q_i < q_inx3) {
         cell_reconstruct_inner_loop_p1_simd<device_simd_t, device_simd_mask_t>(nf_, angmom_index_,
-            smooth_field_, disc_detect_, combined_q, combined_u, AM, dx[slice_id], cdiscs, i,
-            q_i, ndir, nangmom, slice_id);
+            smooth_field_ + nf_ * slice_id, disc_detect_ + nf_ * slice_id,
+            combined_q + q_slice_offset, combined_u + u_slice_offset, AM + am_slice_offset,
+            dx[slice_id], cdiscs + disc_slice_offset, i, q_i, ndir, nangmom);
         // Phase 2
         for (int d = 0; d < ndir; d++) {
-            cell_reconstruct_inner_loop_p2_simd<device_simd_t, device_simd_mask_t>(omega, angmom_index_,
-                combined_q, combined_x, combined_u, AM, dx[slice_id], d, i, q_i, ndir, nangmom,
-                n_species_, nf_, slice_id);
+            cell_reconstruct_inner_loop_p2_simd<device_simd_t, device_simd_mask_t>(omega,
+                angmom_index_, combined_q + q_slice_offset, combined_x + x_slice_offset,
+                combined_u + u_slice_offset, AM + am_slice_offset,
+                dx[slice_id], d, i, q_i, ndir,
+                nangmom, n_species_, nf_);
         }
     }
 }
@@ -67,8 +77,13 @@ __global__ void reconstruct_cuda_kernel(const double omega, const int nf_,
     const int i = ((q_i / q_inx2) + 2) * inx_large * inx_large +
         (((q_i % q_inx2) / q_inx) + 2) * inx_large + (((q_i % q_inx2) % q_inx) + 2);
     const int slice_id = blockIdx.x;
+
+    const int q_slice_offset = (nf_ * 27 * q_inx3 + 128) * slice_id;
     const int u_slice_offset = (nf_ * H_N3 + 128) * slice_id;
     const int am_slice_offset = (NDIM * q_inx3 + 128) * slice_id;
+    const int disc_slice_offset = (ndir / 2 * H_N3 + 128) * slice_id; 
+    const int x_slice_offset = (NDIM * q_inx3 + 128) * slice_id;
+
     using simd_t = device_simd_t;
     using simd_mask_t = device_simd_mask_t;
     if (q_i < q_inx3) {
@@ -78,13 +93,16 @@ __global__ void reconstruct_cuda_kernel(const double omega, const int nf_,
                 combined_u[i + u_slice_offset];
         }
         cell_reconstruct_inner_loop_p1_simd<device_simd_t, device_simd_mask_t>(nf_, angmom_index_,
-            smooth_field_, disc_detect_, combined_q, combined_u, AM, dx[slice_id], cdiscs, i,
-            q_i, ndir, nangmom, slice_id);
+            smooth_field_ + nf_ * slice_id, disc_detect_ + nf_ * slice_id,
+            combined_q + q_slice_offset, combined_u + u_slice_offset, AM + am_slice_offset,
+            dx[slice_id], cdiscs + disc_slice_offset, i, q_i, ndir, nangmom);
         // Phase 2
         for (int d = 0; d < ndir; d++) {
-            cell_reconstruct_inner_loop_p2_simd<device_simd_t, device_simd_mask_t>(omega, angmom_index_,
-                combined_q, combined_x, combined_u, AM, dx[slice_id], d, i, q_i, ndir, nangmom,
-                n_species_, nf_, slice_id);
+            cell_reconstruct_inner_loop_p2_simd<device_simd_t, device_simd_mask_t>(omega,
+                angmom_index_, combined_q + q_slice_offset, combined_x + x_slice_offset,
+                combined_u + u_slice_offset, AM + am_slice_offset,
+                dx[slice_id], d, i, q_i, ndir,
+                nangmom, n_species_, nf_);
         }
     }
 }
@@ -122,7 +140,6 @@ void launch_reconstruct_cuda(
     dim3 const threads_per_block(1, 8, 8);
     int ndir = geo.NDIR;
     int nangmom = geo.NANGMOM;
-    hpx::future<void> fut;
 #if defined(OCTOTIGER_HAVE_CUDA)
     void* args[] = {&omega, &nf_, &angmom_index_, &(smooth_field_), &(disc_detect_), &(combined_q),
         &(combined_x), &(combined_u), &(AM), &(dx), &(cdiscs), &n_species_, &ndir, &nangmom};
@@ -151,13 +168,18 @@ discs_phase1(double* __restrict__ P, double* __restrict__ combined_u, const doub
 
     const int index = (blockIdx.z * 1 + threadIdx.x) * 64 + (threadIdx.y) * 8 + (threadIdx.z);
     const int slice_id = blockIdx.x;
+    const int u_slice_offset = (H_N3 * nf + 128) * slice_id; 
+    const int p_slice_offset = (H_N3 + 128) * slice_id; 
 
     if (index < inx_normal * inx_normal * inx_normal) {
         const int grid_x = index / (inx_normal * inx_normal);
         const int grid_y = (index % (inx_normal * inx_normal)) / inx_normal;
         const int grid_z = (index % (inx_normal * inx_normal)) % inx_normal;
+        combined_u += u_slice_offset;
+        P += p_slice_offset;
         cell_find_contact_discs_phase1(
-            P, combined_u, A_, B_, fgamma_, de_switch_1, nf, grid_x, grid_y, grid_z, slice_id);
+            P, combined_u, A_, B_, fgamma_, de_switch_1,
+            nf, grid_x, grid_y, grid_z);
     }
 }
 
@@ -169,11 +191,17 @@ __global__ void discs_phase2(
     double* __restrict__ disc, double* __restrict__ P, const double fgamma_, const int ndir) {
     const int index = (blockIdx.z * 1 + threadIdx.x) * 64 + (threadIdx.y) * 8 + (threadIdx.z);
     const int slice_id = blockIdx.x;
+    const int p_slice_offset = (H_N3 + 128) * slice_id; 
+    const int disc_slice_offset = (ndir / 2 * H_N3 + 128) * slice_id; 
+
     if (index < q_inx3) {
         const int grid_x = index / (q_inx * q_inx);
         const int grid_y = (index % (q_inx * q_inx)) / q_inx;
         const int grid_z = (index % (q_inx * q_inx)) % q_inx;
-        cell_find_contact_discs_phase2(disc, P, fgamma_, ndir, grid_x, grid_y, grid_z, slice_id);
+        disc += disc_slice_offset;
+        P += p_slice_offset;
+        cell_find_contact_discs_phase2(disc, P, fgamma_,
+            ndir, grid_x, grid_y, grid_z);
     }
 }
 
@@ -231,12 +259,18 @@ __global__ void __launch_bounds__(64, 4)
     // Index mapping to actual grid
     const int index = (blockIdx.z * 1 + threadIdx.x) * 64 + (threadIdx.y) * 8 + (threadIdx.z);
     const int slice_id = blockIdx.x;
+    const int u_slice_offset = (H_N3 * nf + 128) * slice_id; 
+    const int large_x_slice_offset = (H_N3 * NDIM + 128) * slice_id; 
+
     if (index < inx_large * inx_large * inx_large) {
         const int grid_x = index / (inx_large * inx_large);
         const int grid_y = (index % (inx_large * inx_large)) / inx_large;
         const int grid_z = (index % (inx_large * inx_large)) % inx_large;
+        device_X += large_x_slice_offset;
+        device_u += u_slice_offset;
         cell_hydro_pre_recon(
-            device_X, omega, angmom, device_u, nf, n_species_, grid_x, grid_y, grid_z, slice_id);
+            device_X, omega, angmom, device_u, nf,
+            n_species_, grid_x, grid_y, grid_z);
     }
 }
 #if defined(OCTOTIGER_HAVE_HIP)
