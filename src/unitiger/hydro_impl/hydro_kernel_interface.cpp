@@ -195,13 +195,15 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
                     for (integer j = 0; j <= INX; ++j) {
                         for (integer k = 0; k <= INX; ++k) {
                             const auto i0 = findex(i, j, k);
-                            F[dim][field][i0] = f[dim][field][hindex(i + H_BW, j + H_BW, k + H_BW)];
+                            F_flat[dim * opts().n_fields * F_N3 + field * F_N3 + i0] =
+                                f[dim][field][hindex(i + H_BW, j + H_BW, k + H_BW)];
+                            /* F[dim][field][i0] = f[dim][field][hindex(i + H_BW, j + H_BW, k + H_BW)]; */
                             real rho_tot = 0.0;
                             for (integer field = spc_i; field != spc_i + opts().n_species;
                                  ++field) {
-                                rho_tot += F[dim][field][i0];
+                                rho_tot += F_flat[dim * opts().n_fields * F_N3 + field * F_N3 + i0];
                             }
-                            F[dim][rho_i][i0] = rho_tot;
+                            F_flat[dim * opts().n_fields * F_N3 + rho_i * F_N3 + i0] = rho_tot;
                         }
                     }
                 }
