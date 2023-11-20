@@ -12,8 +12,10 @@
 #include <cuda_buffer_util.hpp>
 #endif
 
-#if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)
+#if defined(OCTOTIGER_HAVE_CUDA) 
 using f_data_t = std::vector<real, recycler::detail::cuda_pinned_allocator<real>>;
+#elif defined(OCTOTIGER_HAVE_HIP)
+using f_data_t = std::vector<real, recycler::detail::hip_pinned_allocator<real>>;
 #else
 using f_data_t = std::vector<real>;
 #endif
