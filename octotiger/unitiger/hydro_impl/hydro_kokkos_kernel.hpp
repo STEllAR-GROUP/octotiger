@@ -214,20 +214,22 @@ void flux_impl_teamless(
     const double A_, const double B_, const int nf, const double fgamma, const double de_switch_1,
     const int number_blocks, const int team_size
     ) {
+
     // Supported team_sizes need to be the power of two! Team size of 1 is a special case for usage
     // with the serial kokkos backend:
     assert((team_size == 1));
     if (agg_exec.sync_aggregation_slices()) {
-        using kokkos_executor_t = typename std::remove_reference<decltype(agg_exec.get_underlying_executor())>::type;
+        using kokkos_executor_t =
+            typename std::remove_reference<decltype(agg_exec.get_underlying_executor())>::type;
         using kokkos_backend_t = decltype(agg_exec.get_underlying_executor().instance());
         static_assert(std::is_same<hpx::kokkos::executor<kokkos_backend_t>,
-                          typename std::remove_reference<decltype(agg_exec.get_underlying_executor())>::type>::value,
+                          typename std::remove_reference<
+                              decltype(agg_exec.get_underlying_executor())>::type>::value,
             " backend mismatch!");
         const size_t gpu_id = agg_exec.parent.gpu_id;
         stream_pool::select_device<hpx::kokkos::executor<kokkos_backend_t>,
               round_robin_pool<hpx::kokkos::executor<kokkos_backend_t>>>(gpu_id);
         const int number_slices = agg_exec.number_slices;
-        const int max_slices = opts().max_kernels_fused;
         auto policy = Kokkos::Experimental::require(
             Kokkos::RangePolicy<decltype(agg_exec.get_underlying_executor().instance())>(
                 agg_exec.get_underlying_executor().instance(), 0, (number_blocks) * number_slices),
@@ -243,34 +245,29 @@ void flux_impl_teamless(
         }
 
         Kokkos::parallel_for(
-            "kernel hydro flux teamless", policy, KOKKOS_LAMBDA(int idx) {
+            "kernel hydro flux", policy, KOKKOS_LAMBDA(int idx) {
                 // Index helpers:
                 const int slice_idx = idx % (number_blocks);
                 const int slice_id = idx / (number_blocks);
                 const int blocks_per_dim = (number_blocks) / NDIM;
                 const int dim = (slice_idx / blocks_per_dim);
                 const int index = (slice_idx % blocks_per_dim) * team_size * simd_t::size();
-
-
-                /* const int index_small = ((index / q_inx2) - 1 ) * (INX + 1) * (INX + 1) + */
-                /*     (((index % q_inx2) / q_inx) - 1 ) * (INX + 1) + */
-                /*     (((index % q_inx2) % q_inx) - 1 ); */
-                int x = (index / q_inx2);
-                int y = (index % q_inx2) / q_inx;
-                int z = (index % q_inx2) % q_inx;
-                x = x == 0 ? q_inx3 : x - 1;
-                y = y == 0 ? q_inx3 : y - 1;
-                z = z == 0 ? q_inx3 : z - 1;
-                const int index_small = x * (INX + 1) * (INX + 1) + y * (INX + 1) + z;
-
-
                 const int block_id = slice_idx;
 
-                // Map to slice subviews
-                auto [q_combined_slice, x_combined_slice, f_combined_slice] =
-                      map_views_to_slice(slice_id, max_slices, q_combined, x_combined, f_combined);
-                auto [amax_slice, amax_indices_slice, amax_d_slice] =
-                      map_views_to_slice(slice_id, max_slices, amax, amax_indices, amax_d);
+                const int q_slice_offset = (nf * 27 * q_inx3 + padding) * slice_id;
+                const int f_slice_offset = (NDIM * nf * q_inx3 + padding) * slice_id;
+                const int x_slice_offset = (NDIM * q_inx3 + padding) * slice_id;
+                const int amax_slice_offset = (1 + 2 * nf) * (number_blocks) * slice_id;
+                const int max_indices_slice_offset = (number_blocks) * slice_id;
+                // Default values for relevant buffers/variables:
+                auto q_combined_slice = Kokkos::subview(q_combined,
+                    std::make_pair(q_slice_offset, (nf * 27 * q_inx3 + padding) * (slice_id + 1)));
+                auto x_combined_slice = Kokkos::subview(x_combined,
+                    std::make_pair(x_slice_offset, (NDIM * q_inx3 + padding) * (slice_id + 1)));
+                auto f_combined_slice = Kokkos::subview(f_combined,
+                    std::make_pair(
+                        f_slice_offset, (NDIM * nf * q_inx3 + padding) *
+                        (slice_id + 1)));
 
                 // Set during cmake step with
                 // -DOCTOTIGER_WITH_MAX_NUMBER_FIELDS
@@ -290,14 +287,14 @@ void flux_impl_teamless(
                   local_vg[dim] = simd_t(0.0);
                 }
                 // Reset (as we only add to the results...)
-                /* for (int f = 0; f < nf; f++) { */
-                /*     for (int i = 0; i < simd_t::size(); i++) { */
-                /*       f_combined_slice[dim * nf * q_inx3 + f * q_inx3 + index + i] = 0.0; */
-                /*     } */
-                /* } */
-                amax_slice[block_id] = 0.0;
-                amax_indices_slice[block_id] = 0;
-                amax_d_slice[block_id] = 0;
+                for (int f = 0; f < nf; f++) {
+                    for (int i = 0; i < simd_t::size(); i++) {
+                      f_combined_slice[dim * nf * q_inx3 + f * q_inx3 + index + i] = 0.0;
+                    }
+                }
+                amax[block_id + amax_slice_offset] = 0.0;
+                amax_indices[block_id + max_indices_slice_offset] = 0;
+                amax_d[block_id + max_indices_slice_offset] = 0;
                 double current_amax = 0.0;
                 int current_d = 0;
                 int current_i = index;
@@ -316,12 +313,6 @@ void flux_impl_teamless(
                         mask_helper2_array.data(), SIMD_NAMESPACE::element_aligned_tag{});
                     const simd_mask_t mask = mask_helper1 == mask_helper2;
                     if (SIMD_NAMESPACE::any_of(mask)) {
-                        // Reset (as we only add to the results...)
-                        for (int f = 0; f < nf; f++) {
-                            for (int i = 0; i < simd_t::size(); i++) {
-                              f_combined_slice[dim * nf * f_inx3 + f * f_inx3 + index_small + i] = 0.0;
-                            }
-                        }
                         for (int fi = 0; fi < 9; fi++) { // TODO replace 9 with the actual constexpr
                             simd_t this_ap = 0.0, this_am = 0.0;
                             const int d = faces[dim][fi];
@@ -375,49 +366,48 @@ void flux_impl_teamless(
                             // Add results to the final flux buffer
                             for (int f = 1; f < nf; f++) {
                               simd_t current_val(
-                                  f_combined_slice.data() + dim * nf * f_inx3 + f * f_inx3 + index_small,
+                                  f_combined_slice.data() + dim * nf * q_inx3 + f * q_inx3 + index,
                                   SIMD_NAMESPACE::element_aligned_tag{});
                               current_val = current_val +
                                 SIMD_NAMESPACE::choose(mask, quad_weights[fi] * local_f[f],
                                     simd_t(0.0));
                               current_val.copy_to(f_combined_slice.data() + dim
-                                * nf * f_inx3 + f * f_inx3 + index_small,
+                                * nf * q_inx3 + f * q_inx3 + index,
                                 SIMD_NAMESPACE::element_aligned_tag{});
                             }
                         }
                     }
-                    if (index_small >= 0 && index_small < f_inx3) {
                     simd_t current_val(
-                      f_combined_slice.data() + dim * nf * f_inx3 + index_small,
+                      f_combined_slice.data() + dim * nf * q_inx3 + index,
                       SIMD_NAMESPACE::element_aligned_tag{});
                     for (int f = 10; f < nf; f++) {
                         simd_t current_field_val(
-                            f_combined_slice.data() + dim * nf * f_inx3 + f * f_inx3 + index_small,
+                            f_combined_slice.data() + dim * nf * q_inx3 + f * q_inx3 + index,
                             SIMD_NAMESPACE::element_aligned_tag{});
                         current_val = current_val +
                           SIMD_NAMESPACE::choose(mask, current_field_val,
                               simd_t(0.0));
                     }
                     current_val.copy_to(
-                      f_combined_slice.data() + dim * nf * f_inx3 + index_small,
+                      f_combined_slice.data() + dim * nf * q_inx3 + index,
                       SIMD_NAMESPACE::element_aligned_tag{});
-                    }
                 }
 
                 // Write Maximum of local team to amax:
-                amax_slice[block_id] = current_amax;
-                amax_indices_slice[block_id] = current_i;
-                amax_d_slice[block_id] = current_d;
+                amax[block_id + amax_slice_offset] = current_amax;
+                amax_indices[block_id + max_indices_slice_offset] = current_i;
+                amax_d[block_id + max_indices_slice_offset] = current_d;
                 // Save faces to the end of the amax buffer This avoids putting combined_q back on
                 // the host side just to read those few values
-                const int flipped_dim = flip_dim(amax_d_slice[block_id], dim);
+                const int flipped_dim = flip_dim(amax_d[block_id + max_indices_slice_offset], dim);
                 for (int f = 0; f < nf; f++) {
-                    amax_slice[(number_blocks) + block_id * 2 * nf + f] =
-                        q_combined_slice[amax_indices_slice[block_id] +
+                    amax[(number_blocks) + block_id * 2 * nf + f + amax_slice_offset] =
+                        q_combined_slice[amax_indices[block_id + max_indices_slice_offset] +
                             f * face_offset +
-                            dim_offset * amax_d_slice[block_id]];
-                    amax_slice[(number_blocks) + block_id * 2 * nf + nf + f] =
-                        q_combined_slice[amax_indices_slice[block_id] -
+                            dim_offset * amax_d[block_id + max_indices_slice_offset]];
+                    amax[(number_blocks) + block_id * 2 * nf + nf + f + amax_slice_offset] =
+                        q_combined_slice[amax_indices[block_id +
+                        max_indices_slice_offset] -
                             compressedH_DN[dim] + f * face_offset + dim_offset * flipped_dim];
                 }
             });
@@ -1458,8 +1448,6 @@ timestep_t device_interface_kokkos_hydro(
     // Reconstruct
     aggregated_host_buffer<double, executor_t> q(
         alloc_host_double, (nf * 27 * q_inx3 + padding) * max_slices);
-    aggregated_host_buffer<double, executor_t> q2(
-        alloc_host_double, (nf * 27 * q_inx3 + 2*padding) * max_slices);
     aggregated_host_buffer<double, executor_t> AM(
         alloc_host_double, (NDIM * q_inx3 + padding) * max_slices);
 
@@ -1506,8 +1494,10 @@ timestep_t device_interface_kokkos_hydro(
         alloc_host_double, blocks * (1 + 2 * nf) * max_slices);
     aggregated_host_buffer<int, executor_t> amax_indices(alloc_host_int, blocks * max_slices);
     aggregated_host_buffer<int, executor_t> amax_d(alloc_host_int, blocks * max_slices);
+    /* aggregated_host_buffer<double, executor_t> f_small( */
+    /*     alloc_host_double, (NDIM * nf * f_inx3 + padding) * max_slices); */
     aggregated_host_buffer<double, executor_t> f(
-        alloc_host_double, (NDIM * nf * f_inx3 + padding) * max_slices);
+          alloc_host_double, (NDIM * nf * q_inx3 + padding) * max_slices);
 
 #ifdef HPX_HAVE_APEX
     auto flux_timer = apex::start("kernel hydro_flux kokkos");
@@ -1524,9 +1514,9 @@ timestep_t device_interface_kokkos_hydro(
     if (slice_id == 0)
         octotiger::hydro::hydro_kokkos_cpu_aggregated_subgrids_launches++;
 
-    std::copy(f.data() + f_slice_offset * slice_id,
-              f.data() + f_slice_offset * slice_id + NDIM * nf * f_inx3,
-              F_flat.data());
+    /* std::copy(f.data() + f_slice_offset * slice_id, */
+    /*           f.data() + f_slice_offset * slice_id + NDIM * nf * f_inx3, */
+    /*           F_flat.data()); */
 
     const int amax_slice_offset = (1 + 2 * nf) * blocks * slice_id;
     const int max_indices_slice_offset = blocks * slice_id;
@@ -1540,6 +1530,24 @@ timestep_t device_interface_kokkos_hydro(
             if (amax_indices[dim_i + max_indices_slice_offset] <
                 amax_indices[current_max_slot + max_indices_slice_offset])
                 current_max_slot = dim_i;
+        }
+    }
+
+    // Convert output
+    for (int dim = 0; dim < NDIM; dim++) {
+        for (integer field = 0; field != opts().n_fields; ++field) {
+            const auto dim_offset = dim * opts().n_fields * q_inx3 + field * q_inx3;
+            for (integer i = 0; i <= INX; ++i) {
+                for (integer j = 0; j <= INX; ++j) {
+                    for (integer k = 0; k <= INX; ++k) {
+                        const auto i0 = findex(i, j, k);
+                        const auto input_index =
+                            (i + 1) * q_inx * q_inx + (j + 1) * q_inx + (k + 1);
+                        F_flat[dim * nf * F_N3 + field * F_N3 + i0] =
+                            f[dim_offset + input_index + f_slice_offset * slice_id];
+                    }
+                }
+            }
         }
     }
 
