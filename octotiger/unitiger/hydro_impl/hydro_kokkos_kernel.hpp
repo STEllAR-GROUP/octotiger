@@ -1254,7 +1254,7 @@ timestep_t device_interface_kokkos_hydro(
     const double de_switch_1, typename
     Aggregated_Executor<executor_t>::Executor_Slice& agg_exec,
     Allocator_Slice<double, kokkos_host_allocator<double>, executor_t>& alloc_host_double,
-    Allocator_Slice<int, kokkos_host_allocator<int>, executor_t>& alloc_host_int, auto& F_flat) {
+    Allocator_Slice<int, kokkos_host_allocator<int>, executor_t>& alloc_host_int, f_data_t& F_flat) {
     // How many executor slices are working together and what's our ID?
     const size_t slice_id = agg_exec.id;
     const size_t number_slices = agg_exec.number_slices;
@@ -1417,7 +1417,7 @@ timestep_t device_interface_kokkos_hydro(
     const double B_, const double fgamma, const double de_switch_1,
     typename Aggregated_Executor<executor_t>::Executor_Slice& agg_exec,
     Allocator_Slice<double, kokkos_host_allocator<double>, executor_t>& alloc_host_double,
-    Allocator_Slice<int, kokkos_host_allocator<int>, executor_t>& alloc_host_int, auto& F_flat) {
+    Allocator_Slice<int, kokkos_host_allocator<int>, executor_t>& alloc_host_int, f_data_t& F_flat) {
     // How many executor slices are working together and what's our ID?
     const size_t slice_id = agg_exec.id;
     const size_t number_slices = agg_exec.number_slices;
@@ -1583,7 +1583,7 @@ timestep_t launch_hydro_kokkos_kernels(const hydro_computer<NDIM, INX, physics<N
     const std::vector<std::vector<safe_real>>& U, const std::vector<std::vector<safe_real>>& X,
     const double omega, const size_t n_species, 
     /* std::vector<hydro_state_t<std::vector<safe_real>>>& F) { */
-    auto& F_flat) {
+    f_data_t& F_flat) {
     static const cell_geometry<NDIM, INX> geo;
 
     auto executor_slice_fut = hydro_kokkos_agg_executor_pool<executor_t>::request_executor_slice();
