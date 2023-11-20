@@ -109,7 +109,11 @@ __host__ bool* get_gpu_masks(const size_t gpu_id = 0) {
 timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
     const std::vector<std::vector<safe_real>>& U, const std::vector<std::vector<safe_real>>& X,
     const double omega, const size_t device_id,
-    std::vector<hydro_state_t<std::vector<safe_real>>>& F) {
+#if defined(OCTOTIGER_HAVE_CUDA) || (defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_CUDA)))
+    std::vector<real, recycler::detail::cuda_pinned_allocator<real>>& F_flat) {
+#else
+    std::vector<real>& F_flat) {
+#endif
 
     // Init local kernel pool if not done already
     hpx::call_once(init_hydro_pool_flag, init_hydro_aggregation_pool);
@@ -376,7 +380,9 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
                             const auto i0 = findex(i, j, k);
                             const auto input_index =
                                 (i + 1) * q_inx * q_inx + (j + 1) * q_inx + (k + 1);
-                            F[dim][field][i0] =
+                            /* F[dim][field][i0] = */
+                            /*     f[dim_offset + input_index + f_slice_offset * slice_id]; */
+                            F_flat[dim * nf_local * F_N3 + field * F_N3 + i0] =
                                 f[dim_offset + input_index + f_slice_offset * slice_id];
                             // std::cout << F[dim][field][i0] << " ";
                         }

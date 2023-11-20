@@ -119,14 +119,14 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
             // Host execution is possible: Check if there is a launch slot for device - if not 
             // we will execute the kernel on the CPU instead
             if (host_type != interaction_host_kernel_type::DEVICE_ONLY) {
-                size_t device_id =
-                    stream_pool::get_next_device_id<device_executor_cuda, device_pool_strategy_cuda>(opts().number_gpus);
+                size_t device_id = stream_pool::get_next_device_id<device_executor_cuda,
+                    device_pool_strategy_cuda>(opts().number_gpus);
                 avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
                     device_pool_strategy_cuda>(max_gpu_executor_queue_length, device_id);
             }
             if (avail) {
                 size_t device_id = 0;
-                max_lambda = launch_hydro_cuda_kernels(hydro, U, X, omega, device_id, F);
+                max_lambda = launch_hydro_cuda_kernels(hydro, U, X, omega, device_id, F_flat);
                 return max_lambda;
             }
         }
@@ -140,14 +140,14 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
 #ifdef OCTOTIGER_HAVE_HIP
             bool avail = true;
             if (host_type != interaction_host_kernel_type::DEVICE_ONLY) {
-                size_t device_id =
-                    stream_pool::get_next_device_id<device_executor_cuda, device_pool_strategy_cuda>(opts().number_gpus);
-              avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
-                  device_pool_strategy_cuda>(max_gpu_executor_queue_length, device_id);
+                size_t device_id = stream_pool::get_next_device_id<device_executor_cuda,
+                    device_pool_strategy_cuda>(opts().number_gpus);
+                avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
+                    device_pool_strategy_cuda>(max_gpu_executor_queue_length, device_id);
             }
             if (avail) {
                 size_t device_id = 0;
-                max_lambda = launch_hydro_cuda_kernels(hydro, U, X, omega, device_id, F);
+                max_lambda = launch_hydro_cuda_kernels(hydro, U, X, omega, device_id, F_flat);
                 return max_lambda;
             }
         }
