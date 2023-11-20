@@ -252,9 +252,16 @@ void flux_impl_teamless(
                 const int index = (slice_idx % blocks_per_dim) * team_size * simd_t::size();
 
 
-                const int index_small = ((index / q_inx2) - 1 ) * (INX + 1) * (INX + 1) +
-                    (((index % q_inx2) / q_inx) - 1 ) * (INX + 1) +
-                    (((index % q_inx2) % q_inx) - 1 );
+                /* const int index_small = ((index / q_inx2) - 1 ) * (INX + 1) * (INX + 1) + */
+                /*     (((index % q_inx2) / q_inx) - 1 ) * (INX + 1) + */
+                /*     (((index % q_inx2) % q_inx) - 1 ); */
+                int x = (index / q_inx2);
+                int y = (index % q_inx2) / q_inx;
+                int z = (index % q_inx2) % q_inx;
+                x = x == 0 ? q_inx3 : x - 1;
+                y = y == 0 ? q_inx3 : y - 1;
+                z = z == 0 ? q_inx3 : z - 1;
+                const int index_small = x * (INX + 1) * (INX + 1) + y * (INX + 1) + z;
 
 
                 const int block_id = slice_idx;
@@ -1544,6 +1551,7 @@ timestep_t device_interface_kokkos_hydro(
     const auto current_dim = current_max_slot / (blocks / NDIM);
     timestep_t ts;
     ts.a = amax[current_max_slot + amax_slice_offset];
+    /* std::cout << ts.a << std::endl; */
     ts.x = combined_x[current_max_index + x_slice_offset * slice_id];
     ts.y = combined_x[current_max_index + q_inx3 + x_slice_offset * slice_id];
     ts.z = combined_x[current_max_index + 2 * q_inx3 + x_slice_offset * slice_id];
