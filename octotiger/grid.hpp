@@ -36,6 +36,10 @@
 
 #if defined(OCTOTIGER_HAVE_CUDA) || (defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_CUDA)))
 #include <cuda_buffer_util.hpp>
+#elif defined(OCTOTIGER_HAVE_HIP) || (defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_HIP)))
+#include <hip_buffer_util.hpp>
+#elif defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_SYCL))
+#include <sycl_buffer_util.hpp>
 #endif
 class struct_eos;
 
@@ -133,6 +137,10 @@ private:
 	std::vector<hydro_state_t<std::vector<safe_real>>> F2;
 #if defined(OCTOTIGER_HAVE_CUDA) || (defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_CUDA)))
 	std::vector<real, recycler::detail::cuda_pinned_allocator<real>> F_flat;
+#elif defined(OCTOTIGER_HAVE_HIP) || (defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_HIP)))
+	std::vector<real, recycler::detail::hip_pinned_allocator<real>> F_flat;
+#elif defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_SYCL))
+	std::vector<real, recycler::detail::sycl_host_default_allocator<real>> F_flat;
 #else
 	std::vector<real> F_flat;
 #endif
