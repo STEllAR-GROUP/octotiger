@@ -18,10 +18,10 @@
 
 void complete_hydro_amr_boundary_cpu(const double dx, const bool energy_only,
     const std::vector<std::vector<real>>& ushad, const std::vector<int>& is_coarse,
-    const std::array<double, NDIM>& xmin, std::vector<std::vector<real>>& u);
+    const std::array<double, NDIM>& xmin, f_data_t& U_flat);
 void complete_hydro_amr_boundary_vc(const double dx, const bool energy_only,
     const std::vector<std::vector<real>>& Ushad, const std::vector<int>& is_coarse,
-    const std::array<double, NDIM>& xmin, std::vector<std::vector<double>>& U);
+    const std::array<double, NDIM>& xmin, f_data_t& U_flat);
 #ifdef OCTOTIGER_HAVE_CUDA
 
 #include <aggregation_manager.hpp>
@@ -35,7 +35,7 @@ void launch_complete_hydro_amr_boundary_cuda(
     double dx,
     bool energy_only, const std::vector<std::vector<real>>& ushad,
     const std::vector<int>& is_coarse, const std::array<double, NDIM>& xmin,
-    std::vector<std::vector<real>>& u);
+    f_data_t& u);
 void launch_complete_hydro_amr_boundary_cuda_post(
     aggregated_executor_t& executor,
     dim3 const grid_spec, dim3 const threads_per_block, void *args[]);

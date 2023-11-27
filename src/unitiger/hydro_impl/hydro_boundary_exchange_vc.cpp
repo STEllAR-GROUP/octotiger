@@ -19,7 +19,7 @@
 
 void complete_hydro_amr_boundary_vc(const double dx, const bool energy_only,
     const std::vector<std::vector<real>>& Ushad, const std::vector<int>& is_coarse,
-    const std::array<double, NDIM>& xmin, std::vector<std::vector<double>>& U) {
+    const std::array<double, NDIM>& xmin, f_data_t& U_flat) {
 
     std::vector<double, recycler::aggressive_recycle_aligned<double, 32>> unified_u(
         opts().n_fields * H_N3);
@@ -84,9 +84,9 @@ void complete_hydro_amr_boundary_vc(const double dx, const bool energy_only,
                                 const int oct_index = ir * 4 + jr * 2 + kr;
                                 for (int f = 0; f < opts().n_fields; f++) {
                                     if (!energy_only || f == egas_i)
-                                        //U[f][iiir] =
+                                        //U_flat[(f) * H_N3 + iiir] =
                                         //   unified_uf[f * field_offset + iii0 + mi + oct_index * HS_N3];
-                                        U[f][iiir] =
+                                        U_flat[(f) * H_N3 + iiir] =
                                             uf_local[f * 8 + oct_index][mi];
                                 }
                             }

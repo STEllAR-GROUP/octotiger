@@ -1580,7 +1580,7 @@ timestep_t device_interface_kokkos_hydro(
 // Output F
 template <typename executor_t>
 timestep_t launch_hydro_kokkos_kernels(const hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
-    const std::vector<std::vector<safe_real>>& U, const std::vector<std::vector<safe_real>>& X,
+    const f_data_t& U_flat, const std::vector<std::vector<safe_real>>& X,
     const double omega, const size_t n_species, 
     /* std::vector<hydro_state_t<std::vector<safe_real>>>& F) { */
     f_data_t& F_flat) {
@@ -1626,10 +1626,12 @@ timestep_t launch_hydro_kokkos_kernels(const hydro_computer<NDIM, INX, physics<N
           std::copy(X[n].begin(), X[n].end(),
               combined_large_x_slice.data() + n * H_N3);
       }
-      for (int f = 0; f < hydro.get_nf(); f++) {
+      /* for (int f = 0; f < hydro.get_nf(); f++) { */
+      /*     std::copy( */
+      /*         U[f].begin(), U[f].end(), combined_u_slice.data() + f * H_N3); */
+      /* } */
           std::copy(
-              U[f].begin(), U[f].end(), combined_u_slice.data() + f * H_N3);
-      }
+              U_flat.begin(), U_flat.end(), combined_u_slice.data());
 
       // Helper host buffers
       aggregated_host_buffer<int, executor_t> disc_detect(

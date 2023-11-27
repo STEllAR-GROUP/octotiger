@@ -107,7 +107,7 @@ __host__ bool* get_gpu_masks(const size_t gpu_id = 0) {
 // Output F
 // TODO remove obsolete executor
 timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
-    const std::vector<std::vector<safe_real>>& U, const std::vector<std::vector<safe_real>>& X,
+    const f_data_t& U_flat, const std::vector<std::vector<safe_real>>& X,
     const double omega, const size_t device_id,
 #if defined(OCTOTIGER_HAVE_CUDA) || (defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_CUDA)))
     std::vector<real, recycler::detail::cuda_pinned_allocator<real>>& F_flat) {
@@ -201,10 +201,12 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
           [&]() {
               // Convert input
               convert_x_structure(X, combined_x.data() + x_slice_offset * slice_id);
-              for (int f = 0; f < hydro.get_nf(); f++) {
-                  std::copy(U[f].begin(), U[f].end(),
-                      combined_u.data() + f * H_N3 + u_slice_offset * slice_id);
-              }
+              /* for (int f = 0; f < hydro.get_nf(); f++) { */
+                  /* std::copy(U[f].begin(), U[f].end(), */
+                  /*     combined_u.data() + f * H_N3 + u_slice_offset * slice_id); */
+              /* } */
+                  std::copy(U_flat.begin(), U_flat.end(),
+                      combined_u.data());
           },
           "cuda_hydro_solver::convert_input")();
 

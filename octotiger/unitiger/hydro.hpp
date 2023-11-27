@@ -23,6 +23,18 @@ using std::launch;
 #include "octotiger/unitiger/util.hpp"
 
 
+#if defined(OCTOTIGER_HAVE_CUDA) || (defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_CUDA)))
+#include <cuda_buffer_util.hpp>
+using f_data_t = std::vector<safe_real, recycler::detail::cuda_pinned_allocator<safe_real>>;
+#elif defined(OCTOTIGER_HAVE_HIP) || (defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_HIP)))
+#include <hip_buffer_util.hpp>
+using f_data_t = std::vector<safe_real, recycler::detail::hip_pinned_allocator<safe_real>>;
+#elif defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_SYCL))
+#include <sycl_buffer_util.hpp>
+using f_data_t = std::vector<safe_real, recycler::detail::sycl_host_default_allocator<safe_real>>;
+#else
+using f_data_t = std::vector<safe_real>;
+#endif
 
 struct timestep_t {
 	double a;
@@ -68,15 +80,15 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 		OUTFLOW, PERIODIC
 	};
 
-	const hydro::recon_type<NDIM>& reconstruct(const hydro::state_type &U, const hydro::x_type&, safe_real);
+	const hydro::recon_type<NDIM>& reconstruct(const f_data_t &U, const hydro::x_type&, safe_real);
 //#ifdef OCTOTIGER_WITH_CUDA
-	const hydro::recon_type<NDIM>& reconstruct_cuda(hydro::state_type &U, const hydro::x_type&, safe_real);
+	const hydro::recon_type<NDIM>& reconstruct_cuda(f_data_t &U, const hydro::x_type&, safe_real);
 //#endif
 
-	timestep_t flux(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X, safe_real omega);
+	timestep_t flux(const f_data_t& U_flat, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X, safe_real omega);
 	timestep_t flux_experimental(const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X, safe_real omega);
 
-	void post_process(hydro::state_type &U, const hydro::state_type &X, safe_real dx);
+	void post_process(f_data_t &U, const hydro::state_type &X, safe_real dx);
 
 	void boundaries(hydro::state_type &U, const hydro::x_type &X);
 

@@ -1625,7 +1625,7 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
 								G[iii][gx_i + d] -= physcon().G * L_c[iii][d];
 							}
 						}
-						U[pot_i][iiih] = G[iii][phi_i] * U[rho_i][iiih];
+						U_flat[(pot_i) * H_N3 + iiih] = G[iii][phi_i] * U_flat[(rho_i) * H_N3 + iiih];
 					} else {
 						dphi_dt[iii0] = physcon().G * L[iii]();
 					}
@@ -1771,7 +1771,7 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 							const integer iiih = hindex(ip + H_BW, jp + H_BW, kp + H_BW);
 							const integer iii0 = h0index(ip, jp, kp);
 							if (type == RHO) {
-								mon[iiip] = U[rho_i][iiih] * dx3;
+								mon[iiip] = U_flat[(rho_i) * H_N3 + iiih] * dx3;
 							} else {
 								mon[iiip] = dUdt[rho_i][iii0] * dx3;
 							}

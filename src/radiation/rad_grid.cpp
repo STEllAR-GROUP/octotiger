@@ -249,61 +249,61 @@ void node_server::compute_radiation(real dt, real omega) {
 //		printf("c = %e\n", physcon().c);
 	}
 
-	rad_grid_ptr->set_dx(grid_ptr->get_dx());
-	auto rgrid = rad_grid_ptr;
-	rad_grid_ptr->compute_mmw(grid_ptr->U);
-	const real min_dx = TWO * grid::get_scaling_factor() / real(INX << opts().max_level);
-	const real clight = physcon().c / opts().clight_retard;
-	const real max_dt = min_dx / clight * 0.2;
-	const real ns = std::ceil(dt * INVERSE(max_dt));
-	if (ns > std::numeric_limits<int>::max()) {
-		printf("Number of substeps greater than %i. dt = %e max_dt = %e\n", std::numeric_limits<int>::max(), dt, max_dt);
-	}
-	integer nsteps = std::max(int(ns), 1);
+	/* rad_grid_ptr->set_dx(grid_ptr->get_dx()); */
+	/* auto rgrid = rad_grid_ptr; */
+	/* rad_grid_ptr->compute_mmw(grid_ptr->U); */
+	/* const real min_dx = TWO * grid::get_scaling_factor() / real(INX << opts().max_level); */
+	/* const real clight = physcon().c / opts().clight_retard; */
+	/* const real max_dt = min_dx / clight * 0.2; */
+	/* const real ns = std::ceil(dt * INVERSE(max_dt)); */
+	/* if (ns > std::numeric_limits<int>::max()) { */
+	/* 	printf("Number of substeps greater than %i. dt = %e max_dt = %e\n", std::numeric_limits<int>::max(), dt, max_dt); */
+	/* } */
+	/* integer nsteps = std::max(int(ns), 1); */
 
-	const real this_dt = dt * INVERSE(real(nsteps));
-	auto &egas = grid_ptr->get_field(egas_i);
-	const auto &rho = grid_ptr->get_field(rho_i);
-	auto &tau = grid_ptr->get_field(tau_i);
-	auto &sx = grid_ptr->get_field(sx_i);
-	auto &sy = grid_ptr->get_field(sy_i);
-	auto &sz = grid_ptr->get_field(sz_i);
-	rad_grid_ptr->set_X(grid_ptr->get_X());
+	/* const real this_dt = dt * INVERSE(real(nsteps)); */
+	/* auto &egas = grid_ptr->get_field(egas_i); */
+	/* const auto &rho = grid_ptr->get_field(rho_i); */
+	/* auto &tau = grid_ptr->get_field(tau_i); */
+	/* auto &sx = grid_ptr->get_field(sx_i); */
+	/* auto &sy = grid_ptr->get_field(sy_i); */
+	/* auto &sz = grid_ptr->get_field(sz_i); */
+	/* rad_grid_ptr->set_X(grid_ptr->get_X()); */
 
-//	if (my_location.level() == 0) {
-//		printf("Explicit\n");
-//	}
-	if (opts().rad_implicit) {
-		rgrid->rad_imp(egas, tau, sx, sy, sz, rho, 0.5 * dt);
-	}
-	for (integer i = 0; i != nsteps; ++i) {
-		//	rgrid->sanity_check();
-		if (my_location.level() == 0) {
-			printf("radiation sub-step %i of %i\r", int(i + 1), int(nsteps));
-			fflush(stdout);
-		}
+/* //	if (my_location.level() == 0) { */
+/* //		printf("Explicit\n"); */
+/* //	} */
+	/* if (opts().rad_implicit) { */
+	/* 	rgrid->rad_imp(egas, tau, sx, sy, sz, rho, 0.5 * dt); */
+	/* } */
+	/* for (integer i = 0; i != nsteps; ++i) { */
+	/* 	//	rgrid->sanity_check(); */
+	/* 	if (my_location.level() == 0) { */
+	/* 		printf("radiation sub-step %i of %i\r", int(i + 1), int(nsteps)); */
+	/* 		fflush(stdout); */
+	/* 	} */
 
-		rgrid->store();
-		const double beta[3] = { 1.0, 0.25, 2.0 / 3.0 };
-		for (int rk = 0; rk < 3; rk++) {
-			all_rad_bounds();
-			rgrid->compute_flux(omega);
-//			if( my_location.level() == 0 ) printf( "\nbounds 10\n");
-			GET(exchange_rad_flux_corrections());
-//			if( my_location.level() == 0 ) printf( "\nbounds 11\n");
-			rgrid->advance(this_dt, beta[rk]);
-		}
+	/* 	rgrid->store(); */
+	/* 	const double beta[3] = { 1.0, 0.25, 2.0 / 3.0 }; */
+	/* 	for (int rk = 0; rk < 3; rk++) { */
+	/* 		all_rad_bounds(); */
+	/* 		rgrid->compute_flux(omega); */
+/* //			if( my_location.level() == 0 ) printf( "\nbounds 10\n"); */
+	/* 		GET(exchange_rad_flux_corrections()); */
+/* //			if( my_location.level() == 0 ) printf( "\nbounds 11\n"); */
+	/* 		rgrid->advance(this_dt, beta[rk]); */
+	/* 	} */
 
-	}
-	if (opts().rad_implicit) {
-		rgrid->rad_imp(egas, tau, sx, sy, sz, rho, 0.5 * dt);
-	}
-//	rgrid->sanity_check();
-	all_rad_bounds();
-	if (my_location.level() == 0) {
-		printf("\n");
-//		printf("Rad done\n");
-	}
+	/* } */
+	/* if (opts().rad_implicit) { */
+	/* 	rgrid->rad_imp(egas, tau, sx, sy, sz, rho, 0.5 * dt); */
+	/* } */
+/* //	rgrid->sanity_check(); */
+	/* all_rad_bounds(); */
+	/* if (my_location.level() == 0) { */
+	/* 	printf("\n"); */
+/* //		printf("Rad done\n"); */
+	/* } */
 }
 
 template<class T>
@@ -361,14 +361,14 @@ void rad_grid::sanity_check() {
 }
 
 void rad_grid::compute_flux(real omega) {
-	PROFILE()
-	;
-	radiation_physics<NDIM>::set_clight(physcon().c / opts().clight_retard);
-	if (opts().correct_am_hydro) {
-		hydro.use_angmom_correction(fx_i);
-	}
-	const auto &q = hydro.reconstruct(U, X, omega);
-	hydro.flux(U, q, flux, X, omega);
+	/* PROFILE() */
+	/* ; */
+	/* radiation_physics<NDIM>::set_clight(physcon().c / opts().clight_retard); */
+	/* if (opts().correct_am_hydro) { */
+	/* 	hydro.use_angmom_correction(fx_i); */
+	/* } */
+	/* const auto &q = hydro.reconstruct(U, X, omega); */
+	/* hydro.flux(U, q, flux, X, omega); */
 }
 
 void rad_grid::change_units(real m, real l, real t, real k) {

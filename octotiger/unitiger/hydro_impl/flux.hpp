@@ -13,7 +13,7 @@
 //#define FACE_ONLY_HYDRO
 
 template<int NDIM, int INX, class PHYS>
-timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X,	safe_real omega) {
+timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const f_data_t& U_flat, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X,	safe_real omega) {
 
 	PROFILE();
 	// input Q, X

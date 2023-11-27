@@ -325,7 +325,7 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 				const real y = X[YDIM][iiih];
 				const real z = X[ZDIM][iiih];
 				const real R = SQRT(POWER(x - com, 2) + y * y);
-				real rho = U[rho_i][iiih];
+				real rho = U_flat[(rho_i) * H_N3 + iiih];
 				real phi_eff = G[iiig][phi_i] - 0.5 * POWER(omega * R, 2);
 				const real fx = G[iiig][gx_i] + (x - com) * POWER(omega, 2);
 				const real fy = G[iiig][gy_i] + y * POWER(omega, 2);
@@ -378,26 +378,26 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 				if (new_rho < rho_int) {
 					rho = rho_floor;
 				}
-				U[rho_i][iiih] = rho;
+				U_flat[(rho_i) * H_N3 + iiih] = rho;
 				const real rho0 = rho - rho_floor;
 				if (opts().eos == WD) {
-					U[spc_ac_i][iiih] = rho > this_struct_eos.wd_core_cut ? (is_donor_side ? 0.0 : rho) : 0.0;
-					U[spc_dc_i][iiih] = rho > this_struct_eos.wd_core_cut ? (is_donor_side ? rho : 0.0) : 0.0;
-					U[spc_ae_i][iiih] = rho <= this_struct_eos.wd_core_cut ? (is_donor_side ? 0.0 : rho) : 0.0;
-					U[spc_de_i][iiih] = rho <= this_struct_eos.wd_core_cut ? (is_donor_side ? rho : 0.0) : 0.0;
+					U_flat[(spc_ac_i) * H_N3 + iiih] = rho > this_struct_eos.wd_core_cut ? (is_donor_side ? 0.0 : rho) : 0.0;
+					U_flat[(spc_dc_i) * H_N3 + iiih] = rho > this_struct_eos.wd_core_cut ? (is_donor_side ? rho : 0.0) : 0.0;
+					U_flat[(spc_ae_i) * H_N3 + iiih] = rho <= this_struct_eos.wd_core_cut ? (is_donor_side ? 0.0 : rho) : 0.0;
+					U_flat[(spc_de_i) * H_N3 + iiih] = rho <= this_struct_eos.wd_core_cut ? (is_donor_side ? rho : 0.0) : 0.0;
 				} else {
-					U[spc_ac_i][iiih] = rho > this_struct_eos.dE() ? (is_donor_side ? 0.0 : rho0) : 0.0;
-					U[spc_dc_i][iiih] = rho > this_struct_eos.dE() ? (is_donor_side ? rho0 : 0.0) : 0.0;
-					U[spc_ae_i][iiih] = rho <= this_struct_eos.dE() ? (is_donor_side ? 0.0 : rho0) : 0.0;
-					U[spc_de_i][iiih] = rho <= this_struct_eos.dE() ? (is_donor_side ? rho0 : 0.0) : 0.0;
+					U_flat[(spc_ac_i) * H_N3 + iiih] = rho > this_struct_eos.dE() ? (is_donor_side ? 0.0 : rho0) : 0.0;
+					U_flat[(spc_dc_i) * H_N3 + iiih] = rho > this_struct_eos.dE() ? (is_donor_side ? rho0 : 0.0) : 0.0;
+					U_flat[(spc_ae_i) * H_N3 + iiih] = rho <= this_struct_eos.dE() ? (is_donor_side ? 0.0 : rho0) : 0.0;
+					U_flat[(spc_de_i) * H_N3 + iiih] = rho <= this_struct_eos.dE() ? (is_donor_side ? rho0 : 0.0) : 0.0;
 				}
 				real sx, sy;
-				U[spc_vac_i][iiih] = rho_floor;
+				U_flat[(spc_vac_i) * H_N3 + iiih] = rho_floor;
 				if (opts().eos == WD) {
 					double abar = 0.0, zbar = 0.0;
 					for (int s = 0; s < opts().n_species; s++) {
-						abar += U[spc_i + s][iiih] / opts().atomic_mass[s];
-						zbar += U[spc_i + s][iiih] * opts().atomic_number[s] / opts().atomic_mass[s];
+						abar += U_flat[(spc_i + s) * H_N3 + iiih] / opts().atomic_mass[s];
+						zbar += U_flat[(spc_i + s) * H_N3 + iiih] * opts().atomic_number[s] / opts().atomic_mass[s];
 					}
 					abar = rho / abar;
 					zbar *= abar / rho;
@@ -407,15 +407,15 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 				}
 				if (opts().v1309) {
 					if (rho0 < this_struct_eos.get_cutoff_density()) {
-						U[spc_de_i][iiih] = U[spc_ae_i][iiih] = U[spc_dc_i][iiih] = U[spc_ac_i][iiih] = 0.0;
-						U[spc_vac_i][iiih] += rho0;
+						U_flat[(spc_de_i) * H_N3 + iiih] = U_flat[(spc_ae_i) * H_N3 + iiih] = U_flat[(spc_dc_i) * H_N3 + iiih] = U_flat[(spc_ac_i) * H_N3 + iiih] = 0.0;
+						U_flat[(spc_vac_i) * H_N3 + iiih] += rho0;
 					}
 				}
 				sx = -omega * y * rho;
 				sy = +omega * (x - com) * rho;
 				sx += -ti_omega * y * rho;
 				sy += +ti_omega * (x - cx) * rho;
-				U[sz_i][iiih] = 0.0;
+				U_flat[(sz_i) * H_N3 + iiih] = 0.0;
 				if (rho == rho_floor) {
 					sx = sy = 0.0;
 					eint = -0.5 * rho_floor * G[iiig][phi_i];
@@ -435,19 +435,19 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 					etherm = std::max(1.0e-20, etherm);
 				}
 
-				U[sx_i][iiih] = sx;
-				U[sy_i][iiih] = sy;
-				U[tau_i][iiih] = POWER(etherm, 3.0 / 5.0);
-				U[egas_i][iiih] = eint + (sx * sx + sy * sy) / 2.0 * INVERSE(rho);
-				U[lx_i][iiih] = -z * sy;
-				U[ly_i][iiih] = +z * sx;
-				U[lz_i][iiih] = x * sy - y * sx;
+				U_flat[(sx_i) * H_N3 + iiih] = sx;
+				U_flat[(sy_i) * H_N3 + iiih] = sy;
+				U_flat[(tau_i) * H_N3 + iiih] = POWER(etherm, 3.0 / 5.0);
+				U_flat[(egas_i) * H_N3 + iiih] = eint + (sx * sx + sy * sy) / 2.0 * INVERSE(rho);
+				U_flat[(lx_i) * H_N3 + iiih] = -z * sy;
+				U_flat[(ly_i) * H_N3 + iiih] = +z * sx;
+				U_flat[(lz_i) * H_N3 + iiih] = x * sy - y * sx;
 			}
 		}
 	}
 	init_z_field();
 	if (opts().radiation) {
-		rad_grid_ptr->initialize_erad(U[rho_i], U[tau_i]);
+		/* rad_grid_ptr->initialize_erad(U[rho_i], U[tau_i]); */
 	}
 	return 0.0;
 }

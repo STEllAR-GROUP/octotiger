@@ -3,6 +3,7 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+#include "octotiger/defs.hpp"
 #include "octotiger/grid.hpp"
 #include "octotiger/test_problems/amr/amr.hpp"
 #include "octotiger/unitiger/util.hpp"
@@ -15,7 +16,7 @@ std::vector<real> grid::get_subset(const std::array<integer, NDIM> &lb, const st
 			for (int i = lb[0]; i < ub[0]; i++) {
 				for (int j = lb[1]; j < ub[1]; j++) {
 					for (int k = lb[2]; k < ub[2]; k++) {
-						data.push_back(U[f][hindex(i, j, k)]);
+						data.push_back(U_flat[f * H_N3 + hindex(i, j, k)]);
 					}
 				}
 			}
@@ -197,7 +198,7 @@ void grid::complete_hydro_amr_boundary(bool energy_only) {
 								jr = 1 - (j % 2);
 								kr = 1 - (k % 2);
 							}
-							U[f][iiir] = Uf[f][iii0][ir][jr][kr];
+							U_flat[f * H_N3 + iiir] = Uf[f][iii0][ir][jr][kr];
 						}
 					}
 				}
@@ -241,7 +242,7 @@ std::pair<real, real> grid::amr_error() const {
 					const int iii0 = hSindex(i0, j0, k0);
 					if (is_coarse[iii0]) {
 						const double v0 = amr_test_analytic(x, y, z);
-						const double v1 = U[rho_i][iii];
+						const double v1 = U_flat[rho_i * H_N3 + iii];
 						sum += std::pow(v0 - v1, 2) * dV;
 						FILE *fp = fopen("error.txt", "at");
 						fprintf(fp, "%e %e %e\n", double(y), double(v0), double(v1));

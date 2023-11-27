@@ -64,7 +64,7 @@ using executor_interface_cuda_t = stream_interface<device_executor_cuda, device_
 #endif
 
 timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
-    const std::vector<std::vector<safe_real>>& U, std::vector<std::vector<safe_real>>& X,
+    const f_data_t& U_flat, std::vector<std::vector<safe_real>>& X,
     const double omega,
     std::vector<hydro_state_t<std::vector<safe_real>>>& F,
     f_data_t& F_flat,
@@ -98,7 +98,7 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
             if (avail) {
                 // executor_interface_t executor;
                 max_lambda = launch_hydro_kokkos_kernels<device_executor>(
-                    hydro, U, X, omega, opts().n_species, F_flat);
+                    hydro, U_flat, X, omega, opts().n_species, F_flat);
                 return max_lambda;
             }
         }
@@ -122,7 +122,7 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
             }
             if (avail) {
                 size_t device_id = 0;
-                max_lambda = launch_hydro_cuda_kernels(hydro, U, X, omega, device_id, F_flat);
+                max_lambda = launch_hydro_cuda_kernels(hydro, U_flat, X, omega, device_id, F_flat);
                 return max_lambda;
             }
         }
@@ -143,7 +143,7 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
             }
             if (avail) {
                 size_t device_id = 0;
-                max_lambda = launch_hydro_cuda_kernels(hydro, U, X, omega, device_id, F_flat);
+                max_lambda = launch_hydro_cuda_kernels(hydro, U_flat, X, omega, device_id, F_flat);
                 return max_lambda;
             }
         }
@@ -160,7 +160,7 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
 #ifdef OCTOTIGER_HAVE_KOKKOS
         hpx::call_once(init_hydro_kokkos_pool_flag, init_hydro_kokkos_aggregation_pool);
         max_lambda = launch_hydro_kokkos_kernels<host_executor>(
-            hydro, U, X, omega, opts().n_species, F_flat);
+            hydro, U_flat, X, omega, opts().n_species, F_flat);
         return max_lambda;
 #else
         std::cerr << "Trying to call Hydro Kokkos kernels in a non-kokkos build! Aborting..."
@@ -174,12 +174,12 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
 #ifdef HPX_HAVE_APEX
         auto reconstruct_timer = apex::start("kernel hydro_reconstruct legacy");
 #endif
-        const auto& q = hydro.reconstruct(U, X, omega);
+        const auto& q = hydro.reconstruct(U_flat, X, omega);
 #ifdef HPX_HAVE_APEX
         apex::stop(reconstruct_timer);
         auto flux_timer = apex::start("kernel hydro_flux legacy");
 #endif
-        max_lambda = hydro.flux(U, q, f, X, omega);
+        max_lambda = hydro.flux(U_flat, q, f, X, omega);
         octotiger::hydro::hydro_legacy_subgrids_processed++;
 #ifdef HPX_HAVE_APEX
         apex::stop(flux_timer);
