@@ -1244,7 +1244,7 @@ template <typename executor_t,
 timestep_t device_interface_kokkos_hydro(
     const aggregated_host_buffer<double, executor_t>& combined_x,
     const aggregated_host_buffer<double, executor_t>& combined_large_x,
-    aggregated_host_buffer<double, executor_t>& combined_u,
+    f_data_t& U_flat,
     const aggregated_host_buffer<int, executor_t>& disc_detect,
     const aggregated_host_buffer<int, executor_t>& smooth_field,
     const size_t ndir, const size_t nf,
@@ -1270,8 +1270,15 @@ timestep_t device_interface_kokkos_hydro(
 
     // Find contact discs
     aggregated_device_buffer<double, executor_t> u(
-        alloc_device_double, (nf * H_N3 + padding) * max_slices);
-    aggregated_deep_copy(agg_exec, u, combined_u, (nf * H_N3 + padding));
+        alloc_device_double, (nf * H_N3) * max_slices);
+
+    kokkos_um_pinned_array<real> u_host(U_flat.data(), nf * H_N3);
+    auto [u_slice] =
+          map_views_to_slice(agg_exec, u);
+    Kokkos::deep_copy(
+        agg_exec.get_underlying_executor().instance(), u_slice, u_host);
+    /* aggregated_deep_copy(agg_exec, u, combined_u, (nf * H_N3 + padding)); */
+
     aggregated_device_buffer<double, executor_t> P(
         alloc_device_double, (H_N3 + padding) * max_slices);
     aggregated_device_buffer<double, executor_t> disc(
@@ -1408,7 +1415,7 @@ template <typename executor_t,
 timestep_t device_interface_kokkos_hydro(
     const aggregated_host_buffer<double, executor_t>& combined_x,
     const aggregated_host_buffer<double, executor_t>& combined_large_x,
-    aggregated_host_buffer<double, executor_t>& combined_u,
+    const f_data_t& U_flat,
     const aggregated_host_buffer<int, executor_t>& disc_detect,
     const aggregated_host_buffer<int, executor_t>& smooth_field,
     const size_t ndir, const size_t nf,
@@ -1432,6 +1439,15 @@ timestep_t device_interface_kokkos_hydro(
     //const int q_slice_offset = (nf_ * 27 * H_N3 + padding) 
     const int f_slice_offset = (NDIM* nf *  f_inx3 + padding);
     const int disc_offset = ndir / 2 * H_N3 + padding;
+
+    // TODO: If only one slice then copy directly
+    aggregated_host_buffer<double, executor_t> combined_u(
+        alloc_host_double, (nf * H_N3 + padding) *
+        max_slices);
+    auto [combined_u_slice] =
+          map_views_to_slice(agg_exec, combined_u);
+    std::copy(
+        U_flat.begin(), U_flat.end(), combined_u_slice.data());
 
     // Find contact discs
     aggregated_host_buffer<double, executor_t> P(alloc_host_double, (H_N3 + padding) * max_slices);
@@ -1580,7 +1596,7 @@ timestep_t device_interface_kokkos_hydro(
 // Output F
 template <typename executor_t>
 timestep_t launch_hydro_kokkos_kernels(const hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
-    const f_data_t& U_flat, const std::vector<std::vector<safe_real>>& X,
+    f_data_t& U_flat, const std::vector<std::vector<safe_real>>& X,
     const double omega, const size_t n_species, 
     /* std::vector<hydro_state_t<std::vector<safe_real>>>& F) { */
     f_data_t& F_flat) {
@@ -1610,15 +1626,12 @@ timestep_t launch_hydro_kokkos_kernels(const hydro_computer<NDIM, INX, physics<N
           alloc_host_double, (NDIM * q_inx3 + padding) * max_slices);
       aggregated_host_buffer<double, executor_t> combined_large_x(
           alloc_host_double, (NDIM * H_N3 + padding) * max_slices);
-      aggregated_host_buffer<double, executor_t> combined_u(
-          alloc_host_double, (hydro.get_nf() * H_N3 + padding) *
-          max_slices);
       aggregated_host_buffer<double, executor_t> combined_f(
           alloc_host_double, (NDIM * hydro.get_nf() * q_inx3 + padding) * max_slices);
 
       // Map aggregated host buffers to the current slice
-      auto [combined_x_slice, combined_large_x_slice, combined_u_slice, combined_f_slice] =
-          map_views_to_slice(agg_exec, combined_x, combined_large_x, combined_u, combined_f);
+      auto [combined_x_slice, combined_large_x_slice, combined_f_slice] =
+          map_views_to_slice(agg_exec, combined_x, combined_large_x, combined_f);
 
       // Convert input into current slice buffers
       convert_x_structure(X, combined_x_slice.data());
@@ -1626,12 +1639,20 @@ timestep_t launch_hydro_kokkos_kernels(const hydro_computer<NDIM, INX, physics<N
           std::copy(X[n].begin(), X[n].end(),
               combined_large_x_slice.data() + n * H_N3);
       }
+
+      // TODO Remove obsolete conversions?
+
       /* for (int f = 0; f < hydro.get_nf(); f++) { */
       /*     std::copy( */
       /*         U[f].begin(), U[f].end(), combined_u_slice.data() + f * H_N3); */
       /* } */
-          std::copy(
-              U_flat.begin(), U_flat.end(), combined_u_slice.data());
+    /* kokkos_um_pinned_array<real> vector_wrapper_f(U_flat.data(), nf * f_inx3); */
+
+      /* aggregated_host_buffer<double, executor_t> combined_u( */
+      /*     alloc_host_double, (hydro.get_nf() * H_N3 + padding) * */
+      /*     max_slices); */
+      /* std::copy( */
+      /*     U_flat.begin(), U_flat.end(), combined_u_slice.data()); */
 
       // Helper host buffers
       aggregated_host_buffer<int, executor_t> disc_detect(
@@ -1654,7 +1675,7 @@ timestep_t launch_hydro_kokkos_kernels(const hydro_computer<NDIM, INX, physics<N
 
       // Either handles the launches on the CPU or on the GPU depending on the passed executor
       max_lambda = device_interface_kokkos_hydro(combined_x, combined_large_x,
-          combined_u, disc_detect, smooth_field, geo.NDIR, hydro.get_nf(),
+          U_flat, disc_detect, smooth_field, geo.NDIR, hydro.get_nf(),
           hydro.get_angmom_index() != -1, n_species, omega, hydro.get_angmom_index(), geo.NANGMOM,
           dx, physics<NDIM>::A_, physics<NDIM>::B_, physics<NDIM>::fgamma_,
           physics<NDIM>::de_switch_1, agg_exec, alloc_host_double, alloc_host_int, F_flat);

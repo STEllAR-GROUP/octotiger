@@ -25,7 +25,7 @@ using f_data_t = std::vector<real>;
 // Input U, X, omega, executor, device_id
 // Output F
 timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
-    const f_data_t& U, std::vector<std::vector<safe_real>>& X,
+    f_data_t& U, std::vector<std::vector<safe_real>>& X,
     const double omega,
     std::vector<hydro_state_t<std::vector<safe_real>>>& F,
     f_data_t& F_flat,
