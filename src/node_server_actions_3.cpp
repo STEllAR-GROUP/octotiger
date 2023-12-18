@@ -278,32 +278,32 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 			output_all(this, "final", output_cnt, true);
 		}
 		if (get_analytic() != nullptr) {
-      if (!opts().disable_analytic) { // Pure performance measurements - skip analytics 
+      if (!opts().disable_analytic) { // Pure performance measurements - skip analytics
           compare_analytic();
       }
       if (opts().gravity) {
-        auto start_all_gravity = std::chrono::high_resolution_clock::now(); 
+        auto start_all_gravity = std::chrono::high_resolution_clock::now();
         auto min_duration = std::chrono::milliseconds::max();
         auto max_duration = std::chrono::milliseconds::min();
         for (int iteration = 0; iteration < opts().stop_step; iteration++) {
           std::cout << "Pure-gravity iteration " << iteration << std::endl;
-          auto start = std::chrono::high_resolution_clock::now(); 
+          auto start = std::chrono::high_resolution_clock::now();
           solve_gravity(true, false);
-          auto stop = std::chrono::high_resolution_clock::now(); 
-          auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start); 
-          std::cout << "--> " << iteration + 1 << ". FMM iteration took: " << duration.count() << " ms" << std::endl; 
+          auto stop = std::chrono::high_resolution_clock::now();
+          auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+          std::cout << "--> " << iteration + 1 << ". FMM iteration took: " << duration.count() << " ms" << std::endl;
           if (duration.count() < min_duration.count())
             min_duration = duration;
           if (duration.count() > max_duration.count())
             max_duration = duration;
 
         }
-        auto stop_all_gravity = std::chrono::high_resolution_clock::now(); 
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop_all_gravity - start_all_gravity); 
-        std::cout << "==> Overall execution time: " << duration.count() << " ms" << std::endl; 
-        std::cout << "==> Average iteration execution time: " << duration.count() / opts().stop_step << " ms" << std::endl; 
-        std::cout << "==> Minimal iteration execution time: " << min_duration.count() << " ms" << std::endl; 
-        std::cout << "==> Maximal iteration execution time: " << max_duration.count() << " ms" << std::endl; 
+        auto stop_all_gravity = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop_all_gravity - start_all_gravity);
+        std::cout << "==> Overall execution time: " << duration.count() << " ms" << std::endl;
+        std::cout << "==> Average iteration execution time: " << duration.count() / opts().stop_step << " ms" << std::endl;
+        std::cout << "==> Minimal iteration execution time: " << min_duration.count() << " ms" << std::endl;
+        std::cout << "==> Maximal iteration execution time: " << max_duration.count() << " ms" << std::endl;
 			}
 			if (!opts().disable_output) {
 				output_all(this, "analytic", output_cnt, true);
@@ -460,22 +460,23 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 
 		/* hpx::threads::run_as_os_thread( */
 		/* 		[=]() { */
-    {
-					const auto vr = sqrt(sqr(dt_.ur[sx_i]) + sqr(dt_.ur[sy_i]) + sqr(dt_.ur[sz_i])) / dt_.ur[0];
-					const auto vl = sqrt(sqr(dt_.ul[sx_i]) + sqr(dt_.ul[sy_i]) + sqr(dt_.ul[sz_i])) / dt_.ul[0];
-					printf("TS %i:: t: %e, dt: %e, time_elapsed: %e, rotational_time: %e, x: %e, y: %e, z: %e, ",
-						int(next_step), double(t), double(dt_.dt), time_elapsed, rotational_time,
-						dt_.x, dt_.y, dt_.z);
-					printf("a: %e, ur: %e, ul: %e, vr: %e, vl: %e, dim: %i, ngrids: %i, leafs: %i, amr_boundaries: %i\n", 
-						dt_.a, dt_.ur[0], dt_.ul[0], vr, vl, dt_.dim, int(ngrids.total),
-						int(ngrids.leaf), int(ngrids.amr_bnd));
+    if (dt_.ur.size()){
+			const auto vr = sqrt(sqr(dt_.ur[sx_i]) + sqr(dt_.ur[sy_i]) + sqr(dt_.ur[sz_i])) / dt_.ur[0];
+
+			//		const auto vl = sqrt(sqr(dt_.ul[sx_i]) + sqr(dt_.ul[sy_i]) + sqr(dt_.ul[sz_i])) / dt_.ul[0];
+		//			printf("TS %i:: t: %e, dt: %e, time_elapsed: %e, rotational_time: %e, x: %e, y: %e, z: %e, ",
+		//				int(next_step), double(t), double(dt_.dt), time_elapsed, rotational_time,
+		//				dt_.x, dt_.y, dt_.z);
+		//			printf("a: %e, ur: %e, ul: %e, vr: %e, vl: %e, dim: %i, ngrids: %i, leafs: %i, amr_boundaries: %i\n",
+		//				dt_.a, dt_.ur[0], dt_.ul[0], vr, vl, dt_.dim, int(ngrids.total),
+		//				int(ngrids.leaf), int(ngrids.amr_bnd));
     }
 				/* });     // do not wait for output to finish */
 
 		step_num = next_step;
 
 		if (step_num % refinement_freq() == 0) {
-			real new_floor = opts().refinement_floor;
+				real new_floor = opts().refinement_floor;
 			if (opts().ngrids > 0) {
 				new_floor *= std::pow(real(ngrids.total) / real(opts().ngrids), 2);
 				printf("Old refinement floor = %e\n", opts().refinement_floor);
@@ -621,8 +622,8 @@ future<void> node_server::nonrefined_step() {
 	grid_ptr->store();
 	future<void> fut = hpx::make_ready_future();
 
-	hpx::shared_future<timestep_t> dt_fut = global_timestep_channel.get_future();
 
+	hpx::shared_future<timestep_t> dt_fut = global_timestep_channel.get_future();
 	for (integer rk = 0; rk < NRK; ++rk) {
 
 		fut = fut.then(hpx::launch::async_policy(hpx::threads::thread_priority::boost),
@@ -636,6 +637,17 @@ future<void> node_server::nonrefined_step() {
 //					a = std::max(a, grid_ptr->compute_positivity_speed_limit());
 					if (rk == 0) {
 						const real dx = TWO * grid::get_scaling_factor() / real(INX << my_location.level());
+						if( opts().radiation) {
+							grid_ptr->compute_mmw();
+									auto rs = rad_grid_ptr->hydro_signal_speed(
+											grid_ptr->get_field(egas_i),
+											grid_ptr->get_field(tau_i),
+											grid_ptr->get_field(sx_i),
+											grid_ptr->get_field(sy_i),
+											grid_ptr->get_field(sz_i),
+											grid_ptr->get_field(rho_i));
+									a.a = std::sqrt(a.a * a.a + rs * rs);
+						}
 						dt_ = a;
 						dt_.dt = cfl0 * dx / a.a;
 						if (opts().stop_time > 0.0) {
@@ -670,6 +682,7 @@ future<void> node_server::nonrefined_step() {
 
 		update();
 		if (opts().radiation) {
+			grid_ptr->compute_mmw();
 			compute_radiation(dt_.dt, grid_ptr->get_omega());
 			all_hydro_bounds();
 		}

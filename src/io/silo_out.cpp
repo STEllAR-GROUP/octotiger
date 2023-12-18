@@ -213,33 +213,30 @@ void output_stage3(std::string fname, int cycle, int gn, int gb, int ge) {
 			DBSetDir(db, dir_name);
 			DBPutQuadmesh(db, "quadmesh", coord_names, coords, mesh_vars.X_dims.data(), ndim, data_type, coord_type, optlist_mesh);
 
-			for (integer m = 0; m != mesh_vars.vars.size(); m++) {
-				auto optlist_var = DBMakeOptlist(100);
-				DBAddOption(optlist_var, DBOPT_COORDSYS, &opt1);
-				DBAddOption(optlist_var, DBOPT_CYCLE, &cycle);
-				DBAddOption(optlist_var, DBOPT_TIME, &ftime);
-				DBAddOption(optlist_var, DBOPT_DTIME, &dtime);
-				// TODO: UNITS
-				DBAddOption(optlist_var, DBOPT_HIDE_FROM_GUI, &one);
+					for (integer m = 0; m != mesh_vars.vars.size(); m++) {
+						auto optlist_var = DBMakeOptlist(100);
+						DBAddOption(optlist_var, DBOPT_COORDSYS, &opt1);
+						DBAddOption(optlist_var, DBOPT_CYCLE, &cycle);
+						DBAddOption(optlist_var, DBOPT_TIME, &ftime);
+						DBAddOption(optlist_var, DBOPT_DTIME, &dtime);
+						// TODO: UNITS
+						DBAddOption(optlist_var, DBOPT_HIDE_FROM_GUI, &one);
 
-				const auto &o = mesh_vars.vars[m];
-				const bool is_hydro = grid::is_hydro_field(o.name());
-				if (is_hydro) {
-					real outflow = mesh_vars.outflow[m].second;
-					write_silo_var<real> f;
-					f(db, outflow_name(o.name()).c_str(), outflow);
-					DBAddOption(optlist_var, DBOPT_CONSERVED, &one);
-					DBAddOption(optlist_var, DBOPT_EXTENSIVE, &one);
-				}
-				//			if( std::strcmp(o.name(),"fx")==0 ) {
-//							for( int i = 0; i < INX*INX*INX; i++) {
-//								printf( "%e\n", o(i));
-//							}
-				//				}
-				DBPutQuadvar1(db, o.name(), "quadmesh", o.data(), mesh_vars.var_dims.data(), ndim, nullptr, 0, DB_DOUBLE, DB_ZONECENT, optlist_var);
-				count++;
-				DBFreeOptlist(optlist_var);
-			}
+						const auto &o = mesh_vars.vars[m];
+						const bool is_hydro = grid::is_hydro_field(o.name());
+						if (is_hydro || grid::is_radiation_field(o.name())) {
+							real outflow = mesh_vars.outflow[m].second;
+							write_silo_var<real> f;
+							f(db, outflow_name(o.name()).c_str(), outflow);
+							DBAddOption(optlist_var, DBOPT_CONSERVED, &one);
+							DBAddOption(optlist_var, DBOPT_EXTENSIVE, &one);
+						}
+						DBPutQuadvar1(db, o.name(), "quadmesh", o.data(),
+								mesh_vars.var_dims.data(), ndim, nullptr, 0,
+								DB_DOUBLE, DB_ZONECENT, optlist_var);
+						count++;
+						DBFreeOptlist(optlist_var);
+					}
 			DBSetDir(db, "/");
 		}
 		DBFreeOptlist(optlist_mesh);

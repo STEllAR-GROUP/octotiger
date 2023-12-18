@@ -175,9 +175,16 @@ void node_server::exchange_interlevel_hydro_data() {
         auto data = GET(child_hydro_channels[ci].get_future(hcycle));
         grid_ptr->set_restrict(data, ci);
         integer fi = 0;
-        for (auto i = data.end() - opts().n_fields; i != data.end(); ++i) {
-          outflow[fi] += *i;
-          ++fi;
+        if( opts().radiation) {
+            for (auto i = data.end() - opts().n_fields - NRF; i != data.end(); ++i) {
+              outflow[fi] += *i;
+              ++fi;
+            }
+        } else {
+            for (auto i = data.end() - opts().n_fields; i != data.end(); ++i) {
+              outflow[fi] += *i;
+              ++fi;
+            }
         }
       }
       grid_ptr->set_outflows(std::move(outflow));

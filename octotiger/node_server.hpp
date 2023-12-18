@@ -336,7 +336,7 @@ public:
 
 	std::array<std::array<channel<std::vector<real>>, 4>, NFACE> niece_rad_channels;
 
-	void set_rad_grid(const std::vector<real>&/*, std::vector<real>&&*/);/**/
+	void set_rad_grid(const std::vector<real>&, const std::vector<real>&);/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server, set_rad_grid, set_rad_grid_action);
 
 	void erad_init();/**/HPX_DEFINE_COMPONENT_ACTION(node_server, erad_init, erad_init_action);

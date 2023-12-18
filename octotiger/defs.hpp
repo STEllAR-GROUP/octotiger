@@ -37,7 +37,7 @@ constexpr int REFINE_BW = 2;
 
 
 //#define EXPERIMENT
-constexpr int NRF = 7;
+constexpr int NRF = 4;
 
 #define abort_error() printf( "Error in %s on line %i\n", __FILE__, __LINE__); abort()
 
@@ -117,6 +117,7 @@ constexpr integer G_DNZ = 1;
 constexpr integer G_DN[NDIM] = { G_NX * G_NX, G_NX, 1 };
 
 // Radiation {{{
+constexpr integer RAD_NF = 4;
 constexpr integer RAD_BW = 3;
 constexpr integer RAD_NX = INX + 2 * RAD_BW;
 constexpr integer RAD_N3 = RAD_NX * RAD_NX * RAD_NX;

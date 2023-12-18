@@ -51,11 +51,20 @@ bool grid::is_hydro_field(const std::string &str) {
 	return str_to_index_hydro.find(str) != str_to_index_hydro.end();
 }
 
+bool grid::is_radiation_field(const std::string &str) {
+	return ("fx" == str) || ("fy" == str) || ("fz" == str) || ("er" == str);
+}
+
 std::vector<std::pair<std::string, real>> grid::get_outflows() const {
 	std::vector<std::pair<std::string, real>> rc;
 	rc.reserve(str_to_index_hydro.size());
 	for (auto i = str_to_index_hydro.begin(); i != str_to_index_hydro.end(); ++i) {
 		rc.push_back(std::make_pair(i->first, U_out[i->second]));
+	}
+
+	if( opts().radiation ) {
+		auto routs = rad_grid_ptr->get_outflows();
+		rc.insert(rc.end(), routs.begin(), routs.end());
 	}
 	return std::move(rc);
 }
@@ -67,10 +76,14 @@ void grid::set_outflows(std::vector<std::pair<std::string, real>> &&u) {
 }
 
 void grid::set_outflow(std::pair<std::string, real> &&p) {
-	U_out[str_to_index_hydro[p.first]] = p.second;
-	U_out[rho_i] = 0.0;
-	for (integer s = 0; s < opts().n_species; s++) {
-		U_out[rho_i] += U_out[spc_i + s];
+	if( opts().radiation && str_to_index_hydro.find(p.first) == str_to_index_hydro.end()) {
+		rad_grid_ptr->set_outflow(std::move(p));
+	} else {
+		U_out[str_to_index_hydro[p.first]] = p.second;
+		U_out[rho_i] = 0.0;
+		for (integer s = 0; s < opts().n_species; s++) {
+			U_out[rho_i] += U_out[spc_i + s];
+		}
 	}
 }
 
@@ -110,15 +123,15 @@ void grid::static_init() {
 
 std::vector<std::string> grid::get_field_names() {
 	std::vector<std::string> rc = get_hydro_field_names();
-	if (opts().gravity) {
-		for (auto i : str_to_index_gravity) {
-			rc.push_back(i.first);
-		}
-	}
 	if (opts().radiation) {
 		const auto rnames = rad_grid::get_field_names();
 		for (auto &n : rnames) {
 			rc.push_back(n);
+		}
+	}
+	if (opts().gravity) {
+		for (auto i : str_to_index_gravity) {
+			rc.push_back(i.first);
 		}
 	}
 	if (opts().idle_rates) {
@@ -142,9 +155,9 @@ std::vector<std::string> grid::get_hydro_field_names() {
 void grid::set(const std::string name, real *data, int version) {
 	PROFILE();
 	auto iter = str_to_index_hydro.find(name);
-	real unit = convert_hydro_units(iter->second);
 
 	if (iter != str_to_index_hydro.end()) {
+		real unit = convert_hydro_units(iter->second);
 		int f = iter->second;
 		int jjj = 0;
 
@@ -829,6 +842,10 @@ std::vector<real> grid::get_prolong(const std::array<integer, NDIM> &lb, const s
 			}
 		}
 	}
+	if( opts().radiation ) {
+		auto rad_pro = rad_grid_ptr->get_prolong(lb, ub);
+		data.insert(data.end(), rad_pro.begin(), rad_pro.end());
+	}
 	return data;
 }
 
@@ -857,8 +874,18 @@ std::vector<real> grid::get_restrict() const {
 			}
 		}
 	}
+	if(opts().radiation) {
+		const auto rad = rad_grid_ptr->get_restrict();
+		data.insert(data.end(), rad.begin(), rad.end());
+	}
 	for (integer field = 0; field != opts().n_fields; ++field) {
 		data.push_back(U_out[field]);
+	}
+	if( opts().radiation) {
+		const auto rad = rad_grid_ptr->get_outflows();
+		for( int f = 0; f < NRF; f++) {
+			data.push_back(rad[f].second);
+		}
 	}
 	return data;
 }
@@ -881,6 +908,11 @@ void grid::set_restrict(const std::vector<real> &data, const geo::octant &octant
 			}
 		}
 	}
+	if( opts().radiation ) {
+		const std::vector<real> rad(data.begin() + index, data.end());
+		rad_grid_ptr->set_restrict( data, octant );
+	}
+
 }
 
 void grid::set_hydro_boundary(const std::vector<real> &data, const geo::direction &dir, bool energy_only) {
@@ -1132,7 +1164,6 @@ void grid::set_flux_restrict(const std::vector<real> &data, const std::array<int
 void grid::set_prolong(const std::vector<real> &data, std::vector<real> &&outflows) {
 	PROFILE();
 	integer index = 0;
-	U_out = std::move(outflows);
 	for (integer field = 0; field != opts().n_fields; ++field) {
 		for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 			for (integer j = H_BW; j != H_NX - H_BW; ++j) {
@@ -1144,6 +1175,15 @@ void grid::set_prolong(const std::vector<real> &data, std::vector<real> &&outflo
 				}
 			}
 		}
+	}
+	if( opts().radiation ) {
+		std::vector<real> rad_pro(data.begin() + index, data.end());
+		std::vector<real> rad_out(outflows.begin() + opts().n_fields, outflows.end());
+		rad_grid_ptr->set_prolong(rad_pro, rad_out);
+		U_out = std::vector<real>(outflows.begin(), outflows.begin() + opts().n_fields);
+
+	} else {
+		U_out = std::move(outflows);
 	}
 	for (int i = H_BW; i < H_NX - H_BW; i += 2) {
 		for (int j = H_BW; j < H_NX - H_BW; j += 2) {
@@ -1494,7 +1534,6 @@ std::vector<real> grid::l_sums() const {
 
 bool grid::refine_me(integer lev, integer last_ngrids) const {
 	PROFILE();
-
 	auto test = get_refine_test();
 	if (lev < min_level) {
 
@@ -1942,6 +1981,13 @@ void grid::rad_init() {
 	rad_grid_ptr->initialize_erad(U[rho_i], U[tau_i]);
 }
 
+
+void grid::compute_mmw() {
+	if( opts().radiation) {
+		rad_grid_ptr->compute_mmw(U);
+	}
+}
+
 timestep_t grid::compute_fluxes() {
 	PROFILE();
 	static hpx::once_flag flag;
@@ -2263,6 +2309,9 @@ void grid::compute_sources(real t, real rotational_time) {
 				src[sy_i][iii0] -= omega * U[sx_i][iii];
 				src[lx_i][iii0] += omega * U[ly_i][iii];
 				src[ly_i][iii0] -= omega * U[lx_i][iii];
+				if( opts().radiation) {
+
+				}
 			}
 		}
 	}

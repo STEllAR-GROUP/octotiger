@@ -66,8 +66,8 @@ void radiation_physics<NDIM>::physical_flux(const std::vector<safe_real> &U, std
 	ap = std::max(ap, 0.0);
 	am = std::min(am, 0.0);
 	if (fabs(ap) > 1 || fabs(am) > 1) {
-		printf("Error %s %i\n", __FILE__, __LINE__);
-		abort();
+	//	printf("Error %s %i\n", __FILE__, __LINE__);
+	//	abort();
 	}
 //	ap = physcon().c;
 //	am = -physcon().c;
@@ -83,12 +83,6 @@ void radiation_physics<NDIM>::physical_flux(const std::vector<safe_real> &U, std
 		//	printf("%i %i %e\n", dim, d, T[d]);
 		}
 		F[fx_i + d] = er * T[d] - vg[dim] * fr[d];
-	}
-	for (int n = 0; n < geo.NANGMOM; n++) {
-#pragma ivdep
-		for (int m = 0; m < NDIM; m++) {
-			F[wx_i + n] = 0.0;
-		}
 	}
 
 }
@@ -174,7 +168,7 @@ const hydro::state_type& radiation_physics<NDIM>::pre_recon(const hydro::state_t
 				for (int dim = 0; dim < NDIM; dim++) {
 					V[fx_i + dim][i] *= erinv;
 				}
-				V[wx_i][i] = sqrt(V[fx_i][i] * V[fx_i][i] + V[fy_i][i] * V[fy_i][i] + V[fz_i][i] * V[fz_i][i]);
+		//		V[wx_i][i] = sqrt(V[fx_i][i] * V[fx_i][i] + V[fy_i][i] * V[fy_i][i] + V[fz_i][i] * V[fz_i][i]);
 			}
 		}
 	}
@@ -198,17 +192,9 @@ void radiation_physics<NDIM>::post_recon(std::vector<std::vector<std::vector<saf
 						const int i = geo.to_index(j + 2, k + 2, l + 2);
 						const auto er = Q[er_i][d][i];
 						static constexpr auto lc = geo.levi_civita();
-						auto &nx = Q[fx_i][d][i];
-						auto &ny = Q[fy_i][d][i];
-						auto &nz = Q[fz_i][d][i];
-						double n2 = nx * nx + ny * ny + nz * nz;
-						if (n2 > 0) {
-							double ninv = 1.0 / sqrt(n2);
-							ninv *= Q[wx_i][d][i] * er;
-							nx *= ninv;
-							ny *= ninv;
-							nz *= ninv;
-						}
+						Q[fx_i][d][i] *= er;
+						Q[fy_i][d][i] *= er;
+						Q[fz_i][d][i] *= er;
 						CHECK_FLUX(Q[er_i][d][i], Q[fx_i][d][i], Q[fy_i][d][i], Q[fz_i][d][i]);
 					}
 				}

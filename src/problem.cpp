@@ -509,7 +509,7 @@ std::vector<real> star(real x, real y, real z, real) {
 			u[egas_i] = std::max(opts().star_egas_out, find_ei_rad_gas(p, u[rho_i], opts().atomic_mass[0] / (opts().atomic_number[0] + 1.0), fgamma, u[tau_i])); // makes sure the calculated pressure will be as the polytropic one
 			//printf("egas(%e) = %e, epoly=%e\n", r, u[egas_i], n * p);
 		} else {
-			// u[egas_i] = std::max(opts().star_egas_out, p * n);
+			// u[egas_i] = std::max(opts().star_egas_out, p * n);]
 			u[egas_i] = std::max(opts().star_egas_out, p / (fgamma - 1.0));
 			u[tau_i] = std::pow(u[egas_i], 1.0 / fgamma);
 			//u[tau_i] = std::pow(u[egas_i], (n / (real(1) + n)));

@@ -187,6 +187,7 @@ public:
 	std::vector<roche_type> get_roche_lobe() const;
 	void rho_from_species();
 	static bool is_hydro_field(const std::string&);
+	static bool is_radiation_field(const std::string&);
 	static std::vector<std::string> get_field_names();
 	static std::vector<std::string> get_hydro_field_names();
 
@@ -308,6 +309,7 @@ public:
 	void complete_hydro_amr_boundary(bool energy_only);
 	std::vector<real> get_subset(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub,
 			bool energy_only);
+	void compute_mmw();
 	void set_prolong(const std::vector<real>&, std::vector<real>&&);
 	void set_restrict(const std::vector<real>&, const geo::octant&);
 	void set_flux_restrict(const std::vector<real>&, const std::array<integer, NDIM> &lb,
