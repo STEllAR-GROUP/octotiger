@@ -9,6 +9,17 @@
 
 #include <cmath>
 
+
+static inline real khi_tilde(real x) {
+    if ((0.0 <= x) && (x <= 1.0)) {
+        return 4.0/3.0 - 2.0*x*x + x*x*x;
+    } else if ((1.0 < x) && (x <= 2.0)) {
+        return 8.0/3.0 - 4.0*x + 2.0*x*x - x*x*x/3.0;
+    } else {
+        return 0.0;
+    }
+}
+
 static inline real pow_n(real y, real n) {
     return std::pow(y, n);
 }
@@ -17,9 +28,10 @@ static inline real fy(real y, real z, real r) {
 	return z;
 }
 
-static inline real fz(real y, real z, real r, real n) {
+static inline real fz(real y, real z, real r, real n, real rho_frac, real r_h) {
+        real khi = khi_tilde(r / r_h); 
 	if (r != 0.0) {
-		return -(pow_n(y, n) + 2.0 * z / r);
+		return -(pow_n(y, n) + 2.0 * z / r + rho_frac * khi);
 	}
 	return -3.0;
 }
@@ -29,7 +41,7 @@ static inline real fm(real theta, real dummy, real r, real n) {
 	return four_pi * pow_n(theta, n) * r * r;
 }
 
-real lane_emden(real r0, real dr, real n, real* m_enc) {
+real lane_emden(real r0, real dr, real n, real rho_frac, real r_h, real* m_enc) {
     real dy1, dz1, y, z, r, dy2, dz2, dy3, dz3, dy4, dz4, y0, z0;
 	real dm1, m, dm2, dm3, dm4, m0;
 	int done = 0;
@@ -50,7 +62,7 @@ real lane_emden(real r0, real dr, real n, real* m_enc) {
 		z0 = z;
 		m0 = m;
 		dy1 = fy(y, z, r) * dr;
-		dz1 = fz(y, z, r, n) * dr;
+		dz1 = fz(y, z, r, n, rho_frac, r_h) * dr;
 		dm1 = fm(y, z, r, n) * dr;
 		y += 0.5 * dy1;
 		z += 0.5 * dz1;
@@ -61,7 +73,7 @@ real lane_emden(real r0, real dr, real n, real* m_enc) {
 		}
         real rdr2 = r + 0.5 * dr;
 		dy2 = fy(y, z, rdr2) * dr;
-		dz2 = fz(y, z, rdr2, n) * dr;
+		dz2 = fz(y, z, rdr2, n, rho_frac, r_h) * dr;
 		dm2 = fm(y, z, rdr2, n) * dr;
 		y = y0 + 0.5 * dy2;
 		z = z0 + 0.5 * dz2;
@@ -71,7 +83,7 @@ real lane_emden(real r0, real dr, real n, real* m_enc) {
 			break;
 		}
 		dy3 = fy(y, z, rdr2) * dr;
-		dz3 = fz(y, z, rdr2, n) * dr;
+		dz3 = fz(y, z, rdr2, n, rho_frac, r_h) * dr;
 		dm3 = fm(y, z, rdr2, n) * dr;
 		y = y0 + dy3;
 		z = z0 + dz3;
@@ -82,7 +94,7 @@ real lane_emden(real r0, real dr, real n, real* m_enc) {
 		}
         real rdr = r + dr;
 		dy4 = fy(y, z, rdr) * dr;
-		dz4 = fz(y, z, rdr, n) * dr;
+		dz4 = fz(y, z, rdr, n, rho_frac, r_h) * dr;
 		dm4 = fm(y, z, rdr, n) * dr;
 		y = y0 + (dy1 + dy4 + 2.0 * (dy3 + dy2)) / 6.0;
 		z = z0 + (dz1 + dz4 + 2.0 * (dz3 + dz2)) / 6.0;
@@ -110,7 +122,7 @@ real wd_radius(real mass, real* rho0) {
 	real r;
 	do {
 		rho_mid = sqrt(rho_min * rho_max);
-		r = lane_emden(rho_mid, 0.001, 1.5, &test_mass);
+		r = lane_emden(rho_mid, 0.001, 1.5, 0.0, 1.0, &test_mass);
 		if (test_mass > mass) {
 			rho_max = rho_mid;
 		} else {

@@ -68,6 +68,7 @@ public:
 	integer silo_offset_y;
 	integer silo_offset_z;
 	integer future_wait_time;
+	integer interp_points;
 
 	real dt_max;
 	real eblast0;
@@ -201,6 +202,7 @@ public:
 		arc & rotating_star_amr;
 		arc & rotating_star_x;
 		arc & future_wait_time;
+		arc & interp_points;
 		arc & silo_offset_x;
 		arc & silo_offset_y;
 		arc & silo_offset_z;

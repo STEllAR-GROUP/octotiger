@@ -309,14 +309,15 @@ void load_data_from_silo(std::string fname, node_server *root_ptr, hpx::id_type 
 		const int chunk_size = std::ceil(real(master_mesh->nblocks) / real(sz));
 		hpx::threads::run_as_os_thread([&]() {
 			const read_silo_var<integer> ri;
-                        try {
+/*                        try {
 				if (DBReadVar(db, "particle_count", &particle_count)) {
 				    particle_count = 0;
 				}
                         }
                         catch (...) {
                                 particle_count = 0;
-                        }
+                        } */
+			particle_count = ri(db, "particle_count");
 			node_count = ri(db, "node_count");
 			node_list.resize(node_count);
 			positions.resize(node_count);

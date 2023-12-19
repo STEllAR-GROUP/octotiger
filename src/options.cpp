@@ -140,6 +140,7 @@ bool options::process_options(int argc, char *argv[]) {
 	("problem", po::value<problem_type>(&(opts().problem))->default_value(NONE), "problem type")                            //
 	("restart_filename", po::value<std::string>(&(opts().restart_filename))->default_value(""), "restart filename")         //
 	("mesa_filename", po::value<std::string>(&(opts().mesa_filename))->default_value(""), "mesa filename")         //
+	("interp_points", po::value<integer>(&(opts().interp_points))->default_value(1), "number of interpolation points from the 1d model")      //
 	("stop_time", po::value<real>(&(opts().stop_time))->default_value(std::numeric_limits<real>::max()), "time to end simulation") //
 	("stop_step", po::value<integer>(&(opts().stop_step))->default_value(std::numeric_limits<integer>::max() - 1), "number of timesteps to run")          //
 	("min_level", po::value<integer>(&(opts().min_level))->default_value(1), "minimum number of refinement levels")         //

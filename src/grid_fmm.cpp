@@ -1184,8 +1184,8 @@ if (type != RHO) {
 			bmax[d] = bmin[d] + dx;
                 }
 
-		std::vector<particle> particles = load_particles(bmin, bmax);
-		for (auto p : particles) {
+		std::vector<particle> particles_tmp = load_particles(bmin, bmax);
+		for (auto p : particles_tmp) {
 	                m0 = p.mass;
 	                for (integer d = 0; d != NDIM; ++d) {
 				Y[d] = p.pos[d];
@@ -1410,7 +1410,6 @@ void compute_ilist() {
 	};
 	integer max_d = 0;
 	integer width = INX;
-	printf("in ilist\n");
 	for (integer i0 = 0; i0 != nx; ++i0) {
 		for (integer j0 = 0; j0 != nx; ++j0) {
 			for (integer k0 = 0; k0 != nx; ++k0) {
@@ -1954,6 +1953,9 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
 					} else {
 						dphi_dt[iii0] = physcon().G * L[iii]();
 					}
+                                        //if ((xmin[0] == 0.0) && (xmin[1] == 0.0) && (xmin[2] == 0.0) && (i == 0) && (j == 0) && (k == 0)) {
+					//	printf("after update expansion gx=%e, gy=%e, gz=%e, phi=%e\n", G[iii][gx_i], G[iii][gy_i], G[iii][gz_i], G[iii][phi_i]);
+					//}
 				}
 			}
 		}
@@ -2019,6 +2021,7 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 			std::vector<particle> particles_tmp = load_particles(bmin, bmax);
 			for (auto& p : particles_tmp) {
 				particles.push_back(p);
+				//printf("loaded %i, mass %e, pos (%e,%e,%e) in grid (%e, %e, %e) - (%e, %e, %e)\n", p.id, p.mass, p.pos[0], p.pos[1], p.pos[2], bmin[0], bmin[1], bmin[2], bmax[0], bmax[1], bmax[2]);
 			}
 		}
 	}

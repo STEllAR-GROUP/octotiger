@@ -6,6 +6,7 @@
 #include "octotiger/mesa/mesa.hpp"
 #include "octotiger/defs.hpp"
 #include "octotiger/options.hpp"
+#include "octotiger/lane_emden.hpp"
 #include "octotiger/grid.hpp"
 #include <cstdio>
 #include <cmath>
@@ -200,6 +201,9 @@ public:
 		char log10_R[BUFFER_SIZE];
 		char log10_rho[BUFFER_SIZE];
 		char vrot_kms[BUFFER_SIZE];
+		double file_to_g = 1.0;
+		double file_to_cm = 1.0;
+		double file_to_s = 1.0;
 		FILE* fp = fopen(filename.c_str(), "rt");
 //		std::string filename = "mesa_star.data"; 
 //		FILE* fp = fopen("mesa_star.data", "rt");
@@ -226,14 +230,14 @@ public:
 				//	dummy, dummy, dummy, 
 					vrot_kms, dummy);
 //				printf("after read: %s, %s, %s\n\n\n", log10_rho, log10_P, log10_R);
-				P_.push_back(std::pow(10, std::atof(log10_P)) * std::pow(opts().code_to_s, 2) * opts().code_to_cm / opts().code_to_g);
-				double tmp = std::pow(10, std::atof(log10_R)) * 6.957e+10 / opts().code_to_cm;
+				P_.push_back(std::pow(10, std::atof(log10_P)) * std::pow(opts().code_to_s/file_to_g, 2) * (opts().code_to_cm / file_to_cm) / (opts().code_to_g / file_to_g));
+				double tmp = std::pow(10, std::atof(log10_R)) / (opts().code_to_cm / file_to_g);
 				if (hpx::get_locality_id() == 0) {
 					printf("rho(%e) = %e\n", tmp, std::pow(10, std::atof(log10_rho)));
 				}
 				r_.push_back(tmp);
-				rho_.push_back(std::pow(10, std::atof(log10_rho)) * std::pow(opts().code_to_cm, 3) / opts().code_to_g);
-				omega_.push_back(std::atof(vrot_kms) * 100 * 1000 * opts().code_to_s / opts().code_to_cm / tmp);
+				rho_.push_back(std::pow(10, std::atof(log10_rho)) * std::pow(opts().code_to_cm / file_to_cm, 3) / (opts().code_to_g / file_to_g));
+				omega_.push_back(std::atof(vrot_kms) * 100 * 1000 * (opts().code_to_s / file_to_s) / (opts().code_to_cm / file_to_cm) / tmp);
 			}
 			linenum++;
 		}
@@ -299,21 +303,35 @@ std::vector<real> mesa_star(real x, real y, real z, real dx) {
 	x = x - opts().star_xcenter;
 	y = y - opts().star_ycenter;
 	z = z - opts().star_zcenter;
-        real R0 = mesa_p.get_R0();
-	//printf(" R0: %e, f: %e\n", mesa_p.get_R0(), opts().code_to_cm);
+        const real rcut = opts().star_rmax;
+        const real alpha = opts().star_alpha;
+        const real rho_avg = opts().star_rho_out;
+        const real dr = opts().star_dr;
+        const real rho_c = opts().star_rho_center;
+        const real rho_f = rho_avg / rho_c;
+        const real n = opts().star_n;
+        const real R0 = mesa_p.get_R0();
+//	printf(" R0: %e, f: %e\n", mesa_p.get_R0(), opts().code_to_cm);
         real rho = 0.0;
 	real p = 0.0;
-        const int M = 1;
+        const int M = opts().interp_points;
         int nsamp = 0;
         for (double x0 = x - dx / 2.0 + dx / 2.0 / M; x0 < x + dx / 2.0; x0 += dx / M) {
                 for (double y0 = y - dx / 2.0 + dx / 2.0 / M; y0 < y + dx / 2.0; y0 += dx / M) {
                         for (double z0 = z - dx / 2.0 + dx / 2.0 / M; z0 < z + dx / 2.0; z0 += dx / M) {
                                 auto r = SQRT(x0 * x0 + y0 * y0 + z0 * z0);
                                 ++nsamp;
-                                if (r <= R0) {
+				if (r <= rcut) {
+					real theta = lane_emden(r/alpha, dr/alpha, n, rho_f, rcut/alpha);
+					real rho_theta = rho_c * std::pow(theta, n);
+					printf("solved lane-emden: rho(%e)=%e\n", r, rho_c * std::pow(theta, n));
+					const auto c0 = real(4) * real(M_PI) * std::pow(alpha, 2) * std::pow(rho_c, (n - real(1))/n) / (n + real(1));
+					printf("solved lane-emden: rho(%e)=%e, p(%e)=%e\n", r, rho_theta, r, c0 * std::pow(rho_theta, (n + real(1))/n));
+					rho += rho_theta;
+					p += c0 * std::pow(rho_theta, (n + real(1))/n);
+                                } else if (r <= R0) {
 					real rho_t, p_t, omega_t;
 					mesa_p.state_at(rho_t, p_t, omega_t, r);
-                                        //printf("rho(%e) = %e, p = %e, omega = %e, (x,y,z) = (%e,%e,%e)\n", r, rho_t, p_t, omega_t, x, y, z);
                                         rho += rho_t;
                                         p += p_t;
 					auto sx_t = -y0 * rho_t * omega_t;
