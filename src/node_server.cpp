@@ -170,17 +170,19 @@ void node_server::energy_hydro_bounds() {
 void node_server::exchange_interlevel_hydro_data() {
   hpx::annotated_function([&]() {
     if (is_refined) {
-      std::vector<real> outflow(opts().n_fields, ZERO);
+      std::vector<real> outflow;
       for (auto const &ci : geo::octant::full_set()) {
         auto data = GET(child_hydro_channels[ci].get_future(hcycle));
         grid_ptr->set_restrict(data, ci);
         integer fi = 0;
         if( opts().radiation) {
+        	outflow.resize(opts().n_fields + NRF);
             for (auto i = data.end() - opts().n_fields - NRF; i != data.end(); ++i) {
               outflow[fi] += *i;
               ++fi;
             }
         } else {
+        	outflow.resize(opts().n_fields);
             for (auto i = data.end() - opts().n_fields; i != data.end(); ++i) {
               outflow[fi] += *i;
               ++fi;

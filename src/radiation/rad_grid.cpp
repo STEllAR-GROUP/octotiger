@@ -220,7 +220,7 @@ void rad_grid::rad_imp(std::vector<real> &egas, std::vector<real> &tau,
 				const integer D = H_BW - RAD_BW;
 				const integer iiir = rindex(xi, yi, zi);
 				const integer iiih = hindex(xi + D, yi + D, zi + D);
-				printf( "%e %i %i %i %e\n", dx, xi, yi, zi, U[er_i][iiir]);
+			//	printf( "%e %i %i %i %e\n", dx, xi, yi, zi, U[er_i][iiir]);
 				continue;
 				CHECK_FLUX(U[er_i][iiir], U[fx_i][iiir], U[fy_i][iiir],
 						U[fz_i][iiir]);
