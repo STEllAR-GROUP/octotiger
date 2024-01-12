@@ -119,10 +119,10 @@ pipeline {
                                 srun -p ${slurm_partition} -N 1 -n 1 --time=900 bash -lc "\
                                   module load ${required_modules} && \
                                   export TMPDIR=/work/jenkins/spack_tmp && \
-                                  flock --verbose -x -w 600 /var/lock/jenkins-spack-config.lock spack external find && \
-                                  flock --verbose -x -w 600 /var/lock/jenkins-spack-config.lock spack external find cmake git libffi python && \
-                                  flock --verbose -x -w 600 /var/lock/jenkins-spack-config.lock spack external find cuda hip llvm-amdgpu hsa-rocr-dev && \
-                                  flock --verbose -x -w 600 /var/lock/jenkins-spack-config.lock spack compiler find  
+                                  flock --verbose -x -w 600 /work/jenkins/jenkins-spack-config.lock spack external find && \
+                                  flock --verbose -x -w 600 /work/jenkins/jenkins-spack-config.lock spack external find cmake git libffi python && \
+                                  flock --verbose -x -w 600 /work/jenkins/jenkins-spack-config.lock spack external find cuda hip llvm-amdgpu hsa-rocr-dev && \
+                                  flock --verbose -x -w 600 /work/jenkins/jenkins-spack-config.lock spack compiler find  
                                   spack spec --fresh octotiger@develop ${spack_spec} && \
                                   export AMD_DIRECT_DISPATCH=0 && \
                                   export HIP_VISIBLE_DEVICES=1 && \
