@@ -638,7 +638,7 @@ std::uintptr_t node_server::get_ptr() {
 
 future<node_server*> node_client::get_ptr() const {
 	return hpx::async<typename node_server::get_ptr_action>(get_unmanaged_gid()).then(hpx::annotated_function([this](future<std::uintptr_t> &&fut) {
-		if (hpx::find_here() != hpx::get_colocation_id(get_gid()).get()) {
+		if (hpx::get_locality_id() != hpx::naming::get_locality_id_from_id(get_unmanaged_gid())) {
 			printf("get_ptr called non-locally\n");
 			abort();
 		}
