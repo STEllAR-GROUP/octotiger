@@ -134,6 +134,19 @@ int hpx_main(int argc, char* argv[]) {
 #endif
 #ifdef OCTOTIGER_HAVE_HIP
     printf("WARNING: Experimental HIP Build! Do not (yet) use for production runs!\n");
+    // The new direct dispatch does not seem to be entirely threadsafe as of yet. At least on the MI100 it seems best
+    // to keep it disabled for now. Note that setting it to 0 did not incur a noticable performance penalty in octotiger
+    // Here, we just issue a warning and recommend a default
+    // TODO Retest with newer ROCM versions (last tested with 5.4.6) and newer AMDGPUs (last tested with MI100).
+    if (const char* env_p = std::getenv("AMD_DIRECT_DISPATCH")) {
+        const unsigned value = std::stoi(env_p);
+        std::cout << "Ran with AMD_DIRECT_DISPATCH=" << value <<   std::endl;
+        if (value != 0)
+          std::cout << "WARNING - Running with AMD_DIRECT_DISPATCH=0 is recommended (for now)"  << std::endl;
+    } else {
+        std::cout << "WARNING - Environment variable was not set: AMD_DIRECT_DISPATCH" 
+                  << " (setting to 0 is recommended) " << std::endl;
+    }
 #endif
 #if defined(CPPUDDLE_DEACTIVATE_BUFFER_RECYCLING)
     printf("WARNING: Using build without buffer recycling enabled. This will cause a major degradation of GPU performance !\n");
@@ -152,6 +165,7 @@ int hpx_main(int argc, char* argv[]) {
 
     start_octotiger(argc, argv);
 
+    std::cerr << "Before HPX finalize ..." << std::endl;
     return hpx::finalize();
 }
 
@@ -196,7 +210,7 @@ void init_resource_partitioner_handler(hpx::resource::partitioner& rp,
 int main(int argc, char* argv[]) {
 
 #if defined(OCTOTIGER_HAVE_HIP) || (defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_HIP))
-    // Touch all AMDGPUs before before starting HPX. This initializes all GPUs before starting HPX
+    // Touch all AMDGPUs before starting HPX. This initializes all GPUs before starting HPX
     // which avoids multithreaded initialization later on which makes the driver segfault
     //
     // See bug https://github.com/ROCm-Developer-Tools/HIP/issues/3063
@@ -207,7 +221,9 @@ int main(int argc, char* argv[]) {
       hipSetDevice(gpu_id);
       hipStream_t gpu1;
       hipStreamCreate(&gpu1);
-      hipStreamDestroy(gpu1);
+      // Keep this stream alive until the hip runtime shuts down at the end.
+      // This seems to prevent some rare hip runtime crashes when the application exits
+      /* hipStreamDestroy(gpu1); */
       hipDeviceSynchronize();
     }
 #endif
@@ -232,8 +248,24 @@ int main(int argc, char* argv[]) {
     };
     std::cerr << "Starting hpx init ..." << std::endl;
     hpx::init(argc, argv, init_args);
+    std::cerr << "After HPX finalize ..." << std::endl;
 #ifdef OCTOTIGER_HAVE_HIP
     std::cout << std::endl << "WARNING: Experimental HIP Build! Do not (yet) use for production runs!\n" << std::endl;
+    // The new direct dispatch does not seem to be entirely threadsafe as of yet. At least on the MI100 it seems best
+    // to keep it disabled for now. Note that setting it to 0 did not incur a noticable performance penalty in octotiger
+    // Here, we just issue a warning and recommend a default
+    // TODO Retest with newer ROCM versions (last tested with 5.4.6) and newer AMDGPUs (last tested with MI100).
+    if (const char* env_p = std::getenv("AMD_DIRECT_DISPATCH")) {
+        const unsigned value = std::stoi(env_p);
+        std::cout << "Ran with AMD_DIRECT_DISPATCH=" << value <<   std::endl;
+        if (value != 0)
+          std::cout << "WARNING - Running with AMD_DIRECT_DISPATCH=0 is recommended (for now)"  << std::endl;
+    } else {
+        std::cout << "WARNING - Environment variable was not set: AMD_DIRECT_DISPATCH" 
+                  << " (setting to 0 is recommended) " << std::endl;
+    }
+
+
 #endif
 #if defined(CPPUDDLE_DEACTIVATE_BUFFER_RECYCLING)
     std::cout << "WARNING: Using build without buffer recycling enabled. " 
@@ -247,7 +279,6 @@ int main(int argc, char* argv[]) {
     std::cout << "         Consider recompiling CPPuddle (and Octo-Tiger) with "
               << "CPPUDDLE_WITH_AGGRESSIVE_CONTENT_RECYCLING=ON !\n";
 #endif
-
 }
 #endif
 

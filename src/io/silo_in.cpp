@@ -18,7 +18,7 @@
 #include "octotiger/node_registry.hpp"
 
 #include <hpx/collectives/broadcast.hpp>
-#include <hpx/util/io_service_pool.hpp>
+#include <hpx/io_service/io_service_pool.hpp>
 
 #include <future>
 #include <mutex>
