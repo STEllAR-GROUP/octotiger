@@ -123,7 +123,7 @@ void load_options_from_silo(std::string fname, DBfile *db) {
 		}
 	};
 	if (db == nullptr) {
-		GET(hpx::threads::run_as_os_thread(func));
+		GET(hpx::run_as_os_thread(func));
 	} else {
 		func();
 	}
@@ -135,7 +135,7 @@ void load_options_from_silo(std::string fname, DBfile *db) {
 void load_open(std::string fname, dir_map_type map) {
 //	printf("LOAD OPENED on proc %i\n", hpx::get_locality_id());
 	load_options_from_silo(fname, db_); /**/
-	hpx::threads::run_as_os_thread([&]() {
+	hpx::run_as_os_thread([&]() {
 		db_ = DBOpenReal(fname.c_str(), DB_UNKNOWN, DB_READ);
 		read_silo_var<real> rr;
 		silo_output_time() = rr(db_, "cgs_time"); /**/
@@ -187,7 +187,7 @@ node_server::node_server(const node_location &loc) :
 		static const auto hydro_names = grid::get_hydro_field_names();
 		load.vars.resize(hydro_names.size());
 		load.outflows.resize(hydro_names.size());
-		hpx::threads::run_as_os_thread([&]() {
+		hpx::run_as_os_thread([&]() {
 			static std::mutex mtx;
 			std::lock_guard<std::mutex> lock(mtx);
 			const auto this_file = iter->second.filename;
@@ -264,19 +264,19 @@ void load_data_from_silo(std::string fname, node_server *root_ptr, hpx::id_type 
 
 	const integer nprocs = opts().all_localities.size();
 	static int sz = localities.size();
-	DBfile *db = GET(hpx::threads::run_as_os_thread(DBOpenReal, fname.c_str(), DB_UNKNOWN, DB_READ));
-	silo_epoch() = GET(hpx::threads::run_as_os_thread(read_silo_var<integer>(), db, "epoch"));
+	DBfile *db = GET(hpx::run_as_os_thread(DBOpenReal, fname.c_str(), DB_UNKNOWN, DB_READ));
+	silo_epoch() = GET(hpx::run_as_os_thread(read_silo_var<integer>(), db, "epoch"));
 	silo_epoch()++;std
 	::vector<node_location::node_id> node_list;
 	std::vector<integer> positions;
 	std::vector<hpx::future<void>> futs;
 	int node_count;
 	if (db != nullptr) {
-		DBmultimesh *master_mesh = GET(hpx::threads::run_as_os_thread([&]() {
+		DBmultimesh *master_mesh = GET(hpx::run_as_os_thread([&]() {
 			return DBGetMultimesh(db, "quadmesh");
 		}));
 		const int chunk_size = std::ceil(real(master_mesh->nblocks) / real(sz));
-		hpx::threads::run_as_os_thread([&]() {
+		hpx::run_as_os_thread([&]() {
 			const read_silo_var<integer> ri;
 			node_count = ri(db, "node_count");
 			node_list.resize(node_count);
@@ -284,7 +284,7 @@ void load_data_from_silo(std::string fname, node_server *root_ptr, hpx::id_type 
 			DBReadVar(db, "node_list", node_list.data());
 			DBReadVar(db, "node_positions", positions.data());
 		}).get();
-		GET(hpx::threads::run_as_os_thread(DBClose, db));
+		GET(hpx::run_as_os_thread(DBClose, db));
 		std::map<node_location::node_id, std::string> load_locs;
 		for (int i = 0; i < master_mesh->nblocks; i++) {
 			load_locs.insert(split_mesh_id(master_mesh->meshnames[i]));
@@ -307,7 +307,7 @@ void load_data_from_silo(std::string fname, node_server *root_ptr, hpx::id_type 
 	//		printf("Sending LOAD OPEN to %i\n", i);
 			futs.push_back(hpx::async < load_open_action > (opts().all_localities[i], fname, this_dir));
 		}
-		GET(hpx::threads::run_as_os_thread(DBFreeMultimesh, master_mesh));
+		GET(hpx::run_as_os_thread(DBFreeMultimesh, master_mesh));
 		for (auto &f : futs) {
 			GET(f);
 		}

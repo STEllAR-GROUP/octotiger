@@ -417,7 +417,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 
 		// run output on separate thread
 		if (!opts().disable_output) {
-			hpx::threads::run_as_os_thread([=]() {
+			hpx::run_as_os_thread([=]() {
 				FILE *fp = fopen((opts().data_dir + "step.dat").c_str(), "at");
 				if (fp == NULL) {
 					printf( "Unable to open step.dat for writing %s\n", std::strerror(errno));
@@ -430,7 +430,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 			});     // do not wait for it to finish
 		}
 
-		/* hpx::threads::run_as_os_thread( */
+		/* hpx::run_as_os_thread( */
 		/* 		[=]() { */
     {
 					const auto vr = sqrt(sqr(dt_.ur[sx_i]) + sqr(dt_.ur[sy_i]) + sqr(dt_.ur[sz_i])) / dt_.ur[0];
@@ -457,7 +457,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 			ngrids = regrid(me.get_gid(), omega, new_floor, false);
 
 			// run output on separate thread
-			auto need_break = hpx::threads::run_as_os_thread([&]() {
+			auto need_break = hpx::run_as_os_thread([&]() {
 				//		set_omega_and_pivot();
 				bench_stop = hpx::chrono::high_resolution_clock::now() / 1e9;
 				if (scf || opts().bench) {
@@ -502,7 +502,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 	}
 
 	if (opts().bench && !opts().disable_output) {
-		hpx::threads::run_as_os_thread([&]() {
+		hpx::run_as_os_thread([&]() {
 
 			FILE *fp = fopen((opts().data_dir + "scaling.dat").c_str(), "at");
 			const auto nproc = options::all_localities.size();
@@ -678,7 +678,7 @@ future<real> node_server::local_step(integer steps) {
         if (opts().print_times_per_timestep)
           timestep_util::add_time_per_timestep(time_elapsed);
 
-				hpx::threads::run_as_os_thread([=]() {
+				hpx::run_as_os_thread([=]() {
 					printf("%i %e %e %e %e\n", local_step_num, double(current_time), double(dt_.dt), time_elapsed, rotational_time);
 				});  // do not wait for output to finish
 			}

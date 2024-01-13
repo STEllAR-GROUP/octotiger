@@ -163,7 +163,7 @@ namespace octotiger { namespace radiation {
         static std::atomic_size_t next_index(0);
         std::size_t index = next_index++;
 
-        hpx::threads::run_as_os_thread([&]() {
+        hpx::run_as_os_thread([&]() {
             dumper::save_case_args(index, opts().eos, opts().problem,
                 opts().dual_energy_sw1, opts().dual_energy_sw2, physcon().A,
                 physcon().B, physcon().c, fgamma, dt, clightinv, er_i, fx_i,
@@ -176,7 +176,7 @@ namespace octotiger { namespace radiation {
             tau, fgamma, U, mmw, X_spc, Z_spc, dt, clightinv);
 
 #if defined(OCTOTIGER_DUMP_RADIATION_CASES)
-        hpx::threads::run_as_os_thread([&]() {
+        hpx::run_as_os_thread([&]() {
             dumper::save_case_outs(index, sx, sy, sz, egas, tau, U);
         }).get();
 #endif

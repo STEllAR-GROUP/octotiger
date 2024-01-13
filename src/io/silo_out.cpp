@@ -168,7 +168,7 @@ void output_stage3(std::string fname, int cycle, int gn, int gb, int ge) {
 	const auto dir = opts().data_dir;
 	std::string this_fname = dir  + fname + ".silo.data/" + std::to_string(gn) + std::string(".silo");
 	double dtime = silo_output_rotation_time();
-	hpx::threads::run_as_os_thread([&this_fname, this_id, &dtime, gb, gn, ge](integer cycle) {
+	hpx::run_as_os_thread([&this_fname, this_id, &dtime, gb, gn, ge](integer cycle) {
 		DBfile *db;
 		if (this_id == gb) {
 //			printf( "Create %s %i %i %i %i\n", this_fname.c_str(), this_id, gn, gb, ge);
@@ -259,7 +259,7 @@ void output_stage4(std::string fname, int cycle) {
 	std::string this_fname = opts().data_dir + "/" + fname + std::string(".silo");
 	double dtime = silo_output_rotation_time();
 	double rtime = silo_output_rotation_time();
-	hpx::threads::run_as_os_thread([&this_fname, fname, nfields, &rtime](int cycle) {
+	hpx::run_as_os_thread([&this_fname, fname, nfields, &rtime](int cycle) {
 		auto *db = DBCreateReal(this_fname.c_str(), DB_CLOBBER, DB_LOCAL, "Octo-tiger", SILO_DRIVER);
 		double dtime = silo_output_time();
 		float ftime = dtime;
@@ -518,7 +518,7 @@ void output_all(node_server *root_ptr, std::string fname, int cycle, bool block)
 	}
 
 	std::string dir = opts().data_dir + "/" + fname + ".silo.data";
-	hpx::threads::run_as_os_thread([&]() {
+	hpx::run_as_os_thread([&]() {
 		auto rc = mkdir(dir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 		if (rc != 0 && errno != EEXIST) {
 			printf("Could not create directory for SILO file. mkdir failed with error. code: %i name: %s", errno, std::strerror(errno));
