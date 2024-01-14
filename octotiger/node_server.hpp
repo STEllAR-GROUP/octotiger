@@ -377,7 +377,6 @@ HPX_REGISTER_ACTION_DECLARATION(node_server::solve_gravity_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::copy_to_locality_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::get_child_client_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::form_tree_action);
-HPX_REGISTER_ACTION_DECLARATION(node_server::get_ptr_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::diagnostics_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::timestep_driver_ascend_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::scf_params_action);
