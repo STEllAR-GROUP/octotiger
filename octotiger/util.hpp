@@ -42,7 +42,7 @@ int file_copy(const char* fin, const char* fout);
 template<class... Args>
 int lprint( const char* log, const char* str, Args&&...args) {
     // run output on separate thread
-    auto f = hpx::threads::run_as_os_thread([&]() -> int
+    auto f = hpx::run_as_os_thread([&]() -> int
     {
         if(!opts().disable_output) {
             FILE* fp = fopen (log, "at");
