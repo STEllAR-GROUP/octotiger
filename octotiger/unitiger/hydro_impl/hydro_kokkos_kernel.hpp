@@ -31,9 +31,8 @@
 
 #ifdef __NVCC__
 #include <cuda/std/tuple>
-// TODO check with cuda 12.2
-#if defined(HPX_CUDA_VERSION) && (HPX_CUDA_VERSION < 1203)
-// cuda::std::tuple structured bindings are broken in CUDA < 1203
+#if defined(HPX_CUDA_VERSION) && (HPX_CUDA_VERSION < 1202)
+// cuda::std::tuple structured bindings are broken in CUDA < 1202
 // See https://github.com/NVIDIA/libcudacxx/issues/316
 // According to https://github.com/NVIDIA/libcudacxx/pull/317 the fix for this 
 // is to move tuple element and tuple size into the std namespace
