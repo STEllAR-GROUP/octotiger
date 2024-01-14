@@ -30,9 +30,6 @@ public:
 	static constexpr integer fx_i = 1;
 	static constexpr integer fy_i = 2;
 	static constexpr integer fz_i = 3;
-	static constexpr integer wx_i = 4;
-	static constexpr integer wy_i = 5;
-	static constexpr integer wz_i = 6;
 private:
 	static constexpr integer DX = RAD_NX * RAD_NX;
 	static constexpr integer DY = RAD_NX;
@@ -50,6 +47,8 @@ private:
 	std::vector<std::vector<real>> X;
 	std::vector<real> mmw, X_spc, Z_spc;
 	hydro_computer<NDIM,INX,radiation_physics<NDIM>> hydro;
+	std::vector<real> U_out;
+	std::vector<real> U_out0;
 public:
 	static void static_init();
 	static std::vector<std::string> get_field_names();
@@ -78,7 +77,7 @@ public:
 			const std::vector<real>& rho, real dt);
 	std::vector<real> get_restrict() const;
 	std::vector<real> get_prolong(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub);
-	void set_prolong(const std::vector<real>&);
+	void set_prolong(const std::vector<real>&, const std::vector<real>&);
 	void set_restrict(const std::vector<real>&, const geo::octant&);
 	void set_flux_restrict(const std::vector<real>& data, const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub,
 			const geo::dimension& dim);
@@ -97,10 +96,14 @@ public:
 	real hydro_signal_speed(const std::vector<real>& egas, const std::vector<real>& tau, const std::vector<real>& sx, const std::vector<real>& sy, const std::vector<real>& sz,
 			const std::vector<real>& rho);
 
+	void set_outflow(const std::pair<std::string, real> &p);
+	void set_outflows(std::vector<std::pair<std::string, real>> &&u);
 	void clear_amr();
 	void set_rad_amr_boundary(const std::vector<real>&, const geo::direction&);
 	void complete_rad_amr_boundary();
 	std::vector<real> get_subset(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub);
+	std::vector<std::pair<std::string, real>> get_outflows() const;
+	void set_outflows(std::vector<real> &&u);
 
 	friend class node_server;
 };

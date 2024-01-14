@@ -165,7 +165,7 @@ node_server::node_server(const node_location &loc) :
 	assert(iter != node_dir_.end());
 
 	if (!iter->second.load) {
-//		printf("Creating %s on %i\n", loc.to_str().c_str(), int(hpx::get_locality_id()));
+		printf("Creating %s on %i\n", loc.to_str().c_str(), int(hpx::get_locality_id()));
 		std::atomic<int> nc(0);
 		std::vector<hpx::future<void>> futs;
 		for (int ci = 0; ci < NCHILD; ci++) {
@@ -182,9 +182,13 @@ node_server::node_server(const node_location &loc) :
 		GET(hpx::when_all(futs));
 		assert(nc == 0 || nc == NCHILD);
 	} else {
-	//	printf("Loading %s on %i\n", loc.to_str().c_str(), int(hpx::get_locality_id()));
+		printf("Loading %s on %i\n", loc.to_str().c_str(), int(hpx::get_locality_id()));
 		silo_load_t load;
-		static const auto hydro_names = grid::get_hydro_field_names();
+		auto hydro_names = grid::get_hydro_field_names();
+		if( opts().radiation ) {
+			auto rad_names = rad_grid::get_field_names();
+			hydro_names.insert(hydro_names.end(), rad_names.begin(), rad_names.end());
+		}
 		load.vars.resize(hydro_names.size());
 		load.outflows.resize(hydro_names.size());
 		hpx::threads::run_as_os_thread([&]() {
@@ -199,6 +203,7 @@ node_server::node_server(const node_location &loc) :
 			const std::string suffix = oct_to_str(loc.to_id());
 			for (int f = 0; f != hydro_names.size(); f++) {
 				const auto this_name = suffix + std::string("/") + hydro_names[f]; /**/
+		//		printf( "%s\n", this_name.c_str());
 				auto var = DBGetQuadvar(db, this_name.c_str());
 				load.nx = var->dims[0];
 				const int nvar = load.nx * load.nx * load.nx;
@@ -224,7 +229,7 @@ node_server::node_server(const node_location &loc) :
 
 node_server::node_server(const node_location &loc, silo_load_t load) :
 		my_location(loc) {
-//	printf("Distributing %s on %i\n", loc.to_str().c_str(), int(hpx::get_locality_id()));
+	//printf("Distributing %s on %i\n", loc.to_str().c_str(), int(hpx::get_locality_id()));
 	const auto &localities = opts().all_localities;
 	initialize(0.0, 0.0);
 	step_num = gcycle = hcycle = rcycle = 0;

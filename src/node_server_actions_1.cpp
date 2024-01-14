@@ -164,13 +164,14 @@ future<hpx::id_type> node_server::create_child(hpx::id_type const &locality, int
 			 if (ci == 0) {
 			 outflows = grid_ptr->get_outflows();
 			 }*/
-			if (current_time > ZERO) {
+			if (current_time > ZERO || opts().restart_filename != "") {
+				std::vector<real> outflows(RAD_NF, ZERO);
 				std::vector<real> prolong;
 				{
 					std::unique_lock < hpx::spinlock > lk(prolong_mtx);
 					prolong = rad_grid_ptr->get_prolong(lb, ub);
 				}
-				child.set_rad_grid(std::move(prolong)/*, std::move(outflows)*/).get();
+				child.set_rad_grid(std::move(prolong), std::move(outflows)).get();
 			}
 		}
 		return child_id;

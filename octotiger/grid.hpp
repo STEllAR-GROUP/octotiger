@@ -41,11 +41,17 @@ public:
 	std::vector<real> l1, l2, linf;
 	integer nfields_;
 	template<class Arc>
-	void serialize(Arc& a, unsigned) {
+	void serialize(Arc &a, unsigned) {
 		a & nfields_;
-		l1.resize(nfields_);
-		l2.resize(nfields_);
-		linf.resize(nfields_);
+		if (opts().radiation) {
+			l1.resize(nfields_ + NRF);
+			l2.resize(nfields_ + NRF);
+			linf.resize(nfields_ + NRF);
+		} else {
+			l1.resize(nfields_);
+			l2.resize(nfields_);
+			linf.resize(nfields_);
+		}
 		a & l1;
 		a & l2;
 		a & linf;
@@ -55,20 +61,34 @@ public:
 	}
 	analytic_t(integer nfields) {
 		nfields_ = nfields;
-		l1.resize(nfields_);
-		l2.resize(nfields_);
-		linf.resize(nfields_);
+		l1.resize(nfields_ + NRF);
+		l2.resize(nfields_ + NRF);
+		linf.resize(nfields_ + NRF);
 		for (integer field = 0; field != nfields_; ++field) {
 			l1[field] = 0.0;
 			l2[field] = 0.0;
 			linf[field] = 0.0;
 		}
+		if (opts().radiation) {
+			for (integer field = nfields_; field != nfields_ + NRF; ++field) {
+				l1[field] = 0.0;
+				l2[field] = 0.0;
+				linf[field] = 0.0;
+			}
+		}
 	}
-	analytic_t& operator+=(const analytic_t& other) {
+	analytic_t& operator+=(const analytic_t &other) {
 		for (integer field = 0; field != nfields_; ++field) {
 			l1[field] += other.l1[field];
 			l2[field] += other.l2[field];
 			linf[field] = std::max(linf[field], other.linf[field]);
+		}
+		if (opts().radiation) {
+			for (integer field = nfields_; field != nfields_ + NRF; ++field) {
+				l1[field] += other.l1[field];
+				l2[field] += other.l2[field];
+				linf[field] = std::max(linf[field], other.linf[field]);
+			}
 		}
 		return *this;
 	}
@@ -78,23 +98,23 @@ public:
 
 using line_of_centers_t = std::vector<std::pair<real,std::vector<real>>>;
 
-void output_line_of_centers(FILE* fp, const line_of_centers_t& loc);
+void output_line_of_centers(FILE *fp, const line_of_centers_t &loc);
 
-void line_of_centers_analyze(const line_of_centers_t& loc, real omega, std::pair<real, real>& rho1_max,
-		std::pair<real, real>& rho2_max, std::pair<real, real>& l1_phi, std::pair<real, real>& l2_phi,
-		std::pair<real, real>& l3_phi, real& rho1_phi, real& rho2_phi);
+void line_of_centers_analyze(const line_of_centers_t &loc, real omega, std::pair<real, real> &rho1_max,
+		std::pair<real, real> &rho2_max, std::pair<real, real> &l1_phi, std::pair<real, real> &l2_phi,
+		std::pair<real, real> &l3_phi, real &rho1_phi, real &rho2_phi);
 
 using xpoint_type = real;
 using zone_int_type = int;
 
-template<int,int,class>
+template<int, int, class >
 class hydro_computer;
 
 class grid {
 public:
 	using xpoint = std::array<xpoint_type, NDIM>;
 	struct node_point;
-        OCTOTIGER_EXPORT static void set_min_level(integer l);
+	OCTOTIGER_EXPORT static void set_min_level(integer l);
 	OCTOTIGER_EXPORT static void set_max_level(integer l);
 	OCTOTIGER_EXPORT static void set_fgamma(real fg) {
 		fgamma = fg;
@@ -113,12 +133,12 @@ private:
 	static std::unordered_map<int, std::string> index_to_str_gravity;
 	static real omega;
 	static real fgamma;
-        static integer min_level;
+	static integer min_level;
 	static integer max_level;
 	static hpx::spinlock omega_mtx;
 	static OCTOTIGER_EXPORT real scaling_factor;
 	static double idle_rate;
-	hydro_computer<NDIM,INX,physics<NDIM>> hydro;
+	hydro_computer<NDIM, INX, physics<NDIM>> hydro;
 	std::shared_ptr<rad_grid> rad_grid_ptr;
 	std::vector<roche_type> roche_lobe;
 	std::vector<int> is_coarse;
@@ -151,15 +171,15 @@ private:
 	std::vector<real> U_out;
 	std::vector<real> U_out0;
 	std::vector<std::shared_ptr<std::vector<space_vector>>> com_ptr;
-	static bool xpoint_eq(const xpoint& a, const xpoint& b);
-	void compute_boundary_interactions_multipole_multipole(gsolve_type type, const std::vector<boundary_interaction_type>&,
-			const gravity_boundary_type&);
+	static bool xpoint_eq(const xpoint &a, const xpoint &b);
+	void compute_boundary_interactions_multipole_multipole(gsolve_type type,
+			const std::vector<boundary_interaction_type>&, const gravity_boundary_type&);
 	void compute_boundary_interactions_monopole_monopole(gsolve_type type, const std::vector<boundary_interaction_type>&,
 			const gravity_boundary_type&);
-	void compute_boundary_interactions_monopole_multipole(gsolve_type type, const std::vector<boundary_interaction_type>&,
-			const gravity_boundary_type&);
-	void compute_boundary_interactions_multipole_monopole(gsolve_type type, const std::vector<boundary_interaction_type>&,
-			const gravity_boundary_type&);
+	void compute_boundary_interactions_monopole_multipole(gsolve_type type,
+			const std::vector<boundary_interaction_type>&, const gravity_boundary_type&);
+	void compute_boundary_interactions_multipole_monopole(gsolve_type type,
+			const std::vector<boundary_interaction_type>&, const gravity_boundary_type&);
 public:
 	static void set_idle_rate();
 	static std::string hydro_units_name(const std::string&);
@@ -167,6 +187,7 @@ public:
 	std::vector<roche_type> get_roche_lobe() const;
 	void rho_from_species();
 	static bool is_hydro_field(const std::string&);
+	static bool is_radiation_field(const std::string&);
 	static std::vector<std::string> get_field_names();
 	static std::vector<std::string> get_hydro_field_names();
 
@@ -210,26 +231,27 @@ public:
 	real get_dx() const {
 		return dx;
 	}
-	static std::vector<std::pair<std::string,std::string>> get_scalar_expressions();
-	static std::vector<std::pair<std::string,std::string>> get_vector_expressions();
+	static std::vector<std::pair<std::string, std::string>> get_scalar_expressions();
+	static std::vector<std::pair<std::string, std::string>> get_vector_expressions();
 	std::vector<safe_real>& get_field(integer f) {
 		return U[f];
 	}
 	const std::vector<safe_real>& get_field(integer f) const {
 		return U[f];
 	}
-	void set_field(std::vector<safe_real>&& data, integer f) {
+	void set_field(std::vector<safe_real> &&data, integer f) {
 		U[f] = std::move(data);
 	}
-	void set_field(const std::vector<safe_real>& data, integer f) {
+	void set_field(const std::vector<safe_real> &data, integer f) {
 		U[f] = data;
 	}
 	analytic_t compute_analytic(real);
-	void compute_boundary_interactions(gsolve_type, const geo::direction&, bool is_monopole, const gravity_boundary_type&);
+	void compute_boundary_interactions(gsolve_type, const geo::direction&, bool is_monopole,
+			const gravity_boundary_type&);
 	static void set_scaling_factor(real f) {
 		scaling_factor = f;
 	}
-	diagnostics_t diagnostics(const diagnostics_t& diags);
+	diagnostics_t diagnostics(const diagnostics_t &diags);
 	static real get_scaling_factor() {
 		return scaling_factor;
 	}
@@ -242,10 +264,10 @@ public:
 	//std::vector<real> const& get_outflows() const {
 //		return U_out;
 //	}
-	std::vector<std::pair<std::string,real>> get_outflows() const;
-	void set_outflows(std::vector<std::pair<std::string,real>>&& u);
-	void set_outflow(std::pair<std::string,real>&& u);
-	void set_outflows(std::vector<real>&& u) {
+	std::vector<std::pair<std::string, real>> get_outflows() const;
+	void set_outflows(std::vector<std::pair<std::string, real>> &&u);
+	void set_outflow(std::pair<std::string, real> &&u);
+	void set_outflows(std::vector<real> &&u) {
 		U_out = std::move(u);
 	}
 	std::vector<real> get_outflows_raw() {
@@ -262,34 +284,36 @@ public:
 			is_leaf = flag;
 		}
 	}
-	std::pair<real,real> amr_error() const;
-	bool is_in_star(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, integer frac,
+	std::pair<real, real> amr_error() const;
+	bool is_in_star(const std::pair<space_vector, space_vector> &axis, const std::pair<real, real> &l1, integer frac,
 			integer index, real rho_cut) const;
 	static void set_omega(real, bool bcast = true);
 	static OCTOTIGER_EXPORT real& get_omega();
-	line_of_centers_t line_of_centers(const std::pair<space_vector, space_vector>& line);
+	line_of_centers_t line_of_centers(const std::pair<space_vector, space_vector> &line);
 	void set_coordinates();
 	std::vector<real> get_flux_check(const geo::face&);
 	void set_flux_check(const std::vector<real>&, const geo::face&);
 	void set_hydro_boundary(const std::vector<real>&, const geo::direction&, bool energy_only);
-	std::vector<real> get_hydro_boundary(const geo::direction& face, bool energy_only);
+	std::vector<real> get_hydro_boundary(const geo::direction &face, bool energy_only);
 	scf_data_t scf_params();
 	real scf_update(real, real, real, real, real, real, real, struct_eos, struct_eos);
 	std::pair<std::vector<real>, std::vector<real> > field_range() const;
 	void velocity_inc(const space_vector& dv);
 	void energy_adj();
 	std::vector<real> get_restrict() const;
-	std::vector<real> get_flux_restrict(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub,
+	std::vector<real> get_flux_restrict(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub,
 			const geo::dimension&) const;
-	std::vector<real> get_prolong(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub);
+	std::vector<real> get_prolong(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub);
 	void clear_amr();
 	void set_hydro_amr_boundary(const std::vector<real>&, const geo::direction&, bool energy_only);
 	void complete_hydro_amr_boundary(bool energy_only);
-	std::vector<real> get_subset(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub, bool energy_only);
+	std::vector<real> get_subset(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub,
+			bool energy_only);
+	void compute_mmw();
 	void set_prolong(const std::vector<real>&, std::vector<real>&&);
 	void set_restrict(const std::vector<real>&, const geo::octant&);
-	void set_flux_restrict(const std::vector<real>&, const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub,
-			const geo::dimension&);
+	void set_flux_restrict(const std::vector<real>&, const std::array<integer, NDIM> &lb,
+			const std::array<integer, NDIM> &ub, const geo::dimension&);
 	space_vector center_of_mass() const;
 	bool refine_me(integer lev, integer last_ngrids) const;
 	void compute_dudt();
@@ -304,15 +328,15 @@ public:
 	expansion_pass_type compute_expansions(gsolve_type, const expansion_pass_type* = nullptr);
 	expansion_pass_type compute_expansions_soa(gsolve_type, const expansion_pass_type* = nullptr);
 	integer get_step() const;
-	std::vector<real> conserved_sums(space_vector& com, space_vector& com_dot,
-			const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, integer frac,
+	std::vector<real> conserved_sums(space_vector &com, space_vector &com_dot,
+			const std::pair<space_vector, space_vector> &axis, const std::pair<real, real> &l1, integer frac,
 			real rho_cut) const;
 	std::pair<std::vector<real>, std::vector<real>> diagnostic_error() const;
 	void diagnostics();
-	real z_moments(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, integer frac,
+	real z_moments(const std::pair<space_vector, space_vector> &axis, const std::pair<real, real> &l1, integer frac,
 			real rho_cut) const;
 	std::vector<real> frac_volumes() const;
-	real roche_volume(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, real,
+	real roche_volume(const std::pair<space_vector, space_vector> &axis, const std::pair<real, real> &l1, real,
 			bool donor) const;
 	std::vector<real> l_sums() const;
 	std::vector<real> gforce_sum(bool torque) const;
@@ -333,7 +357,7 @@ public:
 	std::pair<space_vector, space_vector> find_axis() const;
 #endif
 	space_vector get_cell_center(integer i, integer j, integer k);
-	gravity_boundary_type get_gravity_boundary(const geo::direction& dir, bool is_local);
+	gravity_boundary_type get_gravity_boundary(const geo::direction &dir, bool is_local);
 	neighbor_gravity_type fill_received_array(neighbor_gravity_type raw_input);
 
 	const std::vector<boundary_interaction_type>& get_ilist_n_bnd(const geo::direction &dir);
@@ -346,17 +370,17 @@ public:
 	void set_physical_boundaries(const geo::face&, real t);
 	void next_u(integer rk, real t, real dt);
 	template<class Archive>
-	void load(Archive& arc, const unsigned);
+	void load(Archive &arc, const unsigned);
 	static real convert_gravity_units(int);
 	static real convert_hydro_units(int);
 
 	template<class Archive>
-	void save(Archive& arc, const unsigned) const;HPX_SERIALIZATION_SPLIT_MEMBER()
+	void save(Archive &arc, const unsigned) const;HPX_SERIALIZATION_SPLIT_MEMBER()
 	;
 	std::pair<real, real> virial() const;
 
 	std::vector<silo_var_t> var_data() const;
-	void set(const std::string name, real* data, int);
+	void set(const std::string name, real *data, int);
 	friend class node_server;
 };
 
@@ -364,12 +388,12 @@ struct grid::node_point {
 	xpoint pt;
 	integer index;
 	template<class Arc>
-	void serialize(Arc& arc, unsigned) {
+	void serialize(Arc &arc, unsigned) {
 		arc & pt;
 		arc & index;
 	}
-	bool operator==(const grid::node_point& other) const;
-	bool operator<(const grid::node_point& other) const;
+	bool operator==(const grid::node_point &other) const;
+	bool operator<(const grid::node_point &other) const;
 };
 
 namespace hpx {
@@ -383,7 +407,7 @@ struct is_bitwise_serializable<grid::node_point> : std::true_type {
 void scf_binary_init();
 
 template<class Archive>
-void grid::load(Archive& arc, const unsigned) {
+void grid::load(Archive &arc, const unsigned) {
 	arc >> roche_lobe;
 	arc >> is_leaf;
 	arc >> is_root;
@@ -409,7 +433,7 @@ void grid::load(Archive& arc, const unsigned) {
 }
 
 template<class Archive>
-void grid::save(Archive& arc, const unsigned) const {
+void grid::save(Archive &arc, const unsigned) const {
 	arc << roche_lobe;
 	arc << is_leaf;
 	arc << is_root;
