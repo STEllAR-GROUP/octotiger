@@ -329,7 +329,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 	}
 	printf("Starting run...\n");
 	auto fut_ptr = me.get_ptr();
-	node_server *root_ptr = GET(fut_ptr);
+	auto root_ptr = GET(fut_ptr);
 	if (!opts().output_filename.empty()) {
 		diagnostics();
 		solve_gravity(false, false);

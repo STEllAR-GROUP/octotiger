@@ -173,7 +173,7 @@ void start_octotiger(int argc, char* argv[]) {
 
             hpx::id_type root_id = hpx::new_<node_server>(hpx::find_here()).get();
             node_client root_client(root_id);
-            node_server* root = root_client.get_ptr().get();
+            auto root = root_client.get_ptr().get();
             std::cerr << "Found root" << std::endl;
 
             node_count_type ngrids;
@@ -224,7 +224,7 @@ void start_octotiger(int argc, char* argv[]) {
                 auto e = root->amr_error();
                 std::cerr << "Finished AMR test" << std::endl;
                 printf("AMR Error: %e %e %e\n", e.first, e.second, e.first / e.second);
-                output_all(root, "X", 0, true);
+                output_all(root.get(), "X", 0, true);
             }
             std::cerr << "Start timings report..." << std::endl;
             root->report_timing();

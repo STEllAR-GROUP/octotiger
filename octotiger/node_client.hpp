@@ -93,7 +93,7 @@ public:
     future<set_child_aunt_type> set_child_aunt(
         const hpx::id_type&, const geo::face&) const;
     future<void> set_aunt(const hpx::id_type&, const geo::face&) const;
-    OCTOTIGER_EXPORT future<node_server*> get_ptr() const;
+    OCTOTIGER_EXPORT future<std::shared_ptr<node_server>> get_ptr() const;
     future<int> form_tree(
         hpx::id_type&&, hpx::id_type&&, std::vector<hpx::id_type>&&);
     future<hpx::id_type> get_child_client(
