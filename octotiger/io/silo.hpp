@@ -33,8 +33,8 @@ struct silo_var_t {
 private:
 	std::string name_;
 	std::vector<real> data_;
-	std::pair<real,real> range_;
 public:
+	std::pair<real,real> range_;
 	void set_range(real val ) {
 		range_.first = std::min(range_.first, val);
 		range_.second = std::max(range_.second, val);

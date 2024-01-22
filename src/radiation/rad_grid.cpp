@@ -332,7 +332,6 @@ void rad_grid::rad_imp(std::vector<real> &egas, std::vector<real> &tau,
 		}
 	}
 
-	printf( "\n\n\n\n");
 }
 
 void rad_grid::set_dx(real _dx) {

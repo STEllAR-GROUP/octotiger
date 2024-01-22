@@ -123,15 +123,15 @@ void grid::static_init() {
 
 std::vector<std::string> grid::get_field_names() {
 	std::vector<std::string> rc = get_hydro_field_names();
+	if (opts().gravity) {
+		for (auto i : str_to_index_gravity) {
+			rc.push_back(i.first);
+		}
+	}
 	if (opts().radiation) {
 		const auto rnames = rad_grid::get_field_names();
 		for (auto &n : rnames) {
 			rc.push_back(n);
-		}
-	}
-	if (opts().gravity) {
-		for (auto i : str_to_index_gravity) {
-			rc.push_back(i.first);
 		}
 	}
 	if (opts().idle_rates) {
@@ -291,9 +291,6 @@ std::vector<silo_var_t> grid::var_data() const {
 					const int iii = hindex(k + H_BW - x0, j + H_BW - y0, i + H_BW - z0);
 					this_s(jjj) = U[f][iii] * unit;
 					this_s.set_range(this_s(jjj));
-					if (fabs(this_s(jjj)) > 1e100) {
-						printf("%e\n", this_s(jjj));
-					}
 					jjj++;
 				}
 			}
