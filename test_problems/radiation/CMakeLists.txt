@@ -28,10 +28,10 @@ if (OCTOTIGER_WITH_GRIDDIM EQUAL 8)
   set(spc3_regex "spc_3 0.000000e.00 0.000000e.00 0.000000e.00")
   set(spc4_regex "spc_4 0.000000e.00 0.000000e.00 0.000000e.00")
   set(spc5_regex "spc_5 0.000000e.00 0.000000e.00 0.000000e.00")
-  set(er_regex "er 9.725898e-07 9.725898e-07 9.725898e-07")
-  set(fx_regex "fx 6.222427e-15 7.186612e-15 1.207161e-14")
-  set(fy_regex "fy 6.222427e-15 7.186612e-15 1.207161e-14")
-  set(fz_regex "fz 6.222427e-15 7.186612e-15 1.207161e-14")
+  set(er_regex "er 9.725649e-07 9.725649e-07 9.725650e-07")
+  set(fx_regex "fx 2.329772e-14 2.895043e-14 7.027676e-14")
+  set(fy_regex "fy 2.329772e-14 2.895043e-14 7.027676e-14")
+  set(fz_regex "fz 2.329772e-14 2.895043e-14 7.027676e-14")
   set(silo_scenario_filename "radiation_diffusion_test.silo")
 endif()
 
@@ -121,7 +121,7 @@ function(test_radiation_diffusion_scenario test_name test_log_file reference_fil
 
   if (NOT ${reference_filename} STREQUAL "none" )
     add_test(NAME ${test_name}.diff
-      COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-2
+      COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-6
        ${PROJECT_SOURCE_DIR}/octotiger-testdata/${reference_filename} ${PROJECT_BINARY_DIR}/test_problems/radiation/final.silo.data/0.silo)
     set_tests_properties(${test_name}.diff PROPERTIES
       FIXTURES_REQUIRED ${test_name}
@@ -135,7 +135,6 @@ function(test_radiation_diffusion_scenario test_name test_log_file reference_fil
 endfunction()
 
 if (OCTOTIGER_WITH_GRIDDIM EQUAL 8)
-  # Rotating Star - OLD CPU
   # TODO Add radiation kernel variants once there is more than one available...
   test_radiation_diffusion_scenario(test_problems.cpu.am_hydro_on.radiation_diffusion_legacy radiation_diffusion_am_hydro_on_old_log.txt ${silo_scenario_filename} " --hydro_device_kernel_type=OFF ")
 endif()
@@ -147,7 +146,7 @@ function(test_radiation_coupling_scenario test_name test_log_file kernel_paramet
     FIXTURES_SETUP ${test_name})
 
   add_test(NAME ${test_name}.diff
-    COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-4
+    COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-6
      ${PROJECT_SOURCE_DIR}/octotiger-testdata/radiation_coupling_test.silo ${PROJECT_BINARY_DIR}/test_problems/radiation/final.silo.data/0.silo)
   set_tests_properties(${test_name}.diff PROPERTIES
     FIXTURES_REQUIRED ${test_name}
@@ -160,7 +159,6 @@ function(test_radiation_coupling_scenario test_name test_log_file kernel_paramet
 endfunction()
 
 if (OCTOTIGER_WITH_GRIDDIM EQUAL 8)
-  # Rotating Star - OLD CPU
   # TODO Add radiation kernel variants once there is more than one available...
   test_radiation_coupling_scenario(test_problems.cpu.am_hydro_on.radiation_coupling_legacy radiation_coupling_am_hydro_on_old_log.txt " --hydro_device_kernel_type=OFF ")
 endif()

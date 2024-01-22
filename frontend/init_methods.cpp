@@ -118,7 +118,21 @@ void cleanup_puddle_on_this_locality(void) {
 #ifdef OCTOTIGER_HAVE_KOKKOS
     stream_pool::cleanup<hpx::kokkos::hpx_executor, round_robin_pool<hpx::kokkos::hpx_executor>>();
     stream_pool::cleanup<hpx::kokkos::serial_executor, round_robin_pool<hpx::kokkos::serial_executor>>();
+    std::cerr << "Starting KOKKOS finalize ..." << std::endl;
     Kokkos::finalize();
+#endif
+
+#if defined(OCTOTIGER_HAVE_HIP) || (defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_HIP))
+    // Reset all HIP devices. This gets around a bug where the shutdown of the HIP runtime does not
+    // work properly with AMD_DIRECT_DISPATCH=0
+    int numDevices = 0;
+    hipGetDeviceCount(&numDevices);
+    for (size_t gpu_id = 0; gpu_id < numDevices; gpu_id++) {
+      std::cerr << "Resetting HIP device " << gpu_id << "..." << std::endl;
+      hipSetDevice(gpu_id);
+      hipDeviceSynchronize();
+      hipDeviceReset();
+    }
 #endif
     
 }
