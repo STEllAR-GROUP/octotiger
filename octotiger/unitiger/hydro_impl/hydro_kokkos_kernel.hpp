@@ -324,6 +324,8 @@ void flux_impl_teamless(
                                 local_q[f].copy_from(q_combined_slice.data() + f * face_offset +
                                         dim_offset * d + index,
                                     SIMD_NAMESPACE::element_aligned_tag{});
+                                assert(index - compressedH_DN[dim] >= 0 &&
+                                    index - compressedH_DN[dim] < q_inx3);
                                 local_q_flipped[f].copy_from(q_combined_slice.data() +
                                         f * face_offset + dim_offset * flipped_dim -
                                         compressedH_DN[dim] + index,
@@ -364,7 +366,7 @@ void flux_impl_teamless(
                         }
                     }
                     simd_t current_val = 0.0;
-                    for (int f = 10; f < nf; f++) {
+                    for (int f = spc_i; f < nf; f++) {
                         simd_t current_field_val(
                             f_combined_slice.data() + dim * nf * q_inx3 + f * q_inx3 + index,
                             SIMD_NAMESPACE::element_aligned_tag{});
@@ -530,6 +532,8 @@ void flux_impl(
                                 local_q[f].copy_from(q_combined_slice.data() + f * face_offset +
                                         dim_offset * d + index,
                                     SIMD_NAMESPACE::element_aligned_tag{});
+                                assert(index - compressedH_DN[dim] >= 0 &&
+                                    index - compressedH_DN[dim] < q_inx3);
                                 local_q_flipped[f].copy_from(q_combined_slice.data() +
                                         f * face_offset + dim_offset * flipped_dim -
                                         compressedH_DN[dim] + index,
@@ -570,7 +574,7 @@ void flux_impl(
                         }
                     }
                     simd_t current_val = 0.0;
-                    for (int f = 10; f < nf; f++) {
+                    for (int f = spc_i; f < nf; f++) {
                         simd_t current_field_val(
                             f_combined_slice.data() + dim * nf * q_inx3 + f * q_inx3 + index,
                             SIMD_NAMESPACE::element_aligned_tag{});
@@ -1513,6 +1517,14 @@ timestep_t launch_hydro_kokkos_kernels(const hydro_computer<NDIM, INX, physics<N
     const double omega, const size_t n_species, 
     std::vector<hydro_state_t<std::vector<safe_real>>>& F) {
     static const cell_geometry<NDIM, INX> geo;
+
+    // Some assumptions must be true for the kernel to work
+    // Should always be true for 3D production scenarios...
+    assert(NDIM == 3);
+    assert(geo.NFACEDIR == 9);
+    assert(geo.NDIR == 27);
+    assert(hydro.get_nf() == opts().n_fields);
+    assert(hydro.get_nf() == spc_i + opts().n_species);
 
     auto executor_slice_fut = hydro_kokkos_agg_executor_pool<executor_t>::request_executor_slice();
     auto ret_fut = executor_slice_fut.value().then(hpx::annotated_function([&](auto && fut) {

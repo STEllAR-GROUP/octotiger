@@ -122,6 +122,8 @@ __global__ void __launch_bounds__(128, 2) flux_cuda_kernel(const double* __restr
                     local_q[f].copy_from(q_with_offset + f * face_offset +
                             dim_offset * d + index,
                         SIMD_NAMESPACE::element_aligned_tag{});
+                    assert(index - compressedH_DN[dim] >= 0 &&
+                        index - compressedH_DN[dim] < q_inx3);
                     local_q_flipped[f].copy_from(q_with_offset +
                             f * face_offset + dim_offset * flipped_dim -
                             compressedH_DN[dim] + index,
