@@ -6,6 +6,7 @@
 
 
 #pragma once
+#include <cassert>
 #include "octotiger/common_kernel/kokkos_simd.hpp"
 
 #if defined(KOKKOS_ENABLE_SYCL) && defined( __SYCL_DEVICE_ONLY__)
@@ -436,6 +437,14 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_ppm_simd(double *__restrict__ co
     const simd_t results = 0.5 * (u_zero + u_plus_di) + (1.0 / 6.0) * (d1 - d1_plus);
     const simd_t results_flipped = 0.5 * (u_minus_di + u_zero) + (1.0 / 6.0) * (d1_minus - d1);
 
+    /* std::array<double, simd_t::size()> check_helper; */
+    /* results_flipped.copy_to(check_helper.data(), SIMD_NAMESPACE::element_aligned_tag{}); */
+    /* for (int check = 0; check < simd_t::size(); check++) { */
+    /*   if (check_helper[check] != combined_q[start_index + q_i - di + check]) */
+    /*   printf("%f vs %f with di %i\n", check_helper[check], combined_q[start_index + q_i - di + check], di); */
+    /*   /1* assert(check_helper[check] == combined_q[start_index + q_i - di + check]); *1/ */
+    /* } */
+
     simd_t current_q_results(combined_q + start_index + q_i,
         SIMD_NAMESPACE::element_aligned_tag{});
     simd_t current_q_results_flipped(combined_q + start_index_flipped + q_i,
@@ -453,9 +462,9 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_ppm_simd(double *__restrict__ co
         constexpr auto eta2 = 0.05;
         const auto dif = u_plus_di - u_minus_di;
         simd_t disc_val;
-        /* Same issue as with the loading from combined_u: we first need to check 
-         * if the values are consecutive in memory of if we are dealing with two lines/
-         * bars of the cube and need to load them separetly (else branch)*/
+        // Same issue as with the loading from combined_u: we first need to check 
+        // if the values are consecutive in memory of if we are dealing with two lines
+        // bars of the cube and need to load them separetly (else branch)
         if (q_i%q_inx + simd_t::size() - 1 < q_inx) { 
             // values are consecutive
             disc_val.copy_from(disc + d * disc_offset + d_i, SIMD_NAMESPACE::element_aligned_tag{});

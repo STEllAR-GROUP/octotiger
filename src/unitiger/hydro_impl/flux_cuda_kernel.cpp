@@ -223,6 +223,11 @@ __global__ void __launch_bounds__(128, 2) flux_cuda_kernel(const double* __restr
         amax[block_id + amax_slice_offset] = sm_amax[0];
         amax_indices[block_id + max_indices_slice_offset] = sm_i[0];
         amax_d[block_id + max_indices_slice_offset] = sm_d[0];
+        /* int x = sm_i[0] / 100; */
+        /* int y = (sm_i[0] % 100) / 10; */
+        /* int z = (sm_i[0] % 100) % 10; */
+        /* if (sm_amax[0] > 0.00001) */
+        /* printf("%i %i %i = %i %f \n",x,y,z,sm_i[0], sm_amax[0]); */
 
         // Save face to the end of the amax buffer
         const int flipped_dim = flip_dim(sm_d[0], dim);

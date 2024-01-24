@@ -28,6 +28,7 @@
 #ifdef HPX_HAVE_APEX
 #include <apex_api.hpp>
 #endif
+#include <fstream>
 
 #ifdef __NVCC__
 #include <cuda/std/tuple>
@@ -300,8 +301,8 @@ void flux_impl_teamless(
                         mask_helper2_array.data(), SIMD_NAMESPACE::element_aligned_tag{});
                     const simd_mask_t mask = mask_helper1 == mask_helper2;
                     if (SIMD_NAMESPACE::any_of(mask)) {
+                        simd_t this_ap = 0.0, this_am = 0.0;
                         for (int fi = 0; fi < 9; fi++) { // TODO replace 9 with the actual constexpr
-                            simd_t this_ap = 0.0, this_am = 0.0;
                             const int d = faces[dim][fi];
                             const int flipped_dim = flip_dim(d, dim);
                             for (int dim = 0; dim < NDIM; dim++) {
@@ -338,18 +339,6 @@ void flux_impl_teamless(
                             // Update maximum values
                             this_ap = SIMD_NAMESPACE::choose(mask, this_ap, simd_t(0.0));
                             this_am = SIMD_NAMESPACE::choose(mask, this_am, simd_t(0.0));
-                            const simd_t amax_tmp = SIMD_NAMESPACE::max(this_ap, (-this_am));
-                            // Reduce
-                            // TODO Reduce outside of inner loop?
-                            std::array<double, simd_t::size()> max_helper;
-                            amax_tmp.copy_to(max_helper.data(), SIMD_NAMESPACE::element_aligned_tag{});
-                            for (int i = 0; i < simd_t::size(); i++) {
-                              if (max_helper[i] > current_amax) {
-                                  current_amax = max_helper[i];
-                                  current_d = d;
-                                  current_i = index + i;
-                              }
-                            }
                             // Add results to the final flux buffer
                             for (int f = 1; f < nf; f++) {
                               simd_t current_val(
@@ -363,10 +352,23 @@ void flux_impl_teamless(
                                 SIMD_NAMESPACE::element_aligned_tag{});
                             }
                         }
+                        const simd_t amax_tmp = SIMD_NAMESPACE::max(this_ap, (-this_am));
+                        // Reduce
+                        // TODO Reduce outside of inner loop?
+                        std::array<double, simd_t::size()> max_helper;
+                        amax_tmp.copy_to(max_helper.data(), SIMD_NAMESPACE::element_aligned_tag{});
+                        for (int i = 0; i < simd_t::size(); i++) {
+                          if (max_helper[i] > current_amax) {
+                              current_amax = max_helper[i];
+                              current_d = faces[dim][8];
+                              current_i = index + i;
+                          }
+                        }
                     }
-                    simd_t current_val(
-                      f_combined_slice.data() + dim * nf * q_inx3 + index,
-                      SIMD_NAMESPACE::element_aligned_tag{});
+                    /* simd_t current_val( */
+                    /*   f_combined_slice.data() + dim * nf * q_inx3 + index, */
+                    /*   SIMD_NAMESPACE::element_aligned_tag{}); */
+                    simd_t current_val = 0.0;
                     for (int f = 10; f < nf; f++) {
                         simd_t current_field_val(
                             f_combined_slice.data() + dim * nf * q_inx3 + f * q_inx3 + index,
@@ -1332,11 +1334,6 @@ timestep_t device_interface_kokkos_hydro(
         if (host_amax_slice[dim_i] >
             host_amax_slice[current_max_slot]) {
             current_max_slot = dim_i;
-        } else if (host_amax_slice[dim_i] ==
-            host_amax_slice[current_max_slot]) {
-            if (host_amax_indices_slice[dim_i] <
-                host_amax_indices_slice[current_max_slot])
-                current_max_slot = dim_i;
         }
     }
 
@@ -1357,9 +1354,10 @@ timestep_t device_interface_kokkos_hydro(
         URs[f] = host_amax_slice[NDIM * number_blocks_small + current_i * 2 * nf + f];
         ULs[f] = host_amax_slice[NDIM * number_blocks_small + current_i * 2 * nf + nf + f];
     }
-    ts.ul = std::move(URs);
-    ts.ur = std::move(ULs);
+    ts.ul = URs;
+    ts.ur = ULs;
     ts.dim = current_dim;
+    ts.cell_index = host_amax_indices_slice[current_max_slot];
     return ts;
 }
 
@@ -1408,8 +1406,6 @@ timestep_t device_interface_kokkos_hydro(
     // Reconstruct
     aggregated_host_buffer<double, executor_t> q(
         alloc_host_double, (nf * 27 * q_inx3 + padding) * max_slices);
-    aggregated_host_buffer<double, executor_t> q2(
-        alloc_host_double, (nf * 27 * q_inx3 + 2*padding) * max_slices);
     aggregated_host_buffer<double, executor_t> AM(
         alloc_host_double, (NDIM * q_inx3 + padding) * max_slices);
 
@@ -1482,16 +1478,21 @@ timestep_t device_interface_kokkos_hydro(
         if (amax[dim_i + amax_slice_offset] > amax[current_max_slot + amax_slice_offset]) {
             current_max_slot = dim_i;
         } else if (amax[dim_i + amax_slice_offset] == amax[current_max_slot + amax_slice_offset]) {
-            if (amax_indices[dim_i + max_indices_slice_offset] <
-                amax_indices[current_max_slot + max_indices_slice_offset])
-                current_max_slot = dim_i;
+            /* if (dim_i / q_inx3 < current_max_slot / q_inx3) { */
+            /*     current_max_slot = dim_i; */
+            /* } */ 
+            /* else if (dim_i / q_inx3 == current_max_slot / q_inx3) { */
+            /*     if (dim_i % q_inx3 < current_max_slot % q_inx3) { */
+            /*         current_max_slot = dim_i; */
+            /*     } */
+            /* } */
         }
     }
 
     // Create & Return timestep_t type
     std::vector<double> URs(nf), ULs(nf);
     const size_t current_max_index = amax_indices[current_max_slot + max_indices_slice_offset];
-    /* const size_t current_d = amax_d[current_max_slot]; */
+    const size_t current_d = amax_d[current_max_slot];
     const auto current_dim = current_max_slot / (blocks / NDIM);
     timestep_t ts;
     ts.a = amax[current_max_slot + amax_slice_offset];
@@ -1505,9 +1506,98 @@ timestep_t device_interface_kokkos_hydro(
         URs[f] = amax[blocks + current_i * 2 * nf + f + amax_slice_offset];
         ULs[f] = amax[blocks + current_i * 2 * nf + nf + f + amax_slice_offset];
     }
-    ts.ul = std::move(URs);
-    ts.ur = std::move(ULs);
+    ts.ul = URs;
+    ts.ur = ULs;
     ts.dim = current_dim;
+    ts.cell_index = amax_indices[current_max_slot + max_indices_slice_offset];
+    /* if(ts.a > 0.0001) { */
+    std::cout << "stopping with" << ts.a << " " << ts.cell_index <<  " :" << ts.ur[0] << " "
+              << ts.ul[0] << std::endl;
+    for (int f = 0; f < nf; f++)
+        std::cout << ts.ul[f] << " ";
+    std::cout << " :: " << ts.dim;
+    std::cout << std::endl;
+    /* std::cin.get(); */
+    /* } */
+
+    bool output = true;
+    char type = 'n';
+    /* do { */
+    /*     std::cout << "   Print input/output" << std::endl; */
+    /*     std::cin >> type; */
+    /* } while (!std::cin.fail() && type != 'y' && type != 'n'); */
+    if (type == 'y') {
+        static int dump_id = 0;
+        dump_id++;
+        std::string filename_u = std::string("kokkos_input_egas_u_") + std::to_string(dump_id);
+        std::ofstream uout(filename_u);
+        for (int f = 0; f < nf; f++) {
+            if (f == egas_i) {
+                        for (auto u_i = 0; u_i < 14 * 14 * 14; u_i++) {
+                            const int start_index = f * u_face_offset;
+                            /* const int start_index_flipped = f * q_face_offset + flipped_di *
+                             * q_dir_offset; */
+                            if (u_i % 14 == 0)
+                                uout << std::endl;
+                            if (u_i % 14 * 14 == 0)
+                                uout << std::endl;
+                            if (combined_u[start_index + u_i] > 1e-16) 
+                            uout << combined_u[start_index + u_i] << " ";
+                        }
+                        uout << std::endl;
+            }
+        }
+        // Verify symmetry in q
+        std::string filename_q = std::string("kokkos_output_egas_q_") + std::to_string(dump_id);
+        std::ofstream qout(filename_q);
+        for (int f = 0; f < nf; f++) {
+            if (f == egas_i) {
+                for (int d = 0; d < ndir; d++) {
+                    /* if (d < ndir / 2) { */
+                        qout << "DIR " << d << ":" << std::endl;
+                        for (auto q_i = 0; q_i < 1000; q_i++) {
+                            const int start_index = f * q_face_offset + d *
+                              q_dir_offset;
+                            /* const int start_index_flipped = f * q_face_offset + flipped_di *
+                             * q_dir_offset; */
+                            if (q_i % 10 == 0)
+                                qout << std::endl;
+                            if (q_i % 100 == 0)
+                                qout << std::endl;
+                            if (q[start_index + q_i] > 1e-16) 
+                            qout << q[start_index + q_i] << " ";
+                        }
+                        qout << std::endl;
+                    /* } */
+                }
+            }
+        }
+        std::string filename_f = std::string("kokkos_output_f_") + std::to_string(dump_id);
+        std::ofstream fout(filename_f);
+        for (int dim = 0; dim < NDIM; dim++) {
+            fout << std::endl << "DIM " << dim << std::endl;
+            fout << std::endl;
+            for (integer field = 0; field < nf; ++field) {
+                const auto dim_offset = dim * nf * q_inx3 + field * q_inx3;
+                fout << std::endl << "Field " << field << std::endl;
+                fout << std::endl;
+                for (integer i = 0; i <= INX; ++i) {
+                    fout << std::endl;
+                    for (integer j = 0; j <= INX; ++j) {
+                        fout << std::endl;
+                        for (integer k = 0; k <= INX; ++k) {
+                            const auto i0 = findex(i, j, k);
+                            const auto input_index =
+                                (i + 1) * q_inx * q_inx + (j + 1) * q_inx + (k + 1);
+                            if (f[dim_offset + input_index] > 1e-16) 
+                            fout << f[dim_offset + input_index] << " ";
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     return ts;
 }
 
@@ -1591,9 +1681,10 @@ timestep_t launch_hydro_kokkos_kernels(const hydro_computer<NDIM, INX, physics<N
           dx, physics<NDIM>::A_, physics<NDIM>::B_, physics<NDIM>::fgamma_,
           physics<NDIM>::de_switch_1, agg_exec, alloc_host_double, alloc_host_int);
 
+
       // Convert output and store in f result slice
       for (int dim = 0; dim < NDIM; dim++) {
-          for (integer field = 0; field != opts().n_fields; ++field) {
+          for (integer field = 0; field < opts().n_fields; ++field) {
               const auto dim_offset = dim * opts().n_fields * q_inx3 + field * q_inx3;
               for (integer i = 0; i <= INX; ++i) {
                   for (integer j = 0; j <= INX; ++j) {

@@ -314,8 +314,12 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
           number_slices * number_blocks * NDIM * sizeof(int), cudaMemcpyDeviceToHost);
       hpx::apply(exec_slice, cudaMemcpyAsync, amax_d.data(), device_amax_d.device_side_buffer,
           number_slices * number_blocks * NDIM * sizeof(int), cudaMemcpyDeviceToHost);
-      auto flux_kernel_fut =
-          hpx::async(exec_slice, cudaMemcpyAsync, f.data(), device_f.device_side_buffer,
+      /* auto flux_kernel_fut = */
+      /*     hpx::async(exec_slice, cudaMemcpyAsync, f.data(), device_f.device_side_buffer, */
+      /*         number_slices * (NDIM * nf_local * q_inx3 + 128) * */
+      /*         sizeof(double), */
+      /*         cudaMemcpyDeviceToHost); */
+          hpx::apply(exec_slice, cudaMemcpyAsync, f.data(), device_f.device_side_buffer,
               number_slices * (NDIM * nf_local * q_inx3 + 128) *
               sizeof(double),
               cudaMemcpyDeviceToHost);
@@ -323,23 +327,35 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
       octotiger::hydro::hydro_cuda_gpu_subgrids_processed++;
       if(slice_id == 0)
         octotiger::hydro::hydro_cuda_gpu_aggregated_subgrids_launches++;
+      cudaDeviceSynchronize();
 
-      flux_kernel_fut.get();
+      /* flux_kernel_fut.get(); */
 
       // Find Maximum
       const int amax_slice_offset = NDIM * (1 + 2 * nf_local) * number_blocks * slice_id;
       const int max_indices_slice_offset = NDIM * number_blocks * slice_id;
       size_t current_dim = 0;
+      int max_index = amax_indices[current_dim + max_indices_slice_offset];
       for (size_t dim_i = 1; dim_i < number_blocks * NDIM; dim_i++) {
         if (amax[dim_i + amax_slice_offset] > amax[current_dim + amax_slice_offset]) { 
           current_dim = dim_i;
-        } else if (amax[dim_i + amax_slice_offset] == amax[current_dim + amax_slice_offset]) {
-          if (amax_indices[dim_i + max_indices_slice_offset] <
-              amax_indices[current_dim + max_indices_slice_offset]) {
-              current_dim = dim_i;
-          }
-        }
+              max_index = amax_indices[dim_i + max_indices_slice_offset];
+        }       /* for (size_t dim_i = 1; dim_i < number_blocks * NDIM; dim_i++) { */
       }
+      /*   if (amax[dim_i + amax_slice_offset] > amax[current_dim + amax_slice_offset]) { */ 
+      /*     current_dim = dim_i; */
+      /*         max_index = amax_indices[dim_i + max_indices_slice_offset]; */
+      /*   } else if (amax[dim_i + amax_slice_offset] == amax[current_dim + amax_slice_offset]) { */
+      /*     if (dim_i < current_dim ) { */
+      /*         current_dim = dim_i; */
+      /*         max_index = amax_indices[dim_i + max_indices_slice_offset]; */
+      /*     } else if (amax_indices[dim_i + max_indices_slice_offset] < */
+      /*         amax_indices[current_dim + max_indices_slice_offset]) { */
+      /*         current_dim = dim_i; */
+      /*         max_index = amax_indices[dim_i + max_indices_slice_offset]; */
+      /*     } */
+      /*   } */
+      /* } */
       std::vector<double> URs(nf_local), ULs(nf_local);
       const size_t current_max_index = amax_indices[current_dim + max_indices_slice_offset];
       // const size_t current_d = amax_d[current_dim];
@@ -356,9 +372,17 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
             nf_local + f +
               amax_slice_offset];
       }
-      ts.ul = std::move(URs);
       ts.ur = std::move(ULs);
+      ts.ul = std::move(URs);
       ts.dim = current_dim;
+      ts.cell_index = max_index;
+      /* if(ts.a > 0.0001) { */
+        std::cout << "stopping with" << ts.a << " " << max_index <<  " :" << ts.ur[0] << " " << ts.ul[0] << std::endl ;
+        for (int f = 0; f < nf_local; f++) 
+          std::cout << ts.ul[f] << " ";
+        std::cout << std::endl;
+      /* std::cin.get(); */
+      /* } */
       auto max_lambda = ts;
 
       /* auto max_lambda = launch_flux_cuda(executor, device_q.device_side_buffer, f, combined_x, */

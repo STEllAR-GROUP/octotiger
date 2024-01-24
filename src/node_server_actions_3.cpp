@@ -438,9 +438,9 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 					printf("TS %i:: t: %e, dt: %e, time_elapsed: %e, rotational_time: %e, x: %e, y: %e, z: %e, ",
 						int(next_step), double(t), double(dt_.dt), time_elapsed, rotational_time,
 						dt_.x, dt_.y, dt_.z);
-					printf("a: %e, ur: %e, ul: %e, vr: %e, vl: %e, dim: %i, ngrids: %i, leafs: %i, amr_boundaries: %i\n", 
+					printf("a: %e, ur: %e, ul: %e, vr: %e, vl: %e, dim: %i, ngrids: %i, leafs: %i, amr_boundaries: %i, index %i\n", 
 						dt_.a, dt_.ur[0], dt_.ul[0], vr, vl, dt_.dim, int(ngrids.total),
-						int(ngrids.leaf), int(ngrids.amr_bnd));
+						int(ngrids.leaf), int(ngrids.amr_bnd), dt_.cell_index);
     }
 				/* });     // do not wait for output to finish */
 
@@ -779,10 +779,18 @@ future<void> node_server::timestep_driver_descend() {
 			auto dts = hpx::unwrap(dts_fut);
 			timestep_t dt;
 			dt.dt = 1.0e+99;
-			for (const auto &this_dt : dts) {
+			for (const auto this_dt : dts) {
 				if (this_dt.dt < dt.dt) {
 					dt = this_dt;
-				}
+				} 
+        /* else if(this_dt.dt == dt.dt) { */
+        /*   if (this_dt.dim < dt.dim) { */
+        /*     dt = this_dt; */
+        /*   } */
+        /*   /1* else if(this_dt.dim == dt.dim && this_dt.cell_index < dt.cell_index) { *1/ */
+        /*   /1*   dt = this_dt; *1/ */
+        /*   /1* } *1/ */
+        /* } */
 			}
 
 			if (my_location.level() == 0) {

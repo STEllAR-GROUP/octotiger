@@ -172,7 +172,7 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
 #ifdef HPX_HAVE_APEX
         auto reconstruct_timer = apex::start("kernel hydro_reconstruct legacy");
 #endif
-        const auto& q = hydro.reconstruct(U, X, omega);
+        const auto q = hydro.reconstruct(U, X, omega);
 #ifdef HPX_HAVE_APEX
         apex::stop(reconstruct_timer);
         auto flux_timer = apex::start("kernel hydro_flux legacy");
@@ -182,9 +182,64 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
 #ifdef HPX_HAVE_APEX
         apex::stop(flux_timer);
 #endif
+
+    bool output = true;
+    char type = 'n';
+    static int dump_id = 0;
+    /* do { */
+    /*     std::cout << "   Print input/output" << std::endl; */
+    /*     std::cin >> type; */
+    /* } while (!std::cin.fail() && type != 'y' && type != 'n'); */
+    if (type == 'y') {
+        dump_id++;
+        std::string filename_u = std::string("legacy_input_egas_u_") + std::to_string(dump_id);
+        std::ofstream uout(filename_u);
+        for (int f = 0; f < opts().n_fields; f++) {
+            if (f == egas_i) {
+                        for (auto u_i = 0; u_i < 14 * 14 * 14; u_i++) {
+                            if (u_i % 14 == 0)
+                                uout << std::endl;
+                            if (u_i % 14 * 14 == 0)
+                                uout << std::endl;
+                            if (U[f][u_i] > 1e-16) 
+                            uout << U[f][u_i] << " ";
+                        }
+                        uout << std::endl;
+            }
+        }
+        // Verify symmetry in q
+        std::string filename_q = std::string("legacy_output_egas_q_") + std::to_string(dump_id);
+        std::ofstream qout(filename_q);
+        for (int f = 0; f < opts().n_fields; f++) {
+            if (f == egas_i) {
+                for (int d = 0; d < geo.NDIR; d++) {
+                    /* if (d < geo.NDIR / 2) { */
+                        qout << "DIR " << d << ":" << std::endl;
+                        for (auto x = 2; x < 12; x++) {
+                        for (auto y = 2; y < 12; y++) {
+                        for (auto z = 2; z < 12; z++) {
+                            auto i = x * 14 * 14 + y * 14 + z;
+                            auto q_i = (x - 2) * 10 * 10 + (y - 2) * 10 + z - 2;
+                            /* const int start_index_flipped = f * q_face_offset + flipped_di *
+                             * q_dir_offset; */
+                            if (q_i % 10 == 0)
+                                qout << std::endl;
+                            if (q_i % 100 == 0)
+                                qout << std::endl;
+                            if (q[f][d][i] > 1e-16) 
+                            qout << q[f][d][i] << " ";
+                        }
+                        }
+                        }
+                        qout << std::endl;
+                    /* } */
+                }
+            }
+        }
+    }
         // Use legacy conversion
         for (int dim = 0; dim < NDIM; dim++) {
-            for (integer field = 0; field != opts().n_fields; ++field) {
+            for (integer field = 0; field < opts().n_fields; ++field) {
                 for (integer i = 0; i <= INX; ++i) {
                     for (integer j = 0; j <= INX; ++j) {
                         for (integer k = 0; k <= INX; ++k) {
@@ -201,6 +256,29 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
                 }
             }
         }
+    if (type == 'y') {
+        std::string filename_f = std::string("legacy_output_f_") + std::to_string(dump_id);
+        std::ofstream fout(filename_f);
+        for (int dim = 0; dim < NDIM; dim++) {
+            fout << std::endl << "DIM " << dim << std::endl;
+            fout << std::endl;
+            for (integer field = 0; field < opts().n_fields; ++field) {
+                const auto dim_offset = dim * opts().n_fields * q_inx3 + field * q_inx3;
+                fout << std::endl << "Field " << field << std::endl;
+                fout << std::endl;
+                for (integer i = 0; i <= INX; ++i) {
+                    fout << std::endl;
+                    for (integer j = 0; j <= INX; ++j) {
+                        fout << std::endl;
+                        for (integer k = 0; k <= INX; ++k) {
+                            if (f[dim][field][hindex(i + H_BW, j + H_BW, k + H_BW)] > 1e-16) 
+                            fout << f[dim][field][hindex(i + H_BW, j + H_BW, k + H_BW)] << " ";
+                        }
+                    }
+                }
+            }
+        }
+    }
         return max_lambda;
     } else {
         std::cerr << "No valid hydro kernel type given! " << std::endl;

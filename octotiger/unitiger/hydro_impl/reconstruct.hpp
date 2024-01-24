@@ -256,8 +256,15 @@ template<int NDIM, int INX, class PHYS>
 const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(const hydro::state_type &U_, const hydro::x_type &X, safe_real omega) {
 	PROFILE();
 	static thread_local std::vector<std::vector<safe_real>> AM(geo::NANGMOM, std::vector < safe_real > (geo::H_N3));
-	static thread_local std::vector<std::vector<std::vector<safe_real>> > Q(nf_,
+	thread_local std::vector<std::vector<std::vector<safe_real>> > Q(nf_,
 			std::vector < std::vector < safe_real >> (geo::NDIR, std::vector < safe_real > (geo::H_N3)));
+  for (auto &q_field : Q) {
+    for (auto &q_dir : q_field) {
+      for (auto &q_cell : q_dir) {
+        q_cell = 0.0;
+      }
+    }
+  }
 
 	static constexpr auto xloc = geo::xloc();
 	static constexpr auto levi_civita = geo::levi_civita();
@@ -387,7 +394,6 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 #ifdef TVD_TEST
 	{
 		PROFILE();
-		/**** ENSURE TVD TEST***/
 		for (int f = 0; f < nf_; f++) {
 			if (!smooth_field_[f]) {
 				for (int d = 0; d < geo::NDIR / 2; d++) {

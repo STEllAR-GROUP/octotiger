@@ -9,6 +9,7 @@
 #include "octotiger/cuda_util/cuda_global_def.hpp"
 #include "octotiger/hydro_defs.hpp"
 #include "octotiger/common_kernel/kokkos_simd.hpp"
+#include <iostream>
 
 #if defined(__clang__)
 constexpr int faces[3][9] = {{12, 0, 3, 6, 9, 15, 18, 21, 24}, {10, 0, 1, 2, 9, 11, 18, 19, 20},
@@ -287,17 +288,22 @@ void fill_masks(mask_buffer_t &masks) {
         for (int dimension = 0; dimension < NDIM; dimension++) {
             ubs[dimension] = geo.xloc()[geo.face_pts()[dim][0]][dimension] == -1 ? (length) : (length_short);
         }
+        auto counter = 0;
         for (size_t ix = 0; ix < length; ix++) {
             for (size_t iy = 0; iy < length; iy++) {
                 for (size_t iz = 0; iz < length; iz++) {
                     const size_t index = ix * length * length + iy * length + iz + dim_offset * dim;
-                    if (ix > 0 && iy > 0 && iz > 0 && ix < ubs[0] && iy < ubs[1] && iz < ubs[2])
+                    if (ix > 0 && iy > 0 && iz > 0 && ix < ubs[0] && iy < ubs[1] && iz < ubs[2]) {
+                        std::cout << ix * 14 * 14 + iy * 14 + iz << " ";
                         masks[index] = true;
-                    else
+                        counter++;
+                    } else {
                         masks[index] = false;
+                    }
                 }
             }
         }
+        std::cout << "\nFlux mask counter at dim " << dim << ": " << counter << std::endl;
     }
     return;
 }

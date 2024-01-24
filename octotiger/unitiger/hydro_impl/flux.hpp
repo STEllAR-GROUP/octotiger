@@ -6,6 +6,7 @@
 #ifndef OCTOTIGER____FLUX____HPP123
 #define OCTOTIGER____FLUX____HPP123
 
+#include "octotiger/unitiger/cell_geometry.hpp"
 #include "octotiger/unitiger/physics.hpp"
 #include "octotiger/unitiger/physics_impl.hpp"
 #include "octotiger/common_kernel/struct_of_array_data.hpp"
@@ -34,9 +35,17 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, con
 	const auto dx = X[0][geo.H_DNX] - X[0][0];
 
   int max_index = 0;
+  int current_d = 0;
 	for (int dim = 0; dim < NDIM; dim++) {
 
 		const auto indices = geo.get_indexes(3, geo.face_pts()[dim][0]);
+    /* auto counter = 0; */
+		/* for (const auto &i : indices) { */
+    /*   std::cout << i << " "; */
+    /*   counter++; */
+    /* } */
+    /* std::cout << "\nnumber elemtents: " << counter << std::endl; */
+    /* std::cin.get(); */
 
 		// zero-initialize F
 		for (int f = 0; f < nf_; f++) {
@@ -104,7 +113,7 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, con
 				}
 			}
 			const auto this_amax = std::max(ap, safe_real(-am));
-			if (this_amax > ts.a) {
+			if (this_amax > ts.a) { // || (this_amax == ts.a && dim < ts.dim)) { // || (this_amax == ts.a && dim == ts.dim && i < max_index)) {
 				ts.a = this_amax;
 				ts.x = X[0][i];
 				ts.y = X[1][i];
@@ -113,16 +122,40 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, con
 				ts.ul = UR;
 				ts.dim = dim;
         max_index = i;
-			}
+  int x = max_index / (14 * 14);
+  int y = (max_index % (14 * 14)) / 14;
+  int z = (max_index % (14 * 14)) % 14;
+
+        ts.cell_index = (x - 2) * 100 + (y - 2) * 10 + z - 2;
+			} 
+      /* else if (this_amax == ts.a && max_index > i){ */
+				/* ts.a = this_amax; */
+				/* ts.x = X[0][i]; */
+				/* ts.y = X[1][i]; */
+				/* ts.z = X[2][i]; */
+				/* ts.ur = UL; */
+				/* ts.ul = UR; */
+				/* ts.dim = dim; */
+      /*   max_index = i; */
+      /* } */
 		}
 	}
 
-  /*int x = max_index / (14 * 14);
+  int x = max_index / (14 * 14);
   int y = (max_index % (14 * 14)) / 14;
   int z = (max_index % (14 * 14)) % 14;
-  std::cout << "xzy" << x << " " << y << " " << z << std::endl;
-  std::cout << "xzy" << x - 2 << " " << y - 2 << " " << z - 2 << std::endl; // mapping on smaller subgrid (used by cuda kernel)
-  std::cout << "Max index: " << max_index << " Max dim: " << ts.dim << std::endl;*/
+        /* if (ts.a > 0.00001) { */
+  /* std::cout << "xyz" << x << " " << y << " " << z << std::endl; */
+  /* std::cout << "xyz-cuda" << x - 2 << " " << y - 2 << " " << z - 2 << std::endl; // mapping on smaller subgrid (used by cuda kernel) */
+  /* std::cout << "Max index: " << max_index << " Max dim: " << ts.dim << std::endl; */
+  /* std::cout << "Max index cuda: " << (x - 2) * 100 + (y - 2) * 10 + z - 2 << " Max a: " << ts.a << std::endl; */
+  std::cout << "stopping with" << ts.a << " " << (x - 2) * 100 + (y - 2) * 10 + z - 2 <<  " :"<< ts.ur[0] << " " << ts.ul[0] << std::endl ;
+        for (int f = 0; f < nf_; f++) 
+          std::cout << ts.ul[f] << " ";
+        std::cout << " :: " << ts.dim;
+        std::cout << std::endl;
+  /* std::cin.get(); */
+  /* } */
 	return ts;
 }
 template<int NDIM, int INX, class PHYS>
