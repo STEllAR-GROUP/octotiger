@@ -300,8 +300,8 @@ void flux_impl_teamless(
                         mask_helper2_array.data(), SIMD_NAMESPACE::element_aligned_tag{});
                     const simd_mask_t mask = mask_helper1 == mask_helper2;
                     if (SIMD_NAMESPACE::any_of(mask)) {
+                        simd_t this_ap = 0.0, this_am = 0.0;
                         for (int fi = 0; fi < 9; fi++) { // TODO replace 9 with the actual constexpr
-                            simd_t this_ap = 0.0, this_am = 0.0;
                             const int d = faces[dim][fi];
                             const int flipped_dim = flip_dim(d, dim);
                             for (int dim = 0; dim < NDIM; dim++) {
@@ -338,18 +338,6 @@ void flux_impl_teamless(
                             // Update maximum values
                             this_ap = SIMD_NAMESPACE::choose(mask, this_ap, simd_t(0.0));
                             this_am = SIMD_NAMESPACE::choose(mask, this_am, simd_t(0.0));
-                            const simd_t amax_tmp = SIMD_NAMESPACE::max(this_ap, (-this_am));
-                            // Reduce
-                            // TODO Reduce outside of inner loop?
-                            std::array<double, simd_t::size()> max_helper;
-                            amax_tmp.copy_to(max_helper.data(), SIMD_NAMESPACE::element_aligned_tag{});
-                            for (int i = 0; i < simd_t::size(); i++) {
-                              if (max_helper[i] > current_amax) {
-                                  current_amax = max_helper[i];
-                                  current_d = d;
-                                  current_i = index + i;
-                              }
-                            }
                             // Add results to the final flux buffer
                             for (int f = 1; f < nf; f++) {
                               simd_t current_val(
@@ -363,10 +351,19 @@ void flux_impl_teamless(
                                 SIMD_NAMESPACE::element_aligned_tag{});
                             }
                         }
+                        const simd_t amax_tmp = SIMD_NAMESPACE::max(this_ap, (-this_am));
+                        // Reduce
+                        std::array<double, simd_t::size()> max_helper;
+                        amax_tmp.copy_to(max_helper.data(), SIMD_NAMESPACE::element_aligned_tag{});
+                        for (int i = 0; i < simd_t::size(); i++) {
+                          if (max_helper[i] > current_amax) {
+                              current_amax = max_helper[i];
+                              current_d = faces[dim][8];
+                              current_i = index + i;
+                          }
+                        }
                     }
-                    simd_t current_val(
-                      f_combined_slice.data() + dim * nf * q_inx3 + index,
-                      SIMD_NAMESPACE::element_aligned_tag{});
+                    simd_t current_val = 0.0;
                     for (int f = 10; f < nf; f++) {
                         simd_t current_field_val(
                             f_combined_slice.data() + dim * nf * q_inx3 + f * q_inx3 + index,
