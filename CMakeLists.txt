@@ -85,6 +85,7 @@ set(OCTOTIGER_CUDA_ARCH "sm_50"
 
 set(OCTOTIGER_KOKKOS_SIMD_LIBRARY "KOKKOS" CACHE STRING "Choose either KOKKOS (for kokkos simd types) or STD (for std::experimental::simd.") 
 set(OCTOTIGER_KOKKOS_SIMD_EXTENSION "DISCOVER" CACHE STRING "Choose either AVX512 AVX2 VSX NEON SVE SCALAR or DISCOVER (automatic discovery)") 
+set(OCTOTIGER_SVE_LEN "512" CACHE STRING "Choose number of bits for SVE (must be 128, 256 or 512)") 
 
 # silence warnings for deprecated HPX includes
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-cpp")
@@ -825,10 +826,10 @@ elseif(${OCTOTIGER_KOKKOS_SIMD_EXTENSION} STREQUAL SVE)
     if(OCTOTIGER_WITH_CXX17)
       message(FATAL_ERROR "SVE builds with std::experimental::simd require C++20. Please set OCTOTIGER_WITH_CXX20=ON")
     endif()
-    target_compile_definitions(octotiger PUBLIC SVE_LEN=512)
-    target_compile_definitions(optionslib PUBLIC SVE_LEN=512)
-    target_compile_definitions(octolib PUBLIC SVE_LEN=512)
-    target_compile_definitions(hydrolib PUBLIC SVE_LEN=512)
+    target_compile_definitions(octotiger PUBLIC SVE_LEN=${OCTOTIGER_SVE_LEN})
+    target_compile_definitions(optionslib PUBLIC SVE_LEN=${OCTOTIGER_SVE_LEN})
+    target_compile_definitions(octolib PUBLIC SVE_LEN=${OCTOTIGER_SVE_LEN})
+    target_compile_definitions(hydrolib PUBLIC SVE_LEN=${OCTOTIGER_SVE_LEN})
   endif()
 elseif(${OCTOTIGER_KOKKOS_SIMD_EXTENSION} STREQUAL SCALAR)
   message(STATUS "KOKKOS SIMD extension manually set to SCALAR (SIMD is OFF)")
