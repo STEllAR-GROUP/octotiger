@@ -167,6 +167,7 @@ FetchContent_Declare(
   GIT_TAG        c845b7d9d8da461457cc5aa88fdda5923773a4bf
 )
 FetchContent_MakeAvailable(kokkossimd)
+set(SVE_LENGTH ${OCTOTIGER_SVE_LEN})
 FetchContent_Declare(
   svesimd
   GIT_REPOSITORY https://github.com/srinivasyadav18/sve.git
@@ -830,6 +831,10 @@ elseif(${OCTOTIGER_KOKKOS_SIMD_EXTENSION} STREQUAL SVE)
     target_compile_definitions(optionslib PUBLIC SVE_LEN=${OCTOTIGER_SVE_LEN})
     target_compile_definitions(octolib PUBLIC SVE_LEN=${OCTOTIGER_SVE_LEN})
     target_compile_definitions(hydrolib PUBLIC SVE_LEN=${OCTOTIGER_SVE_LEN})
+    target_compile_options(hydrolib PUBLIC "-msve-vector-bits=${OCTOTIGER_SVE_LEN}")
+    target_compile_options(octolib PUBLIC "-msve-vector-bits=${OCTOTIGER_SVE_LEN}")
+    target_compile_options(optionslib PUBLIC "-msve-vector-bits=${OCTOTIGER_SVE_LEN}")
+    target_compile_options(octotiger PUBLIC "-msve-vector-bits=${OCTOTIGER_SVE_LEN}")
   endif()
 elseif(${OCTOTIGER_KOKKOS_SIMD_EXTENSION} STREQUAL SCALAR)
   message(STATUS "KOKKOS SIMD extension manually set to SCALAR (SIMD is OFF)")
