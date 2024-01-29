@@ -482,9 +482,13 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_ppm_simd(double *__restrict__ co
             SIMD_NAMESPACE::min(SIMD_NAMESPACE::abs(u_plus_di), SIMD_NAMESPACE::abs(u_minus_di));
         simd_mask_t criterias = (mask_helper1 < (SIMD_NAMESPACE::abs(dif)));
         if (SIMD_NAMESPACE::any_of(criterias)) {
-            const simd_t mask_helper2 = SIMD_NAMESPACE::min(SIMD_NAMESPACE::abs(u_plus_di),
-                                          SIMD_NAMESPACE::abs(u_minus_di)) /
-                SIMD_NAMESPACE::max(SIMD_NAMESPACE::abs(u_plus_di), SIMD_NAMESPACE::abs(u_minus_di));
+            // Prevent divisons by zero in lanes that are zeroed out later anyways
+            const simd_t divisor = SIMD_NAMESPACE::choose(criterias,
+                SIMD_NAMESPACE::max(SIMD_NAMESPACE::abs(u_plus_di),
+                  SIMD_NAMESPACE::abs(u_minus_di)), simd_t{1.0});
+            const simd_t mask_helper2 =
+            SIMD_NAMESPACE::min(SIMD_NAMESPACE::abs(u_plus_di),
+              SIMD_NAMESPACE::abs(u_minus_di)) / divisor;
             criterias = (simd_t(eps2) < mask_helper2) && criterias;
             if (SIMD_NAMESPACE::any_of(criterias)) {
                 const auto d2p = (1.0 / 6.0) * (u_plus_2di + u_zero - 2.0 * u_plus_di);
@@ -492,11 +496,13 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_ppm_simd(double *__restrict__ co
                 criterias = criterias && ((d2p * d2m) < simd_t(0.0));
                 if (SIMD_NAMESPACE::any_of(criterias)) {
                     simd_t eta = 0.0;
+                    // Prevent divisons by zero in lanes that are zeroed out later anyways
+                    const simd_t divisor_dif = SIMD_NAMESPACE::choose(criterias, dif, simd_t{1.0});
                     const simd_mask_t eta_mask =
-                        (eps *
+                        ((eps *
                             SIMD_NAMESPACE::min(SIMD_NAMESPACE::abs(u_plus_di),
-                                SIMD_NAMESPACE::abs(u_minus_di))) < SIMD_NAMESPACE::abs(dif);
-                    eta = SIMD_NAMESPACE::choose(eta_mask, -(d2p - d2m) / dif, eta);
+                                SIMD_NAMESPACE::abs(u_minus_di))) < SIMD_NAMESPACE::abs(dif)) && criterias;
+                    eta = SIMD_NAMESPACE::choose(eta_mask, -(d2p - d2m) / divisor_dif, eta);
                     eta = SIMD_NAMESPACE::max(simd_t(0.0),
                         SIMD_NAMESPACE::min(simd_t(eta1) * (eta - simd_t(eta2)), simd_t(1.0)));
                     criterias = criterias && (simd_t(0.0) < eta);
@@ -514,7 +520,6 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_ppm_simd(double *__restrict__ co
                     current_q_results_flipped = current_q_results_flipped +
                         SIMD_NAMESPACE::choose(
                             criterias, eta * (ul - current_q_results_flipped), simd_t(0.0));
-                    /* } */
                 }
             }
         }
