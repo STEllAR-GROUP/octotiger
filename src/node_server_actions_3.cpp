@@ -335,12 +335,12 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 	printf("Starting run...\n");
 	auto fut_ptr = me.get_ptr();
 	node_server *root_ptr = GET(fut_ptr);
-	if (!opts().output_filename.empty()) {
+//	if (!opts().output_filename.empty()) {
 		diagnostics();
 		solve_gravity(false, false);
-		output_all(this, opts().output_filename, output_cnt, false);
-		return;
-	}
+		output_all(this, "X." + std::to_string(int(output_cnt)), output_cnt, false);
+//		return;
+//	}
 
 	if (opts().stop_step != 0) {
 		printf("Solving gravity\n");

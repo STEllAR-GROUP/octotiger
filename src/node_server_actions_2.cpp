@@ -56,6 +56,9 @@ void node_server::check_for_refinement(real omega, real new_floor) {
 	}
 	if (opts().hydro || opts().problem == AMR_TEST) {
 		all_hydro_bounds();
+		if( opts().radiation ) {
+			all_rad_bounds();
+		}
 	}
 	if (!rc) {
 		rc = grid_ptr->refine_me(my_location.level(), new_floor);
@@ -91,6 +94,8 @@ void node_server::enforce_bc() {
 			futs[index++] = child.enforce_bc();
 		}
 	}
+//	printf( "!!!!!!!!\n");
+	all_rad_bounds();
 	all_hydro_bounds();
 	for (auto &f : futs) {
 		GET(f);

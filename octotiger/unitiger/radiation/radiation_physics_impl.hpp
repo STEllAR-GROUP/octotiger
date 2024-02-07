@@ -17,7 +17,7 @@
 #include "octotiger/test_problems/exact_sod.hpp"
 #include "octotiger/physcon.hpp"
 
-#define CHECK_FLUX( er, fx, fy, fz) if( ((fx)*(fx)+(fy)*(fy)+(fz)*(fz))/(er*er*physcon().c*physcon().c) > 1 ) {printf( "flux exceded %s %i %e\n", __FILE__, __LINE__, sqrt(((fx)*(fx)+(fy)*(fy)+(fz)*(fz))/(er*er*physcon().c*physcon().c))); abort();}
+#define CHECK_FLUX( er, fx, fy, fz) if( ((fx)*(fx)+(fy)*(fy)+(fz)*(fz))/(er*er*physcon().c*physcon().c) > 1 ) {printf( "flux exceded %s %i %e fx %e fy %e fz %e er %e\n", __FILE__, __LINE__, sqrt(((fx)*(fx)+(fy)*(fy)+(fz)*(fz))/(er*er*physcon().c*physcon().c)), fx, fy, fz, er*physcon().c); abort();}
 
 template<int NDIM>
 int radiation_physics<NDIM>::field_count() {
@@ -164,7 +164,12 @@ const hydro::state_type& radiation_physics<NDIM>::pre_recon(const hydro::state_t
 				const int i = geo.to_index(j, k, l);
 				const auto er = V[er_i][i];
 				const auto erinv = 1.0 / er;
-				CHECK_FLUX(V[er_i][i], V[fx_i][i], V[fy_i][i], V[fz_i][i]);
+				 if( ((V[fx_i][i])*(V[fx_i][i])+(V[fy_i][i])*(V[fy_i][i])+(V[fz_i][i])*(V[fz_i][i]))/(V[er_i][i]*V[er_i][i]*physcon().c*physcon().c) > 1 ) {
+					printf(
+							"flux exceded x: %i y: %i z: %i\n",
+							j, k, l);
+					abort();
+				 }
 				for (int dim = 0; dim < NDIM; dim++) {
 					V[fx_i + dim][i] *= erinv;
 				}
