@@ -188,6 +188,10 @@ public:
 		return L_c;
 	}
 
+        std::vector<particle>& get_particles() {
+                return particles;
+        }
+
 	std::array<real, NDIM> get_xmin() {
 		return xmin;
 	}
@@ -281,14 +285,17 @@ public:
 	std::vector<real> get_flux_restrict(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub,
 			const geo::dimension&) const;
 	std::vector<real> get_prolong(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub);
+	std::vector<particle> get_prolong_particles(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub);
 	void clear_amr();
 	void set_hydro_amr_boundary(const std::vector<real>&, const geo::direction&, bool energy_only);
 	void complete_hydro_amr_boundary(bool energy_only);
 	std::vector<real> get_subset(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub, bool energy_only);
-	void set_prolong(const std::vector<real>&, std::vector<real>&&);
+	void set_prolong(const std::vector<real>&, std::vector<real>&&, std::vector<particle>&&);
 	void set_restrict(const std::vector<real>&, const geo::octant&);
 	void set_flux_restrict(const std::vector<real>&, const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub,
 			const geo::dimension&);
+        void set_restrict_particles(const std::vector<particle>&, const geo::octant&);
+        void empty_particles();
 	space_vector center_of_mass() const;
 	bool refine_me(integer lev, integer last_ngrids) const;
 	void compute_dudt();

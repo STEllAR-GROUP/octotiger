@@ -8,6 +8,7 @@
 #include "octotiger/geometry.hpp"
 #include "octotiger/simd.hpp"
 #include "octotiger/space_vector.hpp"
+#include "octotiger/particles.hpp"
 #include "octotiger/taylor.hpp"
 
 #include <hpx/synchronization/counting_semaphore.hpp>
@@ -28,11 +29,12 @@ struct gravity_boundary_type
     std::shared_ptr<std::vector<multipole>> M;
     std::shared_ptr<std::vector<real>> m;
     std::shared_ptr<std::vector<space_vector>> x;
+    std::shared_ptr<std::vector<std::vector<particle>>> p;
     semaphore* local_semaphore;
     gravity_boundary_type()
       : M(nullptr)
       , m(nullptr)
-      , x(nullptr) {}
+      , x(nullptr) { p = std::make_shared<std::vector<std::vector<particle>>>(0); }
     void allocate() {
         local_semaphore = nullptr;
         if (M == nullptr) {
@@ -48,6 +50,7 @@ struct gravity_boundary_type
         arc& M;
         arc& m;
         arc& x;
+	arc& p;
         arc& tmp;
         local_semaphore = reinterpret_cast<decltype(local_semaphore)>(tmp);
     }

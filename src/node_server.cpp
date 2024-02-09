@@ -160,6 +160,7 @@ void node_server::exchange_interlevel_hydro_data() {
 
 	if (is_refined) {
 		std::vector<real> outflow(opts().n_fields, ZERO);
+		grid_ptr->empty_particles();
 		for (auto const &ci : geo::octant::full_set()) {
 			auto data = GET(child_hydro_channels[ci].get_future(hcycle));
 			grid_ptr->set_restrict(data, ci);
@@ -168,13 +169,17 @@ void node_server::exchange_interlevel_hydro_data() {
 				outflow[fi] += *i;
 				++fi;
 			}
+			auto parts = GET(child_particle_channels[ci].get_future(hcycle));
+			grid_ptr->set_restrict_particles(parts, ci);
 		}
 		grid_ptr->set_outflows(std::move(outflow));
 	}
 	auto data = grid_ptr->get_restrict();
+	auto parts = grid_ptr->get_restrict_particles();
 	integer ci = my_location.get_child_index();
 	if (my_location.level() != 0) {
 		parent.send_hydro_children(std::move(data), ci, hcycle);
+		parent.send_particle_children(std::move(parts), ci, hcycle);
 	}
 }
 

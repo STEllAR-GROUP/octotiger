@@ -252,18 +252,23 @@ void output_stage3(std::string fname, int cycle, int gn, int gb, int ge) {
                                 const auto pnum = parts.size();
                                 std::vector<std::vector<real>> X_parts(NDIM);
                                 std::vector<std::vector<real>> V_parts(NDIM);
+				std::vector<std::vector<real>> G_parts(NDIM);
                                 std::vector<real> M_parts(pnum);
                                 std::vector<real> ID_parts(pnum);
+				std::vector<real> POT_parts(pnum);
                                 for (int i = 0; i < pnum; i++) {
-                                                 M_parts[i] = parts[i].mass * opts().code_to_g;
-                                                 ID_parts[i] = parts[i].id;
+                                	M_parts[i] = parts[i].mass * opts().code_to_g;
+                                        ID_parts[i] = parts[i].id;
+					POT_parts[i] = parts[i].pot * opts().code_to_cm * opts().code_to_cm / opts().code_to_s / opts().code_to_s;
                                  }
                                 for (int d = 0; d < NDIM; d++) {
                                         X_parts[d].resize(pnum);
                                         V_parts[d].resize(pnum);
+					G_parts[d].resize(pnum);
                                         for (int i = 0; i < pnum; i++) {
                                                 X_parts[d][i] = parts[i].pos[d] * opts().code_to_cm;
                                                 V_parts[d][i] = parts[i].vel[d] * opts().code_to_cm / opts().code_to_s; 
+						G_parts[d][i] = parts[i].g[d] * opts().code_to_cm / opts().code_to_s / opts().code_to_s;
                                         }
                                 }
                                 const real *coords_parts[NDIM];
@@ -293,9 +298,13 @@ void output_stage3(std::string fname, int cycle, int gn, int gb, int ge) {
                                 DBAddOption(optlist_pointvar, DBOPT_HIDE_FROM_GUI, &one);
                                 DBPutPointvar1(db, "p_mass", "pointmesh", M_parts.data(), pnum, DB_DOUBLE, optlist_pointvar);
                                 DBPutPointvar1(db, "p_id", "pointmesh", ID_parts.data(), pnum, DB_DOUBLE, optlist_pointvar);
+				DBPutPointvar1(db, "p_pot", "pointmesh", POT_parts.data(), pnum, DB_DOUBLE, optlist_pointvar);
                                 DBPutPointvar1(db, "p_vx", "pointmesh", V_parts[0].data(), pnum, DB_DOUBLE, optlist_pointvar);
                                 DBPutPointvar1(db, "p_vy", "pointmesh", V_parts[1].data(), pnum, DB_DOUBLE, optlist_pointvar);
                                 DBPutPointvar1(db, "p_vz", "pointmesh", V_parts[2].data(), pnum, DB_DOUBLE, optlist_pointvar);
+                                DBPutPointvar1(db, "p_gx", "pointmesh", G_parts[0].data(), pnum, DB_DOUBLE, optlist_pointvar);
+                                DBPutPointvar1(db, "p_gy", "pointmesh", G_parts[1].data(), pnum, DB_DOUBLE, optlist_pointvar);
+                                DBPutPointvar1(db, "p_gz", "pointmesh", G_parts[2].data(), pnum, DB_DOUBLE, optlist_pointvar);
                                  
                                 DBFreeOptlist(optlist_pointvar);
         
@@ -325,7 +334,7 @@ void output_stage4(std::string fname, int cycle) {
 		float ftime = dtime;
 		std::vector<std::pair<int, node_location>> node_locs;
 		std::vector<char*> mesh_names;
-                std::vector<std::vector<char*>> mesh_names_with_particles(6); // 6 fields: pointmesh, mass, id, vx, vy, vz
+                std::vector<std::vector<char*>> mesh_names_with_particles(10); // 10 fields: pointmesh, mass, id, pot, vx, vy, vz, gx, gy, gz 
                 std::vector<int> parts_count;
                 int total_parts_count = 0;
 		std::vector<std::vector<char*>> field_names(nfields);
@@ -361,9 +370,13 @@ void output_stage4(std::string fname, int cycle) {
                                 str_names.push_back(prefix + "p/pointmesh");
                                 str_names.push_back(prefix + "p/p_mass");
                                 str_names.push_back(prefix + "p/p_id");
+                                str_names.push_back(prefix + "p/p_pot");
                                 str_names.push_back(prefix + "p/p_vx");
                                 str_names.push_back(prefix + "p/p_vy");
                                 str_names.push_back(prefix + "p/p_vz");
+                                str_names.push_back(prefix + "p/p_gx");
+                                str_names.push_back(prefix + "p/p_gy");
+                                str_names.push_back(prefix + "p/p_gz");
                                 for (int part_f = 0; part_f < str_names.size(); part_f++) {
 	                                const auto cname = str_names[part_f];
                                         char* name_copy = new char[cname.size() + 1];
@@ -465,9 +478,13 @@ void output_stage4(std::string fname, int cycle) {
                         DBAddOption(optlist, DBOPT_MB_BLOCK_TYPE, &pvar);
                         DBPutMultivar(db, "p_mass", mesh_num, mesh_names_with_particles[1].data(), nullptr, optlist);
                         DBPutMultivar(db, "p_id", mesh_num, mesh_names_with_particles[2].data(), nullptr, optlist);
+                        DBPutMultivar(db, "p_pot", mesh_num, mesh_names_with_particles[3].data(), nullptr, optlist);
                         DBPutMultivar(db, "p_vx", mesh_num, mesh_names_with_particles[3].data(), nullptr, optlist);
                         DBPutMultivar(db, "p_vy", mesh_num, mesh_names_with_particles[4].data(), nullptr, optlist);
                         DBPutMultivar(db, "p_vz", mesh_num, mesh_names_with_particles[5].data(), nullptr, optlist);
+                        DBPutMultivar(db, "p_gx", mesh_num, mesh_names_with_particles[7].data(), nullptr, optlist);
+                        DBPutMultivar(db, "p_gy", mesh_num, mesh_names_with_particles[8].data(), nullptr, optlist);
+                        DBPutMultivar(db, "p_gz", mesh_num, mesh_names_with_particles[9].data(), nullptr, optlist);
                         DBFreeOptlist(optlist);
                 }
 

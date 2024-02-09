@@ -28,7 +28,7 @@ COMMAND_LINE_ENUM(problem_type, DWD, SOD, BLAST, NONE, SOLID_SPHERE, STAR, MOVIN
 
 COMMAND_LINE_ENUM(eos_type, IDEAL, WD);
 
-COMMAND_LINE_ENUM(particles_smoothing_type, EXACT, RUFFERT, MONAGHAN);
+COMMAND_LINE_ENUM(particles_smoothing_type, EXACT, RUFFERT, MONAGHAN, MONAGHAN_MULTI);
 
 class options {
 public:
@@ -142,6 +142,7 @@ public:
 
         particles_smoothing_type p_smooth;
         real p_smooth_l;
+	real p_smooth_multi_f;
 
 	problem_type problem;
 
@@ -258,6 +259,7 @@ public:
 		arc & idle_rates;
 		arc & part_self_interact;
 		arc & p_smooth_l;
+		arc & p_smooth_multi_f;
 		int tmp = problem;
 		arc & tmp;
 		problem = static_cast<problem_type>(tmp);

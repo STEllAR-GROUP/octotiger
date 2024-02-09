@@ -97,6 +97,7 @@ private:
 	channel<expansion_pass_type> parent_gravity_channel;
 	std::array<semaphore, geo::direction::count()> neighbor_signals;
 	std::array<unordered_channel<std::vector<real>>, NCHILD> child_hydro_channels;
+	std::array<unordered_channel<std::vector<particle>>, NCHILD> child_particle_channels;
 	std::array<unordered_channel<neighbor_gravity_type>, geo::direction::count()> neighbor_gravity_channels;
 	std::array<unordered_channel<sibling_hydro_type>, geo::direction::count()> sibling_hydro_channels;
 	std::array<channel<multipole_pass_type>, NCHILD> child_gravity_channels;
@@ -212,6 +213,9 @@ public:
 	void recv_hydro_children(std::vector<real>&&, const geo::octant& ci, std::size_t cycle);
 	/**/HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_hydro_children, send_hydro_children_action);
 
+        void recv_particle_children(std::vector<particle>&&, const geo::octant& ci, std::size_t cycle);
+        /**/HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_particle_children, send_particle_children_action);
+
 	void recv_hydro_flux_correct(std::vector<real>&&, const geo::face& face, const geo::octant& ci);
 	/**/HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_hydro_flux_correct, send_hydro_flux_correct_action);
 
@@ -236,7 +240,7 @@ public:
 
 	void execute_solver(bool scf, node_count_type);
 
-	void set_grid(const std::vector<real>&, std::vector<real>&&);/**/
+	void set_grid(const std::vector<real>&, std::vector<real>&&, std::vector<particle>&&);/**/
 	HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, set_grid, set_grid_action);
 
 	hpx::future<void> timestep_driver_descend();

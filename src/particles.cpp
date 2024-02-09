@@ -61,4 +61,20 @@ std::vector<integer> get_particles_inds(std::vector<particle> particles, integer
         }
         return inds;
 }
-
+int_simd_vector contain_particles(const std::vector<particle> particles, const std::array<simd_vector, NDIM> cell_X, const real dx) {
+        int_simd_vector contain_parts;
+        for (integer i = 0; i != simd_len; ++i) {
+                space_vector bmin, bmax;
+                for (integer d = 0; d < NDIM; d++) {
+                        bmin[d] = cell_X[d][i] - 0.5 * dx;
+                        bmax[d] = bmin[d] + dx;
+                }
+                const auto parts_in_cell = load_particles(particles, bmin, bmax);
+                if (parts_in_cell.size() > 0) {
+                        contain_parts[i] = 1;
+                } else {
+                        contain_parts[i] = 0;
+                }
+        }
+        return contain_parts;
+}

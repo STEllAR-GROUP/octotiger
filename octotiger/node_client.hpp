@@ -78,6 +78,8 @@ public:
     future<std::pair<real,real>> amr_error() const;
     void send_hydro_children(
         std::vector<real>&&, const geo::octant& ci, std::size_t cycle) const;
+    void send_particle_children(
+        std::vector<particle>&&, const geo::octant& ci, std::size_t cycle) const;
     void send_hydro_flux_correct(std::vector<real>&&, const geo::face& face,
         const geo::octant& ci) const;
     void send_read_flux_correct(std::vector<real>&&, const geo::face& face,
@@ -116,7 +118,7 @@ public:
     future<real> step(integer) const;
     future<void> solve_gravity(bool ene, bool aonly) const;
     future<hpx::id_type> copy_to_locality(const hpx::id_type&) const;
-    future<void> set_grid(std::vector<real>&&, std::vector<real>&&) const;
+    future<void> set_grid(std::vector<real>&&, std::vector<real>&&, std::vector<particle>&&) const;
     void timestep_driver_ascend(timestep_t) const;
     void set_local_timestep(integer, timestep_t) const;
     future<void> velocity_inc(const space_vector&) const;

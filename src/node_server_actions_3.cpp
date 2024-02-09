@@ -113,6 +113,17 @@ void node_client::send_hydro_children(std::vector<real> &&data, const geo::octan
 	hpx::apply<typename node_server::send_hydro_children_action>(get_unmanaged_gid(), std::move(data), ci, cycle);
 }
 
+using send_particle_children_action_type = node_server::send_particle_children_action;
+HPX_REGISTER_ACTION (send_particle_children_action_type);
+
+void node_server::recv_particle_children(std::vector<particle> &&data, const geo::octant &ci, std::size_t cycle) {
+        child_particle_channels[ci].set_value(std::move(data), cycle);
+}
+
+void node_client::send_particle_children(std::vector<particle> &&data, const geo::octant &ci, std::size_t cycle) const {
+        hpx::apply<typename node_server::send_particle_children_action>(get_unmanaged_gid(), std::move(data), ci, cycle);
+}
+
 using send_hydro_flux_correct_action_type = node_server::send_hydro_flux_correct_action;
 HPX_REGISTER_ACTION (send_hydro_flux_correct_action_type);
 
@@ -296,9 +307,6 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 			erad_init();
 		}
 	}
-        if (opts().Part_M.size() > 0) {
-                printf("Initilaize particles\n");
-        }
 	printf("Starting run...\n");
 	auto fut_ptr = me.get_ptr();
 	node_server *root_ptr = GET(fut_ptr);

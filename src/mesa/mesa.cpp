@@ -322,7 +322,7 @@ std::vector<real> mesa_star(real x, real y, real z, real dx) {
                                 auto r = SQRT(x0 * x0 + y0 * y0 + z0 * z0);
                                 ++nsamp;
 				if (r <= rcut) {
-					real theta = lane_emden(r/alpha, dr/alpha, n, rho_f, rcut/alpha);
+					real theta = lane_emden(r/alpha, dr/alpha, n, rho_f, opts().p_smooth_l/alpha);
 					real rho_theta = rho_c * std::pow(theta, n);
 					printf("solved lane-emden: rho(%e)=%e\n", r, rho_c * std::pow(theta, n));
 					const auto c0 = real(4) * real(M_PI) * std::pow(alpha, 2) * std::pow(rho_c, (n - real(1))/n) / (n + real(1));

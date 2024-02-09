@@ -168,8 +168,9 @@ bool options::process_options(int argc, char *argv[]) {
 	("particle_mass", po::value<std::vector<real>>(&(opts().Part_M))->multitoken(), "particles masses") //
 	("particle_type", po::value<std::vector<real>>(&(opts().Part_T))->multitoken(), "particles types") //
 	("particles_self_interact", po::value<bool>(&(opts().part_self_interact))->default_value(false), "allow inter-cell cell-particle and particle-particle interactions") //
-        ("particles_smoothing", po::value<particles_smoothing_type>(&(opts().p_smooth))->default_value(EXACT), "EXACT (no smoothing; default), RUFFERT, or MONAGHAN")   //
+        ("particles_smoothing", po::value<particles_smoothing_type>(&(opts().p_smooth))->default_value(EXACT), "EXACT (no smoothing; default), RUFFERT, MONAGHAN, or MONAGHAN_MULTI")   //
         ("particles_smoothing_length", po::value<real>(&(opts().p_smooth_l))->default_value(0.0), "particles smoothing length")   //
+	("particles_smoothing_multi_f", po::value<real>(&(opts().p_smooth_multi_f))->default_value(1.0), "particles smoothing length")   //
 	("code_to_g", po::value<real>(&(opts().code_to_g))->default_value(1), "code units to grams") //
 	("code_to_cm", po::value<real>(&(opts().code_to_cm))->default_value(1), "code units to centimeters") //
 	("code_to_s", po::value<real>(&(opts().code_to_s))->default_value(1), "code units to seconds") //

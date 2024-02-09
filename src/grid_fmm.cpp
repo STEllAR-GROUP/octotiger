@@ -76,7 +76,7 @@ real compute_part_pot(real r) {
                 const real denom = sqrt(r2 + l2 * exp(-r2/l2));
                 return -1.0 / denom;
         }
-        else if (opts().p_smooth == MONAGHAN) { // As in Monaghan 1992
+        else if ((opts().p_smooth == MONAGHAN) || (opts().p_smooth == MONAGHAN_MULTI)) { // As in Monaghan 1992
                 const real h = opts().p_smooth_l;
                 if ( h <= 0.0 ) {
                         std::cerr << "Could not procceed with zero smoothing length!";
@@ -109,7 +109,7 @@ real compute_part_force(real r, real y) {
                 const real denom = sqrt(r2 + l2 * exp(-r2/l2));
                 return y * (1.0 - exp(-r2/l2)) / (denom * denom * denom);
         }
-        else if (opts().p_smooth == MONAGHAN) { // As in Monaghan 1992
+        else if ((opts().p_smooth == MONAGHAN) || (opts().p_smooth == MONAGHAN_MULTI)) { // As in Monaghan 1992
                 const real h = opts().p_smooth_l;
                 const real x = r / h;
                 if ( h <= 0.0 ) {
@@ -434,8 +434,22 @@ void grid::compute_interactions(gsolve_type type) {
 
 			// calculates all D-values, calculate all coefficients of 1/r (not the potential),
 			// formula (6)-(9) and (19)
-			D.set_basis(dX);
-
+                        if ((opts().p_smooth != MONAGHAN_MULTI) || (particles.size() == 0) || ((octotiger::fmm::STENCIL_WIDTH - 1) * dx > 2.0 * opts().p_smooth_l)) {
+                                D.set_basis(dX);
+                        } else {
+                                const auto is_smooth = contain_particles(particles, X, opts().p_smooth_multi_f * dx) + contain_particles(particles, Y, opts().p_smooth_multi_f * dx);
+#if !defined(HPX_HAVE_DATAPAR_VC) || (defined(Vc_IS_VERSION_1) && Vc_IS_VERSION_1)
+                                const real has_particles = is_smooth.sum();
+#else
+                                const real has_particles = Vc::reduce(is_smooth);
+#endif
+                                if (has_particles == 0) {
+                                        D.set_basis(dX);
+                                } else {
+					D.set_basis_monaghan(dX, opts().p_smooth_l, is_smooth);
+                                }
+                        }
+			
 			// the following loops calculate formula (10), potential from A->B and B->A
 			// (basically alternating)
 			A0[0] = m0[0] * D[0];
@@ -693,9 +707,13 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
 
 	auto &M = *M_ptr;
 	auto &mon = *mon_ptr;
+        std::vector<particle> p_bnd(0); // particles in exterior multipole
+        if ((*(mpoles).p).size() > 0) {
+                p_bnd = (*(mpoles).p)[0];
+        }
 
 	std::vector<space_vector> const &com0 = *(com_ptr[0]);
-	hpx::parallel::for_loop(for_loop_policy, 0, ilist_n_bnd.size(), [&mpoles, &com0, &ilist_n_bnd, type, this, &M](std::size_t si) {
+	hpx::parallel::for_loop(for_loop_policy, 0, ilist_n_bnd.size(), [&mpoles, &com0, &ilist_n_bnd, type, this, &M, &p_bnd](std::size_t si) {
 
 		taylor<4, simd_vector> m0;
 		taylor<4, simd_vector> n0;
@@ -743,7 +761,22 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
 		taylor<4, simd_vector> A0;
 		std::array<simd_vector, NDIM> BB0 = { simd_vector(0.0), simd_vector(0.0), simd_vector(0.0) };
 
-		D.set_basis(dX);
+                if ((opts().p_smooth != MONAGHAN_MULTI) || ((p_bnd.size() == 0) && (particles.size() == 0))) {
+                        D.set_basis(dX);
+                } else {
+                        const auto is_smooth = contain_particles(particles, X, opts().p_smooth_multi_f * dx) + contain_particles(p_bnd, simdY, opts().p_smooth_multi_f * dx);
+#if !defined(HPX_HAVE_DATAPAR_VC) || (defined(Vc_IS_VERSION_1) && Vc_IS_VERSION_1)
+                        const real has_particles = is_smooth.sum();
+#else
+                        const real has_particles = Vc::reduce(is_smooth);
+#endif
+                        if (has_particles == 0) {
+                                D.set_basis(dX);
+                        } else {
+				D.set_basis_monaghan(dX, opts().p_smooth_l, is_smooth);
+                        }
+                }
+
 		A0[0] = m0[0] * D[0];
 		if (type != RHO) {
 			for (integer i = taylor_sizes[0]; i != taylor_sizes[1]; ++i) {
@@ -860,9 +893,13 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
 
 	auto &M = *M_ptr;
 	auto &mon = *mon_ptr;
+        std::vector<particle> p_bnd(0); // particles in exterior multipole
+        if ((*(mpoles).p).size() > 0) {
+                p_bnd = (*(mpoles).p)[0];
+        }
 
 	std::vector<space_vector> const &com0 = *(com_ptr[0]);
-	hpx::parallel::for_loop(for_loop_policy, 0, ilist_n_bnd.size(), [&mpoles, &com0, &ilist_n_bnd, type, this](std::size_t si) {
+	hpx::parallel::for_loop(for_loop_policy, 0, ilist_n_bnd.size(), [&mpoles, &com0, &ilist_n_bnd, type, this, &p_bnd](std::size_t si) {
 
 		taylor<4, simd_vector> m0;
 		taylor<4, simd_vector> n0;
@@ -906,7 +943,22 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
 		taylor<2, simd_vector> A0;
 		std::array<simd_vector, NDIM> BB0 = { simd_vector(0.0), simd_vector(0.0), simd_vector(0.0) };
 
-		D.set_basis(dX);
+                if ((opts().p_smooth != MONAGHAN_MULTI) || (p_bnd.size() == 0)) {
+                        D.set_basis(dX);
+                } else {
+                        const auto is_smooth = contain_particles(p_bnd, simdY, opts().p_smooth_multi_f * dx);
+#if !defined(HPX_HAVE_DATAPAR_VC) || (defined(Vc_IS_VERSION_1) && Vc_IS_VERSION_1)
+                        const real has_particles = is_smooth.sum();
+#else
+                        const real has_particles = Vc::reduce(is_smooth);
+#endif
+                        if (has_particles == 0) {
+                                D.set_basis(dX);
+                        } else {
+				D.set_basis_monaghan(dX, opts().p_smooth_l, is_smooth);
+                        }
+                }
+
 		A0[0] = m0[0] * D[0];
 		if (type != RHO) {
 			for (integer i = taylor_sizes[0]; i != taylor_sizes[1]; ++i) {
@@ -985,19 +1037,20 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
 	}
 }
 }
-if (type == RHO) {
+if ((type == RHO) && (particles.size() > 0)) {
 		// adding multipoles from boundary to particles within the cells
                 for (integer li = 0; li < list_size; li++) {
                 	const integer iii0 = bnd.first[li];
                 	//space_vector const &com0iii0 = com0[iii0];
 			std::vector<integer> part_mono = get_particles_inds(particles, iii0);
 			// assume no more than simd_len (8) particles in one cell
-                        for (integer i = 0; i != simd_len && i < part_mono.size(); ++i) {
+			if (part_mono.size() > 0) {
+                            for (integer i = 0; i != simd_len && i < part_mono.size(); ++i) {
                                 space_vector const part_pos = particles[part_mono[i]].pos;
                                 for (integer d = 0; d < NDIM; ++d) {
                                         X[d][i] = part_pos[d];
                                 }
-                        }
+                            }
 #pragma GCC ivdep
                 for (integer d = 0; d < NDIM; ++d) {
                         dX[d] = X[d] - simdY[d];
@@ -1006,8 +1059,13 @@ if (type == RHO) {
                 taylor<5, simd_vector> D;
                 taylor<2, simd_vector> A0;
                 std::array<simd_vector, NDIM> BB0 = { simd_vector(0.0), simd_vector(0.0), simd_vector(0.0) };
+                
+		if ((opts().p_smooth != MONAGHAN_MULTI) || ((octotiger::fmm::STENCIL_WIDTH - 1) * dx > 2.0 * opts().p_smooth_l)) {
+                        D.set_basis(dX);
+                } else {
+			D.set_basis_monaghan(dX, opts().p_smooth_l, int_simd_vector(1));
+		}
 
-                D.set_basis(dX);
                 A0[0] = m0[0] * D[0];
                 for (integer i = taylor_sizes[1]; i != taylor_sizes[2]; ++i) {
                         A0[0] += m0[i] * D[i] * (factor[i] * HALF);
@@ -1058,6 +1116,7 @@ if (type == RHO) {
                		}
 			//printf("after %e (%e, %e, %e), cell %e\n", p.L(), p.L_c[0], p.L_c[1], p.L_c[2], Liii0());
         	}
+            } // close if part_mono > 0
 	} //close ilist loop
 } // close type==RHO condition
 }	); // close hpx loop
@@ -1123,7 +1182,21 @@ if (type != RHO) {
 		taylor<4, simd_vector> A0;
 		std::array<simd_vector, NDIM> BB0 = { simd_vector(0.0), simd_vector(0.0), simd_vector(0.0) };
 
-		D.set_basis(dX);
+                if ((opts().p_smooth != MONAGHAN_MULTI) || (particles.size() == 0)) {
+                        D.set_basis(dX);
+                } else {
+                        const auto is_smooth = contain_particles(particles, X, opts().p_smooth_multi_f * dx);
+#if !defined(HPX_HAVE_DATAPAR_VC) || (defined(Vc_IS_VERSION_1) && Vc_IS_VERSION_1)
+                        const real has_particles = is_smooth.sum();
+#else
+                        const real has_particles = Vc::reduce(is_smooth);
+#endif
+                        if (has_particles == 0) {
+                                D.set_basis(dX);
+                        } else {
+                                D.set_basis_monaghan(dX, opts().p_smooth_l, is_smooth);
+                        }
+                }
 
 		A0[0] = m0 * D[0];
 		for (integer i = taylor_sizes[0]; i != taylor_sizes[2]; ++i) {
@@ -1177,15 +1250,11 @@ if (type != RHO) {
 }
 }
 	if (type == RHO) {
-		space_vector bmin;
-		space_vector bmax;
-                for (integer d = 0; d != NDIM; ++d) {
-                        bmin[d] = Xbase[d] + bnd.x[d] * dx - 0.5 * dx;
-			bmax[d] = bmin[d] + dx;
+                std::vector<particle> p_bnd(0); // particles in exterior cell
+                if ((*(mpoles).p).size() > 0) {
+                        p_bnd = (*(mpoles).p)[si];
                 }
-
-		std::vector<particle> particles_tmp = load_particles(bmin, bmax);
-		for (auto p : particles_tmp) {
+		for (auto p : p_bnd) {
 	                m0 = p.mass;
 	                for (integer d = 0; d != NDIM; ++d) {
 				Y[d] = p.pos[d];
@@ -1213,7 +1282,11 @@ if (type != RHO) {
 		                taylor<4, simd_vector> A0;
                 		std::array<simd_vector, NDIM> BB0 = { simd_vector(0.0), simd_vector(0.0), simd_vector(0.0) };
 
-		                D.set_basis(dX);
+                                if ((opts().p_smooth != MONAGHAN_MULTI) || ((octotiger::fmm::STENCIL_WIDTH - 1) * dx > 2.0 * opts().p_smooth_l)) {
+                                        D.set_basis(dX);
+                                } else {
+					D.set_basis_monaghan(dX, opts().p_smooth_l, int_simd_vector(1));
+				}
 
  		                A0[0] = m0 * D[0];
                 		for (integer i = taylor_sizes[0]; i != taylor_sizes[2]; ++i) {
@@ -1270,77 +1343,60 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type, con
 	const v4sd d0(di0, Vc::Aligned);
 
 	hpx::parallel::for_loop(for_loop_policy, 0, ilist_n_bnd.size(), [&mpoles, &ilist_n_bnd, &d0, this](std::size_t si) {
-
+	// iterating over the exterior cells
 		boundary_interaction_type const &bnd = ilist_n_bnd[si];
 		const integer dsize = bnd.first.size();
 		integer index = (mpoles.local_semaphore != nullptr) ? bnd.second : si;
 		v4sd m0 = (*(mpoles).m)[index];
 		v4sd m0_d0 = m0 * d0;
 
-		for (integer li = 0; li < dsize; ++li) {
+                std::vector<particle> p_bnd(0); // particles in exterior cell
+                if ((*(mpoles).p).size() > 0) {
+                        p_bnd = (*(mpoles).p)[si];
+                }
+
+                const std::array<real, NDIM> Xbase = { X[0][hindex(H_BW, H_BW, H_BW)], X[1][hindex(H_BW, H_BW, H_BW)], X[2][hindex(H_BW, H_BW, H_BW)] };
+                space_vector bnd_pos;
+                for (integer d = 0; d < NDIM; ++d) {
+                        bnd_pos[d] = Xbase[d] + bnd.x[d] * dx;
+                }
+
+		for (integer li = 0; li < dsize; ++li) { // iterating over all interior cells that interact with the exterior cell
+			// exterior cell interacting with interior cell
 			const integer iii0 = bnd.first[li];
 			auto tmp1 = m0_d0 * bnd.four[li];
 			expansion &Liii0 = L[iii0];
 			for (integer i = 0; i != 4; ++i) {
 				Liii0[i] += tmp1[i];
 			}
-		}
-
-
-		// interaction of particles in boundary (exterior) cell (second) with the interior cells (firsts)
-		//
-		// find position and boundaries of the current boundary cell
-		const std::array<real, NDIM> Xbase = { X[0][hindex(H_BW, H_BW, H_BW)], X[1][hindex(H_BW, H_BW, H_BW)], X[2][hindex(H_BW, H_BW, H_BW)] };
-		space_vector bnd_pos;
-		space_vector bnd_bmin;
-		space_vector bnd_bmax;
-		for (integer d = 0; d < NDIM; ++d) {
-			bnd_pos[d] = Xbase[d] + bnd.x[d] * dx;
-			bnd_bmin[d] = bnd_pos[d] - 0.5 * dx;
-			bnd_bmax[d] = bnd_pos[d] + 0.5 * dx;
-		}
-
-		// retrieve the particles in the boundary cell
-		std::vector<particle> particles_in_bnd = load_particles(bnd_bmin, bnd_bmax);
-
-		// interaction between the exterior particles and the interior cells
-		for (auto p : particles_in_bnd) {
-                	for (integer li = 0; li < dsize; ++li) {
-                                const integer iii0 = bnd.first[li];
-				space_vector const &com_partner = (*(com_ptr[0]))[iii0]; 
-//				printf("boundary interaction between particle %e, (%e, %e, %e) external cell (%e, %e, %e), and inside cell (%e, %e, %e)\n",
-//						p.mass, p.pos[XDIM], p.pos[YDIM], p.pos[ZDIM], cell_pos[XDIM], cell_pos[YDIM], cell_pos[ZDIM], com_partner[XDIM], com_partner[YDIM], com_partner[ZDIM]);
-                                v4sd four = make_four(p.pos, com_partner);
-	                        auto tmp1 = p.mass * four;
-        	                expansion &Liii0 = L[iii0];
-                	        for (integer i = 0; i != 4; ++i) {
-                        	        Liii0[i] += tmp1[i];
-	                        }	
-                	}
-		}
-
-		// interaction of particles in interior cells (firsts) with boundary (exterior) cell and the particles within it
-                for (integer li = 0; li < dsize; ++li) {
-                        const integer iii0 = bnd.first[li];
-                        space_vector const &com_cell = (*(com_ptr[0]))[iii0];
+			// particles in interior cell interacting with exterior cell
                         std::vector<integer> particles_in_cell = get_particles_inds(particles, iii0);
                         for (auto p_ind : particles_in_cell) {
-				particle& p = particles[p_ind];
-				// add interaction with boundary cell
-                                v4sd four = make_four(bnd_pos, p.pos);
-				//printf("mono-mono for part %i, (%e, %e, %e) with bnd cell (%e, %e, %e), bnd rel pos (%e, %e, %e), m_c %e, phi, %e, g (%e, %e, %e)\n", p.id, p.pos[0], p.pos[1], p.pos[2], bnd_pos[0], bnd_pos[1], bnd_pos[2], bnd.x[0], bnd.x[1], bnd.x[2], (*(mpoles).m)[index], m0[0] * four[0], m0[1] * four[1], m0[2] * four[2], m0[3] * four[3]);
-				p.L += m0 * four;
-
-				// add interactions with particles inside boundary cells
-				for (auto p_bnd : particles_in_bnd) {
-					printf("particle %i (%e, %e, %e) in interior cell (%e, %e, %e) interact with\n", p.id, p.pos[0], p.pos[1], p.pos[2], com_cell[0], com_cell[1], com_cell[2]);
-					printf("particle %i (%e, %e, %e) in boundary cell (%e, %e, %e)\n", p_bnd.id, p_bnd.pos[0], p_bnd.pos[1], p_bnd.pos[2], bnd_pos[0], bnd_pos[1], bnd_pos[2]);
-        	                        v4sd four = make_four(p_bnd.pos, p.pos);
-	                                p.L += p_bnd.mass * four;
-				}
+                                particle& pcell = particles[p_ind];
+                                v4sd four = make_four(bnd_pos, pcell.pos);
+                                pcell.L += m0 * four;
                         }
-                }
-
+			// interior cell interacting with particles in exterior cell
+			if (p_bnd.size() > 0) {
+                                space_vector const &com_cell = (*(com_ptr[0]))[iii0];
+                                std::vector<integer> particles_in_cell = get_particles_inds(particles, iii0);
+                                for (auto p : p_bnd) {
+					// interior cell interacting with particles in exterior cell
+                                        v4sd four = make_four(p.pos, com_cell);
+                                        auto tmp1 = p.mass * four;
+                                        expansion &Liii0 = L[iii0];
+                                        for (integer i = 0; i != 4; ++i) {
+                                                Liii0[i] += tmp1[i];
+                                        }
+					// particles in interior cell interacting with particles in exterior cell
+                                        for (auto p_ind : particles_in_cell) {
+                                                particle& pcell = particles[p_ind];
+                                                v4sd four = make_four(p.pos, pcell.pos);
+                                                pcell.L += p.mass * four;
+                                        }
+                                }
+                        }
+		}
 	});
 }
 
@@ -2011,19 +2067,6 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 				}
 			}
 		}
-		if (is_leaf) { // for now read particles from configuration file at each step (static particles)
-			space_vector bmin, bmax;
-			for (integer i=0; i< NDIM; i++) {
-				bmin[i] = x0[i] - 0.5 * dx;
-				bmax[i] = X[i][iiin] + 0.5 * dx;
-			}
-			particles.resize(0);
-			std::vector<particle> particles_tmp = load_particles(bmin, bmax);
-			for (auto& p : particles_tmp) {
-				particles.push_back(p);
-				//printf("loaded %i, mass %e, pos (%e,%e,%e) in grid (%e, %e, %e) - (%e, %e, %e)\n", p.id, p.mass, p.pos[0], p.pos[1], p.pos[2], bmin[0], bmin[1], bmin[2], bmax[0], bmax[1], bmax[2]);
-			}
-		}
 	}
 	if (com_ptr[0] == nullptr) {
 		printf("Failed to call RHO before DRHODT\n");
@@ -2290,10 +2333,19 @@ gravity_boundary_type grid::get_gravity_boundary(const geo::direction &dir, bool
 		const std::vector<boundary_interaction_type> &list = ilist_n_bnd[dir.flip()];
 		if (is_leaf) {
 			data.m->reserve(list.size());
-			for (auto i : list) {
-				const integer iii = i.second;
-				data.m->push_back(mon[iii]);
-			}
+			data.p->resize(list.size());
+                        integer p_cnt = 0;
+                        for (auto i : list) { 
+                                const integer iii = i.second;
+                                data.m->push_back(mon[iii]);
+                                const auto p_inds = get_particles_inds(particles, iii);
+                                auto* cur_p = data.p->data();
+                                cur_p[p_cnt].reserve(p_inds.size());
+                                for (auto p_i : p_inds) {
+                                        cur_p[p_cnt].push_back(particles[p_i]);
+                                }
+                                p_cnt++;
+                        }
 		} else {
 			data.M->reserve(list.size());
 			data.x->reserve(list.size());
@@ -2303,13 +2355,42 @@ gravity_boundary_type grid::get_gravity_boundary(const geo::direction &dir, bool
 				data.M->push_back(M[iii]);
 				data.x->push_back((*(com_ptr[0]))[iii]);
 			}
+                        if ((opts().p_smooth == MONAGHAN_MULTI) && ((octotiger::fmm::STENCIL_WIDTH - 1) * dx <= 2.0 * opts().p_smooth_l)) {
+                                data.p->resize(1);
+                                auto* cur_p = data.p->data();
+                                cur_p[0].reserve(particles.size());
+                                for (auto p_i : particles) {
+                                        cur_p[0].push_back(p_i);
+                                }
+			}
 		}
 	} else {
 		if (is_leaf) {
 			data.m = mon_ptr;
+                        if (particles.size() > 0) {
+                                const std::vector<boundary_interaction_type> &list = ilist_n_bnd[dir.flip()];
+                                data.p->resize(list.size());
+                                for (integer i = 0; i < list.size(); i++) {
+                                        const integer iii = list[i].second;
+                                        const auto p_inds = get_particles_inds(particles, iii);
+                                        auto* cur_p = data.p->data();
+                                        cur_p[i].reserve(p_inds.size());
+                                        for (auto p_i : p_inds) {
+                                                cur_p[i].push_back(particles[p_i]);
+                                        }
+                                }
+                        }
 		} else {
 			data.M = M_ptr;
 			data.x = com_ptr[0];
+                        if ((opts().p_smooth == MONAGHAN_MULTI) && ((octotiger::fmm::STENCIL_WIDTH - 1) * dx <= 2.0 * opts().p_smooth_l)) {
+                                data.p->resize(1);
+                                auto* cur_p = data.p->data();
+                                cur_p[0].reserve(particles.size());
+                                for (auto p_i : particles) {
+                                        cur_p[0].push_back(p_i);
+                                }
+			}
 		}
 	}
 

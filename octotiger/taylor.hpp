@@ -316,6 +316,7 @@ public:
     }
 
     void set_basis(const std::array<T, NDIM>& X);
+    void set_basis_monaghan(const std::array<T, NDIM>& X, const real smooth_l, const int_simd_vector is_smooth);
 
     OCTOTIGER_FORCEINLINE T* ptr() {
         return data.data();
@@ -528,6 +529,131 @@ inline void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM
     }
 
     // PROF_END;
+}
+
+inline real get_pol01(const integer pol_id, const real x) {
+    if (pol_id == 0) {
+        return (2.0 / 3.0) * pow(x, 2) - 0.3 * pow(x, 4) + 0.1 * pow(x, 5) - 1.4; // p0
+    } else if (pol_id == 1) {
+        return (4.0 / 3.0) - 1.2 * pow(x, 2) + 0.5 * pow(x, 3); // p1 = (1/x)(dp0/dx)
+    } else if (pol_id == 2) {
+        return -2.4 + 1.5 * x; // p2 = (1/x)(dp1/dx)
+    } else if (pol_id == 3) {
+        return 1.5 / x; // p3 = (1/x)(dp1/dx)
+    } else {
+        std::cerr << "Could not calculate derivative!" << pol_id;
+        abort();
+    }
+}
+
+inline real get_pol12(const integer pol_id, const real x) {
+    if (pol_id == 0) {
+        return (4.0 / 3.0) * pow(x, 2) - 1.0 * pow(x, 3) + 0.3 * pow(x, 4) - (1.0 / 30.0) * pow(x, 5) - 1.6 + 1.0 / (15.0 * x); //p0
+    } else if (pol_id == 1) {
+        return (8.0 / 3.0) - 3.0 * x + 1.2 * pow(x, 2) - (1.0 / 6.0) * pow(x, 3) - 1.0 / (15.0 * x * x * x); // p1 = (1/x)(dp0/dx)
+    } else if (pol_id == 2) {
+        return -3.0 / x + 2.4 - 0.5 * x + 1.0 / (5 * pow(x, 5)); // p2 = (1/x)(dp1/dx)
+    } else if (pol_id == 3) {
+        return 3.0 / pow(x, 3) - 0.5 / x - 1.0 / pow(x, 7); // p3 = (1/x)(dp2/dx)
+    } else {
+        std::cerr << "Could not calculate derivative!" << pol_id;
+        abort();
+    }
+}
+
+inline real get_pol(const integer pol_id, const real x) {
+    if ((0.0 <= x) && (x <= 1.0)) {
+        return get_pol01(pol_id, x);
+    } else if ((1.0 <= x) && (x <= 2.0)) {
+        return get_pol12(pol_id, x);
+    }
+    return 0.0;
+}
+
+inline simd_vector compute_d_monaghan(const integer pol_id, const simd_vector r, const simd_vector rinv, const real smooth_l, const int_simd_vector is_smooth) {
+    const auto h = simd_vector(smooth_l);
+    const auto x = r / h;
+    constexpr real coeff[4] = {-1.0, 1.0, -3.0, 15.0};
+    const auto h_pow = pow(smooth_l, pol_id * 2 + 1);
+    simd_vector tmp;
+    for (integer i = 0; i != simd_len; ++i) {
+        if ((x[i] > 2.0) || (is_smooth[i] == 0)) {
+            tmp[i] = coeff[pol_id] * pow(rinv[i], pol_id * 2 + 1); //  get back to the regular 1/r green function
+        } else {
+            tmp[i] = get_pol(pol_id, x[i]) / h_pow; // apply smoothing based on the Monaghan green function
+        }
+    }
+    return tmp;
+}
+
+template <>
+inline void taylor<5, simd_vector>::set_basis_monaghan(const std::array<simd_vector, NDIM>& X, const real smooth_l, const int_simd_vector is_smooth) {
+    constexpr integer N = 5;
+    using T = simd_vector;
+
+    taylor<N, T>& A = *this;
+
+    const T r = sqrt(sqr(X[0]) + sqr(X[1]) + sqr(X[2]));
+    T rinv = 0.0;
+    for (volatile integer i = 0; i != simd_len; ++i) {
+        if (r[i] > 0.0) {
+            rinv[i] = ONE / std::max(r[i], 1.0e-20);
+        }
+    }
+
+    // compute the derivatives according to Monaghan smoothing potential (green function)
+    const T d0 = compute_d_monaghan(0, r, rinv, smooth_l, is_smooth);
+    const T d1 = compute_d_monaghan(1, r, rinv, smooth_l, is_smooth);
+    const T d2 = compute_d_monaghan(2, r, rinv, smooth_l, is_smooth);
+    const T d3 = compute_d_monaghan(3, r, rinv, smooth_l, is_smooth);
+
+    A[0] = d0;
+    for (integer i = taylor_sizes[0], a = 0; a != NDIM; ++a, ++i) {
+        A[i] = X[a] * d1;
+    }
+    for (integer i = taylor_sizes[1], a = 0; a != NDIM; ++a) {
+        T const Xad2 = X[a] * d2;
+        for (integer b = a; b != NDIM; ++b, ++i) {
+            A[i] = Xad2 * X[b];
+        }
+    }
+    for (integer i = taylor_sizes[2], a = 0; a != NDIM; ++a) {
+        T const Xad3 = X[a] * d3;
+        for (integer b = a; b != NDIM; ++b) {
+            T const Xabd3 = Xad3 * X[b];
+            for (integer c = b; c != NDIM; ++c, ++i) {
+                A[i] = Xabd3 * X[c];
+            }
+        }
+    }
+    for (integer i = taylor_sizes[3]; i != taylor_sizes[4]; ++i) {
+        A[i] = ZERO;
+    }
+    auto const d22 = 2.0 * d2;
+    for (integer i = taylor_sizes[0]; i != taylor_sizes[1]; ++i) {
+        A[to_aa[i]] += d1;
+        integer const to_a_idx = to_a[i];
+        A[to_aaa[i]] += X[to_a_idx] * d2;
+        A[to_aaaa[i]] += sqr(X[to_a_idx]) * d3 + d22;
+    }
+    for (integer i = taylor_sizes[1]; i != taylor_sizes[2]; ++i) {
+        integer const to_a_idx = to_a[i];
+        integer const to_b_idx = to_b[i];
+        auto const Xabd3 = X[to_a_idx] * X[to_b_idx] * d3;
+        A[to_aab[i]] += X[to_b_idx] * d2;
+        A[to_abb[i]] += X[to_a_idx] * d2;
+        A[to_aaab[i]] += Xabd3;
+        A[to_abbb[i]] += Xabd3;
+        A[to_aabb[i]] += d2;
+    }
+    for (integer i = taylor_sizes[2]; i != taylor_sizes[3]; ++i) {
+        integer const to_a_idx = to_a[i];
+        integer const to_c_idx = to_c[i];
+        auto const Xbd3 = X[to_b[i]] * d3;
+        A[to_aabc[i]] += Xbd3 * X[to_c_idx];
+        A[to_abbc[i]] += X[to_a_idx] * X[to_c_idx] * d3;
+        A[to_abcc[i]] += X[to_a_idx] * Xbd3;
+    }
 }
 
 using multipole = taylor<4, real>;

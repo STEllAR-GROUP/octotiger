@@ -67,23 +67,19 @@ void grid::set_outflow(std::pair<std::string, real> &&p) {
 	}
 }
 
-std::vector<particle> grid::get_restrict_particles() const {
-        return particles;
-}
-
 void grid::set_particles(std::vector<std::vector<real>> p) {
-	printf("particles size before loading: %i\n", particles.size());
+	printf("particles size before: %i\n", particles.size());
         for (integer i = 0;  i < p[0].size(); i++) {
 		space_vector part_pos;
                 space_vector part_vel;
                 for (int d = 0; d < NDIM; d++) {
-                        part_pos[d] = p[d][i];
-                        part_vel[d] = p[NDIM + 2 + d][i]; 
+                        part_pos[d] = p[d][i] / opts().code_to_cm;
+                        part_vel[d] = p[NDIM + 2 + d][i] * opts().code_to_s / opts().code_to_cm; 
                 }
-                particle part = particle(p[NDIM][i], part_pos, part_vel, p[NDIM + 1][i], 1);
+                particle part = particle(p[NDIM][i] / opts().code_to_g, part_pos, part_vel, p[NDIM + 1][i], 1);
                 particles.push_back(part);
         }
-        printf("particles size after loading: %i\n", particles.size());
+        printf("particles size after: %i\n", particles.size());
 }
 
 void grid::static_init() {
@@ -773,6 +769,17 @@ std::vector<real> grid::get_prolong(const std::array<integer, NDIM> &lb, const s
 	return data;
 }
 
+std::vector<particle> grid::get_prolong_particles(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub) {
+	space_vector bmin, bmax;
+        integer const lind = hindex(lb[XDIM] / 2, lb[YDIM] / 2, lb[ZDIM] / 2);
+        integer const uind = hindex(ub[XDIM] / 2, ub[YDIM] / 2, ub[ZDIM] / 2);
+        for (integer i = 0; i < NDIM; i++) {
+                bmin[i] = X[i][lind] - 0.5 * dx;
+                bmax[i] = X[i][uind] - 0.5 * dx;
+        }
+        return load_particles(particles, bmin, bmax);
+}
+
 std::vector<real> grid::get_restrict() const {
 	PROFILE();
 	integer Size = opts().n_fields * INX * INX * INX / NCHILD + opts().n_fields;
@@ -803,6 +810,9 @@ std::vector<real> grid::get_restrict() const {
 	}
 	return data;
 }
+std::vector<particle> grid::get_restrict_particles() const {
+	return particles;
+}
 
 void grid::set_restrict(const std::vector<real> &data, const geo::octant &octant) {
 	PROFILE();
@@ -822,6 +832,17 @@ void grid::set_restrict(const std::vector<real> &data, const geo::octant &octant
 			}
 		}
 	}
+}
+
+void grid::set_restrict_particles(const std::vector<particle> &parts, const geo::octant &octant) {
+        for (particle p : parts) {
+		//printf("grid (%e, %e, %e), dx %e, %i particles in grid, %i particles to add, cur id %i\n", xmin[0], xmin[1], xmin[2], dx, particles.size(), parts.size(), p.id);
+                particles.push_back(p);
+	}
+}
+
+void grid::empty_particles() {
+        particles.clear();
 }
 
 void grid::set_hydro_boundary(const std::vector<real> &data, const geo::direction &dir, bool energy_only) {
@@ -1039,10 +1060,11 @@ void grid::set_flux_restrict(const std::vector<real> &data, const std::array<int
 	}
 }
 
-void grid::set_prolong(const std::vector<real> &data, std::vector<real> &&outflows) {
+void grid::set_prolong(const std::vector<real> &data, std::vector<real> &&outflows, std::vector<particle> &&parts) {
 	PROFILE();
 	integer index = 0;
 	U_out = std::move(outflows);
+	particles = std::move(parts);
 	for (integer field = 0; field != opts().n_fields; ++field) {
 		for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 			for (integer j = H_BW; j != H_NX - H_BW; ++j) {
