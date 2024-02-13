@@ -28,7 +28,6 @@
 #include <stream_manager.hpp>
 
 #include "octotiger/options.hpp"
-#include "octotiger/sycl_initialization_guard.hpp"
 
 #ifdef OCTOTIGER_HAVE_KOKKOS
 #if defined(KOKKOS_ENABLE_CUDA)
