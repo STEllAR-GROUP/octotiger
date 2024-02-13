@@ -15,6 +15,7 @@
 #ifdef OCTOTIGER_HAVE_KOKKOS
 #include "octotiger/unitiger/hydro_impl/hydro_kokkos_kernel.hpp"
 #endif
+#include "octotiger/sycl_initialization_guard.hpp"
 #if defined(OCTOTIGER_HAVE_KOKKOS)
 hpx::once_flag init_hydro_kokkos_pool_flag;
 #if defined(KOKKOS_ENABLE_CUDA)
