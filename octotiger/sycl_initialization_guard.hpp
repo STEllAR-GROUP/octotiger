@@ -8,6 +8,7 @@
 
 #if defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_SYCL)
 #include <CL/sycl.hpp>
+#include <iostream>
 
 namespace octotiger {
 namespace sycl_util {
@@ -16,7 +17,7 @@ namespace sycl_util {
     // the program starts. This seems to be some initialization issue as we can simply fix it by
     // (non-concurrently) run simple dummy kernel first right after starting octotiger
     // (presumably initializes something within the intel gpu runtime).
-    // Curiousely we have to do this not once per program, but once per octolib and hydrolib.
+    // Curiousely we have to do this not once per program, but once per lib (octolib and hydrolib).
     //
     // Somewhat of an ugly workaround but it does the trick and allows us to target Intel GPUs as
     // Octo-Tiger runs as expected after applying this workaround.
@@ -39,17 +40,10 @@ namespace sycl_util {
             std::cerr << "ERROR: Caught sycl::exception during SYCL dummy
                 kernel !\n "; std::cerr << " {what}
               : " << e.what() << "\n "; std::cerr << " Aborting now...\n ";
-            std::cerr << "Running on device: "
+            std::cerr << "Error occured on device: "
                       << q.get_device().get_info<cl::sycl::info::device::name>() << "\n";
-              return 2;
+            return 2;
 
-        } catch (std::exception const& e) {
-            std::cerr << "ERROR: Caught std::exception during SYCL dummy kernel!\n";
-            std::cerr << "{what}: " << e.what() << "\n";
-            std::cerr << "Running on device: "
-                      << q.get_device().get_info<cl::sycl::info::device::name>() << "\n";
-            std::cerr << "Aborting now...\n";
-            return 3;
         }
         return 1;
     }
