@@ -37,11 +37,11 @@ namespace sycl_util {
                 cl::sycl::detail::code_location{});
             my_kernel_event.wait();
         } catch (sycl::exception const& e) {
-            std::cerr << "ERROR: Caught sycl::exception during SYCL dummy
-                kernel !\n "; std::cerr << " {what}
-              : " << e.what() << "\n "; std::cerr << " Aborting now...\n ";
+            std::cerr << "(NON-FATAL) ERROR: Caught sycl::exception during SYCL dummy kernel!\n";
+            std::cerr << " {what}: " << e.what() << "\n ";
             std::cerr << "Error occured on device: "
                       << q.get_device().get_info<cl::sycl::info::device::name>() << "\n";
+            std::cerr << "Continuing for now as error only occured in the dummy kernel...\n";
             return 2;
 
         }
