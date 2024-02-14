@@ -37,11 +37,12 @@ namespace sycl_util {
               },
               cl::sycl::detail::code_location{});
           my_kernel_event.wait();
-          std::cout << "SYCL runtime has been initialized for " << modulename << " !" << std::endl;
+          std::cout << "SYCL runtime has been initialized for " << modulename << "!" << std::endl;
       } catch (sycl::exception const& e) {
           std::cerr << "(NON-FATAL) ERROR: Caught sycl::exception during SYCL dummy kernel!\n";
           std::cerr << " {what}: " << e.what() << "\n ";
-          std::cerr << "Continuing for now as error only occured in the dummy kernel...\n";
+          std::cerr << "Continuing for now as error only occured in the dummy kernel meant to "
+		    << "initialize the device by first touch...\n";
           return 2;
 
       }

@@ -31,10 +31,11 @@
 
 #if defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_SYCL)
 #include "octotiger/sycl_initialization_guard.hpp"
+static const char module_identifier_multipoles[] = "gravity_solver_multipoles";
 /// Dummy variable to ensure the touch_sycl_device_by_running_a_dummy_kernel is being run
 const int init_sycl_device_multipoles =
     octotiger::sycl_util::touch_sycl_device_by_running_a_dummy_kernel<
-        "gravity_solver_multipoles">();
+        module_identifier_multipoles>();
 #endif
 
 #ifdef OCTOTIGER_HAVE_KOKKOS
