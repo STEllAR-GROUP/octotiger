@@ -1,9 +1,9 @@
 
 #pragma once
 #include <hpx/futures/future.hpp>
-#include <hpx/kokkos/executors.hpp>
 #ifdef OCTOTIGER_HAVE_KOKKOS
 //#define KOKKOS_OPT_RANGE_AGGRESSIVE_VECTORIZATION
+#include <hpx/kokkos/executors.hpp>
 #include <Kokkos_Core.hpp>
 #include <hpx/kokkos.hpp>
 
