@@ -31,6 +31,14 @@
 #include "octotiger/options.hpp"
 #include "octotiger/aggregation_util.hpp"
 
+#if defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_SYCL)
+#include "octotiger/sycl_initialization_guard.hpp"
+static const char module_identifier_monopoles[] = "gravity_solver_monopoles";
+/// Dummy variable to ensure the touch_sycl_device_by_running_a_dummy_kernel is being run
+const int init_sycl_device_monopoles =
+    octotiger::sycl_util::touch_sycl_device_by_running_a_dummy_kernel<module_identifier_monopoles>();
+#endif
+
 #if defined(OCTOTIGER_HAVE_KOKKOS)
 #if defined(KOKKOS_ENABLE_CUDA)
 using device_executor = hpx::kokkos::cuda_executor;

@@ -15,6 +15,13 @@
 #ifdef OCTOTIGER_HAVE_KOKKOS
 #include "octotiger/unitiger/hydro_impl/hydro_kokkos_kernel.hpp"
 #endif
+#if defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_SYCL)
+#include "octotiger/sycl_initialization_guard.hpp"
+static const char module_identifier_hydro[] = "hydro_solver";
+/// Dummy variable to ensure the touch_sycl_device_by_running_a_dummy_kernel is being run
+const int init_sycl_device_hydro =
+    octotiger::sycl_util::touch_sycl_device_by_running_a_dummy_kernel<module_identifier_hydro>();
+#endif
 #if defined(OCTOTIGER_HAVE_KOKKOS)
 hpx::once_flag init_hydro_kokkos_pool_flag;
 #if defined(KOKKOS_ENABLE_CUDA)
