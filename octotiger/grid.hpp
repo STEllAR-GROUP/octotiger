@@ -34,6 +34,13 @@
 #include <vector>
 //#include "octotiger/unitiger/hydro.hpp"
 
+#if defined(OCTOTIGER_HAVE_CUDA) || (defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_CUDA)))
+#include <cuda_buffer_util.hpp>
+#elif defined(OCTOTIGER_HAVE_HIP) || (defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_HIP)))
+#include <hip_buffer_util.hpp>
+#elif defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_SYCL))
+#include <sycl_buffer_util.hpp>
+#endif
 class struct_eos;
 
 class analytic_t {
@@ -124,10 +131,22 @@ private:
 	std::vector<int> is_coarse;
 	std::vector<int> has_coarse;
 	std::vector<std::vector<real>> Ushad;
-	std::vector<std::vector<safe_real>> U;
+	std::vector<std::vector<safe_real>> U2;
 	std::vector<std::vector<safe_real>> U0;
 	std::vector<std::vector<safe_real>> dUdt;
-	std::vector<hydro_state_t<std::vector<safe_real>>> F;
+	std::vector<hydro_state_t<std::vector<safe_real>>> F2;
+#if defined(OCTOTIGER_HAVE_CUDA) || (defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_CUDA)))
+	std::vector<real, recycler::detail::cuda_pinned_allocator<real>> F_flat;
+	std::vector<real, recycler::detail::cuda_pinned_allocator<real>> U_flat;
+#elif defined(OCTOTIGER_HAVE_HIP) || (defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_HIP)))
+	std::vector<real, recycler::detail::hip_pinned_allocator<real>> F_flat;
+	std::vector<real, recycler::detail::hip_pinned_allocator<real>> U_flat;
+#elif defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_SYCL))
+	std::vector<real, recycler::detail::sycl_host_default_allocator<real>> F_flat;
+	std::vector<real, recycler::detail::sycl_host_default_allocator<real>> U_flat;
+#else
+	std::vector<real> F_flat;
+#endif
 	std::vector<std::vector<safe_real>> X;
 #if defined(__AVX2__) && defined(OCTOTIGER_LEGACY_VC)
 	std::vector<v4sd> G;
@@ -212,18 +231,18 @@ public:
 	}
 	static std::vector<std::pair<std::string,std::string>> get_scalar_expressions();
 	static std::vector<std::pair<std::string,std::string>> get_vector_expressions();
-	std::vector<safe_real>& get_field(integer f) {
-		return U[f];
-	}
-	const std::vector<safe_real>& get_field(integer f) const {
-		return U[f];
-	}
-	void set_field(std::vector<safe_real>&& data, integer f) {
-		U[f] = std::move(data);
-	}
-	void set_field(const std::vector<safe_real>& data, integer f) {
-		U[f] = data;
-	}
+	/* std::vector<safe_real>& get_field(integer f) { */
+	/* 	return U[f]; */
+	/* } */
+	/* const std::vector<safe_real>& get_field(integer f) const { */
+	/* 	return U[f]; */
+	/* } */
+	/* void set_field(std::vector<safe_real>&& data, integer f) { */
+	/* 	U[f] = std::move(data); */
+	/* } */
+	/* void set_field(const std::vector<safe_real>& data, integer f) { */
+	/* 	U[f] = data; */
+	/* } */
 	analytic_t compute_analytic(real);
 	void compute_boundary_interactions(gsolve_type, const geo::direction&, bool is_monopole, const gravity_boundary_type&);
 	static void set_scaling_factor(real f) {
@@ -237,7 +256,8 @@ public:
 		return is_leaf;
 	}
 	real get_source(integer i, integer j, integer k) const {
-		return U[rho_i][hindex(i + H_BW, j + H_BW, k + H_BW)] * dx * dx * dx;
+		/* return U[rho_i][hindex(i + H_BW, j + H_BW, k + H_BW)] * dx * dx * dx; */
+		return U_flat[rho_i * HS_N3 + hindex(i + H_BW, j + H_BW, k + H_BW)] * dx * dx * dx;
 	}
 	//std::vector<real> const& get_outflows() const {
 //		return U_out;
@@ -390,7 +410,7 @@ void grid::load(Archive& arc, const unsigned) {
 	arc >> dx;
 	arc >> xmin;
 	allocate();
-	arc >> U;
+	arc >> U_flat;
 	if (rad_grid_ptr != nullptr) {
 		arc >> *rad_grid_ptr;
 		rad_grid_ptr->set_dx(dx);
@@ -415,7 +435,7 @@ void grid::save(Archive& arc, const unsigned) const {
 	arc << is_root;
 	arc << dx;
 	arc << xmin;
-	arc << U;
+	arc << U_flat;
 	if (rad_grid_ptr != nullptr) {
 		arc << *rad_grid_ptr;
 	}

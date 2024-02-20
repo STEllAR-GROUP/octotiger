@@ -33,7 +33,7 @@ void init_aggregation_pool(void) {
 __host__ void launch_complete_hydro_amr_boundary_cuda(double dx, bool
     energy_only,
     const std::vector<std::vector<real>>& Ushad, const std::vector<int>& is_coarse,
-    const std::array<double, NDIM>& xmin, std::vector<std::vector<real>>& U) {
+    const std::array<double, NDIM>& xmin, f_data_t& U_flat) {
     bool early_exit = true;
     for (int i = 0; i < HS_N3; i++) {
         if (early_exit && is_coarse[i]) {
@@ -175,7 +175,7 @@ __host__ void launch_complete_hydro_amr_boundary_cuda(double dx, bool
         /*                         const int oct_index = ir * 4 + jr * 2 + kr; */
         /*                         // unified_u[f * H_N3 + iiir] = unified_uf[f * field_offset + 8 * */
         /*                         // iii0 + oct_index]; */
-        /*                         U[f][iiir] = unified_uf[f * field_offset + iii0 + */
+        /*                         U_flat[(f) * H_N3 + iiir] = unified_uf[f * field_offset + iii0 + */
         /*                             oct_index * HS_N3 + slice_id * nfields * HS_N3 * 8]; */
         /*                     } */
         /*                 } */
@@ -225,7 +225,7 @@ __host__ void launch_complete_hydro_amr_boundary_cuda(double dx, bool
                             const int iii0 = hSindex(i0, j0, k0);
                             const int iiir = hindex(i, j, k);
                             if (coarse[iii0 + slice_id * HS_N3]) {
-                                U[f][iiir] = unified_u[f * H_N3 + iiir + slice_id * nfields * H_N3];
+                                U_flat[(f) * H_N3 + iiir] = unified_u[f * H_N3 + iiir + slice_id * nfields * H_N3];
                             }
                         }
                     }
@@ -243,7 +243,7 @@ __host__ void launch_complete_hydro_amr_boundary_cuda(double dx, bool
 
 void complete_hydro_amr_boundary_cpu(const double dx, const bool energy_only,
     const std::vector<std::vector<real>>& Ushad, const std::vector<int>& is_coarse,
-    const std::array<double, NDIM>& xmin, std::vector<std::vector<double>>& U) {
+    const std::array<double, NDIM>& xmin, f_data_t& U_flat) {
     // std::cout << "Calling hydro cpu version!" << std::endl;
 
     // std::vector<double, recycler::aggressive_recycle_aligned<double, 32>> unified_u(
@@ -295,7 +295,7 @@ void complete_hydro_amr_boundary_cpu(const double dx, const bool energy_only,
                                 const int oct_index = ir * 4 + jr * 2 + kr;
                                 for (int f = 0; f < opts().n_fields; f++) {
                                     if (!energy_only || f == egas_i) {
-                                        U[f][iiir] =
+                                        U_flat[(f) * H_N3 + iiir] =
                                             uf_local[f * 8 + oct_index];
                                     }
                                 }

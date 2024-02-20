@@ -6,6 +6,7 @@
 #ifndef OCTOTIGER_UNITIGER_PHYSICS_HPP_
 #define OCTOTIGER_UNITIGER_PHYSICS_HPP_
 
+#include "octotiger/unitiger/hydro.hpp"
 #include "octotiger/unitiger/safe_real.hpp"
 #include "octotiger/test_problems/blast.hpp"
 #include "octotiger/test_problems/exact_sod.hpp"
@@ -62,7 +63,7 @@ struct physics {
 	// static void to_prim_experimental(const double rho, const double sx, const double tau, const double egas, safe_real &p, safe_real &v, safe_real& c, int dim);
 	static void to_prim_experimental(const std::vector<double> &u, double &p, double &v, double &cs, const int dim) noexcept;
 
-	static void enforce_outflows(hydro::state_type &U, const hydro::x_type &X, int face) {
+	static void enforce_outflows(f_data_t &U, const hydro::x_type &X, int face) {
 
 	}
 
@@ -74,17 +75,17 @@ struct physics {
 			std::array<safe_real, NDIM> &vg);
 
 	template<int INX>
-	static void post_process(hydro::state_type &U, const hydro::x_type& X, safe_real dx);
+	static void post_process(f_data_t &U, const hydro::x_type& X, safe_real dx);
 
 	static void set_degenerate_eos(safe_real, safe_real);
         static void set_ideal_plus_rad_eos(safe_real, safe_real, safe_real, int, bool, safe_real);
 
 	template<int INX>
-	static void source(hydro::state_type &dudt, const hydro::state_type &U, const hydro::flux_type &F, const hydro::x_type X, safe_real omega, safe_real dx);
+	static void source(hydro::state_type &dudt, const f_data_t &U, const hydro::flux_type &F, const hydro::x_type X, safe_real omega, safe_real dx);
 
 	/*** Reconstruct uses this - GPUize****/
 	template<int INX>
-	static const hydro::state_type& pre_recon(const hydro::state_type &U, const hydro::x_type X, safe_real omega, bool angmom);
+	static const f_data_t& pre_recon(const f_data_t &U, const hydro::x_type X, safe_real omega, bool angmom);
 	/*** Reconstruct uses this - GPUize****/
 	template<int INX>
 	static void post_recon(std::vector<std::vector<std::vector<safe_real>>> &Q, const hydro::x_type X, safe_real omega, bool angmom);
@@ -92,13 +93,13 @@ struct physics {
 	using comp_type = hydro_computer<NDIM, INX, physics<NDIM>>;
 
 	template<int INX>
-	std::vector<typename comp_type<INX>::bc_type> initialize(test_type t, hydro::state_type &U, hydro::x_type &X);
+	std::vector<typename comp_type<INX>::bc_type> initialize(test_type t, f_data_t &U, hydro::x_type &X);
 
 	template<int INX>
-	static void analytic_solution(test_type test, hydro::state_type &U, const hydro::x_type &X, safe_real time);
+	static void analytic_solution(test_type test, f_data_t &U, const hydro::x_type &X, safe_real time);
 
 	template<int INX>
-	static const std::vector<std::vector<double>>& find_contact_discs(const hydro::state_type &U);
+	static const std::vector<std::vector<double>>& find_contact_discs(const f_data_t &U);
 
 	static void set_n_species(int n);
 	static int get_n_species() {
@@ -121,7 +122,7 @@ struct physics {
 	}
 
 	template<int INX>
-	static void enforce_outflow(hydro::state_type &U, int dim, int dir);
+	static void enforce_outflow(f_data_t &U, int dim, int dir);
 
 public:
 	static safe_real rho_sink_radius_;

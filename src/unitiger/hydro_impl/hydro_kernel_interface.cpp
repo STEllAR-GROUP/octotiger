@@ -75,8 +75,10 @@ using executor_interface_cuda_t = stream_interface<device_executor_cuda, device_
 #endif
 
 timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
-    const std::vector<std::vector<safe_real>>& U, std::vector<std::vector<safe_real>>& X,
-    const double omega, std::vector<hydro_state_t<std::vector<safe_real>>>& F,
+    f_data_t& U_flat, std::vector<std::vector<safe_real>>& X,
+    const double omega,
+    std::vector<hydro_state_t<std::vector<safe_real>>>& F,
+    f_data_t& F_flat,
     const interaction_host_kernel_type host_type, const interaction_device_kernel_type device_type,
     const size_t max_gpu_executor_queue_length) {
     static const cell_geometry<NDIM, INX> geo;
@@ -107,7 +109,7 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
             if (avail) {
                 // executor_interface_t executor;
                 max_lambda = launch_hydro_kokkos_kernels<device_executor>(
-                    hydro, U, X, omega, opts().n_species, F);
+                    hydro, U_flat, X, omega, opts().n_species, F_flat);
                 return max_lambda;
             }
         }
@@ -124,14 +126,14 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
             // Host execution is possible: Check if there is a launch slot for device - if not 
             // we will execute the kernel on the CPU instead
             if (host_type != interaction_host_kernel_type::DEVICE_ONLY) {
-                size_t device_id =
-                    stream_pool::get_next_device_id<device_executor_cuda, device_pool_strategy_cuda>(opts().number_gpus);
+                size_t device_id = stream_pool::get_next_device_id<device_executor_cuda,
+                    device_pool_strategy_cuda>(opts().number_gpus);
                 avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
                     device_pool_strategy_cuda>(max_gpu_executor_queue_length, device_id);
             }
             if (avail) {
                 size_t device_id = 0;
-                max_lambda = launch_hydro_cuda_kernels(hydro, U, X, omega, device_id, F);
+                max_lambda = launch_hydro_cuda_kernels(hydro, U_flat, X, omega, device_id, F_flat);
                 return max_lambda;
             }
         }
@@ -145,14 +147,14 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
 #ifdef OCTOTIGER_HAVE_HIP
             bool avail = true;
             if (host_type != interaction_host_kernel_type::DEVICE_ONLY) {
-                size_t device_id =
-                    stream_pool::get_next_device_id<device_executor_cuda, device_pool_strategy_cuda>(opts().number_gpus);
-              avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
-                  device_pool_strategy_cuda>(max_gpu_executor_queue_length, device_id);
+                size_t device_id = stream_pool::get_next_device_id<device_executor_cuda,
+                    device_pool_strategy_cuda>(opts().number_gpus);
+                avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
+                    device_pool_strategy_cuda>(max_gpu_executor_queue_length, device_id);
             }
             if (avail) {
                 size_t device_id = 0;
-                max_lambda = launch_hydro_cuda_kernels(hydro, U, X, omega, device_id, F);
+                max_lambda = launch_hydro_cuda_kernels(hydro, U_flat, X, omega, device_id, F_flat);
                 return max_lambda;
             }
         }
@@ -169,7 +171,7 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
 #ifdef OCTOTIGER_HAVE_KOKKOS
         hpx::call_once(init_hydro_kokkos_pool_flag, init_hydro_kokkos_aggregation_pool);
         max_lambda = launch_hydro_kokkos_kernels<host_executor>(
-            hydro, U, X, omega, opts().n_species, F);
+            hydro, U_flat, X, omega, opts().n_species, F_flat);
         return max_lambda;
 #else
         std::cerr << "Trying to call Hydro Kokkos kernels in a non-kokkos build! Aborting..."
@@ -183,12 +185,12 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
 #ifdef HPX_HAVE_APEX
         auto reconstruct_timer = apex::start("kernel hydro_reconstruct legacy");
 #endif
-        const auto& q = hydro.reconstruct(U, X, omega);
+        const auto& q = hydro.reconstruct(U_flat, X, omega);
 #ifdef HPX_HAVE_APEX
         apex::stop(reconstruct_timer);
         auto flux_timer = apex::start("kernel hydro_flux legacy");
 #endif
-        max_lambda = hydro.flux(U, q, f, X, omega);
+        max_lambda = hydro.flux(U_flat, q, f, X, omega);
         octotiger::hydro::hydro_legacy_subgrids_processed++;
 #ifdef HPX_HAVE_APEX
         apex::stop(flux_timer);
@@ -200,13 +202,15 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
                     for (integer j = 0; j <= INX; ++j) {
                         for (integer k = 0; k <= INX; ++k) {
                             const auto i0 = findex(i, j, k);
-                            F[dim][field][i0] = f[dim][field][hindex(i + H_BW, j + H_BW, k + H_BW)];
+                            F_flat[dim * opts().n_fields * F_N3 + field * F_N3 + i0] =
+                                f[dim][field][hindex(i + H_BW, j + H_BW, k + H_BW)];
+                            /* F[dim][field][i0] = f[dim][field][hindex(i + H_BW, j + H_BW, k + H_BW)]; */
                             real rho_tot = 0.0;
                             for (integer field = spc_i; field != spc_i + opts().n_species;
                                  ++field) {
-                                rho_tot += F[dim][field][i0];
+                                rho_tot += F_flat[dim * opts().n_fields * F_N3 + field * F_N3 + i0];
                             }
-                            F[dim][rho_i][i0] = rho_tot;
+                            F_flat[dim * opts().n_fields * F_N3 + rho_i * F_N3 + i0] = rho_tot;
                         }
                     }
                 }

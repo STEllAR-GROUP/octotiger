@@ -234,7 +234,7 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
       /* fut.get(); */
       hpx::future<std::shared_ptr<node_server>> pf = hpx::get_ptr<node_server>(neighbors[dir].get_gid());
       auto direct_access = pf.get();
-      const auto &uneighbor = direct_access->grid_ptr->U;
+      const auto &uneighbor = direct_access->grid_ptr->U_flat;
 
       std::array<integer, NDIM> lb_orig, ub_orig;
       std::array<integer, NDIM> lb_target, ub_target;
@@ -250,9 +250,9 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
             const int j_target = j + lb_target[YDIM];
             const int k_orig = lb_orig[ZDIM];
             const int k_target = lb_target[ZDIM];
-            std::copy(uneighbor[field].begin() + hindex(i_orig, j_orig, k_orig),
-                uneighbor[field].begin() + hindex(i_orig, j_orig, k_orig) + ub_target[ZDIM] - lb_target[ZDIM],
-                (grid_ptr->U)[field].begin() + hindex(i_target, j_target, k_target));
+            std::copy(uneighbor.begin() + field * H_N3 + hindex(i_orig, j_orig, k_orig),
+                uneighbor.begin() + field * H_N3 + hindex(i_orig, j_orig, k_orig) + ub_target[ZDIM] - lb_target[ZDIM],
+                (grid_ptr->U_flat).begin() + field * H_N3 + hindex(i_target, j_target, k_target));
 
             /* for (integer k = 0; k < ub_target[ZDIM] - lb_target[ZDIM]; ++k) { */
             /*   const int k_orig = k + lb_orig[ZDIM]; */
@@ -277,7 +277,7 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
       // Get neighbor data and the required boundaries for copying the ghostlayer
       hpx::future<std::shared_ptr<node_server>> pf = hpx::get_ptr<node_server>(parent.get_gid());
       auto direct_access = pf.get();
-      const auto &uneighbor = direct_access->grid_ptr->U;
+      const auto &uneighbor = direct_access->grid_ptr->U_flat;
       std::array<integer, NDIM> lb_orig, ub_orig;
       std::array<integer, NDIM> lb_target, ub_target;
       get_boundary_size(lb_target, ub_target, dir, OUTER, INX / 2, H_BW);
@@ -322,8 +322,8 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
               const int j_target = j + lb_target[YDIM];
               const int k_orig = lb_orig[ZDIM];
               const int k_target = lb_target[ZDIM];
-              std::copy(uneighbor[field].begin() + hindex(i_orig, j_orig, k_orig),
-                  uneighbor[field].begin() + hindex(i_orig, j_orig, k_orig) + ub_target[ZDIM] - lb_target[ZDIM],
+              std::copy(uneighbor.begin() + field * H_N3 + hindex(i_orig, j_orig, k_orig),
+                  uneighbor.begin() + field * H_N3 + hindex(i_orig, j_orig, k_orig) + ub_target[ZDIM] - lb_target[ZDIM],
                   (grid_ptr->Ushad)[field].begin() + hSindex(i_target, j_target, k_target));
 
               /* for (integer k = 0; k < ub_target[ZDIM] - lb_target[ZDIM]; ++k) { */
@@ -396,20 +396,20 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
 			/* 		pool_strategy>(opts().max_gpu_executor_queue_length); */
 		if (!avail) { // no stream is available or flag is turned off, proceed with CPU implementations
 	#if defined __x86_64__ && defined OCTOTIGER_HAVE_VC
-			complete_hydro_amr_boundary_vc(dx, energy_only, grid_ptr->Ushad, grid_ptr->is_coarse, xmin, grid_ptr->U);
+			complete_hydro_amr_boundary_vc(dx, energy_only, grid_ptr->Ushad, grid_ptr->is_coarse, xmin, grid_ptr->U_flat);
 	#else
-			complete_hydro_amr_boundary_cpu(dx, energy_only, grid_ptr->Ushad, grid_ptr->is_coarse, xmin, grid_ptr->U);
+			complete_hydro_amr_boundary_cpu(dx, energy_only, grid_ptr->Ushad, grid_ptr->is_coarse, xmin, grid_ptr->U_flat);
 	#endif
 		} else { // Run on GPU
 			launch_complete_hydro_amr_boundary_cuda(dx, energy_only, grid_ptr->Ushad,
-			grid_ptr->is_coarse, xmin, grid_ptr->U);
+			grid_ptr->is_coarse, xmin, grid_ptr->U_flat);
 		}
 // None GPU build -> run on CPU
 #else
 	#if defined __x86_64__ && defined OCTOTIGER_HAVE_VC
-		complete_hydro_amr_boundary_vc(dx, energy_only, grid_ptr->Ushad, grid_ptr->is_coarse, xmin, grid_ptr->U);
+		complete_hydro_amr_boundary_vc(dx, energy_only, grid_ptr->Ushad, grid_ptr->is_coarse, xmin, grid_ptr->U_flat);
 	#else
-		complete_hydro_amr_boundary_cpu(dx, energy_only, grid_ptr->Ushad, grid_ptr->is_coarse, xmin, grid_ptr->U);
+		complete_hydro_amr_boundary_cpu(dx, energy_only, grid_ptr->Ushad, grid_ptr->is_coarse, xmin, grid_ptr->U_flat);
 	#endif
 #endif
 	}

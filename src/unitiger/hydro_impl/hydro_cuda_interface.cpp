@@ -107,9 +107,13 @@ __host__ bool* get_gpu_masks(const size_t gpu_id = 0) {
 // Output F
 // TODO remove obsolete executor
 timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
-    const std::vector<std::vector<safe_real>>& U, const std::vector<std::vector<safe_real>>& X,
+    const f_data_t& U_flat, const std::vector<std::vector<safe_real>>& X,
     const double omega, const size_t device_id,
-    std::vector<hydro_state_t<std::vector<safe_real>>>& F) {
+#if defined(OCTOTIGER_HAVE_CUDA) || (defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_CUDA)))
+    std::vector<real, recycler::detail::cuda_pinned_allocator<real>>& F_flat) {
+#else
+    std::vector<real>& F_flat) {
+#endif
 
     // Init local kernel pool if not done already
     hpx::call_once(init_hydro_pool_flag, init_hydro_aggregation_pool);
@@ -205,10 +209,12 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
           [&]() {
               // Convert input
               convert_x_structure(X, combined_x.data() + x_slice_offset * slice_id);
-              for (int f = 0; f < hydro.get_nf(); f++) {
-                  std::copy(U[f].begin(), U[f].end(),
-                      combined_u.data() + f * H_N3 + u_slice_offset * slice_id);
-              }
+              /* for (int f = 0; f < hydro.get_nf(); f++) { */
+                  /* std::copy(U[f].begin(), U[f].end(), */
+                  /*     combined_u.data() + f * H_N3 + u_slice_offset * slice_id); */
+              /* } */
+                  std::copy(U_flat.begin(), U_flat.end(),
+                      combined_u.data());
           },
           "cuda_hydro_solver::convert_input")();
 
@@ -384,7 +390,9 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
                             const auto i0 = findex(i, j, k);
                             const auto input_index =
                                 (i + 1) * q_inx * q_inx + (j + 1) * q_inx + (k + 1);
-                            F[dim][field][i0] =
+                            /* F[dim][field][i0] = */
+                            /*     f[dim_offset + input_index + f_slice_offset * slice_id]; */
+                            F_flat[dim * nf_local * F_N3 + field * F_N3 + i0] =
                                 f[dim_offset + input_index + f_slice_offset * slice_id];
                             // std::cout << F[dim][field][i0] << " ";
                         }
