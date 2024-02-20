@@ -950,8 +950,6 @@ namespace fmm {
             aggregated_host_buffer<double, executor_t>& results,
             const aggregated_host_buffer<double, executor_t>& dx, double theta) {
 
-            const int slice_id = agg_exec.id;
-            const int number_slices = agg_exec.number_slices;
             const int max_slices = opts().max_kernels_fused;
             auto alloc_device_double =
                 agg_exec
