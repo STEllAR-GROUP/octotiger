@@ -51,8 +51,9 @@ static_assert(host_simd_mask_t::size() == 2);
 namespace SIMD_NAMESPACE = sve::experimental::parallelism_v2;
 using host_simd_t = sve::experimental::native_simd<double>;
 using host_simd_mask_t = sve::experimental::native_simd_mask<double>;
-static_assert(host_simd_t::size() == 8);
-static_assert(host_simd_mask_t::size() == 8);
+static_assert(host_simd_t::size() == 8 || host_simd_t::size() == 4 || host_simd_t::size() == 2);
+static_assert(host_simd_mask_t::size() == 8 || host_simd_mask_t::size() == 4 ||
+    host_simd_mask_t::size() == 2);
 #elif defined(OCTOTIGER_KOKKOS_SIMD_VSX)
 #if !(defined(__VSX__)
 #error "VSX Kokkos kernels are specified explicitly but build is without VSX support."
