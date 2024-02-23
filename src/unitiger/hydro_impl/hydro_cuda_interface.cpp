@@ -111,6 +111,8 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
     const double omega, const size_t device_id,
 #if defined(OCTOTIGER_HAVE_CUDA) || (defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_CUDA)))
     std::vector<real, recycler::detail::cuda_pinned_allocator<real>>& F_flat) {
+#elif defined(OCTOTIGER_HAVE_HIP) || (defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_HIP)))
+    std::vector<real, recycler::detail::cuda_pinned_allocator<real>>& F_flat) {
 #else
     std::vector<real>& F_flat) {
 #endif
