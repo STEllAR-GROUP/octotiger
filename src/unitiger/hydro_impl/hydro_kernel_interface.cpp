@@ -24,7 +24,7 @@ static const char module_identifier_hydro[] = "hydro_solver";
 const int init_sycl_device_hydro =
     octotiger::sycl_util::touch_sycl_device_by_running_a_dummy_kernel<module_identifier_hydro>();
 #else
-#warning "SYCL builds without OCTOTIGER_WITH_INTEL_GPU_WORKAROUND=ON may break on Intel GPUs"
+#pragma message "SYCL builds without OCTOTIGER_WITH_INTEL_GPU_WORKAROUND=ON may break on Intel GPUs"
 #endif
 #endif
 
