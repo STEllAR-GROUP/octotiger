@@ -51,6 +51,9 @@ option(OCTOTIGER_WITH_QUADMATH "Enable sections using GCC Quad-Precision Math Li
 option(OCTOTIGER_WITH_Vc "" ON)
 # Re-enables Vc datatypes in the octotiger parts - use with caution
 option(OCTOTIGER_WITH_LEGACY_Vc "" OFF)
+# Use workaround to make Intel GPUs work as intended
+# May cause rare segfault during cleanup when using the KOKKOS SYCL backend on NVIDIA hardware
+option(OCTOTIGER_WITH_INTEL_GPU_WORKAROUND "This activates a workaround that enables SYCL builds to run on Intel GPUs with Octotiger (but cause problems for SYCL builds with CUDA" OFF)
 
 # TODO Can these safely be removed? They should be deprecated
 option(OCTOTIGER_WITH_AVX "" OFF)
@@ -740,6 +743,13 @@ elseif(OCTOTIGER_WITH_Vc AND USE_AVX AND OCTOTIGER_WITH_AVX)
   message(STATUS "Enabled AVX compile options")
   set(OCTOTIGER_WITH_AVX2 OFF CACHE BOOL "" FORCE)
   set(OCTOTIGER_WITH_AVX512 OFF CACHE BOOL "" FORCE)
+endif()
+
+# Intel GPU workarounds...
+if(OCTOTIGER_WITH_INTEL_GPU_WORKAROUND)
+  message(WARNING " Compiling with SYCL Intel GPU workaround (might cause cleanup segfaults when using the SYCL CUDA backend)")
+  target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_INTEL_GPU_WORKAROUND)
+  target_compile_definitions(hydrolib PUBLIC OCTOTIGER_HAVE_INTEL_GPU_WORKAROUND)
 endif()
 
 # Handle CUDA
