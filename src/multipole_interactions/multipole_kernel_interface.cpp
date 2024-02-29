@@ -30,12 +30,16 @@
 #include "octotiger/options.hpp"
 
 #if defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_SYCL)
+#if defined(OCTOTIGER_HAVE_INTEL_GPU_WORKAROUND)
 #include "octotiger/sycl_initialization_guard.hpp"
 static const char module_identifier_multipoles[] = "gravity_solver_multipoles";
 /// Dummy variable to ensure the touch_sycl_device_by_running_a_dummy_kernel is being run
 const int init_sycl_device_multipoles =
     octotiger::sycl_util::touch_sycl_device_by_running_a_dummy_kernel<
         module_identifier_multipoles>();
+#else
+#pragma message "SYCL builds without OCTOTIGER_WITH_INTEL_GPU_WORKAROUND=ON may break on Intel GPUs"
+#endif
 #endif
 
 #ifdef OCTOTIGER_HAVE_KOKKOS
