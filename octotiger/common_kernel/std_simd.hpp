@@ -45,9 +45,11 @@ using host_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_
 static_assert(host_simd_t::size() == 2);
 static_assert(host_simd_mask_t::size() == 2);
 #elif defined(OCTOTIGER_KOKKOS_SIMD_SVE)
+#ifndef __ARM_FEATURE_SVE
+#error "SVE Kokkos kernels are specified explicitly but build is without SVE support (__ARM_FEATURE_SVE not defined). Check architecture flags!"
+#endif
 // Use custom sve types from Srinivas
 #include <sve/sve.hpp> 
-#warning "SVE build"
 namespace SIMD_NAMESPACE = sve::experimental::parallelism_v2;
 using host_simd_t = sve::experimental::native_simd<double>;
 using host_simd_mask_t = sve::experimental::native_simd_mask<double>;
