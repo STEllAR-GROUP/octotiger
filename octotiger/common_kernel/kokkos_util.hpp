@@ -201,4 +201,5 @@ using normal_host_buffer = kokkos_host_array<T>;
 template <typename T>
 using normal_device_buffer = kokkos_device_array<T>;
 
+
 #endif
