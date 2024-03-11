@@ -99,8 +99,8 @@ __global__ void __launch_bounds__(128, 2) flux_cuda_kernel(const double* __restr
             mask_helper2_array.data(), SIMD_NAMESPACE::element_aligned_tag{});
         const simd_mask_t mask = mask_helper1 == mask_helper2;
         if (SIMD_NAMESPACE::any_of(mask)) {
+            simd_t this_ap = 0.0, this_am = 0.0;    // tmps
             for (int fi = 0; fi < 9; fi++) {            // 9
-                simd_t this_ap = 0.0, this_am = 0.0;    // tmps
                 const int d = faces[dim][fi];
                 const int flipped_dim = flip_dim(d, dim);
                 for (int dim = 0; dim < 3; dim++) {
@@ -122,6 +122,8 @@ __global__ void __launch_bounds__(128, 2) flux_cuda_kernel(const double* __restr
                     local_q[f].copy_from(q_with_offset + f * face_offset +
                             dim_offset * d + index,
                         SIMD_NAMESPACE::element_aligned_tag{});
+                    assert(index - compressedH_DN[dim] >= 0 &&
+                        index - compressedH_DN[dim] < q_inx3);
                     local_q_flipped[f].copy_from(q_with_offset +
                             f * face_offset + dim_offset * flipped_dim -
                             compressedH_DN[dim] + index,
@@ -137,18 +139,6 @@ __global__ void __launch_bounds__(128, 2) flux_cuda_kernel(const double* __restr
                     face_offset);
                 this_ap = SIMD_NAMESPACE::choose(mask, this_ap, simd_t(0.0));
                 this_am = SIMD_NAMESPACE::choose(mask, this_am, simd_t(0.0));
-                const simd_t amax_tmp = SIMD_NAMESPACE::max(this_ap, (-this_am));
-                // Reduce
-                // TODO Reduce outside of inner loop?
-                std::array<double, simd_t::size()> max_helper;
-                amax_tmp.copy_to(max_helper.data(), SIMD_NAMESPACE::element_aligned_tag{});
-                for (int i = 0; i < simd_t::size(); i++) {
-                  if (max_helper[i] > current_amax) {
-                      current_amax = max_helper[i];
-                      current_d = d;
-                      current_i = index + i;
-                  }
-                }
                 for (int f = 1; f < nf; f++) {
                     simd_t current_val(
                         f_combined + dim * nf * q_inx3 + f * q_inx3 + index + f_slice_offset,
@@ -159,15 +149,22 @@ __global__ void __launch_bounds__(128, 2) flux_cuda_kernel(const double* __restr
                     current_val.copy_to(f_combined + dim
                       * nf * q_inx3 + f * q_inx3 + index + f_slice_offset,
                       SIMD_NAMESPACE::element_aligned_tag{});
-                    /* f_combined[dim * nf * q_inx3 + f * q_inx3 + index + f_slice_offset] += */
-                    /*     quad_weights[fi] * local_f[f]; */
+                }
+            }
+            // Get max
+            const simd_t amax_tmp = SIMD_NAMESPACE::max(this_ap, (-this_am));
+            std::array<double, simd_t::size()> max_helper;
+            amax_tmp.copy_to(max_helper.data(), SIMD_NAMESPACE::element_aligned_tag{});
+            for (int i = 0; i < simd_t::size(); i++) {
+                if (max_helper[i] > current_amax) {
+                    current_amax = max_helper[i];
+                    current_d = faces[dim][8];
+                    current_i = index + i;
                 }
             }
         }
-        simd_t current_val(
-          f_combined + dim * nf * q_inx3 + index + f_slice_offset,
-          SIMD_NAMESPACE::element_aligned_tag{});
-        for (int f = 10; f < nf; f++) {
+        simd_t current_val = 0.0;
+        for (int f = spc_i; f < nf; f++) {
             simd_t current_field_val(
                 f_combined + dim * nf * q_inx3 + f * q_inx3 + index + f_slice_offset,
                 SIMD_NAMESPACE::element_aligned_tag{});

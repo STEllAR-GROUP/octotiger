@@ -274,6 +274,7 @@ public:
 		arc & max_kernels_fused;
 	  arc & root_node_on_device;
 	  arc & optimize_local_communication;
+    arc & polling_threads;
     arc & detected_intel_compiler;
     arc & print_times_per_timestep;
 		arc & atomic_mass;

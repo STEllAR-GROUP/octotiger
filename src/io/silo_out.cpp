@@ -97,14 +97,14 @@ void output_stage1(std::string fname, int cycle) {
   }
 	std::vector<node_location::node_id> ids;
 	futs_.clear();
-	const auto *node_ptr_ = node_registry::begin()->second.get_ptr().get();
+	const auto node_ptr_ = node_registry::begin()->second.get_ptr().get();
 	silo_output_time() = node_ptr_->get_time() * opts().code_to_s;
 	silo_output_rotation_time() = node_ptr_->get_rotation_count();
 	for (auto i = node_registry::begin(); i != node_registry::end(); ++i) {
-		const auto *node_ptr_ = GET(i->second.get_ptr());
+		const auto node_ptr_ = GET(i->second.get_ptr());
 		if (!node_ptr_->refined()) {
 			futs_.push_back(hpx::async(hpx::launch::async_policy(hpx::threads::thread_priority::boost), [](node_location loc, node_registry::node_ptr ptr) {
-				const auto *this_ptr = ptr.get_ptr().get();
+				const auto this_ptr = ptr.get_ptr().get();
 				assert(this_ptr);
 				const real dx = TWO / real(1 << loc.level()) / real(INX);
 				mesh_vars_t rc(loc);
