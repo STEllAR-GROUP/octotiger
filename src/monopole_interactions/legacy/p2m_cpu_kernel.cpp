@@ -749,21 +749,21 @@ namespace fmm {
             }
         }
         // Required template instances (as template declaration is in the header)
-        template void p2m_kernel::apply_stencil_neighbor<INX * INX * STENCIL_MAX>(
+        template void p2m_kernel::apply_stencil_neighbor<((INX == STENCIL_MAX)? INX+1 : INX) * ((INX == STENCIL_MAX)? INX+1 : INX) * STENCIL_MAX>(
             const multiindex<>&, const multiindex<>&, const multiindex<>&,
-            const struct_of_array_data<expansion, real, 20, INX * INX * STENCIL_MAX, SOA_PADDING,
+            const struct_of_array_data<expansion, real, 20, ((INX == STENCIL_MAX)? INX+1 : INX) * ((INX == STENCIL_MAX)? INX+1 : INX) * STENCIL_MAX, SOA_PADDING,
                 std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&,
-            const struct_of_array_data<space_vector, real, 3, INX * INX * STENCIL_MAX, SOA_PADDING,
+            const struct_of_array_data<space_vector, real, 3, ((INX == STENCIL_MAX)? INX+1 : INX) * ((INX == STENCIL_MAX)? INX+1 : INX) * STENCIL_MAX, SOA_PADDING,
                 std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&,
             const struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
                 std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&,
             cpu_expansion_result_buffer_t&, cpu_angular_result_t&, const std::vector<bool>&,
             gsolve_type, const geo::direction&);
-        template void p2m_kernel::apply_stencil_neighbor<INX * STENCIL_MAX * STENCIL_MAX>(
+        template void p2m_kernel::apply_stencil_neighbor<((INX == STENCIL_MAX)? INX+1 : INX) * STENCIL_MAX * STENCIL_MAX>(
             const multiindex<>&, const multiindex<>&, const multiindex<>&,
-            const struct_of_array_data<expansion, real, 20, INX * STENCIL_MAX * STENCIL_MAX, SOA_PADDING,
+            const struct_of_array_data<expansion, real, 20, ((INX == STENCIL_MAX)? INX+1 : INX) * STENCIL_MAX * STENCIL_MAX, SOA_PADDING,
                 std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&,
-            const struct_of_array_data<space_vector, real, 3, INX * STENCIL_MAX * STENCIL_MAX, SOA_PADDING,
+            const struct_of_array_data<space_vector, real, 3, ((INX == STENCIL_MAX)? INX+1 : INX) * STENCIL_MAX * STENCIL_MAX, SOA_PADDING,
                 std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&,
             const struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
                 std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&,
