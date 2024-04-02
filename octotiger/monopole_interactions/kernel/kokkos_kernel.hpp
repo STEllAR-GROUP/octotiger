@@ -4,7 +4,6 @@
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 //
 
-#include "octotiger/aggregation_util.hpp"
 #include "octotiger/common_kernel/interaction_constants.hpp"
 #include "octotiger/defs.hpp"
 #include "octotiger/monopole_interactions/kernel/monopole_kernel_templates.hpp"
@@ -19,6 +18,7 @@
 #ifdef HPX_HAVE_APEX
 #include <apex_api.hpp>
 #endif
+#include "octotiger/aggregation_util.hpp"
 static const char monopole_kokkos_kernel_identifier[] = "monopole_kernel_aggregator_kokkos";
 template <typename executor_t>
 using monopole_kokkos_agg_executor_pool =
@@ -950,8 +950,6 @@ namespace fmm {
             aggregated_host_buffer<double, executor_t>& results,
             const aggregated_host_buffer<double, executor_t>& dx, double theta) {
 
-            const int slice_id = agg_exec.id;
-            const int number_slices = agg_exec.number_slices;
             const int max_slices = opts().max_kernels_fused;
             auto alloc_device_double =
                 agg_exec
