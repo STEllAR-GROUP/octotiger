@@ -26,10 +26,8 @@
 #include <aligned_buffer_util.hpp>
 #include <buffer_manager.hpp>
 #include <stream_manager.hpp>
-#include <aggregation_manager.hpp>
 
 #include "octotiger/options.hpp"
-#include "octotiger/aggregation_util.hpp"
 
 #if defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_SYCL)
 #if defined(OCTOTIGER_HAVE_INTEL_GPU_WORKAROUND)
