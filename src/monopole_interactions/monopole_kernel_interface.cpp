@@ -120,13 +120,8 @@ namespace fmm {
                     }
                     // TODO p2m kokkos bug - probably not enough threads for a wavefront
                     // TODO how to identify the intel sycl compile here?
-#if defined(KOKKOS_ENABLE_HIP) || defined(KOKKOS_ENABLE_SYCL)
                     if (contains_multipole_neighbor) // TODO Add device_only warning
                         avail = false;
-#elif (defined(KOKKOS_ENABLE_CUDA) && defined(__clang__) )
-                    /* if (contains_multipole_neighbor && opts().detected_intel_compiler) // TODO Add device_only warning */
-                    /*     avail = false; */
-#endif
                     if (avail) {
                         if (contains_multipole_neighbor) {
                             executor_interface_t executor{device_id};
