@@ -18,9 +18,17 @@
 #ifdef HPX_HAVE_APEX
 #include <apex_api.hpp>
 #endif
+#include "octotiger/aggregation_util.hpp"
+static const char monopole_kokkos_kernel_identifier[] = "monopole_kernel_aggregator_kokkos";
+template <typename executor_t>
+using monopole_kokkos_agg_executor_pool =
+    aggregation_pool<monopole_kokkos_kernel_identifier, executor_t,
+        round_robin_pool<executor_t>>;
+
 namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
+
         // --------------------------------------- Stencil interface
 
         template <typename storage>
@@ -309,6 +317,200 @@ namespace fmm {
                             cell_flat_index_unpadded + INX,
                         SIMD_NAMESPACE::element_aligned_tag{});
                 });
+        }
+        template <typename simd_t, typename simd_mask_t, typename agg_executor_t,
+            typename agg_kokkos_buffer_t, typename kokkos_buffer_t, typename kokkos_mask_t>
+        void p2p_kernel_agg_impl(
+            agg_executor_t& agg_exec,
+            const agg_kokkos_buffer_t& monopoles_agg, const kokkos_mask_t& devicemasks,
+            const kokkos_buffer_t& constants, agg_kokkos_buffer_t& potential_expansions_agg,
+            const agg_kokkos_buffer_t& dx_agg, const double theta,
+            const Kokkos::Array<long, 4>&& tiling_config) {
+            if (agg_exec.sync_aggregation_slices()) {
+                const int number_slices = agg_exec.number_slices;
+                const int max_slices = opts().max_kernels_fused;
+                using kokkos_executor_t = typename std::remove_reference<
+                    decltype(agg_exec.get_underlying_executor())>::type;
+                using kokkos_backend_t = decltype(agg_exec.get_underlying_executor().instance());
+                static_assert(std::is_same<hpx::kokkos::executor<kokkos_backend_t>,
+                                  typename std::remove_reference<
+                                      decltype(agg_exec.get_underlying_executor())>::type>::value,
+                    " backend mismatch!");
+
+                const int gpu_id = agg_exec.parent.gpu_id;
+                stream_pool::select_device<hpx::kokkos::executor<kokkos_backend_t>,
+                    round_robin_pool<hpx::kokkos::executor<kokkos_backend_t>>>(gpu_id);
+                auto policy_1 = Kokkos::Experimental::require(
+                    Kokkos::MDRangePolicy<decltype(agg_exec.get_underlying_executor().instance()),
+                        Kokkos::Rank<4>>(agg_exec.get_underlying_executor().instance(),
+                          {0, 0, 0, 0},
+                        {number_slices, INX, INX / 2, INX / simd_t::size()}, tiling_config),
+                    Kokkos::Experimental::WorkItemProperty::HintLightWeight);
+
+                // Kokkos::parallel_for("kernel p2p", policy_1,
+                //   [monopoles, potential_expansions, devicemasks, dx, theta] CUDA_GLOBAL_METHOD(
+                //       int idx, int idy, int idz) {
+                Kokkos::parallel_for(
+                    "kernel p2p agg", policy_1,
+                    KOKKOS_LAMBDA(const int slice_id, const int idx, const int idy, const int idz) {
+                        auto [monopoles_slice, dx_slice, potential_expansions_slice] =
+                            map_views_to_slice(slice_id, max_slices,
+                                monopoles_agg, dx_agg,
+                                potential_expansions_agg);
+                        // helper variables
+                        constexpr size_t simd_length = simd_t::size();
+                        constexpr size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
+                        const multiindex<> cell_index(idx + INNER_CELLS_PADDING_DEPTH,
+                            idy * 2 + INNER_CELLS_PADDING_DEPTH,
+                            idz * simd_length + INNER_CELLS_PADDING_DEPTH);
+                        const size_t cell_flat_index = to_flat_index_padded(cell_index);
+                        multiindex<> cell_index_unpadded(idx, idy * 2, idz * simd_length);
+                        const size_t cell_flat_index_unpadded =
+                            to_inner_flat_index_not_padded(cell_index_unpadded);
+
+                        const int32_t cell_index_coarse_x = ((cell_index.x + INX) >> 1) - (INX / 2);
+                        const int32_t cell_index_coarse_y = ((cell_index.y + INX) >> 1) - (INX / 2);
+                        const int32_t cell_index_coarse_y2 =
+                            ((cell_index.y + 1 + INX) >> 1) - (INX / 2);
+                        int32_t cell_index_coarse_z[simd_length];
+                        for (int i = 0; i < simd_length; i++) {
+                            cell_index_coarse_z[i] = ((cell_index.z + i + INX) >> 1) - (INX / 2);
+                        }
+
+                        const simd_t theta_rec_squared((1.0 / theta) * (1.0 / theta));
+                        simd_t theta_c_rec_squared;
+                        double theta_c_rec_squared_array[simd_length];
+                        simd_t theta_c_rec_squared2;
+                        double theta_c_rec_squared_array2[simd_length];
+
+                        const double d_components[2] = {1.0 / dx_slice[0], -1.0 / dx_slice[0]};
+                        simd_t tmpstore[4] = {simd_t(0.0), simd_t(0.0), simd_t(0.0), simd_t(0.0)};
+                        simd_t tmpstore2[4] = {simd_t(0.0), simd_t(0.0), simd_t(0.0), simd_t(0.0)};
+                        multiindex<> partner_index;
+
+
+                        // Go through all possible stance elements for the two cells this thread
+                        // is responsible for
+
+                        // Loop gets executed once on GPU (as we have multiple blocks to replace it)
+                        // and NUMBER_P2P_BLOCKS often on CPU
+                        /* for (int x_iteration = 0; x_iteration <= NUMBER_P2P_BLOCKS - p2p_blocks; */
+                        /*      x_iteration++) { */
+                        /*     const int x = block_id + x_iteration; */
+                        /*     const int stencil_x = x + STENCIL_MIN; */
+
+                        for (int stencil_x = STENCIL_MIN; stencil_x <= STENCIL_MAX; stencil_x++) {
+                            
+                            partner_index.x = cell_index.x + stencil_x;
+                            const int32_t partner_index_coarse_x =
+                                ((partner_index.x + INX) >> 1) - (INX / 2);
+                            const int32_t distance_x =
+                                (cell_index_coarse_x - partner_index_coarse_x)
+                                *
+                                (cell_index_coarse_x - partner_index_coarse_x);
+                            const int x = stencil_x - STENCIL_MIN;
+                            for (int stencil_y = STENCIL_MIN; stencil_y <= STENCIL_MAX;
+                                 stencil_y++) {
+                                partner_index.y = cell_index.y + stencil_y;
+                                const int32_t partner_index_coarse_y =
+                                    ((partner_index.y + INX) >> 1) - (INX / 2);
+                                const int32_t partner_index_coarse_y2 =
+                                    ((partner_index.y + 1 + INX) >> 1) - (INX / 2);
+                                const int32_t distance_y =
+                                    (cell_index_coarse_y - partner_index_coarse_y) *
+                                    (cell_index_coarse_y - partner_index_coarse_y);
+                                const int32_t distance_y2 =
+                                    (cell_index_coarse_y2 - partner_index_coarse_y2) *
+                                    (cell_index_coarse_y2 - partner_index_coarse_y2);
+                                const int y = stencil_y - STENCIL_MIN;
+                                for (int stencil_z = STENCIL_MIN; stencil_z <= STENCIL_MAX;
+                                     stencil_z++) {
+                                    const size_t index = x * STENCIL_INX * STENCIL_INX +
+                                        y * STENCIL_INX + (stencil_z - STENCIL_MIN);
+                                    // Skip stuff that is too far away
+                                    if (!devicemasks[index]) {
+                                        continue;
+                                    }
+                                    partner_index.z = cell_index.z + stencil_z;
+                                    for (int i = 0; i < simd_length; i++) {
+                                        const int32_t partner_index_coarse_z =
+                                            ((partner_index.z + i + INX) >> 1) - (INX / 2);
+                                        theta_c_rec_squared_array[i] = static_cast<double>(
+                                            distance_x + distance_y +
+                                            (cell_index_coarse_z[i] - partner_index_coarse_z) *
+                                                (cell_index_coarse_z[i] - partner_index_coarse_z));
+                                        theta_c_rec_squared_array2[i] = static_cast<double>(
+                                            distance_x + distance_y2 +
+                                            (cell_index_coarse_z[i] - partner_index_coarse_z) *
+                                                (cell_index_coarse_z[i] - partner_index_coarse_z));
+                                    }
+                                    theta_c_rec_squared.copy_from(theta_c_rec_squared_array,
+                                        SIMD_NAMESPACE::element_aligned_tag{});
+                                    theta_c_rec_squared2.copy_from(theta_c_rec_squared_array2,
+                                        SIMD_NAMESPACE::element_aligned_tag{});
+
+                                    const simd_mask_t mask =
+                                        theta_c_rec_squared < theta_rec_squared;
+                                    const simd_mask_t mask2 =
+                                        theta_c_rec_squared2 < theta_rec_squared;
+                                    if (!SIMD_NAMESPACE::any_of(mask) &&
+                                        !SIMD_NAMESPACE::any_of(mask2)) {
+                                        continue;
+                                    }
+
+                                    const size_t partner_flat_index =
+                                        to_flat_index_padded(partner_index);
+                                    simd_t monopole(monopoles_slice.data() + partner_flat_index,
+                                        SIMD_NAMESPACE::element_aligned_tag{});
+                                    simd_t monopole2(monopoles_slice.data() + partner_flat_index + INX +
+                                            2 * STENCIL_MAX,
+                                        SIMD_NAMESPACE::element_aligned_tag{});
+                                    monopole = SIMD_NAMESPACE::choose(mask, monopole, simd_t(0.0));
+                                    monopole2 =
+                                        SIMD_NAMESPACE::choose(mask2, monopole2, simd_t(0.0));
+                                    monopole = monopole * d_components[0];
+                                    monopole2 = monopole2 * d_components[0];
+
+                                    const simd_t four[4] = {constants[index * 4 + 0],
+                                        constants[index * 4 + 1], constants[index * 4 + 2],
+                                        constants[index * 4 + 3]};
+                                    tmpstore[0] += four[0] * monopole;
+                                    tmpstore2[0] += four[0] * monopole2;
+                                    tmpstore[1] += four[1] * monopole * d_components[1];
+                                    tmpstore2[1] += four[1] * monopole2 * d_components[1];
+                                    tmpstore[2] += four[2] * monopole * d_components[1];
+                                    tmpstore2[2] += four[2] * monopole2 * d_components[1];
+                                    tmpstore[3] += four[3] * monopole *
+                                      d_components[1];
+                                    tmpstore2[3] += four[3] * monopole2 * d_components[1];
+                                }
+                            }
+                        }
+                        tmpstore[0].copy_to(potential_expansions_slice.data() + cell_flat_index_unpadded,
+                            SIMD_NAMESPACE::element_aligned_tag{});
+                        tmpstore[1].copy_to(potential_expansions_slice.data() +
+                                1 * component_length_unpadded + cell_flat_index_unpadded,
+                            SIMD_NAMESPACE::element_aligned_tag{});
+                        tmpstore[2].copy_to(potential_expansions_slice.data() +
+                                2 * component_length_unpadded + cell_flat_index_unpadded,
+                            SIMD_NAMESPACE::element_aligned_tag{});
+                        tmpstore[3].copy_to(potential_expansions_slice.data() +
+                                3 * component_length_unpadded + cell_flat_index_unpadded,
+                            SIMD_NAMESPACE::element_aligned_tag{});
+                        tmpstore2[0].copy_to(
+                            potential_expansions_slice.data() + cell_flat_index_unpadded + INX,
+                            SIMD_NAMESPACE::element_aligned_tag{});
+                        tmpstore2[1].copy_to(potential_expansions_slice.data() +
+                                1 * component_length_unpadded + cell_flat_index_unpadded + INX,
+                            SIMD_NAMESPACE::element_aligned_tag{});
+                        tmpstore2[2].copy_to(potential_expansions_slice.data() +
+                                2 * component_length_unpadded + cell_flat_index_unpadded + INX,
+                            SIMD_NAMESPACE::element_aligned_tag{});
+                        tmpstore2[3].copy_to(potential_expansions_slice.data() +
+                                3 * component_length_unpadded + cell_flat_index_unpadded + INX,
+                            SIMD_NAMESPACE::element_aligned_tag{});
+                    });
+            }
         }
         // --------------------------------------- P2M Kernel implementations
 
@@ -740,6 +942,49 @@ namespace fmm {
         }
 
         // --------------------------------------- P2P Launch Interface implementations
+        //
+        template <typename executor_t,
+            std::enable_if_t<is_kokkos_device_executor<executor_t>::value, int> = 0>
+        void launch_interface_p2p_agg(typename Aggregated_Executor<executor_t>::Executor_Slice &agg_exec,
+            const aggregated_host_buffer<double, executor_t>& monopoles,
+            aggregated_host_buffer<double, executor_t>& results,
+            const aggregated_host_buffer<double, executor_t>& dx, double theta) {
+
+            const int max_slices = opts().max_kernels_fused;
+            auto alloc_device_double =
+                agg_exec
+                    .template make_allocator<double, kokkos_device_allocator<double>>();
+            const int gpu_id = agg_exec.parent.gpu_id;
+
+            // create device buffers
+            const device_buffer<int>& device_masks =
+                get_device_masks<device_buffer<int>, host_buffer<int>, executor_t>(
+                    agg_exec.get_underlying_executor(), gpu_id);
+            const device_buffer<double>& device_constants =
+                get_device_constants<device_buffer<double>, host_buffer<double>, executor_t>(
+                    agg_exec.get_underlying_executor(), gpu_id);
+
+            aggregated_device_buffer<double, executor_t> device_monopoles(alloc_device_double,
+                NUMBER_LOCAL_MONOPOLE_VALUES * max_slices);
+            aggregated_device_buffer<double, executor_t> device_dx(alloc_device_double,
+                max_slices);
+            aggregated_device_buffer<double, executor_t> device_results(alloc_device_double,
+                NUMBER_POT_EXPANSIONS_SMALL * max_slices);
+
+            // move device buffers
+            aggregated_deep_copy(agg_exec, device_monopoles, monopoles);
+            aggregated_deep_copy(agg_exec, device_dx, dx);
+
+            // call kernel
+            //
+            p2p_kernel_agg_impl<device_simd_t, device_simd_mask_t>(agg_exec, device_monopoles, device_masks,
+                device_constants, device_results, device_dx, theta, 
+                {1, 2, INX / 2, INX / device_simd_t::size()});
+
+            auto fut = aggregrated_deep_copy_async<executor_t>(
+                agg_exec, results, device_results, NUMBER_POT_EXPANSIONS_SMALL);
+            fut.get();
+        }
 
         template <typename executor_t,
             std::enable_if_t<is_kokkos_device_executor<executor_t>::value, int> = 0>
@@ -1106,6 +1351,57 @@ namespace fmm {
                         host_results[component * (INNER_CELLS + SOA_PADDING) + entry];
                 }
             }
+        }
+
+        template <typename executor_t>
+        void monopole_kernel_agg(std::vector<real>& monopoles,
+            std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
+            std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx, real theta,
+            std::array<bool, geo::direction::count()>& is_direction_empty,
+            std::shared_ptr<grid> grid_ptr, const bool contains_multipole_neighbor,
+            const size_t device_id) {
+
+            auto executor_slice_fut = monopole_kokkos_agg_executor_pool<executor_t>::request_executor_slice();
+            auto ret_fut = executor_slice_fut.value().then(hpx::annotated_function([&](auto && fut) {
+              typename Aggregated_Executor<executor_t>::Executor_Slice agg_exec = fut.get();
+              const size_t slice_id = agg_exec.id;
+              const size_t number_slices = agg_exec.number_slices;
+              const size_t max_slices = opts().max_kernels_fused;
+
+              Allocator_Slice<double, kokkos_host_allocator<double>, executor_t> alloc_host_double =
+                  agg_exec
+                      .template make_allocator<double, kokkos_host_allocator<double>>();
+
+              // Create host buffers
+              aggregated_host_buffer<double, executor_t> host_monopoles(
+                  alloc_host_double, NUMBER_LOCAL_MONOPOLE_VALUES *
+                  max_slices);
+              aggregated_host_buffer<double, executor_t> host_dx(
+                  alloc_host_double, 
+                  max_slices);
+              aggregated_host_buffer<double, executor_t> host_results(
+                  alloc_host_double, NUMBER_POT_EXPANSIONS_SMALL * max_slices);
+
+              // Map aggregated host buffers to the current slice
+              auto [host_monopoles_slice, host_dx_slice, host_results_slice] =
+                  map_views_to_slice(agg_exec, host_monopoles, host_dx, host_results);
+              /* // Fill input buffers with converted (AoS->SoA) data */
+              monopole_interactions::update_input(
+                  monopoles, neighbors, type, host_monopoles_slice, grid_ptr);
+              host_dx_slice[0] = dx;
+
+              launch_interface_p2p_agg(agg_exec, host_monopoles, host_results, host_dx, theta);
+
+              // Add results back into non-SoA array
+              std::vector<expansion>& org = grid_ptr->get_L();
+              for (size_t component = 0; component < 4; component++) {
+                  for (size_t entry = 0; entry < INNER_CELLS; entry++) {
+                      org[entry][component] +=
+                          host_results_slice[component * (INNER_CELLS + SOA_PADDING) + entry];
+                  }
+              }
+            }, "kokkos_p2p"));
+            ret_fut.get();
         }
     }    // namespace monopole_interactions
 }    // namespace fmm

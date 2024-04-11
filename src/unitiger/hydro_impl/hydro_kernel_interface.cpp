@@ -57,14 +57,18 @@ void init_hydro_kokkos_aggregation_pool(void) {
     }
     if (opts().executors_per_gpu > 0) {
 #if defined(KOKKOS_ENABLE_CUDA)
-    hydro_kokkos_agg_executor_pool<hpx::kokkos::cuda_executor>::init(number_aggregation_executors, max_slices, executor_mode, opts().number_gpus);
+        hydro_kokkos_agg_executor_pool<hpx::kokkos::cuda_executor>::init(
+            number_aggregation_executors, max_slices, executor_mode, opts().number_gpus);
 #elif defined(KOKKOS_ENABLE_HIP)
-    hydro_kokkos_agg_executor_pool<hpx::kokkos::hip_executor>::init(number_aggregation_executors, max_slices, executor_mode, opts().number_gpus);
+        hydro_kokkos_agg_executor_pool<hpx::kokkos::hip_executor>::init(
+            number_aggregation_executors, max_slices, executor_mode, opts().number_gpus);
 #elif defined(KOKKOS_ENABLE_SYCL)
-    hydro_kokkos_agg_executor_pool<hpx::kokkos::sycl_executor>::init(number_aggregation_executors, max_slices, executor_mode, opts().number_gpus);
+        hydro_kokkos_agg_executor_pool<hpx::kokkos::sycl_executor>::init(
+            number_aggregation_executors, max_slices, executor_mode, opts().number_gpus);
 #endif
     }
-    hydro_kokkos_agg_executor_pool<host_executor>::init(number_aggregation_executors, 1, Aggregated_Executor_Modes::STRICT, 1);
+    hydro_kokkos_agg_executor_pool<host_executor>::init(
+        number_aggregation_executors, 1, Aggregated_Executor_Modes::STRICT, 1);
 }
 #endif
 

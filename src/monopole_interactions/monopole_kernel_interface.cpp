@@ -62,7 +62,33 @@ using host_executor = hpx::kokkos::serial_executor;
 #endif
 #endif
 
+
 #include "octotiger/monopole_interactions/kernel/kokkos_kernel.hpp"
+#if defined(OCTOTIGER_HAVE_KOKKOS)
+hpx::once_flag init_monopole_kokkos_pool_flag;
+void init_monopole_kokkos_aggregation_pool(void) {
+    const size_t max_slices = opts().max_kernels_fused;
+    constexpr size_t number_aggregation_executors = 128;
+    Aggregated_Executor_Modes executor_mode = Aggregated_Executor_Modes::EAGER;
+    if (max_slices == 1) {
+      executor_mode = Aggregated_Executor_Modes::STRICT;
+    }
+    if (opts().executors_per_gpu > 0) {
+#if defined(KOKKOS_ENABLE_CUDA)
+        monopole_kokkos_agg_executor_pool<hpx::kokkos::cuda_executor>::init(
+            number_aggregation_executors, max_slices, executor_mode, opts().number_gpus);
+#elif defined(KOKKOS_ENABLE_HIP)
+        monopole_kokkos_agg_executor_pool<hpx::kokkos::hip_executor>::init(
+            number_aggregation_executors, max_slices, executor_mode, opts().number_gpus);
+#elif defined(KOKKOS_ENABLE_SYCL)
+        monopole_kokkos_agg_executor_pool<hpx::kokkos::sycl_executor>::init(
+            number_aggregation_executors, max_slices, executor_mode, opts().number_gpus);
+#endif
+    }
+    monopole_kokkos_agg_executor_pool<host_executor>::init(
+        number_aggregation_executors, 1, Aggregated_Executor_Modes::STRICT, 1);
+}
+#endif
 
 namespace octotiger {
 namespace fmm {
@@ -94,19 +120,22 @@ namespace fmm {
                     }
                     // TODO p2m kokkos bug - probably not enough threads for a wavefront
                     // TODO how to identify the intel sycl compile here?
-#if defined(KOKKOS_ENABLE_HIP) || defined(KOKKOS_ENABLE_SYCL)
                     if (contains_multipole_neighbor) // TODO Add device_only warning
                         avail = false;
-#elif (defined(KOKKOS_ENABLE_CUDA) && defined(__clang__) )
-                    /* if (contains_multipole_neighbor && opts().detected_intel_compiler) // TODO Add device_only warning */
-                    /*     avail = false; */
-#endif
                     if (avail) {
-                        executor_interface_t executor{device_id};
-                        monopole_kernel<device_executor>(executor, monopoles, com_ptr, neighbors,
-                            type, dx, opts().theta, is_direction_empty, grid_ptr,
-                            contains_multipole_neighbor, device_id);
+                        if (contains_multipole_neighbor) {
+                            executor_interface_t executor{device_id};
+                            monopole_kernel<device_executor>(executor, monopoles, com_ptr,
+                                neighbors, type, dx, opts().theta, is_direction_empty, grid_ptr,
+                                contains_multipole_neighbor, device_id);
+                        } else {
+                            hpx::call_once(init_monopole_kokkos_pool_flag, init_monopole_kokkos_aggregation_pool);
+                            monopole_kernel_agg<device_executor>(monopoles, com_ptr, neighbors,
+                                type, dx, opts().theta, is_direction_empty, grid_ptr,
+                                contains_multipole_neighbor, device_id);
+                        }
                         p2p_kokkos_gpu_subgrids_launched++;
+
                         return;
                     }
                 }
