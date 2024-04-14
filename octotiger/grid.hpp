@@ -83,7 +83,7 @@ void output_line_of_centers(FILE* fp, const line_of_centers_t& loc);
 
 void line_of_centers_analyze(const line_of_centers_t& loc, real omega, std::pair<real, real>& rho1_max,
 		std::pair<real, real>& rho2_max, std::pair<real, real>& l1_phi, std::pair<real, real>& l2_phi,
-		std::pair<real, real>& l3_phi, real& rho1_phi, real& rho2_phi);
+		std::pair<real, real>& l3_phi, real& rho1_phi, real& rho2_phi, real R_phi = 0.0);
 
 using xpoint_type = real;
 using zone_int_type = int;
@@ -294,7 +294,7 @@ public:
 	void set_restrict(const std::vector<real>&, const geo::octant&);
 	void set_flux_restrict(const std::vector<real>&, const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub,
 			const geo::dimension&);
-        void set_restrict_particles(const std::vector<particle>&, const geo::octant&);
+        void set_restrict_particles(std::vector<particle>&, const geo::octant&);
         void empty_particles();
 	space_vector center_of_mass() const;
 	bool refine_me(integer lev, integer last_ngrids) const;
@@ -397,6 +397,7 @@ void grid::load(Archive& arc, const unsigned) {
 	arc >> xmin;
 	allocate();
 	arc >> U;
+	arc >> particles;
 	if (rad_grid_ptr != nullptr) {
 		arc >> *rad_grid_ptr;
 		rad_grid_ptr->set_dx(dx);
@@ -422,6 +423,7 @@ void grid::save(Archive& arc, const unsigned) const {
 	arc << dx;
 	arc << xmin;
 	arc << U;
+	arc << particles;
 	if (rad_grid_ptr != nullptr) {
 		arc << *rad_grid_ptr;
 	}

@@ -93,6 +93,8 @@ struct particle {
                 arc & L;
 		arc & L_c;
 		arc & containing_cell_index;
+		arc & pot;
+		arc & g;
         }
 };
 

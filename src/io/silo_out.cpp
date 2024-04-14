@@ -479,9 +479,9 @@ void output_stage4(std::string fname, int cycle) {
                         DBPutMultivar(db, "p_mass", mesh_num, mesh_names_with_particles[1].data(), nullptr, optlist);
                         DBPutMultivar(db, "p_id", mesh_num, mesh_names_with_particles[2].data(), nullptr, optlist);
                         DBPutMultivar(db, "p_pot", mesh_num, mesh_names_with_particles[3].data(), nullptr, optlist);
-                        DBPutMultivar(db, "p_vx", mesh_num, mesh_names_with_particles[3].data(), nullptr, optlist);
-                        DBPutMultivar(db, "p_vy", mesh_num, mesh_names_with_particles[4].data(), nullptr, optlist);
-                        DBPutMultivar(db, "p_vz", mesh_num, mesh_names_with_particles[5].data(), nullptr, optlist);
+                        DBPutMultivar(db, "p_vx", mesh_num, mesh_names_with_particles[4].data(), nullptr, optlist);
+                        DBPutMultivar(db, "p_vy", mesh_num, mesh_names_with_particles[5].data(), nullptr, optlist);
+                        DBPutMultivar(db, "p_vz", mesh_num, mesh_names_with_particles[6].data(), nullptr, optlist);
                         DBPutMultivar(db, "p_gx", mesh_num, mesh_names_with_particles[7].data(), nullptr, optlist);
                         DBPutMultivar(db, "p_gy", mesh_num, mesh_names_with_particles[8].data(), nullptr, optlist);
                         DBPutMultivar(db, "p_gz", mesh_num, mesh_names_with_particles[9].data(), nullptr, optlist);

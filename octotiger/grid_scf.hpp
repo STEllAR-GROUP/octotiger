@@ -7,6 +7,8 @@
 
 #include "octotiger/config/export_definitions.hpp"
 
+OCTOTIGER_EXPORT std::vector<particle> scf_binary_particles(real, real, real, real);
+
 namespace scf_options {
     OCTOTIGER_EXPORT void read_option_file();
 }

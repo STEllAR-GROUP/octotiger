@@ -192,7 +192,7 @@ line_of_centers_t node_server::line_of_centers(const std::pair<space_vector, spa
 }
 
 void line_of_centers_analyze(const line_of_centers_t &loc, real omega, std::pair<real, real> &rho1_max, std::pair<real, real> &rho2_max,
-		std::pair<real, real> &l1_phi, std::pair<real, real> &l2_phi, std::pair<real, real> &l3_phi, real &rho1_phi, real &rho2_phi) {
+		std::pair<real, real> &l1_phi, std::pair<real, real> &l2_phi, std::pair<real, real> &l3_phi, real &rho1_phi, real &rho2_phi, const real R_phi) {
 
 	constexpr integer spc_ac_i = spc_i;
 	constexpr integer spc_ae_i = spc_i + 1;
@@ -240,6 +240,28 @@ void line_of_centers_analyze(const line_of_centers_t &loc, real omega, std::pair
 			}
 		}
 	}
+
+	if (R_phi > 0.0) {
+		real const xc = rho1_max.first;
+		real min_dx = R_phi;
+        	for (integer i = 0; i != loc.size(); ++i) {
+                	const real x = loc[i].first;
+			if (x < xc) {
+		//		printf("in line analyze x: %e, xc: %e, R: %e, min_dx: %e, cur_dx: %e\n", x, xc, R_phi, min_dx, std::abs(x - xc - R_phi));
+				real const dx = std::abs(xc - x - R_phi);
+				if (dx < min_dx) {
+					min_dx = dx;
+                        		const real rho = loc[i].second[rho_i];
+                        		const real pot = loc[i].second[pot_i];
+					real phi_eff = pot / ASSERT_POSITIVE(rho) - 0.5 * x * x * omega * omega;
+					rho1_phi = phi_eff;
+		//			printf("updated dx: %e, with rho: %e, pot: %e, phi_eff: %e\n", min_dx, rho, pot, rho1_phi);
+				}
+			}
+		}
+		//printf("min_dx: %e, rho1_phi: %e\n", min_dx, rho1_phi);
+	}
+
 	l1_phi.second = -std::numeric_limits<real>::max();
 	l2_phi.second = -std::numeric_limits<real>::max();
 	l3_phi.second = -std::numeric_limits<real>::max();

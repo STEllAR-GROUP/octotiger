@@ -126,7 +126,7 @@ bool refine_test(integer level, integer max_level, real x, real y, real z, std::
 		std::array<std::vector<real>, NDIM> const& dudx) {
 	bool rc = false;
 	real dx = (opts().xscale / INX) / real(1 << level);
-	if (level < max_level / 2) {
+	if (opts().min_level + level - 1 < max_level / 2) {
 		return std::sqrt(x * x + y * y + z * z) < 10.0 * dx;
 	}
 	int test_level = max_level;
@@ -339,6 +339,35 @@ std::vector<real> star(real x, real y, real z, real) {
 	const real fgamma = grid::get_fgamma();
 	const real rho_out = opts().star_rho_out;
 	std::vector<real> u(opts().n_fields, real(0));
+	if ((opts().p_smooth == MONAGHAN) || (opts().p_smooth == MONAGHAN_MULTI)) { // particle with smoothing length
+		if (opts().mesa_filename == "") { // bipolytrope with nc=3 and core size as of the smoothing length
+                	const real r = std::sqrt(x * x + y * y + z * z);
+                	static struct_eos eos(opts().star_rho_center, opts().star_rmax, 3.0, opts().star_n, 2.0 * opts().p_smooth_l / opts().star_rmax, 1.0, opts().star_alpha);
+                	const real rho = std::max(eos.density_at(r, 0.01), rho_out);
+                	const real ei = eos.pressure(rho) / (fgamma - 1.0);
+                	u[rho_i] = rho;
+                	u[egas_i] = ei;
+                	u[tau_i] = std::pow(ei, 1.0 / fgamma);
+                	u[spc_i] = rho;
+			return u;
+		} else { // single star with a core particle and a prescribed envelope from file
+                	static struct_eos eos(opts().star_rho_center, opts().star_alpha, opts().mesa_filename);
+			const real rmax = opts().star_rmax;
+			const real r = std::sqrt(x * x + y * y + z * z);
+			real rho;
+			if (r > rmax) {
+				rho = rho_out;
+			} else {
+                		rho = std::max(eos.density_at(r, 0.01), rho_out);
+			}
+                	const real ei = std::max(opts().star_egas_out, eos.pressure(rho) / (fgamma - 1.0));
+                	u[rho_i] = rho;
+                	u[egas_i] = ei;
+                	u[tau_i] = std::pow(ei, 1.0 / fgamma);
+                	u[spc_i] = rho;
+			return u;
+		}
+	}
 	if (opts().eos == WD) {
 		const real r = std::sqrt(x * x + y * y + z * z);
 		static struct_eos eos(1.0, 1.0);

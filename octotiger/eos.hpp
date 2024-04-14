@@ -8,15 +8,19 @@
 
 #include "octotiger/config/export_definitions.hpp"
 #include "octotiger/real.hpp"
+#include <string>
+#include <vector>
 
 #include <hpx/serialization/traits/is_bitwise_serializable.hpp>
+
+#include <functional>
 
 #define V1309
 
 class struct_eos {
 protected:
 	static constexpr real G = 1.0;
-	real dhdot_dr(real h, real hdot, real r) const;
+	real dhdot_dr(real h, real hdot, real r);
 	real dh_dr(real h, real hdot, real r) const;
 
 public:
@@ -35,7 +39,7 @@ public:
 		}
 	}
 	real B() const;
-	real A, d0_, my_radius;
+	real A, d0_;
 	void conversion_factors(real &m, real &l, real &t) const;
 	struct_eos(real M, real R);
 	struct_eos(real M, const struct_eos &other);
@@ -55,6 +59,15 @@ public:
 		arc & wd_eps;
 		arc & wd_T0;
 		arc & wd_core_cut;
+		arc & p_mass;
+		arc & p_smooth_l;
+		arc & my_radius;
+		arc & filename;
+		arc & HE_prof;
+		arc & PE_prof;
+		arc & P_vec;
+		arc & rho_vec;
+		arc & h_vec;
 	}
 
 //		class bipolytropic_struct_eos: public struct_eos {
@@ -66,6 +79,12 @@ private:
 	real n_C, n_E;
 	real f_C, f_E;
 	real rho_cut;
+	real p_mass, p_smooth_l, my_radius;
+	std::string filename = "";
+	std::vector<double> P_vec, rho_vec, h_vec; // the profiles that was reasd from the 1d profile (from, e.g., MESA)
+	std::function<double(double)> enthalpy_to_density_prof = nullptr;
+	std::function<double(double)> density_to_pressure_prof = nullptr;
+	real HE_prof, PE_prof;
 public:
 	void set_wd_T0(double t, double abar, double zbar);
 	void set_cutoff_density(real d) {
@@ -76,18 +95,24 @@ public:
 	}
 	OCTOTIGER_EXPORT void initialize(real&, real&);
 	OCTOTIGER_EXPORT void initialize(real&, real&, real&);
+	OCTOTIGER_EXPORT void initialize(real&, real&, real&, real&, real&, real&, real);
 
 public:
 	real get_R0() const;
+	void update_R0();
+	real get_p_mass() const;
+	real get_RC() const;
 	real dC() const;
 
 	void set_d0_using_struct_eos(real newd, const struct_eos &other);
 	struct_eos(real M, real R, real _n_C, real _n_E, real core_frac, real mu);
+	struct_eos(real M, real R, real _n_C, real _n_E, real core_frac, real mu, real _p_mass);
+	struct_eos(real M, real core_frac, const std::string& _filename);
 	struct_eos(real M, real R, real _n_C, real _n_E, real mu, const struct_eos &other);
 	struct_eos(real M, real _n_C, const struct_eos &other);
 	void set_entropy(real other_s0);
 	~struct_eos() = default;
-	real enthalpy_to_density(real h) const;
+	real enthalpy_to_density(real h);
 	real dE() const;
 	real s0() const;
 	real P0() const;
@@ -98,8 +123,9 @@ public:
 	real h0() const;
 	void set_h0(real h);
 	void set_d0(real d);
+	void set_p_mass(real pmass);
 	real density_to_enthalpy(real d) const;
-	real pressure(real d) const;
+	real pressure(real d);
 
 };
 
