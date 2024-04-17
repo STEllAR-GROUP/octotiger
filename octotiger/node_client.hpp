@@ -70,7 +70,7 @@ public:
     OCTOTIGER_EXPORT node_client(future<hpx::id_type>&& fut);
     OCTOTIGER_EXPORT node_client(const hpx::id_type& _id);
     future<scf_data_t> scf_params() const;
-    future<void> rho_mult(real, real) const;
+    future<void> rho_mult(real, real, real, real) const;
     future<void> rho_move(real) const;
     future<void> check_channels() const;
     future<real> scf_update(

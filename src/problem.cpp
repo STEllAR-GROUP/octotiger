@@ -138,13 +138,15 @@ bool refine_test(integer level, integer max_level, real x, real y, real z, std::
 			test_level -= 1;
 		}
 	}
+	real den_floor = opts().refinement_floor;
 	if (!majority_donor) {
 		test_level -= opts().donor_refine;
+	} else if (opts().refinement_floor_donor > 0.0) {
+		den_floor = opts().refinement_floor_donor;
 	}
 	if (!majority_accretor) {
 		test_level -= opts().accretor_refine;
 	}
-	real den_floor = opts().refinement_floor;
 	for (integer this_test_level = test_level; this_test_level >= 1; --this_test_level) {
 		if (U[rho_i] > den_floor) {
 			rc = rc || (level < this_test_level);

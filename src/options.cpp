@@ -114,6 +114,7 @@ bool options::process_options(int argc, char *argv[]) {
 	("donor_refine", po::value<integer>(&(opts().donor_refine))->default_value(0), "number of extra levels for donor")      //
 	("ngrids", po::value<integer>(&(opts().ngrids))->default_value(-1), "fix numbger of grids")                             //
 	("refinement_floor", po::value<real>(&(opts().refinement_floor))->default_value(1.0e-3), "density refinement floor")      //
+	("refinement_floor_donor", po::value<real>(&(opts().refinement_floor_donor))->default_value(0.0), "density refinement floor for the donor star (for 0.0 the general 'refinement floor' will be used")      //
 	("theta", po::value<real>(&(opts().theta))->default_value(0.5), "controls nearness determination for FMM, must be between 1/3 and 1/2")               //
 	("eos", po::value<eos_type>(&(opts().eos))->default_value(IDEAL), "gas equation of state")                              //
 	("hydro", po::value<bool>(&(opts().hydro))->default_value(true), "hydro on/off")    //
@@ -344,6 +345,7 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(rad_implicit);
 		SHOW(radiation);
 		SHOW(refinement_floor);
+		SHOW(refinement_floor_donor)
 		SHOW(reflect_bc);
 		SHOW(restart_filename);
 		SHOW(rotating_star_amr);

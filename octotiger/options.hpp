@@ -84,6 +84,7 @@ public:
 	real omega;
 	real output_dt;
 	real refinement_floor;
+	real refinement_floor_donor;
 	real stop_time;
 	real theta;
 	real xscale;
@@ -234,6 +235,7 @@ public:
 		arc & driving_time;
 		arc & damping_period;
 		arc & refinement_floor;
+		arc & refinement_floor_donor;
 		arc & ngrids;
 		arc & v1309;
 		arc & clight_retard;

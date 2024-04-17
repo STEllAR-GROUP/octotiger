@@ -1554,7 +1554,7 @@ bool grid::refine_me(integer lev, integer last_ngrids) const {
 	return rc;
 }
 
-void grid::rho_mult(real f0, real f1) {
+void grid::rho_mult(real f0, real f1, real f_p0, real f_p1) {
 	for (integer i = 0; i != H_NX; ++i) {
 		for (integer j = 0; j != H_NX; ++j) {
 			for (integer k = 0; k != H_NX; ++k) {
@@ -1563,14 +1563,28 @@ void grid::rho_mult(real f0, real f1) {
 				constexpr integer spc_ae_i = spc_i + 1;
 				constexpr integer spc_dc_i = spc_i + 2;
 				constexpr integer spc_de_i = spc_i + 3;
-		
-				U[spc_ac_i][hindex(i, j, k)] *= f0;
-				U[spc_dc_i][hindex(i, j, k)] *= f1;
-				U[spc_ae_i][hindex(i, j, k)] *= f0;
-				U[spc_de_i][hindex(i, j, k)] *= f1;
-				U[rho_i][hindex(i, j, k)] = 0.0;
+        
+				const integer iii = hindex(i, j, k);
+				
+				U[spc_ac_i][iii] *= f0;
+				U[spc_dc_i][iii] *= f1;
+				U[spc_ae_i][iii] *= f0;
+				U[spc_de_i][iii] *= f1;
+				U[rho_i][iii] = 0.0;
 				for (integer si = 0; si != opts().n_species; ++si) {
-					U[rho_i][hindex(i, j, k)] += U[spc_i + si][hindex(i, j, k)];
+					U[rho_i][iii] += U[spc_i + si][iii];
+				}
+				if ((i >= H_BW) && (i < H_NX - H_BW) && (j >= H_BW) && (j < H_NX - H_BW) && (k >= H_BW) && (k < H_NX - H_BW)) {
+					const bool majority_accretor = U[spc_ae_i][iii] + U[spc_ac_i][iii] > 0.5 * U[rho_i][iii];
+                                	const bool majority_donor = U[spc_de_i][iii] + U[spc_dc_i][iii] > 0.5 * U[rho_i][iii];
+					const integer iiig = gindex(i - H_BW, j - H_BW, k - H_BW);
+					
+					auto const parts_in_cell = get_particles_inds(particles, iiig);
+	                                for (auto p_ind : parts_in_cell) {
+						auto &p = particles[p_ind];
+						p.mass *= majority_accretor? f_p0 : majority_donor? f_p1 : 1.0;
+					}
+						
 				}
 			}
 		}

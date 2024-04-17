@@ -214,23 +214,23 @@ HPX_REGISTER_ACTION (scf_update_action_type);
 using rho_mult_action_type = typename node_server::rho_mult_action;
 HPX_REGISTER_ACTION (rho_mult_action_type);
 
-future<void> node_client::rho_mult(real f0, real f1) const {
-	return hpx::async<typename node_server::rho_mult_action>(get_unmanaged_gid(), f0, f1);
+future<void> node_client::rho_mult(real f0, real f1, real f_p0, real f_p1) const {
+	return hpx::async<typename node_server::rho_mult_action>(get_unmanaged_gid(), f0, f1, f_p0, f_p1);
 }
 
 future<real> node_client::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2_x, real l1_x, struct_eos e1, struct_eos e2) const {
 	return hpx::async<typename node_server::scf_update_action>(get_unmanaged_gid(), com, omega, c1, c2, c1_x, c2_x, l1_x, e1, e2);
 }
 
-void node_server::rho_mult(real f0, real f1) {
+void node_server::rho_mult(real f0, real f1, real f_p0, real f_p1) {
 	std::array<future<void>, NCHILD> futs;
 	if (is_refined) {
 		integer index = 0;
 		for (auto &child : children) {
-			futs[index++] = child.rho_mult(f0, f1);
+			futs[index++] = child.rho_mult(f0, f1, f_p0, f_p1);
 		}
 	}
-	grid_ptr->rho_mult(f0, f1);
+	grid_ptr->rho_mult(f0, f1, f_p0, f_p1);
 	all_hydro_bounds();
 	if (is_refined) {
 		for (auto &f : futs) {
@@ -472,6 +472,7 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 				auto const parts_in_cell = get_particles_inds(particles, iiig);
 				for (auto const p_ind : parts_in_cell) {
 					auto &p = particles[p_ind];
+					p.mass = p.mass * (1.0 - w0) + w0 * this_struct_eos.get_p_mass();
 					p.vel[XDIM] = -omega * p.pos[YDIM];
 					p.vel[YDIM] = omega * (p.pos[XDIM] - com);
 					printf("updating particle %i, %e, loc: (%e, %e, %e), vel: (%e, %e, %e)\n", p.id, p.mass, p.pos[XDIM], p.pos[YDIM], p.pos[ZDIM], p.vel[XDIM], p.vel[YDIM], p.vel[ZDIM]);	
@@ -508,16 +509,22 @@ void node_server::run_scf(std::string const &data_dir) {
 		auto diags = diagnostics();
 		real pmass1 = params.struct_eos1->get_p_mass(); 
 		real pmass2 = params.struct_eos2->get_p_mass();
-		real f1, f2;
+		real f1, f2, f1_p, f2_p;
 		if (pmass1 == 0.0) {
 			f1 = scf_options::M1 * INVERSE(diags.m[0]);
+			f1_p = 1.0;
 		} else {
-			f1 = (scf_options::M1 - pmass1) * INVERSE(diags.m[0] - pmass1);
+			f1 = (scf_options::M1 - pmass1) * INVERSE(diags.m[0] - pmass1);; 
+			f1_p = 1.0; //(scf_options::M1 - (diags.m[0] - pmass1)) * INVERSE(pmass1);
+			//params.struct_eos2->set_p_mass(scf_options::M1 - (diags.m[0] - pmass1));
 		}
 		if (pmass2 == 0.0) {
 			f2 = scf_options::M2 * INVERSE(diags.m[1]);
+			f2_p = 1.0;
 		} else {
 			f2 = (scf_options::M2 - pmass2) * INVERSE(diags.m[1] - pmass2);
+			f1_p = 1.0; //(scf_options::M2 - (diags.m[1] - pmass2)) * INVERSE(pmass2);
+			//params.struct_eos2->set_p_mass(scf_options::M2 - (diags.m[1] - pmass2));
 		}
 		printf("M1: %e, M2: %e, R1: %e, R2: %e, com1: (%e, %e, %e), com2: (%e, %e, %e), grid_com: (%e, %e, %e), rho1: %e, rho2: %e\n", diags.m[0], diags.m[1], params.struct_eos1->get_R0(), params.struct_eos2->get_R0(),
 			diags.com[0][0], diags.com[0][1], diags.com[0][2], 
@@ -528,7 +535,7 @@ void node_server::run_scf(std::string const &data_dir) {
 		f = (f + 1.0) / 2.0;
                 solve_gravity(false, false);
                 diags = diagnostics();
-		rho_mult(f1, f2);
+		rho_mult(f1, f2, f1_p, f2_p);
 		solve_gravity(false, false);
 		diags = diagnostics();
 		rho_move(diags.grid_com[0]);

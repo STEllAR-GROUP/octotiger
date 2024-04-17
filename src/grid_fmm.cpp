@@ -2024,7 +2024,7 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
                                         	p.g[d] -= physcon().G * p.L_c[d];
                                         }
 				}
-				printf("part %i, (%e, %e, %e), phi %e, g (%e, %e, %e)\n", p.id, p.pos[0], p.pos[1], p.pos[2], p.L[0], p.g[0], p.g[1], p.g[2]);
+				printf("part %i, (%e, %e, %e), phi %e, m %e, g (%e, %e, %e), v (%e, %e, %e)\n", p.id, p.pos[0], p.pos[1], p.pos[2], p.L[0], p.mass, p.g[0], p.g[1], p.g[2], p.vel[0], p.vel[1], p.vel[2]);
 			}
 		}
 	}

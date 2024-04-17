@@ -301,7 +301,7 @@ public:
 	line_of_centers_t line_of_centers(const std::pair<space_vector, space_vector>& line) const;
 	HPX_DEFINE_COMPONENT_ACTION(node_server, line_of_centers, line_of_centers_action);
 
-	void rho_mult(real factor, real);/**/
+	void rho_mult(real factor, real, real, real);/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server,rho_mult, rho_mult_action);
 
 	void rho_move(real);/**/
