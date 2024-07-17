@@ -166,8 +166,8 @@ const hydro::state_type& radiation_physics<NDIM>::pre_recon(const hydro::state_t
 				const auto erinv = 1.0 / er;
 				 if( ((V[fx_i][i])*(V[fx_i][i])+(V[fy_i][i])*(V[fy_i][i])+(V[fz_i][i])*(V[fz_i][i]))/(V[er_i][i]*V[er_i][i]*physcon().c*physcon().c) > 1 ) {
 					printf(
-							"flux exceded x: %i y: %i z: %i\n",
-							j, k, l);
+							"flux exceded x: %i y: %i z: %i | %e %e\n",
+							j, k, l, ((V[fx_i][i])*(V[fx_i][i])+(V[fy_i][i])*(V[fy_i][i])+(V[fz_i][i])*(V[fz_i][i])), (V[er_i][i]*V[er_i][i]*physcon().c*physcon().c) );
 					abort();
 				 }
 				for (int dim = 0; dim < NDIM; dim++) {
@@ -197,6 +197,18 @@ void radiation_physics<NDIM>::post_recon(std::vector<std::vector<std::vector<saf
 						const int i = geo.to_index(j + 2, k + 2, l + 2);
 						const auto er = Q[er_i][d][i];
 						static constexpr auto lc = geo.levi_civita();
+						double norm = 0.0;
+						for( int d1 = 0; d1 < NDIM; d1++) {
+							norm += sqr(Q[fx_i + d1][d][i]);
+						}
+						norm = sqrt(norm);
+						double factor = 1.0;
+						if( norm > 0.999999 * physcon().c ) {
+							factor = 0.999999 * physcon().c / norm;
+							for( int d1 = 0; d1 < NDIM; d1++) {
+								Q[fx_i + d1][d][i] *= factor;
+							}
+						}
 						Q[fx_i][d][i] *= er;
 						Q[fy_i][d][i] *= er;
 						Q[fz_i][d][i] *= er;

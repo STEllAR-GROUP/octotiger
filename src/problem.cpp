@@ -63,14 +63,14 @@ std::vector<real> radiation_test_problem(real x, real y, real z, real dx) {
 	z -= 0.0e11;
 	real r = std::max(2.0 * dx, 0.50);
 	real eint;
-	if (x < 0) {
+	if (x + y < 0) {
 		u[rho_i] = 1.0;
 		eint = 1;
 		u[opts().n_fields] = 1;
-		u[opts().n_fields + 1] = 0.999999;
+		u[opts().n_fields + 1] = 0.999999 / sqrt(2);
+		u[opts().n_fields + 2] = 0.999999 / sqrt(2);
 	} else {
 		u[opts().n_fields] = 1e-10;
-		u[opts().n_fields + 1] = 0.999999e-10;
 		u[rho_i] = 1.0;
 		eint = 1;
 	}
@@ -149,7 +149,7 @@ std::vector<real> radiation_diffusion_analytic(real x, real y, real z, real t) {
 	const double r2 = x * x + y * y + z * z;
 	const double r = sqrt(r2);
 	const double D0 = 1.0 / 3.0 * physcon().c / (1e2);
-	const double er = 1.0e-6 * std::max(pow(t + 1.0, -1.5) * exp(-r2 / (4.0 * D0 * (t + 1.0))), 1e-10);
+	const double er = 1.0e-1 * std::max(pow(t + 1.0, -1.5) * exp(-r2 / (4.0 * D0 * (t + 1.0))), 1e-10);
 
 //	const real A = 4.0 * dt * kap_p * sigma * pow(mmw[iiih] * mh * (fgamma - 1.) / (kb * rho[iiih]), 4.0);
 //	const real B = (1.0 + clight * dt * kap_p);

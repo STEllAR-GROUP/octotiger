@@ -1727,13 +1727,13 @@ std::vector<std::pair<std::string, std::string>> grid::get_scalar_expressions() 
 					std::string("(1 + X) * 0.2 * T * T / ((T * T + 2.7e+11 * rho) * (1 + (T / 4.5e+8)^0.86))")));
 	rc.push_back(std::make_pair(std::string("sigma_xf"), std::string("4e+25*(1+X)*(Z+0.001)*rho*(T^(-3.5))")));
 	rc.push_back(std::make_pair(std::string("mfp"), std::string("1 / kappa_R")));
-	if (opts().problem == MARSHAK) {
+//	if (opts().problem == MARSHAK) {
 		rc.push_back(std::make_pair(std::string("kappa_R"), std::string("rho")));
 		rc.push_back(std::make_pair(std::string("kappa_P"), std::string("rho")));
-	} else {
+/*	}*else {
 		rc.push_back(std::make_pair(std::string("kappa_R"), std::string("rho * (sigma_xf + sigma_T)")));
 		rc.push_back(std::make_pair(std::string("kappa_P"), std::string("rho * 30.262 * sigma_xf")));
-	}
+	}*/
 	rc.push_back(std::make_pair(std::string("n"), std::move(n)));
 	rc.push_back(std::make_pair(std::string("X"), std::move(X)));
 	rc.push_back(std::make_pair(std::string("Y"), std::string("1.0 - X - Z")));

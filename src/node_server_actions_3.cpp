@@ -335,12 +335,12 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 	printf("Starting run...\n");
 	auto fut_ptr = me.get_ptr();
 	node_server *root_ptr = GET(fut_ptr);
-//	if (!opts().output_filename.empty()) {
+	if (!opts().output_filename.empty()) {
 		diagnostics();
 		solve_gravity(false, false);
 		output_all(this, "X." + std::to_string(int(output_cnt)), output_cnt, false);
-//		return;
-//	}
+		return;
+	}
 
 	if (opts().stop_step != 0) {
 		printf("Solving gravity\n");
@@ -583,6 +583,9 @@ void node_server::refined_step() {
 
 	real a = std::numeric_limits<real>::min();
 	all_hydro_bounds();
+	if (opts().radiation) {
+		all_rad_bounds();
+	}
 	timestep_t tstep;
 	tstep.dt = std::numeric_limits<real>::max();
 	local_timestep_channels[NCHILD].set_value(tstep);
@@ -621,7 +624,9 @@ future<void> node_server::nonrefined_step() {
 	dt_.dt = ZERO;
 
 	all_hydro_bounds();
-
+	if (opts().radiation) {
+		all_rad_bounds();
+	}
 	grid_ptr->store();
 	future<void> fut = hpx::make_ready_future();
 

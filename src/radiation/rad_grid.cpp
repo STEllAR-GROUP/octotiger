@@ -196,6 +196,9 @@ void rad_grid::rad_imp(std::vector<real> &egas, std::vector<real> &tau,
 		real x0 = -A * INVERSE(B);
 		real x, f, dfdx;
 		real dx;
+		if( B > 0.0 ) {
+			printf( "%e\n", B);
+		}
 		x = 0.5 * (-A * INVERSE(B) + POWER(-INVERSE(B), 0.25));
 		do {
 			f = x * x * x * x + A * x + B;
@@ -241,29 +244,30 @@ void rad_grid::rad_imp(std::vector<real> &egas, std::vector<real> &tau,
 				real kap_r = kappa_R(rho[iiih], e0, mmw[iiih], X_spc[iiih],
 						Z_spc[iiih]);
 
-				auto dFx = kap_r * (4.0 / 3.0) * (sx[iiih] * rhoinv)
+			/*	auto dFx = kap_r * (4.0 / 3.0) * (sx[iiih] * rhoinv)
 						* U[er_i][iiir];
 				auto dFy = kap_r * (4.0 / 3.0) * (sy[iiih] * rhoinv)
 						* U[er_i][iiir];
 				auto dFz = kap_r * (4.0 / 3.0) * (sz[iiih] * rhoinv)
-						* U[er_i][iiir];
+						* U[er_i][iiir];*/
 
-				auto dEx = kap_r * (sx[iiih] * rhoinv / clight) * U[fx_i][iiir];
+
+		//		U[fx_i][iiir] += dFx * dt;
+		//		U[fy_i][iiir] += dFy * dt;
+		//		U[fz_i][iiir] += dFz * dt;
+			//	sx[iiih] -= dFx * dt;
+			//	sy[iiih] -= dFy * dt;
+			//	sz[iiih] -= dFz * dt;
+
+				/*auto dEx = kap_r * (sx[iiih] * rhoinv / clight) * U[fx_i][iiir];
 				auto dEy = kap_r * (sy[iiih] * rhoinv / clight) * U[fy_i][iiir];
 				auto dEz = kap_r * (sz[iiih] * rhoinv / clight) * U[fz_i][iiir];
-
-				U[fx_i][iiir] += dFx * dt;
-				U[fy_i][iiir] += dFy * dt;
-				U[fz_i][iiir] += dFz * dt;
-				sx[iiih] -= dFx * dt;
-				sy[iiih] -= dFy * dt;
-				sz[iiih] -= dFz * dt;
 				egas[iiih] -= dEx * dt;
 				egas[iiih] -= dEy * dt;
 				egas[iiih] -= dEz * dt;
 				U[er_i][iiir] += dEx * dt;
 				U[er_i][iiir] += dEy * dt;
-				U[er_i][iiir] += dEz * dt;
+				U[er_i][iiir] += dEz * dt;*/
 
 				kap_p = kappa_p(rho[iiih], e0, mmw[iiih], X_spc[iiih],
 						Z_spc[iiih]);
@@ -290,8 +294,8 @@ void rad_grid::rad_imp(std::vector<real> &egas, std::vector<real> &tau,
 				const real A = alpha * eta;
 				const real B = (1.0 + eta);
 				const real C = -(e0 + eta * Ebar);
-				if (C < 0.0) {
-					//		printf("%e %e %e \n", A, B, C);
+				if (C > 0.0) {
+					printf("%e %e %e | %e %e %e %e | %e %e\n", A, B, C, e0, eta, Ebar, eta * Ebar, e0,  U[er_i][iiir]);
 				}
 				real newE = find4root(A, B, C);
 				//	printf( "%e %e\n", alpha * e0 * e0 * e0 * e0, U[er_i][iiir]);
@@ -300,9 +304,6 @@ void rad_grid::rad_imp(std::vector<real> &egas, std::vector<real> &tau,
 				//	dE = std::max(dE, -0.9 * U[er_i][iiir]);
 				egas[iiih] -= dE;
 				U[er_i][iiir] += dE;
-				tau[iiih] = std::max(
-						POWER(std::max(e0 - dE, 0.0), 1.0 / fgamma),
-						opts().tau_floor);
 
 				auto fx0 = U[fx_i][iiir];
 				auto fy0 = U[fy_i][iiir];
@@ -311,9 +312,21 @@ void rad_grid::rad_imp(std::vector<real> &egas, std::vector<real> &tau,
 				U[fx_i][iiir] = fx0 * invonepcdtk;
 				U[fy_i][iiir] = fy0 * invonepcdtk;
 				U[fz_i][iiir] = fz0 * invonepcdtk;
-				sx[iiih] += fx0 - U[fx_i][iiir];
-				sy[iiih] += fy0 - U[fy_i][iiir];
-				sz[iiih] += fz0 - U[fz_i][iiir];
+				sx[iiih] -= fx0 - U[fx_i][iiir];
+				sy[iiih] -= fy0 - U[fy_i][iiir];
+				sz[iiih] -= fz0 - U[fz_i][iiir];
+				auto dEx = kap_r * (sx[iiih] * rhoinv / clight) * U[fx_i][iiir];
+				auto dEy = kap_r * (sy[iiih] * rhoinv / clight) * U[fy_i][iiir];
+				auto dEz = kap_r * (sz[iiih] * rhoinv / clight) * U[fz_i][iiir];
+				egas[iiih] -= dEx * dt;
+				egas[iiih] -= dEy * dt;
+				egas[iiih] -= dEz * dt;
+				U[er_i][iiir] += dEx * dt;
+				U[er_i][iiir] += dEy * dt;
+				U[er_i][iiir] += dEz * dt;
+				tau[iiih] = std::max(
+						POWER(std::max(e0 - dE, 0.0), 1.0 / fgamma),
+						opts().tau_floor);
 
 				/*	if (((U[fx_i][iiir]) * (U[fx_i][iiir]) + (U[fy_i][iiir]) * (U[fy_i][iiir])
 				 + (U[fz_i][iiir]) * (U[fz_i][iiir])) / (U[er_i][iiir] * U[er_i][iiir] * physcon().c * physcon().c)
@@ -425,7 +438,7 @@ void node_server::compute_radiation(real dt, real omega) {
 	const real min_dx = TWO * grid::get_scaling_factor()
 			/ real(INX << opts().max_level);
 	const real clight = physcon().c / opts().clight_retard;
-	const real max_dt = min_dx / clight / 7.0;
+	const real max_dt = min_dx / clight * 0.4;
 	const real ns = std::ceil(dt * INVERSE(max_dt));
 	if (ns > std::numeric_limits<int>::max()) {
 		printf("Number of substeps greater than %i. dt = %e max_dt = %e\n",
@@ -445,11 +458,8 @@ void node_server::compute_radiation(real dt, real omega) {
 	if (my_location.level() == 0) {
 		printf("Radiation %i\n", nsteps);
 	}
-	rgrid->rad_imp(egas, tau, sx, sy, sz, rho, 0.5 * dt);
+	rgrid->rad_imp(egas, tau, sx, sy, sz, rho, dt);
 	for (integer i = 0; i != nsteps; ++i) {
-		if (i == 0 && opts().rad_implicit) {
-			//	rgrid->rad_imp(egas, tau, sx, sy, sz, rho, 0.5 * this_dt);
-		}
 		//	if (my_location.level() == 0)printf( "%i\n", i);
 		//	rgrid->sanity_check();
 		if (my_location.level() == 0) {
@@ -457,22 +467,19 @@ void node_server::compute_radiation(real dt, real omega) {
 			fflush(stdout);
 		}
 
+		all_rad_bounds();
 		rgrid->store();
 		const double beta[2] = { 1.0, 0.5 };
 		for (int rk = 0; rk < 2; rk++) {
-			all_rad_bounds();
 			rgrid->compute_flux(omega);
 //			if( my_location.level() == 0 ) printf( "\nbounds 10\n");
 			GET(exchange_rad_flux_corrections());
 //			if( my_location.level() == 0 ) printf( "\nbounds 11\n");
 			rgrid->advance(this_dt, beta[rk]);
-		}
-		if (opts().rad_implicit) {
-			double dtt = i == nsteps - 1 ? 0.5 * this_dt : this_dt;
-//			rgrid->rad_imp(egas, tau, sx, sy, sz, rho, dtt);
+			all_rad_bounds();
 		}
 	}
-	rgrid->rad_imp(egas, tau, sx, sy, sz, rho, 0.5 * dt);
+//	rgrid->rad_imp(egas, tau, sx, sy, sz, rho, 0.5 * dt);
 //	rgrid->sanity_check();
 	all_rad_bounds();
 	if (my_location.level() == 0) {
