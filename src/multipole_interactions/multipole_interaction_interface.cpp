@@ -82,7 +82,7 @@ namespace fmm {
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
             std::array<bool, geo::direction::count()>& is_direction_empty,
             std::array<real, NDIM> xbase) {
-            if (type == RHO)
+            if (type == RHO || type == RHOM)
                 cpu_launch_counter()++;
             else
                 cpu_launch_counter_non_rho()++;
@@ -113,7 +113,7 @@ namespace fmm {
                     angular_corrections_SoA, local_monopoles, stencil_masks(),
                     inner_stencil_masks(), type);
 
-                if (type == RHO) {
+                if (type == RHO || type == RHOM) {
                     angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());
                 }
                 potential_expansions_SoA.add_to_non_SoA(grid_ptr->get_L());

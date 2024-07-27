@@ -124,7 +124,7 @@ node_count_type node_server::regrid_gather(bool rebalance_only) {
 future<hpx::id_type> node_server::create_child(hpx::id_type const &locality, integer ci) {
 	return hpx::async([ci, this](hpx::id_type const locality) {
 
-		return hpx::new_<node_server>(locality, my_location.get_child(ci), me, current_time, rotational_time, step_num, hcycle, rcycle, gcycle).then([this, ci](future<hpx::id_type> &&child_idf) {
+		return hpx::new_<node_server>(locality, my_location.get_child(ci), me, current_time, rotational_time, step_num, hcycle, rcycle, gcycle, pcycle).then([this, ci](future<hpx::id_type> &&child_idf) {
 		hpx::id_type child_id = child_idf.get();
 		node_client child = child_id;
 		{
@@ -299,12 +299,21 @@ void node_server::solve_gravity(bool ene, bool aonly) {
 	std::array<future<void>, NCHILD> child_futs;
 	if (is_refined) {
 		integer index = 0;
-		;
 		for (auto &child : children) {
 			child_futs[index++] = child.solve_gravity(ene, aonly);
 		}
 	}
-	compute_fmm(RHO, ene, aonly);
+	if (opts().particles) {
+		if (ene) {
+			grid_ptr->egas_to_etot_particles(); // needed for conservation of energy while regridding due to a change in the particle potential
+		}
+		compute_fmm(RHOM, false, aonly);
+		if (ene) {
+			grid_ptr->etot_to_egas_particles();
+		}
+	} else {
+		compute_fmm(RHO, ene, aonly);
+	}
 	if (is_refined) {
 		//	wait_all_and_propagate_exceptions(child_futs);
 		for (auto &f : child_futs) {

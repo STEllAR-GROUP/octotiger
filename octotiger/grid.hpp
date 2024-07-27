@@ -136,7 +136,9 @@ private:
 	std::vector<expansion> L;
 	std::vector<space_vector> L_c;
 	std::vector<particle> particles;
+	std::vector<particle> particles0; // for RK4 update
 	std::vector<real> dphi_dt;
+	std::vector<real> phi_part;
 #ifdef OCTOTIGER_HAVE_GRAV_PAR
 	std::unique_ptr<hpx::lcos::local::spinlock> L_mtx;
 #endif
@@ -276,7 +278,9 @@ public:
 	std::vector<real> get_flux_check(const geo::face&);
 	void set_flux_check(const std::vector<real>&, const geo::face&);
 	void set_hydro_boundary(const std::vector<real>&, const geo::direction&, bool energy_only);
+	void set_particle_boundary(const std::vector<particle>&, const geo::direction&);
 	std::vector<real> get_hydro_boundary(const geo::direction& face, bool energy_only);
+	std::vector<particle> get_particle_boundary(const geo::direction& face);
 	scf_data_t scf_params();
 	real scf_update(real, real, real, real, real, real, real, struct_eos, struct_eos);
 	std::pair<std::vector<real>, std::vector<real> > field_range() const;
@@ -301,6 +305,8 @@ public:
 	void compute_dudt();
 	void egas_to_etot();
 	void etot_to_egas();
+        void egas_to_etot_particles();
+        void etot_to_egas_particles();
 	void dual_energy_update();
 	void solve_gravity(gsolve_type = RHO);
 	multipole_pass_type compute_multipoles(gsolve_type, const multipole_pass_type* = nullptr);
@@ -351,6 +357,7 @@ public:
 	void compute_sources(real t, real);
 	void set_physical_boundaries(const geo::face&, real t);
 	void next_u(integer rk, real t, real dt);
+	void next_particles(integer rk, real t, real dt);
 	template<class Archive>
 	void load(Archive& arc, const unsigned);
 	static real convert_gravity_units(int);

@@ -105,9 +105,9 @@ real struct_eos::enthalpy_to_density(real h) {
 					} else {
 						if (enthalpy_to_density_prof == nullptr) {
 							if (rho_vec.size() == 0) {
-								real he, pe, re;
+								real he, pe, re, me;
 								real de = 1.001 * dE();
-								auto pair_of_funcs = build_rho_of_h_from_mesa(filename, he, de, pe, re, P_vec, rho_vec, h_vec);
+								auto pair_of_funcs = build_rho_of_h_from_mesa(filename, he, de, pe, re, me, P_vec, rho_vec, h_vec);
 								enthalpy_to_density_prof = pair_of_funcs.first;
 								density_to_pressure_prof = pair_of_funcs.second;
 								printf("built from file, rho(h=0): %e\n", enthalpy_to_density_prof(0.0));
@@ -234,9 +234,9 @@ real struct_eos::pressure(real d) {
 			if (filename != "") {
 				if (density_to_pressure_prof == nullptr) {
 					if (rho_vec.size() == 0) {
-                                		real he, pe, re;
+                                		real he, pe, re, me;
 	                                	real de = 1.001 * dE();
-        	                                auto pair_of_funcs = build_rho_of_h_from_mesa(filename, he, de, pe, re, P_vec, rho_vec, h_vec);
+        	                                auto pair_of_funcs = build_rho_of_h_from_mesa(filename, he, de, pe, re, me, P_vec, rho_vec, h_vec);
                 	                        enthalpy_to_density_prof = pair_of_funcs.first;
                         	                density_to_pressure_prof = pair_of_funcs.second;
 					} else {
@@ -488,22 +488,25 @@ struct_eos::struct_eos(real M, real core_frac, const std::string& _filename) :
 	mesa_profiles mesa_p(filename);
 	real const R_st = mesa_p.get_R0();
 	real r_c;
-	real dE_prof, omega_prof, RE_prof;
+	real dE_prof, omega_prof, RE_prof, ME_prof;
 	mesa_p.state_at(dE_prof, PE_prof, omega_prof, core_frac * R_st);
 	printf("loaded from file the following core-enevelope values\n");
         printf("HE: %e, PE: %e, DE: %e, Rstar: %e, Rcore %e\n", HE_prof, PE_prof, dE_prof, R_st, core_frac * R_st);
-	auto rho_of_h_relation = build_rho_of_h_from_mesa(filename, HE_prof, dE_prof, PE_prof, RE_prof, P_vec, rho_vec, h_vec); // gets the enthalpy pressure updated density and radius of the interface based on the given density
+	auto rho_of_h_relation = build_rho_of_h_from_mesa(filename, HE_prof, dE_prof, PE_prof, RE_prof, ME_prof, P_vec, rho_vec, h_vec); // gets the enthalpy pressure updated density and radius of the interface based on the given density
 	p_smooth_l = 0.5 * RE_prof;
+	real min_mass = 4.0 * M_PI * POWER(RE_prof, 3) * dE_prof;
+	real max_mass =  M - ME_prof;
 	enthalpy_to_density_prof = rho_of_h_relation.first;
 	density_to_pressure_prof = rho_of_h_relation.second;
         set_d0(dE_prof); // d0 in this case is the boundary density so f_E = f_C = 1.0
         f_C = 1.0;
         f_E = 1.0;
-	printf("updated interface values - HE: %e, PE: %e, DE: %e, Rstar: %e, Rcore %e, rE: %e, rho(h=0.0) = %e\n", HE_prof, PE_prof, dE_prof, R_st, core_frac * R_st, RE_prof, enthalpy_to_density_prof(0.0));
+	printf("updated interface values - HE: %e, PE: %e, DE: %e, Rstar: %e, Rcore %e, rE: %e, rho(h=0.0) = %e, Mmin: %e, Mmax: %e, ME: %e\n", HE_prof, PE_prof, dE_prof, R_st, core_frac * R_st, RE_prof, enthalpy_to_density_prof(0.0), min_mass, max_mass, ME_prof);
         const auto func = [&](real cur_h0) {  // finding h0 that statisfies the enthalpy boundary at the interface radii, h(RE) = HE 
 		real const p_mass0 = p_mass;
 		set_h0(cur_h0*HE_prof);
                 initialize(m, r, mc, rc, h_c, hdot_c, RE_prof); // retrieves h at RE_prof into h_c
+		//printf("r: %e, rc: %e, m: %e, mc: %e, d0: %e, rho_c: %e, h0: %e, hE/h0: %e, h_c: %e, hdot_c: %e, r_c: %e, m(dhdr): %e\n", r, rc, m, mc, d0(), dC(), h0(), HE()/h0(), h_c, hdot_c, RE_prof, -hdot_c * RE_prof * RE_prof);
 		return  h_c * INVERSE(HE_prof) - 1.0;
         };
         auto _func = std::function<real(real)>(func);
@@ -516,10 +519,10 @@ struct_eos::struct_eos(real M, real core_frac, const std::string& _filename) :
 			printf("The particle 'average density' is smaller than the boundary density! cannot proceed\n");
 			abort();
 		}
-		real const Hmax = density_to_enthalpy(rho_av);
+		real const Hmax = 1.75*density_to_enthalpy(rho_av);
         	if (!find_root(_func, 1.0, Hmax/HE_prof, h0_found, 1.0e-5)) {
                 	printf("UNable to produce h0\n");
-                	abort();
+                	return -2.0;
 		}
 		printf("found h0: %e, rho_max: %e\n", h0_found*HE_prof, enthalpy_to_density(h0_found*HE_prof));
 		set_h0(h0_found*HE_prof);
@@ -528,7 +531,11 @@ struct_eos::struct_eos(real M, real core_frac, const std::string& _filename) :
 		return m * INVERSE(M) - 1.0;
         };
 	auto _func_mass = std::function<real(real)>(func_mass);
-        if (!find_root(_func_mass, 0.05*M, 0.6*M, p_mass_found, 1.0e-5)) {
+        while (_func_mass(max_mass) == -2.0) {
+        	max_mass = 0.9 * max_mass;
+		min_mass = 0.9 * min_mass;
+	}
+        if (!find_root(_func_mass, min_mass, max_mass, p_mass_found, 1.0e-5)) {
         	printf("UNable to produce particle mass\n");
                 abort();
         }
@@ -641,7 +648,7 @@ void struct_eos::initialize(real &mass, real &radius, real &core_mass) {
 		d = this->enthalpy_to_density(h);
 	/*	if (R0 != 1.0) {
 			printf("%e %e %e %e %e %e %e, %e\n", r, m, h, d, dr, f_C, M0, R0);
-		}*/
+		} */
 		const real dh1 = dh_dr(h, hdot, r) * dr;
 		const real dhdot1 = dhdot_dr(h, hdot, r) * dr;
 		const real dm1 = 4.0 * M_PI * d * sqr(r) * dr;
@@ -671,7 +678,8 @@ void struct_eos::initialize(real &mass, real &radius, real &core_mass) {
 
 void struct_eos::initialize(real &mass, real &radius, real &core_mass, real &core_radius, real &h_at_rc, real &hdot_at_rc, real rc) {
 
-        const real dr0 = R0 * 1.0e-4;
+        //const real dr0 = R0 * 1.0e-4;
+	const real dr0 = p_smooth_l * 1.0e-2; 
         core_mass = 0.0;
 	core_radius = 0.0;
         real h = h0();
@@ -698,7 +706,7 @@ void struct_eos::initialize(real &mass, real &radius, real &core_mass, real &cor
                 }
                 d = this->enthalpy_to_density(h);
   //              printf("%e %e %e\n", r, d, h);
-       //         printf("%e %e %e %e %e\n", r, m, h, d, dr);
+    //            printf("%e %e %e %e %e\n", r, m, h, d, dr);
                 const real dh1 = dh_dr(h, hdot, r) * dr;
                 const real dhdot1 = dhdot_dr(h, hdot, r) * dr;
                 const real dm1 = 4.0 * M_PI * d * sqr(r) * dr;
@@ -840,9 +848,12 @@ real struct_eos::density_at(real R, real dr) {
 	real h = h0();
 	real hdot = 0.0;
 	int N = std::min(std::max(int(R / dr + 1.0), 2),10);
-	if (p_mass >= 0.0) {
-		N *= 60;
+	if (p_smooth_l > 0.0) {
+		N = std::max(5 * int(R / p_smooth_l), 5);
+	} else {
+		N = 20;
 	}
+	N *= 5;
 	dr = R / real(N);
 	for (integer i = 0; i < N; ++i) {
 		r = i * dr;

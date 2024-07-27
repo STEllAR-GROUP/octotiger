@@ -353,20 +353,57 @@ std::vector<real> star(real x, real y, real z, real) {
                 	u[spc_i] = rho;
 			return u;
 		} else { // single star with a core particle and a prescribed envelope from file
-                	static struct_eos eos(opts().star_rho_center, opts().star_alpha, opts().mesa_filename);
 			const real rmax = opts().star_rmax;
-			const real r = std::sqrt(x * x + y * y + z * z);
-			real rho;
-			if (r > rmax) {
-				rho = rho_out;
+			real x1, x2, vel1, vel2;
+			if (opts().sec_sep > 0.0) {
+				const real sep = opts().sec_sep;
+				const real mtot = opts().sec_mass + opts().sec_sep_mass_in;
+				const real vkep = std::sqrt(mtot / sep);
+			        const real m_in_div_m2 = opts().sec_sep_mass_in / opts().sec_mass;
+				x1 = -sep * opts().sec_mass / mtot;
+				x2 = sep * opts().sec_sep_mass_in / mtot;
+				vel1 = -vkep * opts().sec_mass / mtot;
+				vel2 = vkep * opts().sec_sep_mass_in / mtot;
+				/*if (x > 0.95 * opts().xscale) {
+					printf("binary ini - x1: %e, x2: %e, v1: %e, v2: %e, v1 (km/s): %e, v2 *km/s): %e\n", x1, x2, vel1, vel2, vel1 * opts().code_to_cm / opts().code_to_s / 1e5, vel2 * opts().code_to_cm / opts().code_to_s / 1e5);
+				 }*/
 			} else {
-                		rho = std::max(eos.density_at(r, 0.01), rho_out);
+				x1 = opts().star_xcenter;
+				vel1 = 0.0;
 			}
-                	const real ei = std::max(opts().star_egas_out, eos.pressure(rho) / (fgamma - 1.0));
-                	u[rho_i] = rho;
-                	u[egas_i] = ei;
-                	u[tau_i] = std::pow(ei, 1.0 / fgamma);
-                	u[spc_i] = rho;
+			const real r = std::sqrt((x - x1 ) * (x - x1) + y * y + z * z);
+			const real egas_out = opts().star_egas_out;
+			if (r > rmax) {
+				u[spc_vac_i] = rho_out;
+				u[egas_i] = egas_out;
+			} else {				
+	                        static struct_eos eos(opts().star_rho_center, opts().star_alpha, opts().mesa_filename);
+                                real rho = std::max(eos.density_at(r, 0.01), rho_out);
+				real ei = std::max(egas_out, eos.pressure(rho) / (fgamma - 1.0));
+	                        u[egas_i] = ei;
+        	                u[tau_i] = std::pow(ei, 1.0 / fgamma);
+				if (r < 2.0 * opts().p_smooth_l) {
+                	        	u[spc_ac_i] = rho;
+				} else {
+					u[spc_ae_i] = rho;
+				}
+				u[sy_i] = rho * vel1;
+                        	if (opts().sec_sep > 0.0) {
+                                	const real r2 = std::sqrt((x - x2) * (x - x2) + y * y + z * z);
+                                	if (r2 < opts().sec_rad) {
+						u[spc_ac_i] = 0.0;
+						u[spc_ae_i] = 0.0;
+                                        	static struct_eos eos2(opts().sec_mass, opts().sec_rad, opts().sec_n, opts().sec_n, 0.99, 1.0);
+	                                        const real rho2 = std::max(eos2.density_at(r2, 0.01), rho_out);
+        	                                const real ei2 = std::max(egas_out, eos2.pressure(rho2) / (fgamma - 1.0));
+                	                        u[sy_i] = rho2 * vel2;
+                        	                u[egas_i] = ei2;
+	                                        u[spc_dc_i] = rho2;
+					}
+                	         }
+			}
+                	u[tau_i] = std::pow(u[egas_i], 1.0 / fgamma);
+                	u[rho_i] = u[spc_i] + u[spc_i + 1] + u[spc_i + 2] + u[spc_i + 3] + u[spc_i + 4];
 			return u;
 		}
 	}
@@ -444,10 +481,14 @@ std::vector<real> moving_star(real x, real y, real z, real dx) {
                 u[sy_i] = u[rho_i] * vy;
                 u[sz_i] = u[rho_i] * vz;
                 u[egas_i] += (u[sx_i] * u[sx_i] + u[sy_i] * u[sy_i] + u[sz_i] * u[sz_i]) / u[rho_i] / 2.0;
-                u[spc_i+1] = ZERO;
+		if (opts().mesa_filename == "") {
+                	u[spc_i+1] = ZERO;
+		}
         } else {
-                u[spc_i] = ZERO;
-                u[spc_i+1] = u[rho_i];
+		if (opts().mesa_filename == "") {
+                	u[spc_i] = ZERO;
+                	u[spc_i+1] = u[rho_i];
+		}
         }
 	return u;
 }

@@ -88,6 +88,34 @@ void node_server::recv_hydro_amr_boundary(std::vector<real> &&bdata, const geo::
 	sibling_hydro_channels[dir].set_value(std::move(tmp), cycle);
 }
 
+using send_particle_boundary_action_type = node_server::send_particle_boundary_action;
+HPX_REGISTER_ACTION (send_particle_boundary_action_type);
+
+void node_client::send_particle_boundary(std::vector<particle> &&data, const geo::direction &dir, std::size_t cycle) const {
+        hpx::apply<typename node_server::send_particle_boundary_action>(get_unmanaged_gid(), std::move(data), dir, cycle);
+}
+
+void node_server::recv_particle_boundary(std::vector<particle> &&bdata, const geo::direction &dir, std::size_t cycle) {
+        sibling_particle_type tmp;
+        tmp.data = std::move(bdata);
+        tmp.direction = dir;
+        sibling_particle_channels[dir].set_value(std::move(tmp), cycle);
+}
+
+using send_particle_amr_boundary_action_type = node_server::send_particle_amr_boundary_action;
+HPX_REGISTER_ACTION (send_particle_amr_boundary_action_type);
+
+void node_client::send_particle_amr_boundary(std::vector<particle> &&data, const geo::direction &dir, std::size_t cycle) const {
+        hpx::apply<typename node_server::send_particle_amr_boundary_action>(get_unmanaged_gid(), std::move(data), dir, cycle);
+}
+
+void node_server::recv_particle_amr_boundary(std::vector<particle> &&bdata, const geo::direction &dir, std::size_t cycle) {
+        sibling_particle_type tmp;
+        tmp.data = std::move(bdata);
+        tmp.direction = dir;
+        sibling_particle_channels[dir].set_value(std::move(tmp), cycle);
+}
+
 using send_flux_check_action_type = node_server::send_flux_check_action;
 HPX_REGISTER_ACTION (send_flux_check_action_type);
 
@@ -538,7 +566,14 @@ void node_server::refined_step() {
 		{
 			timings::scope ts(timings_, timings::time_fmm);
 			compute_fmm(DRHODT, false);
-			compute_fmm(RHO, true);
+			if (opts().particles) {
+				particle_bounds();
+				grid_ptr->egas_to_etot();
+				compute_fmm(RHOM, false);
+				grid_ptr->etot_to_egas();
+			} else {
+				compute_fmm(RHO, true);
+			}
 		}
 		rk == NRK - 1 ? energy_hydro_bounds() : all_hydro_bounds();
 
@@ -598,7 +633,15 @@ future<void> node_server::nonrefined_step() {
 						dt_ = GET(dt_fut);
 					}
 					grid_ptr->next_u(rk, current_time, dt_.dt);
-					compute_fmm(RHO, true);
+					if (opts().particles) {
+                                        	grid_ptr->next_particles(rk, current_time, dt_.dt);
+	                                        particle_bounds();
+						grid_ptr->egas_to_etot();
+        	                                compute_fmm(RHOM, false);
+						grid_ptr->etot_to_egas();
+					} else {
+						compute_fmm(RHO, true);
+					}
 					rk == NRK - 1 ? energy_hydro_bounds() : all_hydro_bounds();
 				}/*, "node_server::nonrefined_step::compute_fluxes")*/);
 	}

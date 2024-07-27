@@ -30,6 +30,8 @@ COMMAND_LINE_ENUM(eos_type, IDEAL, WD);
 
 COMMAND_LINE_ENUM(particles_smoothing_type, EXACT, RUFFERT, MONAGHAN, MONAGHAN_MULTI);
 
+COMMAND_LINE_ENUM(particles_evol_type, RUTH, RK4);
+
 class options {
 public:
 	bool inflow_bc;
@@ -53,6 +55,7 @@ public:
 	bool rotating_star_amr;
 	bool idle_rates;
 	bool part_self_interact;
+	bool particles;
 
 	integer scf_output_frequency;
 	integer silo_num_groups;
@@ -121,6 +124,11 @@ public:
 	real star_dr;
 	real star_n;
 	real star_rho_center;
+	real sec_sep;
+	real sec_sep_mass_in;
+	real sec_mass;
+	real sec_rad;
+	real sec_n;
 
 	real moving_star_xvelocity;
         real moving_star_yvelocity;
@@ -142,7 +150,8 @@ public:
 	eos_type eos;
 
         particles_smoothing_type p_smooth;
-        real p_smooth_l;
+        particles_evol_type p_evol;
+	real p_smooth_l;
 	real p_smooth_multi_f;
 
 	problem_type problem;
@@ -193,6 +202,11 @@ public:
 		arc & star_rho_center;
 		arc & star_rho_out;
 		arc & star_egas_out;
+		arc & sec_sep;
+		arc & sec_sep_mass_in;
+		arc & sec_mass;
+		arc & sec_rad;
+		arc & sec_n;
 		arc & moving_star_xvelocity;
 		arc & moving_star_yvelocity;
 		arc & moving_star_zvelocity;
@@ -260,6 +274,7 @@ public:
 		arc & accretor_refine;
 		arc & idle_rates;
 		arc & part_self_interact;
+		arc & particles;
 		arc & p_smooth_l;
 		arc & p_smooth_multi_f;
 		int tmp = problem;
@@ -271,6 +286,9 @@ public:
                 tmp = p_smooth;
                 arc & tmp;
                 p_smooth = static_cast<particles_smoothing_type>(tmp);
+                tmp = p_evol;
+                arc & tmp;
+                p_evol = static_cast<particles_evol_type>(tmp);
 		arc & data_dir;
 		arc & m2m_kernel_type;
 		arc & p2p_kernel_type;

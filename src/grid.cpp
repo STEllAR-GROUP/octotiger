@@ -78,7 +78,13 @@ void grid::set_particles(std::vector<std::vector<real>> p) {
                         part_vel[d] = p[NDIM + 2 + d][i] * opts().code_to_s / opts().code_to_cm; 
                 }
                 particle part = particle(p[NDIM][i] / opts().code_to_g, part_pos, part_vel, p[NDIM + 1][i], 1);
-                particles.push_back(part);
+                /*const integer i_part = std::min(int((part.pos[XDIM] - xmin[XDIM]) / dx), INX - 1);
+                const integer j_part = std::min(int((part.pos[YDIM] - xmin[YDIM]) / dx), INX - 1);
+                const integer k_part = std::min(int((part.pos[ZDIM] - xmin[ZDIM]) / dx), INX - 1);
+                const std::array<integer, NDIM> p_in_cell = { int(i_part), int(j_part), int(k_part) };
+		part.update_cell_indexes(p_in_cell, p_in_cell); */
+                //particle part = particle(p[NDIM][i] * 0.0 / opts().code_to_g, part_pos, part_vel, p[NDIM + 1][i], 1);
+		particles.push_back(part);
         }
         printf("particles size after: %i\n", particles.size());
 }
@@ -414,6 +420,11 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 					if (opts().gravity) {
 						rc.virial += (2.0 * ek + 0.5 * U[rho_i][iii] * G[iiig][phi_i] + 3.0 * p) * (dx * dx * dx);
 						rc.virial_norm += (2.0 * ek - 0.5 * U[rho_i][iii] * G[iiig][phi_i] + 3.0 * p) * (dx * dx * dx);
+						for (integer d = 0; d != NDIM; d++) {
+							const real ftmp = G[iiig][gx_i + d] * U[rho_i][iii] * dV;
+							rc.fsum[d] += ftmp;
+							rc.fsum_abs[d] += std::abs(ftmp);
+						}
 					} else {
 						rc.virial_norm = 1.0;
 					}
@@ -437,9 +448,14 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 			rc.grid_sum[pot_i] += p.pot * p.mass;
 			rc.grid_sum[rho_i] += p.mass;
 			for (integer d = 0; d != NDIM; ++d) {
-				rc.grid_sum[sx_i + d] = p.mass * p.vel[d];
+				rc.grid_sum[sx_i + d] += p.mass * p.vel[d];
+				const real ftmp = p.g[d] * p.mass;
+				rc.fsum[d] += ftmp;
+				rc.fsum_abs[d] += std::abs(ftmp);
 			}			
-		}
+			//printf("pid %i, m %e, x (%e, %e, %e), phi %e, v (%e, %e, %e), etot %e\n", p.id, p.mass, p.pos[0], p.pos[1], p.pos[2], p.pot, 
+			//									p.vel[0], p.vel[1], p.vel[2], e_p);
+		} 
 		for (integer f = 0; f != opts().n_fields; ++f) {
 			rc.grid_out[f] += U_out[f];
 		}
@@ -721,7 +737,7 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
                                         rc.grid_sum[egas_i] += e_p + e_k;
                                         rc.grid_sum[rho_i] += p.mass;
                                         for (integer d = 0; d != NDIM; ++d) {
-                                                rc.grid_sum[sx_i + d] = p.mass * p.vel[d];
+                                                rc.grid_sum[sx_i + d] += p.mass * p.vel[d];
                                         }
 					integer star_i;
 					if (rho[0] > 0.0) {
@@ -729,7 +745,7 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 					} else if (rho[1] > 0.0){
 						star_i = 1;
 					} else {
-						printf("particle in neither cores!!\n iii: %i, x: %e, y: %e, z: %e, pid: %i, pmass: %e\n", iii, x, y, z, p.id, p.mass);
+						printf("particle in neither cores!!\n iii: %i, x: %e, y: %e, z: %e, pid: %i, pmass: %e, rho1: %e, rho2: %e\n", iii, x, y, z, p.id, p.mass, rho[0], rho[1]);
 						//abort();
 						break;
 					}
@@ -910,7 +926,7 @@ void grid::set_restrict(const std::vector<real> &data, const geo::octant &octant
 
 void grid::set_restrict_particles(std::vector<particle> &parts, const geo::octant &octant) {
         for (particle &p : parts) {
-/*		//printf("grid (%e, %e, %e), dx %e, %i particles in grid, %i particles to add, cur id %i\n", xmin[0], xmin[1], xmin[2], dx, particles.size(), parts.size(), p.id);
+	/*	//printf("grid (%e, %e, %e), dx %e, %i particles in grid, %i particles to add, cur id %i\n", xmin[0], xmin[1], xmin[2], dx, particles.size(), parts.size(), p.id);
 		const integer i_part = std::min(int((p.pos[XDIM] - xmin[XDIM]) / dx), INX - 1);
 		const integer j_part = std::min(int((p.pos[YDIM] - xmin[YDIM]) / dx), INX - 1);
 		const integer k_part = std::min(int((p.pos[ZDIM] - xmin[ZDIM]) / dx), INX - 1);
@@ -944,6 +960,13 @@ void grid::set_hydro_boundary(const std::vector<real> &data, const geo::directio
 	}
 }
 
+void grid::set_particle_boundary(const std::vector<particle> &data, const geo::direction &dir) {
+       for (particle p : data) {
+                particles.push_back(p);
+                //printf("p props: id %i, mass %e, locs (%e, %e, %e), vels (%e, %e, %e)\n", p.id, p.mass, p.pos[0], p.pos[1], p.pos[2], p.vel[0], p.vel[1], p.vel[2]);
+        }
+}
+
 std::vector<real> grid::get_hydro_boundary(const geo::direction &dir, bool energy_only) {
 	PROFILE();
 
@@ -971,6 +994,38 @@ std::vector<real> grid::get_hydro_boundary(const geo::direction &dir, bool energ
 	}
 	return data;
 
+}
+
+std::vector<particle> grid::get_particle_boundary(const geo::direction &dir) {
+	const auto &bw = field_bw;
+        std::vector<particle> parts;
+        std::array<integer, NDIM> lb, ub;
+        space_vector bmin, bmax;
+        integer const size = get_boundary_size(lb, ub, dir, OUTER, INX, H_BW, bw[rho_i]);
+        integer const lind = hindex(lb[XDIM], lb[YDIM], lb[ZDIM]);
+        integer const uind = hindex(std::min(int(ub[XDIM]), H_NX - 1), std::min(int(ub[YDIM]), H_NX - 1), std::min(int(ub[ZDIM]), H_NX - 1));
+        for (integer i = 0; i < NDIM; i++) {
+                bmin[i] = X[i][lind] - 0.5 * dx;
+                bmax[i] = X[i][uind] - 0.5 * dx;
+                if (ub[i] == H_NX) {
+	                bmax[i] += dx;
+                }
+        }
+        auto const p_bnd = std::remove_if(particles.begin(), particles.end(),
+                              [bmin, bmax](particle p) { return p.is_in_boundary(bmin, bmax); });
+	for (auto it = p_bnd; it != particles.end(); ++it) {
+	        auto const p = *it;
+                parts.push_back(p);
+//                printf("particle %i (from %i), %e, (%e, %e, %e), out of bound (%e, %e, %e) - (%e, %e, %e)\n but in (%e, %e, %e) - (%e, %e, %e)\n",
+//	                p.id, particles.size(), p.mass, p.pos[0], p.pos[1], p.pos[2], 
+//                        xmin[0], xmin[1], xmin[2], xmin[0] + 8*dx, xmin[1] + 8 * dx, xmin[2] + 8 * dx,
+//                        bmin[0], bmin[1], bmin[2], bmax[0], bmax[1], bmax[2]);
+        }
+        particles.erase(p_bnd, particles.end());
+//        if (parts.size() > 0) {
+//        	printf("new particles size: %i, particles in boundary: %i\n", particles.size(), parts.size());
+//        }
+	return parts;
 }
 
 line_of_centers_t grid::line_of_centers(const std::pair<space_vector, space_vector> &line) {
@@ -1854,6 +1909,7 @@ void grid::allocate() {
 	U_out0 = std::vector<real>(opts().n_fields, ZERO);
 	U_out = std::vector<real>(opts().n_fields, ZERO);
 	dphi_dt = std::vector<real>(INX * INX * INX);
+	phi_part = std::vector<real>(INX * INX * INX);
 	G.resize(G_N3);
 	for (integer dim = 0; dim != NDIM; ++dim) {
 		X[dim].resize(H_N3);
@@ -1900,6 +1956,7 @@ grid::grid(const init_func_type &init_func, real _dx, std::array<real, NDIM> _xm
                 bmax[i] = _xmin[i] + _dx * INX;
         }
         particles = load_particles(bmin, bmax);
+	particles0.resize(0);
 	allocate();
 	for (integer i = 0; i != H_NX; ++i) {
 		for (integer j = 0; j != H_NX; ++j) {
@@ -2062,6 +2119,12 @@ void grid::store() {
 		}
 	}
 	U_out0 = U_out;
+	if (opts().particles && opts().p_evol == RK4) {
+		particles0.clear();
+		for (auto p : particles) {
+			particles0.push_back(p);
+		}
+	}
 }
 
 void grid::restore() {
@@ -2371,6 +2434,33 @@ void grid::egas_to_etot() {
 	}
 }
 
+void grid::egas_to_etot_particles() {
+	egas_to_etot();
+	if (opts().gravity && particles.size() > 0 && is_leaf) {
+    		const real dVinv = INVERSE(dx * dx * dx);
+                for (integer i = H_BW; i != H_NX - H_BW; ++i) {
+	      		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
+#pragma GCC ivdep
+       				for (integer k = H_BW; k != H_NX - H_BW; ++k) {
+               				const integer iii = hindex(i, j, k);
+                        		space_vector bmin;
+	                        	bmin[0] = xmin[0] + (i - H_BW) * dx;
+	        	                bmin[1] = xmin[1] + (j - H_BW) * dx;
+        	        	        bmin[2] = xmin[2] + (k - H_BW) * dx;
+                	        	space_vector bmax;
+	                	        for (integer d = 0; d < NDIM; d++) {
+        	                	     	bmax[d] = bmin[d] + dx;
+	                	        }
+		                        auto parts_in_cell = load_particles(particles, bmin, bmax);
+        		                for (auto p : parts_in_cell) {
+                        		        U[egas_i][iii] += (p.pot * p.mass * HALF) * dVinv;
+		                        }                                                                                     
+                                }
+                        }
+                }
+	}
+}
+
 void grid::etot_to_egas() {
 	PROFILE();
 	if (opts().gravity) {
@@ -2385,6 +2475,33 @@ void grid::etot_to_egas() {
 			}
 		}
 	}
+}
+
+void grid::etot_to_egas_particles() {
+	etot_to_egas();
+        if (opts().gravity && particles.size() > 0 && is_leaf) {
+                const real dVinv = INVERSE(dx * dx * dx);
+                for (integer i = H_BW; i != H_NX - H_BW; ++i) {
+                        for (integer j = H_BW; j != H_NX - H_BW; ++j) {
+#pragma GCC ivdep
+                                for (integer k = H_BW; k != H_NX - H_BW; ++k) {
+                                        const integer iii = hindex(i, j, k);
+                                        space_vector bmin;
+                                        bmin[0] = xmin[0] + (i - H_BW) * dx;
+                                        bmin[1] = xmin[1] + (j - H_BW) * dx;
+                                        bmin[2] = xmin[2] + (k - H_BW) * dx;
+                                        space_vector bmax;
+                                        for (integer d = 0; d < NDIM; d++) {
+                                                bmax[d] = bmin[d] + dx;
+                                        }
+                                        auto parts_in_cell = load_particles(particles, bmin, bmax);
+                                        for (auto p : parts_in_cell) {
+                                                U[egas_i][iii] -= (p.pot * p.mass * HALF) * dVinv;
+					}
+                                }
+                        }
+                }
+        }
 }
 
 void grid::next_u(integer rk, real t, real dt) {
@@ -2523,6 +2640,34 @@ void grid::next_u(integer rk, real t, real dt) {
 					abort();
 				}
 			}
+		}
+	}
+}
+
+void grid::next_particles(integer rk, real t, real dt) {
+	for (integer i = 0; i < particles.size(); i++) {
+		particle& p = particles[i];
+		if (opts().p_evol == RUTH) {
+	 		for (integer d = 0; d < NDIM; d++) {
+		        	p.vel[d] += part_c[rk] * p.g[d] * dt;
+				p.pos[d] += part_d[rk] * p.vel[d] * dt;
+			}
+		} else if (opts().p_evol == RK4) {
+			const particle p0 = particles0[i];
+			if (p0.id == p.id) {
+	                        for (integer d = 0; d < NDIM; d++) {
+					const real tmp_v = p.vel[d] + p.g[d] * dt;
+					const real tmp_x = p.pos[d] + p.vel[d] * dt;
+        	                        p.vel[d] += (ONE - rk_beta[rk]) * p0.vel[d] + rk_beta[rk] * tmp_v;
+                	                p.pos[d] += (ONE - rk_beta[rk]) * p0.pos[d] + rk_beta[rk] * tmp_x;
+                        	}
+			} else {
+	                        printf("in particle update, p id is different than p0 id! pid = %i, p0id = %i\n", p.id, p0.id);
+        	                abort();
+			}
+		} else {
+                        printf("Unknown particle evolution type!\n");
+                        abort();			
 		}
 	}
 }

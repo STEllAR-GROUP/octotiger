@@ -55,6 +55,9 @@ void node_server::check_for_refinement(real omega, real new_floor) {
 	if (opts().hydro || opts().problem == AMR_TEST) {
 		all_hydro_bounds();
 	}
+	if (opts().particles) {
+		particle_bounds();
+	}
 	if (!rc) {
 		rc = grid_ptr->refine_me(my_location.level(), new_floor);
 	}
@@ -90,6 +93,7 @@ void node_server::enforce_bc() {
 		}
 	}
 	all_hydro_bounds();
+	particle_bounds();
 	for (auto &f : futs) {
 		GET(f);
 	}
@@ -127,7 +131,7 @@ future<hpx::id_type> node_server::copy_to_locality(const hpx::id_type &id) {
 		}
 	}
 	auto rc = hpx::new_<node_server>(id, my_location, step_num, bool(is_refined), current_time, rotational_time, child_descendant_count, std::move(*grid_ptr),
-			cids, std::size_t(hcycle), std::size_t(rcycle), std::size_t(gcycle), position);
+			cids, std::size_t(hcycle), std::size_t(rcycle), std::size_t(gcycle), std::size_t(pcycle), position);
 	clear_family();
 	parent = hpx::invalid_id;
 	std::fill(neighbors.begin(), neighbors.end(), hpx::invalid_id);
@@ -319,6 +323,9 @@ diagnostics_t node_server::diagnostics() {
 			for (integer i = 0; i != 3; ++i) {
 				fprintf(fp, "%.13e ", (double) diags.lsum[i]);
 			}
+                        for (integer i = 0; i != 3; ++i) {
+                                fprintf(fp, "f[%i] %.13e ", i, (double) diags.fsum[i] / diags.fsum_abs[i]);
+                        }
 			fprintf(fp, "\n");
 			fclose(fp);
 

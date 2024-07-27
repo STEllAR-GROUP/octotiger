@@ -57,6 +57,8 @@ struct diagnostics_t {
 	hydro_state_t<> grid_sum;
 	hydro_state_t<> grid_out;
 	std::array<safe_real, NDIM> lsum;
+	std::array<safe_real, NDIM> fsum;
+	std::array<safe_real, NDIM> fsum_abs;
 	safe_real nonvacj;
 	safe_real nonvacjlz;
 	diagnostics_t() {
@@ -92,6 +94,8 @@ struct diagnostics_t {
 			rho_max[s] = 0.0;
 		}
 		lsum[0] = lsum[1] = lsum[2] = 0.0;
+		fsum[0] = fsum[1] = fsum[2] = 0.0;
+		fsum_abs[0] = fsum_abs[1] = fsum_abs[2] = 0.0;
 		virial_norm = 0.0;
 		z_mom_orb = 0.0;
 		virial = 0.0;
@@ -158,6 +162,12 @@ struct diagnostics_t {
 		lsum[0] += other.lsum[0];
 		lsum[1] += other.lsum[1];
 		lsum[2] += other.lsum[2];
+                fsum[0] += other.fsum[0];
+                fsum[1] += other.fsum[1];
+                fsum[2] += other.fsum[2];
+                fsum_abs[0] += other.fsum_abs[0];
+                fsum_abs[1] += other.fsum_abs[1];
+                fsum_abs[2] += other.fsum_abs[2];
 		nonvacj += other.nonvacj;
 		nonvacjlz += other.nonvacjlz;
 		return *this;
@@ -177,6 +187,8 @@ struct diagnostics_t {
 		arc & eint;
 		arc & failed;
 		arc & lsum;
+		arc & fsum;
+		arc & fsum_abs;
 		arc & l1_phi;
 		arc & l2_phi;
 		arc & l3_phi;

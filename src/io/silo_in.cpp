@@ -99,8 +99,8 @@ void load_options_from_silo(std::string fname, DBfile *db) {
 			opts().eos = eos_type(ri(db, "eos"));
 			opts().gravity = ri(db, "gravity");
 			opts().hydro = ri(db, "hydro");
-			opts().omega = rr(db, "omega") * opts().code_to_s;
-			opts().output_dt = rr(db, "output_frequency");
+			//opts().omega = rr(db, "omega") * opts().code_to_s;
+			//opts().output_dt = rr(db, "output_frequency");
 			opts().problem = problem_type(ri(db, "problem"));
 			opts().radiation = ri(db, "radiation");
 			opts().refinement_floor = rr(db, "refinement_floor");
@@ -158,7 +158,7 @@ node_server::node_server(const node_location &loc) :
 		my_location(loc) {
 	const auto &localities = opts().all_localities;
 	initialize(0.0, 0.0);
-	step_num = gcycle = hcycle = rcycle = 0;
+	step_num = gcycle = hcycle = rcycle = pcycle = 0;
 
 	auto iter = node_dir_.find(loc.to_id());
 	assert(iter != node_dir_.end());

@@ -246,7 +246,9 @@ void output_stage3(std::string fname, int cycle, int gn, int gb, int ge) {
 			DBSetDir(db, "/");
 
                         if (parts.size() > 0) {
-                                const auto &dir_name_p = (dir_name + std::string("p")).c_str();
+				char dir_name_p[strlen(dir_name) + 1];
+				strcpy(dir_name_p, dir_name);
+				strcat(dir_name_p, "p");
                                 DBMkDir(db, dir_name_p);
                                 DBSetDir(db, dir_name_p);
                                 const auto pnum = parts.size();

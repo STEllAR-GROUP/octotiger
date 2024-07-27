@@ -200,6 +200,7 @@ void node_server::rho_move(real x) {
 		grid_ptr->rho_move(std::max(w0 * x / 2.0, -dx_min / 10.0));
 	}
 	all_hydro_bounds();
+	particle_bounds();
 	if (is_refined) {
 		for (auto &f : futs) {
 			GET(f);
@@ -533,14 +534,18 @@ void node_server::run_scf(std::string const &data_dir) {
 			diags.rho_max[0], diags.rho_max[1]);
 		real f = (scf_options::M1 + scf_options::M2) * INVERSE(diags.m[0] + diags.m[1]);
 		f = (f + 1.0) / 2.0;
-                solve_gravity(false, false);
-                diags = diagnostics();
+                //solve_gravity(false, false);
+                //diags = diagnostics();
 		rho_mult(f1, f2, f1_p, f2_p);
+		printf("after density multiplication: %e, %e, %e, %e\n", f1, f2, f1_p, f2_p);
 		solve_gravity(false, false);
 		diags = diagnostics();
+		printf("after diangostics before density movement. com_x: %e\n", diags.grid_com[0]);
 		rho_move(diags.grid_com[0]);
+		printf("after density movement. com_x: %e\n", diags.grid_com[0]);
 		solve_gravity(false, false);
 		diags = diagnostics();
+		printf("after diagnostics. com_x: %e\n", diags.grid_com[0]);
 		real iorb = diags.z_mom_orb;
 		real is1 = diags.z_moment[0];
 		real is2 = diags.z_moment[1];
@@ -761,7 +766,7 @@ std::vector<real> scf_binary(real x, real y, real z, real dx) {
 	}
 	std::shared_ptr<struct_eos> this_struct_eos;
 	real r, ei;
-	int M = 1;
+	int M = opts().interp_points;
 	if (x < params.l1_x) {
 		this_struct_eos = params.struct_eos1;
 	} else {
@@ -776,6 +781,9 @@ std::vector<real> scf_binary(real x, real y, real z, real dx) {
 				++nsamp;
 				if (x < params.l1_x) {
 					r = SQRT(std::pow(x0 - params.c1_x, 2) + y0 * y0 + z0 * z0);
+					/*if ((r <= R0) && (r > 350.0)) {
+						printf("r: %e, R0: %e, mp: %e, rho: %e\n", r, R0, this_struct_eos->get_p_mass(), this_struct_eos->density_at(r, dx));
+					}*/
 				} else {
 					r = SQRT(std::pow(x0 - params.c2_x, 2) + y0 * y0 + z0 * z0);
 				}

@@ -22,7 +22,7 @@ constexpr double MARSHAK_OPAC = 1.0e+2;
 
 //#define OCTOTIGER_FLUX_CHECK
 
-constexpr real rho_floor = 1.0e-12;
+constexpr real rho_floor = 1.0e-14;
 constexpr int REFINE_BW = 2;
 
 //#define FIND_AXIS_V2
@@ -71,7 +71,7 @@ using integer = long long int;
 //using byte = unsigned char;
 
 enum gsolve_type {
-	RHO, DRHODT
+	RHO, DRHODT, RHOM
 };
 
 
@@ -165,6 +165,8 @@ constexpr real ei_floor = 1.0e-15;
 #ifdef USE_RK3
 constexpr integer NRK = 3;
 constexpr real rk_beta[3] = { 1.0, 1.0/4.0, 2.0/3.0 };
+constexpr real part_c[3] = { 7.0/24.0, 3.0/4.0, -1.0/24.0 }; // From Ruth 1983, sympletic third order map
+constexpr real part_d[3] = { 2.0/3.0, -2.0/3.0, 1.0 };
 #else
 constexpr integer NRK = 2;
 constexpr real rk_beta[2] = { ONE, HALF };

@@ -118,7 +118,7 @@ namespace fmm {
 
                             // calculate position of the monopole
 
-                            if (type == RHO) {
+                            if (type == RHO || type == RHOM) {
                                 this->blocked_interaction_rho(local_expansions_SoA,
                                     center_of_masses_SoA, potential_expansions_SoA,
                                     angular_corrections_SoA, cell_index, cell_flat_index,

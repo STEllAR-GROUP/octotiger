@@ -212,7 +212,11 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 		grid::set_fgamma(5.0 / 3.0);
 //		grid::set_analytic_func(moving_star_analytic);
 		set_problem(moving_star);
-		set_refine_test(refine_test_moving_star);
+		if ((opts().p_smooth == MONAGHAN) || (opts().p_smooth == MONAGHAN_MULTI)) {
+			set_refine_test(mesa_refine_test);
+		} else {
+			set_refine_test(refine_test_moving_star);
+		}
         } else if (opts().problem == MESA_STAR) {
                 grid::set_fgamma(5.0 / 3.0);
                 set_problem(mesa_star);

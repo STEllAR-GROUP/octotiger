@@ -64,7 +64,7 @@ namespace fmm {
                             // -> maps to the same for some SIMD lanes
                             cell_index_coarse.transform_coarse();
 
-                            if (type == RHO) {
+                            if (type == RHO || type == RHOM) {
                                 this->blocked_interaction_rho(local_expansions_SoA,
                                     center_of_masses_SoA, potential_expansions_SoA,
                                     angular_corrections_SoA, mons, cell_index, cell_flat_index,
@@ -116,7 +116,7 @@ namespace fmm {
                             // -> maps to the same for some SIMD lanes
                             cell_index_coarse.transform_coarse();
 
-                            if (type == RHO) {
+                            if (type == RHO || type == RHOM) {
                                 this->non_blocked_interaction_rho(local_expansions_SoA,
                                     center_of_masses_SoA, potential_expansions_SoA,
                                     angular_corrections_SoA, mons, cell_index, cell_flat_index,

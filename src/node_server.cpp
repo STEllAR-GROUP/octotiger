@@ -63,7 +63,7 @@ void node_server::register_counters() {
 }
 
 real node_server::get_rotation_count() const {
-	if (opts().problem == DWD) {
+	if ((opts().problem == DWD) && (opts().omega > 0.0)) {
 		return rotational_time / (2.0 * M_PI);
 	}
 	return current_time;
@@ -156,11 +156,31 @@ void node_server::energy_hydro_bounds() {
 	++hcycle;
 }
 
+void node_server::particle_bounds() {
+        exchange_interlevel_particle_data();
+        collect_particle_boundaries();
+        ++pcycle;
+}
+
+void node_server::exchange_interlevel_particle_data() {
+	if (is_refined) {
+                grid_ptr->empty_particles();
+                for (auto const &ci : geo::octant::full_set()) {
+                        auto parts = GET(child_particle_channels[ci].get_future(pcycle));
+                        grid_ptr->set_restrict_particles(parts, ci);
+                }
+        }
+        auto parts = grid_ptr->get_restrict_particles();
+        integer ci = my_location.get_child_index();
+        if (my_location.level() != 0) {
+                parent.send_particle_children(std::move(parts), ci, pcycle);
+        }
+}
+
 void node_server::exchange_interlevel_hydro_data() {
 
 	if (is_refined) {
 		std::vector<real> outflow(opts().n_fields, ZERO);
-		grid_ptr->empty_particles();
 		for (auto const &ci : geo::octant::full_set()) {
 			auto data = GET(child_hydro_channels[ci].get_future(hcycle));
 			grid_ptr->set_restrict(data, ci);
@@ -169,24 +189,20 @@ void node_server::exchange_interlevel_hydro_data() {
 				outflow[fi] += *i;
 				++fi;
 			}
-			auto parts = GET(child_particle_channels[ci].get_future(hcycle));
-			grid_ptr->set_restrict_particles(parts, ci);
 		}
 		grid_ptr->set_outflows(std::move(outflow));
 	}
 	auto data = grid_ptr->get_restrict();
-	auto parts = grid_ptr->get_restrict_particles();
 	integer ci = my_location.get_child_index();
 	if (my_location.level() != 0) {
 		parent.send_hydro_children(std::move(data), ci, hcycle);
-		parent.send_particle_children(std::move(parts), ci, hcycle);
 	}
 }
 
 void node_server::collect_hydro_boundaries(bool energy_only) {
 	grid_ptr->clear_amr();
 	for (auto const &dir : geo::direction::full_set()) {
-		if (!neighbors[dir].empty()) {
+		if (!neighbors[dir].empty()) { // neighbors at the same level only, does not include neighbor at a coarser level
 			const integer width = H_BW;
 			auto bdata = grid_ptr->get_hydro_boundary(dir, energy_only);
 			neighbors[dir].send_hydro_boundary(std::move(bdata), dir.flip(), hcycle);
@@ -224,6 +240,41 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
 	}
 }
 
+void node_server::collect_particle_boundaries() {
+        for (auto const &dir : geo::direction::full_set()) {
+                auto parts = grid_ptr->get_particle_boundary(dir);
+                if (!neighbors[dir].empty()) { // neighbors at the same level only, does not include neighbor at a coarser level
+                        //for (auto p : parts) {
+                        //        auto xmin = grid_ptr->get_xmin();
+                                //printf("sending level %i, dir %i, particles n: %i grid (%e, %e, %e), p id: %i\n", my_location.level(), dir, parts.size(), xmin[0], xmin[1], xmin[2], p.id);
+                        //}
+                        neighbors[dir].send_particle_boundary(std::move(parts), dir.flip(), pcycle);
+                }
+        }
+        for (auto const &dir : geo::direction::full_set()) {
+                std::vector<particle> parts(0);
+                if (!neighbors[dir].empty()) {
+                        auto tmp = GET(sibling_particle_channels[dir].get_future(pcycle));
+                        parts = tmp.data;
+                        grid_ptr->set_particle_boundary(parts, tmp.direction);
+                }
+          //      for (auto p : parts) {
+	//		printf("getting boundary dir = %i, level %i, particles %i, p id: %i\n", dir, my_location.level(), parts.size(), p.id);
+          //      }
+                if (is_refined) {
+                        send_particle_amr_boundaries(parts, dir);
+                }
+                if ((neighbors[dir].empty()) && (my_location.level() != 0)) {
+                        auto tmp = GET(sibling_particle_channels[dir].get_future(pcycle));
+                        auto parts = tmp.data;
+                 //       for (auto p : parts) {
+                   //             printf("getting nephew dir = %i, level %i, particles %i, p id: %i\n", dir, my_location.level(), parts.size(), p.id);
+                   //     }
+                        grid_ptr->set_particle_boundary(parts, tmp.direction);
+                }
+        }
+}
+
 void node_server::send_hydro_amr_boundaries(bool energy_only) {
 	if (is_refined) {
 		constexpr auto full_set = geo::octant::full_set();
@@ -245,6 +296,36 @@ void node_server::send_hydro_amr_boundaries(bool energy_only) {
 				}
 			}
 		}
+	}
+}
+
+void node_server::send_particle_amr_boundaries(std::vector<particle> parts, const geo::direction& dir) {
+	constexpr auto full_set = geo::octant::full_set();
+        for (auto &ci : full_set) {
+		const auto &flags = amr_flags[ci];
+                if (flags[dir]) {
+			std::array<integer, NDIM> lb = {2 * H_BW, 2 * H_BW, 2 * H_BW};
+                        std::array<integer, NDIM> ub;
+                        lb[XDIM] += (1 & (ci >> 0)) * (INX);
+                        lb[YDIM] += (1 & (ci >> 1)) * (INX);
+                        lb[ZDIM] += (1 & (ci >> 2)) * (INX);
+                        for (integer d = 0; d != NDIM; ++d) {
+                                ub[d] = lb[d] + (INX);
+                        }
+			space_vector bmin, bmax;
+			integer const lind = hindex(lb[XDIM] / 2, lb[YDIM] / 2, lb[ZDIM] / 2);
+			integer const uind = hindex(ub[XDIM] / 2, ub[YDIM] / 2, ub[ZDIM] / 2);
+			auto const tmp_X = grid_ptr->get_X();
+			for (integer i = 0; i < NDIM; i++) {
+				bmin[i] = tmp_X[i][lind] - 0.5 * dx;
+				bmax[i] = tmp_X[i][uind] - 0.5 * dx;
+                        }
+                        std::vector<particle> tmp = load_particles(parts, bmin, bmax);
+                        //for (particle p : tmp) {
+                       //         printf("sending to nephew %i at dir %i, %i particles out of %i, p id %i\n", ci, dir, tmp.size(), parts.size(), p.id);
+			//}
+                        children[ci].send_particle_amr_boundary(std::move(tmp), dir, pcycle);
+                }
 	}
 }
 
@@ -297,7 +378,7 @@ void node_server::initialize(real t, real rt) {
 	for (auto const &dir : geo::direction::full_set()) {
 		neighbor_signals[dir].signal();
 	}
-	gcycle = hcycle = rcycle = 0;
+	gcycle = hcycle = rcycle = pcycle = 0;
 	step_num = 0;
 	refinement_flag = 0;
 	static_initialize();
@@ -330,24 +411,26 @@ node_server::~node_server() {
 }
 
 node_server::node_server(const node_location &loc, const node_client &parent_id, real t, real rt, std::size_t _step_num, std::size_t _hcycle,
-		std::size_t _rcycle, std::size_t _gcycle) :
+		std::size_t _rcycle, std::size_t _gcycle, std::size_t _pcycle) :
 		my_location(loc), parent(parent_id) {
 	initialize(t, rt);
 	step_num = _step_num;
 	gcycle = _gcycle;
 	hcycle = _hcycle;
 	rcycle = _rcycle;
+	pcycle = _pcycle;
 }
 
 node_server::node_server(const node_location &_my_location, integer _step_num, bool _is_refined, real _current_time, real _rotational_time,
 		const std::array<integer, NCHILD> &_child_d, grid _grid, const std::vector<hpx::id_type> &_c, std::size_t _hcycle, std::size_t _rcycle,
-		std::size_t _gcycle, integer position_) {
+		std::size_t _gcycle, std::size_t _pcycle, integer position_) {
 	my_location = _my_location;
 	initialize(_current_time, _rotational_time);
 	position = position_;
 	hcycle = _hcycle;
 	gcycle = _gcycle;
 	rcycle = _rcycle;
+	pcycle = _pcycle;
 	is_refined = _is_refined;
 	step_num = _step_num;
 	current_time = _current_time;
@@ -411,6 +494,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 	if (my_location.level() != 0) {
 		parent.send_gravity_multipoles(std::move(m_out), my_location.get_child_index());
 	}
+
 
 	if (!aonly) {
 		std::vector<future<void>> send_futs;
@@ -530,7 +614,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 		for (auto const &ci : geo::octant::full_set()) {
 			expansion_pass_type l_out;
 			l_out.first.resize(INX * INX * INX / NCHILD);
-			if (type == RHO) {
+			if (type == RHO || type == RHOM) {
 				l_out.second.resize(INX * INX * INX / NCHILD);
 			}
 			const integer x0 = ci.get_side(XDIM) * INX / 2;
@@ -542,7 +626,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 						const integer io = i * INX * INX / 4 + j * INX / 2 + k;
 						const integer ii = (i + x0) * INX * INX + (j + y0) * INX + k + z0;
 						l_out.first[io] = ltmp.first[ii];
-						if (type == RHO) {
+						if (type == RHO || type == RHOM) {
 							l_out.second[io] = ltmp.second[ii];
 						}
 					}

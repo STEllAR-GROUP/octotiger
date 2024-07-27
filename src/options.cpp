@@ -92,6 +92,11 @@ bool options::process_options(int argc, char *argv[]) {
         ("star_rho_center", po::value<real>(&(opts().star_rho_center))->default_value(1.0), "density at the center of the star")     //
         ("star_rho_out", po::value<real>(&(opts().star_rho_out))->default_value(1.0e-10), "density outside the star")     //
 	("star_egas_out", po::value<real>(&(opts().star_egas_out))->default_value(1.0e-10), "gas energy outside the star")     //
+        ("star_sec_sep", po::value<real>(&(opts().sec_sep))->default_value(0.0), "primary-secondary orbital separation")     //
+        ("star_sec_sep_M_in", po::value<real>(&(opts().sec_sep_mass_in))->default_value(0.0), "primary mass interior to the orbital separation")     //
+        ("star_sec_M", po::value<real>(&(opts().sec_mass))->default_value(0.0), "secondary mass")     //
+        ("star_sec_R", po::value<real>(&(opts().sec_rad))->default_value(0.0), "secondary size")     //
+        ("star_sec_n", po::value<real>(&(opts().sec_n))->default_value(0.0), "secondary polytropic index")     //
         ("moving_star_xvelocity", po::value<real>(&(opts().moving_star_xvelocity))->default_value(1.0), "velocity of the star in the x-direction")     //
         ("moving_star_yvelocity", po::value<real>(&(opts().moving_star_yvelocity))->default_value(1.0), "velocity of the star in the y-direction")     //
         ("moving_star_zvelocity", po::value<real>(&(opts().moving_star_zvelocity))->default_value(1.0), "velocity of the star in the z-direction")     //
@@ -169,9 +174,11 @@ bool options::process_options(int argc, char *argv[]) {
 	("particle_mass", po::value<std::vector<real>>(&(opts().Part_M))->multitoken(), "particles masses") //
 	("particle_type", po::value<std::vector<real>>(&(opts().Part_T))->multitoken(), "particles types") //
 	("particles_self_interact", po::value<bool>(&(opts().part_self_interact))->default_value(false), "allow inter-cell cell-particle and particle-particle interactions") //
+	("particles", po::value<bool>(&(opts().particles))->default_value(false), "particles on/off") //
         ("particles_smoothing", po::value<particles_smoothing_type>(&(opts().p_smooth))->default_value(EXACT), "EXACT (no smoothing; default), RUFFERT, MONAGHAN, or MONAGHAN_MULTI")   //
         ("particles_smoothing_length", po::value<real>(&(opts().p_smooth_l))->default_value(0.0), "particles smoothing length")   //
 	("particles_smoothing_multi_f", po::value<real>(&(opts().p_smooth_multi_f))->default_value(1.0), "particles smoothing length")   //
+	("particles_evolution_type", po::value<particles_evol_type>(&(opts().p_evol))->default_value(RUTH), "RUTH (Ruth 1983; default), RK4")   //
 	("code_to_g", po::value<real>(&(opts().code_to_g))->default_value(1), "code units to grams") //
 	("code_to_cm", po::value<real>(&(opts().code_to_cm))->default_value(1), "code units to centimeters") //
 	("code_to_s", po::value<real>(&(opts().code_to_s))->default_value(1), "code units to seconds") //

@@ -118,7 +118,7 @@ public:
 };
 
 std::pair< std::function<double(double)>, std::function<double(double)> > build_rho_of_h_from_mesa(
-		const std::string& filename, real &HE_prof, real& dE_prof, real& PE_prof, real& rE_prof, std::vector<double>& P, std::vector<double>& rho, std::vector<double>& h) {
+		const std::string& filename, real &HE_prof, real& dE_prof, real& PE_prof, real& rE_prof, real& ME_prof, std::vector<double>& P, std::vector<double>& rho, std::vector<double>& h) {
 	char line[BUFFER_SIZE];
 	char dummy[BUFFER_SIZE];
 	char log10_P[BUFFER_SIZE];
@@ -160,6 +160,7 @@ std::pair< std::function<double(double)>, std::function<double(double)> > build_
 	double r_min = r[rho.size() - 1];
 	cubic_table p_of_rho(P, rho);
 	h[0] = 0.0;
+	ME_prof = 0.0;
 	for (std::size_t i = 0; i < rho.size() - 1; i++) {
 		const double drho = rho[i + 1] - rho[i];
 		const double rho0 = rho[i];
@@ -182,6 +183,7 @@ std::pair< std::function<double(double)>, std::function<double(double)> > build_
                 if (hpx::get_locality_id() == 0) {
 			printf("rho[%i] = %e, P[%i] = %e, h[%i] = %e\n",i, rho0, i, P[i], i, h[i]);
 		}
+		ME_prof += real(4) * real(M_PI) * rho0 * r[i] * r[i] * (r[i] - r[i+1]);
 	}
 	const double h_max = h[rho.size() - 1];
 	HE_prof = h_max;
@@ -289,11 +291,21 @@ bool mesa_refine_test(integer level, integer max_level, real x, real y, real z, 
                 std::array<std::vector<real>, NDIM> const& dudx) {
         bool rc = false;
         real dx = (opts().xscale / INX) / real(1 << level);
-        if (level < max_level / 2) {
+        if (opts().min_level + level - 1 < max_level / 2) {
                 return std::sqrt(x * x + y * y + z * z) < 10.0 * dx;
         }
         int test_level = max_level;
+        bool majority_accretor = U[spc_i] + U[spc_i + 1] > 0.5 * U[rho_i];
+        bool majority_donor = U[spc_i + 2] + U[spc_i + 3] > 0.5 * U[rho_i];
         real den_floor = opts().refinement_floor;
+        if (!majority_donor) {
+                test_level -= opts().donor_refine;
+        } else if (opts().refinement_floor_donor > 0.0) {
+                den_floor = opts().refinement_floor_donor;
+        }
+        if (!majority_accretor) {
+                test_level -= opts().accretor_refine;
+        }
         for (integer this_test_level = test_level; this_test_level >= 1; --this_test_level) {
                 if (U[rho_i] > den_floor) {
                         rc = rc || (level < this_test_level);

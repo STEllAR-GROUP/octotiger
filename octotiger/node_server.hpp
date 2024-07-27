@@ -58,6 +58,10 @@ private:
 		std::vector<real> data;
 		geo::direction direction;
 	};
+        struct sibling_particle_type {
+                std::vector<particle> data;
+                geo::direction direction;
+        };
 	integer position;
 	std::atomic<integer> refinement_flag;
 	node_location my_location;
@@ -65,6 +69,7 @@ private:
 	std::size_t rcycle;
 	std::size_t hcycle;
 	std::size_t gcycle;
+	std::size_t pcycle;
 	real current_time;
 	real rotational_time;
 	std::shared_ptr<grid> grid_ptr; //
@@ -100,6 +105,7 @@ private:
 	std::array<unordered_channel<std::vector<particle>>, NCHILD> child_particle_channels;
 	std::array<unordered_channel<neighbor_gravity_type>, geo::direction::count()> neighbor_gravity_channels;
 	std::array<unordered_channel<sibling_hydro_type>, geo::direction::count()> sibling_hydro_channels;
+	std::array<unordered_channel<sibling_particle_type>, geo::direction::count()> sibling_particle_channels;
 	std::array<channel<multipole_pass_type>, NCHILD> child_gravity_channels;
 	std::array<std::array<channel<std::vector<real>>, 4>, NFACE> niece_hydro_channels;
 	channel<timestep_t> global_timestep_channel;
@@ -140,7 +146,9 @@ private:
 	static std::atomic<integer> static_initializing;
 	void initialize(real, real);
 	void send_hydro_amr_boundaries(bool energy_only=false);
+	void send_particle_amr_boundaries(std::vector<particle> parts, const geo::direction&);
 	void collect_hydro_boundaries(bool energy_only=false);
+	void collect_particle_boundaries();
 	static void static_initialize();
 	void clear_family();
 	hpx::future<void> exchange_flux_corrections();
@@ -158,8 +166,10 @@ public:
 		return step_num;
 	}
 	void exchange_interlevel_hydro_data();
+	void exchange_interlevel_particle_data();
 	void all_hydro_bounds();
 	void energy_hydro_bounds();
+	void particle_bounds();
 	static bool child_is_on_face(integer ci, integer face) {
 		return (((ci >> (face / 2)) & 1) == (face & 1));
 	}
@@ -176,7 +186,7 @@ public:
 	~node_server();
 	node_server(const node_location&);
 	node_server(const node_location&, silo_load_t load_vars);
-	node_server(const node_location&, const node_client& parent_id, real, real, std::size_t, std::size_t, std::size_t,
+	node_server(const node_location&, const node_client& parent_id, real, real, std::size_t, std::size_t, std::size_t, std::size_t,
 			std::size_t);
 
 	integer get_position() const {
@@ -187,7 +197,7 @@ public:
 
 	/*TODO move radiation to*/
 	node_server(const node_location&, integer, bool, real, real, const std::array<integer, NCHILD>&, grid,
-			const std::vector<hpx::id_type>&, std::size_t, std::size_t, std::size_t, integer position);
+			const std::vector<hpx::id_type>&, std::size_t, std::size_t, std::size_t, std::size_t, integer position);
 
 	void report_timing();/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server, report_timing, report_timing_action);
@@ -206,6 +216,12 @@ public:
 
 	void recv_hydro_amr_boundary(std::vector<real>&&, const geo::direction&, std::size_t cycle);
 	/**/HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_hydro_amr_boundary, send_hydro_amr_boundary_action);
+
+        void recv_particle_boundary(std::vector<particle>&&, const geo::direction&, std::size_t cycle);
+        /**/HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_particle_boundary, send_particle_boundary_action);
+
+        void recv_particle_amr_boundary(std::vector<particle>&&, const geo::direction&, std::size_t cycle);
+        /**/HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_particle_amr_boundary, send_particle_amr_boundary_action);
 
 	void recv_rad_amr_boundary(std::vector<real>&&, const geo::direction&, std::size_t cycle);
 	/**/HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_rad_amr_boundary, send_rad_amr_boundary_action);
@@ -366,12 +382,15 @@ HPX_REGISTER_ACTION_DECLARATION(node_server::enforce_bc_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::set_aunt_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::set_child_aunt_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_hydro_children_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::send_particle_children_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_hydro_flux_correct_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::regrid_gather_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::regrid_scatter_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_flux_check_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_hydro_boundary_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_hydro_amr_boundary_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::send_particle_boundary_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::send_particle_amr_boundary_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_rad_amr_boundary_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_gravity_boundary_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_gravity_multipoles_action);

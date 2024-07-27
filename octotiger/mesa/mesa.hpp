@@ -25,7 +25,7 @@
 #define NCOEF 4
 
 std::pair< std::function<double(double)>, std::function<double(double)> > build_rho_of_h_from_mesa(
-		const std::string& filename, real&, real&, real&, real&, std::vector<double>& P, std::vector<double>& rho, std::vector<double>& h);
+		const std::string& filename, real&, real&, real&, real&, real&, std::vector<double>& P, std::vector<double>& rho, std::vector<double>& h);
 
 std::pair< std::function<double(double)>, std::function<double(double)> > build_rho_of_h_from_relation(std::vector<double> const P, std::vector<double> const rho, std::vector<double> const h);
 

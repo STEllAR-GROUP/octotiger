@@ -325,9 +325,9 @@ void grid::compute_interactions(gsolve_type type) {
 
 	//printf("in interaction\n");
         for (auto &p : particles) {
-		p.L = 0;
+		p.L = 0.0;
 		for (integer i = 0; i < NDIM; i++) {
-			p.L_c[i] = 0;
+			p.L_c[i] = 0.0;
 		}
 	}
 
@@ -393,7 +393,7 @@ void grid::compute_interactions(gsolve_type type) {
 
 				// RHO computes the gravitational potential based on the mass density
 				// non-RHO computes the time derivative (hydrodynamics code V_t)
-				if (type == RHO) {
+				if (type == RHO || type == RHOM) {
 					// this branch computes the angular momentum correction, (20) in the paper
 					// divide by mass of other cell
 					real const tmp1 = Miii1() / Miii0();
@@ -408,7 +408,7 @@ void grid::compute_interactions(gsolve_type type) {
 				}
 			}
 
-			if (type != RHO) {
+			if (type == DRHODT) {
 #pragma GCC ivdep
 			for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
 				n0[j] = ZERO;
@@ -434,7 +434,7 @@ void grid::compute_interactions(gsolve_type type) {
 
 			// calculates all D-values, calculate all coefficients of 1/r (not the potential),
 			// formula (6)-(9) and (19)
-                        if ((opts().p_smooth != MONAGHAN_MULTI) || (particles.size() == 0) || ((octotiger::fmm::STENCIL_WIDTH - 1) * dx > 2.0 * opts().p_smooth_l)) {
+                        if ((type != RHOM) || (opts().p_smooth != MONAGHAN_MULTI) || (particles.size() == 0) || (/*(octotiger::fmm::STENCIL_WIDTH - */1.0 * dx > 2.0 * opts().p_smooth_l)) {
                                 D.set_basis(dX);
                         } else {
                                 const auto is_smooth = contain_particles(particles, X, opts().p_smooth_multi_f * dx) + contain_particles(particles, Y, opts().p_smooth_multi_f * dx);
@@ -446,6 +446,24 @@ void grid::compute_interactions(gsolve_type type) {
                                 if (has_particles == 0) {
                                         D.set_basis(dX);
                                 } else {
+/*					if (has_particles > 1.0) {
+						const auto contain1 = contain_particles(particles, X, opts().p_smooth_multi_f * dx);
+						const auto contain2 = contain_particles(particles, Y, opts().p_smooth_multi_f * dx);
+						const real has_particles1 = contain1.sum();
+						const real has_particles2 = contain2.sum();
+						printf("contain 1 %e, Xcom (%e, %e, %e), contain 2 %e, Ycom (%e, %e, %e)\n", has_particles1, (contain1 * X[0]).sum(), (contain1 * X[1]).sum(), (contain1 * X[2]).sum(), has_particles2, (contain2 * Y[0]).sum(), (contain2 * Y[1]).sum(), (contain2 * Y[2]).sum());
+					}
+					auto dx_r = sqrt(sqr(dX[0]) + sqr(dX[1]) + sqr(dX[2]));
+					real dx_r_min = dx_r[0];
+					for (integer i = 1; i != simd_len; ++i) {
+						if (dx_r[i] < dx_r_min) {
+							dx_r_min = dx_r[i];
+						}
+					}
+					if (dx_r_min < 2*opts().p_smooth_l) {
+						printf("set basis MULTI in multi-multi, dx %e, smooth: %e, 2smooth: %e, min r: %e\n", dx, opts().p_smooth_l, 2*opts().p_smooth_l, dx_r_min);
+						printf("particle in (%e, %e, %e), Xcom in (%e, %e, %e) Ycom (%e, %e, %e), has particles %e\n", particles[0].pos[0], particles[0].pos[1], particles[0].pos[2], (is_smooth * X[0]).sum(), (is_smooth * X[1]).sum(), (is_smooth * X[2]).sum(), (is_smooth * Y[0]).sum(), (is_smooth * Y[1]).sum(), (is_smooth * Y[2]).sum(), has_particles);
+					}*/
 					D.set_basis_monaghan(dX, opts().p_smooth_l, is_smooth);
                                 }
                         }
@@ -454,7 +472,7 @@ void grid::compute_interactions(gsolve_type type) {
 			// (basically alternating)
 			A0[0] = m0[0] * D[0];
 			A1[0] = m1[0] * D[0];
-			if (type != RHO) {
+			if (type == DRHODT) {
 				for (integer i = taylor_sizes[0]; i != taylor_sizes[1]; ++i) {
 					A0[0] -= m0[i] * D[i];
 					A1[0] += m1[i] * D[i];
@@ -493,7 +511,7 @@ void grid::compute_interactions(gsolve_type type) {
 				A0(a) = m0() * D(a);
 				A1(a) = -m1() * D(a);
 				for (integer i = 0; i != 6; ++i) {
-					if (type != RHO && i < 3) {
+					if (type == DRHODT && i < 3) {
 						A0(a) -= m0(a) * D[ab_idx_map[i]];
 						A1(a) -= m1(a) * D[ab_idx_map[i]];
 					}
@@ -504,7 +522,7 @@ void grid::compute_interactions(gsolve_type type) {
 				}
 			}
 
-			if (type == RHO) {
+			if (type == RHO || type == RHOM) {
 //                     for (integer a = 0; a != NDIM; ++a) {
 //                         for (integer b = 0; b != NDIM; ++b) {
 //                             for (integer c = b; c != NDIM; ++c) {
@@ -574,7 +592,7 @@ void grid::compute_interactions(gsolve_type type) {
 			L[iii0] += tmp1;
 			L[iii1] += tmp2;
 
-			if (type == RHO) {
+			if (type == RHO || type == RHOM) {
 				space_vector &L_ciii0 = L_c[iii0];
 				space_vector &L_ciii1 = L_c[iii1];
 				for (integer j = 0; j != NDIM; ++j) {
@@ -615,14 +633,16 @@ void grid::compute_interactions(gsolve_type type) {
 			L[iii0] += mon[iii1] * ele.four * d0;
 			L[iii1] += mon[iii0] * ele.four * d1;
 
-                        space_vector const &com_f = (*(com_ptr[0]))[iii0];
-                        space_vector const &com_s = (*(com_ptr[0]))[iii1];
+			if (type == RHOM) {
 
-                        std::vector<integer> particles_f = get_particles_inds(particles, iii0);
-                        std::vector<integer> particles_s = get_particles_inds(particles, iii1);
+                        	space_vector const &com_f = (*(com_ptr[0]))[iii0];
+                        	space_vector const &com_s = (*(com_ptr[0]))[iii1];
+
+                        	std::vector<integer> particles_f = get_particles_inds(particles, iii0);
+                        	std::vector<integer> particles_s = get_particles_inds(particles, iii1);
 			
-			// particles in cell 1 interact with cell 2 - p1c2
-			for (auto f_ind : particles_f) {
+				// particles in cell 1 interact with cell 2 - p1c2
+				for (auto f_ind : particles_f) {
 					particle& p_f = particles[f_ind]; 
                         		v4sd four = make_four(com_s, p_f.pos);
                                         v4sd four_partner = make_four_partner(four);
@@ -640,18 +660,19 @@ void grid::compute_interactions(gsolve_type type) {
                                         	p_f.L +=  p_s.mass * four;
 						//printf("pf L %e ps L %e\n", p_f.L[0], p_s.L[0]);
 		                        }
-			}
-			// p2c1 interactions
-                        for (auto s_ind : particles_s) {
+				}
+				// p2c1 interactions
+                        	for (auto s_ind : particles_s) {
 					particle& p_s = particles[s_ind];
                                         v4sd four = make_four(com_f, p_s.pos);
                                         v4sd four_partner = make_four_partner(four);
 					//printf("mono-mono interaction of particle %i, (%e, %e, %e) with first cell (%e, %e, %e), m %e phi %e, g (%e, %e, %e)\n", p_s.id, p_s.pos[0], p_s.pos[1], p_s.pos[2], com_f[0], com_f[1], com_f[2], mon[iii0], mon[iii0] * four[0], mon[iii0] * four[1], mon[iii0] * four[2], mon[iii0] * four[3]);
                                         L[iii0] +=  p_s.mass * four_partner;
                                         p_s.L += mon[iii0] * four;
-                        }
+                        	}
+			}
 		}
-		if (opts().part_self_interact) {
+		if (opts().part_self_interact && type == RHOM) {
 			// particles can interact with the particles within the same cell and with the containing cell itself
 	                for (auto &p : particles) {
 
@@ -738,7 +759,7 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
 			for (integer d = 0; d < NDIM; ++d) {
 				X[d][i] = com0iii0[d];
 			}
-			if (type == RHO) {
+			if (type == RHO || type == RHOM) {
 				multipole const &Miii0 = M[iii0];
 				real const tmp = m0()[i] / Miii0();
 				for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
@@ -746,7 +767,7 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
 				}
 			}
 		}
-		if (type != RHO) {
+		if (type == DRHODT) {
 #pragma GCC ivdep
 		for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
 			n0[j] = ZERO;
@@ -761,7 +782,7 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
 		taylor<4, simd_vector> A0;
 		std::array<simd_vector, NDIM> BB0 = { simd_vector(0.0), simd_vector(0.0), simd_vector(0.0) };
 
-                if ((opts().p_smooth != MONAGHAN_MULTI) || ((p_bnd.size() == 0) && (particles.size() == 0))) {
+                if ((type != RHOM) || (opts().p_smooth != MONAGHAN_MULTI) || ((p_bnd.size() == 0) && (particles.size() == 0)) || (dx > 2 * opts().p_smooth_l)) {
                         D.set_basis(dX);
                 } else {
                         const auto is_smooth = contain_particles(particles, X, opts().p_smooth_multi_f * dx) + contain_particles(p_bnd, simdY, opts().p_smooth_multi_f * dx);
@@ -773,12 +794,28 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
                         if (has_particles == 0) {
                                 D.set_basis(dX);
                         } else {
+/*	                        auto dx_r = sqrt(sqr(dX[0]) + sqr(dX[1]) + sqr(dX[2]));
+                                real dx_r_min = dx_r[0];
+                                for (integer i = 1; i != simd_len; ++i) {
+                	                if (dx_r[i] < dx_r_min) {
+        	        	                dx_r_min = dx_r[i];
+                                        }
+                                }
+				if (dx_r_min < 2 * opts().p_smooth_l) {
+					printf("set basis MULTI in boundary multi-multi, dx = %e, p in grid: %i, p in bnd: %i, smooth: %e, 2smooth: %e, min r: %e\n", dx, particles.size(), p_bnd.size(), opts().p_smooth_l, 2*opts().p_smooth_l, dx_r_min);
+					if (particles.size() > 0) {
+						printf("particle in (%e, %e, %e), X in (%e, %e, %e)\n", particles[0].pos[0], particles[0].pos[1], particles[0].pos[2], (is_smooth * X[0]).sum(), (is_smooth * X[1]).sum(), (is_smooth * X[2]).sum());
+					} else {
+                                        	printf("particle in bnd (%e, %e, %e), Ybnd in (%e, %e, %e), has particles %e\n", p_bnd[0].pos[0], p_bnd[0].pos[1], p_bnd[0].pos[2], Y[0],  Y[1], Y[2], has_particles);
+
+					}
+				}*/
 				D.set_basis_monaghan(dX, opts().p_smooth_l, is_smooth);
                         }
                 }
 
 		A0[0] = m0[0] * D[0];
-		if (type != RHO) {
+		if (type == DRHODT) {
 			for (integer i = taylor_sizes[0]; i != taylor_sizes[1]; ++i) {
 				A0[0] -= m0[i] * D[i];
 			}
@@ -808,7 +845,7 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
 
 			A0(a) = m0() * D(a);
 			for (integer i = 0; i != 6; ++i) {
-				if (type != RHO && i < 3) {
+				if (type == DRHODT && i < 3) {
 					A0(a) -= m0(a) * D[ab_idx_map[i]];
 				}
 				const integer cb_idx = cb_idx_map[i];
@@ -817,7 +854,7 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
 			}
 		}
 
-		if (type == RHO) {
+		if (type == RHO || type == RHOM) {
 //                     for (integer a = 0; a < NDIM; ++a) {
 //                         for (integer b = 0; b < NDIM; ++b) {
 //                             for (integer c = b; c < NDIM; ++c) {
@@ -874,7 +911,7 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
 		}
 		Liii0 += tmp;
 
-		if (type == RHO) {
+		if (type == RHO || type == RHOM) {
 			space_vector &L_ciii0 = L_c[iii0];
 #pragma GCC ivdep
 		for (integer j = 0; j != NDIM; ++j) {
@@ -914,7 +951,7 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
 
 		std::array<simd_vector, NDIM> simdY = { simd_vector(real(Y[0])), simd_vector(real(Y[1])), simd_vector(real(Y[2])), };
 
-		if (type == RHO) {
+		if (type == RHO || type == RHOM) {
 #pragma GCC ivdep
 		for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
 			n0[j] = m0[j];
@@ -943,7 +980,7 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
 		taylor<2, simd_vector> A0;
 		std::array<simd_vector, NDIM> BB0 = { simd_vector(0.0), simd_vector(0.0), simd_vector(0.0) };
 
-                if ((opts().p_smooth != MONAGHAN_MULTI) || (p_bnd.size() == 0)) {
+                if ((type != RHOM) || (opts().p_smooth != MONAGHAN_MULTI) || (p_bnd.size() == 0)) {
                         D.set_basis(dX);
                 } else {
                         const auto is_smooth = contain_particles(p_bnd, simdY, opts().p_smooth_multi_f * dx);
@@ -955,12 +992,13 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
                         if (has_particles == 0) {
                                 D.set_basis(dX);
                         } else {
+				printf("set basis multi in boundary multi-mono 1\n");
 				D.set_basis_monaghan(dX, opts().p_smooth_l, is_smooth);
                         }
                 }
 
 		A0[0] = m0[0] * D[0];
-		if (type != RHO) {
+		if (type == DRHODT) {
 			for (integer i = taylor_sizes[0]; i != taylor_sizes[1]; ++i) {
 				A0[0] -= m0[i] * D[i];
 			}
@@ -989,7 +1027,7 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
 
 			A0(a) = m0() * D(a);
 			for (integer i = 0; i != 6; ++i) {
-				if (type != RHO && i < 3) {
+				if (type == DRHODT && i < 3) {
 					A0(a) -= m0(a) * D[ab_idx_map[i]];
 				}
 				const integer cb_idx = cb_idx_map[i];
@@ -997,7 +1035,7 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
 			}
 		}
 
-		if (type == RHO) {
+		if (type == RHO || type == RHOM) {
 //                     for (integer a = 0; a < NDIM; ++a) {
 //                         for (integer b = 0; b < NDIM; ++b) {
 //                             for (integer c = b; c < NDIM; ++c) {
@@ -1028,7 +1066,7 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
 		for (integer j = 0; j != 4; ++j) {
 			Liii0[j] += A0[j][i];
 		}
-		if (type == RHO) {
+		if (type == RHO || type == RHOM) {
 			space_vector &L_ciii0 = L_c[iii0];
 #pragma GCC ivdep
 		for (integer j = 0; j != NDIM; ++j) {
@@ -1037,7 +1075,7 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
 	}
 }
 }
-if ((type == RHO) && (particles.size() > 0)) {
+if ((type == RHOM) && (particles.size() > 0)) {
 		// adding multipoles from boundary to particles within the cells
                 for (integer li = 0; li < list_size; li++) {
                 	const integer iii0 = bnd.first[li];
@@ -1060,9 +1098,10 @@ if ((type == RHO) && (particles.size() > 0)) {
                 taylor<2, simd_vector> A0;
                 std::array<simd_vector, NDIM> BB0 = { simd_vector(0.0), simd_vector(0.0), simd_vector(0.0) };
                 
-		if ((opts().p_smooth != MONAGHAN_MULTI) || ((octotiger::fmm::STENCIL_WIDTH - 1) * dx > 2.0 * opts().p_smooth_l)) {
+		if ((opts().p_smooth != MONAGHAN_MULTI)) { // || ((octotiger::fmm::STENCIL_WIDTH - 1) * dx > 2.0 * opts().p_smooth_l)) {
                         D.set_basis(dX);
                 } else {
+			printf("set basis multi in boundary multi-mono 2\n");
 			D.set_basis_monaghan(dX, opts().p_smooth_l, int_simd_vector(1));
 		}
 
@@ -1080,7 +1119,7 @@ if ((type == RHO) && (particles.size() > 0)) {
 
                         A0(a) = m0() * D(a);
                         for (integer i = 0; i != 6; ++i) {
-                                if (type != RHO && i < 3) {
+                                if (type == DRHODT && i < 3) {
                                         A0(a) -= m0(a) * D[ab_idx_map[i]];
                                 }
                                 const integer cb_idx = cb_idx_map[i];
@@ -1157,7 +1196,7 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type, co
 		for (integer d = 0; d < NDIM; ++d) {
 			X[d][i] = com0iii0[d];
 		}
-		if (type == RHO) {
+		if (type == RHO || type == RHOM) {
 			multipole const &Miii0 = M[iii0];
 			real const tmp = m0[i] / Miii0();
 #pragma GCC ivdep
@@ -1167,7 +1206,7 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type, co
 	}
 }
 
-if (type != RHO) {
+if (type == DRHODT) {
 #pragma GCC ivdep
 		for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
 			n0[j] = ZERO;
@@ -1182,7 +1221,7 @@ if (type != RHO) {
 		taylor<4, simd_vector> A0;
 		std::array<simd_vector, NDIM> BB0 = { simd_vector(0.0), simd_vector(0.0), simd_vector(0.0) };
 
-                if ((opts().p_smooth != MONAGHAN_MULTI) || (particles.size() == 0)) {
+                if ((type != RHOM) || (opts().p_smooth != MONAGHAN_MULTI) || (particles.size() == 0)) {
                         D.set_basis(dX);
                 } else {
                         const auto is_smooth = contain_particles(particles, X, opts().p_smooth_multi_f * dx);
@@ -1194,6 +1233,7 @@ if (type != RHO) {
                         if (has_particles == 0) {
                                 D.set_basis(dX);
                         } else {
+				printf("set basis multi in boundary mono-multi 1\n");
                                 D.set_basis_monaghan(dX, opts().p_smooth_l, is_smooth);
                         }
                 }
@@ -1206,7 +1246,7 @@ if (type != RHO) {
 			A0[i] = m0 * D[i];
 		}
 
-		if (type == RHO) {
+		if (type == RHO || type == RHOM) {
 //                     for (integer a = 0; a != NDIM; ++a) {
 //                         for (integer b = 0; b != NDIM; ++b) {
 //                             for (integer c = b; c != NDIM; ++c) {
@@ -1240,7 +1280,7 @@ if (type != RHO) {
 		}
 		L[iii0] += tmp;
 
-		if (type == RHO) {
+		if (type == RHO || type == RHOM) {
 			space_vector &L_ciii0 = L_c[iii0];
 #pragma GCC ivdep
 		for (integer j = 0; j != NDIM; ++j) {
@@ -1249,7 +1289,7 @@ if (type != RHO) {
 	}
 }
 }
-	if (type == RHO) {
+	if (type == RHOM) {
                 std::vector<particle> p_bnd(0); // particles in exterior cell
                 if ((*(mpoles).p).size() > 0) {
                         p_bnd = (*(mpoles).p)[si];
@@ -1282,9 +1322,10 @@ if (type != RHO) {
 		                taylor<4, simd_vector> A0;
                 		std::array<simd_vector, NDIM> BB0 = { simd_vector(0.0), simd_vector(0.0), simd_vector(0.0) };
 
-                                if ((opts().p_smooth != MONAGHAN_MULTI) || ((octotiger::fmm::STENCIL_WIDTH - 1) * dx > 2.0 * opts().p_smooth_l)) {
+                                if ((opts().p_smooth != MONAGHAN_MULTI)) { // || ((octotiger::fmm::STENCIL_WIDTH - 1) * dx > 2.0 * opts().p_smooth_l)) {
                                         D.set_basis(dX);
                                 } else {
+					printf("set basis multi in boundary  mono-multi 2\n"); 
 					D.set_basis_monaghan(dX, opts().p_smooth_l, int_simd_vector(1));
 				}
 
@@ -1342,7 +1383,7 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type, con
 	alignas(64) double di0[8] = { 1. / dx, 1. / sqr(dx), 1. / sqr(dx), 1. / sqr(dx) };
 	const v4sd d0(di0, Vc::Aligned);
 
-	hpx::parallel::for_loop(for_loop_policy, 0, ilist_n_bnd.size(), [&mpoles, &ilist_n_bnd, &d0, this](std::size_t si) {
+	hpx::parallel::for_loop(for_loop_policy, 0, ilist_n_bnd.size(), [&type, &mpoles, &ilist_n_bnd, &d0, this](std::size_t si) {
 	// iterating over the exterior cells
 		boundary_interaction_type const &bnd = ilist_n_bnd[si];
 		const integer dsize = bnd.first.size();
@@ -1369,33 +1410,36 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type, con
 			for (integer i = 0; i != 4; ++i) {
 				Liii0[i] += tmp1[i];
 			}
-			// particles in interior cell interacting with exterior cell
-                        std::vector<integer> particles_in_cell = get_particles_inds(particles, iii0);
-                        for (auto p_ind : particles_in_cell) {
-                                particle& pcell = particles[p_ind];
-                                v4sd four = make_four(bnd_pos, pcell.pos);
-                                pcell.L += m0 * four;
-                        }
-			// interior cell interacting with particles in exterior cell
-			if (p_bnd.size() > 0) {
-                                space_vector const &com_cell = (*(com_ptr[0]))[iii0];
-                                std::vector<integer> particles_in_cell = get_particles_inds(particles, iii0);
-                                for (auto p : p_bnd) {
-					// interior cell interacting with particles in exterior cell
-                                        v4sd four = make_four(p.pos, com_cell);
-                                        auto tmp1 = p.mass * four;
-                                        expansion &Liii0 = L[iii0];
-                                        for (integer i = 0; i != 4; ++i) {
-                                                Liii0[i] += tmp1[i];
-                                        }
-					// particles in interior cell interacting with particles in exterior cell
-                                        for (auto p_ind : particles_in_cell) {
-                                                particle& pcell = particles[p_ind];
-                                                v4sd four = make_four(p.pos, pcell.pos);
-                                                pcell.L += p.mass * four;
-                                        }
-                                }
-                        }
+
+			if (type == RHOM) { 
+				// particles in interior cell interacting with exterior cell
+                        	std::vector<integer> particles_in_cell = get_particles_inds(particles, iii0);
+                        	for (auto p_ind : particles_in_cell) {
+                                	particle& pcell = particles[p_ind];
+                                	v4sd four = make_four(bnd_pos, pcell.pos);
+                                	pcell.L += m0 * four;
+                        	}
+				// interior cell interacting with particles in exterior cell
+				if (p_bnd.size() > 0) {
+                                	space_vector const &com_cell = (*(com_ptr[0]))[iii0];
+                                	std::vector<integer> particles_in_cell = get_particles_inds(particles, iii0);
+                                	for (auto p : p_bnd) {
+						// interior cell interacting with particles in exterior cell
+                                        	v4sd four = make_four(p.pos, com_cell);
+                                        	auto tmp1 = p.mass * four;
+                                        	expansion &Liii0 = L[iii0];
+                                        	for (integer i = 0; i != 4; ++i) {
+                                                	Liii0[i] += tmp1[i];
+                                        	}
+						// particles in interior cell interacting with particles in exterior cell
+                                        	for (auto p_ind : particles_in_cell) {
+                                                	particle& pcell = particles[p_ind];
+                                                	v4sd four = make_four(p.pos, pcell.pos);
+                                                	pcell.L += p.mass * four;
+                                        	}
+                                	}
+                        	}
+			}	
 		}
 	});
 }
@@ -1853,7 +1897,7 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
 	expansion_pass_type exp_ret;
 	if (!is_leaf) {
 		exp_ret.first.resize(INX * INX * INX);
-		if (type == RHO) {
+		if (type == RHO || type == RHOM) {
 			exp_ret.second.resize(INX * INX * INX);
 		}
 	}
@@ -1883,7 +1927,7 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
 						l[j] = parent_expansions->first[index][j];
 						l_part[j] = parent_expansions->first[index][j];
 					}
-					if (type == RHO) {
+					if (type == RHO || type == RHOM) {
 						for (integer j = 0; j != NDIM; ++j) {
 							lc[j] = parent_expansions->second[index][j];
 							lc_part[j] = parent_expansions->second[index][j];
@@ -1931,7 +1975,7 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
 						Liiic[j] += l[j][ci];
 					}
 					space_vector &L_ciiic = L_c[iiic];
-					if (type == RHO) {
+					if (type == RHO || type == RHOM) {
 						for (integer j = 0; j != NDIM; ++j) {
 							L_ciiic[j] += lc[j][ci];
 						}
@@ -1943,7 +1987,7 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
 							exp_ret.first[index][j] = Liiic[j];
 						}
 
-						if (type == RHO) {
+						if (type == RHO || type == RHOM) {
 							for (integer j = 0; j != 3; ++j) {
 								exp_ret.second[index][j] = L_ciiic[j];
 							}
@@ -1952,7 +1996,7 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
 				}
 				
 				// compute expansions to particle locations
-				if ((is_leaf) && (type == RHO)) {
+				if ((is_leaf) && (type == RHOM)) {
 					if (particles_in_cell.size() > 0) {
 						for (integer ci = 0; ci != NCHILD; ++ci) { // assume no more than NCHILD (8) particles in parent cell
 							if (ci < particles_in_cell.size()) {
@@ -1977,7 +2021,7 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
                                         			for (integer j = 0; j != 20; ++j) {
                                                 			p.L[j] += l_part[j][ci];
                                         			}
-                                        			if (type == RHO) {
+                                        			if (type == RHOM) {
                                                 			for (integer j = 0; j != NDIM; ++j) {
                                                         			p.L_c[j] += lc_part[j][ci];
                                                 			}
@@ -1997,7 +2041,7 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
 					const integer iii = gindex(i, j, k);
 					const integer iii0 = h0index(i, j, k);
 					const integer iiih = hindex(i + H_BW, j + H_BW, k + H_BW);
-					if (type == RHO) {
+					if (type == RHO || type == RHOM) {
 						G[iii][phi_i] = physcon().G * L[iii]();
 						for (integer d = 0; d < NDIM; ++d) {
 							G[iii][gx_i + d] = -physcon().G * L[iii](d);
@@ -2006,6 +2050,9 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
 							}
 						}
 						U[pot_i][iiih] = G[iii][phi_i] * U[rho_i][iiih];
+						if (type == RHOM) {
+							phi_part[iii0] = physcon().G * L[iii]();
+						}
 					} else {
 						dphi_dt[iii0] = physcon().G * L[iii]();
 					}
@@ -2015,8 +2062,8 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
 				}
 			}
 		}
-		for (auto& p : particles) {
-			if (type == RHO) {
+		if (type == RHOM) {
+			for (auto& p : particles) {
 				p.pot = physcon().G * p.L();
 				for (integer d = 0; d < NDIM; ++d) {
 					p.g[d] = -physcon().G * p.L(d);
@@ -2050,7 +2097,7 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 	if (com_ptr[1] == nullptr) {
 		com_ptr[1] = std::make_shared<std::vector<space_vector>>(G_N3 / 8);
 	}
-	if (type == RHO) {
+	if (type == RHO || type == RHOM) {
 		com_ptr[0] = std::make_shared<std::vector<space_vector>>(G_N3);
 		const integer iii0 = hindex(H_BW, H_BW, H_BW);
 		const std::array<real, NDIM> x0 = { X[XDIM][iii0], X[YDIM][iii0], X[ZDIM][iii0] };
@@ -2099,7 +2146,7 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 					const integer iiip = nxp * nxp * ip + nxp * jp + kp;
 					if (lev != 0) {
 						std::vector<particle> particles_in_cell;
-						if (type == RHO) {
+						if (type == RHO || type == RHOM) {
 							simd_vector mc;
 							std::array<simd_vector, NDIM> Xc;
 							for (integer ci = 0; ci != NCHILD; ++ci) {
@@ -2117,7 +2164,7 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 						//			printf("cell center in %i direction of child %i is: %e\n", d, ci, (*(com_ptr[0]))[iiic][d]);
 								}
 							}
-							if (is_leaf) {
+							if (is_leaf && type == RHOM) {
 //								integer part_index = NCHILD;
 								space_vector b_min;
 								space_vector b_max;
@@ -2178,23 +2225,23 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 #else
                             				real mtot = Vc::reduce(mc);
 #endif
-                                                        for (integer part_i = 0; part_i < particles_in_cell.size(); part_i++) {
-								//printf("inside sum tot mass: %e\n", particles_in_cell[part_i].mass);
-                                                                mtot += particles_in_cell[part_i].mass;
-                                                        }
- 
-//							printf("size: %i, total mass: %e\n", mc.size(), mtot);
+							if (type == RHOM) {
+                                                        	for (integer part_i = 0; part_i < particles_in_cell.size(); part_i++) {
+                                                                	mtot += particles_in_cell[part_i].mass;
+                                                        	}
+							} 
 							for (integer d = 0; d < NDIM; ++d) {
 #if !defined(HPX_HAVE_DATAPAR_VC) || (defined(Vc_IS_VERSION_1) && Vc_IS_VERSION_1)
 								(*(com_ptr[1]))[iiip][d] = (Xc[d] * mc).sum() / mtot;
 #else
-                                				(*(com_ptr[1]))[iiip][d] = Vc::reduce(Xc[d] * mc) / mtot;
+                               					(*(com_ptr[1]))[iiip][d] = Vc::reduce(Xc[d] * mc) / mtot;
 #endif
-        	                                                for (integer part_i = 0; part_i < particles_in_cell.size(); part_i++) {
-	                                                                (*(com_ptr[1]))[iiip][d] += particles_in_cell[part_i].pos[d] * particles_in_cell[part_i].mass / mtot;
-                	                                        }
-							}
-							
+								if (type == RHOM) {
+        	                                                	for (integer part_i = 0; part_i < particles_in_cell.size(); part_i++) {
+	                                                                	(*(com_ptr[1]))[iiip][d] += particles_in_cell[part_i].pos[d] * particles_in_cell[part_i].mass / mtot;
+               		                                        	}
+								}								
+							}							
 						}
 
 						taylor<4, simd_vector> mc, mp;
@@ -2236,7 +2283,7 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
                             				MM[j] = Vc::reduce(mp[j]);
 #endif
 						}
-                                                if (particles_in_cell.size() > 0) { // for now assume no more than 8 particles per cell
+                                                if (type == RHOM && particles_in_cell.size() > 0) { // for now assume no more than 8 particles per cell
 	                                                taylor<4, simd_vector> mc_part, mp_part;
 							taylor<4, real> MM_part;
         	                                        std::array<simd_vector, NDIM> dx_part;
@@ -2273,7 +2320,7 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 							//printf("in comp mult: no childs. index = %i, iiip = %i\n", index, iiip);
 							const integer iiih = hindex(ip + H_BW, jp + H_BW, kp + H_BW);
 							const integer iii0 = h0index(ip, jp, kp);
-							if (type == RHO) {
+							if (type == RHO || type == RHOM) {
 								mon[iiip] = U[rho_i][iiih] * dx3;
 							} else {
 								mon[iiip] = dUdt[rho_i][iii0] * dx3;
@@ -2282,7 +2329,7 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 							//printf("in comp mult: has childs. index = %i, iiip = %i\n", index, iiip);
 							assert(M.size());
 							M[iiip] = child_poles->first[index];
-							if (type == RHO) {
+							if (type == RHO || type == RHOM) {
 								(*(com_ptr)[lev])[iiip] = child_poles->second[index];
 							}
 							++index;
@@ -2355,7 +2402,7 @@ gravity_boundary_type grid::get_gravity_boundary(const geo::direction &dir, bool
 				data.M->push_back(M[iii]);
 				data.x->push_back((*(com_ptr[0]))[iii]);
 			}
-                        if ((opts().p_smooth == MONAGHAN_MULTI) && ((octotiger::fmm::STENCIL_WIDTH - 1) * dx <= 2.0 * opts().p_smooth_l)) {
+                        if ((opts().p_smooth == MONAGHAN_MULTI)) { //) && ((octotiger::fmm::STENCIL_WIDTH - 1) * dx <= 2.0 * opts().p_smooth_l)) {
                                 data.p->resize(1);
                                 auto* cur_p = data.p->data();
                                 cur_p[0].reserve(particles.size());
@@ -2383,7 +2430,7 @@ gravity_boundary_type grid::get_gravity_boundary(const geo::direction &dir, bool
 		} else {
 			data.M = M_ptr;
 			data.x = com_ptr[0];
-                        if ((opts().p_smooth == MONAGHAN_MULTI) && ((octotiger::fmm::STENCIL_WIDTH - 1) * dx <= 2.0 * opts().p_smooth_l)) {
+                        if ((opts().p_smooth == MONAGHAN_MULTI)) { // && ((octotiger::fmm::STENCIL_WIDTH - 1) * dx < 4.0 * opts().p_smooth_l)) {
                                 data.p->resize(1);
                                 auto* cur_p = data.p->data();
                                 cur_p[0].reserve(particles.size());
