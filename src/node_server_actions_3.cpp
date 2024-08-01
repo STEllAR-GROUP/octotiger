@@ -91,13 +91,14 @@ void node_server::recv_hydro_amr_boundary(std::vector<real> &&bdata, const geo::
 using send_particle_boundary_action_type = node_server::send_particle_boundary_action;
 HPX_REGISTER_ACTION (send_particle_boundary_action_type);
 
-void node_client::send_particle_boundary(std::vector<particle> &&data, const geo::direction &dir, std::size_t cycle) const {
-        hpx::apply<typename node_server::send_particle_boundary_action>(get_unmanaged_gid(), std::move(data), dir, cycle);
+void node_client::send_particle_boundary(std::vector<particle> &&data, const geo::direction &dir, std::size_t cycle, std::vector<particle> &&data0) const {
+        hpx::apply<typename node_server::send_particle_boundary_action>(get_unmanaged_gid(), std::move(data), dir, cycle, std::move(data0));
 }
 
-void node_server::recv_particle_boundary(std::vector<particle> &&bdata, const geo::direction &dir, std::size_t cycle) {
+void node_server::recv_particle_boundary(std::vector<particle> &&bdata, const geo::direction &dir, std::size_t cycle, std::vector<particle> &&bdata0) {
         sibling_particle_type tmp;
         tmp.data = std::move(bdata);
+	tmp.p0 = std::move(bdata0);
         tmp.direction = dir;
         sibling_particle_channels[dir].set_value(std::move(tmp), cycle);
 }
@@ -105,13 +106,14 @@ void node_server::recv_particle_boundary(std::vector<particle> &&bdata, const ge
 using send_particle_amr_boundary_action_type = node_server::send_particle_amr_boundary_action;
 HPX_REGISTER_ACTION (send_particle_amr_boundary_action_type);
 
-void node_client::send_particle_amr_boundary(std::vector<particle> &&data, const geo::direction &dir, std::size_t cycle) const {
-        hpx::apply<typename node_server::send_particle_amr_boundary_action>(get_unmanaged_gid(), std::move(data), dir, cycle);
+void node_client::send_particle_amr_boundary(std::vector<particle> &&data, const geo::direction &dir, std::size_t cycle, std::vector<particle> &&data0) const {
+        hpx::apply<typename node_server::send_particle_amr_boundary_action>(get_unmanaged_gid(), std::move(data), dir, cycle, std::move(data0));
 }
 
-void node_server::recv_particle_amr_boundary(std::vector<particle> &&bdata, const geo::direction &dir, std::size_t cycle) {
+void node_server::recv_particle_amr_boundary(std::vector<particle> &&bdata, const geo::direction &dir, std::size_t cycle, std::vector<particle> &&bdata0) {
         sibling_particle_type tmp;
         tmp.data = std::move(bdata);
+	tmp.p0 = std::move(bdata0);
         tmp.direction = dir;
         sibling_particle_channels[dir].set_value(std::move(tmp), cycle);
 }

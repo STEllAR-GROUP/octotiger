@@ -30,7 +30,7 @@ COMMAND_LINE_ENUM(eos_type, IDEAL, WD);
 
 COMMAND_LINE_ENUM(particles_smoothing_type, EXACT, RUFFERT, MONAGHAN, MONAGHAN_MULTI);
 
-COMMAND_LINE_ENUM(particles_evol_type, RUTH, RK4);
+COMMAND_LINE_ENUM(particles_evol_type, RUTH, RK3);
 
 class options {
 public:

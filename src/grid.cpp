@@ -960,9 +960,13 @@ void grid::set_hydro_boundary(const std::vector<real> &data, const geo::directio
 	}
 }
 
-void grid::set_particle_boundary(const std::vector<particle> &data, const geo::direction &dir) {
+void grid::set_particle_boundary(const std::vector<particle> &data, const geo::direction &dir, const bool set_p0) {
        for (particle p : data) {
-                particles.push_back(p);
+		if (set_p0 && is_leaf) {
+			particles0.push_back(p);
+		} else {
+                	particles.push_back(p);
+		}
                 //printf("p props: id %i, mass %e, locs (%e, %e, %e), vels (%e, %e, %e)\n", p.id, p.mass, p.pos[0], p.pos[1], p.pos[2], p.vel[0], p.vel[1], p.vel[2]);
         }
 }
@@ -996,7 +1000,7 @@ std::vector<real> grid::get_hydro_boundary(const geo::direction &dir, bool energ
 
 }
 
-std::vector<particle> grid::get_particle_boundary(const geo::direction &dir) {
+std::vector<particle> grid::get_particle_boundary(const geo::direction &dir, const bool get_p0) {
 	const auto &bw = field_bw;
         std::vector<particle> parts;
         std::array<integer, NDIM> lb, ub;
@@ -1015,13 +1019,32 @@ std::vector<particle> grid::get_particle_boundary(const geo::direction &dir) {
                               [bmin, bmax](particle p) { return p.is_in_boundary(bmin, bmax); });
 	for (auto it = p_bnd; it != particles.end(); ++it) {
 	        auto const p = *it;
-                parts.push_back(p);
+		if (get_p0 && is_leaf) {
+			bool found = false;
+			for (auto part0 : particles0) {
+				if (p.id == part0.id) {
+                			parts.push_back(part0);
+					//particles0.erase
+					found = true;
+					break;
+				}
+			}
+			if (!found) {
+				printf("could not find p0 of particle %i (%e, %e, %e)  %e in grid (%e, %e, %e)\n", p.id, p.pos[0], p.pos[1], p.pos[2], p.mass, xmin[0], xmin[1], xmin[2]);
+				abort();
+			}
+		}
+		else {
+			parts.push_back(p);
+		}
+	}
 //                printf("particle %i (from %i), %e, (%e, %e, %e), out of bound (%e, %e, %e) - (%e, %e, %e)\n but in (%e, %e, %e) - (%e, %e, %e)\n",
 //	                p.id, particles.size(), p.mass, p.pos[0], p.pos[1], p.pos[2], 
 //                        xmin[0], xmin[1], xmin[2], xmin[0] + 8*dx, xmin[1] + 8 * dx, xmin[2] + 8 * dx,
 //                        bmin[0], bmin[1], bmin[2], bmax[0], bmax[1], bmax[2]);
-        }
-        particles.erase(p_bnd, particles.end());
+	if (!get_p0) {
+        	particles.erase(p_bnd, particles.end());
+	}
 //        if (parts.size() > 0) {
 //        	printf("new particles size: %i, particles in boundary: %i\n", particles.size(), parts.size());
 //        }
@@ -1720,7 +1743,7 @@ space_vector grid::center_of_mass() const {
 			this_com[dim] /= m;
 		}
 	}
-	printf( "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk (%e %e %e), m_tot: %e\n", this_com[0], this_com[1], this_com[2], m);
+	printf( "performing diagnostics - m_com: (%e %e %e), m_tot: %e\n", this_com[0], this_com[1], this_com[2], m);
 	return this_com;
 }
 
@@ -2119,7 +2142,7 @@ void grid::store() {
 		}
 	}
 	U_out0 = U_out;
-	if (opts().particles && opts().p_evol == RK4) {
+	if (opts().particles && opts().p_evol == RK3) {
 		particles0.clear();
 		for (auto p : particles) {
 			particles0.push_back(p);
@@ -2647,19 +2670,24 @@ void grid::next_u(integer rk, real t, real dt) {
 void grid::next_particles(integer rk, real t, real dt) {
 	for (integer i = 0; i < particles.size(); i++) {
 		particle& p = particles[i];
+		if (rk == 0) {
+			printf("      p id %i, mass %e, pos (%e, %e, %e), vel (%e, %e, %e), g (%e, %e, %e)\n", p.id, p.mass, p.pos[0], p.pos[1], p.pos[2],
+                                                                               p.vel[0], p.vel[1], p.vel[2],
+										p.g[0], p.g[1], p.g[2]);
+		}
 		if (opts().p_evol == RUTH) {
 	 		for (integer d = 0; d < NDIM; d++) {
 		        	p.vel[d] += part_c[rk] * p.g[d] * dt;
 				p.pos[d] += part_d[rk] * p.vel[d] * dt;
 			}
-		} else if (opts().p_evol == RK4) {
+		} else if (opts().p_evol == RK3) {
 			const particle p0 = particles0[i];
 			if (p0.id == p.id) {
 	                        for (integer d = 0; d < NDIM; d++) {
 					const real tmp_v = p.vel[d] + p.g[d] * dt;
 					const real tmp_x = p.pos[d] + p.vel[d] * dt;
-        	                        p.vel[d] += (ONE - rk_beta[rk]) * p0.vel[d] + rk_beta[rk] * tmp_v;
-                	                p.pos[d] += (ONE - rk_beta[rk]) * p0.pos[d] + rk_beta[rk] * tmp_x;
+        	                        p.vel[d] = (ONE - rk_beta[rk]) * p0.vel[d] + rk_beta[rk] * tmp_v;
+                	                p.pos[d] = (ONE - rk_beta[rk]) * p0.pos[d] + rk_beta[rk] * tmp_x;
                         	}
 			} else {
 	                        printf("in particle update, p id is different than p0 id! pid = %i, p0id = %i\n", p.id, p0.id);

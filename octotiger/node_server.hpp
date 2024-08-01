@@ -60,6 +60,7 @@ private:
 	};
         struct sibling_particle_type {
                 std::vector<particle> data;
+		std::vector<particle> p0;
                 geo::direction direction;
         };
 	integer position;
@@ -146,7 +147,7 @@ private:
 	static std::atomic<integer> static_initializing;
 	void initialize(real, real);
 	void send_hydro_amr_boundaries(bool energy_only=false);
-	void send_particle_amr_boundaries(std::vector<particle> parts, const geo::direction&);
+	void send_particle_amr_boundaries(std::vector<particle> parts, const geo::direction&, std::vector<particle> parts0);
 	void collect_hydro_boundaries(bool energy_only=false);
 	void collect_particle_boundaries();
 	static void static_initialize();
@@ -217,10 +218,10 @@ public:
 	void recv_hydro_amr_boundary(std::vector<real>&&, const geo::direction&, std::size_t cycle);
 	/**/HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_hydro_amr_boundary, send_hydro_amr_boundary_action);
 
-        void recv_particle_boundary(std::vector<particle>&&, const geo::direction&, std::size_t cycle);
+        void recv_particle_boundary(std::vector<particle>&&, const geo::direction&, std::size_t cycle, std::vector<particle>&&);
         /**/HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_particle_boundary, send_particle_boundary_action);
 
-        void recv_particle_amr_boundary(std::vector<particle>&&, const geo::direction&, std::size_t cycle);
+        void recv_particle_amr_boundary(std::vector<particle>&&, const geo::direction&, std::size_t cycle, std::vector<particle>&&);
         /**/HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_particle_amr_boundary, send_particle_amr_boundary_action);
 
 	void recv_rad_amr_boundary(std::vector<real>&&, const geo::direction&, std::size_t cycle);

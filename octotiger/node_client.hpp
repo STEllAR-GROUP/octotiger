@@ -109,9 +109,9 @@ public:
     void send_hydro_amr_boundary(std::vector<real>&&, const geo::direction& dir,
         std::size_t cycle) const;
     void send_particle_boundary(std::vector<particle>&&, const geo::direction& dir,
-        std::size_t cycle) const;
+        std::size_t cycle, std::vector<particle>&&) const;
     void send_particle_amr_boundary(std::vector<particle>&&, const geo::direction& dir,
-        std::size_t cycle) const;
+        std::size_t cycle, std::vector<particle>&&) const;
     void send_rad_amr_boundary(std::vector<real>&&, const geo::direction& dir,
         std::size_t cycle) const;
     void send_gravity_boundary(gravity_boundary_type&&, const geo::direction&,

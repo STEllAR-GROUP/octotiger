@@ -136,7 +136,7 @@ private:
 	std::vector<expansion> L;
 	std::vector<space_vector> L_c;
 	std::vector<particle> particles;
-	std::vector<particle> particles0; // for RK4 update
+	std::vector<particle> particles0; // for RK3 update
 	std::vector<real> dphi_dt;
 	std::vector<real> phi_part;
 #ifdef OCTOTIGER_HAVE_GRAV_PAR
@@ -278,9 +278,9 @@ public:
 	std::vector<real> get_flux_check(const geo::face&);
 	void set_flux_check(const std::vector<real>&, const geo::face&);
 	void set_hydro_boundary(const std::vector<real>&, const geo::direction&, bool energy_only);
-	void set_particle_boundary(const std::vector<particle>&, const geo::direction&);
+	void set_particle_boundary(const std::vector<particle>&, const geo::direction&, const bool set_p0 = false);
 	std::vector<real> get_hydro_boundary(const geo::direction& face, bool energy_only);
-	std::vector<particle> get_particle_boundary(const geo::direction& face);
+	std::vector<particle> get_particle_boundary(const geo::direction& face, const bool get_p0 = false);
 	scf_data_t scf_params();
 	real scf_update(real, real, real, real, real, real, real, struct_eos, struct_eos);
 	std::pair<std::vector<real>, std::vector<real> > field_range() const;

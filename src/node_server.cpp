@@ -242,35 +242,48 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
 
 void node_server::collect_particle_boundaries() {
         for (auto const &dir : geo::direction::full_set()) {
+		std::vector<particle> parts0(0);
+		if (opts().p_evol == RK3) {
+			parts0 = grid_ptr->get_particle_boundary(dir, true);
+		}
                 auto parts = grid_ptr->get_particle_boundary(dir);
                 if (!neighbors[dir].empty()) { // neighbors at the same level only, does not include neighbor at a coarser level
                         //for (auto p : parts) {
                         //        auto xmin = grid_ptr->get_xmin();
                                 //printf("sending level %i, dir %i, particles n: %i grid (%e, %e, %e), p id: %i\n", my_location.level(), dir, parts.size(), xmin[0], xmin[1], xmin[2], p.id);
                         //}
-                        neighbors[dir].send_particle_boundary(std::move(parts), dir.flip(), pcycle);
+                        neighbors[dir].send_particle_boundary(std::move(parts), dir.flip(), pcycle, std::move(parts0));
                 }
         }
         for (auto const &dir : geo::direction::full_set()) {
                 std::vector<particle> parts(0);
+		std::vector<particle> p0(0);
                 if (!neighbors[dir].empty()) {
                         auto tmp = GET(sibling_particle_channels[dir].get_future(pcycle));
                         parts = tmp.data;
                         grid_ptr->set_particle_boundary(parts, tmp.direction);
+			if (opts().p_evol == RK3) {
+				p0 = tmp.p0;
+				grid_ptr->set_particle_boundary(p0, tmp.direction, true);
+			}
                 }
           //      for (auto p : parts) {
 	//		printf("getting boundary dir = %i, level %i, particles %i, p id: %i\n", dir, my_location.level(), parts.size(), p.id);
           //      }
                 if (is_refined) {
-                        send_particle_amr_boundaries(parts, dir);
+                        send_particle_amr_boundaries(parts, dir, p0);
                 }
                 if ((neighbors[dir].empty()) && (my_location.level() != 0)) {
                         auto tmp = GET(sibling_particle_channels[dir].get_future(pcycle));
                         auto parts = tmp.data;
-                 //       for (auto p : parts) {
+                   //     for (auto p : parts) {
                    //             printf("getting nephew dir = %i, level %i, particles %i, p id: %i\n", dir, my_location.level(), parts.size(), p.id);
                    //     }
                         grid_ptr->set_particle_boundary(parts, tmp.direction);
+                        if (opts().p_evol == RK3) {
+                                auto p0 = tmp.p0;
+                                grid_ptr->set_particle_boundary(p0, tmp.direction, true);
+                        }
                 }
         }
 }
@@ -299,7 +312,7 @@ void node_server::send_hydro_amr_boundaries(bool energy_only) {
 	}
 }
 
-void node_server::send_particle_amr_boundaries(std::vector<particle> parts, const geo::direction& dir) {
+void node_server::send_particle_amr_boundaries(std::vector<particle> parts, const geo::direction& dir, std::vector<particle> parts0) {
 	constexpr auto full_set = geo::octant::full_set();
         for (auto &ci : full_set) {
 		const auto &flags = amr_flags[ci];
@@ -321,10 +334,25 @@ void node_server::send_particle_amr_boundaries(std::vector<particle> parts, cons
 				bmax[i] = tmp_X[i][uind] - 0.5 * dx;
                         }
                         std::vector<particle> tmp = load_particles(parts, bmin, bmax);
-                        //for (particle p : tmp) {
+			std::vector<particle> tmp0(0);
+			if (opts().p_evol == RK3) {
+                        	for (particle p : tmp) {
+					bool found = false;
+					for (particle p0 : parts0) {
+						if (p0.id == p.id) {
+							tmp0.push_back(p0);
+							found = true;
+							break;
+						}
+					}
+                        		if (!found) {
+                                		printf("could not find p0 of particle %i (%e, %e, %e)  %e in grid (%e, %e, %e)\n", p.id, p.pos[0], p.pos[1], p.pos[2], p.mass, xmin[0], xmin[1], xmin[2]);
+                                		abort();
+                        		}
                        //         printf("sending to nephew %i at dir %i, %i particles out of %i, p id %i\n", ci, dir, tmp.size(), parts.size(), p.id);
-			//}
-                        children[ci].send_particle_amr_boundary(std::move(tmp), dir, pcycle);
+				}
+			}
+                        children[ci].send_particle_amr_boundary(std::move(tmp), dir, pcycle, std::move(tmp0));
                 }
 	}
 }

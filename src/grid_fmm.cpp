@@ -1297,7 +1297,7 @@ if (type == DRHODT) {
 		for (auto p : p_bnd) {
 	                m0 = p.mass;
 	                for (integer d = 0; d != NDIM; ++d) {
-				Y[d] = p.pos[d];
+				Y[d] = (real)p.pos[d];
 			}
         	        for (integer li = 0; li < list_size; li += simd_len) {
                 	        for (integer i = 0; i != simd_len && li + i < list_size; ++i) {
@@ -2071,7 +2071,7 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
                                         	p.g[d] -= physcon().G * p.L_c[d];
                                         }
 				}
-				printf("part %i, (%e, %e, %e), phi %e, m %e, g (%e, %e, %e), v (%e, %e, %e)\n", p.id, p.pos[0], p.pos[1], p.pos[2], p.L[0], p.mass, p.g[0], p.g[1], p.g[2], p.vel[0], p.vel[1], p.vel[2]);
+				//printf("part %i, (%e, %e, %e), phi %e, m %e, g (%e, %e, %e), v (%e, %e, %e)\n", p.id, p.pos[0], p.pos[1], p.pos[2], p.L[0], p.mass, p.g[0], p.g[1], p.g[2], p.vel[0], p.vel[1], p.vel[2]);
 			}
 		}
 	}
