@@ -404,6 +404,7 @@ std::vector<real> star(real x, real y, real z, real) {
 			}
                 	u[tau_i] = std::pow(u[egas_i], 1.0 / fgamma);
                 	u[rho_i] = u[spc_i] + u[spc_i + 1] + u[spc_i + 2] + u[spc_i + 3] + u[spc_i + 4];
+			u[egas_i] += (u[sx_i] * u[sx_i] + u[sy_i] * u[sy_i] + u[sz_i] * u[sz_i]) / u[rho_i] / 2.0;
 			return u;
 		}
 	}

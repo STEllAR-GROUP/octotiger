@@ -567,14 +567,12 @@ void node_server::refined_step() {
 
 		{
 			timings::scope ts(timings_, timings::time_fmm);
-			compute_fmm(DRHODT, false);
 			if (opts().particles) {
 				particle_bounds();
-				grid_ptr->egas_to_etot();
 				compute_fmm(RHOM, false);
-				grid_ptr->etot_to_egas();
 			} else {
-				compute_fmm(RHO, true);
+				compute_fmm(DRHODT, false);
+                                compute_fmm(RHO, false);
 			}
 		}
 		rk == NRK - 1 ? energy_hydro_bounds() : all_hydro_bounds();
@@ -630,7 +628,9 @@ future<void> node_server::nonrefined_step() {
 					}
 					grid_ptr->compute_sources(current_time, rotational_time);
 					grid_ptr->compute_dudt();
-					compute_fmm(DRHODT, false);
+                                        if (!opts().particles) {
+                                                compute_fmm(DRHODT, false);
+                                        }
 					if (rk == 0) {
 						dt_ = GET(dt_fut);
 					}
@@ -638,11 +638,9 @@ future<void> node_server::nonrefined_step() {
 					if (opts().particles) {
                                         	grid_ptr->next_particles(rk, current_time, dt_.dt);
 	                                        particle_bounds();
-						grid_ptr->egas_to_etot();
-        	                                compute_fmm(RHOM, false);
-						grid_ptr->etot_to_egas();
+						compute_fmm(RHOM, false);
 					} else {
-						compute_fmm(RHO, true);
+                                                compute_fmm(RHO, true);
 					}
 					rk == NRK - 1 ? energy_hydro_bounds() : all_hydro_bounds();
 				}/*, "node_server::nonrefined_step::compute_fluxes")*/);

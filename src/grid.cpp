@@ -438,23 +438,25 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 				}
 			}
 		}
-		for (auto p : particles) {
-			real e_p = ZERO;
-                	e_p += HALF * pow(p.vel[XDIM], 2) * p.mass;
-                        e_p += HALF * pow(p.vel[YDIM], 2) * p.mass;
-                        e_p += HALF * pow(p.vel[ZDIM], 2) * p.mass;
-			e_p += HALF * p.pot * p.mass;
-			rc.grid_sum[egas_i] += e_p;
-			rc.grid_sum[pot_i] += p.pot * p.mass;
-			rc.grid_sum[rho_i] += p.mass;
-			for (integer d = 0; d != NDIM; ++d) {
-				rc.grid_sum[sx_i + d] += p.mass * p.vel[d];
-				const real ftmp = p.g[d] * p.mass;
-				rc.fsum[d] += ftmp;
-				rc.fsum_abs[d] += std::abs(ftmp);
-			}			
-			//printf("pid %i, m %e, x (%e, %e, %e), phi %e, v (%e, %e, %e), etot %e\n", p.id, p.mass, p.pos[0], p.pos[1], p.pos[2], p.pot, 
+		if (opts().particles) {
+			for (auto p : particles) {
+				real e_p = ZERO;
+                		e_p += HALF * pow(p.vel[XDIM], 2) * p.mass;
+                        	e_p += HALF * pow(p.vel[YDIM], 2) * p.mass;
+                        	e_p += HALF * pow(p.vel[ZDIM], 2) * p.mass;
+				e_p += HALF * p.pot * p.mass;
+				rc.grid_sum[egas_i] += e_p;
+				rc.grid_sum[pot_i] += p.pot * p.mass;
+				rc.grid_sum[rho_i] += p.mass;
+				for (integer d = 0; d != NDIM; ++d) {
+					rc.grid_sum[sx_i + d] += p.mass * p.vel[d];
+					const real ftmp = p.g[d] * p.mass;
+					rc.fsum[d] += ftmp;
+					rc.fsum_abs[d] += std::abs(ftmp);
+				}			
+				//printf("pid %i, m %e, x (%e, %e, %e), phi %e, v (%e, %e, %e), etot %e\n", p.id, p.mass, p.pos[0], p.pos[1], p.pos[2], p.pot, 
 			//									p.vel[0], p.vel[1], p.vel[2], e_p);
+			}
 		} 
 		for (integer f = 0; f != opts().n_fields; ++f) {
 			rc.grid_out[f] += U_out[f];
@@ -1743,7 +1745,7 @@ space_vector grid::center_of_mass() const {
 			this_com[dim] /= m;
 		}
 	}
-	printf( "performing diagnostics - m_com: (%e %e %e), m_tot: %e\n", this_com[0], this_com[1], this_com[2], m);
+	printf( "performing diagnostics - m_com: (%e %e %e), m_tot: %e\n", (real)this_com[0], (real)this_com[1], (real)this_com[2], m);
 	return this_com;
 }
 
@@ -2433,7 +2435,11 @@ void grid::compute_dudt() {
 				const integer iii0 = h0index(i - H_BW, j - H_BW, k - H_BW);
 				const integer iiig = gindex(i - H_BW, j - H_BW, k - H_BW);
 				if (opts().gravity) {
-					dUdt[egas_i][iii0] -= (dUdt[rho_i][iii0] * G[iiig][phi_i]) * HALF;
+					if (opts().particles) {
+						dUdt[egas_i][iii0] -= (dUdt[rho_i][iii0] * G[iiig][phi_i]);
+					} else {
+						dUdt[egas_i][iii0] -= (dUdt[rho_i][iii0] * G[iiig][phi_i]) * HALF;
+					}
 				}
 			}
 		}
@@ -2476,7 +2482,7 @@ void grid::egas_to_etot_particles() {
 	                	        }
 		                        auto parts_in_cell = load_particles(particles, bmin, bmax);
         		                for (auto p : parts_in_cell) {
-                        		        U[egas_i][iii] += (p.pot * p.mass * HALF) * dVinv;
+						U[egas_i][iii] += (p.pot * p.mass * HALF) * dVinv;
 		                        }                                                                                     
                                 }
                         }
@@ -2519,7 +2525,7 @@ void grid::etot_to_egas_particles() {
                                         }
                                         auto parts_in_cell = load_particles(particles, bmin, bmax);
                                         for (auto p : parts_in_cell) {
-                                                U[egas_i][iii] -= (p.pot * p.mass * HALF) * dVinv;
+						U[egas_i][iii] -= (p.pot * p.mass * HALF) * dVinv;
 					}
                                 }
                         }
@@ -2540,7 +2546,9 @@ void grid::next_u(integer rk, real t, real dt) {
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				const integer iii0 = h0index(i - H_BW, j - H_BW, k - H_BW);
 				const integer iii = hindex(i, j, k);
-				dUdt[egas_i][iii0] += (dphi_dt[iii0] * U[rho_i][iii]) * HALF;
+				if (!opts().particles) {
+					dUdt[egas_i][iii0] += (dphi_dt[iii0] * U[rho_i][iii]) * HALF;
+				}
 			}
 		}
 	}
@@ -2671,9 +2679,9 @@ void grid::next_particles(integer rk, real t, real dt) {
 	for (integer i = 0; i < particles.size(); i++) {
 		particle& p = particles[i];
 		if (rk == 0) {
-			printf("      p id %i, mass %e, pos (%e, %e, %e), vel (%e, %e, %e), g (%e, %e, %e)\n", p.id, p.mass, p.pos[0], p.pos[1], p.pos[2],
-                                                                               p.vel[0], p.vel[1], p.vel[2],
-										p.g[0], p.g[1], p.g[2]);
+			printf("      p id %i, mass %e, pos (%e, %e, %e), vel (%e, %e, %e), g (%e, %e, %e)\n", p.id, p.mass, (real)p.pos[0], (real)p.pos[1], (real)p.pos[2],
+                                                                               (real)p.vel[0], (real)p.vel[1], (real)p.vel[2],
+										(real)p.g[0], (real)p.g[1], (real)p.g[2]);
 		}
 		if (opts().p_evol == RUTH) {
 	 		for (integer d = 0; d < NDIM; d++) {

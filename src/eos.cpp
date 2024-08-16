@@ -849,7 +849,7 @@ real struct_eos::density_at(real R, real dr) {
 	real hdot = 0.0;
 	int N = std::min(std::max(int(R / dr + 1.0), 2),10);
 	if (p_smooth_l > 0.0) {
-		N = std::max(5 * int(R / p_smooth_l), 5);
+		N = std::max(10 * int(R / p_smooth_l), 5);
 	} else {
 		N = 20;
 	}
