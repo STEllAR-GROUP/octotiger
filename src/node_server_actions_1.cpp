@@ -15,6 +15,7 @@
 #include "octotiger/options.hpp"
 #include "octotiger/profiler.hpp"
 #include "octotiger/taylor.hpp"
+#include "octotiger/verbose.hpp"
 
 #include <hpx/include/lcos.hpp>
 #include <hpx/include/run_as.hpp>
@@ -247,32 +248,35 @@ node_count_type node_server::regrid(const hpx::id_type &root_gid, real omega, re
 	assert(grid_ptr != nullptr);
 	printf("-----------------------------------------------\n");
 	if (!rb) {
-		printf("checking for refinement\n");
+		PROGRESS("check for refinement");
 		check_for_refinement(omega, new_floor);
 	} else {
+		PROGRESS("clear node registry");
 		node_registry::clear();
 	}
-	printf("regridding\n");
-	real tstart = timer.elapsed();
-	auto a = regrid_gather(rb);
-	real tstop = timer.elapsed();
-	printf("Regridded tree in %f seconds\n", real(tstop - tstart));
-	printf("rebalancing %i nodes with %i leaves\n", int(a.total), int(a.leaf));
-	tstart = timer.elapsed();
-	regrid_scatter(0, a.total);
-	tstop = timer.elapsed();
-	printf("Rebalanced tree in %f seconds\n", real(tstop - tstart));
-	assert(grid_ptr != nullptr);
-	tstart = timer.elapsed();
-	printf("forming tree connections\n");
-	a.amr_bnd = form_tree(hpx::unmanaged(root_gid));
-	printf("%lu amr boundaries\n", a.amr_bnd);
-	tstop = timer.elapsed();
-	printf("Formed tree in %f seconds\n", real(tstop - tstart));
-	printf("solving gravity\n");
-	solve_gravity(grav_energy_comp, false);
-	double elapsed = timer.elapsed();
-	printf("regrid done in %f seconds\n---------------------------------------\n", elapsed);
+	node_count_type a;
+	{
+		PROGRESS("regrid");
+		{
+			PROGRESS("gather");
+			a = regrid_gather(rb);
+			printf("          (rebalancing %i nodes with %i leaves)\n", int(a.total), int(a.leaf));
+		}
+		{
+			PROGRESS("scatter");
+			regrid_scatter(0, a.total);
+			assert(grid_ptr != nullptr);
+		}
+		{
+			PROGRESS("form tree connections");
+			a.amr_bnd = form_tree(hpx::unmanaged(root_gid));
+			printf("          (%lu amr boundaries)\n", a.amr_bnd);
+		}
+		{
+			PROGRESS("solve gravity");
+			solve_gravity(grav_energy_comp, false);
+		}
+	}
 	return a;
 }
 
@@ -321,7 +325,10 @@ void node_server::solve_gravity(bool ene, bool aonly) {
 			child_futs[index++] = child.solve_gravity(ene, aonly);
 		}
 	}
-	compute_fmm(RHO, ene, aonly);
+	{
+		 CPROGRESS( (my_location.level() == 0), "(root node) computing FMM");
+		compute_fmm(RHO, ene, aonly);
+	}
 	if (is_refined) {
 		//	wait_all_and_propagate_exceptions(child_futs);
 		for (auto &f : child_futs) {

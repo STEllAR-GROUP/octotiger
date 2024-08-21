@@ -213,11 +213,11 @@ void start_octotiger(int argc, char* argv[]) {
                 std::cerr << "...done" << std::endl;
             }
             if (opts().problem != AMR_TEST) {
-                std::cerr << "Start execution the solver..." << std::endl;
+                std::cerr << "Execution solver..." << std::endl;
                 hpx::async(&node_server::execute_solver, root,
                     opts().problem == DWD && opts().restart_filename.empty(), ngrids)
                     .get();
-                std::cerr << "Finished solver exeuction - Scenario done!" << std::endl;
+                std::cerr << "Solver execution complete - Scenario done!" << std::endl;
             } else {
                 std::cerr << "Start AMR test..." << std::endl;
                 root->enforce_bc();

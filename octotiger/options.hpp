@@ -71,6 +71,7 @@ public:
 	integer silo_offset_z;
 	integer future_wait_time;
 	integer ipr_nr_maxiter;
+	integer verbose;
 
 	real dt_max;
 	real eblast0;

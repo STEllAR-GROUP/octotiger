@@ -214,6 +214,7 @@ set(source_files
     src/stack_trace.cpp
     src/taylor.cpp
     src/util.cpp
+    src/verbose.cpp
     src/common_kernel/interactions_iterators.cpp
     src/common_kernel/gravity_performance_counters.cpp
     src/cuda_util/cuda_scheduler.cpp
@@ -282,6 +283,7 @@ set(header_files
     octotiger/struct_eos.hpp
     octotiger/taylor.hpp
     octotiger/util.hpp
+    octotiger/verbose.hpp
     octotiger/common_kernel/helper.hpp
     octotiger/common_kernel/interaction_constants.hpp
     octotiger/common_kernel/interactions_iterators.hpp

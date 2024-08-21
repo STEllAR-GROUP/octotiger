@@ -12,6 +12,7 @@
 #include "octotiger/real.hpp"
 #include "octotiger/util.hpp"
 #include "octotiger/util/timestep_util.hpp"
+#include "octotiger/verbose.hpp"
 
 #include <cerrno>
 
@@ -260,45 +261,50 @@ void line_of_centers_analyze(const line_of_centers_t &loc, real omega, std::pair
 	}
 }
 
+
 void node_server::execute_solver(bool scf, node_count_type ngrids) {
 	timings_.times_[timings::time_regrid] = 0.0;
 	timings_.times_[timings::time_fmm] = 0.0;
 	timings_.times_[timings::time_total] = 0.0;
 	integer output_cnt { };
 //	output_all("X", 0, false);
-
 	if (!opts().hydro && !opts().radiation) {
 //		diagnostics();
 		if (!opts().disable_output) {
+			PROGRESS("Re-outputing initial conditions");
 			output_all(this, "final", output_cnt, true);
 		}
 		if (get_analytic() != nullptr) {
-      if (!opts().disable_analytic) { // Pure performance measurements - skip analytics 
-          compare_analytic();
-      }
-      if (opts().gravity) {
-        auto start_all_gravity = std::chrono::high_resolution_clock::now(); 
-        auto min_duration = std::chrono::milliseconds::max();
-        auto max_duration = std::chrono::milliseconds::min();
-        for (int iteration = 0; iteration < opts().stop_step; iteration++) {
-          std::cout << "Pure-gravity iteration " << iteration << std::endl;
-          auto start = std::chrono::high_resolution_clock::now(); 
-          solve_gravity(true, false);
-          auto stop = std::chrono::high_resolution_clock::now(); 
-          auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start); 
-          std::cout << "--> " << iteration + 1 << ". FMM iteration took: " << duration.count() << " ms" << std::endl; 
-          if (duration.count() < min_duration.count())
-            min_duration = duration;
-          if (duration.count() > max_duration.count())
-            max_duration = duration;
+			if (!opts().disable_analytic) { // Pure performance measurements - skip analytics
+				PROGRESS("compare analytic");
+				compare_analytic();
+			}
+			if (opts().gravity) {
+				PROGRESS("Re-outputing initial conditions");
+				auto start_all_gravity = std::chrono::high_resolution_clock::now();
+				auto min_duration = std::chrono::milliseconds::max();
+				auto max_duration = std::chrono::milliseconds::min();
+				for (int iteration = 0; iteration < opts().stop_step; iteration++) {
+					std::cout << "Pure-gravity iteration " << iteration << std::endl;
+					auto start = std::chrono::high_resolution_clock::now();
+					solve_gravity(true, false);
+					auto stop = std::chrono::high_resolution_clock::now();
+					auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+					std::cout << "--> " << iteration + 1 << ". FMM iteration took: " << duration.count() << " ms"
+							<< std::endl;
+					if (duration.count() < min_duration.count())
+						min_duration = duration;
+					if (duration.count() > max_duration.count())
+						max_duration = duration;
 
-        }
-        auto stop_all_gravity = std::chrono::high_resolution_clock::now(); 
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop_all_gravity - start_all_gravity); 
-        std::cout << "==> Overall execution time: " << duration.count() << " ms" << std::endl; 
-        std::cout << "==> Average iteration execution time: " << duration.count() / opts().stop_step << " ms" << std::endl; 
-        std::cout << "==> Minimal iteration execution time: " << min_duration.count() << " ms" << std::endl; 
-        std::cout << "==> Maximal iteration execution time: " << max_duration.count() << " ms" << std::endl; 
+				}
+				auto stop_all_gravity = std::chrono::high_resolution_clock::now();
+				auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop_all_gravity - start_all_gravity);
+				std::cout << "==> Overall execution time: " << duration.count() << " ms" << std::endl;
+				std::cout << "==> Average iteration execution time: " << duration.count() / opts().stop_step << " ms"
+						<< std::endl;
+				std::cout << "==> Minimal iteration execution time: " << min_duration.count() << " ms" << std::endl;
+				std::cout << "==> Maximal iteration execution time: " << max_duration.count() << " ms" << std::endl;
 			}
 			if (!opts().disable_output) {
 				output_all(this, "analytic", output_cnt, true);
@@ -327,7 +333,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 			erad_init();
 		}
 	}
-	printf("Starting run...\n");
+	PROGRESS("simulation");
 	auto fut_ptr = me.get_ptr();
 	auto root_ptr = GET(fut_ptr);
 	if (!opts().output_filename.empty()) {
@@ -338,7 +344,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 	}
 
 	if (opts().stop_step != 0) {
-		printf("Solving gravity\n");
+		PROGRESS("initial gravity solve");
 		solve_gravity(false, false);
 		ngrids = regrid(me.get_gid(), grid::get_omega(), -1, false);
 	}
@@ -354,6 +360,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 
 	real bench_start, bench_stop;
 	while (current_time < opts().stop_time) {
+		PROGRESS("main execution loop iteration");
 		timings::scope ts(timings_, timings::time_total);
 		if (step_num > opts().stop_step)
 			break;
@@ -365,7 +372,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 		if (!opts().disable_output && root_ptr->get_rotation_count() / output_dt >= output_cnt) {
 			static bool first_call = true;
 			if (opts().rewrite_silo || !first_call || (opts().restart_filename == "")) {
-				printf("doing silo out...\n");
+				PROGRESS("SILO output");
 				std::string fname = "X." + std::to_string(int(output_cnt));
 				output_all(this, fname, output_cnt, first_call);
 				if (opts().rewrite_silo) {
@@ -386,7 +393,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 		real omega_dot = 0.0, omega = 0.0, theta = 0.0, theta_dot = 0.0;
 
 		if ((opts().problem == DWD) && (step_num % refinement_freq() == 0)) {
-			printf("dwd step...\n");
+			PROGRESS("DWD step");
 			auto dt = GET(step(next_step - step_num));
 			if (!opts().disable_diagnostics) {
 				printf("diagnostics...\n");
@@ -417,6 +424,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 
 		// run output on separate thread
 		if (!opts().disable_output) {
+			PROGRESS("output text data");
 			hpx::threads::run_as_os_thread([=]() {
 				FILE *fp = fopen((opts().data_dir + "step.dat").c_str(), "at");
 				if (fp == NULL) {
@@ -438,7 +446,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 					printf("TS %i:: t: %e, dt: %e, time_elapsed: %e, rotational_time: %e, x: %e, y: %e, z: %e, ",
 						int(next_step), double(t), double(dt_.dt), time_elapsed, rotational_time,
 						dt_.x, dt_.y, dt_.z);
-					printf("a: %e, ur: %e, ul: %e, vr: %e, vl: %e, dim: %i, ngrids: %i, leafs: %i, amr_boundaries: %i\n", 
+					printf("a: %e, ur: %e, ul: %e, vr: %e, vl: %e, dim: %i, ngrids: %i, leafs: %i, amr_boundaries: %i\n",
 						dt_.a, dt_.ur[0], dt_.ul[0], vr, vl, dt_.dim, int(ngrids.total),
 						int(ngrids.leaf), int(ngrids.amr_bnd));
     }
@@ -447,6 +455,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 		step_num = next_step;
 
 		if (step_num % refinement_freq() == 0) {
+			PROGRESS("regrid");
 			real new_floor = opts().refinement_floor;
 			if (opts().ngrids > 0) {
 				new_floor *= std::pow(real(ngrids.total) / real(opts().ngrids), 2);
@@ -486,16 +495,21 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 		timings::scope ts(timings_, timings::time_compare_analytic);
 
 		if (!opts().disable_output) {
-			printf("doing silo out...\n");
+			PROGRESS("silo out");
 			output_all(this, "final", output_cnt, true);
 		}
 
 		if (!opts().disable_analytic && get_analytic() != nullptr) {
-			compare_analytic();
+			{
+				PROGRESS("compare analytic");
+				compare_analytic();
+			}
 			if (opts().gravity) {
+				PROGRESS("solve gravity");
 				solve_gravity(true, false);
 			}
 			if (!opts().disable_output) {
+				PROGRESS("analytic out");
 				output_all(this, "analytic", output_cnt, true);
 			}
 		}
@@ -562,17 +576,24 @@ future<void> node_server::nonrefined_step() {
 //	static hpx::util::itt::string_handle sh("node_server::nonrefined_step");
 //	hpx::util::itt::task t(hpx::get_thread_itt_domain(), sh);
 //#endif
+	const bool root = my_location.level() == 0;
+	CPROGRESS(root, "(from root) beginning non-refined step for hydro");
 
 	timings::scope ts(timings_, timings::time_computation);
-
-
+	future<void> fut;
 	real cfl0 = opts().cfl;
 	dt_.dt = ZERO;
 
-	all_hydro_bounds();
+	{
+		CPROGRESS(root, "(from root) hydro boundaries");
+		all_hydro_bounds();
+	}
 
-	grid_ptr->store();
-	future<void> fut = hpx::make_ready_future();
+	{
+		CPROGRESS(root, "(from root) store grid");
+		grid_ptr->store();
+		fut = hpx::make_ready_future();
+	}
 
 	hpx::shared_future<timestep_t> dt_fut = global_timestep_channel.get_future();
 
@@ -580,14 +601,23 @@ future<void> node_server::nonrefined_step() {
 
 		fut = fut.then(hpx::launch::async_policy(hpx::threads::thread_priority::boost),
 		hpx::annotated_function(
-				[rk, cfl0, this, dt_fut](future<void> f) {
+				[rk, cfl0, this, dt_fut, root](future<void> f) {
 					GET(f);
-          size_t current_hydro_promise = hcycle % (NRK + 1);
-					timestep_t a = grid_ptr->compute_fluxes(); // hydro kernels
-					future<void> fut_flux = exchange_flux_corrections();
-					fut_flux.get();
+					timestep_t a;
+					future<void> fut_flux;
+               size_t current_hydro_promise = hcycle % (NRK + 1);
+          	 	{
+         	 	   CPROGRESS(root, "(from root) hydro fluxes");
+					   a = grid_ptr->compute_fluxes(); // hydro kernels
+          	 	}
+         	 	{
+         	 	   CPROGRESS(root, "(from root) flux corrections");
+         	 	   fut_flux = exchange_flux_corrections();
+         	 	   fut_flux.get();
+         	 	}
 //					a = std::max(a, grid_ptr->compute_positivity_speed_limit());
 					if (rk == 0) {
+         	 	   CPROGRESS(root, "(from root) sending timesteps");
 						const real dx = TWO * grid::get_scaling_factor() / real(INX << my_location.level());
 						dt_ = a;
 						dt_.dt = cfl0 * dx / a.a;
@@ -597,29 +627,60 @@ future<void> node_server::nonrefined_step() {
 						}
 						local_timestep_channels[NCHILD].set_value(dt_);
 					}
-					grid_ptr->compute_sources(current_time, rotational_time);
-					grid_ptr->compute_dudt();
-					compute_fmm(DRHODT, false);
+					{
+						CPROGRESS(root, "(from root) source terms");
+						grid_ptr->compute_sources(current_time, rotational_time);
+					}
+					{
+						CPROGRESS(root, "(from root) compute hydro time rate of change");
+						grid_ptr->compute_dudt();
+					}
+					{
+						CPROGRESS(root, "(from root) FMM");
+						compute_fmm(DRHODT, false);
+					}
 					if (rk == 0) {
+						CPROGRESS(root, "(from root) get timestep");
 						dt_ = GET(dt_fut);
 					}
           if (!opts().gravity && opts().optimize_local_communication) {
             all_neighbors_got_hydro[(hcycle-1)%number_hydro_exchange_promises].get();
           }
-					grid_ptr->next_u(rk, current_time, dt_.dt);
-					compute_fmm(RHO, true);
-					rk == NRK - 1 ? energy_hydro_bounds() : all_hydro_bounds();
+               {
+				      CPROGRESS(root, "(from root) final hydro update");
+					   grid_ptr->next_u(rk, current_time, dt_.dt);
+               }
+               {
+				      CPROGRESS(root, "(from root) FMM");
+   					compute_fmm(RHO, true);
+               }
+               if( rk == NRK - 1) {
+				      CPROGRESS(root, "(from root) energy boundaries");
+				      energy_hydro_bounds();
+               } else {
+				      CPROGRESS(root, "(from root) all hydro boundaries");
+				      all_hydro_bounds();
+               }
 				}, "node_server::nonrefined_step::compute_fluxes"));
 	}
 
-	return fut.then(hpx::launch::sync, hpx::annotated_function( [this](future<void> &&f) {
+	return fut.then(hpx::launch::sync, hpx::annotated_function( [root, this](future<void> &&f) {
 
 		GET(f);
 
-		update();
+      {
+	      CPROGRESS(root, "(from root) dual energy update");
+		   update();
+      }
 		if (opts().radiation) {
-			compute_radiation(dt_.dt, grid_ptr->get_omega());
-			all_hydro_bounds();
+	      {
+		      CPROGRESS(root, "(from root) radiation update");
+	      	compute_radiation(dt_.dt, grid_ptr->get_omega());
+      }
+	      {
+		      CPROGRESS(root, "(from root) hydro boundaries");
+		      all_hydro_bounds();
+	      }
 		}
 
 	}, "node_server::nonrefined_step::update" )
