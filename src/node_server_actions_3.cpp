@@ -698,10 +698,13 @@ void node_server::update() {
 }
 
 future<real> node_server::local_step(integer steps) {
+	const bool root = my_location.level() == 0;
+	CPROGRESS(root, "(from root) node_server::local_step");
 	future<real> fut = hpx::make_ready_future(0.0);
 	for (integer i = 0; i != steps; ++i) {
 
 		{
+			CPROGRESS(root, "(from root) node_server::local_step - loop - pt 1");
 			std::lock_guard<hpx::mutex> lock(node_count_mtx);
 			cumulative_node_count.total++;
 			if (!is_refined) {
@@ -709,6 +712,7 @@ future<real> node_server::local_step(integer steps) {
 			}
 			constexpr auto full_set = geo::octant::full_set();
 			if (amr_flags.size()) {
+				CPROGRESS(root, "(from root) node_server::local_step - loop - pt 2");
 				for (auto &ci : full_set) {
 					const auto &flags = amr_flags[ci];
 					for (auto &dir : geo::direction::full_set()) {
@@ -776,10 +780,13 @@ future<real> node_server::local_step(integer steps) {
 }
 
 future<real> node_server::step(integer steps) {
+	const bool root = my_location.level() == 0;
+	CPROGRESS(root, "(from root) node_server::step");
 	grid_ptr->set_coordinates();
 
 	std::array<future<void>, NCHILD> child_futs;
 	if (is_refined) {
+		CPROGRESS(root, "(from root) node_server::step - pt 1");
 		for (integer ci = 0; ci != NCHILD; ++ci) {
 			child_futs[ci] = children[ci].step(steps);
 		}
@@ -788,6 +795,7 @@ future<real> node_server::step(integer steps) {
 	future<real> fut = local_step(steps);
 
 	if (is_refined) {
+		CPROGRESS(root, "(from root) node_server::step - pt 2");
 		return hpx::dataflow(hpx::launch::sync, [this](future<real> dt_fut, future<std::array<future<void>, NCHILD>> &&f) {
 			auto fi = GET(f); // propagate exceptions
 			for (auto &f : fi) {
