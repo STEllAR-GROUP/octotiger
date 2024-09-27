@@ -14,6 +14,7 @@
 #include "octotiger/options.hpp"
 #include "octotiger/profiler.hpp"
 #include "octotiger/taylor.hpp"
+#include "octotiger/verbose.hpp"
 
 #include <hpx/include/lcos.hpp>
 #include <hpx/include/run_as.hpp>
@@ -338,7 +339,10 @@ diagnostics_t node_server::root_diagnostics(const diagnostics_t &diags) {
 }
 
 diagnostics_t node_server::diagnostics(const diagnostics_t &diags) {
+	const bool root = (my_location.level() == 0);
+	CPROGRESS(root, "diagnostics...");
 	if (is_refined) {
+		CPROGRESS(root, "diagnostics (is_refined)...");
 		auto rc = hpx::async(hpx::annotated_function([&]() {
 			return child_diagnostics(diags);
 		}, "diagnostics::return_child_diagnostics"));

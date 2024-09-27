@@ -12,6 +12,7 @@
 #include "octotiger/taylor.hpp"
 #include "octotiger/util.hpp"
 #include "octotiger/interaction_types.hpp"
+#include "octotiger/verbose.hpp"
 
 #include "octotiger/monopole_interactions/monopole_kernel_interface.hpp"
 #include "octotiger/multipole_interactions/multipole_kernel_interface.hpp"
@@ -168,6 +169,7 @@ void node_server::energy_hydro_bounds() {
 }
 
 void node_server::exchange_interlevel_hydro_data() {
+	  PROGRESS( "exchange boundarie");
   hpx::annotated_function([&]() {
     if (is_refined) {
       std::vector<real> outflow(opts().n_fields, ZERO);
@@ -191,6 +193,7 @@ void node_server::exchange_interlevel_hydro_data() {
 }
 
 void node_server::collect_hydro_boundaries(bool energy_only) {
+	  PROGRESS( "collect boundaries");
   hpx::annotated_function([&]() {
 	grid_ptr->clear_amr();
   const bool use_local_optimization = opts().optimize_local_communication;
@@ -423,7 +426,8 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
 }
 
 void node_server::send_hydro_amr_boundaries(bool energy_only) {
-  hpx::annotated_function([&]() {
+	  PROGRESS( "send_hydro_amr");
+ hpx::annotated_function([&]() {
     if (is_refined) {
       // set promise 
       const bool use_local_optimization = opts().optimize_local_communication;
