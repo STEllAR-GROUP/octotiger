@@ -13,7 +13,7 @@ const double pi = 3.1415926535897932384e0, eulercon = 0.577215664901532861e0, a2
 
 // physical constants
 const double g = 6.6742867e-8, h = 6.6260689633e-27, hbar = 0.5e0 * h / pi, qe = 4.8032042712e-10,
-		avo = 6.0221417930e23, clight = 2.99792458e10, kerg = 1.380650424e-16, ev2erg = 1.60217648740e-12, kev = kerg
+		avo = 6.0221417930e23,  = 2.99792458e10, kerg = 1.380650424e-16, ev2erg = 1.60217648740e-12, kev = kerg
 				/ ev2erg, amu = 1.66053878283e-24, mn = 1.67492721184e-24, mp = 1.67262163783e-24,
 		me = 9.1093821545e-28, rbohr = hbar * hbar / (me * qe * qe), fine = qe * qe / (hbar * clight), hion =
 				13.605698140e0;

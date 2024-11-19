@@ -73,7 +73,9 @@ public:
 	//void compute_fEdd();
 	void compute_fluxes();
 	void advance(real dt, real beta);
-	void rad_imp(std::vector<real>& egas, std::vector<real>& tau, std::vector<real>& sx, std::vector<real>& sy, std::vector<real>& sz,
+	void implicit_source(std::vector<real>& egas, std::vector<real>& tau, std::vector<real>& sx, std::vector<real>& sy, std::vector<real>& sz,
+			const std::vector<real>& rho, real dt);
+	void explicit_source(std::vector<real>& egas, std::vector<real>& tau, std::vector<real>& sx, std::vector<real>& sy, std::vector<real>& sz,
 			const std::vector<real>& rho, real dt);
 	std::vector<real> get_restrict() const;
 	std::vector<real> get_prolong(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub);
