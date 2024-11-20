@@ -23,7 +23,7 @@ U kappa_R(U rho, U e, U mmw, real X, real Z) {
 	} else if (opts().problem == RADIATION_TEST) {
 		return 1e-20;
 	} else if (opts().problem == RADIATION_DIFFUSION) {
-		return 1e2;
+		return rho;
 	} else if (opts().problem == RADIATION_COUPLING) {
 		return 1;
 	} else if( opts().problem == STAR) {

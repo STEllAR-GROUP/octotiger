@@ -647,14 +647,14 @@ future<void> node_server::nonrefined_step() {
 						const real dx = TWO * grid::get_scaling_factor() / real(INX << my_location.level());
 						if( opts().radiation) {
 							grid_ptr->compute_mmw();
-									auto rs = rad_grid_ptr->hydro_signal_speed(
+							auto rs = rad_grid_ptr->hydro_signal_speed(
 											grid_ptr->get_field(egas_i),
 											grid_ptr->get_field(tau_i),
 											grid_ptr->get_field(sx_i),
 											grid_ptr->get_field(sy_i),
 											grid_ptr->get_field(sz_i),
 											grid_ptr->get_field(rho_i));
-									a.a = std::sqrt(a.a * a.a + rs * rs);
+							a.a = std::sqrt(a.a * a.a + rs * rs);
 						}
 						dt_ = a;
 						dt_.dt = cfl0 * dx / a.a;

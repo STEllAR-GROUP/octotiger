@@ -23,6 +23,7 @@
 #include <unordered_map>
 #include <vector>
 #include "octotiger/unitiger/radiation/radiation_physics_impl.hpp"
+#include "octotiger/matrix.hpp"
 
 #if !defined(HPX_COMPUTE_DEVICE_CODE)
 
@@ -30,6 +31,7 @@ using real = double;
 
 #define CHECK_FLUX( er, fx, fy, fz) if( ((fx)*(fx)+(fy)*(fy)+(fz)*(fz))/(er*er*physcon().c*physcon().c) > 1 ) {printf( "flux exceded %s %i %e fx %e fy %e fz %e er %e\n", __FILE__, __LINE__, sqrt(((fx)*(fx)+(fy)*(fy)+(fz)*(fz))/(er*er*physcon().c*physcon().c)), fx, fy, fz, er*physcon().c); abort();}
 #define CHECK_FLUX1( er, fx, fy, fz, rho) if( ((fx)*(fx)+(fy)*(fy)+(fz)*(fz))/(er*er*physcon().c*physcon().c) > 1 ) {printf( "flux exceded %s %i %e fx %e fy %e fz %e er %e rho %e\n", __FILE__, __LINE__, sqrt(((fx)*(fx)+(fy)*(fy)+(fz)*(fz))/(er*er*physcon().c*physcon().c)), fx, fy, fz, er*physcon().c, rho); abort();}
+#define BAD_FLUX( er, fx, fy, fz, rho) bool(((fx)*(fx)+(fy)*(fy)+(fz)*(fz))/(er*er*physcon().c*physcon().c) > 1 )
 
 std::unordered_map<std::string, int> rad_grid::str_to_index;
 std::unordered_map<int, std::string> rad_grid::index_to_str;
@@ -160,41 +162,55 @@ void node_client::send_rad_children(std::vector<real> &&data, const geo::octant 
    abort(); \
    }
 
-void rad_grid::implicit_source(std::vector<real> &egas_, std::vector<real> &tau_, std::vector<real> &sx_, std::vector<real> &sy_,
-		std::vector<real> &sz_, const std::vector<real> &rho_, real dt) {
-	PROFILE()
-	feenableexcept(FE_DIVBYZERO);
-	feenableexcept(FE_INVALID);
-	feenableexcept(FE_OVERFLOW);
-	const auto find4root = [](double C, double A, double B) {
-		A *= -INVERSE(C);
-		B *= -INVERSE(C);
-		real x0 = -A * INVERSE(B);
-		real x, f, dfdx;
-		real dx;
-		if (B > 0.0) {
-			printf("%e\n", B);
-		}
-		x = 0.5 * (-A * INVERSE(B) + POWER(-INVERSE(B), 0.25));
-		do {
-			f = x * x * x * x + A * x + B;
-			dfdx = 4.0 * x * x * x + A;
-			dx = -f * INVERSE(dfdx);
-			x += dx;
-		} while (fabs(dx * INVERSE(x)) > 1.0e-10);
-		return x;
-	};
+//Er_np1 + c * dt * kap * Er_np1 - 4.0 * dt * kap * sigma * ((gam - 1)*(mh*mmw * (Ei_n - Er_np1 + Er_n) / (rho * kb))^4;
+
+#include <iostream>
+#include <cmath>
+#include <stdexcept>
+
+double solveNR(double dt, double kap, double Ei_n, double Er_n, double rho, double mmw, double initial_guess,
+		double tolerance = 1e-6, int max_iter = 1000) {
+	double Er_np1 = initial_guess;
+	double f, df;
 	const real c = physcon().c;
 	const real mh = physcon().mh;
 	const real sigma = physcon().sigma;
 	const real kb = physcon().kb;
-	const real c_hat = c * opts().clight_reduced;
+	const real gam = grid::get_fgamma();
+	{
+		for (int iter = 0; iter < max_iter; ++iter) {
+			double temp = (gam - 1) * mh * mmw * (Ei_n - Er_np1 + Er_n) / (rho * kb);
+			double temp4 = POWER(temp, 4);
+			f = Er_np1 + c * dt * kap * Er_np1 - 4.0 * dt * kap * sigma * temp4;
+			double dtemp4_dEr = -4.0 * POWER(temp, 3) * (gam - 1) * mh * mmw / (rho * kb);
+			df = 1.0 + c * dt * kap - 4.0 * dt * kap * sigma * dtemp4_dEr;
+			const real error = std::abs(f / Er_np1);
+			if (error < tolerance) {
+				return Er_np1;
+			}
+			if (std::abs(df) < 1e-12) {
+				throw std::runtime_error("Derivative too small; solution may not converge.");
+			}
+			Er_np1 -= f / df;
+		}
+	}
+	throw std::runtime_error("Maximum iterations exceeded; solution did not converge.");
+}
+
+void rad_grid::implicit_source(std::vector<real> &egas_, std::vector<real> &tau_, std::vector<real> &sx_,
+		std::vector<real> &sy_, std::vector<real> &sz_, const std::vector<real> &rho_, real dt) {
+	PROFILE()
+	feenableexcept(FE_DIVBYZERO);
+	feenableexcept(FE_INVALID);
+	feenableexcept(FE_OVERFLOW);
+	const real c = physcon().c;
+	const real theta = opts().clight_reduced;
+	const real inv_theta = INVERSE(theta);
+	const real c_hat = c * theta;
 	const real fgamma = grid::get_fgamma();
 	const real inv_c = INVERSE(c);
+	const real inv_c2 = inv_c * inv_c;
 	const real inv_fgamma = INVERSE(fgamma);
-	const real inv_kb = INVERSE(kb);
-	const real C0 = 4.0 * sigma * inv_c;
-	const real C1 = (fgamma - 1.0) * mh * inv_kb;
 	real er1, eg1, ei1;
 	for (integer xi = RAD_BW; xi != RAD_NX - RAD_BW; ++xi) {
 		for (integer yi = RAD_BW; yi != RAD_NX - RAD_BW; ++yi) {
@@ -202,120 +218,108 @@ void rad_grid::implicit_source(std::vector<real> &egas_, std::vector<real> &tau_
 				const integer D = H_BW - RAD_BW;
 				const integer ir = rindex(xi, yi, zi);
 				const integer ih = hindex(xi + D, yi + D, zi + D);
-				const real eg0 = egas_[ih];
-				const real er0 = U[er_i][ir];
+				real &tau = tau_[ih];
+				real &egas = egas_[ih];
+				real &erad = U[er_i][ir];
+				real &fx = U[fx_i][ir];
+				real &fy = U[fy_i][ir];
+				real &fz = U[fz_i][ir];
+				real &sx = sx_[ih];
+				real &sy = sy_[ih];
+				real &sz = sz_[ih];
 				const real rho = rho_[ih];
+//				CHECK_FLUX1(erad, fx, fy, fz, rho);
 				const real inv_rho = INVERSE(rho);
-				const real sx = sx_[ih];
-				const real sy = sy_[ih];
-				const real sz = sz_[ih];
 				const real vx = sx * inv_rho;
 				const real vy = sy * inv_rho;
 				const real vz = sz * inv_rho;
-				const real eint = std::max(eg0 - 0.5 * rho * (vx * vx + vy * vy + vz * vz), 0.0);
+				const real eint = POWER(tau, fgamma);
 				const real kap = kappa_R(rho, eint, mmw[ih], X_spc[ih], Z_spc[ih]);
-				const real eta = c_hat * dt * kap;
-				const real alpha = C0 * POWER(C1 * mmw[ih] * inv_rho, 4);
-				const real esum = eint + er0;
-				const real A = alpha * eta;
-				const real B = eta + 1.0;
-				const real C = eint + eta * esum;
-				ASSERT(C > 0.0);
-				const real der = find4root(A, B, C) - er0;
-				const real er1 = er0 + der;
-				const real eg1 = eg0 - der;
-				real &tau = tau_[ih];
-				tau = POWER(std::max(POWER(tau, fgamma) - der, 0.0), inv_fgamma);
-				U[er_i][ir] = er1;
-				egas_[ih] = eg1;
+				const real lambda = c_hat * dt * kap;
+				const real esum = eint + erad;
+				const real eps = 1.0 - INVERSE(1.0 + c_hat * dt * kap);
+				const real dfx = eps * fx;
+				const real dfy = eps * fy;
+				const real dfz = eps * fz;
+				const real guess = 0.5 * (erad + egas);
+				const real erad_next = solveNR(dt, kap, eint, erad, rho, mmw[ih], guess);
+				const real der = erad_next - erad;
+				const real deg = (vx * dfx + vy * dfy + vz * dfz) * inv_c2 - der;
+				erad += der;
+				egas += deg;
+				fx += theta * dfx;
+				fy += theta * dfy;
+				fz += theta * dfz;
+				sx -= dfx * inv_c2;
+				sy -= dfy * inv_c2;
+				sz -= dfz * inv_c2;
+				tau = POWER(std::max(eint - der, 0.0), inv_fgamma);
 			}
 		}
 	}
 }
 
-void rad_grid::explicit_source(std::vector<real> &egas_, std::vector<real> &tau_, std::vector<real> &sx_, std::vector<real> &sy_,
-		std::vector<real> &sz_, const std::vector<real> &rho_, real dt) {
+void rad_grid::explicit_source(std::vector<real> &egas_, std::vector<real> &tau_, std::vector<real> &sx_,
+		std::vector<real> &sy_, std::vector<real> &sz_, const std::vector<real> &rho_, real dt) {
 	PROFILE()
 	feenableexcept(FE_DIVBYZERO);
 	feenableexcept(FE_INVALID);
 	feenableexcept(FE_OVERFLOW);
 	constexpr integer D = H_BW - RAD_BW;
 	const real c = physcon().c;
-	const real c_hat = c * opts().clight_reduced;
+	const real theta = opts().clight_reduced;
 	const real fgamma = grid::get_fgamma();
 	const real inv_c = INVERSE(c);
+	const real inv_c2 = inv_c * inv_c;
 	const real inv_fgamma = INVERSE(grid::get_fgamma());
 	for (integer xi = RAD_BW; xi != RAD_NX - RAD_BW; ++xi) {
 		for (integer yi = RAD_BW; yi != RAD_NX - RAD_BW; ++yi) {
 			for (integer zi = RAD_BW; zi != RAD_NX - RAD_BW; ++zi) {
 				const integer ir = rindex(xi, yi, zi);
 				const integer ih = hindex(xi + D, yi + D, zi + D);
-				real sx = sx_[ih];
-				real sy = sy_[ih];
-				real sz = sz_[ih];
 				real &egas = egas_[ih];
+				real &tau = tau_[ih];
+				real &sx = sx_[ih];
+				real &sy = sy_[ih];
+				real &sz = sz_[ih];
 				real &Erad = U[er_i][ir];
 				real &Fx = U[fx_i][ir];
 				real &Fy = U[fy_i][ir];
 				real &Fz = U[fz_i][ir];
 				const real rho = rho_[ih];
+				CHECK_FLUX1(Erad, Fx, Fy, Fz, rho);
 				const real inv_rho = INVERSE(rho);
 				const real vx = sx * inv_rho;
 				const real vy = sy * inv_rho;
 				const real vz = sz * inv_rho;
-				const real eint = std::max(egas - 0.5 * rho * (vx * vx + vy * vy + vz * vz), 0.0);
+				const real eint = POWER(tau, fgamma);
 				const real kap = kappa_R(rho, eint, mmw[ih], X_spc[ih], Z_spc[ih]);
-				const real F = SQRT(Fx * Fx + Fy * Fy + Fz * Fz);
-				const real inv_Erad = INVERSE(Erad);
-				const real inv_F = INVERSE(F);
-				const real f = F * inv_Erad * inv_c;
-				const real X = (3.0 + 4.0 * f * f) / (5.0 + 2.0 * SQRT(4.0 - 3.0 * f * f));
-				const real f1 = 1.5 * X - 0.5;
-				const real f2 = 0.5 - 0.5 * X;
-				real nx, ny, nz;
-				if (F) {
-					nx = Fx * inv_F;
-					ny = Fy * inv_F;
-					nz = Fz * inv_F;
-				} else {
-					nx = ny = nz = 0.0;
+				const real dFx = c * kap * vx * Erad * (4.0 / 3.0);
+				const real dFy = c * kap * vy * Erad * (4.0 / 3.0);
+				const real dFz = c * kap * vz * Erad * (4.0 / 3.0);
+				const real vx1 = vx - 0.5 * dFx * inv_c2 * dt;
+				const real vy1 = vy - 0.5 * dFy * inv_c2 * dt;
+				const real vz1 = vz - 0.5 * dFz * inv_c2 * dt;
+				const real dErad = (vx1 * dFx + vy1 * dFy + vz1 * dFz) * inv_c2;
+				Fx += theta * dFx * dt;
+				Fy += theta * dFy * dt;
+				Fz += theta * dFz * dt;
+				sx -= dFx * inv_c2 * dt;
+				sy -= dFy * inv_c2 * dt;
+				sz -= dFz * inv_c2 * dt;
+				Erad += theta * dErad * dt;
+				egas -= dErad * dt;
+				tau = POWER(std::max(eint - dErad * dt, 0.0), inv_fgamma);
+				if (BAD_FLUX(Erad, Fx, Fy, Fz, rho)) {
+					printf("Erad %e Fx %e Fy %e Fz %e\ndErad %e dFx %e dFy %e dFz %e\n", Erad, Fx, Fy, Fz, dErad * dt,
+							dFx * dt, dFy * dt, dFz * dt);
 				}
-				const real Txx = f1 * nx * nx + f2;
-				const real Tyy = f1 * ny * ny + f2;
-				const real Tzz = f1 * nz * nz + f2;
-				const real Txy = f1 * nx * ny;
-				const real Txz = f1 * nx * nz;
-				const real Tyz = f1 * ny * nz;
-				const real Pxx = Erad * Txx;
-				const real Pxy = Erad * Txy;
-				const real Pxz = Erad * Txz;
-				const real Pyy = Erad * Tyy;
-				const real Pyz = Erad * Tyz;
-				const real Pzz = Erad * Tzz;
-				const real eps = 1.0 - INVERSE(1.0 + c_hat * dt * kap);
-				const real S_Erad = kap * (vx * Fx + vy * Fy + vz * Fz) * inv_c * inv_c;
-				const real S_Fx = -eps * Fx + kap * vx * (Erad + Pxx + Pxy + Pxz);
-				const real S_Fy = -eps * Fy + kap * vy * (Erad + Pxy + Pyy + Pyz);
-				const real S_Fz = -eps * Fz + kap * vz * (Erad + Pxz + Pyz + Pzz);
-				Erad += c_hat * S_Erad;
-				Fx += c_hat * S_Fx;
-				Fy += c_hat * S_Fy;
-				Fz += c_hat * S_Fz;
-				sx -= c * S_Fx;
-				sy -= c * S_Fy;
-				sz -= c * S_Fz;
-				egas -= c * S_Erad;
-				real &tau = tau_[ih];
-				tau = POWER(std::max(POWER(tau, fgamma) - c * S_Erad, 0.0), inv_fgamma);
+				CHECK_FLUX1(Erad, Fx, Fy, Fz, rho);
 			}
 		}
 	}
 
 }
-
-
-//		CHECK_FLUX1(U[er_i][iiir], U[fx_i][iiir], U[fy_i][iiir],
-//				U[fz_i][iiir], rho[iiih]);
 
 void rad_grid::set_dx(real _dx) {
 	dx = _dx;
@@ -329,49 +333,48 @@ void rad_grid::set_X(const std::vector<std::vector<real>> &x) {
 			for (integer yi = 0; yi != RAD_NX; ++yi) {
 				for (integer zi = 0; zi != RAD_NX; ++zi) {
 					const auto D = H_BW - RAD_BW;
-					const integer iiir = rindex(xi, yi, zi);
-					const integer iiih = hindex(xi + D, yi + D, zi + D);
-					//		printf( "%i %i %i %i %i %i \n", d, iiir, xi, yi, zi, iiih);
-					X[d][iiir] = x[d][iiih];
+					const integer ir = rindex(xi, yi, zi);
+					const integer ih = hindex(xi + D, yi + D, zi + D);
+					X[d][ir] = x[d][ih];
 				}
 			}
 		}
 	}
 }
 
-real rad_grid::hydro_signal_speed(const std::vector<real> &egas, const std::vector<real> &tau,
-		const std::vector<real> &sx, const std::vector<real> &sy, const std::vector<real> &sz,
-		const std::vector<real> &rho) {
+real rad_grid::hydro_signal_speed(const std::vector<real> &egas_, const std::vector<real> &tau_,
+		const std::vector<real> &sx_, const std::vector<real> &sy_, const std::vector<real> &sz_,
+		const std::vector<real> &rho_) {
 	real a = 0.0;
 	const real fgamma = grid::get_fgamma();
+	const integer D = H_BW - RAD_BW;
 	for (integer xi = RAD_BW; xi != RAD_NX - RAD_BW; ++xi) {
 		for (integer yi = RAD_BW; yi != RAD_NX - RAD_BW; ++yi) {
 			for (integer zi = RAD_BW; zi != RAD_NX - RAD_BW; ++zi) {
-				const integer D = H_BW - RAD_BW;
-				const integer iiir = rindex(xi, yi, zi);
-				const integer iiih = hindex(xi + D, yi + D, zi + D);
-				const real rhoinv = INVERSE(rho[iiih]);
-				real vx = sx[iiih] * rhoinv;
-				real vy = sy[iiih] * rhoinv;
-				real vz = sz[iiih] * rhoinv;
-				real e0 = egas[iiih];
-				e0 -= 0.5 * vx * vx * rho[iiih];
-				e0 -= 0.5 * vy * vy * rho[iiih];
-				e0 -= 0.5 * vz * vz * rho[iiih];
-				if (opts().eos == WD) {
-					e0 -= ztwd_energy(rho[iiih]);
-				}
-				if (e0 < egas[iiih] * 0.001) {
-					e0 = std::pow(tau[iiih], fgamma);
-				}
-
-				real this_a = (4.0 / 9.0) * U[er_i][iiir] * rhoinv;
-				//		printf( "%e %e %e %e\n",rho[iiih], e0, mmw[iiir],dx );
-				const real cons = kappa_R(rho[iiih], e0, mmw[iiir], X_spc[iiir], Z_spc[iiir]) * dx;
+				const integer ir = rindex(xi, yi, zi);
+				const integer ih = hindex(xi + D, yi + D, zi + D);
+				const real sx = sx_[ih];
+				const real sy = sy_[ih];
+				const real sz = sz_[ih];
+				const real egas = egas_[ih];
+				const real Erad = U[er_i][ir];
+				const real Fx = U[fx_i][ir];
+				const real Fy = U[fy_i][ir];
+				const real Fz = U[fz_i][ir];
+				const real rho = rho_[ih];
+				CHECK_FLUX1(Erad, Fx, Fy, Fz, rho);
+				const real inv_rho = INVERSE(rho);
+				const real vx = sx * inv_rho;
+				const real vy = sy * inv_rho;
+				const real vz = sz * inv_rho;
+				const real eint = std::max(egas - 0.5 * rho * (vx * vx + vy * vy + vz * vz), 0.0);
+				const real kap = kappa_R(rho, eint, mmw[ih], X_spc[ih], Z_spc[ih]);
+				real cs2 = (4.0 / 9.0) * Erad * inv_rho;
+				const real cons = kap * dx;
 				if (cons < 32.0) {
-					this_a *= std::max(1.0 - std::exp(-cons), 0.0);
+					cs2 *= 1.0 - std::exp(-std::min(32.0, cons));
 				}
-				a = std::max(this_a, a);
+				a = std::max(cs2, a);
 			}
 		}
 	}
@@ -400,63 +403,54 @@ void rad_grid::compute_mmw(const std::vector<std::vector<safe_real>> &U) {
 }
 
 void node_server::compute_radiation(real dt, real omega) {
-//	physcon().c = 1.0;
-	if (my_location.level() == 0) {
-//		printf("c = %e\n", physcon().c);
+	const bool root = bool(my_location.level() == 0);
+	if (root) {
+		printf("radiation start\n");
 	}
-
-	rad_grid_ptr->set_dx(grid_ptr->get_dx());
 	auto rgrid = rad_grid_ptr;
-	rad_grid_ptr->compute_mmw(grid_ptr->U);
+	rgrid->set_dx(grid_ptr->get_dx());
+	rgrid->set_X(grid_ptr->get_X());
+	rgrid->compute_mmw(grid_ptr->U);
 	const real min_dx = TWO * grid::get_scaling_factor() / real(INX << opts().max_level);
-	const real clight = physcon().c / opts().clight_reduced;
-	const real max_dt = min_dx / clight * 0.4;
-	const real ns = std::ceil(dt * INVERSE(max_dt));
-	if (ns > std::numeric_limits<int>::max()) {
-		printf("Number of substeps greater than %i. dt = %e max_dt = %e\n", std::numeric_limits<int>::max(), dt, max_dt);
-	}
-	integer nsteps = std::max(int(ns), 1);
-
-	const real this_dt = dt * INVERSE(real(nsteps));
-	auto &egas = grid_ptr->get_field(egas_i);
+	const real c = physcon().c;
+	const real max_dt = min_dx / c / 3.0;
+	const integer Nsubstep = std::max(int(std::ceil(dt * INVERSE(max_dt))), 1);
+	const real sub_dt = dt * INVERSE(real(Nsubstep));
 	const auto &rho = grid_ptr->get_field(rho_i);
+	auto &egas = grid_ptr->get_field(egas_i);
 	auto &tau = grid_ptr->get_field(tau_i);
 	auto &sx = grid_ptr->get_field(sx_i);
 	auto &sy = grid_ptr->get_field(sy_i);
 	auto &sz = grid_ptr->get_field(sz_i);
-	rad_grid_ptr->set_X(grid_ptr->get_X());
-
-	if (my_location.level() == 0) {
-		printf("Radiation %i\n", nsteps);
+	if (root) {
+		printf("implicit radiation source\n");
 	}
 	rgrid->implicit_source(egas, tau, sx, sy, sz, rho, dt);
-	rgrid->explicit_source(egas, tau, sx, sy, sz, rho, dt);
-	for (integer i = 0; i != nsteps; ++i) {
-		//	if (my_location.level() == 0)printf( "%i\n", i);
-		//	rgrid->sanity_check();
-		if (my_location.level() == 0) {
-			printf("radiation sub-step %i of %i\r", int(i + 1), int(nsteps));
+	if (root) {
+		printf("explicit radiation source\n");
+	}
+	if (root) {
+		printf("Godonuv radiation transport\n");
+	}
+	for (integer i = 0; i != Nsubstep; ++i) {
+		if (root) {
+			printf("radiation sub-step %i of %i\r", int(i + 1), int(Nsubstep));
 			fflush(stdout);
 		}
-
 		all_rad_bounds();
 		rgrid->store();
 		const double beta[2] = { 1.0, 0.5 };
 		for (int rk = 0; rk < 2; rk++) {
 			rgrid->compute_flux(omega);
-//			if( my_location.level() == 0 ) printf( "\nbounds 10\n");
 			GET(exchange_rad_flux_corrections());
-//			if( my_location.level() == 0 ) printf( "\nbounds 11\n");
-			rgrid->advance(this_dt, beta[rk]);
+			rgrid->advance(sub_dt, beta[rk]);
+			rgrid->explicit_source(egas, tau, sx, sy, sz, rho, sub_dt);
 			all_rad_bounds();
 		}
 	}
-//	rgrid->rad_imp(egas, tau, sx, sy, sz, rho, 0.5 * dt);
-//	rgrid->sanity_check();
 	all_rad_bounds();
 	if (my_location.level() == 0) {
-		printf("\n");
-//		printf("Rad done\n");
+		printf("\rradiation done\n");
 	}
 }
 
@@ -1118,11 +1112,6 @@ void rad_grid::complete_rad_amr_boundary() {
 
 	using oct_array = std::array<std::array<std::array<double, 2>, 2>, 2>;
 	static thread_local std::vector<std::vector<oct_array>> Uf(NRF, std::vector<oct_array>(HS_N3));
-
-	std::array<double, NDIM> xmin;
-	for (int dim = 0; dim < NDIM; dim++) {
-		xmin[dim] = X[dim][0];
-	}
 
 	const auto limiter = [](double a, double b) {
 		return minmod_theta(a, b, 64. / 37.);
