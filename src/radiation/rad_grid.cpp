@@ -5,6 +5,7 @@
 
 #include "octotiger/defs.hpp"
 #include "octotiger/grid.hpp"
+#include "octotiger/matrix.hpp"
 #include "octotiger/node_server.hpp"
 #include "octotiger/options.hpp"
 #include "octotiger/radiation/implicit.hpp"
@@ -200,18 +201,143 @@ double solveNR(double dt, double kap, double Ei_n, double Er_n, double rho, doub
 void rad_grid::implicit_source(std::vector<real> &egas_, std::vector<real> &tau_, std::vector<real> &sx_,
 		std::vector<real> &sy_, std::vector<real> &sz_, const std::vector<real> &rho_, real dt) {
 	PROFILE()
+
 	feenableexcept(FE_DIVBYZERO);
 	feenableexcept(FE_INVALID);
 	feenableexcept(FE_OVERFLOW);
+	const real sigma = physcon().sigma;
+	const real mh = physcon().mh;
+	const real kb = physcon().kb;
+	const real gam = grid::get_fgamma();
 	const real c = physcon().c;
-	const real theta = opts().clight_reduced;
-	const real inv_theta = INVERSE(theta);
-	const real c_hat = c * theta;
+	const real ar = 4.0 * sigma * INVERSE(c);
+	const real inv_c = INVERSE(physcon().c);
+	const real inv_gam = INVERSE(gam);
+	const real c_hat = c * opts().clight_reduced;
+	const real inv_cc_hat = INVERSE(c * c_hat);
+	const real inv_c2 = INVERSE(c * c);
+	for (integer xi = RAD_BW; xi != RAD_NX - RAD_BW; ++xi) {
+		for (integer yi = RAD_BW; yi != RAD_NX - RAD_BW; ++yi) {
+			for (integer zi = RAD_BW; zi != RAD_NX - RAD_BW; ++zi) {
+				const integer D = H_BW - RAD_BW;
+				const integer ir = rindex(xi, yi, zi);
+				const integer ih = hindex(xi + D, yi + D, zi + D);
+				real &tau = tau_[ih];
+				real &egas = egas_[ih];
+				real &erad = U[er_i][ir];
+				real &fx = U[fx_i][ir];
+				real &fy = U[fy_i][ir];
+				real &fz = U[fz_i][ir];
+				fx *= inv_c;
+				fy *= inv_c;
+				fz *= inv_c;
+				real &sx = sx_[ih];
+				real &sy = sy_[ih];
+				real &sz = sz_[ih];
+				const real erad0 = erad;
+				const real egas0 = egas;
+				const real fx0 = fx;
+				const real fy0 = fy;
+				const real fz0 = fz;
+				const real sx0 = sx;
+				const real sy0 = sy;
+				const real sz0 = sz;
+				const real mu = mmw[ih];
+				const real rho = rho_[ih];
+				CHECK_FLUX1(erad, fx, fy, fz, rho);
+				const real inv_rho = INVERSE(rho);
+				const real vx = sx * inv_rho;
+				const real vy = sy * inv_rho;
+				const real vz = sz * inv_rho;
+				const real beta_x = vx * inv_c;
+				const real beta_y = vy * inv_c;
+				const real beta_z = vz * inv_c;
+				real eint = std::max(egas - 0.5 * rho * (vx * vx + vy * vy + vz * vz), 0.0);
+				const real kap = kappa_R(rho, eint, mmw[ih], X_spc[ih], Z_spc[ih]);
+				const real chi = kap;
+				const real fmag = SQRT(fx * fx + fy * fy + fz * fz);
+				const real nx = fx / fmag;
+				const real ny = fy / fmag;
+				const real nz = fz / fmag;
+				const real f = fmag / erad;
+				const real eta = (3 + 4 * f * f) / (5 + 2 * SQRT(4 - 3 * f * f));
+				const real f1 = (1 - eta) / 2;
+				const real f2 = (3 * eta - 1) / 2;
+				const real Dxx = f2 * nx * nx + f1;
+				const real Dxy = f2 * nx * ny;
+				const real Dxz = f2 * nx * nz;
+				const real Dyx = Dxy;
+				const real Dyy = f2 * ny * ny + f1;
+				const real Dyz = f2 * ny * nz;
+				const real Dzx = Dxz;
+				const real Dzy = Dyz;
+				const real Dzz = f2 * nz * nz + f1;
+				auto F = [Dxx, Dxy, Dxz, Dyx, Dyy, Dyz, Dzx, Dzy, Dzz, dt, mu, rho, kap, chi, mh, kb, gam, c, ar, erad0,
+						fx0, fy0, fz0, egas0, sx0, sy0, sz0](std::array<real, 4> X) {
+					const real erad = X[0];
+					const real fx = X[1];
+					const real fy = X[2];
+					const real fz = X[3];
+					const real egas = erad0 - erad + egas0;
+					const real sx = sx0 + (fx0 - fx) / c;
+					const real sy = sy0 + (fy0 - fy) / c;
+					const real sz = sz0 + (fz0 - fz) / c;
+					const real beta_x = sx / (rho * c);
+					const real beta_y = sy / (rho * c);
+					const real beta_z = sz / (rho * c);
+					const real eint = std::max(
+							egas - rho * c * c * (beta_x * beta_x + beta_y * beta_y + beta_z * beta_z) / 2, 0.0);
+					const real T = ((gam - 1) * mu * mh / (rho * kb)) * eint;
+					const real bPx = erad * (beta_x * Dxx + beta_y * Dyx + beta_z * Dzx);
+					const real bPy = erad * (beta_x * Dxy + beta_y * Dyy + beta_z * Dzy);
+					const real bPz = erad * (beta_x * Dxz + beta_y * Dyz + beta_z * Dzz);
+					const real g0 = kap * (erad - ar * T * T * T * T - 2.0 * (beta_x * fx + beta_y * fy + beta_z * fz));
+					const real gx = chi * (fx - erad * beta_x - bPx);
+					const real gy = chi * (fy - erad * beta_y - bPy);
+					const real gz = chi * (fz - erad * beta_z - bPz);
+					const real G0 = g0 + beta_x * gx + beta_y * gy + beta_z * gz;
+					const real Gx = beta_x * g0 + gx;
+					const real Gy = beta_y * g0 + gy;
+					const real Gz = beta_z * g0 + gz;
+					X[0] = erad - erad0 + dt * G0;
+					X[1] = fx - fx0 + dt * Gx;
+					X[2] = fy - fy0 + dt * Gy;
+					X[3] = fz - fz0 + dt * Gz;
+					return X;
+				};
+				std::array<real, 4> x = { erad, fx, fy, fz };
+				x = solve<real, 4>(F, x);
+				erad = x[0];
+				fx = x[1];
+				fy = x[2];
+				fz = x[3];
+				egas += erad0 - erad;
+				sx += (fx0 - fx) * inv_c;
+				sy += (fy0 - fy) * inv_c;
+				sz += (fz0 - fz) * inv_c;
+				eint = std::max(egas - (sx * sx + sy * sy + sz * sz) / (2 * rho), 0.0);
+				tau = POWER(std::max(eint, 0.0), inv_gam);
+				fx *= c;
+				fy *= c;
+				fz *= c;
+				CHECK_FLUX1(erad, fx, fy, fz, rho);
+			}
+		}
+	}
+}
+
+void rad_grid::explicit_source(std::vector<real> &egas_, std::vector<real> &tau_, std::vector<real> &sx_,
+		std::vector<real> &sy_, std::vector<real> &sz_, const std::vector<real> &rho_, real dt) {
+	PROFILE()
+	feenableexcept(FE_DIVBYZERO);
+	feenableexcept(FE_INVALID);
+	feenableexcept(FE_OVERFLOW);
 	const real fgamma = grid::get_fgamma();
-	const real inv_c = INVERSE(c);
-	const real inv_c2 = inv_c * inv_c;
 	const real inv_fgamma = INVERSE(fgamma);
-	real er1, eg1, ei1;
+	const real c = physcon().c;
+	const real c_hat = c * opts().clight_reduced;
+	const real inv_cc_hat = INVERSE(c * c_hat);
+	const real inv_c2 = INVERSE(c * c);
 	for (integer xi = RAD_BW; xi != RAD_NX - RAD_BW; ++xi) {
 		for (integer yi = RAD_BW; yi != RAD_NX - RAD_BW; ++yi) {
 			for (integer zi = RAD_BW; zi != RAD_NX - RAD_BW; ++zi) {
@@ -228,97 +354,53 @@ void rad_grid::implicit_source(std::vector<real> &egas_, std::vector<real> &tau_
 				real &sy = sy_[ih];
 				real &sz = sz_[ih];
 				const real rho = rho_[ih];
-//				CHECK_FLUX1(erad, fx, fy, fz, rho);
+				CHECK_FLUX1(erad, fx, fy, fz, rho);
 				const real inv_rho = INVERSE(rho);
 				const real vx = sx * inv_rho;
 				const real vy = sy * inv_rho;
 				const real vz = sz * inv_rho;
-				const real eint = POWER(tau, fgamma);
+				real eint = std::max(egas - 0.5 * rho * (vx * vx + vy * vy + vz * vz), 0.0);
 				const real kap = kappa_R(rho, eint, mmw[ih], X_spc[ih], Z_spc[ih]);
 				const real lambda = c_hat * dt * kap;
-				const real esum = eint + erad;
-				const real eps = 1.0 - INVERSE(1.0 + c_hat * dt * kap);
-				const real dfx = eps * fx;
-				const real dfy = eps * fy;
-				const real dfz = eps * fz;
-				const real guess = 0.5 * (erad + egas);
-				const real erad_next = solveNR(dt, kap, eint, erad, rho, mmw[ih], guess);
-				const real der = erad_next - erad;
-				const real deg = (vx * dfx + vy * dfy + vz * dfz) * inv_c2 - der;
-				erad += der;
-				egas += deg;
-				fx += theta * dfx;
-				fy += theta * dfy;
-				fz += theta * dfz;
-				sx -= dfx * inv_c2;
-				sy -= dfy * inv_c2;
-				sz -= dfz * inv_c2;
-				tau = POWER(std::max(eint - der, 0.0), inv_fgamma);
+				const real eps = lambda * INVERSE(1.0 + lambda);
+				const real prad = (4.0 / 3.0) * erad;
+				const real dfx1 = -eps * fx;
+				const real dfy1 = -eps * fy;
+				const real dfz1 = -eps * fz;
+				const real dsx1 = -dfx1 * inv_cc_hat;
+				const real dsy1 = -dfy1 * inv_cc_hat;
+				const real dsz1 = -dfz1 * inv_cc_hat;
+				const real derad1 = lambda * (vx * fx + vy * fy + vz * fz) * inv_c2;
+				const real deint1 = -derad1;
+
+				const real dfx2 = lambda * prad * vx;
+				const real dfy2 = lambda * prad * vy;
+				const real dfz2 = lambda * prad * vz;
+				const real dsx2 = -dfx2 * inv_cc_hat;
+				const real dsy2 = -dfy2 * inv_cc_hat;
+				const real dsz2 = -dfz2 * inv_cc_hat;
+
+				fx += dfx1;
+				fy += dfy1;
+				fz += dfz1;
+				sx += dsx1;
+				sy += dsy1;
+				sz += dsz1;
+				erad += derad1;
+				eint += deint1;
+				fx += dfx2;
+				fy += dfy2;
+				fz += dfz2;
+				sx += dsx2;
+				sy += dsy2;
+				sz += dsz2;
+
+				egas = eint + 0.5 * (sx * sx + sy * sy + sz * sz) * inv_rho;
+				tau = POWER(std::max(eint, 0.0), inv_fgamma);
+				CHECK_FLUX1(erad, fx, fy, fz, rho);
 			}
 		}
 	}
-}
-
-void rad_grid::explicit_source(std::vector<real> &egas_, std::vector<real> &tau_, std::vector<real> &sx_,
-		std::vector<real> &sy_, std::vector<real> &sz_, const std::vector<real> &rho_, real dt) {
-	PROFILE()
-	feenableexcept(FE_DIVBYZERO);
-	feenableexcept(FE_INVALID);
-	feenableexcept(FE_OVERFLOW);
-	constexpr integer D = H_BW - RAD_BW;
-	const real c = physcon().c;
-	const real theta = opts().clight_reduced;
-	const real fgamma = grid::get_fgamma();
-	const real inv_c = INVERSE(c);
-	const real inv_c2 = inv_c * inv_c;
-	const real inv_fgamma = INVERSE(grid::get_fgamma());
-	for (integer xi = RAD_BW; xi != RAD_NX - RAD_BW; ++xi) {
-		for (integer yi = RAD_BW; yi != RAD_NX - RAD_BW; ++yi) {
-			for (integer zi = RAD_BW; zi != RAD_NX - RAD_BW; ++zi) {
-				const integer ir = rindex(xi, yi, zi);
-				const integer ih = hindex(xi + D, yi + D, zi + D);
-				real &egas = egas_[ih];
-				real &tau = tau_[ih];
-				real &sx = sx_[ih];
-				real &sy = sy_[ih];
-				real &sz = sz_[ih];
-				real &Erad = U[er_i][ir];
-				real &Fx = U[fx_i][ir];
-				real &Fy = U[fy_i][ir];
-				real &Fz = U[fz_i][ir];
-				const real rho = rho_[ih];
-				CHECK_FLUX1(Erad, Fx, Fy, Fz, rho);
-				const real inv_rho = INVERSE(rho);
-				const real vx = sx * inv_rho;
-				const real vy = sy * inv_rho;
-				const real vz = sz * inv_rho;
-				const real eint = POWER(tau, fgamma);
-				const real kap = kappa_R(rho, eint, mmw[ih], X_spc[ih], Z_spc[ih]);
-				const real dFx = c * kap * vx * Erad * (4.0 / 3.0);
-				const real dFy = c * kap * vy * Erad * (4.0 / 3.0);
-				const real dFz = c * kap * vz * Erad * (4.0 / 3.0);
-				const real vx1 = vx - 0.5 * dFx * inv_c2 * dt;
-				const real vy1 = vy - 0.5 * dFy * inv_c2 * dt;
-				const real vz1 = vz - 0.5 * dFz * inv_c2 * dt;
-				const real dErad = (vx1 * dFx + vy1 * dFy + vz1 * dFz) * inv_c2;
-				Fx += theta * dFx * dt;
-				Fy += theta * dFy * dt;
-				Fz += theta * dFz * dt;
-				sx -= dFx * inv_c2 * dt;
-				sy -= dFy * inv_c2 * dt;
-				sz -= dFz * inv_c2 * dt;
-				Erad += theta * dErad * dt;
-				egas -= dErad * dt;
-				tau = POWER(std::max(eint - dErad * dt, 0.0), inv_fgamma);
-				if (BAD_FLUX(Erad, Fx, Fy, Fz, rho)) {
-					printf("Erad %e Fx %e Fy %e Fz %e\ndErad %e dFx %e dFy %e dFz %e\n", Erad, Fx, Fy, Fz, dErad * dt,
-							dFx * dt, dFy * dt, dFz * dt);
-				}
-				CHECK_FLUX1(Erad, Fx, Fy, Fz, rho);
-			}
-		}
-	}
-
 }
 
 void rad_grid::set_dx(real _dx) {
@@ -427,9 +509,6 @@ void node_server::compute_radiation(real dt, real omega) {
 	}
 	rgrid->implicit_source(egas, tau, sx, sy, sz, rho, dt);
 	if (root) {
-		printf("explicit radiation source\n");
-	}
-	if (root) {
 		printf("Godonuv radiation transport\n");
 	}
 	for (integer i = 0; i != Nsubstep; ++i) {
@@ -444,7 +523,6 @@ void node_server::compute_radiation(real dt, real omega) {
 			rgrid->compute_flux(omega);
 			GET(exchange_rad_flux_corrections());
 			rgrid->advance(sub_dt, beta[rk]);
-			rgrid->explicit_source(egas, tau, sx, sy, sz, rho, sub_dt);
 			all_rad_bounds();
 		}
 	}
