@@ -120,6 +120,9 @@ constexpr integer G_DN[NDIM] = { G_NX * G_NX, G_NX, 1 };
 constexpr integer RAD_NF = 4;
 constexpr integer RAD_BW = 3;
 constexpr integer RAD_NX = INX + 2 * RAD_BW;
+constexpr integer RAD_INTERIOR_BEGIN = RAD_BW;
+constexpr integer RAD_INTERIOR_END = (RAD_NX - RAD_BW);
+constexpr integer RAD_INTERIOR = (RAD_INTERIOR_END - RAD_INTERIOR_BEGIN);
 constexpr integer RAD_N3 = RAD_NX * RAD_NX * RAD_NX;
 
 constexpr inline integer rindex(integer x, integer y, integer z)

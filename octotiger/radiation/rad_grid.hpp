@@ -75,8 +75,6 @@ public:
 	void advance(real dt, real beta);
 	void implicit_source(std::vector<real>& egas, std::vector<real>& tau, std::vector<real>& sx, std::vector<real>& sy, std::vector<real>& sz,
 			const std::vector<real>& rho, real dt);
-	void explicit_source(std::vector<real>& egas, std::vector<real>& tau, std::vector<real>& sx, std::vector<real>& sy, std::vector<real>& sz,
-			const std::vector<real>& rho, real dt);
 	std::vector<real> get_restrict() const;
 	std::vector<real> get_prolong(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub);
 	void set_prolong(const std::vector<real>&, const std::vector<real>&);
