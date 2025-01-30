@@ -63,12 +63,11 @@ std::vector<real> radiation_test_problem(real x, real y, real z, real dx) {
 	z -= 0.0e11;
 	real r = std::max(2.0 * dx, 0.50);
 	real eint;
-	if (x + y < 0) {
+	if (x < 0) {
 		u[rho_i] = 1.0;
 		eint = 1;
 		u[opts().n_fields] = 1;
-		u[opts().n_fields + 1] = 0.999999 / sqrt(2);
-		u[opts().n_fields + 2] = 0.999999 / sqrt(2);
+		u[opts().n_fields + 1] = 0.999999;
 	} else {
 		u[opts().n_fields] = 1e-10;
 		u[rho_i] = 1.0;
@@ -103,20 +102,18 @@ std::vector<real> radiation_coupling_test_problem(real x, real y, real z, real d
 	real Z;
 	mean_ion_weight(species, mmw, X, Z);
 
-	const double er = (1.0e-10);
+	const double er = (1.0e-3);
 	double T = pow(er / (4.0 * physcon().sigma / physcon().c), 0.25);
-	T *= 10.0;
+	T *= 2.0;
 	double Pgas = u[rho_i] * T * physcon().kb / (physcon().mh * mmw);
 	const real fgamma = grid::get_fgamma();
 	double ei = (1.0 / (fgamma - 1.0)) * Pgas;
 	u[tau_i] = POWER(ei, 1.0 / grid::get_fgamma());
 	u[egas_i] = POWER(u[tau_i], fgamma);
-	double fx, fy, fz;
-	fx = fy = fz = 0.0;
 	u[opts().n_fields + 0] = er;
-	u[opts().n_fields + 1] = fx;
-	u[opts().n_fields + 2] = fy;
-	u[opts().n_fields + 3] = fz;
+	u[opts().n_fields + 1] = 0.0;
+	u[opts().n_fields + 2] = 0.0;
+	u[opts().n_fields + 3] = 0.0;
 //	if( er!= 0.0)
 	//printf( "--->%e\n",er);
 	return u;
@@ -124,75 +121,47 @@ std::vector<real> radiation_coupling_test_problem(real x, real y, real z, real d
 }
 
 std::vector<real> radiation_diffusion_analytic(real x, real y, real z, real t) {
-//	printf( "%e\n", t);
-	//t += 100;
-	std::vector<real> u(opts().n_fields + NRF, real(0));
-	x -= 0.0e11;
-	y -= 0.0e11;
-	z -= 0.0e11;
-	real eint;
-	u[rho_i] = 1.0;
-	u[spc_i] = u[rho_i];
-
-	x /= 1e5;
-	y /= 1e5;
-	z /= 1e5;
-
+	constexpr real xScale = 1;
+	constexpr real diffusionCoefficient = 1;
+	constexpr real xScaleInv = real(1) / xScale;
+	real const lightSpeed = physcon().c;
+	std::vector<real> vars(opts().n_fields + NRF, real(0));
 	specie_state_t<> species;
-	species[0] = u[rho_i];
-	real mmw;
-	real X;
-	real Z;
-	mean_ion_weight(species, mmw, X, Z);
-
-	//const double r0 = 0.1;
-	const double r2 = x * x + y * y + z * z;
-	const double r = sqrt(r2);
-	const double D0 = 1.0 / 3.0 * physcon().c / (1e2);
-	const double er = 1.0e-1 * std::max(pow(t + 1.0, -1.5) * exp(-r2 / (4.0 * D0 * (t + 1.0))), 1e-10);
-
-//	const real A = 4.0 * dt * kap_p * sigma * pow(mmw[iiih] * mh * (fgamma - 1.) / (kb * rho[iiih]), 4.0);
-//	const real B = (1.0 + clight * dt * kap_p);
-//	const real C = -(1.0 + clight * dt * kap_p) * e0 - U[er_i][iiir] * dt * clight * kap_p;
-
-
-	double T = pow(er / (4.0 * physcon().sigma / physcon().c), 0.25);
-	double Pgas = u[rho_i] * T * physcon().kb / (physcon().mh * mmw);
-	const real fgamma = grid::get_fgamma();
-	double ei = (1.0 / (fgamma - 1.0)) * Pgas;
-//printf( "1. %e\n", 4.0 * physcon().sigma * pow(physcon().mh * mmw * (fgamma - 1.) / (physcon().kb * u[rho_i]), 4.0) );
-	u[tau_i] = POWER(ei, 1.0 / grid::get_fgamma());
-	u[egas_i] = POWER(u[tau_i], fgamma);
-	const double derdr = -0.5 * (r) / (1 + t) * er / D0;
-	double fx, fy, fz;
-	double vx = 1e-3 * physcon().c;
+	real& density = vars[rho_i];
+	real& firstSpecies = vars[spc_i];
+	firstSpecies = density = 1.0;
+	species[0] = density;
+	real const atomicNumber = opts().atomic_number[0];
+	real const atomicMass = opts().atomic_mass[0];
+	real const meanMolecularWeight = atomicMass / atomicNumber;
+	x *= xScaleInv;
+	y *= xScaleInv;
+	z *= xScaleInv;
+	real const r2 = sqr(x) + sqr(y) + sqr(z);
+	real const r = std::sqrt(r2);
+	real const D0 = diffusionCoefficient / real(3) * lightSpeed;
+	real const er = std::max(pow(t + 1.0, -1.5) * exp(-r2 / (4.0 * D0 * (t + 1.0))), 1e-10);
+	real const T = pow(er / (4.0 * physcon().sigma / lightSpeed), 0.25);
+	real const Pgas = density * T * physcon().kb / (physcon().mh * meanMolecularWeight);
+	real const fgamma = grid::get_fgamma();
+	real const ei = (1.0 / (fgamma - 1.0)) * Pgas;
+	vars[tau_i] = POWER(ei, 1.0 / grid::get_fgamma());
+	vars[egas_i] = POWER(vars[tau_i], fgamma);
+	real const derdr = -0.5 * (r) / (1 + t) * er / D0;
+	real fx, fy, fz;
+	real vx = 1e-3 * physcon().c;
 	if (r == 0.0) {
 		fx = fy = fz = 0.0;
 	} else {
-		fx = -derdr * x / r * D0;// + vx * er;
+		fx = -derdr * x / r * D0;
 		fy = -derdr * y / r * D0;
 		fz = -derdr * z / r * D0;
 	}
-	//u[egas_i] += 0.5 * vx * vx * u[rho_i];
-	//u[sx_i] = u[rho_i] * vx;
-	double nx = fx;
-	double ny = fy;
-	double nz = fz;
-	double ninv = 1.0 / sqrt(nx * nx + ny * ny + nz * nz);
-	nx *= ninv;
-	ny *= ninv;
-	nz *= ninv;
-//	fx = copysign(std::min(fabs(fx),fabs(0.999*nx*er*physcon().c)), nx);
-//	fy = copysign(std::min(fabs(fy),fabs(0.999*ny*er*physcon().c)), ny);
-//	fz = copysign(std::min(fabs(fz),fabs(0.999*nz*er*physcon().c)), nz);
-//	printf( "%e\n", sqrt(fx*fx+fy*fy+fz*fz)/er);
-	u[opts().n_fields + 0] = er;
-	u[opts().n_fields + 1] = fx;
-	u[opts().n_fields + 2] = fy;
-	u[opts().n_fields + 3] = fz;
-//	if( er!= 0.0)
-	//printf( "--->%e\n",er);
-	return u;
+	vars[opts().n_fields + 0] = er;
+	vars[opts().n_fields + 1] = fx;
+	vars[opts().n_fields + 2] = fy;
+	vars[opts().n_fields + 3] = fz;
+	return vars;
 }
 
 bool refine_sod(integer level, integer max_level, real x, real y, real z, std::vector<real> const &U,

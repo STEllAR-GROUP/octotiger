@@ -39,9 +39,9 @@ private:
 	real dx;
 	std::vector<std::atomic<int>> is_coarse;
 	std::vector<std::atomic<int>> has_coarse;
-	std::vector<std::vector<real>> Ushad;
-	std::vector<std::vector<real>> U;
-	std::array<std::vector<real>, NRF> U0;
+	std::vector<std::vector<Real>> Ushad;
+	std::vector<std::vector<Real>> U;
+	std::array<std::vector<Real>, NRF> U0;
 	std::vector<std::vector<std::vector<real>>> flux;
 	std::array<std::array<std::vector<real>*, NDIM>, NDIM> P;
 	std::vector<std::vector<real>> X;
@@ -73,8 +73,7 @@ public:
 	//void compute_fEdd();
 	void compute_fluxes();
 	void advance(real dt, real beta);
-	void implicit_source(std::vector<real>& egas, std::vector<real>& tau, std::vector<real>& sx, std::vector<real>& sy, std::vector<real>& sz,
-			const std::vector<real>& rho, real dt);
+	void implicit_source(std::vector<std::vector<double>>&, Real dt);
 	std::vector<real> get_restrict() const;
 	std::vector<real> get_prolong(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub);
 	void set_prolong(const std::vector<real>&, const std::vector<real>&);

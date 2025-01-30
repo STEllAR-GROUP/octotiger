@@ -50,24 +50,23 @@ matrix_t<T, R> inverse(const matrix_t<T, R> &A) {
 template<typename T, int R>
 matrix_t<T, R> Jacobian(const std::function<std::array<T, R>(std::array<T, R>)> &f, const std::array<T, R> &x) {
 	matrix_t<T, R> J;
-	const T h = T(1e-9) * x[0];
+	const T h = T(1e-9) * x[R - 1];
 	const T half_h = T(0.5) * h;
-	const T inv_h = 1.0 / h;
+	const T inv_h = 1.0 * INVERSE(h);
 	std::array<T, R> xhi;
 	std::array<T, R> xlo;
 	T fp;
 	T fm;
 	T df_dx;
-	for (int n = 0; n < R; n++) {
-		for (int m = 0; m < R; m++) {
-			xhi = xlo = x;
-			xhi[m] += half_h;
-			xlo[m] -= half_h;
-			const auto jhi = f(xhi);
-			const auto jlo = f(xlo);
-			for (int n = 0; n < R; n++) {
-				J[n][m] = (jhi[n] - jlo[n]) * inv_h;
-			}
+	for (int m = 0; m < R; m++) {
+		xhi = xlo = x;
+		xhi[m] += half_h;
+		xlo[m] -= half_h;
+		const auto jhi = f(xhi);
+		const auto jlo = f(xlo);
+		for (int n = 0; n < R; n++) {
+			J[n][m] = (jhi[n] - jlo[n]) * inv_h;
+//			printf( "%i %i %e\n", n,m, J[n][m]);
 		}
 	}
 	return J;
@@ -111,8 +110,11 @@ std::array<T, R> solve(const std::function<std::array<T, R>(std::array<T, R>)> &
 		}
 		err = std::sqrt(err) / x[0];
 		iter++;
-		if (iter > 1000) {
-			printf("Iterations exceeded %e\n", err);
+		//	if (iter > 10) {
+		printf(" %i  %e %e\n", iter, err, x[0]);
+		//	}
+		if (iter > 10) {
+			abort();
 		}
 	} while (err > 1.0e-6);
 	return x;

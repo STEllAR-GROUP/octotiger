@@ -6,107 +6,276 @@
 #ifndef REAL_HPP_
 #define REAL_HPP_
 
-//#define DIAGNOSTIC_MODE
+#include <cmath>
+#include <iostream>
+#include <limits>
+#include <string>
 
+#ifndef NDEBUG
+#define CHECK false
+#else
+#define CHECK CHECK_REALS
+#endif
+
+#ifndef __CUDA_ARCH__
+struct Real {
+	using Type = double;
+	Real() {
+		if constexpr (CHECK) {
+			value = std::numeric_limits<Type>::signaling_NaN();
+		}
+	}
+	constexpr explicit Real(double a) :
+			value(Type(a)) {
+	}
+	Real& operator=(Real const &a) {
+		value = a.value;
+		return *this;
+	}
+	constexpr operator Type() const {
+		return value;
+	}
+	Real operator+() const {
+		debug_check(*this);
+		return *this;
+	}
+	Real operator-() const {
+		debug_check(*this);
+		return Real(-value);
+	}
+	Real operator+(Real const &a) const {
+		debug_check(a);
+		debug_check(*this);
+		return Real(value + a.value);
+	}
+	Real operator-(Real const &a) const {
+		debug_check(a);
+		debug_check(*this);
+		return Real(value - a.value);
+	}
+	Real operator*(Real const &a) const {
+		debug_check(a);
+		debug_check(*this);
+		return Real(value * a.value);
+	}
+	const Real operator/(Real const &a) const {
+		Real result;
+		zero_check(a);
+		debug_check(a);
+		debug_check(*this);
+		result.value = value / a.value;
+		return result;
+	}
+	Real& operator+=(Real const &a) {
+		debug_check(a);
+		debug_check(*this);
+		*this = *this + a;
+		return *this;
+	}
+	Real& operator-=(Real const &a) {
+		debug_check(a);
+		debug_check(*this);
+		*this = *this - a;
+		return *this;
+	}
+	Real& operator*=(Real const &a) {
+		debug_check(a);
+		debug_check(*this);
+		*this = *this * a;
+		return *this;
+	}
+	Real& operator/=(Real const &a) {
+		zero_check(a);
+		debug_check(a);
+		*this = *this / a;
+		return *this;
+	}
+	bool operator==(Real const &a) const {
+		debug_check(a);
+		debug_check(*this);
+		return value == a.value;
+	}
+	bool operator!=(Real const &a) const {
+		debug_check(a);
+		debug_check(*this);
+		return value != a.value;
+	}
+	bool operator<=(Real const &a) const {
+		debug_check(a);
+		debug_check(*this);
+		return value <= a.value;
+	}
+	bool operator>=(Real const &a) const {
+		debug_check(a);
+		debug_check(*this);
+		return value >= a.value;
+	}
+	bool operator<(Real const &a) const {
+		debug_check(a);
+		debug_check(*this);
+		return value < a.value;
+	}
+	bool operator>(Real const &a) const {
+		debug_check(a);
+		debug_check(*this);
+		return value > a.value;
+	}
+	static Real zero() {
+		Real z;
+		z.value = Type(0);
+		return z;
+	}
+	static Real tiny() {
+		Real z;
+		z.value = Type(std::numeric_limits<double>::min());
+		return z;
+	}
+	friend Real abs(Real a) {
+		debug_check(a);
+		a.value = std::fabs(a.value);
+		return a;
+	}
+	friend Real expm1(Real a) {
+		debug_check(a);
+		a.value = std::expm1(a.value);
+		return a;
+	}
+	friend Real exp(Real a) {
+		debug_check(a);
+		a.value = std::exp(a.value);
+		return a;
+	}
+	friend Real log(Real a) {
+		debug_check(a);
+		a.value = std::log(a.value);
+		return a;
+	}
+	friend Real cos(Real a) {
+		debug_check(a);
+		a.value = std::cos(a.value);
+		return a;
+	}
+	friend Real sin(Real a) {
+		debug_check(a);
+		a.value = std::sin(a.value);
+		return a;
+	}
+	friend Real acos(Real a) {
+		debug_check(a);
+		range_check(-Real(1), a, Real(1));
+		a.value = std::acos(a.value);
+		return a;
+	}
+	friend Real asin(Real a) {
+		debug_check(a);
+		range_check(-Real(1), a, Real(1));
+		a.value = std::asin(a.value);
+		return a;
+	}
+	friend Real sqrt(Real a) {
+		nonneg_check(a);
+		debug_check(a);
+		a.value = std::sqrt(a.value);
+		return a;
+	}
+	friend Real pow(Real a, Real b) {
+		nonneg_check(a);
+		debug_check(a);
+		debug_check(b);
+		a.value = std::pow(a.value, b.value);
+		return a;
+	}
+	friend Real pow(Real x, int n) {
+		nonneg_check(x);
+		debug_check(x);
+		if (n < 0) {
+			return Real(1) / pow(x, -n);
+		} else {
+			Real y = Real(1);
+			Real xn = x;
+			while (n) {
+				if (n & 1) {
+					y *= xn;
+				}
+				xn *= xn;
+				n >>= 1;
+			}
+			return y;
+		}
+	}
+	friend Real max(Real a, Real b) {
+		debug_check(a);
+		debug_check(b);
+		a.value = std::max(a.value, b.value);
+		return a;
+	}
+	friend Real min(Real a, Real b) {
+		debug_check(a);
+		debug_check(b);
+		a.value = std::min(a.value, b.value);
+		return a;
+	}
+	friend std::string to_string(Real r) {
+		return std::to_string(r.value);
+	}
+	template<class A>
+	void serialize(A &&arc, unsigned) {
+		arc & value;
+	}
+private:
+	Type value;
+	static void nonneg_check(Real a) {
+		if constexpr (CHECK) {
+//			if (a.value < 0.0) {
+//				std::string errorString = "FATAL ERROR: Illegal operation on negative number.\n";
+//				errorString += "Stack trace:\n";
+//				errorString += std::to_string(boost::stacktrace::current());
+//				std::cout << errorString;
+//				abort();
+////				throw std::invalid_argument(errorString);
+//			}
+		}
+	}
+	static void zero_check(Real a) {
+		if constexpr (CHECK) {
+//			if (a.value == 0.0) {
+//				std::string errorString = "FATAL ERROR: Divide by zero\n";
+//				errorString += "Stack trace:\n";
+//				errorString += std::to_string(boost::stacktrace::current());
+//				std::cout << errorString;
+//				abort();
+////				throw std::invalid_argument(errorString);
+//			}
+		}
+	}
+	static void debug_check(Real a) {
+		if constexpr (CHECK) {
+//			if (!std::isfinite(a.value)) {
+//				std::string errorString = "FATAL ERROR: Operation on NaN\n";
+//				errorString += "Stack trace:\n";
+//				errorString += std::to_string(boost::stacktrace::current());
+//				std::cout << errorString;
+//				abort();
+////				throw std::invalid_argument(errorString);
+//			}
+		}
+	}
+	static void range_check(Real a, Real b, Real c) {
+		if constexpr (CHECK) {
+//			if ((b < a) || (b > c)) {
+//				std::string errorString = "FATAL ERROR: Range violation\n";
+//				errorString += "Stack trace:\n";
+//				errorString += std::to_string(boost::stacktrace::current());
+//				std::cout << errorString;
+//				abort();
+////				throw std::invalid_argument(errorString);
+//			}
+		}
+	}
+};
+#endif
 
 using real_type = double;
-
-
-#ifdef DIAGNOSTIC_MODE
-
-#include <atomic>
-#include <cmath>
-#include <utility>
-
-#define ARITHMETIC_OPERATOR( op ) \
-	real& operator op##=( const real& other ) { \
-		r op##= other.r; \
-		++counter; \
-		return *this; \
-	} \
-	real operator op( const real& other ) const { \
-		real ret(*this); \
-		ret += other; \
-		++counter; \
-		return ret; \
-	}
-
-#define LOGICAL_OPERATOR( op ) \
-	bool operator op (const real& other ) const { \
-		return r op other.r; \
-	}
-
-class real {
-private:
-	static std::atomic<std::size_t> counter;
-	real_type r;
-public:
-	real() = default;
-	real(const real&) = default;
-	real(real&&) = default;
-	real& operator=(const real&) = default;
-	real& operator=(real&&) = default;
-	~real() = default;
-
-	template<class Arc>
-	void serialize(Arc& arc, const unsigned) {
-		arc & r;
-	}
-
-	operator real_type() const {
-		return r;
-	}
-	real(const real_type& _r) :
-			r(_r) {
-	}
-	real(real_type&& _r) :
-			r(std::move(_r)) {
-	}
-	real& operator=(const real_type& other) {
-		r = other;
-		return *this;
-	}
-	real& operator=(real_type&& other) {
-		r = std::move(other);
-		return *this;
-	}
-
-	ARITHMETIC_OPERATOR(+)
-	ARITHMETIC_OPERATOR(-)
-	ARITHMETIC_OPERATOR(*)
-	ARITHMETIC_OPERATOR(/)
-
-	LOGICAL_OPERATOR(==)
-	LOGICAL_OPERATOR(!=)
-	LOGICAL_OPERATOR(>)
-	LOGICAL_OPERATOR(<)
-	LOGICAL_OPERATOR(<=)
-	LOGICAL_OPERATOR(>=)
-
-	template<class other_type>
-	friend real pow(const real& a, const other_type& b);
-
-	friend real sqrt(const real& other);
-
-};
-
-template<class other_type>
-inline real pow(const real& a, const other_type& b) {
-	real ret = std::pow(a.r, b);
-	++real::counter;
-	return ret;
-}
-
-inline real sqrt(const real& a) {
-	real ret = std::sqrt(a.r);
-	++real::counter;
-	return ret;
-}
-
-#else
-
-using real = real_type;
-
-#endif
+using real = double;
 
 #endif /* REAL_HPP_ */

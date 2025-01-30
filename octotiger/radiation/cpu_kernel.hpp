@@ -81,7 +81,7 @@ namespace octotiger { namespace radiation {
         {
             real const c = physcon().c;
             real kp = kappa_p(rho, e0, mmw, X, Z);
-            real kr = kappa_R(rho, e0, mmw, X, Z);
+            real kr = kappa_p(rho, e0, mmw, X, Z);
             real const rhoc2 = rho * c * c;
 
             E0 /= rhoc2;

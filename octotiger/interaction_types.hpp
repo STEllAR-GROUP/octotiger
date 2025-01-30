@@ -102,7 +102,7 @@ class interaction_type
     interaction_type() {
         first = 0;
         second = 0;
-        x = {};
+        x = {real(0)};
         four = {};
     }
 

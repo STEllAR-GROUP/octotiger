@@ -10,14 +10,14 @@
 #include <cstdio>
 #include <cstdlib>
 
-#define SAFE_MATH_ON
+#define SAFE_MATH_OFF
 
 template<class T, class U>
 inline T safe_power(const T& a, const U& b, const char* file, const int line) {
 #ifdef SAFE_MATH_ON
 	if (a >= T(0)) {
 #endif
-		return std::pow(a, T(b));
+		return pow(T(a), T(b));
 #ifdef SAFE_MATH_ON
 	} else {
 		printf("Power of a negative. File:%s Line:%i\n", file, line);
@@ -45,7 +45,7 @@ inline T safe_sqrt(const T& a, const char* file, const int line) {
 #ifdef SAFE_MATH_ON
 	if (a >= T(0)) {
 #endif
-		return std::sqrt(a);
+		return sqrt(a);
 #ifdef SAFE_MATH_ON
 	} else {
 		printf("Square root of a negative = %e. File:%s Line:%i\n", (double) a, file, line);

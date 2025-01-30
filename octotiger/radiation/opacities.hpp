@@ -12,26 +12,26 @@
 
 template<class U>
 U temperature(U rho, U e, U mmw) {
-	constexpr U gm1 = U(2.0) / U(3.0);
-	return physcon().mh * mmw * e * INVERSE(rho * physcon().kb) * gm1;
+	const U gm1 = U(2.0) / U(3.0);
+	return U(physcon().mh * mmw * e * INVERSE(rho * physcon().kb)) * gm1;
 }
 
 template<class U>
-U kappa_R(U rho, U e, U mmw, real X, real Z) {
+U kappa_R(U rho, U e, U mmw, U X, U Z) {
 	if (opts().problem == MARSHAK) {
-		return MARSHAK_OPAC;
+		return U(MARSHAK_OPAC);
 	} else if (opts().problem == RADIATION_TEST) {
-		return 1e-20;
+		return U(1e-20);
 	} else if (opts().problem == RADIATION_DIFFUSION) {
 		return rho;
 	} else if (opts().problem == RADIATION_COUPLING) {
-		return 1;
+		return U(1e-2);
 	} else if( opts().problem == STAR) {
-		return rho * 1e-12;
+		return rho * U(1e-12);
 	} else {
 		const U T = temperature(rho, e, mmw);
 		const U f1 = (T * T + U(2.7e+11) * rho);
-		const U f2 = (U(1.0) + std::pow(T / U(4.5e+8), U(0.86)));
+		const U f2 = U((U(1.0) + std::pow(T / U(4.5e+8), U(0.86))));
 		const U k_ff_bf = U(4.0e+25) * (U(1) + X) * (Z + U(0.001)) * rho * POWER(SQRT(INVERSE(T)), U(7));
 		const U k_T = (U(1.0) + X) * U(0.2) * T * T / (f1 * f2);
 		const U k_tot = k_ff_bf + k_T;
@@ -40,20 +40,20 @@ U kappa_R(U rho, U e, U mmw, real X, real Z) {
 }
 
 template<class U>
-U kappa_p(U rho, U e, U mmw, real X, real Z) {
+U kappa_p(U rho, U e, U mmw, U X, U Z) {
 	if (opts().problem == MARSHAK) {
-		return MARSHAK_OPAC;
+		return U(MARSHAK_OPAC);
 	} else if (opts().problem == RADIATION_TEST) {
-		return 1e-20;
+		return U(1e-20);
 	} else if (opts().problem == RADIATION_DIFFUSION) {
-		return 1e2;
+		return U(1e2);
 	} else if (opts().problem == RADIATION_COUPLING) {
-		return 1e0;
+		return U(1e-2);
 	} else if( opts().problem == STAR) {
-		return rho * 1e-12;
+		return rho * U(1e-12);
 	} else {
 		const U T = temperature(rho, e, mmw);
-		const U k_ff_bf = U(30.262) * U(4.0e+25) * (U(1) + X) * (Z + U(0.0001)) * rho * POWER(SQRT(INVERSE(T)), U(7));
+		const U k_ff_bf = U(U(30.262) * U(4.0e+25) * (U(1) + X) * (Z + U(0.0001)) * rho * U(pow(U(SQRT(INVERSE(T))), U(7))));
 		const U k_tot = k_ff_bf;
 		return rho * k_tot;
 	}

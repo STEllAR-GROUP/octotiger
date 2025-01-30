@@ -20,6 +20,7 @@
 
 #include <fenv.h>
 #include <array>
+#include <cmath>
 #include <iostream>
 #include <string>
 #include <unordered_map>
@@ -38,7 +39,7 @@ using real = double;
 std::unordered_map<std::string, int> rad_grid::str_to_index;
 std::unordered_map<int, std::string> rad_grid::index_to_str;
 
-void node_server::compute_radiation(real dt, real omega) {
+void node_server::compute_radiation(Real dt, Real omega) {
 	const bool root = bool(my_location.level() == 0);
 	auto rgrid = rad_grid_ptr;
 	rgrid->set_dx(grid_ptr->get_dx());
@@ -49,15 +50,19 @@ void node_server::compute_radiation(real dt, real omega) {
 	const real max_dt = min_dx / c / 3.0;
 	const integer Nsubstep = std::max(int(std::ceil(dt * INVERSE(max_dt))), 1);
 	const real sub_dt = dt * INVERSE(real(Nsubstep));
-	const auto &rho = grid_ptr->get_field(rho_i);
-	auto &egas = grid_ptr->get_field(egas_i);
-	auto &tau = grid_ptr->get_field(tau_i);
-	auto &sx = grid_ptr->get_field(sx_i);
-	auto &sy = grid_ptr->get_field(sy_i);
-	auto &sz = grid_ptr->get_field(sz_i);
-	rgrid->implicit_source(egas, tau, sx, sy, sz, rho, dt);
 	if (root) {
 		printf("Radiation Transport\n");
+		fflush(stdout);
+	}
+	if (root) {
+		printf("                                          \r");
+		printf("begin - implicit radiation\n");
+		fflush(stdout);
+	}
+	all_rad_bounds();
+	rgrid->implicit_source(grid_ptr->U, dt);
+	if (root) {
+		printf("end - implicit radiation\n");
 		fflush(stdout);
 	}
 	for (integer i = 0; i != Nsubstep; ++i) {
@@ -71,16 +76,6 @@ void node_server::compute_radiation(real dt, real omega) {
 		GET(exchange_rad_flux_corrections());
 		rgrid->advance(sub_dt, 1.0);
 		all_rad_bounds();
-		if (root) {
-			printf("                                          \r");
-			printf("begin - implicit radiation\n");
-			fflush(stdout);
-		}
-		rgrid->implicit_source(egas, tau, sx, sy, sz, rho, sub_dt);
-		if (root) {
-			printf("end - implicit radiation\n");
-			fflush(stdout);
-		}
 		rgrid->compute_flux(omega);
 		GET(exchange_rad_flux_corrections());
 		rgrid->advance(sub_dt, 0.5);
@@ -97,8 +92,8 @@ const auto computeEddingtonTensor = [](real const &rEnergy, std::array<real, NDI
 	std::array<std::array<real, NDIM>, NDIM> eddingtonTensor;
 	std::array<real, NDIM> fluxUnitVector;
 	real const lightSpeed = physcon().c;
-	real const invLightSpeed = real(1) / lightSpeed;
-	real const invEnergy = real(1.0) / rEnergy;
+	real const invLightSpeed = real(1) * INVERSE(lightSpeed);
+	real const invEnergy = real(1.0) * INVERSE(rEnergy);
 	assert(rEnergy > real(0));
 	real fluxNormSquared = real(0);
 	for (int d = 0; d < NDIM; d++) {
@@ -108,16 +103,23 @@ const auto computeEddingtonTensor = [](real const &rEnergy, std::array<real, NDI
 		fluxNormSquared += sqr(rFlux[d]);
 	}
 	assert(real(0) <= fluxNormSquared);
+	if (fluxNormSquared > real(1)) {
+		printf("fluxNormSquared = %e\n", fluxNormSquared);
+		for (int d = 0; d < NDIM; d++) {
+			printf("rFlux[%i] = %e\n", d, fluxNormSquared);
+			fluxNormSquared += sqr(rFlux[d]);
+		}
+	}
 	assert(fluxNormSquared <= real(1));
-	real const invFluxNorm = std::sqrt(fluxNormSquared) / (fluxNormSquared + tiny);
+	real const invFluxNorm = std::sqrt(fluxNormSquared) * INVERSE(fluxNormSquared + tiny);
 	for (int d = 0; d < NDIM; d++) {
 		fluxUnitVector[d] = rFlux[d] * invFluxNorm;
 	}
 	real const eddingtonFactorNum = real(3) + real(4) * fluxNormSquared;
-	real const eddingtonFactorDen = real(5) + std::sqrt(real(16) - real(12) * fluxNormSquared);
-	real const eddingtonFactor = eddingtonFactorNum / eddingtonFactorDen;
-	real const diffusionCoefficient = real(0.5) - real(0.5) * eddingtonFactorDen;
-	real const streamingCoefficient = real(1.5) * eddingtonFactorDen - real(0.5);
+	real const eddingtonFactorDen = real(5) + SQRT(real(16) - real(12) * fluxNormSquared);
+	real const eddingtonFactor = eddingtonFactorNum * INVERSE(eddingtonFactorDen);
+	real const diffusionCoefficient = real(0.5) - real(0.5) * eddingtonFactor;
+	real const streamingCoefficient = real(1.5) * eddingtonFactor - real(0.5);
 	for (int l = 0; l < NDIM; l++) {
 		eddingtonTensor[l][l] = diffusionCoefficient + streamingCoefficient * sqr(fluxUnitVector[l]);
 		for (int m = 0; m < l; m++) {
@@ -127,9 +129,450 @@ const auto computeEddingtonTensor = [](real const &rEnergy, std::array<real, NDI
 	return eddingtonTensor;
 };
 
-void rad_grid::implicit_source(std::vector<real> &egas_, std::vector<real> &tau_, std::vector<real> &sx_,
-		std::vector<real> &sy_, std::vector<real> &sz_, const std::vector<real> &rho_, real dt) {
+struct GasMixture {
+	real meanMolecularWeight;
+	real hydrogenFraction;
+	real heliumFraction;
+	real metalFraction;
+};
+
+GasMixture meanMolecularWeight(specie_state_t<real> const &speciesDensity) {
+	integer const nSpecies = opts().n_species;
+	auto const &atomicNumber = opts().atomic_number;
+	auto const &atomicMass = opts().atomic_mass;
+	static auto const invAtomicMass = [nSpecies](auto atomicMass) {
+		for (int i = 0; i < nSpecies; i++) {
+			atomicMass[i] = real(1) / atomicMass[i];
+		}
+		return atomicMass;
+	}(atomicMass);
+	real totalMass = real(0);
+	real totalNumber = real(0);
+	real hydrogenMass = real(0);
+	real heliumMass = real(0);
+	real metalMass = real(0);
+	for (int i = 0; i < nSpecies; i++) {
+		real const mass = speciesDensity[i];
+		integer const thisAtomicNumber = atomicNumber[i];
+		totalNumber += mass * invAtomicMass[i] * (thisAtomicNumber + real(1));
+		totalMass += mass;
+		if (thisAtomicNumber == 1) {
+			hydrogenMass += mass;
+		} else if (thisAtomicNumber == 2) {
+			heliumMass += mass;
+		} else if (thisAtomicNumber >= 3) {
+			metalMass += mass;
+		}
+	}
+	GasMixture result;
+	real const invTotalMass = real(1) / totalMass;
+	result.meanMolecularWeight = totalMass / totalNumber;
+	result.hydrogenFraction = hydrogenMass * invTotalMass;
+	result.heliumFraction = heliumMass * invTotalMass;
+	result.metalFraction = metalMass * invTotalMass;
+	return result;
+}
+
+void solve_implicit(safe_real rho, safe_real mu, safe_real &Ei, std::array<safe_real, NDIM> &beta, safe_real &Er, std::array<safe_real, NDIM> &F) {
+
+}
+
+inline real delta(int i, int k) {
+	return real(i == k);
+}
+
+std::array<std::array<Real, NRF>, NRF> matrixInverse(const std::array<std::array<Real, NRF>, NRF> &m) {
+	static constexpr Real one = Real(1);
+	Real const det = m[0][0]
+			* (m[1][1] * (m[2][2] * m[3][3] - m[2][3] * m[3][2]) - m[1][2] * (m[2][1] * m[3][3] - m[2][3] * m[3][1])
+					+ m[1][3] * (m[2][1] * m[3][2] - m[2][2] * m[3][1]))
+			- m[0][1]
+					* (m[1][0] * (m[2][2] * m[3][3] - m[2][3] * m[3][2]) - m[1][2] * (m[2][0] * m[3][3] - m[2][3] * m[3][0])
+							+ m[1][3] * (m[2][0] * m[3][2] - m[2][2] * m[3][0]))
+			+ m[0][2]
+					* (m[1][0] * (m[2][1] * m[3][3] - m[2][3] * m[3][1]) - m[1][1] * (m[2][0] * m[3][3] - m[2][3] * m[3][0])
+							+ m[1][3] * (m[2][0] * m[3][1] - m[2][1] * m[3][0]))
+			- m[0][3]
+					* (m[1][0] * (m[2][1] * m[3][2] - m[2][2] * m[3][1]) - m[1][1] * (m[2][0] * m[3][2] - m[2][2] * m[3][0])
+							+ m[1][2] * (m[2][0] * m[3][1] - m[2][1] * m[3][0]));
+
+	Real const inv_det = one / det;
+	return { {
+			{
+				inv_det * (
+						m[1][1] * (m[2][2] * m[3][3] - m[2][3] * m[3][2]) -
+						m[1][2] * (m[2][1] * m[3][3] - m[2][3] * m[3][1]) +
+						m[1][3] * (m[2][1] * m[3][2] - m[2][2] * m[3][1])
+				),
+				-inv_det * (
+						m[0][1] * (m[2][2] * m[3][3] - m[2][3] * m[3][2]) -
+						m[0][2] * (m[2][1] * m[3][3] - m[2][3] * m[3][1]) +
+						m[0][3] * (m[2][1] * m[3][2] - m[2][2] * m[3][1])
+				),
+				inv_det * (
+						m[0][1] * (m[1][2] * m[3][3] - m[1][3] * m[3][2]) -
+						m[0][2] * (m[1][1] * m[3][3] - m[1][3] * m[3][1]) +
+						m[0][3] * (m[1][1] * m[3][2] - m[1][2] * m[3][1])
+				),
+				-inv_det * (
+						m[0][1] * (m[1][2] * m[2][3] - m[1][3] * m[2][2]) -
+						m[0][2] * (m[1][1] * m[2][3] - m[1][3] * m[2][1]) +
+						m[0][3] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])
+				)
+			},
+			{
+				-inv_det * (
+						m[1][0] * (m[2][2] * m[3][3] - m[2][3] * m[3][2]) -
+						m[1][2] * (m[2][0] * m[3][3] - m[2][3] * m[3][0]) +
+						m[1][3] * (m[2][0] * m[3][2] - m[2][2] * m[3][0])
+				),
+				inv_det * (
+						m[0][0] * (m[2][2] * m[3][3] - m[2][3] * m[3][2]) -
+						m[0][2] * (m[2][0] * m[3][3] - m[2][3] * m[3][0]) +
+						m[0][3] * (m[2][0] * m[3][2] - m[2][2] * m[3][0])
+				),
+				-inv_det * (
+						m[0][0] * (m[1][2] * m[3][3] - m[1][3] * m[3][2]) -
+						m[0][2] * (m[1][0] * m[3][3] - m[1][3] * m[3][0]) +
+						m[0][3] * (m[1][0] * m[3][2] - m[1][2] * m[3][0])
+				),
+				inv_det * (
+						m[0][0] * (m[1][2] * m[2][3] - m[1][3] * m[2][2]) -
+						m[0][2] * (m[1][0] * m[2][3] - m[1][3] * m[2][0]) +
+						m[0][3] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
+				)
+			},
+			{
+				inv_det * (
+						m[1][0] * (m[2][1] * m[3][3] - m[2][3] * m[3][1]) -
+						m[1][1] * (m[2][0] * m[3][3] - m[2][3] * m[3][0]) +
+						m[1][3] * (m[2][0] * m[3][1] - m[2][1] * m[3][0])
+				),
+				-inv_det * (
+						m[0][0] * (m[2][1] * m[3][3] - m[2][3] * m[3][1]) -
+						m[0][1] * (m[2][0] * m[3][3] - m[2][3] * m[3][0]) +
+						m[0][3] * (m[2][0] * m[3][1] - m[2][1] * m[3][0])
+				),
+				inv_det * (
+						m[0][0] * (m[1][1] * m[3][3] - m[1][3] * m[3][1]) -
+						m[0][1] * (m[1][0] * m[3][3] - m[1][3] * m[3][0]) +
+						m[0][3] * (m[1][0] * m[3][1] - m[1][1] * m[3][0])
+				),
+				-inv_det * (
+						m[0][0] * (m[1][1] * m[2][3] - m[1][3] * m[2][1]) -
+						m[0][1] * (m[1][0] * m[2][3] - m[1][3] * m[2][0]) +
+						m[0][3] * (m[1][0] * m[2][1] - m[1][1] * m[2][0])
+				)
+			}
+		}};
+}
+
+struct testImplicitRadiation {
+	static constexpr Real zero = Real(0), third = Real(1.0 / 3.0), half = Real(0.5), one = Real(1), two = Real(2), three = Real(3), four = Real(4), twelve =
+			Real(12);
+	testImplicitRadiation(Real dt_, Real Er0_, std::array<Real, NDIM> F0_, Real Eg0_, std::array<Real, NDIM> Beta0_, Real rho_, Real mu_, Real kappa_,
+			Real Chi_, Real gamma_) {
+		mAMU = Real(physcon().mh);
+		kB = Real(physcon().kb);
+		aR = Real(4.0 * physcon().sigma / physcon().c);
+		c = Real(physcon().c);
+		dt = dt_;
+		Er0 = Er0_;
+		Eg0 = Eg0_;
+		rho = rho_;
+		mu = mu_;
+		kappa = kappa_;
+		Chi = Chi_;
+		gamma = gamma_;
+		F0 = F0_;
+		Beta0 = Beta0_;
+	}
+	auto operator()(std::array<Real, NRF> U) const {
+		auto Er = U[NDIM];
+		std::array<Real, NDIM> F;
+		for (int n = 0; n < NDIM; n++) {
+			F[n] = U[n];
+		}
+		static std::array<std::array<Real, NDIM>, NDIM> const I = { { { one, zero, zero }, { zero, one, zero }, { zero, zero, one } } };
+		static auto const cHat = c;
+		std::array<Real, NDIM> Beta;
+		for (int n = 0; n < NDIM; n++) {
+			Beta[n] = Beta0[n] + (F0[n] - F[n]) / (rho * c);
+		}
+		Real Ek = zero;
+		std::array<Real, NDIM> dEk_dF;
+		for (int n = 0; n < NDIM; n++) {
+			dEk_dF[n] = -c * Beta[n];
+		}
+		Real const Eg = Eg0 + Er0 - Er;
+		Real const dEg_dEr = -one;
+		Real const eint = Eg - Ek;
+		std::array<Real, NDIM> deint_dF;
+		for (int n = 0; n < NDIM; n++) {
+			deint_dF[n] = -dEk_dF[n];
+		}
+		Real const deint_dEr = -one;
+		Real F2 = zero;
+		for (int n = 0; n < NDIM; n++) {
+			F2 += sqr(F[n]);
+		}
+		Real const absF = sqrt(F2);
+		Real const iCv = (mu * mAMU) / ((gamma - one) * kB * rho);
+		Real const T = eint * iCv;
+		Real const dT_dEr = -iCv;
+		std::array<Real, NDIM> dT_dF;
+		for (int n = 0; n < NDIM; n++) {
+			dT_dF[n] = deint_dF[n] * iCv;
+		}
+		Real const T2 = sqr(T);
+		Real const T4 = sqr(T2);
+		std::array<std::array<Real, NDIM>, NDIM> dBeta_dF;
+		for (int n = 0; n < NDIM; n++) {
+			for (int m = 0; m < NDIM; m++) {
+				dBeta_dF[n][m] = -I[n][m] / (rho * c);
+			}
+		}
+		std::array<Real, NDIM> N;
+		for (int n = 0; n < NDIM; n++) {
+			N[n] = F[n] / (absF + Real::tiny());
+		}
+		Real const T3 = T * T2;
+		std::array<std::array<Real, NDIM>, NDIM> dN_dF;
+		for (int n = 0; n < NDIM; n++) {
+			for (int m = 0; m < NDIM; m++) {
+				dN_dF[n][m] = (I[n][m] - N[n] * N[m]) / (absF + Real::tiny());
+			}
+		}
+		std::array<Real, NDIM> df_dF;
+		Real const f = absF / Er;
+		Real const df_dEr = -f / Er;
+		for (int n = 0; n < NDIM; n++) {
+			df_dF[n] = N[n] / Er;
+		}
+		Real const Xi = three - two * sqrt(four - f * three * f);
+		Real const dXi_df = twelve * f / (three - Xi);
+		Real const dXi_dEr = dXi_df * df_dEr;
+		std::array<Real, NDIM> dXi_dF;
+		for (int n = 0; n < NDIM; n++) {
+			dXi_dF[n] = dXi_df * df_dF[n];
+		}
+		std::array<std::array<Real, NDIM>, NDIM> D;
+		for (int n = 0; n < NDIM; n++) {
+			for (int m = 0; m < NDIM; m++) {
+				D[n][m] = half * ((Xi + one) * third * I[n][m] + (one - Xi) * N[n] * N[m]);
+			}
+		}
+		std::array<std::array<Real, NDIM>, NDIM> dD_dEr;
+		for (int n = 0; n < NDIM; n++) {
+			for (int m = 0; m < NDIM; m++) {
+				dD_dEr[n][m] = half * dXi_dEr * (third * I[n][m] - N[n] * N[m]);
+			}
+		}
+		std::array<std::array<std::array<Real, NDIM>, NDIM>, NDIM> dD_dF;
+		for (int l = 0; l < NDIM; l++) {
+			for (int n = 0; n < NDIM; n++) {
+				for (int m = 0; m < NDIM; m++) {
+					dD_dF[l][n][m] = half * (dXi_dF[l] * (third * I[n][m] - N[n] * N[m]) + (one - Xi) * (dN_dF[n][l] * N[m] + N[n] * dN_dF[m][l]));
+				}
+			}
+		}
+		std::array<std::array<Real, NDIM>, NDIM> P;
+		for (int n = 0; n < NDIM; n++) {
+			for (int m = 0; m < NDIM; m++) {
+				P[n][m] = Er * D[n][m];
+			}
+		}
+		std::array<std::array<Real, NDIM>, NDIM> dP_dEr;
+		for (int n = 0; n < NDIM; n++) {
+			for (int m = 0; m < NDIM; m++) {
+				dP_dEr[n][m] = Er * dD_dEr[n][m] + D[n][m];
+			}
+		}
+		std::array<std::array<std::array<Real, NDIM>, NDIM>, NDIM> dP_dF;
+		for (int n = 0; n < NDIM; n++) {
+			for (int m = 0; m < NDIM; m++) {
+				for (int l = 0; l < NDIM; l++) {
+					dP_dF[l][n][m] = Er * dD_dF[l][n][m];
+				}
+			}
+		}
+		Real gk = kappa * (Er - aR * T4);
+		for (int k = 0; k < NDIM; k++) {
+			gk -= two * kappa * Beta[k] * F[k];
+		}
+		Real const dgk_dEr = kappa * (one - four * aR * T3 * dT_dEr);
+		std::array<Real, NDIM> dgk_dF;
+		for (int n = 0; n < NDIM; n++) {
+			dgk_dF[n] = -kappa * (two * Beta[n] + three * aR * T3 * dT_dF[n]);
+			for (int k = 0; k < NDIM; k++) {
+				dgk_dF[n] -= two * kappa * F[k] * dBeta_dF[k][n];
+			}
+		}
+		std::array<Real, NDIM> Gx;
+		for (int n = 0; n < NDIM; n++) {
+			Gx[n] = Chi * (F[n] - Beta[n] * Er);
+			for (int k = 0; k < NDIM; k++) {
+				Gx[n] -= Chi * P[n][k] * Beta[k];
+			}
+		}
+		std::array<Real, NDIM> dGx_dEr;
+		for (int n = 0; n < NDIM; n++) {
+			dGx_dEr[n] = -Chi * Beta[n];
+			for (int k = 0; k < NDIM; k++) {
+				dGx_dEr[n] -= Chi * dP_dEr[n][k] * Beta[k];
+			}
+		}
+		std::array<std::array<Real, NDIM>, NDIM> dGx_dF;
+		for (int n = 0; n < NDIM; n++) {
+			for (int m = 0; m < NDIM; m++) {
+				dGx_dF[n][m] = Chi * (I[n][m] - dBeta_dF[n][m] * Er);
+				for (int k = 0; k < NDIM; k++) {
+					dGx_dF[n][m] -= Chi * dP_dF[m][n][k] * Beta[k];
+					dGx_dF[n][m] -= Chi * P[n][k] * dBeta_dF[k][m];
+				}
+			}
+		}
+		Real gx = zero;
+		for (int k = 0; k < NDIM; k++) {
+			gx += Gx[k] * Beta[k];
+		}
+		Real dgx_dEr = zero;
+		for (int k = 0; k < NDIM; k++) {
+			dgx_dEr += dGx_dEr[k] * Beta[k];
+		}
+		std::array<Real, NDIM> dgx_dF;
+		for (int n = 0; n < NDIM; n++) {
+			dgx_dF[n] = zero;
+			for (int k = 0; k < NDIM; k++) {
+				dgx_dF[n] = dGx_dF[k][n] * Beta[k] + dBeta_dF[k][n] * Gx[k];
+			}
+		}
+		std::array<Real, NDIM> Gk;
+		for (int n = 0; n < NDIM; n++) {
+			Gk[n] = gk * Beta[n];
+		}
+		std::array<Real, NDIM> dGk_dEr;
+		for (int n = 0; n < NDIM; n++) {
+			dGk_dEr[n] = dgk_dEr * Beta[n];
+		}
+		std::array<std::array<Real, NDIM>, NDIM> dGk_dF;
+		for (int n = 0; n < NDIM; n++) {
+			for (int m = 0; m < NDIM; m++) {
+				dGk_dF[n][m] = Beta[n] * dgk_dF[m] + gk * dBeta_dF[n][m];
+			}
+		}
+		Real const hr = Er - Er0 + dt * cHat * (gk + gx);
+		Real const dhr_dEr = one + dt * cHat * (dgk_dEr + dgx_dEr);
+		std::array<Real, NDIM> dhr_dF;
+		for (int n = 0; n < NDIM; n++) {
+			dhr_dF[n] = dt * cHat * (dgk_dF[n] + dgx_dF[n]);
+		}
+		std::array<Real, NDIM> Hr;
+		for (int n = 0; n < NDIM; n++) {
+			Hr[n] = F[n] - F0[n] + dt * (Gk[n] + Gx[n]);
+		}
+		std::array<Real, NDIM> dHr_dEr;
+		for (int n = 0; n < NDIM; n++) {
+			dHr_dEr[n] = dt * cHat * (dGk_dEr[n] + dGx_dEr[n]);
+		}
+		std::array<std::array<Real, NRF>, NRF> dHr_dF;
+		for (int n = 0; n < NDIM; n++) {
+			for (int m = 0; m < NDIM; m++) {
+				dHr_dF[n][m] = I[n][m] + dt * cHat * (dGk_dF[n][m] + dGx_dF[n][m]);
+			}
+		}
+
+		std::pair<std::array<Real, NRF>, std::array<std::array<Real, NRF>, NRF>> rc;
+		std::array<Real, NRF> &F4 = rc.first;
+		std::array<std::array<Real, NRF>, NRF> &dF4 = rc.second;
+		for (int k = 0; k < NDIM; k++) {
+			F4[k] = Hr[k];
+			for (int n = 0; n < NDIM; n++) {
+				dF4[k][n] = dHr_dF[k][n];
+			}
+			dF4[NDIM][k] = dhr_dF[k];
+			dF4[k][NDIM] = dHr_dEr[k];
+		}
+		F4[NDIM] = hr;
+		dF4[NDIM][NDIM] = dhr_dEr;
+		return rc;
+	}
+private:
+	Real dt;
+	Real Er0;
+	Real Eg0;
+	Real rho;
+	Real mu;
+	Real kappa;
+	Real Chi;
+	Real gamma;
+	std::array<Real, NDIM> F0;
+	std::array<Real, NDIM> Beta0;
+	Real mAMU;
+	Real kB;
+	Real aR;
+	Real c;
+};
+
+void solveImplicitRadiation(Real &Er, std::array<Real, NDIM> &F, Real &Eg, std::array<Real, NDIM> &Mg, Real rho, Real mu, Real kappa, Real Chi, Real gamma,
+		Real dt) {
+	/*	static constexpr Constants<Real> pc;
+	 * 	Real c;
+	 *
+	 mAMU = pc.m;
+	 kB = pc.kB;
+	 aR = pc.aR;
+	 c = pc.c;
+	 */
+	static constexpr Real zero = Real(0);
+	Real const c = Real(1);
+	std::array<Real, NDIM> Beta0;
+	for (int n = 0; n < NDIM; n++) {
+		Beta0[n] = Mg[n] / (rho * c);
+	}
+	auto const Eg0 = Eg;
+	testImplicitRadiation test(dt, Er, F, Eg0, Beta0, rho, mu, kappa, Chi, gamma);
+	std::array<Real, NRF> x;
+	for (int n = 0; n < NDIM; n++) {
+		x[n] = F[n] / c;
+	}
+	x[NDIM] = Er;
+	Real toler = Real(1e-9);
+	Real err;
+	do {
+		std::array<Real, NDIM> dx;
+		auto const f_and_dfdx = test(x);
+		auto const &f = f_and_dfdx.first;
+		auto const &dfdx = f_and_dfdx.second;
+		auto const inv_dfdx = matrixInverse(dfdx);
+		err = zero;
+		for (int n = 0; n < NRF; n++) {
+			dx[n] = zero;
+			for (int m = 0; m < NRF; m++) {
+				dx[n] -= inv_dfdx[n][m] * f[m];
+			}
+			err += sqr(dx[n]);
+		}
+		err = sqrt(err);
+		for (int n = 0; n < NRF; n++) {
+			x[n] += Real(0.5) * dx[n];
+		}
+	} while (err > toler);
+	for (int n = 0; n < NDIM; n++) {
+		Mg[n] = rho * c * Beta0[n] + F[n] - x[n];
+		F[n] = c * x[n];
+	}
+	Eg = Eg0 + Er - x[NDIM];
+	Er = x[NDIM];
+}
+
+void rad_grid::implicit_source(std::vector<std::vector<real>> &hydroVars, Real dt) {
 	PROFILE()
+	constexpr real toler = 1000.0 * std::numeric_limits<real>::epsilon();
+	constexpr Real zero = Real(0.0);
+	constexpr Real half = Real(0.5);
+	constexpr real alpha = 0.5;
+	constexpr real tiny = std::numeric_limits<real>::min();
 	feenableexcept(FE_DIVBYZERO);
 	feenableexcept(FE_INVALID);
 	feenableexcept(FE_OVERFLOW);
@@ -147,113 +590,37 @@ void rad_grid::implicit_source(std::vector<real> &egas_, std::vector<real> &tau_
 	for (integer xi = RAD_BW; xi != RAD_NX - RAD_BW; ++xi) {
 		for (integer yi = RAD_BW; yi != RAD_NX - RAD_BW; ++yi) {
 			for (integer zi = RAD_BW; zi != RAD_NX - RAD_BW; ++zi) {
-				const integer D = H_BW - RAD_BW;
+				const integer DI = H_BW - RAD_BW;
 				const integer ir = rindex(xi, yi, zi);
-				const integer ih = hindex(xi + D, yi + D, zi + D);
-				real &tau = tau_[ih];
-				real &egas = egas_[ih];
-				real &erad = U[er_i][ir];
-				real &fx = U[fx_i][ir];
-				real &fy = U[fy_i][ir];
-				real &fz = U[fz_i][ir];
-				fx *= inv_c;
-				fy *= inv_c;
-				fz *= inv_c;
-				real &sx = sx_[ih];
-				real &sy = sy_[ih];
-				real &sz = sz_[ih];
-				const real erad0 = erad;
-				const real egas0 = egas;
-				const real fx0 = fx;
-				const real fy0 = fy;
-				const real fz0 = fz;
-				const real sx0 = sx;
-				const real sy0 = sy;
-				const real sz0 = sz;
-				const real mu = mmw[ih];
-				const real rho = rho_[ih];
-				CHECK_FLUX1(erad, fx, fy, fz, rho);
-				const real inv_rho = INVERSE(rho);
-				const real vx = sx * inv_rho;
-				const real vy = sy * inv_rho;
-				const real vz = sz * inv_rho;
-				const real beta_x = vx * inv_c;
-				const real beta_y = vy * inv_c;
-				const real beta_z = vz * inv_c;
-				real eint = std::max(egas - 0.5 * rho * (vx * vx + vy * vy + vz * vz), 0.0);
-				const real kap = kappa_R(rho, eint, mmw[ih], X_spc[ih], Z_spc[ih]);
-				const real chi = kap;
-				const real fmag = SQRT(fx * fx + fy * fy + fz * fz);
-				const real nx = fx / fmag;
-				const real ny = fy / fmag;
-				const real nz = fz / fmag;
-				const real f = fmag / erad;
-				const real eta = (3 + 4 * f * f) / (5 + 2 * SQRT(4 - 3 * f * f));
-				const real f1 = (1 - eta) / 2;
-				const real f2 = (3 * eta - 1) / 2;
-				const real Dxx = f2 * nx * nx + f1;
-				const real Dxy = f2 * nx * ny;
-				const real Dxz = f2 * nx * nz;
-				const real Dyx = Dxy;
-				const real Dyy = f2 * ny * ny + f1;
-				const real Dyz = f2 * ny * nz;
-				const real Dzx = Dxz;
-				const real Dzy = Dyz;
-				const real Dzz = f2 * nz * nz + f1;
-				auto F = [Dxx, Dxy, Dxz, Dyx, Dyy, Dyz, Dzx, Dzy, Dzz, dt, mu, rho, kap, chi, mh, kb, gam, c, ar, erad0,
-						fx0, fy0, fz0, egas0, sx0, sy0, sz0](std::array<real, 4> X) {
-					const real erad = X[0];
-					const real fx = X[1];
-					const real fy = X[2];
-					const real fz = X[3];
-					const real egas = erad0 - erad + egas0;
-					const real sx = sx0 + (fx0 - fx) / c;
-					const real sy = sy0 + (fy0 - fy) / c;
-					const real sz = sz0 + (fz0 - fz) / c;
-					const real beta_x = sx / (rho * c);
-					const real beta_y = sy / (rho * c);
-					const real beta_z = sz / (rho * c);
-					const real eint = std::max(
-							egas - rho * c * c * (beta_x * beta_x + beta_y * beta_y + beta_z * beta_z) / 2, 0.0);
-					const real T = ((gam - 1) * mu * mh / (rho * kb)) * eint;
-					const real bPx = erad * (beta_x * Dxx + beta_y * Dyx + beta_z * Dzx);
-					const real bPy = erad * (beta_x * Dxy + beta_y * Dyy + beta_z * Dzy);
-					const real bPz = erad * (beta_x * Dxz + beta_y * Dyz + beta_z * Dzz);
-					const real g0 = kap * (erad - ar * T * T * T * T - 2.0 * (beta_x * fx + beta_y * fy + beta_z * fz));
-					const real gx = chi * (fx - erad * beta_x - bPx);
-					const real gy = chi * (fy - erad * beta_y - bPy);
-					const real gz = chi * (fz - erad * beta_z - bPz);
-					const real G0 = g0 + beta_x * gx + beta_y * gy + beta_z * gz;
-					const real Gx = beta_x * g0 + gx;
-					const real Gy = beta_y * g0 + gy;
-					const real Gz = beta_z * g0 + gz;
-					X[0] = erad - erad0 + dt * G0;
-					X[1] = fx - fx0 + dt * Gx;
-					X[2] = fy - fy0 + dt * Gy;
-					X[3] = fz - fz0 + dt * Gz;
-					return X;
-				};
-				std::array<real, 4> x = { erad, fx, fy, fz };
-				x = solve<real, 4>(F, x);
-				erad = x[0];
-				fx = x[1];
-				fy = x[2];
-				fz = x[3];
-				egas += erad0 - erad;
-				sx += (fx0 - fx) * inv_c;
-				sy += (fy0 - fy) * inv_c;
-				sz += (fz0 - fz) * inv_c;
-				eint = std::max(egas - (sx * sx + sy * sy + sz * sz) / (2 * rho), 0.0);
-				tau = POWER(std::max(eint, 0.0), inv_gam);
-				fx *= c;
-				fy *= c;
-				fz *= c;
-				CHECK_FLUX1(erad, fx, fy, fz, rho);
+				const integer ih = hindex(xi + DI, yi + DI, zi + DI);
+				std::array<Real, NDIM> F;
+				std::array<Real, NDIM> Mg;
+				Real Ek = zero;
+				Real Er = U[er_i][ir];
+				Real Eg = Real(hydroVars[egas_i][ir]);
+				const Real rho(hydroVars[rho_i][ih]);
+				for (int n = 0; n < NDIM; n++) {
+					F[n] = U[fx_i + n][ir];
+					Mg[n] = Real(hydroVars[sx_i + n][ih]);
+					Ek += half * sqr(Real(Mg[n])) / rho;
+				}
+				const real egas = hydroVars[egas_i][ih];
+				const Real mu(mmw[ih]);
+				const Real Xspc(X_spc[ih]);
+				const Real Zspc(Z_spc[ih]);
+				const Real kappa = kappa_p(rho, Real(Mg[NDIM]) - Ek, mu, Xspc, Zspc);
+				const Real Chi = kappa_R(rho, Real(Mg[NDIM]) - Ek, mu, Xspc, Zspc);
+				solveImplicitRadiation(Er, F, Eg, Mg, rho, mu, kappa, Chi, Real(gam), dt);
+				U[er_i][ir] = Er;
+				hydroVars[egas_i][ir] = Eg;
+				for (int n = 0; n < NDIM; n++) {
+					U[fx_i + n][ir] = F[n];
+					hydroVars[sx_i + n][ih] = Mg[n];
+				}
 			}
 		}
 	}
 }
-
 
 template<typename T>
 int sign(T const &x) {
@@ -266,119 +633,97 @@ int sign(T const &x) {
 	}
 }
 
-struct index_iterator {
-	index_iterator(int dim, int lb = R_BW, int ub = RAD_NX - R_BW) {
-		int xdim = XDIM, ydim = YDIM, zdim = ZDIM;
-		if (dim == XDIM) {
-			std::swap(xdim, zdim);
-		} else if (dim == YDIM) {
-			std::swap(ydim, zdim);
-		}
-		length[XDIM] = length[YDIM] = length[ZDIM] = RAD_NX - 2 * RAD_BW;
-		length[dim] = ub - lb;
-		offset = stride[dim] * (lb - R_BW);
-		for (int d = 0; d < NDIM; d++) {
-			length[d] *= stride[d];
-			offset += stride[d] * R_BW;
-		}
-		stride[xdim] = sqr(RAD_NX);
-		stride[ydim] = RAD_NX;
-		stride[zdim] = 1;
-		position = offset;
-	}
-	bool operator++(int) {
-		position -= offset;
-		for (int d = NDIM - 1; d >= 0; d--) {
-			position += stride[d];
-			real const new_position = position % length[d];
-			if (new_position == position) {
-				position += offset;
-				return true;
-			}
-			position = new_position;
-		}
-		position += offset;
-		return false;
-	}
-	operator int() const {
-		return position;
-	}
-private:
-	int position;
-	int offset;
-	std::array<int, NDIM> length;
-	std::array<int, NDIM> stride;
-};
-
 void rad_grid::compute_flux(real omega) {
 	PROFILE()
 	real const c = physcon().c;
 	real const c2 = sqr(c);
 	real const cInv = real(1.0) / c;
-	int DN = -1;
 	std::array<std::vector<real>, NRF> dUdx;
 	for (auto &du : dUdx) {
 		du.resize(RAD_N3);
 	}
-	for (int dim = 0; dim < NDIM; dim++) {
-		index_iterator I(dim, RAD_INTERIOR_BEGIN - 1, RAD_INTERIOR_END + 1);
-		do {
-			int const i0 = int(I);
-			real const um = U[er_i][i0 - DN];
-			real const u0 = U[er_i][i0];
-			real const up = U[er_i][i0 + DN];
-			real const pSlope = up - u0;
-			real const mSlope = u0 - um;
-			real const sign = std::copysign(real(0.25), pSlope) + std::copysign(real(0.5), mSlope);
-			dUdx[er_i][i0] = sign * std::min(std::abs(pSlope), std::abs(mSlope));
-			for (int field = fx_i; field <= fz_i; field++) {
-				real const rEnergyM = U[field][i0 - DN];
-				real const rEnergy0 = U[field][i0];
-				real const rEnergyP = U[field][i0 + DN];
-				real const um = U[field][i0 - DN] / rEnergyM;
-				real const u0 = U[field][i0] / rEnergy0;
-				real const up = U[field][i0 + DN] / rEnergyP;
-				assert(real(1) >= up && up >= -real(1));
-				assert(real(1) >= u0 && u0 >= -real(1));
-				assert(real(1) >= um && um >= -real(1));
-				real const pSlope = up - u0;
-				real const mSlope = u0 - um;
-				real const sign = std::copysign(real(0.25), pSlope) + std::copysign(real(0.5), mSlope);
-				dUdx[field][i0] = sign * std::min(std::abs(pSlope), std::abs(mSlope));
+	int lb[NDIM] = { RAD_INTERIOR_BEGIN, RAD_INTERIOR_BEGIN, RAD_INTERIOR_BEGIN };
+	int ub[NDIM] = { RAD_INTERIOR_END, RAD_INTERIOR_END, RAD_INTERIOR_END };
+	int &xlb = lb[XDIM];
+	int &ylb = lb[YDIM];
+	int &zlb = lb[ZDIM];
+	int &xub = ub[XDIM];
+	int &yub = ub[YDIM];
+	int &zub = ub[ZDIM];
+	int DN = 1;
+	for (int dim = ZDIM; dim >= XDIM; dim--) {
+		lb[dim]--;
+		ub[dim]++;
+		for (integer xi = xlb; xi != xub; ++xi) {
+			for (integer yi = ylb; yi != yub; ++yi) {
+				for (integer zi = zlb; zi != zub; ++zi) {
+					int const i0 = rindex(xi, yi, zi);
+					real const um = U[er_i][i0 - DN];
+					real const u0 = U[er_i][i0];
+					real const up = U[er_i][i0 + DN];
+					real const pSlope = up - u0;
+					real const mSlope = u0 - um;
+					real const sign = std::copysign(real(0.25), pSlope) + std::copysign(real(0.25), mSlope);
+					dUdx[er_i][i0] = sign * std::min(std::abs(pSlope), std::abs(mSlope));
+					for (int field = fx_i; field <= fz_i; field++) {
+						real const rEnergyM = U[er_i][i0 - DN];
+						real const rEnergy0 = U[er_i][i0];
+						real const rEnergyP = U[er_i][i0 + DN];
+						real um = U[field][i0 - DN] * cInv * INVERSE(rEnergyM);
+						real u0 = U[field][i0] * cInv * INVERSE(rEnergy0);
+						real up = U[field][i0 + DN] * cInv * INVERSE(rEnergyP);
+						constexpr real tiny = std::numeric_limits<real>::epsilon();
+						assert(real(1) - std::abs(up) >= -tiny);
+						assert(real(1) - std::abs(u0) >= -tiny);
+						assert(real(1) - std::abs(um) >= -tiny);
+						um = std::copysign(std::min(real(1) - tiny, std::abs(um)), um);
+						u0 = std::copysign(std::min(real(1) - tiny, std::abs(u0)), u0);
+						up = std::copysign(std::min(real(1) - tiny, std::abs(up)), up);
+						real const pSlope = up - u0;
+						real const mSlope = u0 - um;
+						real const sign = std::copysign(real(0.25), pSlope) + std::copysign(real(0.25), mSlope);
+						dUdx[field][i0] = sign * std::min(std::abs(pSlope), std::abs(mSlope));
+					}
+				}
 			}
-		} while (I++);
-		I = index_iterator(dim, RAD_INTERIOR_BEGIN, RAD_INTERIOR_END + 1);
-		do {
-			int const rI = int(I);
-			int const lI = rI + DN;
-			std::array<real, NDIM> rFluxFlow;
-			std::array<real, NDIM> lFluxFlow;
-			real const rEnergySlope = dUdx[er_i][rI];
-			real const lEnergySlope = dUdx[er_i][lI];
-			real const rEnergy = U[er_i][rI] - rEnergySlope;
-			real const lEnergy = U[er_i][lI] + lEnergySlope;
-			std::array<real, NDIM> const rFluxSlope = { dUdx[fx_i][rI], dUdx[fy_i][rI], dUdx[fz_i][rI] };
-			std::array<real, NDIM> const lFluxSlope = { dUdx[fx_i][lI], dUdx[fy_i][lI], dUdx[fz_i][lI] };
-			std::array<real, NDIM> rFlux = { U[fx_i][rI], U[fy_i][rI], U[fz_i][rI] };
-			std::array<real, NDIM> lFlux = { U[fx_i][lI], U[fy_i][lI], U[fz_i][lI] };
-			for (int d = 0; d < NDIM; d++) {
-				rFlux[d] += (rFlux[d] - rFluxSlope[d]) * rEnergy;
-				lFlux[d] += (lFlux[d] + lFluxSlope[d]) * lEnergy;
+		}
+		lb[dim]++;
+		for (integer xi = xlb; xi != xub; ++xi) {
+			for (integer yi = ylb; yi != yub; ++yi) {
+				for (integer zi = zlb; zi != zub; ++zi) {
+					int const rI = rindex(xi, yi, zi);
+					int const lI = rI - DN;
+					std::array<real, NDIM> rFluxFlow;
+					std::array<real, NDIM> lFluxFlow;
+					real const rEnergySlope = dUdx[er_i][rI];
+					real const lEnergySlope = dUdx[er_i][lI];
+					real const rEnergy = U[er_i][rI] - rEnergySlope;
+					real const lEnergy = U[er_i][lI] + lEnergySlope;
+					std::array<real, NDIM> const rFluxSlope = { dUdx[fx_i][rI], dUdx[fy_i][rI], dUdx[fz_i][rI] };
+					std::array<real, NDIM> const lFluxSlope = { dUdx[fx_i][lI], dUdx[fy_i][lI], dUdx[fz_i][lI] };
+					std::array<real, NDIM> rFlux = { U[fx_i][rI], U[fy_i][rI], U[fz_i][rI] };
+					std::array<real, NDIM> lFlux = { U[fx_i][lI], U[fy_i][lI], U[fz_i][lI] };
+					for (int d = 0; d < NDIM; d++) {
+						rFlux[d] -= rFluxSlope[d] * c * rEnergy;
+						lFlux[d] += lFluxSlope[d] * c * lEnergy;
+					}
+					auto const rEddingtonTensor = computeEddingtonTensor(rEnergy, rFlux);
+					auto const lEddingtonTensor = computeEddingtonTensor(lEnergy, lFlux);
+					real const rEnergyFlow = rFlux[dim] - c * rEnergy;
+					real const lEnergyFlow = lFlux[dim] + c * lEnergy;
+					for (int d = 0; d < NDIM; d++) {
+						rFluxFlow[d] = c2 * rEnergy * rEddingtonTensor[dim][d] - c * rFlux[d];
+						lFluxFlow[d] = c2 * lEnergy * lEddingtonTensor[dim][d] + c * lFlux[d];
+					}
+					flux[dim][er_i][rI] = real(0.5) * (rEnergyFlow + lEnergyFlow);
+					for (int d = 0; d < NDIM; d++) {
+						flux[dim][fx_i + d][rI] = real(0.5) * (rFluxFlow[d] + lFluxFlow[d]);
+					}
+				}
 			}
-			auto const rEddingtonTensor = computeEddingtonTensor(rEnergy, rFlux);
-			auto const lEddingtonTensor = computeEddingtonTensor(lEnergy, lFlux);
-			real const rEnergyFlow = rFlux[dim] - c * rEnergy;
-			real const lEnergyFlow = lFlux[dim] + c * lEnergy;
-			for (int d = 0; d < NDIM; d++) {
-				rFluxFlow[d] = c2 * rEnergy * rEddingtonTensor[dim][d] - c * rFlux[d];
-				lFluxFlow[d] = c2 * lEnergy * lEddingtonTensor[dim][d] + c * lFlux[d];
-			}
-			flux[dim][er_i][rI] = real(0.5) * (rEnergyFlow + lEnergyFlow);
-			for (int d = 0; d < NDIM; d++) {
-				flux[dim][fx_i + d][rI] = real(0.5) * (rFluxFlow[d] + lFluxFlow[d]);
-			}
-		} while (I++);
-		DN *= RAD_INTERIOR;
+		}
+		ub[dim]--;
+		DN *= RAD_NX;
 	}
 }
 
@@ -412,7 +757,7 @@ void rad_grid::set(const std::string name, real *data) {
 				for (int k = 0; k < INX; k++) {
 					const int iii = rindex(k + RAD_BW, j + RAD_BW, i + RAD_BW);
 					data[jjj] /= f == er_i ? eunit : funit;
-					U[f][iii] = data[jjj];
+					U[f][iii] = Real(data[jjj]);
 					jjj++;
 				}
 			}
@@ -535,9 +880,8 @@ void rad_grid::set_X(const std::vector<std::vector<real>> &x) {
 	}
 }
 
-real rad_grid::hydro_signal_speed(const std::vector<real> &egas_, const std::vector<real> &tau_,
-		const std::vector<real> &sx_, const std::vector<real> &sy_, const std::vector<real> &sz_,
-		const std::vector<real> &rho_) {
+real rad_grid::hydro_signal_speed(const std::vector<real> &egas_, const std::vector<real> &tau_, const std::vector<real> &sx_, const std::vector<real> &sy_,
+		const std::vector<real> &sz_, const std::vector<real> &rho_) {
 	real a = 0.0;
 	const real fgamma = grid::get_fgamma();
 	const integer D = H_BW - RAD_BW;
@@ -657,10 +1001,10 @@ void rad_grid::change_units(real m, real l, real t, real k) {
 	const real l3 = l2 * l;
 	const real l3inv = 1.0 * INVERSE(l3);
 	for (integer i = 0; i != RAD_N3; ++i) {
-		U[er_i][i] *= (m * l2 * t2inv) * l3inv;
-		U[fx_i][i] *= tinv * (m * t2inv);
-		U[fy_i][i] *= tinv * (m * t2inv);
-		U[fz_i][i] *= tinv * (m * t2inv);
+		U[er_i][i] *= Real((m * l2 * t2inv) * l3inv);
+		U[fx_i][i] *= Real(tinv * (m * t2inv));
+		U[fy_i][i] *= Real(tinv * (m * t2inv));
+		U[fz_i][i] *= Real(tinv * (m * t2inv));
 	}
 }
 
@@ -678,7 +1022,7 @@ void rad_grid::advance(real dt, real beta) {
 					for (integer d = 0; d != NDIM; ++d) {
 						u1 -= l * (flux[d][f][iii + D[d]] - flux[d][f][iii]);
 					}
-					U[f][iii] = u0 * (1.0 - beta) + beta * u1;
+					U[f][iii] = Real(u0 * (1.0 - beta) + beta * u1);
 				}
 				CHECK_FLUX(U[er_i][iii], U[fx_i][iii], U[fy_i][iii], U[fz_i][iii]);
 			}
@@ -725,31 +1069,34 @@ void rad_grid::set_physical_boundaries(geo::face face, real t) {
 					if (opts().problem == MARSHAK) {
 						if (t > 0) {
 							auto u = marshak_wave_analytic(-opts().xscale, 0, 0, t);
-							U[fx_i][iii1] = u[opts().n_fields + fx_i];
-							U[er_i][iii1] = std::max(u[opts().n_fields + er_i], 1.0e-10);
+							U[fx_i][iii1] = Real(u[opts().n_fields + fx_i]);
+							U[er_i][iii1] = Real(std::max(u[opts().n_fields + er_i], 1.0e-10));
 						} else {
-							U[fx_i][iii1] = 0.0;
-							U[er_i][iii1] = 1.0e-10;
+							U[fx_i][iii1] = Real(0.0);
+							U[er_i][iii1] = Real(1.0e-10);
 						}
 					} else {
-						U[fx_i][iii1] = std::min(U[fx_i][iii1], 0.0);
+						U[fx_i][iii1] = min(U[fx_i][iii1], Real(0.0));
 					}
 					break;
 				case 1:
-					U[fx_i][iii1] = std::max(U[fx_i][iii1], 0.0);
+					U[fx_i][iii1] = max(U[fx_i][iii1], Real(0.0));
 					break;
 				case 2:
-					U[fy_i][iii1] = std::min(U[fy_i][iii1], 0.0);
+					U[fy_i][iii1] = min(U[fy_i][iii1], Real(0.0));
 					break;
 				case 3:
-					U[fy_i][iii1] = std::max(U[fy_i][iii1], 0.0);
+					U[fy_i][iii1] = max(U[fy_i][iii1], Real(0.0));
 					break;
 				case 4:
-					U[fz_i][iii1] = std::min(U[fz_i][iii1], 0.0);
+					U[fz_i][iii1] = min(U[fz_i][iii1], Real(0.0));
 					break;
 				case 5:
-					U[fz_i][iii1] = std::max(U[fz_i][iii1], 0.0);
+					U[fz_i][iii1] = max(U[fz_i][iii1], Real(0.0));
 					break;
+				}
+				if (opts().problem == RADIATION_COUPLING) {
+					U[fz_i][iii1] = U[fy_i][iii1] = U[fx_i][iii1] = Real(0.0);
 				}
 			}
 		}
@@ -786,39 +1133,38 @@ hpx::future<void> node_server::exchange_rad_flux_corrections() {
 	for (auto const &f : geo::face::full_set()) {
 		if (this->nieces[f] == +1) {
 			for (auto const &quadrant : geo::quadrant::full_set()) {
-				futs[index++] = niece_rad_channels[f][quadrant].get_future().then(
-						[this, f, quadrant](hpx::future<std::vector<real> > &&fdata) -> void {
-							const auto face_dim = f.get_dimension();
-							std::array<integer, NDIM> lb, ub;
-							switch (face_dim) {
-							case XDIM:
-								lb[XDIM] = (f.get_side() == geo::MINUS ? 0 : INX) + RAD_BW;
-								lb[YDIM] = quadrant.get_side(0) * (INX / 2) + RAD_BW;
-								lb[ZDIM] = quadrant.get_side(1) * (INX / 2) + RAD_BW;
-								ub[XDIM] = lb[XDIM] + 1;
-								ub[YDIM] = lb[YDIM] + (INX / 2);
-								ub[ZDIM] = lb[ZDIM] + (INX / 2);
-								break;
-							case YDIM:
-								lb[XDIM] = quadrant.get_side(0) * (INX / 2) + RAD_BW;
-								lb[YDIM] = (f.get_side() == geo::MINUS ? 0 : INX) + RAD_BW;
-								lb[ZDIM] = quadrant.get_side(1) * (INX / 2) + RAD_BW;
-								ub[XDIM] = lb[XDIM] + (INX / 2);
-								ub[YDIM] = lb[YDIM] + 1;
-								ub[ZDIM] = lb[ZDIM] + (INX / 2);
-								break;
-							case ZDIM:
-							default:
-								lb[XDIM] = quadrant.get_side(0) * (INX / 2) + RAD_BW;
-								lb[YDIM] = quadrant.get_side(1) * (INX / 2) + RAD_BW;
-								lb[ZDIM] = (f.get_side() == geo::MINUS ? 0 : INX) + RAD_BW;
-								ub[XDIM] = lb[XDIM] + (INX / 2);
-								ub[YDIM] = lb[YDIM] + (INX / 2);
-								ub[ZDIM] = lb[ZDIM] + 1;
-								break;
-							}
-							rad_grid_ptr->set_flux_restrict(GET(fdata), lb, ub, face_dim);
-						});
+				futs[index++] = niece_rad_channels[f][quadrant].get_future().then([this, f, quadrant](hpx::future<std::vector<real> > &&fdata) -> void {
+					const auto face_dim = f.get_dimension();
+					std::array<integer, NDIM> lb, ub;
+					switch (face_dim) {
+					case XDIM:
+						lb[XDIM] = (f.get_side() == geo::MINUS ? 0 : INX) + RAD_BW;
+						lb[YDIM] = quadrant.get_side(0) * (INX / 2) + RAD_BW;
+						lb[ZDIM] = quadrant.get_side(1) * (INX / 2) + RAD_BW;
+						ub[XDIM] = lb[XDIM] + 1;
+						ub[YDIM] = lb[YDIM] + (INX / 2);
+						ub[ZDIM] = lb[ZDIM] + (INX / 2);
+						break;
+					case YDIM:
+						lb[XDIM] = quadrant.get_side(0) * (INX / 2) + RAD_BW;
+						lb[YDIM] = (f.get_side() == geo::MINUS ? 0 : INX) + RAD_BW;
+						lb[ZDIM] = quadrant.get_side(1) * (INX / 2) + RAD_BW;
+						ub[XDIM] = lb[XDIM] + (INX / 2);
+						ub[YDIM] = lb[YDIM] + 1;
+						ub[ZDIM] = lb[ZDIM] + (INX / 2);
+						break;
+					case ZDIM:
+					default:
+						lb[XDIM] = quadrant.get_side(0) * (INX / 2) + RAD_BW;
+						lb[YDIM] = quadrant.get_side(1) * (INX / 2) + RAD_BW;
+						lb[ZDIM] = (f.get_side() == geo::MINUS ? 0 : INX) + RAD_BW;
+						ub[XDIM] = lb[XDIM] + (INX / 2);
+						ub[YDIM] = lb[YDIM] + (INX / 2);
+						ub[ZDIM] = lb[ZDIM] + 1;
+						break;
+					}
+					rad_grid_ptr->set_flux_restrict(GET(fdata), lb, ub, face_dim);
+				});
 			}
 		}
 	}
@@ -830,8 +1176,8 @@ hpx::future<void> node_server::exchange_rad_flux_corrections() {
 	});
 }
 
-void rad_grid::set_flux_restrict(const std::vector<real> &data, const std::array<integer, NDIM> &lb,
-		const std::array<integer, NDIM> &ub, const geo::dimension &dim) {
+void rad_grid::set_flux_restrict(const std::vector<real> &data, const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub,
+		const geo::dimension &dim) {
 
 	integer index = 0;
 	for (integer field = 0; field != NRF; ++field) {
@@ -847,8 +1193,7 @@ void rad_grid::set_flux_restrict(const std::vector<real> &data, const std::array
 	}
 }
 
-std::vector<real> rad_grid::get_flux_restrict(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub,
-		const geo::dimension &dim) const {
+std::vector<real> rad_grid::get_flux_restrict(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub, const geo::dimension &dim) const {
 
 	std::vector<real> data;
 	integer size = 1;
@@ -964,9 +1309,8 @@ void rad_grid::initialize_erad(const std::vector<safe_real> rho, const std::vect
 				const integer iiih = hindex(xi + D, yi + D, zi + D);
 				const real ei = POWER(tau[iiih], fgamma);
 				if (opts().problem == STAR || opts().problem == ROTATING_STAR || opts().problem == RADIATION_COUPLING) {
-					U[er_i][iiir] = 10.0 * B_p((double) rho[iiih], (double) ei, (double) mmw[iiir])
-							* (4.0 * M_PI / physcon().c);
-					U[fx_i][iiir] = U[fy_i][iiir] = U[fz_i][iiir] = 0.0;
+					U[er_i][iiir] = Real(B_p((double) rho[iiih], (double) ei, (double) mmw[iiir]) * (4.0 * M_PI / physcon().c));
+					U[fx_i][iiir] = U[fy_i][iiir] = U[fz_i][iiir] = Real(0.0);
 				}
 			}
 		}
@@ -994,7 +1338,7 @@ void rad_grid::set_boundary(const std::vector<real> &data, const geo::direction 
 		for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
 			for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
 				for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
-					Ufield[rindex(i, j, k)] = data[iter];
+					Ufield[rindex(i, j, k)] = Real(data[iter]);
 					++iter;
 				}
 			}
@@ -1026,7 +1370,7 @@ std::vector<real> rad_grid::get_boundary(const geo::direction &dir) {
 }
 
 void rad_grid::set_field(real v, integer f, integer i, integer j, integer k) {
-	U[f][rindex(i, j, k)] = v;
+	U[f][rindex(i, j, k)] = Real(v);
 }
 
 real rad_grid::get_field(integer f, integer i, integer j, integer k) const {
@@ -1041,7 +1385,7 @@ void rad_grid::set_prolong(const std::vector<real> &data, const std::vector<real
 			for (integer j = RAD_BW; j != RAD_NX - RAD_BW; ++j) {
 				for (integer k = RAD_BW; k != RAD_NX - RAD_BW; ++k) {
 					const integer iii = rindex(i, j, k);
-					U[f][iii] = data[index];
+					U[f][iii] = Real(data[index]);
 					++index;
 				}
 			}
@@ -1111,7 +1455,7 @@ void rad_grid::set_restrict(const std::vector<real> &data, const geo::octant &oc
 			for (integer j = RAD_BW; j != RAD_NX / 2; ++j) {
 				for (integer k = RAD_BW; k != RAD_NX / 2; ++k) {
 					const integer iii = rindex(i + i0, j + j0, k + k0);
-					U[f][iii] = data[index];
+					U[f][iii] = Real(data[index]);
 					++index;
 					if (index > int(data.size())) {
 						printf("rad_grid::set_restrict error %i %i\n", int(index), int(data.size()));
@@ -1199,7 +1543,7 @@ void rad_grid::set_rad_amr_boundary(const std::vector<real> &data, const geo::di
 			for (int j = lb[1]; j < ub[1]; j++) {
 				for (int k = lb[2]; k < ub[2]; k++) {
 					has_coarse[hSindex(i, j, k)]++;
-					Ushad[f][hSindex(i, j, k)] = data[l++];
+					Ushad[f][hSindex(i, j, k)] = Real(data[l++]);
 				}
 			}
 		}
@@ -1240,10 +1584,10 @@ void rad_grid::set_outflow(const std::pair<std::string, real> &p) {
 void rad_grid::complete_rad_amr_boundary() {
 	PROFILE();
 
-	using oct_array = std::array<std::array<std::array<double, 2>, 2>, 2>;
+	using oct_array = std::array<std::array<std::array<Real, 2>, 2>, 2>;
 	static thread_local std::vector<std::vector<oct_array>> Uf(NRF, std::vector<oct_array>(HS_N3));
 
-	const auto limiter = [](double a, double b) {
+	const auto limiter = [](Real a, Real b) {
 		return minmod_theta(a, b, 64. / 37.);
 	};
 
@@ -1265,19 +1609,16 @@ void rad_grid::complete_rad_amr_boundary() {
 									const auto s_x = limiter(uc[iii0 + is * HS_DNX] - u0, u0 - uc[iii0 - is * HS_DNX]);
 									const auto s_y = limiter(uc[iii0 + js * HS_DNY] - u0, u0 - uc[iii0 - js * HS_DNY]);
 									const auto s_z = limiter(uc[iii0 + ks * HS_DNZ] - u0, u0 - uc[iii0 - ks * HS_DNZ]);
-									const auto s_xy = limiter(uc[iii0 + is * HS_DNX + js * HS_DNY] - u0,
-											u0 - uc[iii0 - is * HS_DNX - js * HS_DNY]);
-									const auto s_xz = limiter(uc[iii0 + is * HS_DNX + ks * HS_DNZ] - u0,
-											u0 - uc[iii0 - is * HS_DNX - ks * HS_DNZ]);
-									const auto s_yz = limiter(uc[iii0 + js * HS_DNY + ks * HS_DNZ] - u0,
-											u0 - uc[iii0 - js * HS_DNY - ks * HS_DNZ]);
+									const auto s_xy = limiter(uc[iii0 + is * HS_DNX + js * HS_DNY] - u0, u0 - uc[iii0 - is * HS_DNX - js * HS_DNY]);
+									const auto s_xz = limiter(uc[iii0 + is * HS_DNX + ks * HS_DNZ] - u0, u0 - uc[iii0 - is * HS_DNX - ks * HS_DNZ]);
+									const auto s_yz = limiter(uc[iii0 + js * HS_DNY + ks * HS_DNZ] - u0, u0 - uc[iii0 - js * HS_DNY - ks * HS_DNZ]);
 									const auto s_xyz = limiter(uc[iii0 + is * HS_DNX + js * HS_DNY + ks * HS_DNZ] - u0,
 											u0 - uc[iii0 - is * HS_DNX - js * HS_DNY - ks * HS_DNZ]);
 									auto &uf = Uf[f][iii0][ir][jr][kr];
 									uf = u0;
-									uf += (9.0 / 64.0) * (s_x + s_y + s_z);
-									uf += (3.0 / 64.0) * (s_xy + s_yz + s_xz);
-									uf += (1.0 / 64.0) * s_xyz;
+									uf += Real(9.0 / 64.0) * Real(s_x + s_y + s_z);
+									uf += Real(3.0 / 64.0) * Real(s_xy + s_yz + s_xz);
+									uf += Real(1.0 / 64.0) * Real(s_xyz);
 								}
 							}
 						}
