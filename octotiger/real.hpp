@@ -14,7 +14,7 @@
 #ifndef NDEBUG
 #define CHECK false
 #else
-#define CHECK CHECK_REALS
+#define CHECK true
 #endif
 
 #ifndef __CUDA_ARCH__
@@ -125,10 +125,11 @@ struct Real {
 		z.value = Type(0);
 		return z;
 	}
-	static Real tiny() {
-		Real z;
-		z.value = Type(std::numeric_limits<double>::min());
-		return z;
+	static constexpr Real tiny() {
+		return Real(std::numeric_limits<double>::min());
+	}
+	static constexpr Real epsilon() {
+		return Real(std::numeric_limits<double>::epsilon());
 	}
 	friend Real abs(Real a) {
 		debug_check(a);
@@ -215,6 +216,12 @@ struct Real {
 		a.value = std::min(a.value, b.value);
 		return a;
 	}
+	friend Real copysign(Real a, Real b) {
+		debug_check(a);
+		debug_check(b);
+		a.value = std::copysign(a.value, b.value);
+		return a;
+	}
 	friend std::string to_string(Real r) {
 		return std::to_string(r.value);
 	}
@@ -226,50 +233,38 @@ private:
 	Type value;
 	static void nonneg_check(Real a) {
 		if constexpr (CHECK) {
-//			if (a.value < 0.0) {
-//				std::string errorString = "FATAL ERROR: Illegal operation on negative number.\n";
-//				errorString += "Stack trace:\n";
-//				errorString += std::to_string(boost::stacktrace::current());
-//				std::cout << errorString;
-//				abort();
-////				throw std::invalid_argument(errorString);
-//			}
+			if (a.value < 0.0) {
+				std::string errorString = "FATAL ERROR: Illegal operation on negative number.\n";
+				std::cout << errorString;
+				abort();
+			}
 		}
 	}
 	static void zero_check(Real a) {
 		if constexpr (CHECK) {
-//			if (a.value == 0.0) {
-//				std::string errorString = "FATAL ERROR: Divide by zero\n";
-//				errorString += "Stack trace:\n";
-//				errorString += std::to_string(boost::stacktrace::current());
-//				std::cout << errorString;
-//				abort();
-////				throw std::invalid_argument(errorString);
-//			}
+			if (a.value == 0.0) {
+				std::string errorString = "FATAL ERROR: Divide by zero.\n";
+				std::cout << errorString;
+				abort();
+			}
 		}
 	}
 	static void debug_check(Real a) {
 		if constexpr (CHECK) {
-//			if (!std::isfinite(a.value)) {
-//				std::string errorString = "FATAL ERROR: Operation on NaN\n";
-//				errorString += "Stack trace:\n";
-//				errorString += std::to_string(boost::stacktrace::current());
-//				std::cout << errorString;
-//				abort();
-////				throw std::invalid_argument(errorString);
-//			}
+			if (!std::isfinite(a.value)) {
+				std::string errorString = "FATAL ERROR: Operation on NaN\n";
+				std::cout << errorString;
+				abort();
+			}
 		}
 	}
 	static void range_check(Real a, Real b, Real c) {
 		if constexpr (CHECK) {
-//			if ((b < a) || (b > c)) {
-//				std::string errorString = "FATAL ERROR: Range violation\n";
-//				errorString += "Stack trace:\n";
-//				errorString += std::to_string(boost::stacktrace::current());
-//				std::cout << errorString;
-//				abort();
-////				throw std::invalid_argument(errorString);
-//			}
+			if ((b < a) || (b > c)) {
+				std::string errorString = "FATAL ERROR: Operation on NaN\n";
+				std::cout << errorString;
+				abort();
+			}
 		}
 	}
 };

@@ -41,7 +41,6 @@ private:
 	std::vector<std::atomic<int>> has_coarse;
 	std::vector<std::vector<Real>> Ushad;
 	std::vector<std::vector<Real>> U;
-	std::array<std::vector<Real>, NRF> U0;
 	std::vector<std::vector<std::vector<real>>> flux;
 	std::array<std::array<std::vector<real>*, NDIM>, NDIM> P;
 	std::vector<std::vector<real>> X;
@@ -56,7 +55,6 @@ public:
 	std::vector<silo_var_t> var_data() const;
 	void set_X( const std::vector<std::vector<real>>& x );
 	void restore();
-	void store();
 
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {
@@ -72,7 +70,7 @@ public:
 	void set_dx(real dx);
 	//void compute_fEdd();
 	void compute_fluxes();
-	void advance(real dt, real beta);
+	void advance(Real dt);
 	void implicit_source(std::vector<std::vector<double>>&, Real dt);
 	std::vector<real> get_restrict() const;
 	std::vector<real> get_prolong(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub);
