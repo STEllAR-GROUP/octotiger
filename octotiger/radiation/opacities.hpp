@@ -46,7 +46,7 @@ U kappa_p(U rho, U e, U mmw, U X, U Z) {
 	} else if (opts().problem == RADIATION_TEST) {
 		return U(1e-20);
 	} else if (opts().problem == RADIATION_DIFFUSION) {
-		return U(1e2);
+		return rho;
 	} else if (opts().problem == RADIATION_COUPLING) {
 		return U(1e-2);
 	} else if( opts().problem == STAR) {

@@ -12,9 +12,9 @@
 #include <string>
 
 #ifndef NDEBUG
-#define CHECK false
-#else
 #define CHECK true
+#else
+#define CHECK false
 #endif
 
 #ifndef __CUDA_ARCH__

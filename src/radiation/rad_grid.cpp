@@ -70,23 +70,11 @@ void node_server::compute_radiation(Real dt, Real omega) {
 		}
 		Ur0 = Ur;
 		Ug0 = Ug;
-		Gr1 = Ur;
-		Gg1 = Ug;
-		rgrid->implicit_source(grid_ptr->U, gamma * sub_dt);
-		for (int f = 0; f < NRF; f++) {
-			Gr1[f].resize(RAD_N3);
-			for (int n = 0; n < RAD_N3; n++) {
-				Gr1[f][n] = (Ur[f][n] - Gr1[f][n]) * invGamma;
-			}
-		}
-		for (int f = 0; f < opts().n_fields; f++) {
-			Gg1[f].resize(H_N3);
-			for (int n = 0; n < H_N3; n++) {
-				Gg1[f][n] = (Ug[f][n] - Gg1[f][n]) * invGamma;
-			}
+
+		if (root) {
+			std::cout << "   explicit 1\n";
 		}
 		all_rad_bounds();
-
 		F1 = Ur;
 		rgrid->compute_flux(omega);
 		GET(exchange_rad_flux_corrections());
@@ -96,31 +84,31 @@ void node_server::compute_radiation(Real dt, Real omega) {
 				F1[f][n] = Ur[f][n] - F1[f][n];
 			}
 		}
-		for (int f = 0; f < NRF; f++) {
-			for (int n = 0; n < RAD_N3; n++) {
-				Ur[f][n] += (one - two * gamma) * Gr1[f][n];
-			}
-		}
-		for (int f = 0; f < opts().n_fields; f++) {
-			for (int n = 0; n < H_N3; n++) {
-				Ug[f][n] += (one - two * gamma) * Gg1[f][n];
-			}
-		}
-		rgrid->implicit_source(grid_ptr->U, gamma * sub_dt);
-		Gr2 = Ur;
-		Gg2 = Ug;
-		for (int f = 0; f < NRF; f++) {
-			for (int n = 0; n < RAD_N3; n++) {
-				Gr2[f][n] = (Ur[f][n] - Gr2[f][n]) * invGamma;
-			}
-		}
-		for (int f = 0; f < opts().n_fields; f++) {
-			for (int n = 0; n < H_N3; n++) {
-				Gg2[f][n] = (Ug[f][n] - Gg2[f][n]) * invGamma;
-			}
-		}
 		all_rad_bounds();
 
+//		if (root) {
+//			std::cout << "   implicit 1\n";
+//		}
+//		Gr1 = Ur;
+//		Gg1 = Ug;
+//		rgrid->implicit_source(grid_ptr->U, gamma * sub_dt);
+//		for (int f = 0; f < NRF; f++) {
+//			Gr1[f].resize(RAD_N3);
+//			for (int n = 0; n < RAD_N3; n++) {
+//				Gr1[f][n] = (Ur[f][n] - Gr1[f][n]) * invGamma;
+//			}
+//		}
+//		for (int f = 0; f < opts().n_fields; f++) {
+//			Gg1[f].resize(H_N3);
+//			for (int n = 0; n < H_N3; n++) {
+//				Gg1[f][n] = (Ug[f][n] - Gg1[f][n]) * invGamma;
+//			}
+//		}
+
+
+		if (root) {
+			std::cout << "   explicit 2\n";
+		}
 		F2 = Ur;
 		rgrid->compute_flux(omega);
 		GET(exchange_rad_flux_corrections());
@@ -131,19 +119,51 @@ void node_server::compute_radiation(Real dt, Real omega) {
 			}
 		}
 		all_rad_bounds();
+//		for (int f = 0; f < NRF; f++) {
+//			for (int n = 0; n < RAD_N3; n++) {
+//				Ur[f][n] += (one - two * gamma) * Gr1[f][n];
+//			}
+//		}
+//		for (int f = 0; f < opts().n_fields; f++) {
+//			for (int n = 0; n < H_N3; n++) {
+//				Ug[f][n] += (one - two * gamma) * Gg1[f][n];
+//			}
+//		}
+
+
+
+//		if (root) {
+//			std::cout << "   implicit 2\n";
+//		}
+//		rgrid->implicit_source(grid_ptr->U, gamma * sub_dt);
+//		Gr2 = Ur;
+//		Gg2 = Ug;
+//		for (int f = 0; f < NRF; f++) {
+//			for (int n = 0; n < RAD_N3; n++) {
+//				Gr2[f][n] = (Ur[f][n] - Gr2[f][n]) * invGamma;
+//			}
+//		}
+//		for (int f = 0; f < opts().n_fields; f++) {
+//			for (int n = 0; n < H_N3; n++) {
+//				Gg2[f][n] = (Ug[f][n] - Gg2[f][n]) * invGamma;
+//			}
+//		}
+//		all_rad_bounds();
+
 
 		for (int f = 0; f < NRF; f++) {
 			for (int n = 0; n < RAD_N3; n++) {
-				Ur[f][n] = Ur0[f][n] + half * (F1[f][n] + F2[f][n]) + half * (Gr1[f][n] + Gr2[f][n]);
+				Ur[f][n] = Ur0[f][n] + half * (F1[f][n] + F2[f][n]);// + half * (Gr1[f][n] + Gr2[f][n]);
 			}
 		}
 		for (int f = 0; f < opts().n_fields; f++) {
 			for (int n = 0; n < H_N3; n++) {
-				Ug[f][n] = Ug0[f][n] + half * (Gg1[f][n] + Gg2[f][n]);
+				Ug[f][n] = Ug0[f][n];// + half * (Gg1[f][n] + Gg2[f][n]);
 			}
 		}
 		all_rad_bounds();
 	}
+	rgrid->implicit_source(grid_ptr->U, dt);
 	if (my_location.level() == 0) {
 		std::cout << "\rradiation done\n";
 	}
@@ -238,53 +258,49 @@ inline real delta(int i, int k) {
 	return real(i == k);
 }
 
-std::array<std::array<Real, NRF>, NRF> matrixInverse(const std::array<std::array<Real, NRF>, NRF> &m) {
-	static constexpr Real one = Real(1);
-	Real const det = m[0][0]
-			* (m[1][1] * (m[2][2] * m[3][3] - m[2][3] * m[3][2]) - m[1][2] * (m[2][1] * m[3][3] - m[2][3] * m[3][1])
-					+ m[1][3] * (m[2][1] * m[3][2] - m[2][2] * m[3][1]))
-			- m[0][1]
-					* (m[1][0] * (m[2][2] * m[3][3] - m[2][3] * m[3][2]) - m[1][2] * (m[2][0] * m[3][3] - m[2][3] * m[3][0])
-							+ m[1][3] * (m[2][0] * m[3][2] - m[2][2] * m[3][0]))
-			+ m[0][2]
-					* (m[1][0] * (m[2][1] * m[3][3] - m[2][3] * m[3][1]) - m[1][1] * (m[2][0] * m[3][3] - m[2][3] * m[3][0])
-							+ m[1][3] * (m[2][0] * m[3][1] - m[2][1] * m[3][0]))
-			- m[0][3]
-					* (m[1][0] * (m[2][1] * m[3][2] - m[2][2] * m[3][1]) - m[1][1] * (m[2][0] * m[3][2] - m[2][2] * m[3][0])
-							+ m[1][2] * (m[2][0] * m[3][1] - m[2][1] * m[3][0]));
+#include <array>
+#include <stdexcept>
 
-	Real const inv_det = one / det;
-	std::array<std::array<Real, NRF>, NRF> result { { { inv_det
-			* (m[1][1] * (m[2][2] * m[3][3] - m[2][3] * m[3][2]) - m[1][2] * (m[2][1] * m[3][3] - m[2][3] * m[3][1])
-					+ m[1][3] * (m[2][1] * m[3][2] - m[2][2] * m[3][1])), -inv_det
-			* (m[0][1] * (m[2][2] * m[3][3] - m[2][3] * m[3][2]) - m[0][2] * (m[2][1] * m[3][3] - m[2][3] * m[3][1])
-					+ m[0][3] * (m[2][1] * m[3][2] - m[2][2] * m[3][1])), inv_det
-			* (m[0][1] * (m[1][2] * m[3][3] - m[1][3] * m[3][2]) - m[0][2] * (m[1][1] * m[3][3] - m[1][3] * m[3][1])
-					+ m[0][3] * (m[1][1] * m[3][2] - m[1][2] * m[3][1])), -inv_det
-			* (m[0][1] * (m[1][2] * m[2][3] - m[1][3] * m[2][2]) - m[0][2] * (m[1][1] * m[2][3] - m[1][3] * m[2][1])
-					+ m[0][3] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])) }, { -inv_det
-			* (m[1][0] * (m[2][2] * m[3][3] - m[2][3] * m[3][2]) - m[1][2] * (m[2][0] * m[3][3] - m[2][3] * m[3][0])
-					+ m[1][3] * (m[2][0] * m[3][2] - m[2][2] * m[3][0])), inv_det
-			* (m[0][0] * (m[2][2] * m[3][3] - m[2][3] * m[3][2]) - m[0][2] * (m[2][0] * m[3][3] - m[2][3] * m[3][0])
-					+ m[0][3] * (m[2][0] * m[3][2] - m[2][2] * m[3][0])), -inv_det
-			* (m[0][0] * (m[1][2] * m[3][3] - m[1][3] * m[3][2]) - m[0][2] * (m[1][0] * m[3][3] - m[1][3] * m[3][0])
-					+ m[0][3] * (m[1][0] * m[3][2] - m[1][2] * m[3][0])), inv_det
-			* (m[0][0] * (m[1][2] * m[2][3] - m[1][3] * m[2][2]) - m[0][2] * (m[1][0] * m[2][3] - m[1][3] * m[2][0])
-					+ m[0][3] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])) }, { inv_det
-			* (m[1][0] * (m[2][1] * m[3][3] - m[2][3] * m[3][1]) - m[1][1] * (m[2][0] * m[3][3] - m[2][3] * m[3][0])
-					+ m[1][3] * (m[2][0] * m[3][1] - m[2][1] * m[3][0])), -inv_det
-			* (m[0][0] * (m[2][1] * m[3][3] - m[2][3] * m[3][1]) - m[0][1] * (m[2][0] * m[3][3] - m[2][3] * m[3][0])
-					+ m[0][3] * (m[2][0] * m[3][1] - m[2][1] * m[3][0])), inv_det
-			* (m[0][0] * (m[1][1] * m[3][3] - m[1][3] * m[3][1]) - m[0][1] * (m[1][0] * m[3][3] - m[1][3] * m[3][0])
-					+ m[0][3] * (m[1][0] * m[3][1] - m[1][1] * m[3][0])), -inv_det
-			* (m[0][0] * (m[1][1] * m[2][3] - m[1][3] * m[2][1]) - m[0][1] * (m[1][0] * m[2][3] - m[1][3] * m[2][0])
-					+ m[0][3] * (m[1][0] * m[2][1] - m[1][1] * m[2][0])) } } };
-	return result;
+using Matrix4x4 = std::array<std::array<Real, NRF>, NRF>;
+
+Real determinant3x3(Real a00, Real a01, Real a02, Real a10, Real a11, Real a12, Real a20, Real a21, Real a22) {
+	return a00 * (a11 * a22 - a12 * a21) - a01 * (a10 * a22 - a12 * a20) + a02 * (a10 * a21 - a11 * a20);
+}
+
+Matrix4x4 matrixInverse(const Matrix4x4 &m) {
+	Real det = m[0][0] * determinant3x3(m[1][1], m[1][2], m[1][3], m[2][1], m[2][2], m[2][3], m[3][1], m[3][2], m[3][3])
+			- m[0][1] * determinant3x3(m[1][0], m[1][2], m[1][3], m[2][0], m[2][2], m[2][3], m[3][0], m[3][2], m[3][3])
+			+ m[0][2] * determinant3x3(m[1][0], m[1][1], m[1][3], m[2][0], m[2][1], m[2][3], m[3][0], m[3][1], m[3][3])
+			- m[0][3] * determinant3x3(m[1][0], m[1][1], m[1][2], m[2][0], m[2][1], m[2][2], m[3][0], m[3][1], m[3][2]);
+
+	if (det == Real(0)) {
+		throw std::runtime_error("Matrix is singular and cannot be inverted.");
+	}
+	Real inv_det = Real(1) / det;
+	Matrix4x4 cofactors = { { { { determinant3x3(m[1][1], m[1][2], m[1][3], m[2][1], m[2][2], m[2][3], m[3][1], m[3][2], m[3][3]), -determinant3x3(m[1][0],
+			m[1][2], m[1][3], m[2][0], m[2][2], m[2][3], m[3][0], m[3][2], m[3][3]), determinant3x3(m[1][0], m[1][1], m[1][3], m[2][0], m[2][1], m[2][3],
+			m[3][0], m[3][1], m[3][3]), -determinant3x3(m[1][0], m[1][1], m[1][2], m[2][0], m[2][1], m[2][2], m[3][0], m[3][1], m[3][2]) } }, { {
+			-determinant3x3(m[0][1], m[0][2], m[0][3], m[2][1], m[2][2], m[2][3], m[3][1], m[3][2], m[3][3]), determinant3x3(m[0][0], m[0][2], m[0][3], m[2][0],
+					m[2][2], m[2][3], m[3][0], m[3][2], m[3][3]), -determinant3x3(m[0][0], m[0][1], m[0][3], m[2][0], m[2][1], m[2][3], m[3][0], m[3][1],
+					m[3][3]), determinant3x3(m[0][0], m[0][1], m[0][2], m[2][0], m[2][1], m[2][2], m[3][0], m[3][1], m[3][2]) } }, { { determinant3x3(m[0][1],
+			m[0][2], m[0][3], m[1][1], m[1][2], m[1][3], m[3][1], m[3][2], m[3][3]), -determinant3x3(m[0][0], m[0][2], m[0][3], m[1][0], m[1][2], m[1][3],
+			m[3][0], m[3][2], m[3][3]), determinant3x3(m[0][0], m[0][1], m[0][3], m[1][0], m[1][1], m[1][3], m[3][0], m[3][1], m[3][3]), -determinant3x3(
+			m[0][0], m[0][1], m[0][2], m[1][0], m[1][1], m[1][2], m[3][0], m[3][1], m[3][2]) } }, { { -determinant3x3(m[0][1], m[0][2], m[0][3], m[1][1],
+			m[1][2], m[1][3], m[2][1], m[2][2], m[2][3]), determinant3x3(m[0][0], m[0][2], m[0][3], m[1][0], m[1][2], m[1][3], m[2][0], m[2][2], m[2][3]),
+			-determinant3x3(m[0][0], m[0][1], m[0][3], m[1][0], m[1][1], m[1][3], m[2][0], m[2][1], m[2][3]), determinant3x3(m[0][0], m[0][1], m[0][2], m[1][0],
+					m[1][1], m[1][2], m[2][0], m[2][1], m[2][2]) } } } };
+	Matrix4x4 inverse;
+	for (int i = 0; i < 4; ++i) {
+		for (int j = 0; j < 4; ++j) {
+			inverse[i][j] = inv_det * cofactors[i][j];
+		}
+	}
+	return inverse;
 }
 
 struct testImplicitRadiation {
-	static constexpr Real zero = Real(0), third = Real(1.0 / 3.0), half = Real(0.5), one = Real(1), two = Real(2), three = Real(3), four = Real(4), twelve =
-			Real(12);
+	static constexpr Real zero = Real(0), sixth = Real(1.0 / 6.0), third = Real(1.0 / 3.0), half = Real(0.5), one = Real(1), three_halves = Real(1.5), two =
+			Real(2), three = Real(3), four = Real(4), five = Real(5), twelve = Real(12);
 	testImplicitRadiation(Real dt_, Real Er0_, std::array<Real, NDIM> F0_, Real Eg0_, std::array<Real, NDIM> Beta0_, Real rho_, Real mu_, Real kappa_,
 			Real Chi_, Real gamma_) {
 		mAMU = Real(physcon().mh);
@@ -312,32 +328,38 @@ struct testImplicitRadiation {
 		static auto const cHat = c;
 		std::array<Real, NDIM> Beta;
 		for (int n = 0; n < NDIM; n++) {
-			Beta[n] = Beta0[n] + (F0[n] - F[n]) / (rho * c);
+			Beta[n] = Beta0[n] - (F[n] - F0[n]) / (rho * c);
 		}
 		Real Ek = zero;
 		std::array<Real, NDIM> dEk_dF;
 		for (int n = 0; n < NDIM; n++) {
+			Ek += half * rho * sqr(c * Beta[n]);
 			dEk_dF[n] = -c * Beta[n];
 		}
 		Real const Eg = Eg0 + Er0 - Er;
 		Real const dEg_dEr = -one;
-		Real const eint = Eg - Ek;
-		std::array<Real, NDIM> deint_dF;
-		for (int n = 0; n < NDIM; n++) {
-			deint_dF[n] = -dEk_dF[n];
+		Real Ei = Eg - Ek;
+		if (Ei < zero) {
+			printf("Ei < zero %e %e %e\n", double(Ei), double(Ek), double(Eg));
+			abort();
+			//	Ei = zero;
 		}
-		Real const deint_dEr = -one;
+		std::array<Real, NDIM> dEi_dF;
+		for (int n = 0; n < NDIM; n++) {
+			dEi_dF[n] = -dEk_dF[n];
+		}
+		Real const dEi_dEr = -one;
 		Real F2 = zero;
 		for (int n = 0; n < NDIM; n++) {
 			F2 += sqr(F[n]);
 		}
 		Real const absF = sqrt(F2);
 		Real const iCv = (mu * mAMU) / ((gamma - one) * kB * rho);
-		Real const T = eint * iCv;
+		Real const T = Ei * iCv;
 		Real const dT_dEr = -iCv;
 		std::array<Real, NDIM> dT_dF;
 		for (int n = 0; n < NDIM; n++) {
-			dT_dF[n] = deint_dF[n] * iCv;
+			dT_dF[n] = dEi_dF[n] * iCv;
 		}
 		Real const T2 = sqr(T);
 		Real const T4 = sqr(T2);
@@ -368,30 +390,42 @@ struct testImplicitRadiation {
 			std::cout << "f out of range: " << to_string(f) << "\n";
 			abort();
 		}
-		Real const Xi = three - two * sqrt(four - f * three * f);
-		Real const dXi_df = twelve * f / (three - Xi);
+		Real const Xi = third * (five - two * sqrt(four - three * sqr(f)));
+		Real const dXi_df = four * f / (five - three * Xi);
 		Real const dXi_dEr = dXi_df * df_dEr;
 		std::array<Real, NDIM> dXi_dF;
 		for (int n = 0; n < NDIM; n++) {
 			dXi_dF[n] = dXi_df * df_dF[n];
 		}
+		Real const difCo = sixth * (one - Xi);
+		Real const dDifCo_dEr = -sixth * dXi_dEr;
+		std::array<Real, NDIM> dDifCo_dF;
+		for (int n = 0; n < NDIM; n++) {
+			dDifCo_dF[n] = -sixth * dXi_dF[n];
+		}
+		Real const strCo = three_halves * Xi - half;
+		Real const dStrCo_dEr = three_halves * dXi_dEr;
+		std::array<Real, NDIM> dStrCo_dF;
+		for (int n = 0; n < NDIM; n++) {
+			dStrCo_dF[n] = three_halves * dXi_dF[n];
+		}
 		std::array<std::array<Real, NDIM>, NDIM> D;
 		for (int n = 0; n < NDIM; n++) {
 			for (int m = 0; m < NDIM; m++) {
-				D[n][m] = half * ((Xi + one) * third * I[n][m] + (one - Xi) * N[n] * N[m]);
+				D[n][m] = difCo * I[n][m] + strCo * N[n] * N[m];
 			}
 		}
 		std::array<std::array<Real, NDIM>, NDIM> dD_dEr;
 		for (int n = 0; n < NDIM; n++) {
 			for (int m = 0; m < NDIM; m++) {
-				dD_dEr[n][m] = half * dXi_dEr * (third * I[n][m] - N[n] * N[m]);
+				dD_dEr[n][m] = dDifCo_dEr * I[n][m] + dStrCo_dEr * N[n] * N[m];
 			}
 		}
 		std::array<std::array<std::array<Real, NDIM>, NDIM>, NDIM> dD_dF;
 		for (int l = 0; l < NDIM; l++) {
 			for (int n = 0; n < NDIM; n++) {
 				for (int m = 0; m < NDIM; m++) {
-					dD_dF[l][n][m] = half * (dXi_dF[l] * (third * I[n][m] - N[n] * N[m]) + (one - Xi) * (dN_dF[n][l] * N[m] + N[n] * dN_dF[m][l]));
+					dD_dF[l][n][m] = dDifCo_dF[l] * I[n][m] + dStrCo_dF[l] * N[n] * N[m] + strCo * (dN_dF[n][l] * N[m] + dN_dF[m][l] * N[n]);
 				}
 			}
 		}
@@ -422,7 +456,7 @@ struct testImplicitRadiation {
 		Real const dgk_dEr = kappa * (one - four * aR * T3 * dT_dEr);
 		std::array<Real, NDIM> dgk_dF;
 		for (int n = 0; n < NDIM; n++) {
-			dgk_dF[n] = -kappa * (two * Beta[n] + three * aR * T3 * dT_dF[n]);
+			dgk_dF[n] = -kappa * (two * Beta[n] + four * aR * T3 * dT_dF[n]);
 			for (int k = 0; k < NDIM; k++) {
 				dgk_dF[n] -= two * kappa * F[k] * dBeta_dF[k][n];
 			}
@@ -535,16 +569,10 @@ private:
 
 void solveImplicitRadiation(Real &Er, std::array<Real, NDIM> &F, Real &Eg, std::array<Real, NDIM> &Mg, Real rho, Real mu, Real kappa, Real Chi, Real gamma,
 		Real dt) {
-	/*	static constexpr Constants<Real> pc;
-	 * 	Real c;
-	 *
-	 mAMU = pc.m;
-	 kB = pc.kB;
-	 aR = pc.aR;
-	 c = pc.c;
-	 */
 	static constexpr Real zero = Real(0);
-	Real const c = Real(1);
+	static constexpr Real one = Real(1);
+	static constexpr Real theta = Real(0.9);
+	Real const c = Real(physcon().c);
 	std::array<Real, NDIM> Beta0;
 	for (int n = 0; n < NDIM; n++) {
 		Beta0[n] = Mg[n] / (rho * c);
@@ -558,6 +586,8 @@ void solveImplicitRadiation(Real &Er, std::array<Real, NDIM> &F, Real &Eg, std::
 	x[NDIM] = Er;
 	Real toler = Real(1e-9);
 	Real err;
+	int const maxIterations = 1 << 10;
+	int numIterations = 0;
 	do {
 		std::array<Real, NRF> dx;
 		auto const f_and_dfdx = test(x);
@@ -574,12 +604,21 @@ void solveImplicitRadiation(Real &Er, std::array<Real, NDIM> &F, Real &Eg, std::
 		}
 		err = sqrt(err);
 		for (int n = 0; n < NRF; n++) {
-			x[n] += Real(0.5) * dx[n];
+			x[n] += theta * dx[n];
+		}
+		numIterations++;
+		if (numIterations >= maxIterations) {
+			printf("Maximum iterations exceeded for implicit radiation solve\n");
+			abort();
 		}
 	} while (err > toler);
 	for (int n = 0; n < NDIM; n++) {
 		Mg[n] = rho * c * Beta0[n] + F[n] - x[n];
 		F[n] = c * x[n];
+		Real const thisBeta = Mg[n] / (rho * c * c);
+		if (abs(thisBeta) > one) {
+			printf("%e\n", (double) thisBeta);
+		}
 	}
 	Eg = Eg0 + Er - x[NDIM];
 	Er = x[NDIM];
@@ -588,24 +627,23 @@ void solveImplicitRadiation(Real &Er, std::array<Real, NDIM> &F, Real &Eg, std::
 void rad_grid::implicit_source(std::vector<std::vector<real>> &hydroVars, Real dt) {
 	PROFILE()
 	constexpr real toler = 1000.0 * std::numeric_limits<real>::epsilon();
-	constexpr Real zero = Real(0.0);
-	constexpr Real half = Real(0.5);
+	constexpr Real zero = Real(0.0), half = Real(0.5), one = Real(1);
 	constexpr real alpha = 0.5;
 	constexpr real tiny = std::numeric_limits<real>::min();
 	feenableexcept(FE_DIVBYZERO);
 	feenableexcept(FE_INVALID);
 	feenableexcept(FE_OVERFLOW);
-	const real sigma = physcon().sigma;
-	const real mh = physcon().mh;
-	const real kb = physcon().kb;
-	const real gam = grid::get_fgamma();
-	const real c = physcon().c;
-	const real ar = 4.0 * sigma * INVERSE(c);
-	const real inv_c = INVERSE(physcon().c);
-	const real inv_gam = INVERSE(gam);
-	const real c_hat = c * opts().clight_reduced;
-	const real inv_cc_hat = INVERSE(c * c_hat);
-	const real inv_c2 = INVERSE(c * c);
+	Real const sigma(physcon().sigma);
+	Real const mh(physcon().mh);
+	Real const kb(physcon().kb);
+	Real const gam(grid::get_fgamma());
+	Real const c(physcon().c);
+	Real const ar(4.0 * sigma * INVERSE(c));
+	Real const inv_c(INVERSE(physcon().c));
+	Real const inv_gam(INVERSE(gam));
+	Real const c_hat(c * opts().clight_reduced);
+	Real const inv_cc_hat = one / (c * c_hat);
+	Real const inv_c2 = one / (c * c);
 	for (integer xi = RAD_BW; xi != RAD_NX - RAD_BW; ++xi) {
 		for (integer yi = RAD_BW; yi != RAD_NX - RAD_BW; ++yi) {
 			for (integer zi = RAD_BW; zi != RAD_NX - RAD_BW; ++zi) {
@@ -617,25 +655,29 @@ void rad_grid::implicit_source(std::vector<std::vector<real>> &hydroVars, Real d
 				Real Ek = zero;
 				Real Er = U[er_i][ir];
 				Real Eg = Real(hydroVars[egas_i][ir]);
-				const Real rho(hydroVars[rho_i][ih]);
+				Real const rho(hydroVars[rho_i][ih]);
 				for (int n = 0; n < NDIM; n++) {
 					F[n] = U[fx_i + n][ir];
 					Mg[n] = Real(hydroVars[sx_i + n][ih]);
 					Ek += half * sqr(Real(Mg[n])) / rho;
 				}
-				const real egas = hydroVars[egas_i][ih];
-				const Real mu(mmw[ih]);
-				const Real Xspc(X_spc[ih]);
-				const Real Zspc(Z_spc[ih]);
-				const Real kappa = kappa_p(rho, Real(Mg[NDIM]) - Ek, mu, Xspc, Zspc);
-				const Real Chi = kappa_R(rho, Real(Mg[NDIM]) - Ek, mu, Xspc, Zspc);
+				Real const Ei0 = Eg - Ek;
+				Real const mu(mmw[ih]);
+				Real const Xspc(X_spc[ih]);
+				Real const Zspc(Z_spc[ih]);
+				Real const kappa = kappa_p(rho, Real(Mg[NDIM]) - Ek, mu, Xspc, Zspc);
+				Real const Chi = kappa_R(rho, Real(Mg[NDIM]) - Ek, mu, Xspc, Zspc);
 				solveImplicitRadiation(Er, F, Eg, Mg, rho, mu, kappa, Chi, Real(gam), dt);
 				U[er_i][ir] = Er;
-				hydroVars[egas_i][ir] = Eg;
+				hydroVars[egas_i][ih] = Eg;
+				Ek = zero;
 				for (int n = 0; n < NDIM; n++) {
 					U[fx_i + n][ir] = F[n];
 					hydroVars[sx_i + n][ih] = Mg[n];
+					Ek += half * sqr(Real(Mg[n])) / rho;
 				}
+				Real const Ei1 = Eg - Ek;
+				hydroVars[tau_i][ih] = pow(Ei1, one / gam);
 			}
 		}
 	}
