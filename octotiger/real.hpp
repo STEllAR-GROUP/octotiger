@@ -146,6 +146,11 @@ struct Real {
 		a.value = std::exp(a.value);
 		return a;
 	}
+	friend Real erf(Real a) {
+		debug_check(a);
+		a.value = std::erf(a.value);
+		return a;
+	}
 	friend Real log(Real a) {
 		debug_check(a);
 		a.value = std::log(a.value);
