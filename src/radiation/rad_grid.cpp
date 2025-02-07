@@ -257,10 +257,64 @@ inline real delta(int i, int k) {
 #include <array>
 #include <stdexcept>
 
+using Vector3 = std::array<Real, NDIM>;
+using Matrix3x3 = std::array<std::array<Real, NDIM>, NDIM>;
 using Matrix4x4 = std::array<std::array<Real, NRF>, NRF>;
 
 Real determinant3x3(Real a00, Real a01, Real a02, Real a10, Real a11, Real a12, Real a20, Real a21, Real a22) {
 	return a00 * (a11 * a22 - a12 * a21) - a01 * (a10 * a22 - a12 * a20) + a02 * (a10 * a21 - a11 * a20);
+}
+
+Matrix3x3 findRotationMatrix(Vector3 const &v, Vector3 const &a) {
+	constexpr Real zero(0);
+	constexpr Real one(1);
+	Vector3 u;
+	Matrix3x3 A;
+	u[0] = +a[1] * v[2] - a[2] * v[1];
+	u[1] = -a[0] * v[2] + a[2] * v[0];
+	u[2] = +a[0] * v[1] - a[1] * v[0];
+	Real c = sqrt(sqr(u[0]) + sqr(u[1]) + sqr(u[2]));
+	if (c) {
+		for (int d = 0; d < NDIM; d++) {
+			u[d] /= c;
+		}
+		for (int n = 0; n < NDIM; n++) {
+			for (int m = 0; m < NDIM; m++) {
+				A[n][m] += u[n] * u[m];
+			}
+			A[n][n] -= one;
+		}
+	} else {
+		for (int n = 0; n < NDIM; n++) {
+			for (int m = 0; m < NDIM; m++) {
+				A[n][m] = zero;
+			}
+			A[n][n] = one;
+		}
+	}
+	return A;
+}
+
+Matrix3x3 matrixInverse(const Matrix3x3 &M) {
+	Real constexpr one(1);
+	Matrix3x3 A;
+	A[0][0] = +M[1][1] * M[2][2] - M[1][2] * M[2][1];
+	A[1][0] = -M[1][0] * M[2][2] + M[1][2] * M[2][0];
+	A[2][0] = +M[1][0] * M[2][1] - M[1][1] * M[2][0];
+	A[0][1] = -M[0][1] * M[2][2] + M[0][2] * M[2][1];
+	A[1][1] = +M[0][0] * M[2][2] - M[0][2] * M[2][0];
+	A[2][1] = -M[0][0] * M[2][1] + M[0][1] * M[2][0];
+	A[0][2] = -M[0][1] * M[1][2] + M[0][2] * M[1][1];
+	A[1][2] = +M[0][0] * M[1][2] - M[0][2] * M[1][0];
+	A[2][2] = -M[0][0] * M[1][1] + M[0][1] * M[1][0];
+	Real const det = M[0][0] * A[0][0] + M[1][0] * A[1][0] + M[2][0] * A[2][0];
+	Real const detInv = one / det;
+	for (int n = 0; n < NDIM; n++) {
+		for (int m = 0; m < NDIM; m++) {
+			A[n][m] *= detInv;
+		}
+	}
+	return A;
 }
 
 Matrix4x4 matrixInverse(const Matrix4x4 &m) {
@@ -314,99 +368,6 @@ struct testImplicitRadiation {
 		F0 = F0_;
 		Beta0 = Beta0_;
 	}
-//	auto operator()(std::array<Real, NRF> U) const {
-//		auto Er = U[NDIM];
-//		std::array<Real, NDIM> F;
-//		for (int n = 0; n < NDIM; n++) {
-//			F[n] = U[n];
-//		}
-//		static std::array<std::array<Real, NDIM>, NDIM> const I = { { { one, zero, zero }, { zero, one, zero }, { zero, zero, one } } };
-//		static auto const cHat = c;
-//		std::array<Real, NDIM> Beta;
-//		for (int n = 0; n < NDIM; n++) {
-//			Beta[n] = Beta0[n] - (F[n] - F0[n]) / (rho * c);
-//		}
-//		Real Ek = zero;
-//		std::array<Real, NDIM> dEk_dF;
-//		for (int n = 0; n < NDIM; n++) {
-//			Ek += half * rho * sqr(c * Beta[n]);
-//			dEk_dF[n] = -Beta[n];
-//		}
-//		Real const Eg = Eg0 + Er0 - Er;
-//		Real const dEg_dEr = -one;
-//		Real Ei = Eg - Ek;
-//		if (Ei < zero) {
-//			printf("Ei < zero %e %e %e\n", double(Ei), double(Ek), double(Eg));
-//			abort();
-//			//	Ei = zero;
-//		}
-//		std::array<Real, NDIM> dEi_dF;
-//		for (int n = 0; n < NDIM; n++) {
-//			dEi_dF[n] = -dEk_dF[n];
-//		}
-//		Real const dEi_dEr = -one;
-////		Real F2 = zero;
-////		for (int n = 0; n < NDIM; n++) {
-////			F2 += sqr(F[n]);
-////		}
-////		Real const absF = sqrt(F2);
-//		Real const iCv = (mu * mAMU) / ((gamma - one) * kB * rho);
-//		Real const T = Ei * iCv;
-//		Real const dT_dEr = -iCv;
-//		std::array<Real, NDIM> dT_dF;
-//		for (int n = 0; n < NDIM; n++) {
-//			dT_dF[n] = dEi_dF[n] * iCv;
-//		}
-//		Real const T2 = sqr(T);
-//		Real const T3 = T * T2;
-//		Real const T4 = sqr(T2);
-//		std::array<std::array<Real, NDIM>, NDIM> dBeta_dF;
-//		for (int n = 0; n < NDIM; n++) {
-//			for (int m = 0; m < NDIM; m++) {
-//				dBeta_dF[n][m] = -I[n][m] / (rho * c);
-//			}
-//		}
-//		Real hr = Er - Er0 + dt * cHat * (Er - aR * T4);
-//		Real dhr_dEr = one + dt * cHat * (one - four * aR * T3 * dT_dEr);
-//		// x fx + y fy
-//		//
-//		for (int d = 0; d < NDIM; d++) {
-//			hr += -dt * cHat * Chi * Beta[d] * F[d];
-//		}
-//		std::array<Real, NDIM> dhr_dF;
-//		for (int n = 0; n < NDIM; n++) {
-//			dhr_dF[n] = -dt * cHat * Chi * (Beta[n] - F[n] / (rho * c));
-//		}
-//		std::array<Real, NDIM> Hr;
-//		for (int n = 0; n < NDIM; n++) {
-//			Hr[n] = F[n] - F0[n] + dt * cHat * Chi * (F[n] + four * third * Er);
-//		}
-//		std::array<Real, NDIM> dHr_dEr;
-//		for (int n = 0; n < NDIM; n++) {
-//			dHr_dEr[n] = four * third *  dt * cHat * Chi;
-//		}
-//		std::array<std::array<Real, NRF>, NRF> dHr_dF;
-//		for (int n = 0; n < NDIM; n++) {
-//			for (int m = 0; m < NDIM; m++) {
-//				dHr_dF[n][m] = I[n][m] + dt * cHat * Chi;
-//			}
-//		}
-//
-//		std::pair<std::array<Real, NRF>, std::array<std::array<Real, NRF>, NRF>> rc;
-//		std::array<Real, NRF> &F4 = rc.first;
-//		std::array<std::array<Real, NRF>, NRF> &dF4 = rc.second;
-//		for (int k = 0; k < NDIM; k++) {
-//			F4[k] = Hr[k];
-//			for (int n = 0; n < NDIM; n++) {
-//				dF4[k][n] = dHr_dF[k][n];
-//			}
-//			dF4[NDIM][k] = dhr_dF[k];
-//			dF4[k][NDIM] = dHr_dEr[k];
-//		}
-//		F4[NDIM] = hr;
-//		dF4[NDIM][NDIM] = dhr_dEr;
-//		return rc;
-//	}
 	auto operator()(std::array<Real, NRF> U) const {
 		auto Er = U[NDIM];
 		std::array<Real, NDIM> F;
@@ -427,40 +388,24 @@ struct testImplicitRadiation {
 		}
 		Real const Eg = Eg0 + Er0 - Er;
 		Real const dEg_dEr = -one;
-		Real const eiSwitch = Eg - Ek < zero ? zero : one;
-		Real Ei = eiSwitch * (Eg - Ek);
+		Real Ei = Eg - Ek;
+		if (Ei < zero) {
+			throw("Ei < zero\n");
+		}
 		std::array<Real, NDIM> dEi_dF;
 		for (int n = 0; n < NDIM; n++) {
-			dEi_dF[n] = -eiSwitch * dEk_dF[n];
+			dEi_dF[n] = -dEk_dF[n];
 		}
-		Real const dEi_dEr = -eiSwitch * one;
-		Real F2 = zero;
-		for (int n = 0; n < NDIM; n++) {
-			F2 += sqr(F[n]);
-		}
-		Real const absF = sqrt(F2);
-		std::array<Real, NDIM> N;
-		for (int n = 0; n < NDIM; n++) {
-			N[n] = F[n] / (absF + Real::tiny());
-		}
-		std::array<Real, NDIM> df_dF;
-		Real const f = absF / Er;
-		Real const df_dEr = -f / Er;
-		for (int n = 0; n < NDIM; n++) {
-			df_dF[n] = N[n] / Er;
-		}
-		if (f > one || f < zero) {
-			std::cout << "f out of range: " << to_string(f) << "\n";
-			abort();
-		}
+		Real const dEi_dEr = -one;
 		Real const iCv = (mu * mAMU) / ((gamma - one) * kB * rho);
 		Real const T = Ei * iCv;
-		Real const dT_dEr = dEi_dEr * iCv;
+		Real const dT_dEr = -iCv;
 		std::array<Real, NDIM> dT_dF;
 		for (int n = 0; n < NDIM; n++) {
 			dT_dF[n] = dEi_dF[n] * iCv;
 		}
 		Real const T2 = sqr(T);
+		Real const T3 = T * T2;
 		Real const T4 = sqr(T2);
 		std::array<std::array<Real, NDIM>, NDIM> dBeta_dF;
 		for (int n = 0; n < NDIM; n++) {
@@ -468,155 +413,29 @@ struct testImplicitRadiation {
 				dBeta_dF[n][m] = -I[n][m] / (rho * c);
 			}
 		}
-		Real const T3 = T * T2;
-		std::array<std::array<Real, NDIM>, NDIM> dN_dF;
-		for (int n = 0; n < NDIM; n++) {
-			for (int m = 0; m < NDIM; m++) {
-				dN_dF[n][m] = (I[n][m] - N[n] * N[m]) / (absF + Real::tiny());
-			}
+		Real hr = Er - Er0 + dt * cHat * (Er - aR * T4);
+		Real dhr_dEr = one + dt * cHat * (one - four * aR * T3 * dT_dEr);
+		// x fx + y fy
+		//
+		for (int d = 0; d < NDIM; d++) {
+			hr += -dt * cHat * Chi * Beta[d] * F[d];
 		}
-		Real const Xi = third * (five - two * sqrt(four - three * sqr(f)));
-		Real const dXi_df = four * f / (five - three * Xi);
-		Real const dXi_dEr = dXi_df * df_dEr;
-		std::array<Real, NDIM> dXi_dF;
-		for (int n = 0; n < NDIM; n++) {
-			dXi_dF[n] = dXi_df * df_dF[n];
-		}
-		Real const difCo = half * (one - Xi);
-		Real const dDifCo_dEr = -half * dXi_dEr;
-		std::array<Real, NDIM> dDifCo_dF;
-		for (int n = 0; n < NDIM; n++) {
-			dDifCo_dF[n] = -half * dXi_dF[n];
-		}
-		Real const strCo = three_halves * Xi - half;
-		Real const dStrCo_dEr = three_halves * dXi_dEr;
-		std::array<Real, NDIM> dStrCo_dF;
-		for (int n = 0; n < NDIM; n++) {
-			dStrCo_dF[n] = three_halves * dXi_dF[n];
-		}
-		std::array<std::array<Real, NDIM>, NDIM> D;
-		for (int n = 0; n < NDIM; n++) {
-			for (int m = 0; m < NDIM; m++) {
-				D[n][m] = difCo * I[n][m] + strCo * N[n] * N[m];
-			}
-		}
-		std::array<std::array<Real, NDIM>, NDIM> dD_dEr;
-		for (int n = 0; n < NDIM; n++) {
-			for (int m = 0; m < NDIM; m++) {
-				dD_dEr[n][m] = dDifCo_dEr * I[n][m] + dStrCo_dEr * N[n] * N[m];
-			}
-		}
-		std::array<std::array<std::array<Real, NDIM>, NDIM>, NDIM> dD_dF;
-		for (int l = 0; l < NDIM; l++) {
-			for (int n = 0; n < NDIM; n++) {
-				for (int m = 0; m < NDIM; m++) {
-					dD_dF[l][n][m] = dDifCo_dF[l] * I[n][m] + dStrCo_dF[l] * N[n] * N[m] + strCo * (dN_dF[n][l] * N[m] + dN_dF[m][l] * N[n]);
-				}
-			}
-		}
-		std::array<std::array<Real, NDIM>, NDIM> P;
-		for (int n = 0; n < NDIM; n++) {
-			for (int m = 0; m < NDIM; m++) {
-				P[n][m] = Er * D[n][m];
-			}
-		}
-		std::array<std::array<Real, NDIM>, NDIM> dP_dEr;
-		for (int n = 0; n < NDIM; n++) {
-			for (int m = 0; m < NDIM; m++) {
-				dP_dEr[n][m] = Er * dD_dEr[n][m] + D[n][m];
-			}
-		}
-		std::array<std::array<std::array<Real, NDIM>, NDIM>, NDIM> dP_dF;
-		for (int n = 0; n < NDIM; n++) {
-			for (int m = 0; m < NDIM; m++) {
-				for (int l = 0; l < NDIM; l++) {
-					dP_dF[l][n][m] = Er * dD_dF[l][n][m];
-				}
-			}
-		}
-		Real gk = kappa * (Er - aR * T4);
-		for (int k = 0; k < NDIM; k++) {
-			gk -= two * kappa * Beta[k] * F[k];
-		}
-		Real const dgk_dEr = kappa * (one - four * aR * T3 * dT_dEr);
-		std::array<Real, NDIM> dgk_dF;
-		for (int n = 0; n < NDIM; n++) {
-			dgk_dF[n] = -kappa * (two * Beta[n] + four * aR * T3 * dT_dF[n]);
-			for (int k = 0; k < NDIM; k++) {
-				dgk_dF[n] -= two * kappa * F[k] * dBeta_dF[k][n];
-			}
-		}
-		std::array<Real, NDIM> Gx;
-		for (int n = 0; n < NDIM; n++) {
-			Gx[n] = Chi * (F[n] - Beta[n] * Er);
-			for (int k = 0; k < NDIM; k++) {
-				Gx[n] -= Chi * P[n][k] * Beta[k];
-			}
-		}
-		std::array<Real, NDIM> dGx_dEr;
-		for (int n = 0; n < NDIM; n++) {
-			dGx_dEr[n] = -Chi * Beta[n];
-			for (int k = 0; k < NDIM; k++) {
-				dGx_dEr[n] -= Chi * dP_dEr[n][k] * Beta[k];
-			}
-		}
-		std::array<std::array<Real, NDIM>, NDIM> dGx_dF;
-		for (int n = 0; n < NDIM; n++) {
-			for (int m = 0; m < NDIM; m++) {
-				dGx_dF[n][m] = Chi * (I[n][m] - dBeta_dF[n][m] * Er);
-				for (int k = 0; k < NDIM; k++) {
-					dGx_dF[n][m] -= Chi * dP_dF[m][n][k] * Beta[k];
-					dGx_dF[n][m] -= Chi * P[n][k] * dBeta_dF[k][m];
-				}
-			}
-		}
-		Real gx = zero;
-		for (int k = 0; k < NDIM; k++) {
-			gx += Gx[k] * Beta[k];
-		}
-		Real dgx_dEr = zero;
-		for (int k = 0; k < NDIM; k++) {
-			dgx_dEr += dGx_dEr[k] * Beta[k];
-		}
-		std::array<Real, NDIM> dgx_dF;
-		for (int n = 0; n < NDIM; n++) {
-			dgx_dF[n] = zero;
-			for (int k = 0; k < NDIM; k++) {
-				dgx_dF[n] = dGx_dF[k][n] * Beta[k] + dBeta_dF[k][n] * Gx[k];
-			}
-		}
-		std::array<Real, NDIM> Gk;
-		for (int n = 0; n < NDIM; n++) {
-			Gk[n] = gk * Beta[n];
-		}
-		std::array<Real, NDIM> dGk_dEr;
-		for (int n = 0; n < NDIM; n++) {
-			dGk_dEr[n] = dgk_dEr * Beta[n];
-		}
-		std::array<std::array<Real, NDIM>, NDIM> dGk_dF;
-		for (int n = 0; n < NDIM; n++) {
-			for (int m = 0; m < NDIM; m++) {
-				dGk_dF[n][m] = Beta[n] * dgk_dF[m] + gk * dBeta_dF[n][m];
-			}
-		}
-		Real const hr = Er - Er0 + dt * cHat * (gk + gx);
-		Real const dhr_dEr = one + dt * cHat * (dgk_dEr + dgx_dEr);
 		std::array<Real, NDIM> dhr_dF;
 		for (int n = 0; n < NDIM; n++) {
-			dhr_dF[n] = dt * cHat * (dgk_dF[n] + dgx_dF[n]);
+			dhr_dF[n] = -dt * cHat * Chi * (Beta[n] - F[n] / (rho * c));
 		}
 		std::array<Real, NDIM> Hr;
 		for (int n = 0; n < NDIM; n++) {
-			Hr[n] = F[n] - F0[n] + dt * cHat * (Gk[n] + Gx[n]);
+			Hr[n] = F[n] - F0[n] + dt * cHat * Chi * (F[n] + four * third * Er);
 		}
 		std::array<Real, NDIM> dHr_dEr;
 		for (int n = 0; n < NDIM; n++) {
-			dHr_dEr[n] = dt * cHat * (dGk_dEr[n] + dGx_dEr[n]);
+			dHr_dEr[n] = four * third *  dt * cHat * Chi;
 		}
 		std::array<std::array<Real, NRF>, NRF> dHr_dF;
 		for (int n = 0; n < NDIM; n++) {
 			for (int m = 0; m < NDIM; m++) {
-				dHr_dF[n][m] = I[n][m] + dt * cHat * (dGk_dF[n][m] + dGx_dF[n][m]);
+				dHr_dF[n][m] = I[n][m] + dt * cHat * Chi;
 			}
 		}
 
@@ -654,9 +473,8 @@ private:
 
 void solveImplicitRadiation(Real &Er, std::array<Real, NDIM> &F, Real &Eg, std::array<Real, NDIM> &Mg, Real rho, Real mu, Real kappa, Real Chi, Real gamma,
 		Real dt) {
-	static constexpr Real zero = Real(0);
-	static constexpr Real one = Real(1);
-	static constexpr Real theta = Real(1);
+	static constexpr Real zero = Real(0), one = Real(1), two = Real(2);
+	Real theta = Real(1);
 	Real const c = Real(physcon().c);
 	std::array<Real, NDIM> Beta0;
 	for (int n = 0; n < NDIM; n++) {
@@ -673,8 +491,18 @@ void solveImplicitRadiation(Real &Er, std::array<Real, NDIM> &F, Real &Eg, std::
 	Real err;
 	int const maxIterations = 1 << 12;
 	int numIterations = 0;
-	static hpx::mutex mtx;
-	std::lock_guard<hpx::mutex> lock(mtx);
+//	static hpx::mutex mtx;
+//	std::lock_guard<hpx::mutex> lock(mtx);
+//	auto const R = findRotationMatrix(Beta0, F);
+//	auto const Rinv = matrixInverse(R);
+//	std::array<Real, NDIM> tmp1;
+//	for (int n = 0; n < NDIM; n++) {
+//		tmp1[n] = zero;
+//		for (int m = 0; m < NDIM; m++) {
+//			tmp1[n] += R[n][m] * F[m];
+//		}
+//	}
+//	F = tmp1;
 	do {
 		std::array<Real, NRF> dx;
 		auto const f_and_dfdx = test(x);
@@ -699,6 +527,15 @@ void solveImplicitRadiation(Real &Er, std::array<Real, NDIM> &F, Real &Eg, std::
 			abort();
 		}
 	} while (err > toler);
+//	for (int n = 0; n < NDIM; n++) {
+//		tmp1[n] = zero;
+//		for (int m = 0; m < NDIM; m++) {
+//			tmp1[n] += Rinv[n][m] * x[m];
+//		}
+//	}
+//	for (int n = 0; n < NDIM; n++) {
+//		x[n] = tmp1[n];
+//	}
 	for (int n = 0; n < NDIM; n++) {
 		Mg[n] = rho * c * Beta0[n] + F[n] - x[n];
 		F[n] = c * x[n];
@@ -713,8 +550,8 @@ void solveImplicitRadiation(Real &Er, std::array<Real, NDIM> &F, Real &Eg, std::
 
 Real eta(Real x, Real sigma) {
 	constexpr Real zero = Real(0.0), half = Real(0.5), one = Real(1);
-    Real argument = log(x) / sigma;
-    return half * (one + erf(argument));
+	Real argument = log(x) / sigma;
+	return half * (one + erf(argument));
 }
 
 void rad_grid::implicit_source(std::vector<std::vector<real>> &hydroVars, Real dt) {
