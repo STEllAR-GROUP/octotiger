@@ -73,6 +73,8 @@ public:
 	integer future_wait_time;
 	integer ipr_nr_maxiter;
 
+	real sigmaS;
+	real sigmaA;
 	real dt_max;
 	real eblast0;
 	real rotating_star_x;

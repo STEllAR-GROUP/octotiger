@@ -235,6 +235,8 @@ bool options::process_options(int argc, char *argv[]) {
 	("Z", po::value<std::vector<real>>(&(opts().Z))->multitoken(), "Z - metallicity") //
 	("code_to_g", po::value<real>(&(opts().code_to_g))->default_value(1), "code units to grams") //
 	("code_to_cm", po::value<real>(&(opts().code_to_cm))->default_value(1), "code units to centimeters") //
+	("sigmaA", po::value<real>(&(opts().sigmaA))->default_value(1), "absorption cross section") //
+	("sigmaS", po::value<real>(&(opts().sigmaS))->default_value(0), "scattering cross section") //
 	("code_to_s", po::value<real>(&(opts().code_to_s))->default_value(1), "code units to seconds") //
 	("rotating_star_amr", po::value<bool>(&(opts().rotating_star_amr))->default_value(false),
 			"rotating star with AMR boundary in star") //
@@ -374,6 +376,8 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(rotating_star_x);
 		SHOW(scf_output_frequency);
 		SHOW(silo_num_groups);
+		SHOW(sigmaA);
+		SHOW(sigmaS);
 		SHOW(stop_step);
 		SHOW(stop_time);
 		SHOW(theta);

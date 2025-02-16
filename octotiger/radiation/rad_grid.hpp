@@ -64,7 +64,7 @@ public:
 	void compute_mmw(const std::vector<std::vector<safe_real>>& U);
 	void change_units(real m, real l, real t, real k);
 	real rad_imp_comoving(real& E, real& e, real rho, real mmw, real X, real Z, real dt);
-	void sanity_check();
+	void sanity_check(const char *filename, int line, int level);
 	void compute_flux(real);
 	void initialize_erad(const std::vector<safe_real> rho, const std::vector<safe_real> tau);
 	void set_dx(real dx);

@@ -35,25 +35,25 @@ struct Real {
 	constexpr operator Type() const {
 		return value;
 	}
-	Real operator+() const {
+	constexpr Real operator+() const {
 		debug_check(*this);
 		return *this;
 	}
-	Real operator-() const {
+	constexpr Real operator-() const {
 		debug_check(*this);
 		return Real(-value);
 	}
-	Real operator+(Real const &a) const {
+	constexpr Real operator+(Real const &a) const {
 		debug_check(a);
 		debug_check(*this);
 		return Real(value + a.value);
 	}
-	Real operator-(Real const &a) const {
+	constexpr Real operator-(Real const &a) const {
 		debug_check(a);
 		debug_check(*this);
 		return Real(value - a.value);
 	}
-	Real operator*(Real const &a) const {
+	constexpr Real operator*(Real const &a) const {
 		debug_check(a);
 		debug_check(*this);
 		return Real(value * a.value);

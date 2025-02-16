@@ -63,20 +63,25 @@ std::vector<real> radiation_test_problem(real x, real y, real z, real dx) {
 	z -= 0.0e11;
 	real r = std::max(2.0 * dx, 0.50);
 	real eint;
+	real& er = u[opts().n_fields];
 	if (x < 0) {
-		u[rho_i] = 1.0;
-		eint = 1;
-		u[opts().n_fields] = 1;
-		u[opts().n_fields + 1] = 0.999999;
+		er = 1;
 	} else {
-		u[opts().n_fields] = 1e-10;
-		u[rho_i] = 1.0;
-		eint = 1;
+		er = 1e-2;
 	}
-	u[tau_i] = POWER(eint * u[rho_i], 1.0 / grid::get_fgamma());
-//	u[sx_i] = 0.0; //u[rho_i] / 10.0;
+	u[rho_i] = 1.0;
+	specie_state_t<> species;
+	species[0] = u[rho_i];
+	real mmw;
+	real X;
+	real Z;
+	mean_ion_weight(species, mmw, X, Z);
 	const real fgamma = grid::get_fgamma();
-	u[egas_i] = POWER(u[tau_i], fgamma);
+	real const c0 = (1.0 / (fgamma - 1.0)) * physcon().kb / (physcon().mh * mmw) * u[rho_i];
+	u[opts().n_fields + 1] = 0.999999 * u[opts().n_fields];
+	eint = c0 * pow(er / (4.0 * physcon().sigma / physcon().c), 0.25);
+	u[tau_i] = POWER(eint, 1.0 / grid::get_fgamma());
+	u[egas_i] = eint;
 	const real rhoinv = INVERSE(u[rho_i]);
 	u[egas_i] += u[sx_i] * u[sx_i] * rhoinv / 2.0;
 	u[egas_i] += u[sy_i] * u[sy_i] * rhoinv / 2.0;
@@ -104,7 +109,7 @@ std::vector<real> radiation_coupling_test_problem(real x, real y, real z, real d
 
 	const double er = (1.0e-3);
 	double T = pow(er / (4.0 * physcon().sigma / physcon().c), 0.25);
-	T *= 2.0;
+	T *= 15;
 	double Pgas = u[rho_i] * T * physcon().kb / (physcon().mh * mmw);
 	const real fgamma = grid::get_fgamma();
 	double ei = (1.0 / (fgamma - 1.0)) * Pgas;
