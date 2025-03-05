@@ -20,9 +20,6 @@ struct radiation_physics {
 	static constexpr int fx_i = 1;
 	static constexpr int fy_i = 2;
 	static constexpr int fz_i = 3;
-	static constexpr int wx_i = 1 + NDIM;
-	static constexpr int wy_i = 1 + NDIM;
-	static constexpr int wz_i = 1 + NDIM;
 	static bool angmom_;
 
 	enum test_type {
@@ -106,7 +103,7 @@ template<int NDIM>
 safe_real radiation_physics<NDIM>::clight = 1.0;
 
 template<int NDIM>
-int radiation_physics<NDIM>::nf_ = (1 + NDIM + (NDIM == 1 ? 0 : (NDIM == 3 ? 3 : (NDIM == 2 ? 1 : 0)) ));
+int radiation_physics<NDIM>::nf_ = (1 + NDIM);
 //int radiation_physics<NDIM>::nf_ = (1 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2)));
 
 #endif /* OCTOTIGER_UNITIGER_radiation_physics_HPP_ */

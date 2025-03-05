@@ -8,3 +8,4 @@ spack-build*
 .clangd/*
 .cache
 compile_commands.json
+build_octotiger.sh

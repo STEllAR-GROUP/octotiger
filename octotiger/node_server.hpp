@@ -315,7 +315,7 @@ private:
 	unordered_channel<expansion_pass_type> parent_rad_channel;
 public:
 	hpx::future<void> exchange_rad_flux_corrections();
-	void compute_radiation(real dt, real omega);
+	void compute_radiation(Real dt, Real omega);
 	hpx::future<void> exchange_interlevel_rad_data();
 	void all_rad_bounds();
 
@@ -333,7 +333,7 @@ public:
 
 	std::array<std::array<channel<std::vector<real>>, 4>, NFACE> niece_rad_channels;
 
-	void set_rad_grid(const std::vector<real>&/*, std::vector<real>&&*/);/**/
+	void set_rad_grid(const std::vector<real>&, const std::vector<real>&);/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server, set_rad_grid, set_rad_grid_action);
 
 	void erad_init();/**/HPX_DEFINE_COMPONENT_ACTION(node_server, erad_init, erad_init_action);

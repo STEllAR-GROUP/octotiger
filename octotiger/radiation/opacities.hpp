@@ -12,43 +12,30 @@
 
 template<class U>
 U temperature(U rho, U e, U mmw) {
-	constexpr U gm1 = U(2.0) / U(3.0);
-	return std::pow((e * INVERSE(rho)), 1.0/4.0);
+	const U gm1 = U(2.0) / U(3.0);
+	return U(physcon().mh * mmw * e * INVERSE(rho * physcon().kb)) * gm1;
 }
 
 template<class U>
-U kappa_R(U rho, U e, U mmw, real X, real Z) {
-	if (opts().problem == MARSHAK) {
-		return MARSHAK_OPAC;
-	} else {
-		const U T = temperature(rho, e, mmw);
-		const U f1 = (T * T + U(2.7e+11) * rho);
-		const U f2 = (U(1.0) + std::pow(T / U(4.5e+8), U(0.86)));
-		const U k_ff_bf = U(4.0e+25) * (U(1) + X) * (Z + U(0.001)) * rho * POWER(SQRT(INVERSE(T)), U(7));
-		const U k_T = (U(1.0) + X) * U(0.2) * T * T / (f1 * f2);
-		const U k_tot = k_ff_bf + k_T;
-		return rho * k_tot;
-	}
+U kappa_R(U rho, U e, U mmw, U X, U Z) {
+	static U const sigmaA(opts().sigmaA);
+	static U const sigmaS(opts().sigmaS);
+	return rho * (sigmaA + sigmaS);
 }
 
 template<class U>
-U kappa_p(U rho, U e, U mmw, real X, real Z) {
-	if (opts().problem == MARSHAK) {
-		return MARSHAK_OPAC;
-	} else {
-		const U T = temperature(rho, e, mmw);
-		const U k_ff_bf = U(30.262) * U(4.0e+25) * (U(1) + X) * (Z + U(0.0001)) * rho * POWER(SQRT(INVERSE(T)), U(7));
-		const U k_tot = k_ff_bf;
-		return rho * k_tot;
-	}
+U kappa_p(U rho, U e, U mmw, U X, U Z) {
+	static U const sigmaA(opts().sigmaA);
+	return rho * sigmaA;
 }
 
 template<class U>
 U B_p(U rho, U e, U mmw) {
-	if( opts().problem == MARSHAK ) {
-		return  U((physcon().c/ 4.0 / M_PI )) * e;
+	if (opts().problem == MARSHAK) {
+		return U((physcon().c / 4.0 / M_PI)) * e;
 	} else {
 		const U T = temperature(rho, e, mmw);
+		//	printf( "- %e\n", T);
 		return (U(physcon().sigma) / U(M_PI)) * T * T * T * T;
 	}
 }
@@ -56,7 +43,7 @@ U B_p(U rho, U e, U mmw) {
 template<class U>
 U dB_p_de(U rho, U e, U mmw) {
 	if (opts().problem == MARSHAK) {
-		return  U((physcon().c/4.0 * M_PI ));
+		return U((physcon().c / 4.0 * M_PI));
 	} else {
 		if (e == U(0)) {
 			return U(0);

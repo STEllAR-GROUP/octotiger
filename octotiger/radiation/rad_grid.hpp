@@ -30,9 +30,6 @@ public:
 	static constexpr integer fx_i = 1;
 	static constexpr integer fy_i = 2;
 	static constexpr integer fz_i = 3;
-	static constexpr integer wx_i = 4;
-	static constexpr integer wy_i = 5;
-	static constexpr integer wz_i = 6;
 private:
 	static constexpr integer DX = RAD_NX * RAD_NX;
 	static constexpr integer DY = RAD_NX;
@@ -42,14 +39,15 @@ private:
 	real dx;
 	std::vector<std::atomic<int>> is_coarse;
 	std::vector<std::atomic<int>> has_coarse;
-	std::vector<std::vector<real>> Ushad;
-	std::vector<std::vector<real>> U;
-	std::array<std::vector<real>, NRF> U0;
+	std::vector<std::vector<Real>> Ushad;
+	std::vector<std::vector<Real>> U;
 	std::vector<std::vector<std::vector<real>>> flux;
 	std::array<std::array<std::vector<real>*, NDIM>, NDIM> P;
 	std::vector<std::vector<real>> X;
 	std::vector<real> mmw, X_spc, Z_spc;
 	hydro_computer<NDIM,INX,radiation_physics<NDIM>> hydro;
+	std::vector<real> U_out;
+	std::vector<real> U_out0;
 public:
 	static void static_init();
 	static std::vector<std::string> get_field_names();
@@ -57,7 +55,6 @@ public:
 	std::vector<silo_var_t> var_data() const;
 	void set_X( const std::vector<std::vector<real>>& x );
 	void restore();
-	void store();
 
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {
@@ -67,18 +64,17 @@ public:
 	void compute_mmw(const std::vector<std::vector<safe_real>>& U);
 	void change_units(real m, real l, real t, real k);
 	real rad_imp_comoving(real& E, real& e, real rho, real mmw, real X, real Z, real dt);
-	void sanity_check();
+	void sanity_check(const char *filename, int line, int level);
 	void compute_flux(real);
 	void initialize_erad(const std::vector<safe_real> rho, const std::vector<safe_real> tau);
 	void set_dx(real dx);
 	//void compute_fEdd();
 	void compute_fluxes();
-	void advance(real dt, real beta);
-	void rad_imp(std::vector<real>& egas, std::vector<real>& tau, std::vector<real>& sx, std::vector<real>& sy, std::vector<real>& sz,
-			const std::vector<real>& rho, real dt);
+	void advance(Real dt);
+	void implicit_source(std::vector<std::vector<double>>&, Real dt);
 	std::vector<real> get_restrict() const;
 	std::vector<real> get_prolong(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub);
-	void set_prolong(const std::vector<real>&);
+	void set_prolong(const std::vector<real>&, const std::vector<real>&);
 	void set_restrict(const std::vector<real>&, const geo::octant&);
 	void set_flux_restrict(const std::vector<real>& data, const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub,
 			const geo::dimension& dim);
@@ -97,10 +93,14 @@ public:
 	real hydro_signal_speed(const std::vector<real>& egas, const std::vector<real>& tau, const std::vector<real>& sx, const std::vector<real>& sy, const std::vector<real>& sz,
 			const std::vector<real>& rho);
 
+	void set_outflow(const std::pair<std::string, real> &p);
+	void set_outflows(std::vector<std::pair<std::string, real>> &&u);
 	void clear_amr();
 	void set_rad_amr_boundary(const std::vector<real>&, const geo::direction&);
 	void complete_rad_amr_boundary();
 	std::vector<real> get_subset(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub);
+	std::vector<std::pair<std::string, real>> get_outflows() const;
+	void set_outflows(std::vector<real> &&u);
 
 	friend class node_server;
 };

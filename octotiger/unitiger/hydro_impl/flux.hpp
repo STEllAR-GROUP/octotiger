@@ -66,10 +66,10 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, con
 				for (int dim = 0; dim < NDIM; dim++) {
 					x[dim] = X[dim][i] + 0.5 * xloc[d][dim] * dx;
 				}
-				if HOST_CONSTEXPR (NDIM > 1) {
+				if (NDIM > 1) {
 					vg[0] = -omega * (X[1][i] + 0.5 * xloc[d][1] * dx);
 					vg[1] = +omega * (X[0][i] + 0.5 * xloc[d][0] * dx);
-					if HOST_CONSTEXPR (NDIM == 3) {
+					if(NDIM == 3) {
 						vg[2] = 0.0;
 					}
 				} else {
@@ -88,6 +88,8 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, con
 					// this isn't vectorized
 					if (this_ap - this_am != 0.0) { 
 						this_flux[f] = (this_ap * FL[f] - this_am * FR[f] + this_ap * this_am * (UR[f] - UL[f])) / (this_ap - this_am);
+						//const auto a = std::max(this_ap, -this_am);
+				//		this_flux[f] = 0.5 * (FL[f] + FR[f] - a * (UR[f] - UL[f]));
 					} else {
 						this_flux[f] = (FL[f] + FR[f]) / 2.0;
 					}
@@ -112,7 +114,7 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, con
 				ts.ur = UL;
 				ts.ul = UR;
 				ts.dim = dim;
-        max_index = i;
+				max_index = i;
 			}
 		}
 	}

@@ -133,7 +133,7 @@ public:
         std::vector<real>&&, const geo::octant& ci, std::size_t cycle) const;
     void send_rad_boundary(
         std::vector<real>&&, const geo::direction&, std::size_t cycle) const;
-    future<void> set_rad_grid(std::vector<real>&&) const;
+    future<void> set_rad_grid(std::vector<real>&&, std::vector<real>&&) const;
     future<void> kill() const;
 };
 #endif /* NODE_CLIENT_HPP_ */

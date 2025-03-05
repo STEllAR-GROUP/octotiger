@@ -49,7 +49,6 @@ static inline bool PPM_test(const T &ql, const T &q0, const T &qr) {
 	return rc;
 }
 
-
 template<int NDIM, int INX>
 void reconstruct_minmod(std::vector<std::vector<safe_real>> &q, const std::vector<safe_real> &u) {
 	PROFILE();
@@ -69,8 +68,8 @@ void reconstruct_minmod(std::vector<std::vector<safe_real>> &q, const std::vecto
 }
 
 template<int NDIM, int INX, class PHYSICS>
-void hydro_computer<NDIM, INX, PHYSICS>::reconstruct_ppm(std::vector<std::vector<safe_real>> &q, const std::vector<safe_real> &u, bool smooth, bool disc_detect,
-		const std::vector<std::vector<double>> &disc) {
+void hydro_computer<NDIM, INX, PHYSICS>::reconstruct_ppm(std::vector<std::vector<safe_real>> &q,
+		const std::vector<safe_real> &u, bool smooth, bool disc_detect, const std::vector<std::vector<double>> &disc) {
 	PROFILE();
 
 	static const cell_geometry<NDIM, INX> geo;
@@ -95,43 +94,6 @@ void hydro_computer<NDIM, INX, PHYSICS>::reconstruct_ppm(std::vector<std::vector
 					q[d][i] = 0.5 * (u[i] + u[i + di]);
 					q[d][i] += (1.0 / 6.0) * (D1[i] - D1[i + di]);
 					q[geo.flip(d)][i + di] = q[d][i];
-				}
-			}
-		}
-	}
-	if (experiment == 1) {
-		for (int j = 0; j < geo.H_NX_XM2; j++) {
-			for (int k = 0; k < geo.H_NX_YM2; k++) {
-#pragma ivdep
-				for (int l = 0; l < geo.H_NX_ZM2; l++) {
-					const int i = geo.to_index(j + 1, k + 1, l + 1);
-					for (int gi = 0; gi < geo::group_count(); gi++) {
-						safe_real sum = 0.0;
-						for (int n = 0; n < geo::group_size(gi); n++) {
-							const auto pair = geo::group_pair(gi, n);
-							sum += q[pair.second][i + pair.first];
-						}
-						sum /= safe_real(geo::group_size(gi));
-						for (int n = 0; n < geo::group_size(gi); n++) {
-							const auto pair = geo::group_pair(gi, n);
-							q[pair.second][i + pair.first] = sum;
-						}
-					}
-				}
-			}
-		}
-		for (int d = 0; d < geo.NDIR; d++) {
-			const auto di = dir[d];
-			for (int j = 0; j < geo.H_NX_XM2; j++) {
-				for (int k = 0; k < geo.H_NX_YM2; k++) {
-#pragma ivdep
-					for (int l = 0; l < geo.H_NX_ZM2; l++) {
-						const int i = geo.to_index(j + 1, k + 1, l + 1);
-						const auto mx = std::max(u[i + di], u[i]);
-						const auto mn = std::min(u[i + di], u[i]);
-						q[d][i] = std::min(mx, q[d][i]);
-						q[d][i] = std::max(mn, q[d][i]);
-					}
 				}
 			}
 		}
@@ -222,7 +184,8 @@ inline safe_real ospre(safe_real a, safe_real b) {
 }
 
 template<int NDIM, int INX, class PHYS>
-const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(const hydro::state_type &U_, const hydro::x_type &X, safe_real omega) {
+const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(const hydro::state_type &U_,
+		const hydro::x_type &X, safe_real omega) {
 	PROFILE();
 	static thread_local std::vector<std::vector<safe_real>> AM(geo::NANGMOM, std::vector < safe_real > (geo::H_N3));
 	static thread_local std::vector<std::vector<std::vector<safe_real>> > Q(nf_,
@@ -238,11 +201,11 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 	const auto &cdiscs = PHYS::template find_contact_discs<INX>(U_);
 	if (angmom_index_ == -1 || NDIM == 1) {
 		for (int f = 0; f < nf_; f++) {
-			if (f < lx_i || f > lx_i + geo::NANGMOM || NDIM == 1) {
-				reconstruct_ppm(Q[f], U[f], smooth_field_[f], disc_detect_[f], cdiscs);
-			} else {
+	//		if (f < lx_i || f > lx_i + geo::NANGMOM || NDIM == 1) {
+	//			reconstruct_ppm(Q[f], U[f], smooth_field_[f], disc_detect_[f], cdiscs);
+	//		} else {
 				reconstruct_minmod<NDIM, INX>(Q[f], U[f]);
-			}
+	//		}
 		}
 
 	} else {
@@ -351,7 +314,8 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 			reconstruct_ppm(Q[f], U[f], smooth_field_[f], disc_detect_[f], cdiscs);
 		}
 
-	}
+  }
+
 
 #ifdef TVD_TEST
 	{

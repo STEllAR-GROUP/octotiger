@@ -264,6 +264,7 @@ set(header_files
     octotiger/grid_scf.hpp
     octotiger/interaction_types.hpp
     octotiger/lane_emden.hpp
+    octotiger/matrix.hpp
     octotiger/node_client.hpp
     octotiger/node_location.hpp
     octotiger/node_registry.hpp

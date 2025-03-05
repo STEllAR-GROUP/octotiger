@@ -433,7 +433,7 @@ const std::vector<std::vector<safe_real>>& physics<NDIM>::find_contact_discs(con
 					const auto P_r = P[i + di];
 					const auto P_l = P[i - di];
 					const auto tmp1 = fgamma_ * K0;
-					const auto tmp2 = std::abs(P_r - P_l) / std::min(std::abs(P_r), std::abs(P_l));
+					const auto tmp2 = (P_r == 0.0 || P_l == 0.0) ? 0.0 : std::abs(P_r - P_l) / std::min(std::abs(P_r), std::abs(P_l));
 					disc[d][i] = tmp2 / tmp1;
 				}
 			}

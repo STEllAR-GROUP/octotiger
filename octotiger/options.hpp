@@ -24,7 +24,8 @@
  COMMAND_LINE_ENUM(eos_type,IDEAL,WD);
  */
 
-COMMAND_LINE_ENUM(problem_type, DWD, SOD, BLAST, NONE, SOLID_SPHERE, STAR, MOVING_STAR, RADIATION_TEST, ROTATING_STAR, MARSHAK, AMR_TEST, ADVECTION);
+COMMAND_LINE_ENUM(problem_type, DWD, SOD, BLAST, NONE, SOLID_SPHERE, STAR, MOVING_STAR, RADIATION_TEST, ROTATING_STAR,
+		MARSHAK, AMR_TEST, ADVECTION, RADIATION_DIFFUSION, RADIATION_COUPLING);
 
 COMMAND_LINE_ENUM(eos_type, IDEAL, WD, IPR);
 
@@ -44,7 +45,7 @@ public:
 	bool hydro;
 	bool radiation;
 	real grad_rho_refine;
-	real clight_retard;
+	real clight_reduced;
 	bool v1309;
 	bool rad_implicit;
 	bool rewrite_silo;
@@ -53,8 +54,8 @@ public:
 	bool rotating_star_amr;
 	bool idle_rates;
 	bool ipr_test;
-  bool detected_intel_compiler;
-  bool print_times_per_timestep;
+	bool detected_intel_compiler;
+	bool print_times_per_timestep;
 
 	integer scf_output_frequency;
 	integer silo_num_groups;
@@ -72,6 +73,8 @@ public:
 	integer future_wait_time;
 	integer ipr_nr_maxiter;
 
+	real sigmaS;
+	real sigmaA;
 	real dt_max;
 	real eblast0;
 	real rotating_star_x;
@@ -125,17 +128,17 @@ public:
 	real star_rho_center;
 
 	real moving_star_xvelocity;
-        real moving_star_yvelocity;
-        real moving_star_zvelocity;
+	real moving_star_yvelocity;
+	real moving_star_zvelocity;
 
 	size_t number_gpus;
 	size_t executors_per_gpu;
 	size_t max_gpu_executor_queue_length;
 	size_t max_kernels_fused;
-  
+
 	bool root_node_on_device;
 	bool optimize_local_communication;
-  int polling_threads;
+	int polling_threads;
 
 	std::string input_file;
 	std::string config_file;
@@ -240,7 +243,7 @@ public:
 		arc & refinement_floor;
 		arc & ngrids;
 		arc & v1309;
-		arc & clight_retard;
+		arc & clight_reduced;
 		arc & stop_time;
 		arc & min_level;
 		arc & max_level;
@@ -254,7 +257,7 @@ public:
 		arc & stop_step;
 		arc & disable_diagnostics;
 		arc & disable_output;
-	  arc & disable_analytic;
+		arc & disable_analytic;
 		arc & theta;
 		arc & core_refine;
 		arc & donor_refine;

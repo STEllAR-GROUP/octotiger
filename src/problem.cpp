@@ -34,7 +34,7 @@ analytic_func_type analytic = nullptr;
 refine_test_type refine_test_function = refine_test;
 
 bool radiation_test_refine(integer level, integer max_level, real x, real y, real z, std::vector<real> U,
-		std::array<std::vector<real>, NDIM> const& dudx) {
+		std::array<std::vector<real>, NDIM> const &dudx) {
 	return level < max_level;
 	// return refine_blast(level, max_level, x, y, z, U, dudx);
 	//
@@ -54,7 +54,6 @@ bool radiation_test_refine(integer level, integer max_level, real x, real y, rea
 
 }
 
-
 std::vector<real> radiation_test_problem(real x, real y, real z, real dx) {
 //	return blast_wave(x,y,z,dx);
 
@@ -64,17 +63,25 @@ std::vector<real> radiation_test_problem(real x, real y, real z, real dx) {
 	z -= 0.0e11;
 	real r = std::max(2.0 * dx, 0.50);
 	real eint;
-	if (std::sqrt(x * x + y * y + z * z) < r) {
-		u[rho_i] = 1.0;
-		eint = 2.0e+16;
+	real& er = u[opts().n_fields];
+	if (x < 0) {
+		er = 1;
 	} else {
-		u[rho_i] = 1.0e-20;
-		eint = 2.0e+15;
+		er = 1e-2;
 	}
-	u[tau_i] = POWER(eint * u[rho_i], 1.0 / grid::get_fgamma());
-//	u[sx_i] = 0.0; //u[rho_i] / 10.0;
+	u[rho_i] = 1.0;
+	specie_state_t<> species;
+	species[0] = u[rho_i];
+	real mmw;
+	real X;
+	real Z;
+	mean_ion_weight(species, mmw, X, Z);
 	const real fgamma = grid::get_fgamma();
-	u[egas_i] = POWER(u[tau_i], fgamma);
+	real const c0 = (1.0 / (fgamma - 1.0)) * physcon().kb / (physcon().mh * mmw) * u[rho_i];
+	u[opts().n_fields + 1] = 0.999999 * u[opts().n_fields];
+	eint = c0 * pow(er / (4.0 * physcon().sigma / physcon().c), 0.25);
+	u[tau_i] = POWER(eint, 1.0 / grid::get_fgamma());
+	u[egas_i] = eint;
 	const real rhoinv = INVERSE(u[rho_i]);
 	u[egas_i] += u[sx_i] * u[sx_i] * rhoinv / 2.0;
 	u[egas_i] += u[sy_i] * u[sy_i] * rhoinv / 2.0;
@@ -83,8 +90,87 @@ std::vector<real> radiation_test_problem(real x, real y, real z, real dx) {
 	return u;
 }
 
-bool refine_sod(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U,
-		std::array<std::vector<real>, NDIM> const& dudx) {
+std::vector<real> radiation_diffusion_test_problem(real x, real y, real z, real dx) {
+	return radiation_diffusion_analytic(x, y, z, 0);
+}
+
+std::vector<real> radiation_coupling_test_problem(real x, real y, real z, real dx) {
+	std::vector<real> u(opts().n_fields + NRF, real(0));
+	real eint;
+	u[rho_i] = 1.0;
+	u[spc_i] = u[rho_i];
+
+	specie_state_t<> species;
+	species[0] = u[rho_i];
+	real mmw;
+	real X;
+	real Z;
+	mean_ion_weight(species, mmw, X, Z);
+
+	const double er = (1.0e-3);
+	double T = pow(er / (4.0 * physcon().sigma / physcon().c), 0.25);
+	T *= 15;
+	double Pgas = u[rho_i] * T * physcon().kb / (physcon().mh * mmw);
+	const real fgamma = grid::get_fgamma();
+	double ei = (1.0 / (fgamma - 1.0)) * Pgas;
+	u[tau_i] = POWER(ei, 1.0 / grid::get_fgamma());
+	u[egas_i] = POWER(u[tau_i], fgamma);
+	u[opts().n_fields + 0] = er;
+	u[opts().n_fields + 1] = 0.0;
+	u[opts().n_fields + 2] = 0.0;
+	u[opts().n_fields + 3] = 0.0;
+//	if( er!= 0.0)
+	//printf( "--->%e\n",er);
+	return u;
+
+}
+
+std::vector<real> radiation_diffusion_analytic(real x, real y, real z, real t) {
+	constexpr real xScale = 1;
+	constexpr real diffusionCoefficient = 1;
+	constexpr real xScaleInv = real(1) / xScale;
+	real const lightSpeed = physcon().c;
+	std::vector<real> vars(opts().n_fields + NRF, real(0));
+	specie_state_t<> species;
+	real& density = vars[rho_i];
+	real& firstSpecies = vars[spc_i];
+	firstSpecies = density = 1.0;
+	species[0] = density;
+	real const atomicNumber = opts().atomic_number[0];
+	real const atomicMass = opts().atomic_mass[0];
+	real const meanMolecularWeight = atomicMass / atomicNumber;
+	x *= xScaleInv;
+	y *= xScaleInv;
+	z *= xScaleInv;
+	real const r2 = sqr(x) + sqr(y) + sqr(z);
+	real const r = std::sqrt(r2);
+	real const D0 = diffusionCoefficient / real(3) * lightSpeed;
+	real const er = std::max(pow(t + 1.0, -1.5) * exp(-r2 / (4.0 * D0 * (t + 1.0))), 1e-10);
+	real const T = pow(er / (4.0 * physcon().sigma / lightSpeed), 0.25);
+	real const Pgas = density * T * physcon().kb / (physcon().mh * meanMolecularWeight);
+	real const fgamma = grid::get_fgamma();
+	real const ei = (1.0 / (fgamma - 1.0)) * Pgas;
+	vars[tau_i] = POWER(ei, 1.0 / grid::get_fgamma());
+	vars[egas_i] = POWER(vars[tau_i], fgamma);
+	real const derdr = -0.5 * (r) / (1 + t) * er / D0;
+	real fx, fy, fz;
+	real vx = 1e-3 * physcon().c;
+	if (r == 0.0) {
+		fx = fy = fz = 0.0;
+	} else {
+		fx = -derdr * x / r * D0;
+		fy = -derdr * y / r * D0;
+		fz = -derdr * z / r * D0;
+	}
+	vars[opts().n_fields + 0] = er;
+	vars[opts().n_fields + 1] = fx;
+	vars[opts().n_fields + 2] = fy;
+	vars[opts().n_fields + 3] = fz;
+	return vars;
+}
+
+bool refine_sod(integer level, integer max_level, real x, real y, real z, std::vector<real> const &U,
+		std::array<std::vector<real>, NDIM> const &dudx) {
 	for (integer i = 0; i != NDIM; ++i) {
 		if (std::abs(dudx[i][rho_i] / U[rho_i]) >= 0.1) {
 			return level < max_level;
@@ -93,13 +179,13 @@ bool refine_sod(integer level, integer max_level, real x, real y, real z, std::v
 	return false;
 }
 
-bool refine_blast(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U,
-		std::array<std::vector<real>, NDIM> const& dudx) {
+bool refine_blast(integer level, integer max_level, real x, real y, real z, std::vector<real> const &U,
+		std::array<std::vector<real>, NDIM> const &dudx) {
 	bool rc = false;
-	if( level < 1 ) {
+	if (level < 1) {
 		rc = true;
 	}
-	if( !rc ) {
+	if (!rc) {
 		for (integer i = 0; i != NDIM; ++i) {
 			if (std::abs(dudx[i][rho_i]) > 0.1) {
 				rc = rc || (level < max_level);
@@ -112,16 +198,16 @@ bool refine_blast(integer level, integer max_level, real x, real y, real z, std:
 	return rc;
 }
 
-bool refine_test_center(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U,
-		std::array<std::vector<real>, NDIM> const& dudx) {
-	if( x*x + y*y + z*z < ssr0) {
+bool refine_test_center(integer level, integer max_level, real x, real y, real z, std::vector<real> const &U,
+		std::array<std::vector<real>, NDIM> const &dudx) {
+	if (x * x + y * y + z * z < ssr0) {
 		return level < max_level;
 	}
 	return false;
 }
 
-bool refine_test(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U,
-		std::array<std::vector<real>, NDIM> const& dudx) {
+bool refine_test(integer level, integer max_level, real x, real y, real z, std::vector<real> const &U,
+		std::array<std::vector<real>, NDIM> const &dudx) {
 	bool rc = false;
 	real dx = (opts().xscale / INX) / real(1 << level);
 	if (level < max_level / 2) {
@@ -168,12 +254,12 @@ bool refine_test(integer level, integer max_level, real x, real y, real z, std::
 	return rc;
 }
 
-bool refine_test_moving_star(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U,
-		std::array<std::vector<real>, NDIM> const& dudx) {
+bool refine_test_moving_star(integer level, integer max_level, real x, real y, real z, std::vector<real> const &U,
+		std::array<std::vector<real>, NDIM> const &dudx) {
 	bool rc = false;
 	real den_floor = opts().refinement_floor;
 	integer test_level = max_level;
-	if( x > 0.0 && opts().rotating_star_amr) {
+	if (x > 0.0 && opts().rotating_star_amr) {
 		test_level--;
 	}
 	for (integer this_test_level = test_level; this_test_level >= 1; --this_test_level) {
@@ -189,11 +275,9 @@ bool refine_test_moving_star(integer level, integer max_level, real x, real y, r
 
 }
 
-
-
-bool refine_test_marshak(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U,
-		std::array<std::vector<real>, NDIM> const& dudx) {
-	if( level >= max_level ) {
+bool refine_test_marshak(integer level, integer max_level, real x, real y, real z, std::vector<real> const &U,
+		std::array<std::vector<real>, NDIM> const &dudx) {
+	if (level >= max_level) {
 		return false;
 	} else {
 		return true;
@@ -201,9 +285,9 @@ bool refine_test_marshak(integer level, integer max_level, real x, real y, real 
 
 }
 
-bool refine_test_unigrid(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U,
-		std::array<std::vector<real>, NDIM> const& dudx) {
-	if( level >= max_level ) {
+bool refine_test_unigrid(integer level, integer max_level, real x, real y, real z, std::vector<real> const &U,
+		std::array<std::vector<real>, NDIM> const &dudx) {
+	if (level >= max_level) {
 		return false;
 	} else {
 		return true;
@@ -211,8 +295,8 @@ bool refine_test_unigrid(integer level, integer max_level, real x, real y, real 
 
 }
 
-void set_refine_test(const refine_test_type& rt) {
-	if( opts().unigrid) {
+void set_refine_test(const refine_test_type &rt) {
+	if (opts().unigrid) {
 		refine_test_function = refine_test_unigrid;
 	} else {
 		refine_test_function = rt;
@@ -223,7 +307,7 @@ refine_test_type get_refine_test() {
 	return refine_test_function;
 }
 
-void set_problem(const init_func_type& p) {
+void set_problem(const init_func_type &p) {
 	problem = p;
 }
 
@@ -231,7 +315,7 @@ init_func_type get_problem() {
 	return problem;
 }
 
-void set_analytic(const init_func_type& p) {
+void set_analytic(const init_func_type &p) {
 	analytic = p;
 }
 
@@ -280,7 +364,6 @@ std::vector<real> solid_sphere_analytic_phi(real x, real y, real z, real xshift)
 	return g;
 }
 
-
 std::vector<real> double_solid_sphere(real x0, real y0, real z0, real dx) {
 	std::vector<real> u(opts().n_fields, real(0));
 	auto u1 = solid_sphere(x0, y0, z0, dx, dxs);
@@ -303,12 +386,12 @@ std::vector<real> solid_sphere(real x0, real y0, real z0, real dx, real xshift) 
 	z0 -= opts().solid_sphere_zcenter;
 
 	const auto mm = [](real a, real b) {
-		if( a * b < ZERO ) {
+		if (a * b < ZERO) {
 			return ZERO;
-		} else if( a > ZERO ) {
-			return std::min(a,b);
+		} else if (a > ZERO) {
+			return std::min(a, b);
 		} else {
-			return std::max(a,b);
+			return std::max(a, b);
 		}
 	};
 	const real xmax = std::max(std::abs(x0 + dx / 2.0), std::abs(x0 - dx / 2.0));
@@ -365,27 +448,27 @@ std::vector<real> star(real x, real y, real z, real) {
 		return u;
 	} else {
 
-                const real xshift = opts().star_xcenter;
-                const real yshift = opts().star_ycenter;
-                const real zshift = opts().star_zcenter;
-                const real rho_c = opts().star_rho_center;
-                const real alpha = opts().star_alpha;
-                const real rmax = opts().star_rmax;
-                const real dr = opts().star_dr;
-                const real n = opts().star_n;
+		const real xshift = opts().star_xcenter;
+		const real yshift = opts().star_ycenter;
+		const real zshift = opts().star_zcenter;
+		const real rho_c = opts().star_rho_center;
+		const real alpha = opts().star_alpha;
+		const real rmax = opts().star_rmax;
+		const real dr = opts().star_dr;
+		const real n = opts().star_n;
 
-                x -= xshift;
-                y -= yshift;
-                z -= zshift;
+		x -= xshift;
+		y -= yshift;
+		z -= zshift;
 
 		const real r = std::sqrt(x * x + y * y + z * z);
 		real theta;
 		//const real n = real(1) / (fgamma - real(1));
 		//const real rho_min = 1.0e-10;
-                const real theta_min = std::pow(rho_out / rho_c, real(1) / n);
-                const auto c0 = real(4) * real(M_PI) * std::pow(alpha, 2) * std::pow(rho_c, (n - real(1))/n) / (n + real(1));
+		const real theta_min = std::pow(rho_out / rho_c, real(1) / n);
+		const auto c0 = real(4) * real(M_PI) * std::pow(alpha, 2) * std::pow(rho_c, (n - real(1)) / n) / (n + real(1));
 		if (r <= rmax) {
-			theta = lane_emden(r/alpha, dr/alpha, n);
+			theta = lane_emden(r / alpha, dr / alpha, n);
 			theta = std::max(theta, theta_min);
 			u[rho_i] = rho_c * std::pow(theta, n);
 		} else {
@@ -400,7 +483,7 @@ std::vector<real> star(real x, real y, real z, real) {
 			u[egas_i] = std::max(opts().star_egas_out, find_ei_rad_gas(p, u[rho_i], opts().atomic_mass[0] / (opts().atomic_number[0] + 1.0), fgamma, u[tau_i])); // makes sure the calculated pressure will be as the polytropic one
 			//printf("egas(%e) = %e, epoly=%e\n", r, u[egas_i], n * p);
 		} else {
-			// u[egas_i] = std::max(opts().star_egas_out, p * n);
+			// u[egas_i] = std::max(opts().star_egas_out, p * n);]
 			u[egas_i] = std::max(opts().star_egas_out, p / (fgamma - 1.0));
 			u[tau_i] = std::pow(u[egas_i], 1.0 / fgamma);
 			//u[tau_i] = std::pow(u[egas_i], (n / (real(1) + n)));
@@ -428,23 +511,23 @@ std::vector<real> moving_star(real x, real y, real z, real dx) {
 	const real vz = opts().moving_star_zvelocity;
 	const real rho_out = opts().star_rho_out;
 	auto u = star(x, y, z, dx);
-        if (u[rho_i] > rho_out) {
-                u[sx_i] = u[rho_i] * vx;
-                u[sy_i] = u[rho_i] * vy;
-                u[sz_i] = u[rho_i] * vz;
-                u[egas_i] += (u[sx_i] * u[sx_i] + u[sy_i] * u[sy_i] + u[sz_i] * u[sz_i]) / u[rho_i] / 2.0;
-                u[spc_i+1] = ZERO;
-        } else {
-                u[spc_i] = ZERO;
-                u[spc_i+1] = u[rho_i];
-        }
+	if (u[rho_i] > rho_out) {
+		u[sx_i] = u[rho_i] * vx;
+		u[sy_i] = u[rho_i] * vy;
+		u[sz_i] = u[rho_i] * vz;
+		u[egas_i] += (u[sx_i] * u[sx_i] + u[sy_i] * u[sy_i] + u[sz_i] * u[sz_i]) / u[rho_i] / 2.0;
+		u[spc_i + 1] = ZERO;
+	} else {
+		u[spc_i] = ZERO;
+		u[spc_i + 1] = u[rho_i];
+	}
 	return u;
 }
 
 std::vector<real> moving_star_analytic(real x, real y, real z, real t) {
-        const real vx = opts().moving_star_xvelocity;
-        const real vy = opts().moving_star_yvelocity;
-        const real vz = opts().moving_star_zvelocity;
+	const real vx = opts().moving_star_xvelocity;
+	const real vy = opts().moving_star_yvelocity;
+	const real vz = opts().moving_star_zvelocity;
 	const real omega = grid::get_omega();
 	const real x0 = x;
 	const real y0 = y;
@@ -463,8 +546,8 @@ std::vector<real> moving_star_analytic(real x, real y, real z, real t) {
 
 std::vector<real> equal_mass_binary(real x, real y, real z, real) {
 
-        const real rmax = 1.0 / 3.0;
-        const real dr = rmax / 128.0;
+	const real rmax = 1.0 / 3.0;
+	const real dr = rmax / 128.0;
 	const integer don_i = spc_ac_i;
 	const integer acc_i = spc_dc_i;
 	const real fgamma = grid::get_fgamma();
