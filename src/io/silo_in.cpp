@@ -262,7 +262,7 @@ auto split_mesh_id(const std::string id) {
 	return rc;
 }
 
-void load_data_from_silo(std::string fname, node_server *root_ptr, hpx::id_type root) {
+void load_data_from_silo(std::string fname, std::shared_ptr<node_server> root_ptr, hpx::id_type root) {
 	timings::scope ts(root_ptr->timings_, timings::time_io);
 	printf( "Reading %s\n", fname.c_str());
 	const auto tstart = time(NULL);

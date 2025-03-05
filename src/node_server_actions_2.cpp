@@ -644,20 +644,8 @@ set_child_aunt_type node_server::set_child_aunt(const hpx::id_type &aunt, const 
 #endif
 }
 
-using get_ptr_action_type = node_server::get_ptr_action;
-HPX_REGISTER_ACTION(get_ptr_action_type);
-
-std::uintptr_t node_server::get_ptr() {
-	return reinterpret_cast<std::uintptr_t>(this);
+future<std::shared_ptr<node_server>> node_client::get_ptr() const {
+    return hpx::get_ptr<node_server>(get_unmanaged_gid());
 }
 
-future<node_server*> node_client::get_ptr() const {
-	return hpx::async<typename node_server::get_ptr_action>(get_unmanaged_gid()).then(hpx::annotated_function([this](future<std::uintptr_t> &&fut) {
-		if (hpx::find_here() != hpx::get_colocation_id(get_gid()).get()) {
-			printf("get_ptr called non-locally\n");
-			abort();
-		}
-		return reinterpret_cast<node_server*>(GET(fut));
-	}, "node_client::get_ptr"));
-}
 #endif

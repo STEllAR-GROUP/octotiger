@@ -29,29 +29,7 @@
 #include <apex_api.hpp>
 #endif
 
-#ifdef __NVCC__
-#include <cuda/std/tuple>
-#if defined(HPX_CUDA_VERSION) && (HPX_CUDA_VERSION < 1202)
-// cuda::std::tuple structured bindings are broken in CUDA < 1202
-// See https://github.com/NVIDIA/libcudacxx/issues/316
-// According to https://github.com/NVIDIA/libcudacxx/pull/317 the fix for this 
-// is to move tuple element and tuple size into the std namespace
-// which the following snippet does. This is only necessary for old CUDA versions
-// the newer ones contain a fix for this issue
-namespace std {
-    template<size_t _Ip, class... _Tp>
-    struct tuple_element<_Ip, _CUDA_VSTD::tuple<_Tp...>> 
-      : _CUDA_VSTD::tuple_element<_Ip, _CUDA_VSTD::tuple<_Tp...>> {};
-    template <class... _Tp>
-    struct tuple_size<_CUDA_VSTD::tuple<_Tp...>> 
-      : _CUDA_VSTD::tuple_size<_CUDA_VSTD::tuple<_Tp...>> {};
-}
-#endif
-#endif
-static const char hydro_kokkos_kernel_identifier[] = "hydro_kernel_aggregator_kokkos";
-template<typename executor_t>
-using hydro_kokkos_agg_executor_pool = aggregation_pool<hydro_kokkos_kernel_identifier, executor_t,
-                                       round_robin_pool<executor_t>>;
+#include "octotiger/aggregation_util.hpp"
 
 // padding for arrays (useful for masked operations). 
 constexpr int padding = 128;
@@ -90,109 +68,6 @@ const storage& get_flux_device_masks(executor_t& exec2, const size_t gpu_id = 0)
     return masks[gpu_id];
 }
 
-template <typename Agg_view_t>
-CUDA_GLOBAL_METHOD typename Agg_view_t::view_type get_slice_subview(
-    const size_t slice_id, const size_t max_slices, const Agg_view_t& agg_view) {
-    const size_t slice_size = agg_view.size() / max_slices;
-    return Kokkos::subview(agg_view,
-        std::make_pair<size_t, size_t>(slice_id * slice_size, (slice_id + 1) * slice_size));
-}
-
-template <typename Integer, std::enable_if_t<std::is_integral<Integer>::value, bool> = true,
-    typename Agg_view_t, typename... Args>
-CUDA_GLOBAL_METHOD auto map_views_to_slice(const Integer slice_id, const Integer max_slices,
-    const Agg_view_t& current_arg, const Args&... rest) {
-    static_assert(
-        Kokkos::is_view<typename Agg_view_t::view_type>::value, "Argument not an aggregated view");
-#if defined(HPX_COMPUTE_DEVICE_CODE) && defined(__NVCC__)
-    if constexpr (sizeof...(Args) > 0) {
-        return cuda::std::tuple_cat(cuda::std::make_tuple(get_slice_subview(slice_id, max_slices, current_arg)),
-            map_views_to_slice(slice_id, max_slices, rest...));
-    } else {
-        return cuda::std::make_tuple(get_slice_subview(slice_id, max_slices, current_arg));
-    }
-#else
-    if constexpr (sizeof...(Args) > 0) {
-        return std::tuple_cat(std::make_tuple(get_slice_subview(slice_id, max_slices, current_arg)),
-            map_views_to_slice(slice_id, max_slices, rest...));
-    } else {
-        return std::make_tuple(get_slice_subview(slice_id, max_slices, current_arg));
-    }
-#endif
-}
-
-template <typename Agg_executor_t, typename Agg_view_t, typename... Args>
-CUDA_GLOBAL_METHOD auto map_views_to_slice(const Agg_executor_t& agg_exec, const Agg_view_t& current_arg,
-    const Args&... rest) {
-    const size_t slice_id = agg_exec.id;
-    const size_t max_slices = opts().max_kernels_fused;
-    static_assert(
-        Kokkos::is_view<typename Agg_view_t::view_type>::value, "Argument not an aggregated view");
-    if constexpr (sizeof...(Args) > 0) {
-        return std::tuple_cat(std::make_tuple(get_slice_subview(slice_id, max_slices, current_arg)),
-            map_views_to_slice(agg_exec, rest...));
-    } else {
-        return std::make_tuple(get_slice_subview(slice_id, max_slices, current_arg));
-    }
-}
-
-template <typename Agg_executor_t, typename TargetView_t, typename SourceView_t>
-void aggregated_deep_copy(Agg_executor_t& agg_exec, TargetView_t& target, SourceView_t& source) {
-    if (agg_exec.sync_aggregation_slices()) {
-        Kokkos::deep_copy(agg_exec.get_underlying_executor().instance(), target, source);
-    }
-}
-
-template <typename Agg_executor_t, typename TargetView_t, typename SourceView_t>
-void aggregated_deep_copy(
-    Agg_executor_t& agg_exec, TargetView_t& target, SourceView_t& source, int elements_per_slice) {
-    if (agg_exec.sync_aggregation_slices()) {
-        const size_t number_slices = agg_exec.number_slices;
-        auto target_slices = Kokkos::subview(
-            target, std::make_pair<size_t, size_t>(0, number_slices * elements_per_slice));
-        auto source_slices = Kokkos::subview(
-            source, std::make_pair<size_t, size_t>(0, number_slices * elements_per_slice));
-        Kokkos::deep_copy(
-            agg_exec.get_underlying_executor().instance(), target_slices, source_slices);
-    }
-}
-
-template <typename executor_t, typename TargetView_t, typename SourceView_t>
-hpx::shared_future<void> aggregrated_deep_copy_async(
-    typename Aggregated_Executor<executor_t>::Executor_Slice& agg_exec, TargetView_t& target,
-    SourceView_t& source) {
-    const size_t gpu_id = agg_exec.parent.gpu_id;
-    auto launch_copy_lambda = [gpu_id](TargetView_t& target, SourceView_t& source,
-                                  executor_t& exec) -> hpx::shared_future<void> {
-        stream_pool::select_device<executor_t,
-              round_robin_pool<executor_t>>(gpu_id);
-        return hpx::kokkos::deep_copy_async(exec.instance(), target, source);
-    };
-    return agg_exec.wrap_async(
-        launch_copy_lambda, target, source, agg_exec.get_underlying_executor());
-}
-
-template <typename executor_t, typename TargetView_t, typename SourceView_t>
-hpx::shared_future<void> aggregrated_deep_copy_async(
-    typename Aggregated_Executor<executor_t>::Executor_Slice& agg_exec, TargetView_t& target,
-    SourceView_t& source, int elements_per_slice) {
-    const size_t number_slices = agg_exec.number_slices;
-    const size_t gpu_id = agg_exec.parent.gpu_id;
-    auto launch_copy_lambda = [gpu_id, elements_per_slice, number_slices](TargetView_t& target,
-                                  SourceView_t& source,
-                                  executor_t& exec) -> hpx::shared_future<void> {
-        stream_pool::select_device<executor_t,
-              round_robin_pool<executor_t>>(gpu_id);
-        auto target_slices = Kokkos::subview(
-            target, std::make_pair<size_t, size_t>(0, number_slices * elements_per_slice));
-        auto source_slices = Kokkos::subview(
-            source, std::make_pair<size_t, size_t>(0, number_slices *
-              elements_per_slice));
-        return hpx::kokkos::deep_copy_async(exec.instance(), target_slices, source_slices);
-    };
-    return agg_exec.wrap_async(
-        launch_copy_lambda, target, source, agg_exec.get_underlying_executor());
-}
 
 /// Team-less version of the kokkos flux impl
 /** Meant to be run on host, though it can be used on both host and device.
@@ -300,8 +175,8 @@ void flux_impl_teamless(
                         mask_helper2_array.data(), SIMD_NAMESPACE::element_aligned_tag{});
                     const simd_mask_t mask = mask_helper1 == mask_helper2;
                     if (SIMD_NAMESPACE::any_of(mask)) {
+                        simd_t this_ap = 0.0, this_am = 0.0;
                         for (int fi = 0; fi < 9; fi++) { // TODO replace 9 with the actual constexpr
-                            simd_t this_ap = 0.0, this_am = 0.0;
                             const int d = faces[dim][fi];
                             const int flipped_dim = flip_dim(d, dim);
                             for (int dim = 0; dim < NDIM; dim++) {
@@ -324,6 +199,8 @@ void flux_impl_teamless(
                                 local_q[f].copy_from(q_combined_slice.data() + f * face_offset +
                                         dim_offset * d + index,
                                     SIMD_NAMESPACE::element_aligned_tag{});
+                                assert(index - compressedH_DN[dim] >= 0 &&
+                                    index - compressedH_DN[dim] < q_inx3);
                                 local_q_flipped[f].copy_from(q_combined_slice.data() +
                                         f * face_offset + dim_offset * flipped_dim -
                                         compressedH_DN[dim] + index,
@@ -338,18 +215,6 @@ void flux_impl_teamless(
                             // Update maximum values
                             this_ap = SIMD_NAMESPACE::choose(mask, this_ap, simd_t(0.0));
                             this_am = SIMD_NAMESPACE::choose(mask, this_am, simd_t(0.0));
-                            const simd_t amax_tmp = SIMD_NAMESPACE::max(this_ap, (-this_am));
-                            // Reduce
-                            // TODO Reduce outside of inner loop?
-                            std::array<double, simd_t::size()> max_helper;
-                            amax_tmp.copy_to(max_helper.data(), SIMD_NAMESPACE::element_aligned_tag{});
-                            for (int i = 0; i < simd_t::size(); i++) {
-                              if (max_helper[i] > current_amax) {
-                                  current_amax = max_helper[i];
-                                  current_d = d;
-                                  current_i = index + i;
-                              }
-                            }
                             // Add results to the final flux buffer
                             for (int f = 1; f < nf; f++) {
                               simd_t current_val(
@@ -363,11 +228,20 @@ void flux_impl_teamless(
                                 SIMD_NAMESPACE::element_aligned_tag{});
                             }
                         }
+                        const simd_t amax_tmp = SIMD_NAMESPACE::max(this_ap, (-this_am));
+                        // Reduce
+                        std::array<double, simd_t::size()> max_helper;
+                        amax_tmp.copy_to(max_helper.data(), SIMD_NAMESPACE::element_aligned_tag{});
+                        for (int i = 0; i < simd_t::size(); i++) {
+                          if (max_helper[i] > current_amax) {
+                              current_amax = max_helper[i];
+                              current_d = faces[dim][8];
+                              current_i = index + i;
+                          }
+                        }
                     }
-                    simd_t current_val(
-                      f_combined_slice.data() + dim * nf * q_inx3 + index,
-                      SIMD_NAMESPACE::element_aligned_tag{});
-                    for (int f = 10; f < nf; f++) {
+                    simd_t current_val = 0.0;
+                    for (int f = spc_i; f < nf; f++) {
                         simd_t current_field_val(
                             f_combined_slice.data() + dim * nf * q_inx3 + f * q_inx3 + index,
                             SIMD_NAMESPACE::element_aligned_tag{});
@@ -509,8 +383,8 @@ void flux_impl(
                         mask_helper2_array.data(), SIMD_NAMESPACE::element_aligned_tag{});
                     const simd_mask_t mask = mask_helper1 == mask_helper2;
                     if (SIMD_NAMESPACE::any_of(mask)) {
+                        simd_t this_ap = 0.0, this_am = 0.0;
                         for (int fi = 0; fi < 9; fi++) { // TODO replace 9
-                            simd_t this_ap = 0.0, this_am = 0.0;
                             const int d = faces[dim][fi];
                             const int flipped_dim = flip_dim(d, dim);
                             for (int dim = 0; dim < NDIM; dim++) {
@@ -533,6 +407,8 @@ void flux_impl(
                                 local_q[f].copy_from(q_combined_slice.data() + f * face_offset +
                                         dim_offset * d + index,
                                     SIMD_NAMESPACE::element_aligned_tag{});
+                                assert(index - compressedH_DN[dim] >= 0 &&
+                                    index - compressedH_DN[dim] < q_inx3);
                                 local_q_flipped[f].copy_from(q_combined_slice.data() +
                                         f * face_offset + dim_offset * flipped_dim -
                                         compressedH_DN[dim] + index,
@@ -547,36 +423,33 @@ void flux_impl(
                             // Update maximum values
                             this_ap = SIMD_NAMESPACE::choose(mask, this_ap, simd_t(0.0));
                             this_am = SIMD_NAMESPACE::choose(mask, this_am, simd_t(0.0));
-                            const simd_t amax_tmp = SIMD_NAMESPACE::max(this_ap, (-this_am));
-                            // Reduce
-                            // TODO Reduce outside of inner loop?
-                            std::array<double, simd_t::size()> max_helper;
-                            amax_tmp.copy_to(max_helper.data(), SIMD_NAMESPACE::element_aligned_tag{});
-                            for (int i = 0; i < simd_t::size(); i++) {
-                              if (max_helper[i] > current_amax) {
-                                  current_amax = max_helper[i];
-                                  current_d = d;
-                                  current_i = index + i;
-                              }
-                            }
                             // Add results to the final flux buffer
                             for (int f = 1; f < nf; f++) {
-                              simd_t current_val(
-                                  f_combined_slice.data() + dim * nf * q_inx3 + f * q_inx3 + index,
+                                simd_t current_val(
+                                    f_combined_slice.data() + dim * nf * q_inx3 + f * q_inx3 + index,
+                                    SIMD_NAMESPACE::element_aligned_tag{});
+                                current_val = current_val +
+                                  SIMD_NAMESPACE::choose(mask, quad_weights[fi] * local_f[f],
+                                      simd_t(0.0));
+                                current_val.copy_to(f_combined_slice.data() + dim
+                                  * nf * q_inx3 + f * q_inx3 + index,
                                   SIMD_NAMESPACE::element_aligned_tag{});
-                              current_val = current_val +
-                                SIMD_NAMESPACE::choose(mask, quad_weights[fi] * local_f[f],
-                                    simd_t(0.0));
-                              current_val.copy_to(f_combined_slice.data() + dim
-                                * nf * q_inx3 + f * q_inx3 + index,
-                                SIMD_NAMESPACE::element_aligned_tag{});
+                            }
+                        }
+                        // Find max
+                        const simd_t amax_tmp = SIMD_NAMESPACE::max(this_ap, (-this_am));
+                        std::array<double, simd_t::size()> max_helper;
+                        amax_tmp.copy_to(max_helper.data(), SIMD_NAMESPACE::element_aligned_tag{});
+                        for (int i = 0; i < simd_t::size(); i++) {
+                            if (max_helper[i] > current_amax) {
+                                current_amax = max_helper[i];
+                                current_d = faces[dim][8];
+                                current_i = index + i;
                             }
                         }
                     }
-                    simd_t current_val(
-                      f_combined_slice.data() + dim * nf * q_inx3 + index,
-                      SIMD_NAMESPACE::element_aligned_tag{});
-                    for (int f = 10; f < nf; f++) {
+                    simd_t current_val = 0.0;
+                    for (int f = spc_i; f < nf; f++) {
                         simd_t current_field_val(
                             f_combined_slice.data() + dim * nf * q_inx3 + f * q_inx3 + index,
                             SIMD_NAMESPACE::element_aligned_tag{});
@@ -1519,6 +1392,14 @@ timestep_t launch_hydro_kokkos_kernels(const hydro_computer<NDIM, INX, physics<N
     const double omega, const size_t n_species, 
     std::vector<hydro_state_t<std::vector<safe_real>>>& F) {
     static const cell_geometry<NDIM, INX> geo;
+
+    // Some assumptions must be true for the kernel to work
+    // Should always be true for 3D production scenarios...
+    assert(NDIM == 3);
+    assert(geo.NFACEDIR == 9);
+    assert(geo.NDIR == 27);
+    assert(hydro.get_nf() == opts().n_fields);
+    assert(hydro.get_nf() == spc_i + opts().n_species);
 
     auto executor_slice_fut = hydro_kokkos_agg_executor_pool<executor_t>::request_executor_slice();
     auto ret_fut = executor_slice_fut.value().then(hpx::annotated_function([&](auto && fut) {

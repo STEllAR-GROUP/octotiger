@@ -15,6 +15,19 @@
 #ifdef OCTOTIGER_HAVE_KOKKOS
 #include "octotiger/unitiger/hydro_impl/hydro_kokkos_kernel.hpp"
 #endif
+
+#if defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_SYCL) 
+#if defined(OCTOTIGER_HAVE_INTEL_GPU_WORKAROUND)
+#include "octotiger/sycl_initialization_guard.hpp"
+static const char module_identifier_hydro[] = "hydro_solver";
+/// Dummy variable to ensure the touch_sycl_device_by_running_a_dummy_kernel is being run
+const int init_sycl_device_hydro =
+    octotiger::sycl_util::touch_sycl_device_by_running_a_dummy_kernel<module_identifier_hydro>();
+#else
+#pragma message "SYCL builds without OCTOTIGER_WITH_INTEL_GPU_WORKAROUND=ON may break on Intel GPUs"
+#endif
+#endif
+
 #if defined(OCTOTIGER_HAVE_KOKKOS)
 hpx::once_flag init_hydro_kokkos_pool_flag;
 #if defined(KOKKOS_ENABLE_CUDA)
@@ -44,14 +57,18 @@ void init_hydro_kokkos_aggregation_pool(void) {
     }
     if (opts().executors_per_gpu > 0) {
 #if defined(KOKKOS_ENABLE_CUDA)
-    hydro_kokkos_agg_executor_pool<hpx::kokkos::cuda_executor>::init(number_aggregation_executors, max_slices, executor_mode, opts().number_gpus);
+        hydro_kokkos_agg_executor_pool<hpx::kokkos::cuda_executor>::init(
+            number_aggregation_executors, max_slices, executor_mode, opts().number_gpus);
 #elif defined(KOKKOS_ENABLE_HIP)
-    hydro_kokkos_agg_executor_pool<hpx::kokkos::hip_executor>::init(number_aggregation_executors, max_slices, executor_mode, opts().number_gpus);
+        hydro_kokkos_agg_executor_pool<hpx::kokkos::hip_executor>::init(
+            number_aggregation_executors, max_slices, executor_mode, opts().number_gpus);
 #elif defined(KOKKOS_ENABLE_SYCL)
-    hydro_kokkos_agg_executor_pool<hpx::kokkos::sycl_executor>::init(number_aggregation_executors, max_slices, executor_mode, opts().number_gpus);
+        hydro_kokkos_agg_executor_pool<hpx::kokkos::sycl_executor>::init(
+            number_aggregation_executors, max_slices, executor_mode, opts().number_gpus);
 #endif
     }
-    hydro_kokkos_agg_executor_pool<host_executor>::init(number_aggregation_executors, 1, Aggregated_Executor_Modes::STRICT, 1);
+    hydro_kokkos_agg_executor_pool<host_executor>::init(
+        number_aggregation_executors, 1, Aggregated_Executor_Modes::STRICT, 1);
 }
 #endif
 

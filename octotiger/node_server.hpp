@@ -255,9 +255,6 @@ public:
 	int form_tree(hpx::id_type, hpx::id_type=hpx::invalid_id, std::vector<hpx::id_type> = std::vector<hpx::id_type>(geo::direction::count()));/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server, form_tree, form_tree_action);
 
-	std::uintptr_t get_ptr();/**/
-	HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, get_ptr, get_ptr_action);
-
 	analytic_t compare_analytic();/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server, compare_analytic, compare_analytic_action);
 
@@ -380,7 +377,6 @@ HPX_REGISTER_ACTION_DECLARATION(node_server::solve_gravity_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::copy_to_locality_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::get_child_client_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::form_tree_action);
-HPX_REGISTER_ACTION_DECLARATION(node_server::get_ptr_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::diagnostics_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::timestep_driver_ascend_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::scf_params_action);

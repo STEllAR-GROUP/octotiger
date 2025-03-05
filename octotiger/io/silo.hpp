@@ -86,7 +86,7 @@ void output_all(node_server* root_ptr, std::string fname, int cycle, bool);
 
 void load_options_from_silo(std::string fname, DBfile* = nullptr);
 
-OCTOTIGER_EXPORT void load_data_from_silo(std::string fname, node_server*, hpx::id_type);
+OCTOTIGER_EXPORT void load_data_from_silo(std::string fname, std::shared_ptr<node_server>, hpx::id_type);
 
 
 template<class T>

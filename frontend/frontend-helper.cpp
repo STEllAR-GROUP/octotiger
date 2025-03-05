@@ -70,46 +70,70 @@
 
 void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 
-    scf_options::read_option_file();
+    try {
+      scf_options::read_option_file();
 
-    options::all_localities = localities;
-    opts() = _opts;
+      options::all_localities = localities;
+      opts() = _opts;
 
-    init_executors();
-    std::cerr << "Finished executor init and read options" << std::endl;
+      init_executors();
+      std::cerr << "Finished executor init and read options" << std::endl;
 
-    init_problem();
-    std::cerr << "Finished initializing options" << std::endl;
+      init_problem();
+      std::cerr << "Finished initializing options" << std::endl;
 
-    static_assert(octotiger::fmm::STENCIL_WIDTH <= INX, R"(
-            ERROR: Stencil is too wide for the subgrid size. 
-            Please increase either OCTOTIGER_THETA_MINIMUM or OCTOTIGER_WITH_GRIDDIM (see cmake file))");
+      static_assert(octotiger::fmm::STENCIL_WIDTH <= INX, R"(
+              ERROR: Stencil is too wide for the subgrid size. 
+              Please increase either OCTOTIGER_THETA_MINIMUM or OCTOTIGER_WITH_GRIDDIM (see cmake file))");
 
 #ifndef OCTOTIGER_DISABLE_ILIST
-    compute_ilist();
-    static_assert(INX <= 20, R"(
-        ERROR: OCTOTIGER_WITH_GRIDDIM too large to compute the interaction list.
-        Consider OCTOTIGER_DISALBE_ILIST=ON (for non-gravity scenarios only) or reduce the OCTOTIGER_WITH_GRIDDIM!)");
+      compute_ilist();
+      static_assert(INX <= 20, R"(
+          ERROR: OCTOTIGER_WITH_GRIDDIM too large to compute the interaction list.
+          Consider OCTOTIGER_DISALBE_ILIST=ON (for non-gravity scenarios only) or reduce the OCTOTIGER_WITH_GRIDDIM!)");
 #else
-    static_assert(INX > 16, R"(
-        ERROR: The griddim is too small for OCTOTIGER_DISABLE_ILIST=ON. 
-        For griddims <=16, there is no reason to disable the interaction list and it will limit the build to scenarios without gravity.
-        This is likely an error! Either increase the OCTOTIGER_WITH_GRIDDIM or drop the OCTOTIGER_DISABLE_ILIST=ON flag!)");
+      static_assert(INX > 16, R"(
+          ERROR: The griddim is too small for OCTOTIGER_DISABLE_ILIST=ON. 
+          For griddims <=16, there is no reason to disable the interaction list and it will limit the build to scenarios without gravity.
+          This is likely an error! Either increase the OCTOTIGER_WITH_GRIDDIM or drop the OCTOTIGER_DISABLE_ILIST=ON flag!)");
 #warning "Interaction list disabled. Distributed runs with gravity not possible using this build!"
 #endif
 
-    compute_factor();
-    std::cerr << "Finished computing factors" << std::endl;
+      compute_factor();
+      std::cerr << "Finished computing factors" << std::endl;
 
 
-    grid::static_init();
-    std::cerr << "Finished static_init" << std::endl;
-    normalize_constants();
-    std::cerr << "Finished normalizing" << std::endl;
+      grid::static_init();
+      std::cerr << "Finished static_init" << std::endl;
+      normalize_constants();
+      std::cerr << "Finished normalizing" << std::endl;
 #ifdef SILO_UNITS
 //	grid::set_unit_conversions();
 #endif
-    std::cerr << "Finished initialization" << std::endl;
+      std::cerr << "Finished initialization" << std::endl;
+    } catch (hpx::exception const& e) {
+        std::cerr << "ERROR: Caught HPX exception during initialization!\n";
+        std::cerr << "{what}: " << hpx::get_error_what(e) << "\n";
+        std::cerr << "{locality-id}: " << hpx::get_error_locality_id(e)
+                  << "\n";
+        std::cerr << "{hostname}: " << hpx::get_error_host_name(e) << "\n";
+        std::cerr << "{pid}: " << hpx::get_error_process_id(e) << "\n";
+        std::cerr << "{function}: " << hpx::get_error_function_name(e)
+                  << "\n";
+        std::cerr << "{file}: " << hpx::get_error_file_name(e) << "\n";
+        std::cerr << "{line}: " << hpx::get_error_line_number(e) << "\n";
+        std::cerr << "Aborting now...\n";
+        abort();
+    } catch (std::exception const& e) {
+        std::cerr << "ERROR: Caught std::exception during initialization!\n";
+        std::cerr << "{what}: " << e.what() << "\n";
+        std::cerr << "Aborting now...\n";
+        abort();
+    } catch (...) {
+        std::cerr << "ERROR: Caught unknown exception during initialization!\n";
+        std::cerr << "Aborting now...\n";
+        abort();
+    }
 }
 
 void cleanup_buffers() {
@@ -149,7 +173,7 @@ void start_octotiger(int argc, char* argv[]) {
 
             hpx::id_type root_id = hpx::new_<node_server>(hpx::find_here()).get();
             node_client root_client(root_id);
-            node_server* root = root_client.get_ptr().get();
+            auto root = root_client.get_ptr().get();
             std::cerr << "Found root" << std::endl;
 
             node_count_type ngrids;
@@ -200,7 +224,7 @@ void start_octotiger(int argc, char* argv[]) {
                 auto e = root->amr_error();
                 std::cerr << "Finished AMR test" << std::endl;
                 printf("AMR Error: %e %e %e\n", e.first, e.second, e.first / e.second);
-                output_all(root, "X", 0, true);
+                output_all(root.get(), "X", 0, true);
             }
             std::cerr << "Start timings report..." << std::endl;
             root->report_timing();
@@ -209,7 +233,27 @@ void start_octotiger(int argc, char* argv[]) {
             cleanup();    // cleanup buffer and executor pools
             std::cerr << "Finished cleanup..." << std::endl;
         }
+    } catch (hpx::exception const& e) {
+        std::cerr << "ERROR: Caught HPX exception during hpx main!\n";
+        std::cerr << "{what}: " << hpx::get_error_what(e) << "\n";
+        std::cerr << "{locality-id}: " << hpx::get_error_locality_id(e)
+                  << "\n";
+        std::cerr << "{hostname}: " << hpx::get_error_host_name(e) << "\n";
+        std::cerr << "{pid}: " << hpx::get_error_process_id(e) << "\n";
+        std::cerr << "{function}: " << hpx::get_error_function_name(e)
+                  << "\n";
+        std::cerr << "{file}: " << hpx::get_error_file_name(e) << "\n";
+        std::cerr << "{line}: " << hpx::get_error_line_number(e) << "\n";
+        std::cerr << "Rethrowing now...\n";
+        throw;
+    } catch (std::exception const& e) {
+        std::cerr << "ERROR: Caught std::exception during hpx main!\n";
+        std::cerr << "{what}: " << e.what() << "\n";
+        std::cerr << "Rethrowing now...\n";
+        throw;
     } catch (...) {
+        std::cerr << "ERROR: Caught unknown exception during hpx main!\n";
+        std::cerr << "Rethrowing now...\n";
         throw;
     }
     printf("Exiting...\n");

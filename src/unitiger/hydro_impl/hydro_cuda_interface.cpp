@@ -139,6 +139,14 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
 
       static const cell_geometry<NDIM, INX> geo;
 
+      // Some assumptions must be true for the kernel to work
+      // Should always be true for 3D production scenarios...
+      assert(NDIM == 3);
+      assert(geo.NFACEDIR == 9);
+      assert(geo.NDIR == 27);
+      assert(hydro.get_nf() == opts().n_fields);
+      assert(hydro.get_nf() == spc_i + opts().n_species);
+
       const size_t max_slices = opts().max_kernels_fused;
 
       // Move input to device
