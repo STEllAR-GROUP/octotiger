@@ -51,6 +51,9 @@ option(OCTOTIGER_WITH_QUADMATH "Enable sections using GCC Quad-Precision Math Li
 option(OCTOTIGER_WITH_Vc "" ON)
 # Re-enables Vc datatypes in the octotiger parts - use with caution
 option(OCTOTIGER_WITH_LEGACY_Vc "" OFF)
+# Use workaround to make Intel GPUs work as intended
+# May cause rare segfault during cleanup when using the KOKKOS SYCL backend on NVIDIA hardware
+option(OCTOTIGER_WITH_INTEL_GPU_WORKAROUND "This activates a workaround that enables SYCL builds to run on Intel GPUs with Octotiger (but cause problems for SYCL builds with CUDA" OFF)
 
 # TODO Can these safely be removed? They should be deprecated
 option(OCTOTIGER_WITH_AVX "" OFF)
@@ -58,7 +61,6 @@ option(OCTOTIGER_WITH_AVX2 "" OFF)
 option(OCTOTIGER_WITH_AVX512 "" OFF)
 
 option(OCTOTIGER_WITH_TESTS "Enable tests" ON)
-set(OCTOTIGER_WITH_GRIDDIM "8" CACHE STRING "Grid size")
 set(OCTOTIGER_WITH_GRIDDIM "8" CACHE STRING "Grid size")
 set(OCTOTIGER_WITH_MAX_NUMBER_FIELDS "15" CACHE STRING "Maximum allowed nf_ (number fields)")
 set(OCTOTIGER_THETA_MINIMUM "0.34" CACHE STRING "Minimal allowed theta value - important for optimizations")
@@ -86,6 +88,7 @@ set(OCTOTIGER_CUDA_ARCH "sm_50"
 
 set(OCTOTIGER_KOKKOS_SIMD_LIBRARY "KOKKOS" CACHE STRING "Choose either KOKKOS (for kokkos simd types) or STD (for std::experimental::simd.") 
 set(OCTOTIGER_KOKKOS_SIMD_EXTENSION "DISCOVER" CACHE STRING "Choose either AVX512 AVX2 VSX NEON SVE SCALAR or DISCOVER (automatic discovery)") 
+set(OCTOTIGER_SVE_LEN "512" CACHE STRING "Choose number of bits for SVE (must be 128, 256 or 512)") 
 
 # silence warnings for deprecated HPX includes
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-cpp")
@@ -125,9 +128,6 @@ if(NOT MSVC)
 endif()
 
 if(OCTOTIGER_WITH_CUDA)
-  if(OCTOTIGER_WITH_CXX20)
-    message(FATAL_ERROR "CUDA builds with C++20 are not supported right now")
-  endif()
   if (NOT ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang"))
     enable_language(CUDA)
     set(MY_CUDA_FLAGS -Xptxas=-fmad=true,-dlcm=cg,--opt-level=4)
@@ -135,6 +135,9 @@ if(OCTOTIGER_WITH_CUDA)
     string(APPEND CUDA_NVCC_FLAGS ";-Xptxas=-v,-fmad=true,--opt-level=4")
   endif()
 
+  if(OCTOTIGER_WITH_CXX20 AND CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 12)
+    message(FATAL_ERROR "CUDA builds with C++20 are not supported right now")
+  endif()
   if (OCTOTIGER_WITH_LEGACY_Vc)
     message(FATAL_ERROR " CUDA cannot be used together with OCTOTIGER_WITH_LEGACY_Vc!")
   endif()
@@ -167,6 +170,7 @@ FetchContent_Declare(
   GIT_TAG        c845b7d9d8da461457cc5aa88fdda5923773a4bf
 )
 FetchContent_MakeAvailable(kokkossimd)
+set(SVE_LENGTH ${OCTOTIGER_SVE_LEN})
 FetchContent_Declare(
   svesimd
   GIT_REPOSITORY https://github.com/srinivasyadav18/sve.git
@@ -211,6 +215,7 @@ set(source_files
     src/taylor.cpp
     src/util.cpp
     src/common_kernel/interactions_iterators.cpp
+    src/common_kernel/gravity_performance_counters.cpp
     src/cuda_util/cuda_scheduler.cpp
     src/monopole_interactions/legacy/cuda_monopole_interaction_interface.cpp
     src/monopole_interactions/legacy/monopole_cuda_kernel.cpp
@@ -287,6 +292,7 @@ set(header_files
     octotiger/common_kernel/struct_of_array_data.hpp
     octotiger/common_kernel/kokkos_util.hpp
     octotiger/common_kernel/std_simd.hpp
+    octotiger/common_kernel/gravity_performance_counters.hpp
     octotiger/compute_factor.hpp
     octotiger/cuda_util/cuda_global_def.hpp
     octotiger/cuda_util/cuda_helper.hpp
@@ -362,6 +368,7 @@ set(hydro_header_files
     octotiger/unitiger/hydro_impl/hydro.hpp
     octotiger/unitiger/hydro_impl/reconstruct.hpp
     octotiger/unitiger/hydro_impl/flux.hpp
+    octotiger/unitiger/hydro_impl/hydro_performance_counters.hpp
     octotiger/unitiger/radiation/radiation_physics.hpp
     octotiger/unitiger/radiation/radiation_physics_impl.hpp
     octotiger/test_problems/exact_sod.hpp
@@ -374,6 +381,7 @@ set(hydro_source_files
    src/unitiger/hydro_impl/reconstruct_cuda_kernel.cpp
    src/unitiger/hydro_impl/hydro_kernel_interface.cpp
    src/unitiger/hydro_impl/hydro_cuda_interface.cpp
+   src/unitiger/hydro_impl/hydro_performance_counters.cpp
    src/test_problems/sod/exact_sod.cpp)
 
 set(cu_source_files
@@ -446,23 +454,23 @@ if(OCTOTIGER_WITH_CUDA)
       # -DSTRICT_ANSI__ resolves the issue of clang trying to pull in float128 stuff in the standard libs for the GPU pass
       #set_source_files_properties(${cu_source_files} ${hydro_cu_source_files} PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
       if (OCTOTIGER_WITH_FAST_FP_CONTRACT)
-        set_source_files_properties(${source_files} ${header_files} ${hydro_source_files} ${hydro_header_files} frontend/frontend-helper.cpp PROPERTIES COMPILE_FLAGS "  -x c++")
+        set_source_files_properties(${source_files} ${header_files} ${hydro_source_files} ${hydro_header_files} frontend/frontend-helper.cpp PROPERTIES COMPILE_FLAGS " ${OCTOTIGER_ARCH_FLAG} -x c++")
         set_source_files_properties(${hydro_cu_source_files} ${cu_source_files} src/monopole_interactions/monopole_kernel_interface.cpp
-        src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
+          src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast ${OCTOTIGER_ARCH_FLAG} --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
         #-fassociative-math  kills it?
-        set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
-        set_source_files_properties(src/multipole_interactions/monopole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
+        set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast ${OCTOTIGER_ARCH_FLAG} --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
+        set_source_files_properties(src/multipole_interactions/monopole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast ${OCTOTIGER_ARCH_FLAG} --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
         # hydro needs no assiociate math
-        set_source_files_properties(src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
+        set_source_files_properties(src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast ${OCTOTIGER_ARCH_FLAG} --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
       else()
-        set_source_files_properties(${source_files} ${header_files} ${hydro_source_files} ${hydro_header_files} frontend/frontend-helper.cpp PROPERTIES COMPILE_FLAGS "  -x c++")
+        set_source_files_properties(${source_files} ${header_files} ${hydro_source_files} ${hydro_header_files} frontend/frontend-helper.cpp PROPERTIES COMPILE_FLAGS " ${OCTOTIGER_ARCH_FLAG} -x c++")
         set_source_files_properties(${hydro_cu_source_files} ${cu_source_files} src/monopole_interactions/monopole_kernel_interface.cpp
-        src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=off --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
+        src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=off ${OCTOTIGER_ARCH_FLAG} --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
         #-fassociative-math  kills it?
-        set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=off --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
-        set_source_files_properties(src/multipole_interactions/monopole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=off --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
+        set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=off ${OCTOTIGER_ARCH_FLAG} --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
+        set_source_files_properties(src/multipole_interactions/monopole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=off ${OCTOTIGER_ARCH_FLAG} --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
         # hydro needs no assiociate math
-        set_source_files_properties(src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=off --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
+        set_source_files_properties(src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=off ${OCTOTIGER_ARCH_FLAG} --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
       endif()
 
     else()
@@ -737,6 +745,13 @@ elseif(OCTOTIGER_WITH_Vc AND USE_AVX AND OCTOTIGER_WITH_AVX)
   set(OCTOTIGER_WITH_AVX512 OFF CACHE BOOL "" FORCE)
 endif()
 
+# Intel GPU workarounds...
+if(OCTOTIGER_WITH_INTEL_GPU_WORKAROUND)
+  message(WARNING " Compiling with SYCL Intel GPU workaround (might cause cleanup segfaults when using the SYCL CUDA backend)")
+  target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_INTEL_GPU_WORKAROUND)
+  target_compile_definitions(hydrolib PUBLIC OCTOTIGER_HAVE_INTEL_GPU_WORKAROUND)
+endif()
+
 # Handle CUDA
 if(OCTOTIGER_WITH_CUDA)
   message(INFO " CUDA support is turned on!")
@@ -822,10 +837,14 @@ elseif(${OCTOTIGER_KOKKOS_SIMD_EXTENSION} STREQUAL SVE)
     if(OCTOTIGER_WITH_CXX17)
       message(FATAL_ERROR "SVE builds with std::experimental::simd require C++20. Please set OCTOTIGER_WITH_CXX20=ON")
     endif()
-    target_compile_definitions(octotiger PUBLIC SVE_LEN=512)
-    target_compile_definitions(optionslib PUBLIC SVE_LEN=512)
-    target_compile_definitions(octolib PUBLIC SVE_LEN=512)
-    target_compile_definitions(hydrolib PUBLIC SVE_LEN=512)
+    target_compile_definitions(octotiger PUBLIC SVE_LEN=${OCTOTIGER_SVE_LEN})
+    target_compile_definitions(optionslib PUBLIC SVE_LEN=${OCTOTIGER_SVE_LEN})
+    target_compile_definitions(octolib PUBLIC SVE_LEN=${OCTOTIGER_SVE_LEN})
+    target_compile_definitions(hydrolib PUBLIC SVE_LEN=${OCTOTIGER_SVE_LEN})
+    target_compile_options(hydrolib PUBLIC "-msve-vector-bits=${OCTOTIGER_SVE_LEN}")
+    target_compile_options(octolib PUBLIC "-msve-vector-bits=${OCTOTIGER_SVE_LEN}")
+    target_compile_options(optionslib PUBLIC "-msve-vector-bits=${OCTOTIGER_SVE_LEN}")
+    target_compile_options(octotiger PUBLIC "-msve-vector-bits=${OCTOTIGER_SVE_LEN}")
   endif()
 elseif(${OCTOTIGER_KOKKOS_SIMD_EXTENSION} STREQUAL SCALAR)
   message(STATUS "KOKKOS SIMD extension manually set to SCALAR (SIMD is OFF)")

@@ -38,25 +38,6 @@ namespace octotiger { namespace fmm {
         4 * P2P_PADDED_STENCIL_SIZE * sizeof(real);
     constexpr std::size_t full_stencil_size = FULL_STENCIL_SIZE * sizeof(real);
 
-    // Scheduler which decides on what device to launch kernel and what memory to use
-    class kernel_scheduler
-    {
-    public:
-        static OCTOTIGER_EXPORT kernel_scheduler& scheduler();
-
-        OCTOTIGER_EXPORT void init();
-        static OCTOTIGER_EXPORT void init_constants();
-
-    public:
-        kernel_scheduler(kernel_scheduler& other) = delete;
-        kernel_scheduler(kernel_scheduler const& other) = delete;
-        kernel_scheduler operator=(kernel_scheduler const& other) = delete;
-        // Deallocates CUDA memory
-        ~kernel_scheduler();
-
-    private:
-        // Constructs number of streams indicated by the options
-        kernel_scheduler();
-    };
+    OCTOTIGER_EXPORT void init_fmm_constants();
 }}
 #endif

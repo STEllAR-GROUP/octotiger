@@ -7,6 +7,7 @@
 #if !defined(HPX_COMPUTE_DEVICE_CODE)
 
 #include <hpx/hpx_init.hpp>
+#include <hpx/resource_partitioner/partitioner.hpp>
 #ifdef OCTOTIGER_HAVE_KOKKOS
 #include <hpx/kokkos.hpp>
 #endif
@@ -31,6 +32,7 @@
 
 #ifdef OCTOTIGER_HAVE_HIP
 #warning "Experimental HIP Build! Do not (yet) use for production runs"
+#include <hip/hip_runtime.h>
 #endif
 
 #ifndef OCTOTIGER_GIT_COMMIT_HASH
@@ -39,14 +41,8 @@
 #ifndef OCTOTIGER_GIT_COMMIT_MESSAGE
 #define OCTOTIGER_GIT_COMMIT_MESSAGE "unknown"
 #endif
-
 int hpx_main(int argc, char* argv[]) {
 
-#ifdef OCTOTIGER_HAVE_KOKKOS
-    // Initialize Kokkos on root
-    std::cout << "Initializing Kokkos on Root locality" << std::endl;
-    Kokkos::initialize(argc, argv);
-#endif
     // The ascii logo was created by combining, modifying and extending the ascii arts from:
     // http://ascii.co.uk/art/octopus (Author "jgs")
     // and
@@ -138,12 +134,30 @@ int hpx_main(int argc, char* argv[]) {
 #endif
 #ifdef OCTOTIGER_HAVE_HIP
     printf("WARNING: Experimental HIP Build! Do not (yet) use for production runs!\n");
+    // The new direct dispatch does not seem to be entirely threadsafe as of yet. At least on the MI100 it seems best
+    // to keep it disabled for now. Note that setting it to 0 did not incur a noticable performance penalty in octotiger
+    // Here, we just issue a warning and recommend a default
+    // TODO Retest with newer ROCM versions (last tested with 5.4.6) and newer AMDGPUs (last tested with MI100).
+    if (const char* env_p = std::getenv("AMD_DIRECT_DISPATCH")) {
+        const unsigned value = std::stoi(env_p);
+        std::cout << "Ran with AMD_DIRECT_DISPATCH=" << value <<   std::endl;
+        if (value != 0)
+          std::cout << "WARNING - Running with AMD_DIRECT_DISPATCH=0 is recommended (for now)"  << std::endl;
+    } else {
+        std::cout << "WARNING - Environment variable was not set: AMD_DIRECT_DISPATCH" 
+                  << " (setting to 0 is recommended) " << std::endl;
+    }
+#endif
+#if defined(CPPUDDLE_DEACTIVATE_BUFFER_RECYCLING)
+    printf("WARNING: Using build without buffer recycling enabled. This will cause a major degradation of GPU performance !\n");
+    printf("         Consider recompiling CPPuddle (and Octo-Tiger) with CPPUDDLE_WITH_BUFFER_RECYCLING=ON !\n");
+#endif
+#if defined(CPPUDDLE_DEACTIVATE_AGGRESSIVE_ALLOCATORS)
+    printf("WARNING: Using build without buffer content recycling enabled. This will cause a slight degradation performance !\n");
+    printf("         Consider recompiling CPPuddle (and Octo-Tiger) with CPPUDDLE_WITH_AGGRESSIVE_CONTENT_RECYCLING=ON !\n");
 #endif
     printf("###########################################################\n");
 
-#ifdef OCTOTIGER_HAVE_KOKKOS
-    Kokkos::print_configuration(std::cout, true);
-#endif
 
     printf("\n###########################################################\n\n");
 
@@ -151,26 +165,119 @@ int hpx_main(int argc, char* argv[]) {
 
     start_octotiger(argc, argv);
 
+    std::cerr << "Before HPX finalize ..." << std::endl;
     return hpx::finalize();
 }
 
+void init_resource_partitioner_handler(hpx::resource::partitioner& rp,
+    const hpx::program_options::variables_map &vm) {
+    // how many threads are reserved for polling
+    int polling_threads = vm["polling-threads"].as<int>();
+    const std::string pool_name = "polling";
+    if (polling_threads > 0) {
+        // background work will be done by polling pool
+        using namespace hpx::threads::policies;
+        rp.create_thread_pool(pool_name, hpx::resource::scheduling_policy::shared_priority,
+            scheduler_mode::do_background_work);
+        // add N pus to polling pool
+        int count = 0;
+        for (const hpx::resource::numa_domain& d : rp.numa_domains()) {
+            for (auto it = d.cores().rbegin(); it != d.cores().rend(); it++) {
+                for (const hpx::resource::pu& p : (*it).pus()) {
+                    if (count < polling_threads) {
+                        std::cout << "Added pu " << count++ << " to pool \"" <<
+                          pool_name << "\"\n";
+                        rp.add_resource(p, pool_name);
+                    }
+                }
+            }
+        }
+
+        {
+            // remove background work flag from the default pool as this will be done by polling pool
+            using namespace hpx::threads::policies;
+            auto deft = scheduler_mode::default_;
+            auto idle = scheduler_mode::enable_idle_backoff;
+            std::uint32_t mode = deft & ~idle; 
+            //
+            rp.create_thread_pool("default",
+                                  hpx::resource::scheduling_policy::unspecified,
+                                  hpx::threads::policies::scheduler_mode(mode));
+        }
+    }
+}
+
 int main(int argc, char* argv[]) {
+
+#if defined(OCTOTIGER_HAVE_HIP) || (defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_HIP))
+    // Touch all AMDGPUs before starting HPX. This initializes all GPUs before starting HPX
+    // which avoids multithreaded initialization later on which makes the driver segfault
+    //
+    // See bug https://github.com/ROCm-Developer-Tools/HIP/issues/3063
+    //
+    int numDevices = 0;
+    hipGetDeviceCount(&numDevices);
+    for (size_t gpu_id = 0; gpu_id < numDevices; gpu_id++) {
+      hipSetDevice(gpu_id);
+      hipStream_t gpu1;
+      hipStreamCreate(&gpu1);
+      // Keep this stream alive until the hip runtime shuts down at the end.
+      // This seems to prevent some rare hip runtime crashes when the application exits
+      /* hipStreamDestroy(gpu1); */
+      hipDeviceSynchronize();
+    }
+#endif
 #ifdef OCTOTIGER_HAVE_UNBUFFERED_STDOUT
     std::setbuf(stdout, nullptr);
     std::cout << "Set to unbuffered stdout on current process... " << std::endl;
 #endif
-    hpx::init_params p;
-    p.cfg = {
-        "hpx.commandline.allow_unknown=1",    // HPX should not complain about unknown command line
-                                              // options
-        "hpx.scheduler=local-priority-lifo",          // Use LIFO scheduler by default
-        "hpx.parcel.mpi.zero_copy_optimization!=0"    // Disable the usage of zero copy optimization
-                                                      // for MPI...
-    };
+    std::cerr << "Starting main..." << std::endl;
+    std::cerr << "Registering functions ..." << std::endl;
     register_hpx_functions();
-    hpx::init(argc, argv, p);
+    register_cppuddle_allocator_counters();
+
+    hpx::program_options::options_description desc_cmdline("Options");
+    desc_cmdline.add_options()
+        ("polling-threads", hpx::program_options::value<int>()->default_value(0),
+         "Enable dedicated HPX thread pool for cuda/network polling using N threads");
+    hpx::init_params init_args;
+    init_args.desc_cmdline = desc_cmdline;
+    init_args.rp_callback = &init_resource_partitioner_handler;
+    init_args.cfg = {
+        "hpx.commandline.allow_unknown=1"    // HPX should not complain about unknown command line
+    };
+    std::cerr << "Starting hpx init ..." << std::endl;
+    hpx::init(argc, argv, init_args);
+    std::cerr << "After HPX finalize ..." << std::endl;
 #ifdef OCTOTIGER_HAVE_HIP
     std::cout << std::endl << "WARNING: Experimental HIP Build! Do not (yet) use for production runs!\n" << std::endl;
+    // The new direct dispatch does not seem to be entirely threadsafe as of yet. At least on the MI100 it seems best
+    // to keep it disabled for now. Note that setting it to 0 did not incur a noticable performance penalty in octotiger
+    // Here, we just issue a warning and recommend a default
+    // TODO Retest with newer ROCM versions (last tested with 5.4.6) and newer AMDGPUs (last tested with MI100).
+    if (const char* env_p = std::getenv("AMD_DIRECT_DISPATCH")) {
+        const unsigned value = std::stoi(env_p);
+        std::cout << "Ran with AMD_DIRECT_DISPATCH=" << value <<   std::endl;
+        if (value != 0)
+          std::cout << "WARNING - Running with AMD_DIRECT_DISPATCH=0 is recommended (for now)"  << std::endl;
+    } else {
+        std::cout << "WARNING - Environment variable was not set: AMD_DIRECT_DISPATCH" 
+                  << " (setting to 0 is recommended) " << std::endl;
+    }
+
+
+#endif
+#if defined(CPPUDDLE_DEACTIVATE_BUFFER_RECYCLING)
+    std::cout << "WARNING: Using build without buffer recycling enabled. " 
+              << "This will cause a major degradation of GPU performance !\n";
+    std::cout << "         Consider recompiling CPPuddle (and Octo-Tiger) with "
+              << "CPPUDDLE_WITH_BUFFER_RECYCLING=ON !\n";
+#endif
+#if defined(CPPUDDLE_DEACTIVATE_AGGRESSIVE_ALLOCATORS)
+    std::cout << "WARNING: Using build without buffer content recycling enabled. "
+              << "This will cause a slight degradation performance !\n";
+    std::cout << "         Consider recompiling CPPuddle (and Octo-Tiger) with "
+              << "CPPUDDLE_WITH_AGGRESSIVE_CONTENT_RECYCLING=ON !\n";
 #endif
 }
 #endif

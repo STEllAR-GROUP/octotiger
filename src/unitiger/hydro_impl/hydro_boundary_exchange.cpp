@@ -24,7 +24,7 @@ using amr_cuda_agg_executor_pool = aggregation_pool<amr_cuda_kernel_identifier, 
 hpx::once_flag init_pool_flag;
 
 void init_aggregation_pool(void) {
-    const size_t max_slices = opts().max_executor_slices;
+    const size_t max_slices = opts().max_kernels_fused;
     constexpr size_t number_aggregation_executors = 16;
     constexpr Aggregated_Executor_Modes executor_mode = Aggregated_Executor_Modes::EAGER;
     amr_cuda_agg_executor_pool::init(number_aggregation_executors, max_slices, executor_mode);
@@ -69,7 +69,7 @@ __host__ void launch_complete_hydro_amr_boundary_cuda(double dx, bool
             exec_slice.template make_allocator<int, recycler::detail::cuda_device_allocator<int>>();
         int nfields = opts().n_fields;
 
-        const size_t max_slices = opts().max_executor_slices;
+        const size_t max_slices = opts().max_kernels_fused;
         // Create host buffers
         std::vector<double, decltype(alloc_host_double)> unified_uf(
             max_slices * opts().n_fields * HS_N3 * 8, double{},
@@ -88,18 +88,18 @@ __host__ void launch_complete_hydro_amr_boundary_cuda(double dx, bool
 
         // Create device buffers
         recycler::cuda_aggregated_device_buffer<double, decltype(alloc_device_double)> device_uf(
-            max_slices * opts().n_fields * HS_N3 * 8, 0, alloc_device_double);
+            max_slices * opts().n_fields * HS_N3 * 8, alloc_device_double);
         recycler::cuda_aggregated_device_buffer<double, decltype(alloc_device_double)> device_ushad(
-            max_slices * opts().n_fields * HS_N3, 0, alloc_device_double);
+            max_slices * opts().n_fields * HS_N3, alloc_device_double);
         recycler::cuda_aggregated_device_buffer<int, decltype(alloc_device_int)> device_coarse(
-            max_slices * HS_N3, 0, alloc_device_int);
+            max_slices * HS_N3, alloc_device_int);
         recycler::cuda_aggregated_device_buffer<double, decltype(alloc_device_double)> device_xmin(
-            max_slices * NDIM, 0, alloc_device_double);
+            max_slices * NDIM, alloc_device_double);
 
         recycler::cuda_aggregated_device_buffer<int, decltype(alloc_device_int)> energy_only_device(
-            max_slices * 1, 0, alloc_device_int);
+            max_slices * 1, alloc_device_int);
         recycler::cuda_aggregated_device_buffer<double, decltype(alloc_device_double)> dx_device(
-            max_slices * 1, 0, alloc_device_double);
+            max_slices * 1, alloc_device_double);
 
         for (int d = 0; d < NDIM; d++) {
             x_min[d + slice_id * NDIM] = xmin[d];
@@ -188,7 +188,7 @@ __host__ void launch_complete_hydro_amr_boundary_cuda(double dx, bool
         /* } */ 
 
         recycler::cuda_aggregated_device_buffer<double, decltype(alloc_device_double)> device_u(
-            max_slices * nfields * H_N3, 0, alloc_device_double);
+            max_slices * nfields * H_N3, alloc_device_double);
         std::vector<double, decltype(alloc_host_double)> unified_u(
             max_slices * nfields * H_N3, double{},
             alloc_host_double);

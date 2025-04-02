@@ -11,6 +11,7 @@
 #include "octotiger/problem.hpp"
 #include "octotiger/real.hpp"
 #include "octotiger/util.hpp"
+#include "octotiger/util/timestep_util.hpp"
 
 #include <cerrno>
 
@@ -333,7 +334,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 	}
 	printf("Starting run...\n");
 	auto fut_ptr = me.get_ptr();
-	node_server *root_ptr = GET(fut_ptr);
+	auto root_ptr = GET(fut_ptr);
 	if (!opts().output_filename.empty()) {
 		diagnostics();
 		solve_gravity(false, false);
@@ -463,7 +464,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 					const auto vr = sqrt(sqr(dt_.ur[sx_i]) + sqr(dt_.ur[sy_i]) + sqr(dt_.ur[sz_i])) / dt_.ur[0];
 					const auto vl = sqrt(sqr(dt_.ul[sx_i]) + sqr(dt_.ul[sy_i]) + sqr(dt_.ul[sz_i])) / dt_.ul[0];
 					printf("TS %i:: t: %e, dt: %e, time_elapsed: %e, rotational_time: %e, x: %e, y: %e, z: %e, ",
-						int(next_step - 1), double(t), double(dt_.dt), time_elapsed, rotational_time,
+						int(next_step), double(t), double(dt_.dt), time_elapsed, rotational_time,
 						dt_.x, dt_.y, dt_.z);
 					printf("a: %e, ur: %e, ul: %e, vr: %e, vl: %e, dim: %i, ngrids: %i, leafs: %i, amr_boundaries: %i\n", 
 						dt_.a, dt_.ur[0], dt_.ul[0], vr, vl, dt_.dim, int(ngrids.total),
@@ -713,27 +714,53 @@ future<real> node_server::local_step(integer steps) {
 		}
 
 		fut = fut.then(hpx::launch::async_policy(hpx::threads::thread_priority::boost), hpx::annotated_function([this, i, steps](future<void> fut) -> real {
-			GET(fut);
-			auto time_start = std::chrono::high_resolution_clock::now();
-			auto next_dt = timestep_driver_descend();
+      try {
+        GET(fut);
+        auto time_start = std::chrono::high_resolution_clock::now();
+        auto next_dt = timestep_driver_descend();
 
-			if (is_refined) {
-				refined_step();
-			} else {
-				GET(nonrefined_step());
-			}
+        if (is_refined) {
+          refined_step();
+        } else {
+          GET(nonrefined_step());
+        }
 
-					if (my_location.level() == 0) {
-						double time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(
-								std::chrono::high_resolution_clock::now() - time_start).count();
+        if (my_location.level() == 0) {
+          double time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::high_resolution_clock::now() - time_start).count();
+          const int local_step_num = step_num + 1;
+          if (opts().print_times_per_timestep)
+            timestep_util::add_time_per_timestep(time_elapsed);
 
-				hpx::threads::run_as_os_thread([=]() {
-					printf("%i %e %e %e %e\n", int(step_num), double(current_time), double(dt_.dt), time_elapsed, rotational_time);
-				});  // do not wait for output to finish
-			}
-			++step_num;
-			GET(next_dt);
-			return dt_.dt;
+          hpx::threads::run_as_os_thread([=]() {
+            printf("%i %e %e %e %e\n", local_step_num, double(current_time), double(dt_.dt), time_elapsed, rotational_time);
+          });  // do not wait for output to finish
+        }
+        ++step_num;
+        GET(next_dt);
+        return dt_.dt;
+      } catch (hpx::exception const& e) {
+          std::cerr << "ERROR: Caught HPX exception during local_step!\n";
+          std::cerr << "{what}: " << hpx::get_error_what(e) << "\n";
+          std::cerr << "{locality-id}: " << hpx::get_error_locality_id(e)
+                    << "\n";
+          std::cerr << "{hostname}: " << hpx::get_error_host_name(e) << "\n";
+          std::cerr << "{pid}: " << hpx::get_error_process_id(e) << "\n";
+          std::cerr << "{function}: " << hpx::get_error_function_name(e)
+                    << "\n";
+          std::cerr << "{file}: " << hpx::get_error_file_name(e) << "\n";
+          std::cerr << "{line}: " << hpx::get_error_line_number(e) << "\n";
+          std::cerr << "Aborting now...\n";
+          abort();
+      } catch (std::exception const& e) {
+          std::cerr << "ERROR: Caught std::exception during local_step!\n";
+          std::cerr << "{what}: " << e.what() << "\n";
+          std::cerr << "Aborting now...\n";
+          abort();
+      } catch (...) {
+          std::cerr << "ERROR: Caught unknown exception during local_step!\n";
+          std::cerr << "Aborting now...\n";
+          abort();
+      }
 		}, "local_step::execute_step"));
 	}
 	return fut;

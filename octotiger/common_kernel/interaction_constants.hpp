@@ -45,6 +45,7 @@ namespace fmm {
     constexpr int STENCIL_MIN = -STENCIL_WIDTH;
     constexpr int STENCIL_MAX = STENCIL_WIDTH;
     constexpr int FULL_STENCIL_SIZE = STENCIL_INX * STENCIL_INX * STENCIL_INX;
+    static_assert(STENCIL_WIDTH_HELPER < INX, "Chosen subgrid size too small for chosen OCTOTIGER_THETA_MINIMUM");
 
     constexpr uint64_t INNER_CELLS_PADDING_DEPTH = INX;
     constexpr uint64_t PADDING_OFFSET = INNER_CELLS_PADDING_DEPTH - STENCIL_MAX;

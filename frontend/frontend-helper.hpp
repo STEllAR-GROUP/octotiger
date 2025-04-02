@@ -12,6 +12,7 @@
 
 void start_octotiger(int argc, char* argv[]);
 void register_hpx_functions();
+void register_cppuddle_allocator_counters(void);
 
 // Get called once per locality
 void init_executors();
