@@ -98,7 +98,8 @@ void output_stage1(std::string fname, int cycle) {
 	std::vector<node_location::node_id> ids;
 	futs_.clear();
 	const auto node_ptr_ = node_registry::begin()->second.get_ptr().get();
-	silo_output_time() = node_ptr_->get_time() * opts().code_to_s;
+	const real convertTime = opts().output_code_units ? 1.0 : opts().code_to_s;
+	silo_output_time() = node_ptr_->get_time() * convertTime;
 	silo_output_rotation_time() = node_ptr_->get_rotation_count();
 	for (auto i = node_registry::begin(); i != node_registry::end(); ++i) {
 		const auto node_ptr_ = GET(i->second.get_ptr());

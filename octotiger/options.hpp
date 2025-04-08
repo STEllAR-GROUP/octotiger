@@ -56,6 +56,7 @@ public:
 	bool ipr_test;
 	bool detected_intel_compiler;
 	bool print_times_per_timestep;
+	bool output_code_units;
 
 	integer scf_output_frequency;
 	integer silo_num_groups;

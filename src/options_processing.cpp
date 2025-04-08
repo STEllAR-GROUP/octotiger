@@ -241,6 +241,7 @@ bool options::process_options(int argc, char *argv[]) {
 	("rotating_star_amr", po::value<bool>(&(opts().rotating_star_amr))->default_value(false),
 			"rotating star with AMR boundary in star") //
 	("rotating_star_x", po::value<real>(&(opts().rotating_star_x))->default_value(0.0), "x center of rotating_star") //
+	("output_code_units", po::value<bool>(&(opts().output_code_units))->default_value(false), "Use code units in SILO output") //
 			;
 
 	boost::program_options::variables_map vm;
@@ -364,6 +365,7 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(n_species);
 		SHOW(ngrids);
 		SHOW(omega);
+		SHOW(output_code_units);
 		SHOW(output_dt);
 		SHOW(output_filename);
 		SHOW(problem);

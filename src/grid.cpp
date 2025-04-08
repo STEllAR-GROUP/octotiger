@@ -62,7 +62,7 @@ std::vector<std::pair<std::string, real>> grid::get_outflows() const {
 		rc.push_back(std::make_pair(i->first, U_out[i->second]));
 	}
 
-	if( opts().radiation ) {
+	if (opts().radiation) {
 		auto routs = rad_grid_ptr->get_outflows();
 		rc.insert(rc.end(), routs.begin(), routs.end());
 	}
@@ -76,7 +76,7 @@ void grid::set_outflows(std::vector<std::pair<std::string, real>> &&u) {
 }
 
 void grid::set_outflow(std::pair<std::string, real> &&p) {
-	if( opts().radiation && str_to_index_hydro.find(p.first) == str_to_index_hydro.end()) {
+	if (opts().radiation && str_to_index_hydro.find(p.first) == str_to_index_hydro.end()) {
 		rad_grid_ptr->set_outflow(std::move(p));
 	} else {
 		U_out[str_to_index_hydro[p.first]] = p.second;
@@ -191,7 +191,7 @@ void grid::rho_from_species() {
 
 real grid::convert_hydro_units(int i) {
 	real val = 1.0;
-	if (opts().problem != MARSHAK) {
+	if (opts().output_code_units || opts().problem != MARSHAK) {
 		const real cm = opts().code_to_cm;
 		//printf( "%e\n", cm);
 		const real s = opts().code_to_s;
@@ -218,13 +218,15 @@ real grid::convert_hydro_units(int i) {
 
 real grid::convert_gravity_units(int i) {
 	real val = 1.0;
-	const real cm = opts().code_to_cm;
-	const real s = opts().code_to_s;
-	const real g = opts().code_to_g;
-	if (i == phi_i) {
-		val *= cm * cm / s / s;
-	} else {
-		val *= cm / s / s;
+	if (opts().output_code_units) {
+		const real cm = opts().code_to_cm;
+		const real s = opts().code_to_s;
+		const real g = opts().code_to_g;
+		if (i == phi_i) {
+			val *= cm * cm / s / s;
+		} else {
+			val *= cm / s / s;
+		}
 	}
 	return val;
 }
@@ -413,22 +415,22 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 								rc.xline.back().second.push_back(tmp);
 								//			PRINT( "!!!!!!!!!!!1\n");
 							}
-              if (std::abs(X[XDIM][iii]) < dx) {
-                specie_state_t<> species;
-                for( int si = spc_i; si < opts().n_fields; si++) {
-                  species[si-spc_i] = U[si][iii];
-                }
-                real mmw;
-                real X;
-                real Z;
-                mean_ion_weight(species, mmw, X, Z);
-                rc.Trad0 = rad_grid_ptr->get_field(0, j-H_BW+R_BW, k-H_BW+R_BW, l-H_BW+R_BW);
-                rc.Trad0 /= 4.0 * physcon().sigma / physcon().c;
-                rc.Trad0 = pow(rc.Trad0, 0.25);
-                rc.Tgas0 = POWER(U[tau_i][iii], fgamma) / U[rho_i][iii] / physcon().kb * (physcon().mh * mmw) * (fgamma-1.0);
+							if (std::abs(X[XDIM][iii]) < dx) {
+								specie_state_t<> species;
+								for (int si = spc_i; si < opts().n_fields; si++) {
+									species[si - spc_i] = U[si][iii];
+								}
+								real mmw;
+								real X;
+								real Z;
+								mean_ion_weight(species, mmw, X, Z);
+								rc.Trad0 = rad_grid_ptr->get_field(0, j - H_BW + R_BW, k - H_BW + R_BW, l - H_BW + R_BW);
+								rc.Trad0 /= 4.0 * physcon().sigma / physcon().c;
+								rc.Trad0 = pow(rc.Trad0, 0.25);
+								rc.Tgas0 = POWER(U[tau_i][iii], fgamma) / U[rho_i][iii] / physcon().kb * (physcon().mh * mmw) * (fgamma - 1.0);
 
-              }
-            }
+							}
+						}
 					}
 					const integer iiig = gindex(j - H_BW, k - H_BW, l - H_BW);
 					real ek = ZERO;
@@ -444,14 +446,14 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 					real et = U[egas_i][iii];
 					real p;
 					if (opts().eos == IPR) {
-                                        	ei = std::max(opts().ipr_eint_floor, ei);
-                                                specie_state_t<real> spc;
-                                                real mmw_loc, X_loc, Z_loc;
-                                                for (integer si = 0; si != opts().n_species; ++si) {
-                                                        spc[si] = U[spc_i + si][iii];
-                                                }
-                                                mean_ion_weight(spc, mmw_loc, X_loc, Z_loc);
-                                                p = ipr_pressure(U[tau_i][iii], U[rho_i][iii], mmw_loc);
+						ei = std::max(opts().ipr_eint_floor, ei);
+						specie_state_t<real> spc;
+						real mmw_loc, X_loc, Z_loc;
+						for (integer si = 0; si != opts().n_species; ++si) {
+							spc[si] = U[spc_i + si][iii];
+						}
+						mean_ion_weight(spc, mmw_loc, X_loc, Z_loc);
+						p = ipr_pressure(U[tau_i][iii], U[rho_i][iii], mmw_loc);
 					} else {
 						if (ei < de_switch2 * et) {
 							ei = POWER(U[tau_i][iii], fgamma);
@@ -619,8 +621,7 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 					const safe_real phi_r = -0.5 * POWER(diags.omega, 2) * R2;
 					const safe_real phi_eff = phi_g + phi_r;
 					const safe_real rho0 = U[rho_i][iii];
-					const auto ekin = (pow(U[sx_i][iii], 2) + pow(U[sy_i][iii], 2) + pow(U[sz_i][iii], 2)) / 2.0
-							/ U[rho_i][iii] * dV;
+					const auto ekin = (pow(U[sx_i][iii], 2) + pow(U[sy_i][iii], 2) + pow(U[sz_i][iii], 2)) / 2.0 / U[rho_i][iii] * dV;
 					if (ekin / U[rho_i][iii] / dV + phi_g > 0.0) {
 						rc.munbound1 += U[rho_i][iii] * dx * dx * dx;
 					}
@@ -655,9 +656,9 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 						}
 						const auto epot = 0.5 * U[pot_i][iii] * dV;
 						if (opts().eos == IPR) {
-                                                        eint = std::max(opts().ipr_eint_floor * dV, eint);
-                                                } else if (eint < de_switch2 * U[egas_i][iii] * dV) {
-								eint = POWER(U[tau_i][iii], fgamma) * dV;
+							eint = std::max(opts().ipr_eint_floor * dV, eint);
+						} else if (eint < de_switch2 * U[egas_i][iii] * dV) {
+							eint = POWER(U[tau_i][iii], fgamma) * dV;
 						}
 						rc.ekin[i] += ekin;
 						rc.epot[i] += epot;
@@ -723,15 +724,15 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 					real et = U[egas_i][iii];
 					real p;
 					if (false) { // (opts().eos == IPR) { // disabling this part because this mainly serves for computing the virial error as part of the SCF, and the SCF does not use the ipr eos
-                                                ei = std::max(opts().ipr_eint_floor, ei);
-                                        	specie_state_t<real> spc;
-                                        	real mmw_loc, X_loc, Z_loc;
-                                        	for (integer si = 0; si != opts().n_species; ++si) {
-                                                	spc[si] = U[spc_i + si][iii];
-                                        	}
-                                        	mean_ion_weight(spc, mmw_loc, X_loc, Z_loc);
-                                        	p = ipr_pressure(U[tau_i][iii], U[rho_i][iii], mmw_loc);
-                                        } else {
+						ei = std::max(opts().ipr_eint_floor, ei);
+						specie_state_t<real> spc;
+						real mmw_loc, X_loc, Z_loc;
+						for (integer si = 0; si != opts().n_species; ++si) {
+							spc[si] = U[spc_i + si][iii];
+						}
+						mean_ion_weight(spc, mmw_loc, X_loc, Z_loc);
+						p = ipr_pressure(U[tau_i][iii], U[rho_i][iii], mmw_loc);
+					} else {
 						if (ei < de_switch2 * et) {
 							ei = POWER(U[tau_i][iii], fgamma);
 						}
@@ -831,15 +832,13 @@ std::vector<real> grid::get_prolong(const std::array<integer, NDIM> &lb, const s
 					value += (3. / 64.) * minmod(u[iii + x * H_DNX + y * H_DNY] - u0, u0 - u[iii - x * H_DNX - y * H_DNY]);
 					value += (3. / 64.) * minmod(u[iii + x * H_DNX + z * H_DNZ] - u0, u0 - u[iii - x * H_DNX - z * H_DNZ]);
 					value += (3. / 64.) * minmod(u[iii + y * H_DNY + z * H_DNZ] - u0, u0 - u[iii - y * H_DNY - z * H_DNZ]);
-					value += (1. / 64.)
-							* minmod(u[iii + x * H_DNX + y * H_DNY + z * H_DNZ] - u0,
-									u0 - u[iii - x * H_DNX - y * H_DNY - z * H_DNZ]);
+					value += (1. / 64.) * minmod(u[iii + x * H_DNX + y * H_DNY + z * H_DNZ] - u0, u0 - u[iii - x * H_DNX - y * H_DNY - z * H_DNZ]);
 					data.push_back(value);
 				}
 			}
 		}
 	}
-	if( opts().radiation ) {
+	if (opts().radiation) {
 		auto rad_pro = rad_grid_ptr->get_prolong(lb, ub);
 		data.insert(data.end(), rad_pro.begin(), rad_pro.end());
 	}
@@ -871,16 +870,16 @@ std::vector<real> grid::get_restrict() const {
 			}
 		}
 	}
-	if(opts().radiation) {
+	if (opts().radiation) {
 		const auto rad = rad_grid_ptr->get_restrict();
 		data.insert(data.end(), rad.begin(), rad.end());
 	}
 	for (integer field = 0; field != opts().n_fields; ++field) {
 		data.push_back(U_out[field]);
 	}
-	if( opts().radiation) {
+	if (opts().radiation) {
 		const auto rad = rad_grid_ptr->get_outflows();
-		for( int f = 0; f < NRF; f++) {
+		for (int f = 0; f < NRF; f++) {
 			data.push_back(rad[f].second);
 		}
 	}
@@ -905,9 +904,9 @@ void grid::set_restrict(const std::vector<real> &data, const geo::octant &octant
 			}
 		}
 	}
-	if( opts().radiation ) {
+	if (opts().radiation) {
 		const std::vector<real> rad(data.begin() + index, data.end());
-		rad_grid_ptr->set_restrict( data, octant );
+		rad_grid_ptr->set_restrict(data, octant);
 	}
 
 }
@@ -1078,32 +1077,32 @@ void grid::velocity_inc(const space_vector &dv) {
 
 void grid::energy_adj() {
 
-        for (integer iii = 0; iii != H_N3; ++iii) {
-                const real rho = U[rho_i][iii];
-                if (rho != ZERO) {
-                        const real rhoinv = ONE / rho;
-                        safe_real sx = U[sx_i][iii];
-                        safe_real sy = U[sy_i][iii];
-                        safe_real sz = U[sz_i][iii];
-                        safe_real &egas = U[egas_i][iii];
+	for (integer iii = 0; iii != H_N3; ++iii) {
+		const real rho = U[rho_i][iii];
+		if (rho != ZERO) {
+			const real rhoinv = ONE / rho;
+			safe_real sx = U[sx_i][iii];
+			safe_real sy = U[sy_i][iii];
+			safe_real sz = U[sz_i][iii];
+			safe_real &egas = U[egas_i][iii];
 			safe_real &tau = U[tau_i][iii];
-                        egas -= HALF * (sx * sx + sy * sy + sz * sz) * rhoinv;
-                        egas = std::max(opts().ipr_eint_floor, egas);
-			
+			egas -= HALF * (sx * sx + sy * sy + sz * sz) * rhoinv;
+			egas = std::max(opts().ipr_eint_floor, egas);
+
 			specie_state_t<real> spc;
 			real mmw_loc, X_loc, Z_loc;
-			for (integer si = 0; si != opts().n_species; ++si) {                                                
-				spc[si] = U[spc_i + si][iii];                                        
+			for (integer si = 0; si != opts().n_species; ++si) {
+				spc[si] = U[spc_i + si][iii];
 			}
 			mean_ion_weight(spc, mmw_loc, X_loc, Z_loc);
 			safe_real p_SCF = egas * (fgamma - 1.0); // assuming polytropic + ideal eos for the SCF
 			egas = std::max(opts().star_egas_out, find_ei_rad_gas(p_SCF, rho, mmw_loc, fgamma, tau)); // update both egas and tau
-                 //       sx += dv[XDIM] * rho;
-                  //      sy += dv[YDIM] * rho;
-                 //       sz += dv[ZDIM] * rho;
-                        egas += HALF * (sx * sx + sy * sy + sz * sz) * rhoinv;
-                }
-        }
+			//       sx += dv[XDIM] * rho;
+			//      sy += dv[YDIM] * rho;
+			//       sz += dv[ZDIM] * rho;
+			egas += HALF * (sx * sx + sy * sy + sz * sz) * rhoinv;
+		}
+	}
 
 }
 
@@ -1141,8 +1140,8 @@ std::vector<real> grid::get_flux_restrict(const std::array<integer, NDIM> &lb, c
 	return data;
 }
 
-void grid::set_flux_restrict(const std::vector<real> &data, const std::array<integer, NDIM> &lb,
-		const std::array<integer, NDIM> &ub, const geo::dimension &dim) {
+void grid::set_flux_restrict(const std::vector<real> &data, const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub,
+		const geo::dimension &dim) {
 	PROFILE();
 	integer index = 0;
 	for (integer field = 0; field != opts().n_fields; ++field) {
@@ -1173,7 +1172,7 @@ void grid::set_prolong(const std::vector<real> &data, std::vector<real> &&outflo
 			}
 		}
 	}
-	if( opts().radiation ) {
+	if (opts().radiation) {
 		std::vector<real> rad_pro(data.begin() + index, data.end());
 		std::vector<real> rad_out(outflows.begin() + opts().n_fields, outflows.end());
 		rad_grid_ptr->set_prolong(rad_pro, rad_out);
@@ -1304,8 +1303,8 @@ void grid::change_units(real m, real l, real t, real k) {
 }
 
 HPX_PLAIN_ACTION(grid::set_omega, set_omega_action);
-HPX_REGISTER_BROADCAST_ACTION_DECLARATION(set_omega_action);
-HPX_REGISTER_BROADCAST_ACTION(set_omega_action);
+HPX_REGISTER_BROADCAST_ACTION_DECLARATION (set_omega_action);
+HPX_REGISTER_BROADCAST_ACTION (set_omega_action);
 
 void grid::set_omega(real omega, bool bcast) {
 	if (bcast) {
@@ -1318,7 +1317,7 @@ void grid::set_omega(real omega, bool bcast) {
 				}
 			}
 			if (remotes.size() > 0) {
-				hpx::lcos::broadcast<set_omega_action>(remotes, omega, false).get();
+				hpx::lcos::broadcast < set_omega_action > (remotes, omega, false).get();
 			}
 		}
 	}
@@ -1330,8 +1329,7 @@ void grid::set_omega(real omega, bool bcast) {
 	grid::omega = omega;
 }
 
-real grid::roche_volume(const std::pair<space_vector, space_vector> &axis, const std::pair<real, real> &l1, real cx,
-		bool donor) const {
+real grid::roche_volume(const std::pair<space_vector, space_vector> &axis, const std::pair<real, real> &l1, real cx, bool donor) const {
 
 	const real dV = dx * dx * dx;
 	real V = 0.0;
@@ -1386,8 +1384,7 @@ std::vector<real> grid::frac_volumes() const {
 	return V;
 }
 
-bool grid::is_in_star(const std::pair<space_vector, space_vector> &axis, const std::pair<real, real> &l1, integer frac,
-		integer iii, real rho_cut) const {
+bool grid::is_in_star(const std::pair<space_vector, space_vector> &axis, const std::pair<real, real> &l1, integer frac, integer iii, real rho_cut) const {
 	bool use = false;
 	if (frac == 0) {
 		use = true;
@@ -1416,8 +1413,7 @@ bool grid::is_in_star(const std::pair<space_vector, space_vector> &axis, const s
 	return use;
 }
 
-real grid::z_moments(const std::pair<space_vector, space_vector> &axis, const std::pair<real, real> &l1, integer frac,
-		real rho_cut) const {
+real grid::z_moments(const std::pair<space_vector, space_vector> &axis, const std::pair<real, real> &l1, integer frac, real rho_cut) const {
 
 	real mom = 0.0;
 	const real dV = dx * dx * dx;
@@ -1435,9 +1431,8 @@ real grid::z_moments(const std::pair<space_vector, space_vector> &axis, const st
 	return mom;
 }
 
-std::vector<real> grid::conserved_sums(space_vector &com, space_vector &com_dot,
-		const std::pair<space_vector, space_vector> &axis, const std::pair<real, real> &l1, integer frac,
-		real rho_cut) const {
+std::vector<real> grid::conserved_sums(space_vector &com, space_vector &com_dot, const std::pair<space_vector, space_vector> &axis,
+		const std::pair<real, real> &l1, integer frac, real rho_cut) const {
 
 	std::vector<real> sum(opts().n_fields, ZERO);
 	com[0] = com[1] = com[2] = 0.0;
@@ -1670,8 +1665,8 @@ space_vector grid::center_of_mass() const {
 }
 
 grid::grid(real _dx, std::array<real, NDIM> _xmin) :
-		is_coarse(H_N3), has_coarse(H_N3), Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(
-				opts().n_fields), F(NDIM), X(NDIM), G(NGF), is_root(false), is_leaf(true) {
+		is_coarse(H_N3), has_coarse(H_N3), Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(NDIM), X(NDIM), G(NGF), is_root(
+				false), is_leaf(true) {
 	dx = _dx;
 	xmin = _xmin;
 	allocate();
@@ -1722,18 +1717,16 @@ std::vector<std::pair<std::string, std::string>> grid::get_scalar_expressions() 
 	n += '0';
 	X += "0) / rho";
 	Z += "0) / rho";
-	rc.push_back(
-			std::make_pair(std::string("sigma_T"),
-					std::string("(1 + X) * 0.2 * T * T / ((T * T + 2.7e+11 * rho) * (1 + (T / 4.5e+8)^0.86))")));
+	rc.push_back(std::make_pair(std::string("sigma_T"), std::string("(1 + X) * 0.2 * T * T / ((T * T + 2.7e+11 * rho) * (1 + (T / 4.5e+8)^0.86))")));
 	rc.push_back(std::make_pair(std::string("sigma_xf"), std::string("4e+25*(1+X)*(Z+0.001)*rho*(T^(-3.5))")));
 	rc.push_back(std::make_pair(std::string("mfp"), std::string("1 / kappa_R")));
 //	if (opts().problem == MARSHAK) {
-		rc.push_back(std::make_pair(std::string("kappa_R"), std::string("rho")));
-		rc.push_back(std::make_pair(std::string("kappa_P"), std::string("rho")));
-/*	}*else {
-		rc.push_back(std::make_pair(std::string("kappa_R"), std::string("rho * (sigma_xf + sigma_T)")));
-		rc.push_back(std::make_pair(std::string("kappa_P"), std::string("rho * 30.262 * sigma_xf")));
-	}*/
+	rc.push_back(std::make_pair(std::string("kappa_R"), std::string("rho")));
+	rc.push_back(std::make_pair(std::string("kappa_P"), std::string("rho")));
+	/*	}*else {
+	 rc.push_back(std::make_pair(std::string("kappa_R"), std::string("rho * (sigma_xf + sigma_T)")));
+	 rc.push_back(std::make_pair(std::string("kappa_P"), std::string("rho * 30.262 * sigma_xf")));
+	 }*/
 	rc.push_back(std::make_pair(std::string("n"), std::move(n)));
 	rc.push_back(std::make_pair(std::string("X"), std::move(X)));
 	rc.push_back(std::make_pair(std::string("Y"), std::string("1.0 - X - Z")));
@@ -1743,9 +1736,7 @@ std::vector<std::pair<std::string, std::string>> grid::get_scalar_expressions() 
 	const auto kb = physcon().kb * std::pow(opts().code_to_cm / opts().code_to_s, 2) * opts().code_to_g;
 	rc.push_back(std::make_pair(std::string("phi"), std::string("pot/rho")));
 	rc.push_back(
-			std::make_pair(std::string("B_p"),
-					hpx::util::format("{:e} * T^4",
-							physcon().sigma / M_PI * opts().code_to_g * std::pow(opts().code_to_cm, 3))));
+			std::make_pair(std::string("B_p"), hpx::util::format("{:e} * T^4", physcon().sigma / M_PI * opts().code_to_g * std::pow(opts().code_to_cm, 3))));
 	if (opts().eos == WD) {
 		rc.push_back(std::make_pair(std::string("A"), "6.00228e+22"));
 		rc.push_back(std::make_pair(std::string("B"), "(2 * 9.81011e+5)"));
@@ -1757,20 +1748,23 @@ std::vector<std::pair<std::string, std::string>> grid::get_scalar_expressions() 
 	if (opts().problem == MARSHAK) {
 		rc.push_back(std::make_pair(std::string("T"), std::string("(ei/rho)^(1.0/3.0)")));
 	} else if (opts().eos == IPR) {
-                rc.push_back(std::make_pair(std::string("T"), std::string("tau")));
-                rc.push_back(std::make_pair(std::string("P"), hpx::util::format("n * {:e} * tau + {:e} * tau^4", kb,  (4.0 * physcon().sigma * opts().code_to_g / std::pow(opts().code_to_s, 3)) / (3.0 * physcon().c * opts().code_to_cm / opts().code_to_s))));
-                rc.push_back(std::make_pair(std::string("ei"), hpx::util::format("max(egas-ek,{:e})", opts().ipr_eint_floor * opts().code_to_g / std::pow(opts().code_to_s, 2) / opts().code_to_cm)));
-	} else if (opts().eos != WD) {
+		rc.push_back(std::make_pair(std::string("T"), std::string("tau")));
+		rc.push_back(
+				std::make_pair(std::string("P"),
+						hpx::util::format("n * {:e} * tau + {:e} * tau^4", kb,
+								(4.0 * physcon().sigma * opts().code_to_g / std::pow(opts().code_to_s, 3))
+										/ (3.0 * physcon().c * opts().code_to_cm / opts().code_to_s))));
 		rc.push_back(
 				std::make_pair(std::string("ei"),
-						hpx::util::format("if( gt(egas-ek,{:e}*egas), egas-ek, tau^{:e})", opts().dual_energy_sw1, fgamma)));
+						hpx::util::format("max(egas-ek,{:e})", opts().ipr_eint_floor * opts().code_to_g / std::pow(opts().code_to_s, 2) / opts().code_to_cm)));
+	} else if (opts().eos != WD) {
+		rc.push_back(std::make_pair(std::string("ei"), hpx::util::format("if( gt(egas-ek,{:e}*egas), egas-ek, tau^{:e})", opts().dual_energy_sw1, fgamma)));
 		rc.push_back(std::make_pair(std::string("P"), hpx::util::format("{:e} * ei", (fgamma - 1.0))));
 		rc.push_back(std::make_pair(std::string("T"), hpx::util::format("{:e} * ei / n", 1.0 / (kb / (fgamma - 1.0)))));
 	} else {
 		rc.push_back(
 				std::make_pair(std::string("ei"),
-						hpx::util::format("if( gt(egas-ek-Edeg,{:e}*egas), egas-ek-Edeg, tau^{:e})", opts().dual_energy_sw1,
-								fgamma)));
+						hpx::util::format("if( gt(egas-ek-Edeg,{:e}*egas), egas-ek-Edeg, tau^{:e})", opts().dual_energy_sw1, fgamma)));
 		rc.push_back(std::make_pair(std::string("P"), hpx::util::format("Pdeg + {:e} * ei", (fgamma - 1.0))));
 		rc.push_back(std::make_pair(std::string("T"), hpx::util::format("{:e} * ei / n", 1.0 / (kb / (fgamma - 1.0)))));
 	}
@@ -1838,14 +1832,12 @@ analytic_t grid::compute_analytic(real t) {
 				}
 				if (opts().radiation) {
 					for (integer field = opts().n_fields; field != opts().n_fields + NRF; ++field) {
-						auto tmp = rad_grid_ptr->get_field(field - opts().n_fields, i - H_BW + R_BW, j - H_BW + R_BW,
-								k - H_BW + R_BW);
+						auto tmp = rad_grid_ptr->get_field(field - opts().n_fields, i - H_BW + R_BW, j - H_BW + R_BW, k - H_BW + R_BW);
 						real dif = std::abs(A[field] - tmp);
 						a.l1[field] += dif * dv;
 						a.l2[field] += dif * dif * dv;
 						a.linf[field] = std::max(dif, a.linf[field]);
-						rad_grid_ptr->set_field(A[field], field - opts().n_fields, i - H_BW + R_BW, j - H_BW + R_BW,
-								k - H_BW + R_BW);
+						rad_grid_ptr->set_field(A[field], field - opts().n_fields, i - H_BW + R_BW, j - H_BW + R_BW, k - H_BW + R_BW);
 					}
 				}
 				if (opts().problem == SOLID_SPHERE) {
@@ -1897,16 +1889,14 @@ void grid::allocate() {
 }
 
 grid::grid() :
-		is_coarse(H_N3), has_coarse(H_N3), Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(
-				opts().n_fields), F(NDIM), X(NDIM), G(NGF), dphi_dt(H_N3), is_root(false), is_leaf(true), U_out(
-				opts().n_fields, ZERO), U_out0(opts().n_fields, ZERO) {
+		is_coarse(H_N3), has_coarse(H_N3), Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(NDIM), X(NDIM), G(NGF), dphi_dt(
+				H_N3), is_root(false), is_leaf(true), U_out(opts().n_fields, ZERO), U_out0(opts().n_fields, ZERO) {
 //	allocate();
 }
 
 grid::grid(const init_func_type &init_func, real _dx, std::array<real, NDIM> _xmin) :
-		is_coarse(H_N3), has_coarse(H_N3), Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(
-				opts().n_fields), F(NDIM), X(NDIM), G(NGF), is_root(false), is_leaf(true), U_out(opts().n_fields, ZERO), U_out0(
-				opts().n_fields, ZERO), dphi_dt(H_N3) {
+		is_coarse(H_N3), has_coarse(H_N3), Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(NDIM), X(NDIM), G(NGF), is_root(
+				false), is_leaf(true), U_out(opts().n_fields, ZERO), U_out0(opts().n_fields, ZERO), dphi_dt(H_N3) {
 
 	dx = _dx;
 	xmin = _xmin;
@@ -1922,13 +1912,12 @@ grid::grid(const init_func_type &init_func, real _dx, std::array<real, NDIM> _xm
 					}
 					if (opts().radiation) {
 						for (integer field = opts().n_fields; field != opts().n_fields + NRF; ++field) {
-							rad_grid_ptr->set_field(this_u[field], field - opts().n_fields, i - H_BW + R_BW, j - H_BW + R_BW,
-									k - H_BW + R_BW);
+							rad_grid_ptr->set_field(this_u[field], field - opts().n_fields, i - H_BW + R_BW, j - H_BW + R_BW, k - H_BW + R_BW);
 						}
 					}
 				} else {
-          std::cerr <<"Error: No problem specified\n";
-          std::terminate();
+					std::cerr << "Error: No problem specified\n";
+					std::terminate();
 				}
 			}
 		}
@@ -1978,9 +1967,8 @@ void grid::rad_init() {
 	rad_grid_ptr->initialize_erad(U[rho_i], U[tau_i]);
 }
 
-
 void grid::compute_mmw() {
-	if( opts().radiation) {
+	if (opts().radiation) {
 		rad_grid_ptr->compute_mmw(U);
 	}
 }
@@ -1995,7 +1983,7 @@ timestep_t grid::compute_fluxes() {
 			physics<NDIM>::set_degenerate_eos(physcon().A, physcon().B);
 		} else if (opts().eos == IPR) {
 			physics<NDIM>::set_ideal_plus_rad_eos(physcon().kb / physcon().mh, 4 * physcon().sigma / physcon().c, opts().ipr_nr_tol, opts().ipr_nr_maxiter, opts().ipr_test, opts().ipr_eint_floor);
-		}
+}
 		physics<NDIM>::set_dual_energy_switches(opts().dual_energy_sw1, opts().dual_energy_sw2);
 	});
 
@@ -2013,11 +2001,11 @@ timestep_t grid::compute_fluxes() {
 		}
 	}
 	hydro.use_smooth_recon(pot_i);
-    
-  const interaction_host_kernel_type host_type = opts().hydro_host_kernel_type;
-  const interaction_device_kernel_type device_type = opts().hydro_device_kernel_type;
-  const size_t device_queue_length = opts().max_gpu_executor_queue_length;
-  return launch_hydro_kernels(hydro, U, X, omega, F, host_type, device_type, device_queue_length);
+
+	const interaction_host_kernel_type host_type = opts().hydro_host_kernel_type;
+	const interaction_device_kernel_type device_type = opts().hydro_device_kernel_type;
+	const size_t device_queue_length = opts().max_gpu_executor_queue_length;
+	return launch_hydro_kernels(hydro, U, X, omega, F, host_type, device_type, device_queue_length);
 
 }
 
@@ -2283,8 +2271,8 @@ void grid::compute_sources(real t, real rotational_time) {
 						real et = U[egas_i][iii];
 						real dei;
 						if (opts().eos == IPR) {
- 							dei = ff * std::max(opts().ipr_eint_floor, ei);
-                                                } else {
+							dei = ff * std::max(opts().ipr_eint_floor, ei);
+						} else {
 							real tau;
 							if (ei < de_switch2 * et) {
 								tau = U[tau_i][iii];
@@ -2306,7 +2294,7 @@ void grid::compute_sources(real t, real rotational_time) {
 				src[sy_i][iii0] -= omega * U[sx_i][iii];
 				src[lx_i][iii0] += omega * U[ly_i][iii];
 				src[ly_i][iii0] -= omega * U[lx_i][iii];
-				if( opts().radiation) {
+				if (opts().radiation) {
 
 				}
 			}
@@ -2478,8 +2466,8 @@ void grid::next_u(integer rk, real t, real dt) {
 				if ((opts().tau_floor > 0.0) && (opts().eos != IPR)) {
 					U[tau_i][iii] = std::max(U[tau_i][iii], opts().tau_floor);
 				} else if (U[tau_i][iii] < ZERO) {
-					printf("Tau is negative- %e %i %i %i  %e %e %e\n", real(U[tau_i][iii]), int(i), int(j), int(k),
-							(double) X[XDIM][iii], (double) X[YDIM][iii], (double) X[ZDIM][iii]);
+					printf("Tau is negative- %e %i %i %i  %e %e %e\n", real(U[tau_i][iii]), int(i), int(j), int(k), (double) X[XDIM][iii],
+							(double) X[YDIM][iii], (double) X[ZDIM][iii]);
 					printf("Use tau_floor option\n");
 					abort();
 				}
@@ -2501,8 +2489,8 @@ void grid::next_u(integer rk, real t, real dt) {
 						x = 1.0 - std::max(U[rho_i][iii], 0.0) / opts().rho_floor;
 						U[rho_i][iii] = opts().rho_floor;
 						if (opts().eos == IPR) {
-                                                        U[egas_i][iii] += x * ((opts().ipr_eint_floor) - U[egas_i][iii]);
-                                                        U[tau_i][iii] -= x * U[tau_i][iii];
+							U[egas_i][iii] += x * ((opts().ipr_eint_floor) - U[egas_i][iii]);
+							U[tau_i][iii] -= x * U[tau_i][iii];
 						} else {
 							U[tau_i][iii] += x * (opts().tau_floor - U[tau_i][iii]);
 							U[egas_i][iii] += x * (std::pow(opts().tau_floor, fgamma) - U[egas_i][iii]);
@@ -2517,8 +2505,8 @@ void grid::next_u(integer rk, real t, real dt) {
 					}
 
 				} else if (U[rho_i][iii] <= ZERO) {
-					printf("Rho is non-positive - %e %i %i %i %e %e %e\n", real(U[rho_i][iii]), int(i), int(j), int(k),
-							real(X[XDIM][iii]), real(X[YDIM][iii]), real(X[ZDIM][iii]));
+					printf("Rho is non-positive - %e %i %i %i %e %e %e\n", real(U[rho_i][iii]), int(i), int(j), int(k), real(X[XDIM][iii]), real(X[YDIM][iii]),
+							real(X[ZDIM][iii]));
 					printf("Use rho_floor option\n");
 					abort();
 				}
@@ -2574,14 +2562,14 @@ std::pair<real, real> grid::virial() const {
 				real et = U[egas_i][iii];
 				real p;
 				if (opts().eos == IPR) {
-                                        ei = std::max(opts().ipr_eint_floor, ei);
-                                	specie_state_t<real> spc;
+					ei = std::max(opts().ipr_eint_floor, ei);
+					specie_state_t<real> spc;
 					real mmw_loc, X_loc, Z_loc;
-                                	for (integer si = 0; si != opts().n_species; ++si) {
-                                        	spc[si] = U[spc_i + si][iii];
-                                	}
-                                	mean_ion_weight(spc, mmw_loc, X_loc, Z_loc);
-                                        p = ipr_pressure(U[tau_i][iii], U[rho_i][iii], mmw_loc);
+					for (integer si = 0; si != opts().n_species; ++si) {
+						spc[si] = U[spc_i + si][iii];
+					}
+					mean_ion_weight(spc, mmw_loc, X_loc, Z_loc);
+					p = ipr_pressure(U[tau_i][iii], U[rho_i][iii], mmw_loc);
 				} else {
 					if (ei < de_switch2 * et) {
 						ei = std::pow(U[tau_i][iii], fgamma);

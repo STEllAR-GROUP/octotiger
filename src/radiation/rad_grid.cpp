@@ -29,6 +29,9 @@
 #include "octotiger/unitiger/radiation/radiation_physics_impl.hpp"
 #include "octotiger/matrix.hpp"
 
+#include <experimental/simd>
+
+
 #if !defined(HPX_COMPUTE_DEVICE_CODE)
 
 //#define SANITY_CHECK(ptr)
@@ -454,7 +457,7 @@ Real eta(Real x, Real sigma) {
 
 void rad_grid::implicit_source(std::vector<std::vector<real>> &hydroVars, Real dt) {
 PROFILE()
-																									SANITY_CHECK(this);
+																										SANITY_CHECK(this);
 	constexpr real toler = 1000.0 * std::numeric_limits<real>::epsilon();
 	constexpr Real zero = Real(0.0), half = Real(0.5), one = Real(1);
 	constexpr real alpha = 0.5;
@@ -566,7 +569,7 @@ inline Real minmod(Real a, Real b) {
 
 void rad_grid::compute_flux(real omega) {
 PROFILE()
-								SANITY_CHECK(this);
+									SANITY_CHECK(this);
 	static Real constexpr zero = Real(0), half = Real(0.5), one = Real(1), two = Real(2), one_third = Real(1.0 / 3.0), two_thirds = Real(2.0 / 3.0), three =
 			Real(3), four = Real(4), five = Real(5);
 	static Real constexpr eps = Real::epsilon();
@@ -800,8 +803,9 @@ void rad_grid::set(const std::string name, real *data) {
 
 std::vector<silo_var_t> rad_grid::var_data() const {
 	std::vector<silo_var_t> s;
-	real eunit = opts().problem == MARSHAK ? 1 : opts().code_to_g / std::pow(opts().code_to_s, 2) / opts().code_to_cm;
-	real funit = opts().problem == MARSHAK ? 1 : eunit * opts().code_to_cm / opts().code_to_s;
+	bool const flag = opts().problem == MARSHAK || opts().output_code_units;
+	real eunit = flag ? 1 : opts().code_to_g / std::pow(opts().code_to_s, 2) / opts().code_to_cm;
+	real funit = flag ? 1 : eunit * opts().code_to_cm / opts().code_to_s;
 	for (auto l : str_to_index) {
 		const int f = l.second;
 		std::string this_name = l.first;
