@@ -88,6 +88,8 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, con
 					// this isn't vectorized
 					if (this_ap - this_am != 0.0) { 
 						this_flux[f] = (this_ap * FL[f] - this_am * FR[f] + this_ap * this_am * (UR[f] - UL[f])) / (this_ap - this_am);
+						//const auto a = std::max(this_ap, -this_am);
+				//		this_flux[f] = 0.5 * (FL[f] + FR[f] - a * (UR[f] - UL[f]));
 					} else {
 						this_flux[f] = (FL[f] + FR[f]) / 2.0;
 					}

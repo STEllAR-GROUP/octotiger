@@ -167,7 +167,7 @@ void output_stage3(std::string fname, int cycle, int gn, int gb, int ge) {
 	const int nfields = grid::get_field_names().size();
 	const auto dir = opts().data_dir;
 	std::string this_fname = dir  + fname + ".silo.data/" + std::to_string(gn) + std::string(".silo");
-	double dtime = silo_output_rotation_time();
+	double dtime = opts().problem == DWD ? silo_output_rotation_time() : silo_output_time();
 	hpx::threads::run_as_os_thread([&this_fname, this_id, &dtime, gb, gn, ge](integer cycle) {
 		DBfile *db;
 		if (this_id == gb) {
@@ -257,8 +257,8 @@ void output_stage4(std::string fname, int cycle) {
 	printf("Opening output stage 4 on locality %i\n", hpx::get_locality_id());
 	const int nfields = grid::get_field_names().size();
 	std::string this_fname = opts().data_dir + "/" + fname + std::string(".silo");
-	double dtime = silo_output_rotation_time();
-	double rtime = silo_output_rotation_time();
+	double dtime = opts().problem == DWD ? silo_output_rotation_time() : silo_output_time();
+	double rtime = opts().problem == DWD ? silo_output_rotation_time() : silo_output_time();
 	hpx::threads::run_as_os_thread([&this_fname, fname, nfields, &rtime](int cycle) {
 		auto *db = DBCreateReal(this_fname.c_str(), DB_CLOBBER, DB_LOCAL, "Octo-tiger", SILO_DRIVER);
 		double dtime = silo_output_time();
