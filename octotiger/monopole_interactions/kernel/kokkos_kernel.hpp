@@ -173,7 +173,7 @@ namespace fmm {
 
                     const int32_t cell_index_coarse_x = ((cell_index.x + INX) >> 1) - (INX / 2);
                     const int32_t cell_index_coarse_y = ((cell_index.y + INX) >> 1) - (INX / 2);
-                    const int32_t cell_index_coarse_y2 =
+                    const int32_t cell_index_coarse_y2 =*/
                         ((cell_index.y + 1 + INX) >> 1) - (INX / 2);
                     int32_t cell_index_coarse_z[simd_length];
                     for (int i = 0; i < simd_length; i++) {
@@ -264,16 +264,16 @@ namespace fmm {
                                 monopole = monopole * d_components[0];
                                 monopole2 = monopole2 * d_components[0];
 
-                                /*const double r =
+                                const double r =
                                     std::sqrt(static_cast<double>(stencil_x * stencil_x +
                                         stencil_y * stencil_y + stencil_z * stencil_z));
                                 const double r3 = r * r * r;
                                 const double four[4] = {
-                                    -1.0 / r, stencil_x / r3, stencil_y / r3, stencil_z / r3};*/
+                                    -1.0 / r, stencil_x / r3, stencil_y / r3, stencil_z / r3};
 
-                                const simd_t four[4] = {constants[index * 4 + 0],
+                                /*const simd_t four[4] = {constants[index * 4 + 0],
                                     constants[index * 4 + 1], constants[index * 4 + 2],
-                                    constants[index * 4 + 3]};
+                                    constants[index * 4 + 3]};*/
                                 tmpstore[0] += four[0] * monopole;
                                 tmpstore2[0] += four[0] * monopole2;
                                 tmpstore[1] += four[1] * monopole * d_components[1];
