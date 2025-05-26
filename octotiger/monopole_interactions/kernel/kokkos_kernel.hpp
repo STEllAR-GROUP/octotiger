@@ -173,7 +173,7 @@ namespace fmm {
 
                     const int32_t cell_index_coarse_x = ((cell_index.x + INX) >> 1) - (INX / 2);
                     const int32_t cell_index_coarse_y = ((cell_index.y + INX) >> 1) - (INX / 2);
-                    const int32_t cell_index_coarse_y2 =*/
+                    const int32_t cell_index_coarse_y2 =
                         ((cell_index.y + 1 + INX) >> 1) - (INX / 2);
                     int32_t cell_index_coarse_z[simd_length];
                     for (int i = 0; i < simd_length; i++) {
