@@ -123,17 +123,10 @@ namespace fmm {
                     if (contains_multipole_neighbor) // TODO Add device_only warning
                         avail = false;
                     if (avail) {
-                        if (contains_multipole_neighbor) {
-                            executor_interface_t executor{device_id};
-                            monopole_kernel<device_executor>(executor, monopoles, com_ptr,
-                                neighbors, type, dx, opts().theta, is_direction_empty, grid_ptr,
-                                contains_multipole_neighbor, device_id);
-                        } else {
-                            hpx::call_once(init_monopole_kokkos_pool_flag, init_monopole_kokkos_aggregation_pool);
-                            monopole_kernel_agg<device_executor>(monopoles, com_ptr, neighbors,
-                                type, dx, opts().theta, is_direction_empty, grid_ptr,
-                                contains_multipole_neighbor, device_id);
-                        }
+                        executor_interface_t executor{device_id};
+                        monopole_kernel<device_executor>(executor, monopoles, com_ptr,
+                            neighbors, type, dx, opts().theta, is_direction_empty, grid_ptr,
+                            contains_multipole_neighbor, device_id);
                         p2p_kokkos_gpu_subgrids_launched++;
 
                         return;
