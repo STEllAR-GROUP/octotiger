@@ -49,7 +49,6 @@ public:
 	bool rad_implicit;
 	bool rewrite_silo;
 	bool correct_am_grav;
-	bool correct_am_hydro;
 	bool rotating_star_amr;
 	bool idle_rates;
 	bool ipr_test;
@@ -216,7 +215,6 @@ public:
 		arc & dual_energy_sw2;
 		arc & hard_dt;
 		arc & correct_am_grav;
-		arc & correct_am_hydro;
 		arc & rewrite_silo;
 		arc & rad_implicit;
 		arc & n_fields;

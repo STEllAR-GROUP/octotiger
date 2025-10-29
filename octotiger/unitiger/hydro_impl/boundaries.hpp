@@ -10,22 +10,6 @@ void hydro_computer<NDIM, INX, PHYS>::boundaries(hydro::state_type &U, const hyd
 
 	static const cell_geometry<NDIM, INX> geo;
 	static constexpr auto lc = geo.levi_civita();
-	if (angmom_index_ != -1) {
-		const auto sx_i = angmom_index_;
-		const auto lx_i = NDIM + angmom_index_;
-		for (int n = 0; n < geo.NANGMOM; n++) {
-			for (int m = 0; m < NDIM; m++) {
-				for (int l = 0; l < NDIM; l++) {
-					if (m != l) {
-						for (int i = 0; i < geo.H_N3; i++) {
-							U[lx_i + n][i] -= lc[n][m][l] * X[m][i] * U[sx_i + l][i];
-						}
-					}
-				}
-			}
-		}
-	}
-
 	for (int f = 0; f < nf_; f++) {
 		if HOST_CONSTEXPR (NDIM == 1) {
 			for (int i = 0; i < geo::H_BW; i++) {

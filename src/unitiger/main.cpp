@@ -43,9 +43,6 @@ template<int NDIM, int INX, class PHYS>
 void run_test(typename PHYS::test_type problem, bool with_correction, bool writingForTest) {
 	static constexpr safe_real CFL = (0.4 / NDIM);
 	hydro_computer<NDIM, INX, PHYS> computer;
-	if (with_correction) {
-		computer.use_angmom_correction(PHYS::get_angmom_index());
-	}
 	const auto nf = PHYS::field_count();
 	computer.use_disc_detect(PHYS::rho_i);
 	for (int s = 0; s < 5; s++) {

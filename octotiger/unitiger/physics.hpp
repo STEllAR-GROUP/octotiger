@@ -84,10 +84,10 @@ struct physics {
 
 	/*** Reconstruct uses this - GPUize****/
 	template<int INX>
-	static const hydro::state_type& pre_recon(const hydro::state_type &U, const hydro::x_type X, safe_real omega, bool angmom);
+	static const hydro::state_type& pre_recon(const hydro::state_type &U, const hydro::x_type X, safe_real omega);
 	/*** Reconstruct uses this - GPUize****/
 	template<int INX>
-	static void post_recon(std::vector<std::vector<std::vector<safe_real>>> &Q, const hydro::x_type X, safe_real omega, bool angmom);
+	static void post_recon(std::vector<std::vector<std::vector<safe_real>>> &Q, const hydro::x_type X, safe_real omega);
 	template<int INX>
 	using comp_type = hydro_computer<NDIM, INX, physics<NDIM>>;
 
@@ -116,10 +116,6 @@ struct physics {
 	static void set_central_force(safe_real GM) {
 		GM_ = GM;
 	}
-	static int get_angmom_index() {
-		return sx_i;
-	}
-
 	template<int INX>
 	static void enforce_outflow(hydro::state_type &U, int dim, int dir);
 

@@ -413,9 +413,11 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 							real X;
 							real Z;
 							mean_ion_weight(species, mmw, X, Z);
-							rc.Trad0 = rad_grid_ptr->get_field(0, j-H_BW+R_BW, k-H_BW+R_BW, l-H_BW+R_BW);
-							rc.Trad0 /= 4.0 * physcon().sigma / physcon().c;
-							rc.Trad0 = pow(rc.Trad0, 0.25);
+							if (opts().radiation) {
+								rc.Trad0 = rad_grid_ptr->get_field(0, j-H_BW+R_BW, k-H_BW+R_BW, l-H_BW+R_BW);
+								rc.Trad0 /= 4.0 * physcon().sigma / physcon().c;
+								rc.Trad0 = pow(rc.Trad0, 0.25);
+							}
 							rc.Tgas0 = POWER(U[tau_i][iii], fgamma) / U[rho_i][iii] / physcon().kb * (physcon().mh * mmw) * (fgamma-1.0);
 
 						}
@@ -1959,10 +1961,6 @@ timestep_t grid::compute_fluxes() {
 	/******************************/
 //	hydro.set_low_order();
 	/******************************/
-	hydro.use_experiment(opts().experiment);
-	if (opts().correct_am_hydro) {
-		hydro.use_angmom_correction(sx_i);
-	}
 	if (opts().cdisc_detect) {
 		hydro.use_disc_detect(rho_i);
 		for (int i = spc_i; i < spc_i + opts().n_species; i++) {

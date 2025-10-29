@@ -107,58 +107,13 @@ void radiation_physics<NDIM>::source(hydro::state_type &dudt, const hydro::state
 
 }
 
-/*** Reconstruct uses this - GPUize****/
-
-template<int NDIM>
-template<int INX>
-void radiation_physics<NDIM>::pre_angmom(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q,
-		std::array<safe_real, cell_geometry<NDIM, INX>::NANGMOM> &Z,
-		std::array<std::array<safe_real, cell_geometry<NDIM, INX>::NDIR>, NDIM> &S, int i, safe_real dx) {
-	static const cell_geometry<NDIM, INX> geo;
-	for (int d = 0; d < geo.NDIR; d++) {
-		if (d != geo.NDIR / 2) {
-			const auto er = Q[er_i][i][d];
-			for (int f = 0; f < NDIM; f++) {
-				S[f][d] *= er;
-			}
-		}
-	}
-	for (int f = 0; f < geo.NANGMOM; f++) {
-		const auto er = U[er_i][i];
-		Z[f] *= er;
-	}
-
-}
-
-/*** Reconstruct uses this - GPUize****/
-
-template<int NDIM>
-template<int INX>
-void radiation_physics<NDIM>::post_angmom(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q,
-		std::array<safe_real, cell_geometry<NDIM, INX>::NANGMOM> &Z,
-		std::array<std::array<safe_real, cell_geometry<NDIM, INX>::NDIR>, NDIM> &S, int i, safe_real dx) {
-	static const cell_geometry<NDIM, INX> geo;
-	for (int d = 0; d < geo.NDIR; d++) {
-		if (d != geo.NDIR / 2) {
-			const auto er = Q[er_i][i][d];
-			for (int f = 0; f < NDIM; f++) {
-				S[f][d] /= er;
-			}
-		}
-	}
-	for (int f = 0; f < geo.NANGMOM; f++) {
-		const auto er = U[er_i][i];
-		Z[f] /= er;
-	}
-
-}
 
 /*** Reconstruct uses this - GPUize****/
 
 template<int NDIM>
 template<int INX>
 const hydro::state_type& radiation_physics<NDIM>::pre_recon(const hydro::state_type &U, const hydro::x_type X,
-		safe_real omega, bool angmom) {
+		safe_real omega) {
 	static const cell_geometry<NDIM, INX> geo;
 	static const auto indices = geo.find_indices(0, geo.H_NX);
 	static thread_local hydro::state_type V;
@@ -186,7 +141,7 @@ const hydro::state_type& radiation_physics<NDIM>::pre_recon(const hydro::state_t
 template<int NDIM>
 template<int INX>
 void radiation_physics<NDIM>::post_recon(std::vector<std::vector<std::vector<safe_real>>> &Q, const hydro::x_type X,
-		safe_real omega, bool angmom) {
+		safe_real omega) {
 	static const cell_geometry<NDIM, INX> geo;
 	const auto dx = X[0][geo.H_DNX] - X[0][0];
 	const auto xloc = geo.xloc();

@@ -49,7 +49,6 @@ static inline bool PPM_test(const T &ql, const T &q0, const T &qr) {
 	return rc;
 }
 
-
 template<int NDIM, int INX>
 void reconstruct_minmod(std::vector<std::vector<safe_real>> &q, const std::vector<safe_real> &u) {
 	PROFILE();
@@ -69,8 +68,8 @@ void reconstruct_minmod(std::vector<std::vector<safe_real>> &q, const std::vecto
 }
 
 template<int NDIM, int INX, class PHYSICS>
-void hydro_computer<NDIM, INX, PHYSICS>::reconstruct_ppm(std::vector<std::vector<safe_real>> &q,
-		const std::vector<safe_real> &u, bool smooth, bool disc_detect, const std::vector<std::vector<double>> &disc) {
+void hydro_computer<NDIM, INX, PHYSICS>::reconstruct_ppm(std::vector<std::vector<safe_real>> &q, const std::vector<safe_real> &u, bool smooth, bool disc_detect,
+		const std::vector<std::vector<double>> &disc) {
 	PROFILE();
 
 	static const cell_geometry<NDIM, INX> geo;
@@ -143,8 +142,7 @@ inline safe_real ospre(safe_real a, safe_real b) {
 }
 
 template<int NDIM, int INX, class PHYS>
-const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(const hydro::state_type &U_,
-		const hydro::x_type &X, safe_real omega) {
+const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(const hydro::state_type &U_, const hydro::x_type &X, safe_real omega) {
 	PROFILE();
 	static thread_local std::vector<std::vector<safe_real>> AM(geo::NANGMOM, std::vector < safe_real > (geo::H_N3));
 	static thread_local std::vector<std::vector<std::vector<safe_real>> > Q(nf_,
@@ -156,21 +154,17 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 	static constexpr auto dir = geo::direction();
 
 	const auto dx = X[0][geo::H_DNX] - X[0][0];
-	const auto &U = PHYS::template pre_recon<INX>(U_, X, omega, angmom_index_ != -1);
+	const auto &U = PHYS::template pre_recon<INX>(U_, X, omega);
 	const auto &cdiscs = PHYS::template find_contact_discs<INX>(U_);
-	if (angmom_index_ == -1 || NDIM == 1) {
-		for (int f = 0; f < nf_; f++) {
+	for (int f = 0; f < nf_; f++) {
 //			if (f < lx_i || f > lx_i + geo::NANGMOM || NDIM == 1) {
-			reconstruct_ppm(Q[f], U[f], false, disc_detect_[f], cdiscs);
-//			reconstruct_ppm(Q[f], U[f], smooth_field_[f], disc_detect_[f], cdiscs);
+		//		reconstruct_ppm(Q[f], U[f], false, disc_detect_[f], cdiscs);
+		reconstruct_ppm(Q[f], U[f], smooth_field_[f], disc_detect_[f], cdiscs);
 //			} else {
 //				reconstruct_minmod<NDIM, INX>(Q[f], U[f]);
 //			}
 //			reconstruct_minmod<NDIM, INX>(Q[f], U[f]);
-		}
-
 	}
-
 
 #ifdef TVD_TEST
 	{
@@ -234,7 +228,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 	}
 
 #endif
-	PHYS::template post_recon<INX>(Q, X, omega, angmom_index_ != -1);
+	PHYS::template post_recon<INX>(Q, X, omega);
 
 	return Q;
 }
