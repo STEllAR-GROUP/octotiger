@@ -12,7 +12,6 @@ From <https://doi.org/10.1145/3204919.3204938>:
 
 ## Build Status [master]
 
-
 #### Jenkins - All CPU / GPU node-level tests for the 8 major build configurations:
 |   	|   	|
 |---	|---	|
@@ -27,12 +26,12 @@ From <https://doi.org/10.1145/3204919.3204938>:
 
 ## Quick Reference
   * **Building Octo-Tiger**:
-    - Use the [Octo-Tiger Spack Package](https://github.com/G-071/octotiger-spack)
+    Use the [Octo-Tiger Spack Package](https://github.com/G-071/octotiger-spack)
    
   * **Where to get help**:
 
-  IRC Channel `#ste||ar` on [libera.chat](libera.chat)
-
+   Join the Ste||ar group on [discord](https://discord.gg/Tn9QuzVjvy)
+  
   * **Where to file issues**:
 
   [Octo-Tiger Issue Tracker](https://github.com/STEllAR-GROUP/octotiger/issues)
