@@ -156,8 +156,13 @@ namespace fmm {
             } else if (m2m_type == interaction_host_kernel_type::LEGACY) {
 #ifdef HPX_HAVE_APEX
                 std::string kernel_name = "kernel multipole-rho legacy";
-                if (type != RHO)
+                if (use_root_stencil) 
+                  kernel_name = "kernel multipole-rho root legacy";
+                if (type != RHO) {
                     kernel_name = "kernel multipole-non-rho legacy";
+                    if (use_root_stencil) 
+                      kernel_name = "kernel multipole-non-rho root legacy";
+                }
                 auto multipole_timer = apex::start(kernel_name);
 #endif
                 // old-style interaction calculation
