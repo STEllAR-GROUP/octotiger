@@ -200,7 +200,7 @@ real grid::convert_gravity_units(int i) {
 }
 
 std::vector<grid::roche_type> grid::get_roche_lobe() const {
-    std::vector<grid::roche_type> this_s(INX * INX * INX);
+    std::vector<grid::roche_type> this_s(intBox.volume());
     for (integer iii = 0; iii < intBox.volume(); iii++) {
         this_s[iii] = roche_lobe[iii];
     }
@@ -326,12 +326,16 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
     if (opts().disable_diagnostics) {
         return rc;
     }
-    real const dV = dx * dx * dx;
+    real const dV = pow(dx, NDIM);
     real x, y, z;
     if (opts().problem != DWD) {
         integer iiig = 0;
         for (BoxIterator iii(intBox, extBox); !iii.end(); ++iii, ++iiig) {
-            if (std::abs(X[YDIM][iii]) < dx && std::abs(X[ZDIM][iii]) < dx) {
+            real dyz2 = ZERO;
+            for (integer d = 1; d < NDIM; d++) {
+                dyz2 += sqr(X[d][iii]);
+            }
+            if (dyz2 < sqr(dx)) {
                 rc.xline.push_back(std::make_pair(X[XDIM][iii], std::vector<real>()));
                 for (integer fi = 0; fi < opts().n_fields; fi++) {
                     rc.xline.back().second.push_back(U[fi][iii]);
@@ -381,12 +385,6 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
                 rc.grid_sum[f] += U[f][iii] * dV;
             }
             rc.grid_sum[egas_i] += 0.5 * U[pot_i][iii] * dV;
-            rc.lsum[0] += U[lx_i][iii] * dV -
-                (X[YDIM][iii] * U[sz_i][iii] - X[ZDIM][iii] * U[sy_i][iii]) * dV;
-            rc.lsum[1] -= U[ly_i][iii] * dV -
-                (X[XDIM][iii] * U[sz_i][iii] - X[ZDIM][iii] * U[sx_i][iii]) * dV;
-            rc.lsum[2] += U[lz_i][iii] * dV -
-                (X[XDIM][iii] * U[sy_i][iii] - X[YDIM][iii] * U[sx_i][iii]) * dV;
         }
         for (integer f = 0; f != opts().n_fields; ++f) {
             rc.grid_out[f] += U_out[f];
@@ -396,18 +394,15 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
     }
 
     const auto is_loc = [this, diags](auto const& iii) {
-        real const ax = X[XDIM][iii] - diags.com[0][XDIM];
-        real const ay = X[YDIM][iii] - diags.com[0][YDIM];
-        real const az = X[ZDIM][iii] - diags.com[0][ZDIM];
-
-        real const bx = diags.com[1][XDIM] - diags.com[0][XDIM];
-        real const by = diags.com[1][YDIM] - diags.com[0][YDIM];
-        real const bz = diags.com[1][ZDIM] - diags.com[0][ZDIM];
-
-        real const aa = (ax * ax + ay * ay + az * az);
-        real const bb = (bx * bx + by * by + bz * bz);
-        real const ab = (ax * bx + ay * by + az * bz);
-
+        real aa = ZERO, bb = ZERO, ab = ZERO;
+        for (integer d = 0; d < NDIM; d++) {
+            real const& x0 = diags.com[0][d];
+            real const a = X[d][iii] - x0;
+            real const b = diags.com[1][d] - x0;
+            aa += a * a;
+            ab += a * b;
+            bb += b * b;
+        }
         real const d2bb = aa * bb - ab * ab;
         if ((d2bb < dx * dx * bb * 3.0 / 4.0)) {
             if ((ab < bb) && (ab > ZERO)) {
@@ -433,29 +428,41 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
             return int(0);
         }
         int rc = 0;
-        real const x = X[XDIM][iii] - diags.grid_com[0];
-        real const y = X[YDIM][iii] - diags.grid_com[1];
-        real const z = X[ZDIM][iii];
-        real ax = G[iiig][gx_i] + x * diags.omega * diags.omega;
-        real ay = G[iiig][gy_i] + y * diags.omega * diags.omega;
-        real az = G[iiig][gz_i];
-        real nx, ny, nz;
-        real const a = SQRT(ax * ax + ay * ay + az * az);
+        std::array<real, NDIM> ax, n, x;
+        for (integer d = 0; d < NDIM; d++) {
+            x[d] = X[iii][d];
+            ax[d] = G[iiig][gx_i + d];
+        }
+        if constexpr (NDIM >= 2) {
+            x[XDIM] -= diags.grid_com[XDIM];
+            x[YDIM] -= diags.grid_com[YDIM];
+            ax[XDIM] += x[XDIM] * sqr(diags.omega);
+            ax[YDIM] += x[YDIM] * sqr(diags.omega);
+        }
+        real a = ZERO;
+        for (integer d = 0; d < NDIM; d++) {
+            a += sqr(ax[d]);
+        }
         if (a > ZERO) {
-            nx = ax / a;
-            ny = ay / a;
-            nz = az / a;
+            a = sqrt(a);
+            real const ia + ONE / a;
+            for (integer d = 0; d < NDIM; d++) {
+                n[d] = ax[d] * ia;
+            }
             space_vector dX[nspec];
             real g[nspec] = {ZERO, ZERO};
             for (integer s = 0; s != nspec; ++s) {
-                dX[s][XDIM] = x - diags.com[s][XDIM];
-                dX[s][YDIM] = y - diags.com[s][YDIM];
-                dX[s][ZDIM] = z - diags.com[s][ZDIM];
+                for (integer d = 0; d < NDIM; d++) {
+                    dX[s][d] = x[d] - diags.com[s][d];
+                }
             }
-            real const x0 = std::sqrt(
-                std::pow(dX[0][XDIM], 2) + std::pow(dX[0][YDIM], 2) + std::pow(dX[0][ZDIM], 2));
-            real const x1 = std::sqrt(
-                std::pow(dX[1][XDIM], 2) + std::pow(dX[1][YDIM], 2) + std::pow(dX[1][ZDIM], 2));
+            real x0 = ZERO, x1 = ZERO;
+            for (integer d = 0; d < NDIM; d++) {
+                x0 += sqr(dX[0][d]);
+                x1 += sqr(dX[1][d]);
+            }
+            x0 = sqrt(x0);
+            x1 = sqrt(x1);
             if (x1 > 0.25 * diags.rL[1] && x0 < 0.25 * diags.rL[0] && diags.stage > 1) {
                 rc = +1;
             } else if (x0 > 0.25 * diags.rL[0] && x1 < 0.25 * diags.rL[1] && diags.stage > 1) {
@@ -469,9 +476,9 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
                         rc = 99;
                         return rc;
                     }
-                    g[s] += ax * dX[s][XDIM] * INVERSE(this_x);
-                    g[s] += ay * dX[s][YDIM] * INVERSE(this_x);
-                    g[s] += az * dX[s][ZDIM] * INVERSE(this_x);
+                    for (integer d = 0; d < NDIM; d++) {
+                        g[s] += ax[d] * dX[s][d] * INVERSE(this_x);
+                    }
                 }
                 if (g[0] <= ZERO && g[1] > ZERO) {
                     rc = +1;
@@ -489,16 +496,15 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
         return rc;
     };
     integer iiig = 0;
-    roche_lobe.resize(INX * INX * INX);
+    roche_lobe.resize(intBox.volume());
     for (BoxIterator iii(intBox, extBox); !iii.end(); ++iii, ++iiig) {
-        x = X[XDIM][iii];
-        y = X[YDIM][iii];
-        z = X[ZDIM][iii];
+        real const irho = ONE / U[rho_i][iii];
+        std::array<real, NDIM> v, x;
+        for (integer d = 0; d < NDIM; d++) {
+            x[d] = X[iii][d];
+            v[d] = U[sx_i + d][iii] * irho;
+        }
         real const o2 = diags.omega * diags.omega;
-        real const rhoinv = INVERSE(U[rho_i][iii]);
-        real const vx = U[sx_i][iii] * INVERSE(U[rho_i][iii]);
-        real const vy = U[sy_i][iii] * INVERSE(U[rho_i][iii]);
-        real const vz = U[sz_i][iii] * INVERSE(U[rho_i][iii]);
         std::array<real, nspec> rho;
         integer star;
         if (diags.stage < 2) {
@@ -516,8 +522,8 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
                 return rc;
             }
         }
-        if (diags.stage > 1) {
-            real const R2 = x * x + y * y;
+        if (diags.stage > 1 && NDIM >= 2) {
+            real const R2 = sqr(x[0]) + sqr(x[1]);
             real const phi_g = G[iiig][phi_i];
             if (diags.omega < ZERO) {
                 rc.failed = true;
@@ -526,13 +532,16 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
             const safe_real phi_r = -0.5 * POWER(diags.omega, 2) * R2;
             const safe_real phi_eff = phi_g + phi_r;
             const safe_real rho0 = U[rho_i][iii];
-            const auto ekin = (pow(U[sx_i][iii], 2) + pow(U[sy_i][iii], 2) + pow(U[sz_i][iii], 2)) /
-                2.0 / U[rho_i][iii] * dV;
+            real ekin = ZERO;
+            for (integer d = 0; d < NDIM; d++) {
+                kin += irho * sqr(U[sx_i + d][iii]);
+            }
+            kin *= HALF;
             if (ekin / U[rho_i][iii] / dV + phi_g > ZERO) {
-                rc.munbound1 += U[rho_i][iii] * dx * dx * dx;
+                rc.munbound1 += U[rho_i][iii] * dV;
             }
             if (ekin / U[rho_i][iii] / dV + phi_eff > ZERO) {
-                rc.munbound2 += U[rho_i][iii] * dx * dx * dx;
+                rc.munbound2 += U[rho_i][iii] * dV;
             }
             integer i;
             if (rho[1] > 0.5 * rho0) {
@@ -632,31 +641,16 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
             }
             real et = U[egas_i][iii];
             real p;
-            if (false) {    // (opts().eos == IPR) { // disabling this part because this
-                            // mainly serves for computing the virial error as part of the
-                            // SCF, and the SCF does not use the ipr eos
-                ei = std::max(opts().ipr_eint_floor, ei);
-                specie_state_t<real> spc;
-                real mmw_loc, X_loc, Z_loc;
-                for (integer si = 0; si != opts().n_species; ++si) {
-                    spc[si] = U[spc_i + si][iii];
-                }
-                mean_ion_weight(spc, mmw_loc, X_loc, Z_loc);
-                p = ipr_pressure(U[tau_i][iii], U[rho_i][iii], mmw_loc);
-            } else {
-                if (ei < de_switch2 * et) {
-                    ei = POWER(U[tau_i][iii], fgamma);
-                }
-                p = (fgamma - ONE) * ei;
-                if (opts().eos == WD) {
-                    p += ztwd_pressure(U[rho_i][iii]);
-                }
+            if (ei < de_switch2 * et) {
+                ei = POWER(U[tau_i][iii], fgamma);
+            }
+            p = (fgamma - ONE) * ei;
+            if (opts().eos == WD) {
+                p += ztwd_pressure(U[rho_i][iii]);
             }
             if (opts().problem == DWD) {
-                rc.virial +=
-                    (2.0 * ek + 0.5 * U[rho_i][iii] * G[iiig][phi_i] + 3.0 * p) * (dx * dx * dx);
-                rc.virial_norm +=
-                    (2.0 * ek - 0.5 * U[rho_i][iii] * G[iiig][phi_i] + 3.0 * p) * (dx * dx * dx);
+                rc.virial += (2.0 * ek + 0.5 * U[rho_i][iii] * G[iiig][phi_i] + 3.0 * p) * dV;
+                rc.virial_norm += (2.0 * ek - 0.5 * U[rho_i][iii] * G[iiig][phi_i] + 3.0 * p) * dV;
             }
             for (integer f = 0; f != opts().n_fields; ++f) {
                 rc.grid_sum[f] += U[f][iii] * dV;
@@ -1996,16 +1990,16 @@ void grid::next_u(integer rk, real t, real dt) {
         auto const rightPosBox = intBox.slice(d, H_NX - H_BW);
         BoxIterator ifl(leftFluxBox, extBoxFlux);
         BoxIterator ifr(rightFluxBox, extBoxFlux);
-        BoxIterator ixl(leftPosBox , extBoxFlux);
+        BoxIterator ixl(leftPosBox, extBoxFlux);
         BoxIterator ixr(rightPosBox, extBoxFlux);
         for (; ifl != ifl.end(); ++ifr, ++ifl, ++ixr, ++ixl) {
             std::vector<real> du(opts().n_fields);
             for (integer f = 0; f != opts().n_fields; ++f) {
                 if (X[d][ixr] > scaling_factor) {
-                     du_out[f] += (F[d][f][ifr]) * dS;
+                    du_out[f] += (F[d][f][ifr]) * dS;
                 }
                 if (X[d][ixl] > scaling_factor) {
-                     du_out[f] += (F[d][f][ifl]) * dS;
+                    du_out[f] += (F[d][f][ifl]) * dS;
                 }
             }
         }
@@ -2132,6 +2126,6 @@ std::vector<real> grid::conserved_outflows() const {
     if (!opts().gravity) return U_out;
     auto Uret = U_out;
     Uret[egas_i] += Uret[pot_i];
-	return Uret;
+    return Uret;
 }
 #endif
