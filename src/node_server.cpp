@@ -522,10 +522,6 @@ void node_server::initialize(real t, real rt) {
 	} else {
 		grid_ptr = std::make_shared<grid>(dx, xmin);
 	}
-	if (opts().radiation) {
-		rad_grid_ptr = grid_ptr->get_rad_grid();
-		rad_grid_ptr->set_dx(dx);
-	}
 	if (my_location.level() == 0) {
 		grid_ptr->set_root();
 	}

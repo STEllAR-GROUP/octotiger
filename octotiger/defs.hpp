@@ -145,8 +145,8 @@ constexpr integer FZM = 4;
 constexpr integer FZP = 5;
 
 constexpr integer NFACE = 2 * NDIM;
-constexpr integer NVERTEX = 8;
-constexpr integer NCHILD = 8;
+constexpr integer NVERTEX = (1 << NDIM);
+constexpr integer NCHILD = NVERTEX;
 
 constexpr real ZERO = real(0);
 constexpr real ONE = real(1);

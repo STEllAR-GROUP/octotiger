@@ -998,7 +998,6 @@ void node_server::erad_init() {
 			futs[index++] = child.erad_init();
 		}
 	}
-	grid_ptr->rad_init();
 	if (is_refined) {
 		hpx::wait_all(futs);
 	}

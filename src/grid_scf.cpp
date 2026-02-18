@@ -445,7 +445,6 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 			}
 		}
 	}
-	init_z_field();
 	if (opts().radiation) {
 		rad_grid_ptr->initialize_erad(U[rho_i], U[tau_i]);
 	}
@@ -670,7 +669,6 @@ void node_server::run_scf(std::string const &data_dir) {
 		if (opts().eos == WD) {
 			set_cgs();
 			all_hydro_bounds();
-			grid_ptr->rad_init();
 		}
 	}
 }

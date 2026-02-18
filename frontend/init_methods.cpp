@@ -114,7 +114,7 @@ void cleanup_puddle_on_this_locality(void) {
     }
 #endif
     // Use finalize functionality. Cleans up all buffers and prevents further use
-    recycler::finalize();
+  //  recycler::finalize();
 #ifdef OCTOTIGER_HAVE_KOKKOS
     stream_pool::cleanup<hpx::kokkos::hpx_executor, round_robin_pool<hpx::kokkos::hpx_executor>>();
     stream_pool::cleanup<hpx::kokkos::serial_executor, round_robin_pool<hpx::kokkos::serial_executor>>();
@@ -153,12 +153,12 @@ void init_executors(void) {
                     << num_devices << " were found!" << std::endl;
           abort();
       }
-      if (opts().number_gpus > recycler::max_number_gpus) {
-        std::cerr << "ERROR: Requested " << opts().number_gpus
-                  << " GPUs but CPPuddle was built with CPPUDDLE_WITH_MAX_NUMBER_GPUS="
-                  << recycler::max_number_gpus << std::endl;
-        abort();
-      }
+//      if (opts().number_gpus > recycler::max_number_gpus) {
+//        std::cerr << "ERROR: Requested " << opts().number_gpus
+//                  << " GPUs but CPPuddle was built with CPPUDDLE_WITH_MAX_NUMBER_GPUS="
+//                  << recycler::max_number_gpus << std::endl;
+//        abort();
+//      }
     }
 
 

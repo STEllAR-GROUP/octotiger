@@ -247,6 +247,7 @@ set(source_files
 
 # Octo-Tiger library headers
 set(header_files
+    octotiger/Box.hpp
     octotiger/config/export_definitions.hpp
     octotiger/channel.hpp
     octotiger/compute_factor.hpp
