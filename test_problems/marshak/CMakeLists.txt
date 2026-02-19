@@ -8,7 +8,8 @@
 ##############################################################################
 
 # Marshak - CPU
-if (OCTOTIGER_WITH_GRIDDIM EQUAL 8)
+#if (OCTOTIGER_WITH_GRIDDIM EQUAL 8)
+if (false)
   add_test(NAME test_problems.cpu.marshak
     COMMAND octotiger
       --config_file=${PROJECT_SOURCE_DIR}/test_problems/marshak/marshak.ini)

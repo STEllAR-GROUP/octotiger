@@ -14,9 +14,9 @@ AlignOperands: false
 AlignTrailingComments: true
 AllowAllParametersOfDeclarationOnNextLine: false
 AllowShortBlocksOnASingleLine: false
-AllowShortCaseLabelsOnASingleLine: true
+AllowShortCaseLabelsOnASingleLine: false
 AllowShortFunctionsOnASingleLine: Empty
-AllowShortIfStatementsOnASingleLine: true
+AllowShortIfStatementsOnASingleLine: false
 AllowShortLoopsOnASingleLine: false
 AlwaysBreakAfterDefinitionReturnType: None
 AlwaysBreakAfterReturnType: None
@@ -25,13 +25,13 @@ AlwaysBreakTemplateDeclarations: true
 #BinPackArguments: true
 #BinPackParameters: true
 BraceWrapping:
-    AfterClass: false
+    AfterClass: true
     AfterControlStatement: false
-    AfterEnum: false
+    AfterEnum: true
     AfterFunction: false
     AfterNamespace: false
-    AfterStruct: false
-    AfterUnion: false
+    AfterStruct: true
+    AfterUnion: true
     BeforeCatch: false
     BeforeElse: false
     IndentBraces: false
@@ -86,4 +86,3 @@ SpacesInSquareBrackets: false
 Standard: Cpp11
 TabWidth: 4
 UseTab: Never
-...

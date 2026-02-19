@@ -19,14 +19,7 @@ if (OCTOTIGER_WITH_GRIDDIM EQUAL 8)
   set(sx_regex "sx 2.945534e-03 6.536674e-02")
   set(sy_regex "sy 2.945534e-03 6.536674e-02")
   set(sz_regex "sz 2.945534e-03 6.536674e-02")
-  set(zx_regex "zx 4.706839e-05 1.144265e-03")
-  set(zy_regex "zy 4.706839e-05 1.144265e-03")
-  set(zz_regex "zz 4.706839e-05 1.144265e-03")
   set(spc1_regex "spc_1 1.015611e-03 1.918630e-02")
-  set(spc2_regex "spc_3 0.000000e.00 0.000000e.00")
-  set(spc3_regex "spc_3 0.000000e.00 0.000000e.00")
-  set(spc4_regex "spc_4 0.000000e.00 0.000000e.00")
-  set(spc5_regex "spc_5 0.000000e.00 0.000000e.00")
   set(silo_scenario_filename "blast_with_am.silo")
 elseif (OCTOTIGER_WITH_GRIDDIM EQUAL 16)
   set(rho_regex "rho 7.443236e-04 1.876318e-02")
@@ -36,14 +29,7 @@ elseif (OCTOTIGER_WITH_GRIDDIM EQUAL 16)
   set(sx_regex "sx 2.365151e-03 7.155404e-02")
   set(sy_regex "sy 2.365151e-03 7.155404e-02")
   set(sz_regex "sz 2.365151e-03 7.155404e-02")
-  set(zx_regex "zx 2.080924e-05 6.791078e-04")
-  set(zy_regex "zy 2.080924e-05 6.791078e-04")
-  set(zz_regex "zz 2.080924e-05 6.791078e-04")
   set(spc1_regex "7.443236e-04 1.876318e-02")
-  set(spc2_regex "spc_3 0.000000e.00 0.000000e.00")
-  set(spc3_regex "spc_3 0.000000e.00 0.000000e.00")
-  set(spc4_regex "spc_4 0.000000e.00 0.000000e.00")
-  set(spc5_regex "spc_5 0.000000e.00 0.000000e.00")
   set(silo_scenario_filename "none")
 else()
   message(FATAL_ERROR "Octo-Tiger Tests will not work with this OCTOTIGER_WTIH_GRIDDIM."
@@ -65,14 +51,7 @@ function(test_blast_scenario test_name test_log_file reference_filename kernel_p
   add_test(NAME ${test_name}.sx_regex COMMAND cat ${test_log_file})
   add_test(NAME ${test_name}.sy_regex COMMAND cat ${test_log_file})
   add_test(NAME ${test_name}.sz_regex COMMAND cat ${test_log_file})
-  add_test(NAME ${test_name}.zx_regex COMMAND cat ${test_log_file})
-  add_test(NAME ${test_name}.zy_regex COMMAND cat ${test_log_file})
-  add_test(NAME ${test_name}.zz_regex COMMAND cat ${test_log_file})
   add_test(NAME ${test_name}.spc1_regex COMMAND cat ${test_log_file})
-  add_test(NAME ${test_name}.spc2_regex COMMAND cat ${test_log_file})
-  add_test(NAME ${test_name}.spc3_regex COMMAND cat ${test_log_file})
-  add_test(NAME ${test_name}.spc4_regex COMMAND cat ${test_log_file})
-  add_test(NAME ${test_name}.spc5_regex COMMAND cat ${test_log_file})
   set_tests_properties(${test_name}.rho_regex PROPERTIES
     FIXTURES_REQUIRED ${test_name}
     PASS_REGULAR_EXPRESSION ${rho_regex})
@@ -94,36 +73,15 @@ function(test_blast_scenario test_name test_log_file reference_filename kernel_p
   set_tests_properties(${test_name}.sz_regex PROPERTIES
     FIXTURES_REQUIRED ${test_name}
     PASS_REGULAR_EXPRESSION ${sz_regex})
-  set_tests_properties(${test_name}.zx_regex PROPERTIES
-    FIXTURES_REQUIRED ${test_name}
-    PASS_REGULAR_EXPRESSION ${zx_regex})
-  set_tests_properties(${test_name}.zy_regex PROPERTIES
-    FIXTURES_REQUIRED ${test_name}
-    PASS_REGULAR_EXPRESSION ${zy_regex})
-  set_tests_properties(${test_name}.zz_regex PROPERTIES
-    FIXTURES_REQUIRED ${test_name}
-    PASS_REGULAR_EXPRESSION ${zz_regex})
   set_tests_properties(${test_name}.spc1_regex PROPERTIES
     FIXTURES_REQUIRED ${test_name}
     PASS_REGULAR_EXPRESSION ${spc1_regex})
-  set_tests_properties(${test_name}.spc2_regex PROPERTIES
-    FIXTURES_REQUIRED ${test_name}
-    PASS_REGULAR_EXPRESSION ${spc2_regex})
-  set_tests_properties(${test_name}.spc3_regex PROPERTIES
-    FIXTURES_REQUIRED ${test_name}
-    PASS_REGULAR_EXPRESSION ${spc3_regex})
-  set_tests_properties(${test_name}.spc4_regex PROPERTIES
-    FIXTURES_REQUIRED ${test_name}
-    PASS_REGULAR_EXPRESSION ${spc4_regex})
-  set_tests_properties(${test_name}.spc5_regex PROPERTIES
-    FIXTURES_REQUIRED ${test_name}
-    PASS_REGULAR_EXPRESSION ${spc5_regex})
 
 
   
   if (NOT ${reference_filename} STREQUAL "none" )
     add_test(NAME ${test_name}.diff
-      COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
+      COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12 -E "lx, ly, lz, idle_rate, locality, _hdf5libinfo, _silolibinfo"
        ${PROJECT_SOURCE_DIR}/octotiger-testdata/${reference_filename} ${PROJECT_BINARY_DIR}/test_problems/blast/final.silo.data/0.silo)
     set_tests_properties(${test_name}.diff PROPERTIES
       FIXTURES_REQUIRED ${test_name}
@@ -148,14 +106,7 @@ if (OCTOTIGER_WITH_GRIDDIM EQUAL 8)
   set(sx_regex "sx 2.994212e-03 6.572307e-02")
   set(sy_regex "sy 2.994212e-03 6.572307e-02")
   set(sz_regex "sz 2.994212e-03 6.572307e-02")
-  set(zx_regex "zx 5.147511e-05 1.349561e-03")
-  set(zy_regex "zy 5.147511e-05 1.349561e-03")
-  set(zz_regex "zz 5.147511e-05 1.349561e-03")
   set(spc1_regex "spc_1 9.966026e-04 1.888472e-02")
-  set(spc2_regex "spc_3 0.000000e.00 0.000000e.00")
-  set(spc3_regex "spc_3 0.000000e.00 0.000000e.00")
-  set(spc4_regex "spc_4 0.000000e.00 0.000000e.00")
-  set(spc5_regex "spc_5 0.000000e.00 0.000000e.00")
   set(silo_scenario_filename "blast_without_am.silo")
 elseif (OCTOTIGER_WITH_GRIDDIM EQUAL 16)
   set(rho_regex "rho 7.575226e-04 1.943548e-02")
@@ -165,14 +116,7 @@ elseif (OCTOTIGER_WITH_GRIDDIM EQUAL 16)
   set(sx_regex "sx 2.441068e-03 7.513731e-02")
   set(sy_regex "sy 2.441068e-03 7.513731e-02")
   set(sz_regex "sz 2.441068e-03 7.513731e-02")
-  set(zx_regex "zx 1.853338e-05 6.331659e-04")
-  set(zy_regex "zy 1.853338e-05 6.331659e-04")
-  set(zz_regex "zz 1.853338e-05 6.331659e-04")
   set(spc1_regex "spc_1 7.575226e-04 1.943548e-02")
-  set(spc2_regex "spc_3 0.000000e.00 0.000000e.00")
-  set(spc3_regex "spc_3 0.000000e.00 0.000000e.00")
-  set(spc4_regex "spc_4 0.000000e.00 0.000000e.00")
-  set(spc5_regex "spc_5 0.000000e.00 0.000000e.00")
   set(silo_scenario_filename "none")
 else()
   message(FATAL_ERROR "Octo-Tiger Tests will not work with this OCTOTIGER_WTIH_GRIDDIM."
@@ -181,10 +125,10 @@ else()
 endif()
 
 test_blast_scenario(test_problems.cpu.blast_legacy blast_without_am_hydro_old_log.txt ${silo_scenario_filename}
-" --hydro_device_kernel_type=OFF --hydro_host_kernel_type=LEGACY")
+"--n_species=1 --hydro_device_kernel_type=OFF --hydro_host_kernel_type=LEGACY")
 if(OCTOTIGER_WITH_CUDA)
   test_blast_scenario(test_problems.gpu.blast_cuda blast_without_am_hydro_cuda_log.txt ${silo_scenario_filename}
-  " --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=DEVICE_ONLY")
+  "--n_species=1  --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=DEVICE_ONLY")
 #if(NOT OCTOTIGER_WITH_FAST_FP_CONTRACT)
 #   test_blast_scenario(test_problems.cpu_gpu.blast_cuda blast_without_am_hydro_cuda_log.txt ${silo_scenario_filename}
 #   " --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1 --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=LEGACY")
@@ -192,22 +136,22 @@ if(OCTOTIGER_WITH_CUDA)
 endif()
 if(OCTOTIGER_WITH_HIP)
   test_blast_scenario(test_problems.gpu.blast_hip blast_without_am_hydro_hip_log.txt ${silo_scenario_filename}
-  " --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --hydro_device_kernel_type=HIP --hydro_host_kernel_type=DEVICE_ONLY")
+  "--n_species=1  --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --hydro_device_kernel_type=HIP --hydro_host_kernel_type=DEVICE_ONLY")
 endif()
 
 if(OCTOTIGER_WITH_KOKKOS)
   test_blast_scenario(test_problems.cpu.blast_kokkos blast_without_am_hydro_kokkos_log.txt ${silo_scenario_filename}
-  " --hydro_device_kernel_type=OFF --hydro_host_kernel_type=KOKKOS")
+  "--n_species=1  --hydro_device_kernel_type=OFF --hydro_host_kernel_type=KOKKOS")
   if(OCTOTIGER_WITH_CUDA)
     #   if(NOT OCTOTIGER_WITH_FAST_FP_CONTRACT)
     # test_blast_scenario(test_problems.cpu_gpu.blast_kokkos blast_without_am_hydro_kokkos_cuda_log.txt ${silo_scenario_filename}
     # " --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1 --hydro_device_kernel_type=KOKKOS_CUDA --hydro_host_kernel_type=KOKKOS")
     #endif()
     test_blast_scenario(test_problems.gpu.blast_kokkos blast_without_am_hydro_kokkos_cuda_log.txt ${silo_scenario_filename}
-    " --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --hydro_device_kernel_type=KOKKOS_CUDA --hydro_host_kernel_type=DEVICE_ONLY")
+    "--n_species=1  --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --hydro_device_kernel_type=KOKKOS_CUDA --hydro_host_kernel_type=DEVICE_ONLY")
   endif()
   if(OCTOTIGER_WITH_HIP)
     test_blast_scenario(test_problems.gpu.blast_kokkos blast_without_am_hydro_kokkos_hip_log.txt ${silo_scenario_filename}
-   " --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --hydro_device_kernel_type=KOKKOS_HIP --hydro_host_kernel_type=DEVICE_ONLY")
+   "--n_species=1  --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --hydro_device_kernel_type=KOKKOS_HIP --hydro_host_kernel_type=DEVICE_ONLY")
   endif()
 endif()

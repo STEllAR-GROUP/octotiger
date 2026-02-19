@@ -2438,12 +2438,13 @@ void grid::next_u(integer rk, real t, real dt) {
 					abort();
 				}
 				if (opts().rho_floor > 0.0) {
-					double x;
+					real x;
 					x = 0.0;
 					for (int s = 0; s < opts().n_species; s++) {
 						U[spc_i + s][iii] = std::max(U[spc_i + s][iii], 0.0);
 						x += U[spc_i + s][iii];
 					}
+					assert(x >= 0.0);
 					if (x != 0.0) {
 						for (int s = 0; s < opts().n_species; s++) {
 							U[spc_i + s][iii] /= x;
@@ -2527,26 +2528,26 @@ std::pair<real, real> grid::virial() const {
 				}
 				real et = U[egas_i][iii];
 				real p;
-				if (opts().eos == IPR) {
-                                        ei = std::max(opts().ipr_eint_floor, ei);
-                                	specie_state_t<real> spc;
-					real mmw_loc, X_loc, Z_loc;
-                                	for (integer si = 0; si != opts().n_species; ++si) {
-                                        	spc[si] = U[spc_i + si][iii];
-                                	}
-                                	mean_ion_weight(spc, mmw_loc, X_loc, Z_loc);
-                                        p = ipr_pressure(U[tau_i][iii], U[rho_i][iii], mmw_loc);
-				} else {
-					if (ei < de_switch2 * et) {
-						ei = std::pow(U[tau_i][iii], fgamma);
-					}
-					real p = (fgamma - 1.0) * ei;
-					if (opts().eos == WD) {
-						p += ztwd_pressure(U[rho_i][iii]);
-					}
-				}
-				v.first += (2.0 * ek + 0.5 * U[pot_i][iii] + 3.0 * p) * (dx * dx * dx);
-				v.second += (2.0 * ek - 0.5 * U[pot_i][iii] + 3.0 * p) * (dx * dx * dx);
+                if (opts().eos == IPR) {
+                    ei = std::max(opts().ipr_eint_floor, ei);
+                    specie_state_t<real> spc;
+                    real mmw_loc, X_loc, Z_loc;
+                    for (integer si = 0; si != opts().n_species; ++si) {
+                        spc[si] = U[spc_i + si][iii];
+                    }
+                    mean_ion_weight(spc, mmw_loc, X_loc, Z_loc);
+                    p = ipr_pressure(U[tau_i][iii], U[rho_i][iii], mmw_loc);
+                } else {
+                    if (ei < de_switch2 * et) {
+                        ei = std::pow(U[tau_i][iii], fgamma);
+                    }
+                    real p = (fgamma - 1.0) * ei;
+                    if (opts().eos == WD) {
+                        p += ztwd_pressure(U[rho_i][iii]);
+                    }
+                }
+                v.first += (2.0 * ek + 0.5 * U[pot_i][iii] + 3.0 * p) * (dx * dx * dx);
+                v.second += (2.0 * ek - 0.5 * U[pot_i][iii] + 3.0 * p) * (dx * dx * dx);
 			}
 		}
 	}
