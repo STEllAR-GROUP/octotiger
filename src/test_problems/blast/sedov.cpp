@@ -59,7 +59,7 @@ std::vector<real> blast_wave_analytic(real x, real y, real z, real t) {
 #endif
 
 std::vector<real> blast_wave(real x, real y, real z, real dx) {
-	std::vector<real> u(opts().n_fields, 0.0);
+	std::vector<real> u(opts().n_fields, ZERO);
 	u[rho_i] = u[spc_i] = 1.0;
 	const auto r2 = x * x + y * y + z * z;
 	const auto rmax = dx * 3.5;

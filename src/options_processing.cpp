@@ -236,7 +236,14 @@ bool options::process_options(int argc, char *argv[]) {
 		std::cerr << "Either increase theta or recompile with a new theta minimum using the cmake parameter OCTOTIGER_THETA_MINIMUM";
 		abort();
 	}
-  opts().detected_intel_compiler = false;
+    if (opts().correct_am_hydro) {
+		std::cerr << std::endl;
+		std::cerr << "WARNING: correct_am_hydro=1 is obsolete, setting to 0" << std::endl;
+		std::cerr << "(pausing for 10 seconds)" << std::endl;
+		opts().correct_am_hydro = 0;
+		hpx::this_thread::sleep_for(std::chrono::seconds(10));       
+	}
+    opts().detected_intel_compiler = false;
 
 #ifdef __VERSION__
   std::string compiler_version = std::string(__VERSION__);

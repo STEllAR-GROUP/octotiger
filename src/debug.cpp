@@ -67,10 +67,9 @@ void ThreadDebugger::handler(int sig) {
 #if !defined(_MSC_VER)
     static std::atomic<int> called(false);
     if (!called++) {
-        printf("Signal: %s\n", name(sig));
         std::cout << boost::stacktrace::stacktrace();
-        exit(-1);
-    }
+     }
+	 exit(-1);
 #endif
 }
 
