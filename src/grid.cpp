@@ -14,7 +14,6 @@
 #include "octotiger/node_server.hpp"
 #include "octotiger/options.hpp"
 #include "octotiger/problem.hpp"
-#include "octotiger/profiler.hpp"
 #include "octotiger/io/silo.hpp"
 #include "octotiger/taylor.hpp"
 #include "octotiger/unitiger/hydro.hpp"
@@ -140,7 +139,7 @@ std::vector<std::string> grid::get_hydro_field_names() {
 }
 
 void grid::set(const std::string name, real *data, int version) {
-	PROFILE();
+	ENABLE_THREAD_DEBUG();
 	auto iter = str_to_index_hydro.find(name);
 	real unit = convert_hydro_units(iter->second);
 
@@ -378,7 +377,7 @@ void grid::set_idle_rate() {
 // MSVC needs this variable to be in the global namespace
 constexpr integer nspec = 2;
 diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
-	PROFILE();
+	ENABLE_THREAD_DEBUG();
 	diagnostics_t rc;
 	if (opts().disable_diagnostics) {
 		return rc;
@@ -795,7 +794,7 @@ space_vector grid::get_cell_center(integer i, integer j, integer k) {
 }
 
 std::vector<real> grid::get_prolong(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub) {
-	PROFILE();
+	ENABLE_THREAD_DEBUG();
 	std::vector<real> data;
 
 	integer size = opts().n_fields;
@@ -833,7 +832,7 @@ std::vector<real> grid::get_prolong(const std::array<integer, NDIM> &lb, const s
 }
 
 std::vector<real> grid::get_restrict() const {
-	PROFILE();
+	ENABLE_THREAD_DEBUG();
 	integer Size = opts().n_fields * INX * INX * INX / NCHILD + opts().n_fields;
 	std::vector<real> data;
 	data.reserve(Size);
@@ -864,7 +863,7 @@ std::vector<real> grid::get_restrict() const {
 }
 
 void grid::set_restrict(const std::vector<real> &data, const geo::octant &octant) {
-	PROFILE();
+	ENABLE_THREAD_DEBUG();
 	integer index = 0;
 	const integer i0 = octant.get_side(XDIM) * (INX / 2);
 	const integer j0 = octant.get_side(YDIM) * (INX / 2);
@@ -884,7 +883,7 @@ void grid::set_restrict(const std::vector<real> &data, const geo::octant &octant
 }
 
 void grid::set_hydro_boundary(const std::vector<real> &data, const geo::direction &dir, bool energy_only) {
-	PROFILE();
+	ENABLE_THREAD_DEBUG();
 	std::array<integer, NDIM> lb, ub;
 	integer iter = 0;
 	const auto &bw = energy_only ? energy_bw : field_bw;
@@ -904,7 +903,7 @@ void grid::set_hydro_boundary(const std::vector<real> &data, const geo::directio
 }
 
 std::vector<real> grid::get_hydro_boundary(const geo::direction &dir, bool energy_only) {
-	PROFILE();
+	ENABLE_THREAD_DEBUG();
 
 	const auto &bw = energy_only ? energy_bw : field_bw;
 	std::array<integer, NDIM> lb, ub;
@@ -1079,7 +1078,7 @@ void grid::energy_adj() {
 }
 
 std::vector<real> grid::get_flux_restrict(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub, const geo::dimension &dim) const {
-	PROFILE();
+	ENABLE_THREAD_DEBUG();
 	std::vector<real> data;
 	integer size = 1;
 	for (auto &dim : geo::dimension::full_set()) {
@@ -1114,7 +1113,7 @@ std::vector<real> grid::get_flux_restrict(const std::array<integer, NDIM> &lb, c
 
 void grid::set_flux_restrict(const std::vector<real> &data, const std::array<integer, NDIM> &lb,
 		const std::array<integer, NDIM> &ub, const geo::dimension &dim) {
-	PROFILE();
+	ENABLE_THREAD_DEBUG();
 	integer index = 0;
 	for (integer field = 0; field != opts().n_fields; ++field) {
 		for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
@@ -1130,7 +1129,7 @@ void grid::set_flux_restrict(const std::vector<real> &data, const std::array<int
 }
 
 void grid::set_prolong(const std::vector<real> &data, std::vector<real> &&outflows) {
-	PROFILE();
+	ENABLE_THREAD_DEBUG();
 	integer index = 0;
 	U_out = std::move(outflows);
 	for (integer field = 0; field != opts().n_fields; ++field) {
@@ -1493,7 +1492,7 @@ std::vector<real> grid::l_sums() const {
 }
 
 bool grid::refine_me(integer lev, integer last_ngrids) const {
-	PROFILE();
+	ENABLE_THREAD_DEBUG();
 
 	auto test = get_refine_test();
 	if (lev < min_level) {
@@ -1943,7 +1942,7 @@ void grid::rad_init() {
 }
 
 timestep_t grid::compute_fluxes() {
-	PROFILE();
+	ENABLE_THREAD_DEBUG();
 	static hpx::once_flag flag;
 	hpx::call_once(flag, [this]() {
 		physics<NDIM>::set_fgamma(fgamma);
@@ -2010,7 +2009,7 @@ void grid::set_max_level(integer l) {
 }
 
 void grid::store() {
-	PROFILE();
+	ENABLE_THREAD_DEBUG();
 	for (integer field = 0; field != opts().n_fields; ++field) {
 #pragma GCC ivdep
 		for (integer i = 0; i != INX; ++i) {
@@ -2039,7 +2038,7 @@ void grid::restore() {
 }
 
 void grid::set_physical_boundaries(const geo::face &face, real t) {
-	PROFILE();
+	ENABLE_THREAD_DEBUG();
 	const auto dim = face.get_dimension();
 	const auto side = face.get_side();
 	const integer dni = dim == XDIM ? H_DNY : H_DNX;
@@ -2172,7 +2171,7 @@ void grid::set_physical_boundaries(const geo::face &face, real t) {
 }
 
 void grid::compute_sources(real t, real rotational_time) {
-	PROFILE();
+	ENABLE_THREAD_DEBUG();
 	auto &src = dUdt;
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
@@ -2269,7 +2268,7 @@ void grid::compute_sources(real t, real rotational_time) {
 }
 
 void grid::compute_dudt() {
-	PROFILE();
+	ENABLE_THREAD_DEBUG();
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
 			for (integer field = 0; field != opts().n_fields; ++field) {
@@ -2305,7 +2304,7 @@ void grid::compute_dudt() {
 }
 
 void grid::egas_to_etot() {
-	PROFILE();
+	ENABLE_THREAD_DEBUG();
 	if (opts().gravity) {
 
 		for (integer i = H_BW; i != H_NX - H_BW; ++i) {
@@ -2321,7 +2320,7 @@ void grid::egas_to_etot() {
 }
 
 void grid::etot_to_egas() {
-	PROFILE();
+	ENABLE_THREAD_DEBUG();
 	if (opts().gravity) {
 
 		for (integer i = H_BW; i != H_NX - H_BW; ++i) {
@@ -2337,7 +2336,7 @@ void grid::etot_to_egas() {
 }
 
 void grid::next_u(integer rk, real t, real dt) {
-	PROFILE();
+	ENABLE_THREAD_DEBUG();
 	if (!opts().hydro) {
 		return;
 	}
@@ -2482,7 +2481,7 @@ void grid::next_u(integer rk, real t, real dt) {
 }
 
 void grid::dual_energy_update() {
-	PROFILE();
+	ENABLE_THREAD_DEBUG();
 
 //	bool in_bnd;
 

@@ -93,6 +93,8 @@ set(OCTOTIGER_SVE_LEN "512" CACHE STRING "Choose number of bits for SVE (must be
 # silence warnings for deprecated HPX includes
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-cpp")
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-omit-frame-pointer")
+
 # add -fPIC option to avoid this error:
 # https://cmake.org/pipermail/cmake/2015-January/059513.html 
 # in case of relocatable device code
@@ -211,7 +213,6 @@ set(source_files
     src/io/silo.cpp
     src/io/silo_out.cpp
     src/io/silo_in.cpp
-    src/stack_trace.cpp
     src/taylor.cpp
     src/util.cpp
     src/common_kernel/interactions_iterators.cpp
@@ -253,7 +254,7 @@ set(header_files
     octotiger/config.hpp
     octotiger/const.hpp
     octotiger/container_device.hpp
-    octotiger/defs.hpp
+ 	octotiger/defs.hpp
     octotiger/diagnostics.hpp
     octotiger/eos.hpp
     octotiger/future.hpp
@@ -334,7 +335,8 @@ endif()
 add_hpx_library(
   optionslib
   DEPENDENCIES
-  Boost::boost Boost::program_options Silo::silo CPPuddle::buffer_manager CPPuddle::stream_manager 
+    debuglib
+    Boost::boost Boost::program_options Silo::silo CPPuddle::buffer_manager CPPuddle::stream_manager 
   SOURCES
     src/options.cpp
     # As we need silo to load the options and the options get saved via silo 
@@ -343,12 +345,24 @@ add_hpx_library(
     octotiger/options_enum.hpp
 )
 
+add_hpx_library(
+  debuglib
+  DEPENDENCIES
+  SOURCES
+    src/debug.cpp
+  HEADERS
+    octotiger/debug.hpp
+)
+
+target_link_libraries(debuglib PRIVATE boost_stacktrace_backtrace)
+
 # Octo-Tiger library
 add_hpx_library(
   octolib
   DEPENDENCIES
+    debuglib
+    hydrolib
     optionslib
-    hydrolib # grid.cpp requires the hydro solver 
     ${octo_dependencies}
   SOURCES
     ${source_files}
@@ -505,6 +519,7 @@ endif()
 add_hpx_library(
   hydrolib
   DEPENDENCIES
+    debuglib
     optionslib
     ${hydro_dependencies}
   SOURCES
@@ -593,6 +608,7 @@ endif()
 #set_property(TARGET octolib PROPERTY FOLDER "Octo-Tiger")
 
 # add octotiger/* to compiler search path
+target_include_directories(debuglib PUBLIC ${PROJECT_SOURCE_DIR})
 target_include_directories(optionslib PUBLIC ${PROJECT_SOURCE_DIR})
 target_include_directories(octolib PUBLIC ${PROJECT_SOURCE_DIR})
 target_include_directories(hydrolib PUBLIC ${PROJECT_SOURCE_DIR})
@@ -601,6 +617,7 @@ target_include_directories(hydrolib PUBLIC ${PROJECT_SOURCE_DIR})
 add_hpx_executable(
   octotiger
   DEPENDENCIES
+    debuglib
     optionslib
     hydrolib
     octolib
@@ -612,6 +629,7 @@ add_hpx_executable(
     frontend/init_methods.cpp
 )
 set_property(TARGET octotiger PROPERTY FOLDER "Octo-Tiger")
+target_link_options(octotiger PRIVATE -rdynamic)
 
 if(OCTOTIGER_WITH_CUDA)
   target_compile_definitions(octotiger PUBLIC OCTOTIGER_HAVE_CUDA)
@@ -627,6 +645,7 @@ endif()
 add_hpx_executable(
   unitiger
   DEPENDENCIES
+    debuglib
     Silo::silo hydrolib octolib
   SOURCES
     src/unitiger/main.cpp
@@ -634,6 +653,7 @@ add_hpx_executable(
     ${hydro_header_files}
 )
 set_property(TARGET octotiger PROPERTY FOLDER "Octo-Tiger")
+target_link_options(unitiger PRIVATE -rdynamic)
 
 if(MSVC)
   # Enable solution folders for MSVC

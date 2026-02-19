@@ -13,6 +13,7 @@
 #endif
 
 #include "frontend-helper.hpp"
+#include "octotiger/debug.hpp"
 
 #include <chrono>
 #include <cstdio>
@@ -42,7 +43,7 @@
 #define OCTOTIGER_GIT_COMMIT_MESSAGE "unknown"
 #endif
 int hpx_main(int argc, char* argv[]) {
-
+	ENABLE_THREAD_DEBUG();
     // The ascii logo was created by combining, modifying and extending the ascii arts from:
     // http://ascii.co.uk/art/octopus (Author "jgs")
     // and

@@ -14,9 +14,9 @@ AlignOperands: false
 AlignTrailingComments: true
 AllowAllParametersOfDeclarationOnNextLine: false
 AllowShortBlocksOnASingleLine: false
-AllowShortCaseLabelsOnASingleLine: false
+AllowShortCaseLabelsOnASingleLine: true
 AllowShortFunctionsOnASingleLine: Empty
-AllowShortIfStatementsOnASingleLine: false
+AllowShortIfStatementsOnASingleLine: true
 AllowShortLoopsOnASingleLine: false
 AlwaysBreakAfterDefinitionReturnType: None
 AlwaysBreakAfterReturnType: None
@@ -25,13 +25,13 @@ AlwaysBreakTemplateDeclarations: true
 #BinPackArguments: true
 #BinPackParameters: true
 BraceWrapping:
-    AfterClass: true
+    AfterClass: false
     AfterControlStatement: false
-    AfterEnum: true
+    AfterEnum: false
     AfterFunction: false
     AfterNamespace: false
-    AfterStruct: true
-    AfterUnion: true
+    AfterStruct: false
+    AfterUnion: false
     BeforeCatch: false
     BeforeElse: false
     IndentBraces: false
