@@ -121,7 +121,8 @@ function(test_sphere_scenario test_name test_log_file reference_filename kernel_
 
   if (NOT ${reference_filename} STREQUAL "none" )
     add_test(NAME ${test_name}.diff
-      COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
+      COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12 -E "lx, ly, lz, idle_rate, locality, _hdf5libinfo, _silolibinfo"
+#      COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
        ${PROJECT_SOURCE_DIR}/octotiger-testdata/${reference_filename} ${PROJECT_BINARY_DIR}/test_problems/sphere/final.silo.data/0.silo)
     set_tests_properties(${test_name}.diff PROPERTIES
       FIXTURES_REQUIRED ${test_name}

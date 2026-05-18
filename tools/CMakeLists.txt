@@ -77,7 +77,7 @@ if(MSVC)
 else()
   target_compile_options(gen_rotating_star_init PRIVATE
     -Wno-ignored-attributes -Wno-attributes -Wno-deprecated-declarations
-    -Wno-unused-result -ffast-math -O3)
+    -Wno-unused-result -O2)
   target_link_libraries(gen_rotating_star_init Threads::Threads)
 endif()
 

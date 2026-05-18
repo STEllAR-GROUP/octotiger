@@ -9,7 +9,8 @@
 
 #include "octotiger/debug.hpp"
 
-#define BOOST_STACKTRACE_USE_BACKTRACE
+#define BOOST_STACKTRACE_USE_ADDR2LINE
+// #define BOOST_STACKTRACE_USE_BACKTRACE
 #include <boost/stacktrace.hpp>
 
 #include <atomic>
@@ -19,37 +20,48 @@
 
 char const* ThreadDebugger::name(int sig) {
     switch (sig) {
-    case SIGSEGV: return "SIGSEGV";
-    case SIGABRT: return "SIGABRT";
-    case SIGFPE: return "SIGFPE";
-    case SIGILL: return "SIGILL";
-    case SIGBUS: return "SIGBUS";
-    case SIGTRAP: return "SIGTRAP";
-    case SIGTERM: return "SIGTERM";
-    case SIGINT: return "SIGINT";
-    default: return "SIGUNKNOWN";
+    case SIGSEGV:
+        return "SIGSEGV";
+    case SIGABRT:
+        return "SIGABRT";
+    case SIGFPE:
+        return "SIGFPE";
+    case SIGILL:
+        return "SIGILL";
+    case SIGBUS:
+        return "SIGBUS";
+    case SIGTRAP:
+        return "SIGTRAP";
+    case SIGTERM:
+        return "SIGTERM";
+    case SIGINT:
+        return "SIGINT";
+    default:
+        return "SIGUNKNOWN";
     }
 }
 
 ThreadDebugger::ThreadDebugger() {
 #if !defined(_MSC_VER)
-    for (int sig : signals) {
-        installHandler(sig);
+    for (std::size_t i = 0; i < signals.size(); i++) {
+        installHandler(i);
     }
 #endif
 }
 
 ThreadDebugger::~ThreadDebugger() {
 #if !defined(_MSC_VER)
-    for (int sig : signals) {
-        restoreHandler(sig);
+    for (std::size_t i = 0; i < signals.size(); i++) {
+        restoreHandler(i);
     }
 #endif
 }
 
 void ThreadDebugger::installHandler(int sig) {
 #if !defined(_MSC_VER)
-    struct sigaction newAction {};
+    struct sigaction newAction
+    {
+    };
     newAction.sa_handler = handler;
     sigemptyset(&newAction.sa_mask);
     newAction.sa_flags = 0;
@@ -68,8 +80,8 @@ void ThreadDebugger::handler(int sig) {
     static std::atomic<int> called(false);
     if (!called++) {
         std::cout << boost::stacktrace::stacktrace();
-     }
-	 exit(-1);
+    }
+    exit(-1);
 #endif
 }
 

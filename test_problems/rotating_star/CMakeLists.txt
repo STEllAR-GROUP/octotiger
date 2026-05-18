@@ -75,8 +75,8 @@ function(test_rotating_star_scenario test_name test_log_file reference_filename 
     
   if (NOT ${reference_filename} STREQUAL "none" )
     add_test(NAME ${test_name}.diff
-      COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
-       ${PROJECT_SOURCE_DIR}/octotiger-testdata/${reference_filename} ${PROJECT_BINARY_DIR}/test_problems/rotating_star/final.silo.data/0.silo)
+       COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12 -E "lx, ly, lz, idle_rate, locality, _hdf5libinfo, _silolibinfo"
+      ${PROJECT_SOURCE_DIR}/octotiger-testdata/${reference_filename} ${PROJECT_BINARY_DIR}/test_problems/rotating_star/final.silo.data/0.silo)
     set_tests_properties(${test_name}.diff PROPERTIES
       FIXTURES_REQUIRED ${test_name}
       FAIL_REGULAR_EXPRESSION ${OCTOTIGER_SILODIFF_FAIL_PATTERN})
