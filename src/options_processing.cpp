@@ -123,6 +123,7 @@ bool options::process_options(int argc, char *argv[]) {
         ("ipr_test", po::value<bool>(&(opts().ipr_test))->default_value(false), "test consistency of the ideal gas plus radiation eos")                              //
         ("ipr_eint_floor", po::value<real>(&(opts().ipr_eint_floor))->default_value(0.0), "floor thermal energy for ideal gas plus radiation eos")                              //
 	("hydro", po::value<bool>(&(opts().hydro))->default_value(true), "hydro on/off")    //
+	("periodic", po::value<bool>(&(opts().periodic))->default_value(false), "periodic hydro boundary conditions")    //
 	("radiation", po::value<bool>(&(opts().radiation))->default_value(false), "radiation on/off")    //
 	("correct_am_hydro", po::value<bool>(&(opts().correct_am_hydro))->default_value(false), "Angular momentum correction switch for hydro")    //
 	("correct_am_grav", po::value<bool>(&(opts().correct_am_grav))->default_value(true), "Angular momentum correction switch for gravity")    //
@@ -372,6 +373,10 @@ bool options::process_options(int argc, char *argv[]) {
 	}
     // Check parameters if we hit any implementation limitation as in
     // unsupported kernel configurations
+    if (opts().periodic && opts().gravity) {
+        std::cerr << "ERROR! Periodic hydro boundaries require gravity to be disabled (--gravity=0)." << std::endl;
+        abort();
+    }
     if (opts().gravity) {
 #ifdef OCTOTIGER_DISABLE_ILIST
         std::cerr << "ERROR! Gravity is turned on but Octo-Tiger was compiled without interaction list" << std::endl

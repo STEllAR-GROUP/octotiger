@@ -63,9 +63,9 @@ public:
 	}
 	std::size_t load(FILE* fp);
 	std::size_t save(FILE* fp) const;
-	std::vector<node_location> get_neighbors() const;
-	bool has_neighbor(const geo::direction dir) const;
-	node_location get_neighbor(const geo::direction dir) const;
+	std::vector<node_location> get_neighbors(bool periodic = false) const;
+	bool has_neighbor(const geo::direction dir, bool periodic = false) const;
+	node_location get_neighbor(const geo::direction dir, bool periodic = false) const;
 	bool is_child_of(const node_location& other) const;
 	bool neighbors_with( const node_location& ) const;
 	range_type abs_range() const;

@@ -63,7 +63,7 @@ void node_server::check_for_refinement(real omega, real new_floor) {
 	if (rc) {
 		if (refinement_flag++ == 0) {
 			if (!parent.empty()) {
-				futs[index++] = parent.force_nodes_to_exist(my_location.get_neighbors());
+				futs[index++] = parent.force_nodes_to_exist(my_location.get_neighbors(opts().periodic));
 			}
 		}
 	}
@@ -398,7 +398,7 @@ void node_server::force_nodes_to_exist(std::vector<node_location> &&locs) {
 		assert(loc != my_location);
 		if (loc.is_child_of(my_location)) {
 			if (refinement_flag++ == 0 && !parent.empty()) {
-				futs.push_back(parent.force_nodes_to_exist(my_location.get_neighbors()));
+				futs.push_back(parent.force_nodes_to_exist(my_location.get_neighbors(opts().periodic)));
 			}
 			if (is_refined) {
 				for (auto ci : geo::octant::full_set()) {
@@ -419,7 +419,7 @@ void node_server::force_nodes_to_exist(std::vector<node_location> &&locs) {
 
 			bool found_match = false;
 			for (auto di : geo::direction::full_set()) {
-				if (loc.is_child_of(my_location.get_neighbor(di)) && !neighbors[di].empty()) {
+				if (loc.is_child_of(my_location.get_neighbor(di, opts().periodic)) && !neighbors[di].empty()) {
 					sibling_lists[di].push_back(loc);
 					found_match = true;
 					break;
@@ -469,6 +469,13 @@ int node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std::
 		neighbors[dir] = std::move(neighbor_gids[dir]);
 	}
 	me = std::move(self_gid);
+	if (opts().periodic && my_location.level() == 0) {
+		for (auto dir : geo::direction::full_set()) {
+			if (neighbors[dir].empty()) {
+				neighbors[dir] = me.get_gid();
+			}
+		}
+	}
 	node_registry::add(my_location, me);
 	parent = std::move(parent_gid);
 	if (is_refined) {
@@ -495,7 +502,7 @@ int node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std::
 										ref = hpx::make_ready_future < hpx::id_type > (hpx::unmanaged(children[other_child].get_gid()));
 									} else {
 										geo::direction dir = geo::direction((x / 2) + NDIM * ((y / 2) + NDIM * (z / 2)));
-										node_location parent_loc = my_location.get_neighbor(dir);
+										node_location parent_loc = my_location.get_neighbor(dir, opts().periodic);
 										ref = neighbors[dir].get_child_client(parent_loc, other_child);
 									}
 								}

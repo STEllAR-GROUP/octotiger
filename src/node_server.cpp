@@ -414,9 +414,11 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
 #endif
 	}
   }, "collect_hydro_boundaries::complete_hydro_amr_boundary")();
-	for (auto &face : geo::face::full_set()) {
-		if (my_location.is_physical_boundary(face)) {
-			grid_ptr->set_physical_boundaries(face, current_time);
+	if (!opts().periodic) {
+		for (auto &face : geo::face::full_set()) {
+			if (my_location.is_physical_boundary(face)) {
+				grid_ptr->set_physical_boundaries(face, current_time);
+			}
 		}
 	}
   }, "all_hydro_bounds::collect_hydro_boundaries")();

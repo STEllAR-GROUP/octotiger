@@ -15,6 +15,7 @@
 
 #include "octotiger/node_location.hpp"
 #include "octotiger/node_client.hpp"
+#include "octotiger/options.hpp"
 
 #include <cstdio>
 
@@ -127,11 +128,11 @@ std::size_t node_location::hash() const {
 	return std::size_t(this->to_id());
 }
 
-std::vector<node_location> node_location::get_neighbors() const {
+std::vector<node_location> node_location::get_neighbors(bool periodic) const {
 	std::vector<node_location> locs;
 	locs.reserve(NDIM * NDIM * NDIM - 1);
 	const integer lb = 0;
-	const integer ub = (1 << lev) - 1;
+	const integer ub = (integer(1) << lev) - integer(1);
 	for (integer i = -1; i <= +1; ++i) {
 		for (integer j = -1; j <= +1; ++j) {
 			for (integer k = -1; k <= +1; ++k) {
@@ -143,12 +144,29 @@ std::vector<node_location> node_location::get_neighbors() const {
 					bool in = true;
 					for (integer d = 0; d != NDIM; ++d) {
 						if (this_loc.xloc[d] < lb || this_loc.xloc[d] > ub) {
-							in = false;
-							break;
+							if (periodic) {
+								if (this_loc.xloc[d] < lb) {
+									this_loc.xloc[d] = ub;
+								} else {
+									this_loc.xloc[d] = lb;
+								}
+							} else {
+								in = false;
+								break;
+							}
 						}
 					}
 					if (in) {
-						locs.push_back(std::move(this_loc));
+						bool duplicate = false;
+						for (auto const& loc : locs) {
+							if (loc == this_loc) {
+								duplicate = true;
+								break;
+							}
+						}
+						if (!duplicate) {
+							locs.push_back(std::move(this_loc));
+						}
 					}
 				}
 			}
@@ -338,18 +356,28 @@ std::size_t node_location::unique_id() const {
  }
  */
 
-node_location node_location::get_neighbor(const geo::direction dir) const {
+node_location node_location::get_neighbor(const geo::direction dir, bool periodic) const {
 	node_location nloc;
 	nloc = *this;
+	const integer n = integer(1) << level();
 	for (auto d : geo::dimension::full_set()) {
 		nloc.xloc[d] += dir[d];
+		if (periodic) {
+			if (nloc.xloc[d] < 0) {
+				nloc.xloc[d] = n - 1;
+			} else if (nloc.xloc[d] >= n) {
+				nloc.xloc[d] = 0;
+			}
+		}
 	}
 	return nloc;
 }
 
-bool node_location::has_neighbor(const geo::direction dir) const {
+bool node_location::has_neighbor(const geo::direction dir, bool periodic) const {
+	if (periodic) {
+		return true;
+	}
 	bool rc = true;
-	;
 	for (auto d : geo::dimension::full_set()) {
 		if (dir[d] == -1) {
 			if (xloc[d] == 0) {
@@ -357,7 +385,7 @@ bool node_location::has_neighbor(const geo::direction dir) const {
 				break;
 			}
 		} else if (dir[d] == +1) {
-			if (xloc[d] == ((1 << level()) - 1)) {
+			if (xloc[d] == ((integer(1) << level()) - integer(1))) {
 				rc = false;
 				break;
 			}
