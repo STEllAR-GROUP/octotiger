@@ -76,7 +76,7 @@ std::vector<silo_var_t> rad_grid::var_data() const {
         1 :
         opts().code_to_g / std::pow(opts().code_to_s, 2) / opts().code_to_cm;
     Real funit = opts().problem == MARSHAK ? 1 : eunit * opts().code_to_cm / opts().code_to_s;
-    for (auto l : str_to_index) {
+   for (auto l : str_to_index) {
         const int f = l.second;
         std::string this_name = l.first;
         int jjj = 0;

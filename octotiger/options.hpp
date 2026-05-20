@@ -42,6 +42,7 @@ public:
 	bool core_refine;
 	bool gravity;
 	bool hydro;
+	bool periodic;
 	bool radiation;
 	Real grad_rho_refine;
 	Real clight_retard;
@@ -224,6 +225,7 @@ public:
 		arc & input_file;
 		arc & config_file;
 		arc & hydro;
+		arc & periodic;
 		arc & gravity;
 		arc & bench;
 		arc & radiation;

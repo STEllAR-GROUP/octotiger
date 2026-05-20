@@ -37,6 +37,7 @@ private:
 	static constexpr integer DX = RAD_NX * RAD_NX;
 	static constexpr integer DY = RAD_NX;
 	static constexpr integer DZ = 1;
+	static constexpr int R_DN[NDIM] = { RAD_NX * RAD_NX, RAD_NX, 1 };
 	static std::unordered_map<std::string, int> str_to_index;
 	static std::unordered_map<int, std::string> index_to_str;
 	Real dx;
