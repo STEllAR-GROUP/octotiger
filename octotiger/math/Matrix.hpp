@@ -286,11 +286,11 @@ struct Matrix
         } else {
             T d = T(0_I);
             for (Integer n = 0; n < N; n += 2) {
-                if (!all(A[0][n] == T(0_I)))
+                if (A[0][n] != T(0_I))
                     d += A[0][n] * det(A.sub(0, n));
             }
             for (Integer n = 1; n < N; n += 2) {
-                if (!all(A[0][n] == T(0_I)))
+                if (A[0][n] != T(0_I))
                     d -= A[0][n] * det(A.sub(0, n));
             }
             return d;

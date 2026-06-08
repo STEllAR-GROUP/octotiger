@@ -88,7 +88,6 @@ inline void  assert_nonan(real r, const char* filename, int line) {
 	}
 }
 
-#define ASSERT_POSITIVE(r) assert_positive((r), __FILE__, __LINE__)
 #define ASSERT_NONAN(r) assert_nonan((r), __FILE__, __LINE__)
 
 

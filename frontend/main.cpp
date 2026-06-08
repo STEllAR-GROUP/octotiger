@@ -42,6 +42,9 @@
 #ifndef OCTOTIGER_GIT_COMMIT_MESSAGE
 #define OCTOTIGER_GIT_COMMIT_MESSAGE "unknown"
 #endif
+
+#include "octotiger/radiation/rad_grid.hpp"
+
 int hpx_main(int argc, char* argv[]) {
 	ENABLE_THREAD_DEBUG();
     // The ascii logo was created by combining, modifying and extending the ascii arts from:

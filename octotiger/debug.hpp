@@ -36,5 +36,5 @@ static thread_local ThreadDebugger threadDebugger;
 #if defined(_MSC_VER)
 #define ENABLE_THREAD_DEBUG()
 #else
-#define ENABLE_THREAD_DEBUG() threadDebugger.touch()
+#define ENABLE_THREAD_DEBUG() ::threadDebugger.touch()
 #endif

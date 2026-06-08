@@ -233,6 +233,7 @@ set(source_files
     src/multipole_interactions/util/calculate_stencil.cpp
     src/multipole_interactions/legacy/multipole_cpu_kernel.cpp
     src/radiation/rad_grid.cpp
+    src/radiation/implicit.cpp
     src/test_problems/marshak/marshak.cpp
     src/test_problems/rotating_star/rotating_star.cpp
     src/test_problems/sod/sod.cpp

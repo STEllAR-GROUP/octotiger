@@ -23,6 +23,7 @@
 #include "octotiger/unitiger/physics_impl.hpp"
 
 #include "octotiger/test_problems/amr/amr.hpp"
+#include "octotiger/radiation/rad_grid.hpp"
 
 #ifdef OCTOTIGER_HAVE_CUDA
 #include <stream_manager.hpp>
@@ -178,7 +179,7 @@ void start_octotiger(int argc, char* argv[]) {
 
             node_count_type ngrids;
             //		printf("1\n");
-            if (!opts().restart_filename.empty()) {
+	        if (!opts().restart_filename.empty()) {
                 std::cerr << "Loading from " << opts().restart_filename << " ...\n";
                 load_data_from_silo(opts().restart_filename, root, root_client.get_unmanaged_gid());
                 std::cerr << "Re-grid" << std::endl;
@@ -212,7 +213,7 @@ void start_octotiger(int argc, char* argv[]) {
                 root->solve_gravity(false, false);
                 std::cerr << "...done" << std::endl;
             }
-            if (opts().problem != AMR_TEST) {
+			if (opts().problem != AMR_TEST) {
                 std::cerr << "Start executing the solver..." << std::endl;
                 hpx::async(&node_server::execute_solver, root,
                     opts().problem == DWD && opts().restart_filename.empty(), ngrids)

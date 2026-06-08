@@ -219,7 +219,8 @@ void line_of_centers_analyze(const line_of_centers_t &loc, real omega, std::pair
 				rho1_max.second = rho;
 				rho1_max.first = x;
 				rho1_maxi = i;
-				real phi_eff = pot / ASSERT_POSITIVE(rho) - 0.5 * x * x * omega * omega;
+				ASSERT_POSITIVE(rho);
+				real phi_eff = pot / rho - 0.5 * x * x * omega * omega;
 				rho1_phi = phi_eff;
 			}
 		}
@@ -233,7 +234,8 @@ void line_of_centers_analyze(const line_of_centers_t &loc, real omega, std::pair
 				rho2_max.second = rho;
 				rho2_max.first = x;
 				rho2_maxi = i;
-				real phi_eff = pot / ASSERT_POSITIVE(rho) - 0.5 * x * x * omega * omega;
+				ASSERT_POSITIVE(rho);
+				real phi_eff = pot / rho - 0.5 * x * x * omega * omega;
 				rho2_phi = phi_eff;
 			}
 		}
@@ -245,7 +247,8 @@ void line_of_centers_analyze(const line_of_centers_t &loc, real omega, std::pair
 		const real x = loc[i].first;
 		const real rho = loc[i].second[rho_i];
 		const real pot = loc[i].second[pot_i];
-		real phi_eff = pot / ASSERT_POSITIVE(rho) - 0.5 * x * x * omega * omega;
+		ASSERT_POSITIVE(rho);
+		real phi_eff = pot / rho - 0.5 * x * x * omega * omega;
 		if (x > std::min(rho1_max.first, rho2_max.first) && x < std::max(rho1_max.first, rho2_max.first)) {
 			if (phi_eff > l1_phi.second) {
 				l1_phi.second = phi_eff;
@@ -445,7 +448,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 
 		// run output on separate thread
 		if (!opts().disable_output) {
-			hpx::threads::run_as_os_thread([=]() {
+			hpx::threads::run_as_os_thread([=, this]() {
 				FILE *fp = fopen((opts().data_dir + "step.dat").c_str(), "at");
 				if (fp == NULL) {
 					printf("Unable to open step.dat for writing %s\n", std::strerror(errno));
@@ -731,7 +734,7 @@ future<real> node_server::local_step(integer steps) {
           if (opts().print_times_per_timestep)
             timestep_util::add_time_per_timestep(time_elapsed);
 
-          hpx::threads::run_as_os_thread([=]() {
+          hpx::threads::run_as_os_thread([=, this]() {
             printf("%i %e %e %e %e\n", local_step_num, double(current_time), double(dt_.dt), time_elapsed, rotational_time);
           });  // do not wait for output to finish
         }

@@ -232,6 +232,12 @@ public:
 	}
 	static std::vector<std::pair<std::string, std::string>> get_scalar_expressions();
 	static std::vector<std::pair<std::string, std::string>> get_vector_expressions();
+	auto& data() {
+		return U;
+	}
+	auto const& data() const {
+		return U;
+	}
 	std::vector<safe_real>& get_field(integer f) {
 		return U[f];
 	}

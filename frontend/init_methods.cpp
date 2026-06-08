@@ -411,20 +411,31 @@ void init_problem(void) {
         set_analytic(nullptr);
         set_analytic(marshak_wave_analytic);
         set_problem(marshak_wave);
-        set_refine_test(refine_test_marshak);
-    } else if (opts().problem == SOLID_SPHERE) {
-        //	opts().hydro = false;
-        set_analytic(
+		set_refine_test(refine_test_marshak);
+	} else if (opts().problem == RADIATION_DIFFUSION) {
+		grid::set_fgamma(5.0 / 3.0);
+		set_analytic(radiation_diffusion_analytic);
+		set_problem(radiation_diffusion_test_problem);
+		set_refine_test(refine_test_marshak);
+	} else if (opts().problem == RADIATION_COUPLING) {
+		test_rad_imp_cell();
+		grid::set_fgamma(5.0 / 3.0);
+		set_analytic(nullptr);
+		set_problem(radiation_coupling_test_problem);
+		set_refine_test(refine_test_center);
+	} else if (opts().problem == SOLID_SPHERE) {
+		//	opts().hydro = false;
+		set_analytic(
             [](real x, real y, real z, real dx) { return solid_sphere(x, y, z, dx, 0.25); });
         set_refine_test(refine_test_center);
         set_problem(init_func_type(
             [](real x, real y, real z, real dx) { return solid_sphere(x, y, z, dx, 0.25); }));
-    } else {
-        std::cerr << "Error: No problem specified\n";
+	} else {
+		std::cerr << "Error: No problem specified\n";
         std::terminate();
-    }
+	}
 
-    if (OCTOTIGER_MAX_NUMBER_FIELDS > physics<NDIM>::nf_) {
+	if (OCTOTIGER_MAX_NUMBER_FIELDS > physics<NDIM>::nf_) {
         std::cerr << "\nWarning! OCTOTIGER_WITH_MAX_NUMBER_FIELDS too large for this scenario!" << std::endl
                   << "This will lead to slightly reduced performance in the flux kernel!" << std::endl 
                   << "Choose -DOCTOTIGER_WITH_MAX_NUMBER_FIELDS=" << physics<NDIM>::nf_ 
