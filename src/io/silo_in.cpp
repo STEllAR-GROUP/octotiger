@@ -108,12 +108,8 @@ void load_options_from_silo(std::string fname, DBfile *db) {
 			opts().xscale = rr(db, "xscale");
 			opts().atomic_number.resize(opts().n_species);
 			opts().atomic_mass.resize(opts().n_species);
-			opts().X.resize(opts().n_species);
-			opts().Z.resize(opts().n_species);
 			SILO_TEST(DBReadVar(db, "atomic_number", opts().atomic_number.data()));
 			SILO_TEST(DBReadVar(db, "atomic_mass", opts().atomic_mass.data()));
-			SILO_TEST(DBReadVar(db, "X", opts().X.data()));
-			SILO_TEST(DBReadVar(db, "Z", opts().Z.data()));
 			if (!leaveopen) {
 				DBClose(db);
 			}

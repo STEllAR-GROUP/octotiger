@@ -7,7 +7,7 @@
 #define SRC_PHYSCON444_HPP_
 
 #include "octotiger/options.hpp"
-#include "octotiger/real.hpp"
+#include "octotiger/math/Real.hpp"
 
 #include <hpx/serialization/traits/is_bitwise_serializable.hpp>
 
@@ -17,10 +17,9 @@
 template<class T = real>
 struct specie_state_t: public std::vector<T> {
 	specie_state_t() :
-			std::vector<T>(opts().n_species,0.0) {
+			std::vector<T>(opts().n_species, 0_R) {
 	}
-	specie_state_t(std::initializer_list<T> list ) : std::vector<T>(list) {
-
+	specie_state_t(std::initializer_list<T> list) : std::vector<T>(list) {
 	}
 };
 

@@ -10,52 +10,77 @@
 #include "octotiger/physcon.hpp"
 #include "octotiger/safe_math.hpp"
 
-template<class U>
+template <class U>
 U temperature(U rho, U e, U mmw) {
 	constexpr U gm1 = U(2.0) / U(3.0);
 	return std::pow((e * INVERSE(rho)), 1.0 / 4.0);
 }
 
-template<class U>
+template <class U>
 U kappa_R(U rho, U e, U mmw, real X, real Z) {
-	if (opts().problem == MARSHAK) {
-		return MARSHAK_OPAC;
-	} else if (opts().problem == RADIATION_TEST) {
-		return 1e-20;
-	} else if (opts().problem == RADIATION_DIFFUSION) {
-		return 1e2;
-	} else if (opts().problem == RADIATION_COUPLING) {
-		return 1;
-	} else {
-		const U T = temperature(rho, e, mmw);
-		const U f1 = (T * T + U(2.7e+11) * rho);
-		const U f2 = (U(1.0) + std::pow(T / U(4.5e+8), U(0.86)));
-		const U k_ff_bf = U(4.0e+25) * (U(1) + X) * (Z + U(0.001)) * rho * POWER(SQRT(INVERSE(T)), U(7));
-		const U k_T = (U(1.0) + X) * U(0.2) * T * T / (f1 * f2);
-		const U k_tot = k_ff_bf + k_T;
-		return rho * k_tot;
+	switch (opts().problem) {
+
+	case RADIATION_DIFFUSION: {
+		auto const c = physcon().c;
+		auto const t0 = opts().rad_diff_t0;
+		auto const r_e = opts().rad_diff_r0;
+		auto const d0 = sqr(r_e) / (4.0_R * t0);
+		return U(c / (3.0_R * d0));
+	}
+	case RADIATION_TEST:
+		return 0_R;
+	default:
+		assert(false);
+		return 0_R;
 	}
 }
 
-template<class U>
+//	if (opts().problem == MARSHAK) {
+//		return MARSHAK_OPAC;
+//	} else if (opts().problem == RADIATION_TEST) {
+//		return 1e-2;
+//	} else if (opts().problem == RADIATION_DIFFUSION) {
+//		return 1e2;
+//	} else if (opts().problem == RADIATION_COUPLING) {
+//		return 1;
+//	} else {
+//		const U T = temperature(rho, e, mmw);
+//		const U f1 = (T * T + U(2.7e+11) * rho);
+//		const U f2 = (U(1.0) + std::pow(T / U(4.5e+8), U(0.86)));
+//		const U k_ff_bf = U(4.0e+25) * (U(1) + X) * (Z + U(0.001)) * rho * POWER(SQRT(INVERSE(T)), U(7));
+//		const U k_T = (U(1.0) + X) * U(0.2) * T * T / (f1 * f2);
+//		const U k_tot = k_ff_bf + k_T;
+//		return rho * k_tot;
+//	}
+
+template <class U>
 U kappa_p(U rho, U e, U mmw, real X, real Z) {
-	if (opts().problem == MARSHAK) {
-		return MARSHAK_OPAC;
-	} else if (opts().problem == RADIATION_TEST) {
-		return 1e-20;
-	} else if (opts().problem == RADIATION_DIFFUSION) {
-		return 1e2;
-	} else if (opts().problem == RADIATION_COUPLING) {
-		return 1e0;
-	} else {
-		const U T = temperature(rho, e, mmw);
-		const U k_ff_bf = U(30.262) * U(4.0e+25) * (U(1) + X) * (Z + U(0.0001)) * rho * POWER(SQRT(INVERSE(T)), U(7));
-		const U k_tot = k_ff_bf;
-		return rho * k_tot;
+	auto const cm = opts().code_to_cm;
+	switch (opts().problem) {
+	case RADIATION_DIFFUSION:
+	case RADIATION_TEST:
+		return U(0_R);
+	default:
+		assert(false);
+		return 0_R;
 	}
+	//	if (opts().problem == MARSHAK) {
+	//		return MARSHAK_OPAC;
+	//	} else if (opts().problem == RADIATION_TEST) {
+	//		return 1e-20;
+	//	} else if (opts().problem == RADIATION_DIFFUSION) {
+	//		return 1e2;
+	//	} else if (opts().problem == RADIATION_COUPLING) {
+	//		return 1e0;
+	//	} else {
+	//		const U T = temperature(rho, e, mmw);
+	//		const U k_ff_bf = U(30.262) * U(4.0e+25) * (U(1) + X) * (Z + U(0.0001)) * rho * POWER(SQRT(INVERSE(T)), U(7));
+	//		const U k_tot = k_ff_bf;
+	//		return rho * k_tot;
+	//	}
 }
 
-template<class U>
+template <class U>
 U B_p(U rho, U e, U mmw) {
 	if (opts().problem == MARSHAK) {
 		return U((physcon().c / 4.0 / M_PI)) * e;
@@ -65,7 +90,7 @@ U B_p(U rho, U e, U mmw) {
 	}
 }
 
-template<class U>
+template <class U>
 U dB_p_de(U rho, U e, U mmw) {
 	if (opts().problem == MARSHAK) {
 		return U((physcon().c / 4.0 * M_PI));

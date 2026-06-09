@@ -153,20 +153,27 @@ void node_server::recv_rad_children(std::vector<real> &&data, const geo::octant 
 // ΑαΒβΔδΕεΦφΓγΗηΙιΚκΛλΜμΝνΟοΠπΡρΣσςΤτΥυΧχΨψΩωΖζΘθΞξ
 
 void node_server::compute_radiation(real dt, real omega) {
+	auto const clight = physcon().c;
 	rad_grid_ptr->set_dx(grid_ptr->get_dx());
 
 	auto rgrid = rad_grid_ptr;
 
 	rad_grid_ptr->compute_mmw(grid_ptr->U);
 
-	const real minDx = TWO * grid::get_scaling_factor() / real(INX << opts().max_level);
-	const real clight = physcon().c / opts().clight_retard;
-	const real maxDt = minDx / clight / 2;
+	auto const arad = rgrid->hydro_signal_speed(grid_ptr->U[egas_i], grid_ptr->U[tau_i], grid_ptr->U[sx_i], grid_ptr->U[sy_i],
+												grid_ptr->U[sz_i], grid_ptr->U[rho_i]);
+	auto const minDx = TWO * grid::get_scaling_factor() / real(INX << opts().max_level);
+	auto maxDt = minDx / clight / 2;
+	if (arad > 0.0) {
+		maxDt = std::min(maxDt, minDx / arad * opts().cfl);
+	}
 	const real ns = std::ceil(dt * INVERSE(maxDt));
 
 	if (ns > std::numeric_limits<int>::max()) {
 		printf("Number of substeps greater than %i. dt = %e max_dt = %e\n", std::numeric_limits<int>::max(), dt, maxDt);
 	}
+//	printf("clight dt=%e arad=%e arad dt=%e chosen=%e\n", minDx / clight / 2, arad, arad > 0.0 ? minDx / arad * opts().cfl : HUGE_VAL,
+//		   maxDt);
 	integer nsteps = std::max(int(ns), 1);
 	const real thisDt = dt * INVERSE(real(nsteps));
 
@@ -175,7 +182,8 @@ void node_server::compute_radiation(real dt, real omega) {
 	std::vector<std::vector<real>> &hydro = grid_ptr->data();
 
 	constexpr real γ = 1_R - inv(std::numbers::sqrt2_v<real>);
-
+//	printf("dt_code=%e dt_seconds=%e c=%e code_to_s=%e nsteps=%i thisDt=%e\n", dt, dt * opts().code_to_s, physcon().c, opts().code_to_s,
+//		   int(nsteps), thisDt);
 	auto const explicitUpdate = [&](Real beta) {
 		all_rad_bounds();
 		rgrid->store();
@@ -209,7 +217,6 @@ void node_server::compute_radiation(real dt, real omega) {
 void rad_grid::applyRadiationSource(std::vector<std::vector<real>> &hydro, std::vector<RadiationSource> const &updates, real dt) {
 	PROFILE()
 
-	auto const c = physcon().c;
 	const integer off = H_BW - RAD_BW;
 
 	for (integer xi = RAD_BW; xi != RAD_NX - RAD_BW; ++xi) {
@@ -433,9 +440,9 @@ void rad_grid::compute_flux(real omega) {
 	std::vector<Vector<Real, NDIM>> beta_p(RAD_N3);
 	std::vector<Vector<Real, NDIM>> beta_m(RAD_N3);
 	for (auto i = 0; i < RAD_N3; i++) {
-		E[i] = U[er_i][i] * ic;
+		E[i] = U[er_i][i];
 		for (auto d = 0; d < NDIM; d++) {
-			F[i][d] = U[fx_i + d][i];
+			F[i][d] = U[fx_i + d][i] * ic;
 		}
 	}
 	for (auto i = 0; i < RAD_N3; i++) {

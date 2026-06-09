@@ -10,7 +10,6 @@
 #include "octotiger/defs.hpp"
 #include "octotiger/interaction_types.hpp"
 #include "octotiger/options_enum.hpp"
-#include "octotiger/real.hpp"
 
 #include <hpx/include/naming.hpp>
 
@@ -24,14 +23,14 @@
  COMMAND_LINE_ENUM(eos_type,IDEAL,WD);
  */
 
-COMMAND_LINE_ENUM(problem_type, DWD, SOD, BLAST, NONE, SOLID_SPHERE, STAR, MOVING_STAR, RADIATION_TEST, ROTATING_STAR, MARSHAK, AMR_TEST, ADVECTION, RADIATION_DIFFUSION, RADIATION_COUPLING);
+COMMAND_LINE_ENUM(problem_type, DWD, SOD, BLAST, NONE, SOLID_SPHERE, STAR, MOVING_STAR, RADIATION_TEST, ROTATING_STAR, MARSHAK, AMR_TEST,
+				  ADVECTION, RADIATION_DIFFUSION, RADIATION_COUPLING);
 COMMAND_LINE_ENUM(eos_type, IDEAL, WD, IPR);
 
 class options {
 public:
 	bool inflow_bc;
 	bool reflect_bc;
-	int experiment;
 	bool cdisc_detect;
 	bool unigrid;
 	bool disable_diagnostics;
@@ -43,8 +42,6 @@ public:
 	bool hydro;
 	bool periodic;
 	bool radiation;
-	real grad_rho_refine;
-	real clight_retard;
 	bool v1309;
 	bool rad_implicit;
 	bool rewrite_silo;
@@ -53,97 +50,103 @@ public:
 	bool rotating_star_amr;
 	bool idle_rates;
 	bool ipr_test;
-  bool detected_intel_compiler;
-  bool print_times_per_timestep;
+	bool detected_intel_compiler;
+	bool print_times_per_timestep;
 
-	integer scf_output_frequency;
-	integer silo_num_groups;
-	integer amrbnd_order;
-	integer extra_regrid;
-	integer accretor_refine;
-	integer donor_refine;
-	integer min_level;
-	integer max_level;
-	integer ngrids;
-	integer stop_step;
-	integer silo_offset_x;
-	integer silo_offset_y;
-	integer silo_offset_z;
-	integer future_wait_time;
-	integer ipr_nr_maxiter;
+	int experiment;
+	int scf_output_frequency;
+	int silo_num_groups;
+	int amrbnd_order;
+	int extra_regrid;
+	int accretor_refine;
+	int donor_refine;
+	int min_level;
+	int max_level;
+	int ngrids;
+	int stop_step;
+	int silo_offset_x;
+	int silo_offset_y;
+	int silo_offset_z;
+	int future_wait_time;
+	int ipr_nr_maxiter;
+	int rad_diff_ndim;
+	double rad_diff_r0;
+	double rad_diff_t0;
 
-	real dt_max;
-	real eblast0;
-	real rotating_star_x;
-	real dual_energy_sw2;
-	real dual_energy_sw1;
-	real hard_dt;
-	real driving_rate;
-	real driving_time;
-	real entropy_driving_rate;
-	real entropy_driving_time;
-	real omega;
-	real output_dt;
-	real refinement_floor;
-	real stop_time;
-	real theta;
-	real xscale;
-	real code_to_g;
-	real code_to_s;
-	real code_to_cm;
-	real cfl;
-	real rho_floor;
-	real tau_floor;
-	real scf_rho_floor;
-	real ipr_eint_floor;
-	real ipr_nr_tol;
+	double grad_rho_refine;
+	double clight_retard;
+	double dt_max;
+	double eblast0;
+	double rotating_star_x;
+	double dual_energy_sw2;
+	double dual_energy_sw1;
+	double hard_dt;
+	double driving_rate;
+	double driving_time;
+	double entropy_driving_rate;
+	double entropy_driving_time;
+	double omega;
+	double output_dt;
+	double refinement_floor;
+	double stop_time;
+	double theta;
+	double xscale;
+	double code_to_g;
+	double code_to_s;
+	double code_to_cm;
+	double cfl;
+	double rho_floor;
+	double tau_floor;
+	double scf_rho_floor;
+	double ipr_eint_floor;
+	double ipr_nr_tol;
 
-	real sod_rhol;
-	real sod_rhor;
-	real sod_pl;
-	real sod_pr;
-	real sod_theta;
-	real sod_phi;
-	real sod_gamma;
+	double sod_rhol;
+	double sod_rhor;
+	double sod_pl;
+	double sod_pr;
+	double sod_theta;
+	double sod_phi;
+	double sod_gamma;
 
-	real solid_sphere_xcenter;
-	real solid_sphere_ycenter;
-	real solid_sphere_zcenter;
-	real solid_sphere_radius;
-	real solid_sphere_mass;
-	real solid_sphere_rho_min;
+	double solid_sphere_xcenter;
+	double solid_sphere_ycenter;
+	double solid_sphere_zcenter;
+	double solid_sphere_radius;
+	double solid_sphere_mass;
+	double solid_sphere_rho_min;
 
-	real star_xcenter;
-	real star_ycenter;
-	real star_zcenter;
-	real star_rmax;
-	real star_alpha;
-	real star_rho_out;
-	real star_egas_out;
-	real star_dr;
-	real star_n;
-	real star_rho_center;
+	double star_xcenter;
+	double star_ycenter;
+	double star_zcenter;
+	double star_rmax;
+	double star_alpha;
+	double star_rho_out;
+	double star_egas_out;
+	double star_dr;
+	double star_n;
+	double star_rho_center;
 
-	real moving_star_xvelocity;
-        real moving_star_yvelocity;
-        real moving_star_zvelocity;
+	double moving_star_xvelocity;
+	double moving_star_yvelocity;
+	double moving_star_zvelocity;
 
 	size_t number_gpus;
 	size_t executors_per_gpu;
 	size_t max_gpu_executor_queue_length;
 	size_t max_kernels_fused;
-  
+
 	bool root_node_on_device;
 	bool optimize_local_communication;
-  int polling_threads;
+	int polling_threads;
 
 	std::string input_file;
 	std::string config_file;
 	std::string data_dir;
 	std::string output_filename;
 	std::string restart_filename;
-	integer n_species;
-	integer n_fields;
+	int n_species;
+	int n_fields;
 
 	eos_type eos;
 
@@ -157,12 +160,10 @@ public:
 	interaction_host_kernel_type hydro_host_kernel_type;
 	interaction_device_kernel_type hydro_device_kernel_type;
 
-	std::vector<real> atomic_mass;
-	std::vector<real> atomic_number;
-	std::vector<real> X;
-	std::vector<real> Z;
+	std::vector<double> atomic_mass;
+	std::vector<double> atomic_number;
 
-	template<class Arc>
+	template <class Arc>
 	void serialize(Arc &arc, unsigned) {
 		arc & eblast0;
 		arc & rho_floor;
@@ -255,7 +256,7 @@ public:
 		arc & stop_step;
 		arc & disable_diagnostics;
 		arc & disable_output;
-	  arc & disable_analytic;
+		arc & disable_analytic;
 		arc & theta;
 		arc & core_refine;
 		arc & donor_refine;
@@ -273,19 +274,20 @@ public:
 		arc & executors_per_gpu;
 		arc & max_gpu_executor_queue_length;
 		arc & max_kernels_fused;
-	  arc & root_node_on_device;
-	  arc & optimize_local_communication;
-    arc & polling_threads;
-    arc & detected_intel_compiler;
-    arc & print_times_per_timestep;
+		arc & root_node_on_device;
+		arc & optimize_local_communication;
+		arc & polling_threads;
+		arc & detected_intel_compiler;
+		arc & print_times_per_timestep;
 		arc & atomic_mass;
 		arc & atomic_number;
-		arc & X;
-		arc & Z;
 		arc & grad_rho_refine;
 		arc & code_to_g;
 		arc & code_to_s;
 		arc & code_to_cm;
+		arc & rad_diff_ndim;
+		arc & rad_diff_r0;
+		arc & rad_diff_t0;
 	}
 
 	OCTOTIGER_EXPORT bool process_options(int argc, char *argv[]);
@@ -293,12 +295,12 @@ public:
 	static OCTOTIGER_EXPORT std::vector<hpx::id_type> all_localities;
 };
 
-OCTOTIGER_EXPORT options& opts();
+OCTOTIGER_EXPORT options &opts();
 
-template<class T = real>
-struct hydro_state_t: public std::vector<T> {
+template <class T = double>
+struct hydro_state_t : public std::vector<T> {
 	hydro_state_t() :
-			std::vector<T>(opts().n_fields) {
+		std::vector<T>(opts().n_fields) {
 	}
 };
 

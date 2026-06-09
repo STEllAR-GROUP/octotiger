@@ -355,7 +355,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 
 	printf("OMEGA = %e, output_dt = %e\n", grid::get_omega(), output_dt);
 	real &t = current_time;
-	integer step_num = 0;
+	int step_num = 0;
 
 	output_cnt = root_ptr->get_rotation_count() / output_dt;
 	printf("%e %e\n", root_ptr->get_rotation_count(), output_dt);
@@ -412,7 +412,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 		}
 
 		real dt = 0;
-		integer next_step = (std::min)(step_num + refinement_freq(), opts().stop_step + 1);
+		int next_step = std::min(step_num + int(refinement_freq()), opts().stop_step + 1);
 		real omega_dot = 0.0, omega = 0.0, theta = 0.0, theta_dot = 0.0;
 
 		if ((opts().problem == DWD) && (step_num % refinement_freq() == 0)) {
@@ -608,13 +608,12 @@ void node_server::refined_step() {
 }
 
 future<void> node_server::nonrefined_step() {
-//#if HPX_HAVE_ITTNOTIFY != 0 && !defined(HPX_HAVE_APEX)
-//	static hpx::util::itt::string_handle sh("node_server::nonrefined_step");
-//	hpx::util::itt::task t(hpx::get_thread_itt_domain(), sh);
-//#endif
+	// #if HPX_HAVE_ITTNOTIFY != 0 && !defined(HPX_HAVE_APEX)
+	//	static hpx::util::itt::string_handle sh("node_server::nonrefined_step");
+	//	hpx::util::itt::task t(hpx::get_thread_itt_domain(), sh);
+	// #endif
 
 	timings::scope ts(timings_, timings::time_computation);
-
 
 	real cfl0 = opts().cfl;
 	dt_.dt = ZERO;
@@ -629,56 +628,57 @@ future<void> node_server::nonrefined_step() {
 	for (integer rk = 0; rk < NRK; ++rk) {
 
 		fut = fut.then(hpx::launch::async_policy(hpx::threads::thread_priority::boost),
-		hpx::annotated_function(
-				[rk, cfl0, this, dt_fut](future<void> f) {
-					GET(f);
-          size_t current_hydro_promise = hcycle % (NRK + 1);
-					timestep_t a = grid_ptr->compute_fluxes(); // hydro kernels
-					future<void> fut_flux = exchange_flux_corrections();
-					fut_flux.get();
-//					a = std::max(a, grid_ptr->compute_positivity_speed_limit());
-					if (rk == 0) {
-						const real dx = TWO * grid::get_scaling_factor() / real(INX << my_location.level());
-						dt_ = a;
-						dt_.dt = cfl0 * dx / a.a;
-						if (opts().stop_time > 0.0) {
-							real maxdt = (opts().stop_time - current_time)
-									/ (refinement_freq() - (step_num % refinement_freq()));
-							if (opts().hard_dt > 0.0) {
-								maxdt = std::min(maxdt, opts().hard_dt);
-							}
-							dt_.dt = std::min(dt_.dt, maxdt);
-						}
-						local_timestep_channels[NCHILD].set_value(dt_);
-					}
-					grid_ptr->compute_sources(current_time, rotational_time);
-					grid_ptr->compute_dudt();
-					compute_fmm(DRHODT, false);
-					if (rk == 0) {
-						dt_ = GET(dt_fut);
-
-					}
-          if (!opts().gravity && opts().optimize_local_communication) {
-            all_neighbors_got_hydro[(hcycle-1)%number_hydro_exchange_promises].get();
-          }
-					grid_ptr->next_u(rk, current_time, dt_.dt);
-					compute_fmm(RHO, true);
-					rk == NRK - 1 ? energy_hydro_bounds() : all_hydro_bounds();
-				}, "node_server::nonrefined_step::compute_fluxes"));
+					   hpx::annotated_function(
+						   [rk, cfl0, this, dt_fut](future<void> f) {
+							   GET(f);
+							   size_t current_hydro_promise = hcycle % (NRK + 1);
+							   timestep_t a = grid_ptr->compute_fluxes(); // hydro kernels
+							   future<void> fut_flux = exchange_flux_corrections();
+							   fut_flux.get();
+							   if (rk == 0) {
+								   const real dx = TWO * grid::get_scaling_factor() / real(INX << my_location.level());
+								   dt_ = a;
+								   dt_.dt = cfl0 * dx / a.a;
+								   if (opts().stop_time > 0.0) {
+									   real maxdt =
+										   (opts().stop_time - current_time) / (refinement_freq() - (step_num % refinement_freq()));
+									   if (opts().hard_dt > 0.0) {
+										   maxdt = std::min(maxdt, opts().hard_dt);
+									   }
+									   dt_.dt = std::min(dt_.dt, maxdt);
+								   }
+								   if (opts().radiation) {
+								       dt_.dt = std::min(dt_.dt, dx / physcon().c);
+								   }
+								   local_timestep_channels[NCHILD].set_value(dt_);
+							   }
+							   grid_ptr->compute_sources(current_time, rotational_time);
+							   grid_ptr->compute_dudt();
+							   compute_fmm(DRHODT, false);
+							   if (rk == 0) {
+								   dt_ = GET(dt_fut);
+							   }
+							   if (!opts().gravity && opts().optimize_local_communication) {
+								   all_neighbors_got_hydro[(hcycle - 1) % number_hydro_exchange_promises].get();
+							   }
+							   grid_ptr->next_u(rk, current_time, dt_.dt);
+							   compute_fmm(RHO, true);
+							   rk == NRK - 1 ? energy_hydro_bounds() : all_hydro_bounds();
+						   },
+						   "node_server::nonrefined_step::compute_fluxes"));
 	}
 
-	return fut.then(hpx::launch::sync, hpx::annotated_function( [this](future<void> &&f) {
+	return fut.then(hpx::launch::sync, hpx::annotated_function(
+										   [this](future<void> &&f) {
+											   GET(f);
 
-		GET(f);
-
-		update();
-		if (opts().radiation) {
-			compute_radiation(dt_.dt, grid_ptr->get_omega());
-			all_hydro_bounds();
-		}
-
-	}, "node_server::nonrefined_step::update" )
-	);
+											   update();
+											   if (opts().radiation) {
+												   compute_radiation(dt_.dt, grid_ptr->get_omega());
+												   all_hydro_bounds();
+											   }
+										   },
+										   "node_server::nonrefined_step::update"));
 }
 
 void node_server::update() {

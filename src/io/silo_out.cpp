@@ -377,8 +377,6 @@ void output_stage4(std::string fname, int cycle) {
 		DBWrite(db, "node_list", node_list_.all.data(), &nnodes, 1, DB_LONG_LONG);
 		DBWrite(db, "node_positions", node_list_.positions.data(), &nnodes, 1, db_type<integer>::d);
 		int nspc = opts().n_species;
-		DBWrite(db, "X", opts().X.data(), &nspc, 1, db_type<real>::d);
-		DBWrite(db, "Z", opts().Z.data(), &nspc, 1, db_type<real>::d);
 		DBWrite(db, "atomic_mass", opts().atomic_mass.data(), &nspc, 1, db_type<real>::d);
 		DBWrite(db, "atomic_number", opts().atomic_number.data(), &nspc, 1, db_type<real>::d);
 		fi(db, "node_count", integer(nnodes));

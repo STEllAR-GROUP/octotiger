@@ -355,7 +355,7 @@ void init_problem(void) {
     grid::set_max_level(opts().max_level);
     if (opts().problem == RADIATION_TEST) {
         assert(opts().radiation);
-        //		opts().gravity = false;
+        opts().gravity = false;
         set_problem(radiation_test_problem);
         set_refine_test(radiation_test_refine);
     } else if (opts().problem == DWD) {

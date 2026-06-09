@@ -3,13 +3,13 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+#include "octotiger/problem.hpp"
 #include "octotiger/defs.hpp"
 #include "octotiger/eos.hpp"
 #include "octotiger/grid.hpp"
 #include "octotiger/lane_emden.hpp"
 #include "octotiger/options.hpp"
 #include "octotiger/physcon.hpp"
-#include "octotiger/problem.hpp"
 
 #include <hpx/include/lcos.hpp>
 
@@ -34,7 +34,7 @@ analytic_func_type analytic = nullptr;
 refine_test_type refine_test_function = refine_test;
 
 bool radiation_test_refine(integer level, integer max_level, real x, real y, real z, std::vector<real> U,
-		std::array<std::vector<real>, NDIM> const &dudx) {
+						   std::array<std::vector<real>, NDIM> const &dudx) {
 	return level < max_level;
 	// return refine_blast(level, max_level, x, y, z, U, dudx);
 	//
@@ -51,11 +51,10 @@ bool radiation_test_refine(integer level, integer max_level, real x, real y, rea
 	// 	den_floor /= 8.0;
 	// }
 	// return rc;
-
 }
 
 std::vector<real> radiation_test_problem(real x, real y, real z, real dx) {
-//	return blast_wave(x,y,z,dx);
+	//	return blast_wave(x,y,z,dx);
 
 	std::vector<real> u(opts().n_fields + NRF, real(0));
 	x -= 0.0e11;
@@ -75,7 +74,7 @@ std::vector<real> radiation_test_problem(real x, real y, real z, real dx) {
 		eint = 1;
 	}
 	u[tau_i] = POWER(eint * u[rho_i], 1.0 / grid::get_fgamma());
-//	u[sx_i] = 0.0; //u[rho_i] / 10.0;
+	//	u[sx_i] = 0.0; //u[rho_i] / 10.0;
 	const real fgamma = grid::get_fgamma();
 	u[egas_i] = POWER(u[tau_i], fgamma);
 	const real rhoinv = INVERSE(u[rho_i]);
@@ -117,86 +116,56 @@ std::vector<real> radiation_coupling_test_problem(real x, real y, real z, real d
 	u[opts().n_fields + 1] = fx;
 	u[opts().n_fields + 2] = fy;
 	u[opts().n_fields + 3] = fz;
-//	if( er!= 0.0)
-	//printf( "--->%e\n",er);
+	//	if( er!= 0.0)
+	// printf( "--->%e\n",er);
 	return u;
-
 }
 
 std::vector<real> radiation_diffusion_analytic(real x, real y, real z, real t) {
-//	printf( "%e\n", t);
-	//t += 100;
-	std::vector<real> u(opts().n_fields + NRF, real(0));
-	x -= 0.0e11;
-	y -= 0.0e11;
-	z -= 0.0e11;
-	real eint;
-	u[rho_i] = 1.0;
-	u[spc_i] = u[rho_i];
+	using std::exp;
+	using std::pow;
 
-	x /= 1e5;
-	y /= 1e5;
-	z /= 1e5;
+	auto const c = physcon().c;
+	auto const aR = 4.0_R * physcon().sigma / c;
+	auto const kB = physcon().kb;
+	auto const mh = physcon().mh;
+	auto const gamma = grid::get_fgamma();
+	auto const ndim = opts().rad_diff_ndim;
+	auto const t0 = opts().rad_diff_t0;
+	auto const r_e = opts().rad_diff_r0;
 
-	specie_state_t<> species;
-	species[0] = u[rho_i];
-	real mmw;
-	real X;
-	real Z;
-	mean_ion_weight(species, mmw, X, Z);
+	std::vector<real> G(opts().n_fields, 0_R);
+	std::vector<real> R(NRF, 0_R);
 
-	//const double r0 = 0.1;
-	const double r2 = x * x + y * y + z * z;
-	const double r = sqrt(r2);
-	const double D0 = 1.0 / 3.0 * physcon().c / (1e2);
-	const double er = 1.0e-6 * std::max(pow(t + 1.0, -1.5) * exp(-r2 / (4.0 * D0 * (t + 1.0))), 1e-10);
+	auto const d0 = sqr(r_e) / (4.0 * t0);
+	auto const er0 = 1.0e-6_R;
 
-//	const real A = 4.0 * dt * kap_p * sigma * pow(mmw[iiih] * mh * (fgamma - 1.) / (kb * rho[iiih]), 4.0);
-//	const real B = (1.0 + clight * dt * kap_p);
-//	const real C = -(1.0 + clight * dt * kap_p) * e0 - U[er_i][iiir] * dt * clight * kap_p;
+	auto const r2 = x * x + (ndim >= 2 ? y * y : 0.0_R) + (ndim == 3 ? z * z : 0.0_R);
 
+	auto const tp = t + t0;
 
-	double T = pow(er / (4.0 * physcon().sigma / physcon().c), 0.25);
-	double Pgas = u[rho_i] * T * physcon().kb / (physcon().mh * mmw);
-	const real fgamma = grid::get_fgamma();
-	double ei = (1.0 / (fgamma - 1.0)) * Pgas;
-//printf( "1. %e\n", 4.0 * physcon().sigma * pow(physcon().mh * mmw * (fgamma - 1.) / (physcon().kb * u[rho_i]), 4.0) );
-	u[tau_i] = POWER(ei, 1.0 / grid::get_fgamma());
-	u[egas_i] = POWER(u[tau_i], fgamma);
-	const double derdr = -0.5 * (r) / (1 + t) * er / D0;
-	double fx, fy, fz;
-	double vx = 1e-3 * physcon().c;
-	if (r == 0.0) {
-		fx = fy = fz = 0.0;
-	} else {
-		fx = -derdr * x / r * D0;// + vx * er;
-		fy = -derdr * y / r * D0;
-		fz = -derdr * z / r * D0;
-	}
-	//u[egas_i] += 0.5 * vx * vx * u[rho_i];
-	//u[sx_i] = u[rho_i] * vx;
-	double nx = fx;
-	double ny = fy;
-	double nz = fz;
-	double ninv = 1.0 / sqrt(nx * nx + ny * ny + nz * nz);
-	nx *= ninv;
-	ny *= ninv;
-	nz *= ninv;
-//	fx = copysign(std::min(fabs(fx),fabs(0.999*nx*er*physcon().c)), nx);
-//	fy = copysign(std::min(fabs(fy),fabs(0.999*ny*er*physcon().c)), ny);
-//	fz = copysign(std::min(fabs(fz),fabs(0.999*nz*er*physcon().c)), nz);
-//	printf( "%e\n", sqrt(fx*fx+fy*fy+fz*fz)/er);
-	u[opts().n_fields + 0] = er;
-	u[opts().n_fields + 1] = fx;
-	u[opts().n_fields + 2] = fy;
-	u[opts().n_fields + 3] = fz;
-//	if( er!= 0.0)
-	//printf( "--->%e\n",er);
-	return u;
+	auto const er = er0 * pow(t0 / tp, 0.5_R * ndim) * exp(-r2 / (4.0_R * d0 * tp));
+
+	auto const fx = 0.5_R * er * x / tp;
+	auto const fy = ndim >= 2 ? 0.5_R * er * y / tp : 0.0_R;
+	auto const fz = ndim == 3 ? 0.5_R * er * z / tp : 0.0_R;
+	auto const ei = 1.0e-6_R;
+	
+	G[spc_i] = G[rho_i] = 1_R;
+	G[tau_i] = pow(ei, 1.0_R / gamma);
+	G[egas_i] = ei;
+
+	R[0] = er;
+	R[1] = fx;
+	R[2] = fy;
+	R[3] = fz;
+
+	G.insert(G.end(), R.begin(), R.end());
+	return G;
 }
 
 bool refine_sod(integer level, integer max_level, real x, real y, real z, std::vector<real> const &U,
-		std::array<std::vector<real>, NDIM> const &dudx) {
+				std::array<std::vector<real>, NDIM> const &dudx) {
 	for (integer i = 0; i != NDIM; ++i) {
 		if (std::abs(dudx[i][rho_i] / U[rho_i]) >= 0.1) {
 			return level < max_level;
@@ -206,7 +175,7 @@ bool refine_sod(integer level, integer max_level, real x, real y, real z, std::v
 }
 
 bool refine_blast(integer level, integer max_level, real x, real y, real z, std::vector<real> const &U,
-		std::array<std::vector<real>, NDIM> const &dudx) {
+				  std::array<std::vector<real>, NDIM> const &dudx) {
 	bool rc = false;
 	if (level < 1) {
 		rc = true;
@@ -225,7 +194,7 @@ bool refine_blast(integer level, integer max_level, real x, real y, real z, std:
 }
 
 bool refine_test_center(integer level, integer max_level, real x, real y, real z, std::vector<real> const &U,
-		std::array<std::vector<real>, NDIM> const &dudx) {
+						std::array<std::vector<real>, NDIM> const &dudx) {
 	if (x * x + y * y + z * z < ssr0) {
 		return level < max_level;
 	}
@@ -233,7 +202,7 @@ bool refine_test_center(integer level, integer max_level, real x, real y, real z
 }
 
 bool refine_test(integer level, integer max_level, real x, real y, real z, std::vector<real> const &U,
-		std::array<std::vector<real>, NDIM> const &dudx) {
+				 std::array<std::vector<real>, NDIM> const &dudx) {
 	bool rc = false;
 	real dx = (opts().xscale / INX) / real(1 << level);
 	if (level < max_level / 2) {
@@ -255,7 +224,7 @@ bool refine_test(integer level, integer max_level, real x, real y, real z, std::
 		test_level -= opts().accretor_refine;
 	}
 	const auto grad_rho = opts().grad_rho_refine;
-	if( grad_rho > 0.0 ) {
+	if (grad_rho > 0.0) {
 		test_level--;
 	}
 	real den_floor = opts().refinement_floor;
@@ -268,10 +237,10 @@ bool refine_test(integer level, integer max_level, real x, real y, real z, std::
 		}
 		den_floor /= 8.0;
 	}
-	if(!rc && grad_rho > 0.0 && level < max_level) {
-		for( int dim = 0; dim < NDIM; dim++) {
-			if( std::abs(dudx[dim][rho_i])/U[rho_i] > grad_rho && U[rho_i] > 1000*den_floor) {
-				
+	if (!rc && grad_rho > 0.0 && level < max_level) {
+		for (int dim = 0; dim < NDIM; dim++) {
+			if (std::abs(dudx[dim][rho_i]) / U[rho_i] > grad_rho && U[rho_i] > 1000 * den_floor) {
+
 				rc = true;
 			}
 		}
@@ -281,7 +250,7 @@ bool refine_test(integer level, integer max_level, real x, real y, real z, std::
 }
 
 bool refine_test_moving_star(integer level, integer max_level, real x, real y, real z, std::vector<real> const &U,
-		std::array<std::vector<real>, NDIM> const &dudx) {
+							 std::array<std::vector<real>, NDIM> const &dudx) {
 	bool rc = false;
 	real den_floor = opts().refinement_floor;
 	integer test_level = max_level;
@@ -298,27 +267,24 @@ bool refine_test_moving_star(integer level, integer max_level, real x, real y, r
 		den_floor /= 8.0;
 	}
 	return rc;
-
 }
 
 bool refine_test_marshak(integer level, integer max_level, real x, real y, real z, std::vector<real> const &U,
-		std::array<std::vector<real>, NDIM> const &dudx) {
+						 std::array<std::vector<real>, NDIM> const &dudx) {
 	if (level >= max_level) {
 		return false;
 	} else {
 		return true;
 	}
-
 }
 
 bool refine_test_unigrid(integer level, integer max_level, real x, real y, real z, std::vector<real> const &U,
-		std::array<std::vector<real>, NDIM> const &dudx) {
+						 std::array<std::vector<real>, NDIM> const &dudx) {
 	if (level >= max_level) {
 		return false;
 	} else {
 		return true;
 	}
-
 }
 
 void set_refine_test(const refine_test_type &rt) {
@@ -489,8 +455,8 @@ std::vector<real> star(real x, real y, real z, real) {
 
 		const real r = std::sqrt(x * x + y * y + z * z);
 		real theta;
-		//const real n = real(1) / (fgamma - real(1));
-		//const real rho_min = 1.0e-10;
+		// const real n = real(1) / (fgamma - real(1));
+		// const real rho_min = 1.0e-10;
 		const real theta_min = std::pow(rho_out / rho_c, real(1) / n);
 		const auto c0 = real(4) * real(M_PI) * std::pow(alpha, 2) * std::pow(rho_c, (n - real(1)) / n) / (n + real(1));
 		if (r <= rmax) {
@@ -501,18 +467,20 @@ std::vector<real> star(real x, real y, real z, real) {
 			theta = theta_min;
 			u[rho_i] = rho_out;
 		}
-//		u[rho_i] = std::max(rho_c * std::pow(theta, n), rho_out);
+		//		u[rho_i] = std::max(rho_c * std::pow(theta, n), rho_out);
 		u[spc_i] = u[rho_i];
-		const real p = std::pow(rho_c * std::pow(theta, n), (real(1) + real(1)/n)) * c0;
+		const real p = std::pow(rho_c * std::pow(theta, n), (real(1) + real(1) / n)) * c0;
 		if (opts().eos == IPR) {
-			//printf("p(%e) = %e, rho = %e\n", r, p, u[rho_i]);
-			u[egas_i] = std::max(opts().star_egas_out, find_ei_rad_gas(p, u[rho_i], opts().atomic_mass[0] / (opts().atomic_number[0] + 1.0), fgamma, u[tau_i])); // makes sure the calculated pressure will be as the polytropic one
-			//printf("egas(%e) = %e, epoly=%e\n", r, u[egas_i], n * p);
+			// printf("p(%e) = %e, rho = %e\n", r, p, u[rho_i]);
+			u[egas_i] =
+				std::max(opts().star_egas_out, find_ei_rad_gas(p, u[rho_i], opts().atomic_mass[0] / (opts().atomic_number[0] + 1.0), fgamma,
+															   u[tau_i])); // makes sure the calculated pressure will be as the polytropic
+																		   // one printf("egas(%e) = %e, epoly=%e\n", r, u[egas_i], n * p);
 		} else {
 			// u[egas_i] = std::max(opts().star_egas_out, p * n);
 			u[egas_i] = std::max(opts().star_egas_out, p / (fgamma - 1.0));
 			u[tau_i] = std::pow(u[egas_i], 1.0 / fgamma);
-			//u[tau_i] = std::pow(u[egas_i], (n / (real(1) + n)));
+			// u[tau_i] = std::pow(u[egas_i], (n / (real(1) + n)));
 		}
 
 		/*		const real r = std::sqrt(x * x + y * y + z * z);

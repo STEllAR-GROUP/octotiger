@@ -1659,6 +1659,7 @@ void grid::set_coordinates() {
 }
 
 std::vector<std::pair<std::string, std::string>> grid::get_scalar_expressions() {
+	const auto kb = physcon().kb * std::pow(opts().code_to_cm / opts().code_to_s, 2) * opts().code_to_g;
 	std::vector<std::pair<std::string, std::string>> rc;
 	std::string rho;
 	for (integer i = 0; i < opts().n_species; i++) {
@@ -1669,23 +1670,15 @@ std::vector<std::pair<std::string, std::string>> grid::get_scalar_expressions() 
 	rc.push_back(std::make_pair(std::string("vx"), hpx::util::format("sx / rho + {:e} * coord(quadmesh)[1]", omega)));
 	rc.push_back(std::make_pair(std::string("vy"), hpx::util::format("sy / rho - {:e} * coord(quadmesh)[0]", omega)));
 	rc.push_back(std::make_pair(std::string("vz"), std::string("sz / rho")));
-	rc.push_back(std::make_pair(std::string("zx"), "lx - coord(quadmesh)[1]*sz + coord(quadmesh)[2]*sy"));
-	rc.push_back(std::make_pair(std::string("zy"), "ly + coord(quadmesh)[0]*sz - coord(quadmesh)[2]*sx"));
-	rc.push_back(std::make_pair(std::string("zz"), "lz - coord(quadmesh)[0]*sy + coord(quadmesh)[1]*sx"));
-
+	rc.push_back(std::make_pair(std::string("ek"), std::string("(sx*sx+sy*sy+sz*sz)/2.0/rho")));
+	rc.push_back(std::make_pair(std::string("phi"), std::string("pot/rho")));
 	std::string n;
-	std::string X = "(";
-	std::string Z = "(";
 
 	for (integer i = 0; i < opts().n_species; i++) {
 		const real mu = opts().atomic_mass[i] / (opts().atomic_number[i] + 1.);
 		n += hpx::util::format("rho_{} / {:e} + ", int(i + 1), mu * physcon().mh * opts().code_to_g);
-		X += hpx::util::format("{:e} * rho_{} + ", opts().X[i], i + 1);
-		Z += hpx::util::format("{:e} * rho_{} + ", opts().Z[i], i + 1);
 	}
 	n += '0';
-	X += "0) / rho";
-	Z += "0) / rho";
 	rc.push_back(
 			std::make_pair(std::string("sigma_T"),
 					std::string("(1 + X) * 0.2 * T * T / ((T * T + 2.7e+11 * rho) * (1 + (T / 4.5e+8)^0.86))")));
@@ -1699,43 +1692,15 @@ std::vector<std::pair<std::string, std::string>> grid::get_scalar_expressions() 
 		rc.push_back(std::make_pair(std::string("kappa_P"), std::string("rho * 30.262 * sigma_xf")));
 	}
 	rc.push_back(std::make_pair(std::string("n"), std::move(n)));
-	rc.push_back(std::make_pair(std::string("X"), std::move(X)));
-	rc.push_back(std::make_pair(std::string("Y"), std::string("1.0 - X - Z")));
-	rc.push_back(std::make_pair(std::string("Z"), std::move(Z)));
-	rc.push_back(std::make_pair(std::string("etot_dual"), std::string("ei + ek")));
-	rc.push_back(std::make_pair(std::string("ek"), std::string("(sx*sx+sy*sy+sz*sz)/2.0/rho")));
-	const auto kb = physcon().kb * std::pow(opts().code_to_cm / opts().code_to_s, 2) * opts().code_to_g;
-	rc.push_back(std::make_pair(std::string("phi"), std::string("pot/rho")));
-	rc.push_back(
-			std::make_pair(std::string("B_p"),
-					hpx::util::format("{:e} * T^4",
-							physcon().sigma / M_PI * opts().code_to_g * std::pow(opts().code_to_cm, 3))));
-	if (opts().eos == WD) {
-		rc.push_back(std::make_pair(std::string("A"), "6.00228e+22"));
-		rc.push_back(std::make_pair(std::string("B"), "(2 * 9.81011e+5)"));
-		rc.push_back(std::make_pair(std::string("x"), "(rho/B)^(1.0/3.0)"));
-		rc.push_back(std::make_pair(std::string("Pdeg"), "if( gt(x, 0.001), A*(x*(2.0*x*x-3.0)*sqrt(x*x+1.0)+3.0*ln(x+sqrt(x*x+1))), 1.6*A*x^5)"));
-		rc.push_back(std::make_pair(std::string("hdeg"), "8.0*A/B*(sqrt(x*x+1)-1)"));
-		rc.push_back(std::make_pair(std::string("Edeg"), "if( gt(x, 0.001), rho*hdeg - Pdeg, 2.4*A*x^5"));
-	}
-	if (opts().problem == MARSHAK) {
-		rc.push_back(std::make_pair(std::string("T"), std::string("(ei/rho)^(1.0/3.0)")));
-	} else if (opts().eos == IPR) {
+	if (opts().eos == IPR) {
                 rc.push_back(std::make_pair(std::string("T"), std::string("tau")));
                 rc.push_back(std::make_pair(std::string("P"), hpx::util::format("n * {:e} * tau + {:e} * tau^4", kb,  (4.0 * physcon().sigma * opts().code_to_g / std::pow(opts().code_to_s, 3)) / (3.0 * physcon().c * opts().code_to_cm / opts().code_to_s))));
                 rc.push_back(std::make_pair(std::string("ei"), hpx::util::format("max(egas-ek,{:e})", opts().ipr_eint_floor * opts().code_to_g / std::pow(opts().code_to_s, 2) / opts().code_to_cm)));
-	} else if (opts().eos != WD) {
+	} else {
 		rc.push_back(
 				std::make_pair(std::string("ei"),
 						hpx::util::format("if( gt(egas-ek,{:e}*egas), egas-ek, tau^{:e})", opts().dual_energy_sw1, fgamma)));
 		rc.push_back(std::make_pair(std::string("P"), hpx::util::format("{:e} * ei", (fgamma - 1.0))));
-		rc.push_back(std::make_pair(std::string("T"), hpx::util::format("{:e} * ei / n", 1.0 / (kb / (fgamma - 1.0)))));
-	} else {
-		rc.push_back(
-				std::make_pair(std::string("ei"),
-						hpx::util::format("if( gt(egas-ek-Edeg,{:e}*egas), egas-ek-Edeg, tau^{:e})", opts().dual_energy_sw1,
-								fgamma)));
-		rc.push_back(std::make_pair(std::string("P"), hpx::util::format("Pdeg + {:e} * ei", (fgamma - 1.0))));
 		rc.push_back(std::make_pair(std::string("T"), hpx::util::format("{:e} * ei / n", 1.0 / (kb / (fgamma - 1.0)))));
 	}
 	return std::move(rc);
@@ -1959,7 +1924,6 @@ timestep_t grid::compute_fluxes() {
 	/******************************/
 //	hydro.set_low_order();
 	/******************************/
-	hydro.use_experiment(opts().experiment);
 	if (opts().correct_am_hydro) {
 		hydro.use_angmom_correction(sx_i);
 	}

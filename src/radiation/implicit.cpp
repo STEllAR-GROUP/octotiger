@@ -14,7 +14,7 @@ RadiationSource radiationSource(real E0, Vector<real, NDIM> F0, real τ0, Vector
 	auto const m = physcon().mh;
 	auto const Γ = grid::get_fgamma();
 	auto const ic2 = sqr(ic);
-	auto const Rg = m * (Γ - 1_R) * inv(kB);
+	auto const Rg = m * inv((Γ - 1_R) * kB);
 
 	auto const iρ = inv(ρ);
 	auto const e0 = std::pow(τ0, Γ);

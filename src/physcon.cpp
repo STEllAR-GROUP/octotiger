@@ -4,17 +4,17 @@
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 #define __NPHYSCON__
+#include "octotiger/physcon.hpp"
 #include "octotiger/future.hpp"
 #include "octotiger/grid.hpp"
 #include "octotiger/node_server.hpp"
 #include "octotiger/options.hpp"
-#include "octotiger/physcon.hpp"
 #include "octotiger/real.hpp"
 #include "octotiger/safe_math.hpp"
 #include "octotiger/util.hpp"
 
-#include <hpx/hpx.hpp>
 #include <hpx/collectives/broadcast_direct.hpp>
+#include <hpx/hpx.hpp>
 
 #include <array>
 #include <cmath>
@@ -23,12 +23,13 @@
 
 #if !defined(HPX_COMPUTE_DEVICE_CODE)
 
-physcon_t& physcon() {
-	static physcon_t physcon_ = { 1, 1, 1, 1, 1.0, 1.0, 1.0, 1.0 };
+physcon_t &physcon() {
+	static physcon_t physcon_ = {1, 1, 1, 1, 1.0, 1.0, 1.0, 1.0};
 	return physcon_;
 }
 
-//physcon_t physcon() = { 6.00228e+22, 6.67259e-8, 2 * 9.81011e+5, 1.380658e-16, 1.0, 1.0, 1.0, 1.0, { 4.0, 4.0, 4.0, 4.0, 4.0 }, { 2.0, 2.0, 2.0, 2.0, 2.0 } };
+// physcon_t physcon() = { 6.00228e+22, 6.67259e-8, 2 * 9.81011e+5, 1.380658e-16, 1.0, 1.0, 1.0, 1.0, { 4.0, 4.0, 4.0, 4.0, 4.0 },
+// { 2.0, 2.0, 2.0, 2.0, 2.0 } };
 
 real find_T_rad_gas(real p, real rho, real mu) {
 	const real cg = physcon().kb / (mu * physcon().mh);
@@ -43,17 +44,18 @@ real find_T_rad_gas(real p, real rho, real mu) {
 		dfdT = cg * rho / p + 4.0 * cr * std::pow(T, 3) / p;
 		T -= f / dfdT;
 	}
-        std::cout << "Error: exceeded number of iterations in Newton-Rahpson method, could not find accurate temperature.\n";
-        std::cout << "Maximum number of iteration " << opts().ipr_nr_maxiter << ". Current iteration find: " << -1.0 << "+" << cg << "*" << T << "+" << cr << "*" << T << "^4=" << f << "\n";
+	std::cout << "Error: exceeded number of iterations in Newton-Rahpson method, could not find accurate temperature.\n";
+	std::cout << "Maximum number of iteration " << opts().ipr_nr_maxiter << ". Current iteration find: " << -1.0 << "+" << cg << "*" << T
+			  << "+" << cr << "*" << T << "^4=" << f << "\n";
 	abort();
 	return T;
 }
 
 real find_ei_rad_gas(real p, real rho, real mu, real gamma, real &T) {
 	T = find_T_rad_gas(p, rho, mu);
-        const real cg_e = physcon().kb / (mu * physcon().mh) / (gamma - 1.0);
-        const real cr_e = (4.0 * physcon().sigma) / physcon().c;
-	return cg_e * rho * T + cr_e * std::pow(T, 4); 
+	const real cg_e = physcon().kb / (mu * physcon().mh) / (gamma - 1.0);
+	const real cr_e = (4.0 * physcon().sigma) / physcon().c;
+	return cg_e * rho * T + cr_e * std::pow(T, 4);
 }
 
 void these_units(real &m, real &l, real &t, real &k) {
@@ -102,7 +104,7 @@ void these_units(real &m, real &l, real &t, real &k) {
 		k = 1.0;
 	}
 
-//	printf("%e %e %e %e\n", l, m, t, k);
+	//	printf("%e %e %e %e\n", l, m, t, k);
 	if (opts().problem == MARSHAK) {
 		opts().code_to_g = 1.0;
 		opts().code_to_s = 1.0;
@@ -129,8 +131,8 @@ void normalize_constants() {
 	if (hpx::get_locality_id() == 0) {
 		printf("Normalized constants 222\n");
 		printf("%e %e %e %e\n", 1.0 / m, 1.0 / l, 1.0 / t, 1.0 / k);
-		printf("A = %e | B = %e | G = %e | kb = %e | c = %e | mh = %e | sigma = %e | h = %e\n", physcon().A, physcon().B, physcon().G, physcon().kb,
-				physcon().c, physcon().mh, physcon().sigma, physcon().h);
+		printf("A = %e | B = %e | G = %e | kb = %e | c = %e | mh = %e | sigma = %e | h = %e\n", physcon().A, physcon().B, physcon().G,
+			   physcon().kb, physcon().c, physcon().mh, physcon().sigma, physcon().h);
 	}
 	if (opts().problem == MARSHAK) {
 		opts().code_to_g = 1.0;
@@ -144,25 +146,24 @@ void normalize_constants() {
 }
 
 void set_units(real m, real l, real t, real k) {
-//	m = 1.0 / m;
-//	l = 1.0 / l;
-//	t = 1.0 / t;
-//	k = 1.0 / k;
+	//	m = 1.0 / m;
+	//	l = 1.0 / l;
+	//	t = 1.0 / t;
+	//	k = 1.0 / k;
 	const real Acgs = 6.00228e+22;
 	physcon().A = 6.00233345657677e+22 * m / l / (t * t);
-	physcon().B = 2 * 9.81011e+05 * m
-			/ (l * l * l);
+	physcon().B = 2 * 9.81011e+05 * m / (l * l * l);
 	physcon().kb = 1.380658e-16 * (m * l * l) / (t * t) / k;
 	physcon().c = 2.99792458e+10 * (l / t);
 	physcon().mh = 1.6733e-24 * m;
 	physcon().sigma = 5.67051e-5 * m / (t * t * t) / (k * k * k * k);
 	physcon().h = 6.6260755e-27 * m * l * l / t;
-//	if (hpx::get_locality_id() == 0) {
-		printf("normalized constants\n");
-		printf("%e %e %e %e\n", 1.0 / m, 1.0 / l, 1.0 / t, 1.0 / k);
-		printf("A = %e | B = %e | G = %e | kb = %e | c = %e | mh = %e | sigma = %e | h = %e\n", physcon().A, physcon().B, physcon().G, physcon().kb,
-				physcon().c, physcon().mh, physcon().sigma, physcon().h);
-//	}
+	//	if (hpx::get_locality_id() == 0) {
+	printf("normalized constants\n");
+	printf("%e %e %e %e\n", 1.0 / m, 1.0 / l, 1.0 / t, 1.0 / k);
+	printf("A = %e | B = %e | G = %e | kb = %e | c = %e | mh = %e | sigma = %e | h = %e\n", physcon().A, physcon().B, physcon().G,
+		   physcon().kb, physcon().c, physcon().mh, physcon().sigma, physcon().h);
+	//	}
 }
 
 struct call_normalize_constants {
@@ -171,14 +172,14 @@ struct call_normalize_constants {
 	}
 };
 
-//call_normalize_constants init;
+// call_normalize_constants init;
 
 hpx::future<void> set_physcon(const physcon_t &p);
 
 HPX_PLAIN_ACTION(set_physcon, set_physcon_action);
 
-HPX_REGISTER_BROADCAST_ACTION_DECLARATION (set_physcon_action);
-HPX_REGISTER_BROADCAST_ACTION (set_physcon_action);
+HPX_REGISTER_BROADCAST_ACTION_DECLARATION(set_physcon_action);
+HPX_REGISTER_BROADCAST_ACTION(set_physcon_action);
 
 hpx::future<void> set_physcon(const physcon_t &p) {
 	hpx::future<void> f;
@@ -186,10 +187,9 @@ hpx::future<void> set_physcon(const physcon_t &p) {
 		std::vector<hpx::id_type> remotes;
 		remotes.reserve(options::all_localities.size() - 1);
 		for (hpx::id_type const &id : options::all_localities) {
-			if (id != hpx::find_here())
-				remotes.push_back(id);
+			if (id != hpx::find_here()) remotes.push_back(id);
 		}
-		f = hpx::lcos::broadcast < set_physcon_action > (remotes, p);
+		f = hpx::lcos::broadcast<set_physcon_action>(remotes, p);
 	} else {
 		f = hpx::make_ready_future();
 	}
@@ -214,30 +214,28 @@ void node_server::set_cgs(bool change) {
 	physcon_t tmp = physcon();
 	auto f1 = set_physcon(tmp);
 	if (change) {
-//		printf("%e %e %e %e\n", m, l, t, k);
+		//		printf("%e %e %e %e\n", m, l, t, k);
 		change_units(m, l, t, k);
 		auto f3 = grid::static_change_units(m, l, t, k);
 		f3.get();
 	}
 	f1.get();
-
 }
 
 HPX_PLAIN_ACTION(set_AB, set_AB_action);
 
-HPX_REGISTER_BROADCAST_ACTION_DECLARATION (set_AB_action);
-HPX_REGISTER_BROADCAST_ACTION (set_AB_action);
+HPX_REGISTER_BROADCAST_ACTION_DECLARATION(set_AB_action);
+HPX_REGISTER_BROADCAST_ACTION(set_AB_action);
 
 void set_AB(real a, real b) {
 	if (hpx::get_locality_id() == 0) {
 		std::vector<hpx::id_type> remotes;
 		remotes.reserve(options::all_localities.size() - 1);
 		for (hpx::id_type const &id : options::all_localities) {
-			if (id != hpx::find_here())
-				remotes.push_back(id);
+			if (id != hpx::find_here()) remotes.push_back(id);
 		}
 		if (remotes.size() > 0) {
-			hpx::lcos::broadcast < set_AB_action > (remotes, a, b).get();
+			hpx::lcos::broadcast<set_AB_action>(remotes, a, b).get();
 		}
 	}
 	physcon().A = a;
@@ -246,20 +244,19 @@ void set_AB(real a, real b) {
 }
 
 HPX_PLAIN_ACTION(grid::static_change_units, static_change_units_action);
-HPX_REGISTER_BROADCAST_ACTION_DECLARATION (static_change_units_action);
-HPX_REGISTER_BROADCAST_ACTION (static_change_units_action);
+HPX_REGISTER_BROADCAST_ACTION_DECLARATION(static_change_units_action);
+HPX_REGISTER_BROADCAST_ACTION(static_change_units_action);
 
 hpx::future<void> grid::static_change_units(real m, real l, real t, real k) {
-//	printf("%e %e %e %e\n", m, l, t, k);
+	//	printf("%e %e %e %e\n", m, l, t, k);
 	hpx::future<void> f;
 	if (hpx::get_locality_id() == 0 && options::all_localities.size() > 1) {
 		std::vector<hpx::id_type> remotes;
 		remotes.reserve(options::all_localities.size() - 1);
 		for (hpx::id_type const &id : options::all_localities) {
-			if (id != hpx::find_here())
-				remotes.push_back(id);
+			if (id != hpx::find_here()) remotes.push_back(id);
 		}
-		f = hpx::lcos::broadcast < static_change_units_action > (remotes, m, l, t, k);
+		f = hpx::lcos::broadcast<static_change_units_action>(remotes, m, l, t, k);
 	} else {
 		f = hpx::make_ready_future();
 	}
@@ -269,15 +266,18 @@ hpx::future<void> grid::static_change_units(real m, real l, real t, real k) {
 }
 
 void mean_ion_weight(const specie_state_t<> species, real &mmw, real &X, real &Z) {
-//	real N;
+	//	real N;
 	real mtot = 0.0;
 	real ntot = 0.0;
 	X = Z = 0;
 	for (integer i = 0; i != opts().n_species; ++i) {
 		const real m = species[i];
 		ntot += m * (opts().atomic_number[i] + 1.0) / opts().atomic_mass[i];
-		X += m * opts().X[i];
-		Z += m * opts().Z[i];
+		if (opts().atomic_number[i] == 1) {
+			X += m;
+		} else if (opts().atomic_number[i] > 2) {
+			Z += m;
+		}
 		mtot += m;
 	}
 	mmw = mtot / ntot;
@@ -286,7 +286,7 @@ void mean_ion_weight(const specie_state_t<> species, real &mmw, real &X, real &Z
 }
 
 using change_units_action_type = node_server::change_units_action;
-HPX_REGISTER_ACTION (change_units_action_type);
+HPX_REGISTER_ACTION(change_units_action_type);
 
 hpx::future<void> node_client::change_units(real a, real b, real c, real d) const {
 	return hpx::async<typename node_server::change_units_action>(get_unmanaged_gid(), a, b, c, d);
@@ -347,8 +347,7 @@ real stellar_rho_from_enthalpy_mu_s(real h, real mu, real s) {
 	};
 	bool rc = find_root(f, 1.0e-20, 1.0e+20, rho);
 	if (!rc) {
-		abort_error()
-		;
+		abort_error();
 	}
 	return rho;
 }
