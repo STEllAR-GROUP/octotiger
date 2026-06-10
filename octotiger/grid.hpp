@@ -39,6 +39,7 @@ class struct_eos;
 class analytic_t {
 public:
 	std::vector<real> l1, l2, linf;
+	std::vector<real> norm_l1, norm_l2, norm_linf;
 	integer nfields_;
 	template<class Arc>
 	void serialize(Arc &a, unsigned) {
@@ -47,14 +48,23 @@ public:
 			l1.resize(nfields_ + NRF);
 			l2.resize(nfields_ + NRF);
 			linf.resize(nfields_ + NRF);
+			norm_l1.resize(nfields_ + NRF);
+			norm_l2.resize(nfields_ + NRF);
+			norm_linf.resize(nfields_ + NRF);
 		} else {
 			l1.resize(nfields_);
 			l2.resize(nfields_);
 			linf.resize(nfields_);
+			norm_l1.resize(nfields_);
+			norm_l2.resize(nfields_);
+			norm_linf.resize(nfields_);
 		}
 		a & l1;
 		a & l2;
 		a & linf;
+		a & norm_l1;
+		a & norm_l2;
+		a & norm_linf;
 	}
 	analytic_t() {
 		nfields_ = 0;
@@ -64,16 +74,25 @@ public:
 		l1.resize(nfields_ + NRF);
 		l2.resize(nfields_ + NRF);
 		linf.resize(nfields_ + NRF);
+		norm_l1.resize(nfields_ + NRF);
+		norm_l2.resize(nfields_ + NRF);
+		norm_linf.resize(nfields_ + NRF);
 		for (integer field = 0; field != nfields_; ++field) {
 			l1[field] = 0.0;
 			l2[field] = 0.0;
 			linf[field] = 0.0;
+			norm_l1[field] = 0.0;
+			norm_l2[field] = 0.0;
+			norm_linf[field] = 0.0;
 		}
 		if (opts().radiation) {
 			for (integer field = nfields_; field != nfields_ + NRF; ++field) {
 				l1[field] = 0.0;
 				l2[field] = 0.0;
 				linf[field] = 0.0;
+				norm_l1[field] = 0.0;
+				norm_l2[field] = 0.0;
+				norm_linf[field] = 0.0;
 			}
 		}
 	}
@@ -82,12 +101,18 @@ public:
 			l1[field] += other.l1[field];
 			l2[field] += other.l2[field];
 			linf[field] = std::max(linf[field], other.linf[field]);
+			norm_l1[field] += other.norm_l1[field];
+			norm_l2[field] += other.norm_l2[field];
+			norm_linf[field] = std::max(norm_linf[field], other.norm_linf[field]);
 		}
 		if (opts().radiation) {
 			for (integer field = nfields_; field != nfields_ + NRF; ++field) {
 				l1[field] += other.l1[field];
 				l2[field] += other.l2[field];
 				linf[field] = std::max(linf[field], other.linf[field]);
+				norm_l1[field] += other.norm_l1[field];
+				norm_l2[field] += other.norm_l2[field];
+				norm_linf[field] = std::max(norm_linf[field], other.norm_linf[field]);
 			}
 		}
 		return *this;

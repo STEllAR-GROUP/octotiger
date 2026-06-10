@@ -1760,9 +1760,13 @@ analytic_t grid::compute_analytic(real t) {
 				}
 				for (integer field = 0; field != opts().n_fields; ++field) {
 					real dif = std::abs(A[field] - U[field][iii]);
+					real nrm = std::abs(A[field]);
 					a.l1[field] += dif * dv;
 					a.l2[field] += dif * dif * dv;
 					a.linf[field] = std::max(dif, a.linf[field]);
+					a.norm_l1[field] += nrm * dv;
+					a.norm_l2[field] += nrm * nrm * dv;
+					a.norm_linf[field] = std::max(nrm, a.norm_linf[field]);
 					U[field][iii] = A[field];
 				}
 				if (opts().radiation) {
@@ -1770,9 +1774,13 @@ analytic_t grid::compute_analytic(real t) {
 						auto tmp = rad_grid_ptr->get_field(field - opts().n_fields, i - H_BW + R_BW, j - H_BW + R_BW,
 								k - H_BW + R_BW);
 						real dif = std::abs(A[field] - tmp);
+						real nrm = std::abs(A[field]);
 						a.l1[field] += dif * dv;
 						a.l2[field] += dif * dif * dv;
 						a.linf[field] = std::max(dif, a.linf[field]);
+						a.norm_l1[field] += nrm * dv;
+						a.norm_l2[field] += nrm * nrm * dv;
+						a.norm_linf[field] = std::max(nrm, a.norm_linf[field]);
 						rad_grid_ptr->set_field(A[field], field - opts().n_fields, i - H_BW + R_BW, j - H_BW + R_BW,
 								k - H_BW + R_BW);
 					}

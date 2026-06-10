@@ -166,31 +166,36 @@ analytic_t node_server::compare_analytic() {
 		}
 	}
 	if (my_location.level() == 0) {
-		printf("L1, L2\n");
-		real vol = 1.0;
-		for (int d = 0; d < NDIM; d++) {
-			vol *= 2.0 * opts().xscale;
-		}
+		printf("relative L1, L2, Linf\n");
 		int nfields = opts().n_fields;
 		int top = opts().n_fields;
-		if( opts().radiation) {
+		if (opts().radiation) {
 			nfields += NRF;
 		}
+		auto rel_l1 = [&](integer field) {
+			return a.norm_l1[field] > 0.0 ? a.l1[field] / a.norm_l1[field] : a.l1[field];
+		};
+		auto rel_l2 = [&](integer field) {
+			return a.norm_l2[field] > 0.0 ? std::sqrt(a.l2[field] / a.norm_l2[field]) : std::sqrt(a.l2[field]);
+		};
+		auto rel_linf = [&](integer field) {
+			return a.norm_linf[field] > 0.0 ? a.linf[field] / a.norm_linf[field] : a.linf[field];
+		};
 		for (integer field = 0; field != opts().n_fields; ++field) {
-			printf("%16s %e %e %e\n", physics<3>::field_names3[field], a.l1[field] / vol, std::sqrt(a.l2[field] / vol), a.linf[field]);
+			printf("%16s %e %e %e\n", physics<3>::field_names3[field], rel_l1(field), rel_l2(field), rel_linf(field));
 		}
-		if( opts().radiation) {
-			printf("%16s %e %e %e\n", "er", a.l1[top+0] / vol, std::sqrt(a.l2[top+0] / vol), a.linf[top+0]);
-			printf("%16s %e %e %e\n", "fx", a.l1[top+1] / vol, std::sqrt(a.l2[top+1] / vol), a.linf[top+1]);
-			printf("%16s %e %e %e\n", "fy", a.l1[top+2] / vol, std::sqrt(a.l2[top+2] / vol), a.linf[top+2]);
-			printf("%16s %e %e %e\n", "fz", a.l1[top+3] / vol, std::sqrt(a.l2[top+3] / vol), a.linf[top+3]);
+		if (opts().radiation) {
+			printf("%16s %e %e %e\n", "er", rel_l1(top + 0), rel_l2(top + 0), rel_linf(top + 0));
+			printf("%16s %e %e %e\n", "fx", rel_l1(top + 1), rel_l2(top + 1), rel_linf(top + 1));
+			printf("%16s %e %e %e\n", "fy", rel_l1(top + 2), rel_l2(top + 2), rel_linf(top + 2));
+			printf("%16s %e %e %e\n", "fz", rel_l1(top + 3), rel_l2(top + 3), rel_linf(top + 3));
 		}
 		const auto ml = opts().max_level;
 		const auto dxmin = 2.0 * opts().xscale / INX / double(1 << ml);
 		FILE *fp = fopen("L1.dat", "at");
 		fprintf(fp, "%e %i ", dxmin, int(ml));
 		for (integer field = 0; field != nfields; ++field) {
-			fprintf(fp, "%e ", a.l1[field] / vol);
+			fprintf(fp, "%e ", rel_l1(field));
 		}
 		fprintf(fp, "\n");
 		fclose(fp);
@@ -198,7 +203,7 @@ analytic_t node_server::compare_analytic() {
 		fp = fopen("L2.dat", "at");
 		fprintf(fp, "%e %i ", dxmin, int(ml));
 		for (integer field = 0; field != nfields; ++field) {
-			fprintf(fp, "%e ", std::sqrt(a.l2[field] / vol));
+			fprintf(fp, "%e ", rel_l2(field));
 		}
 		fprintf(fp, "\n");
 		fclose(fp);
@@ -206,7 +211,7 @@ analytic_t node_server::compare_analytic() {
 		fp = fopen("Linf.dat", "at");
 		fprintf(fp, "%e %i ", dxmin, int(ml));
 		for (integer field = 0; field != nfields; ++field) {
-			fprintf(fp, "%e ", a.linf[field]);
+			fprintf(fp, "%e ", rel_linf(field));
 		}
 		fprintf(fp, "\n");
 		fclose(fp);

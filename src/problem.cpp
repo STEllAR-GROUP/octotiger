@@ -10,11 +10,13 @@
 #include "octotiger/lane_emden.hpp"
 #include "octotiger/options.hpp"
 #include "octotiger/physcon.hpp"
+#include "octotiger/radiation/opacities.hpp"
 
 #include <hpx/include/lcos.hpp>
 
 #include <array>
 #include <cmath>
+#include <limits>
 #include <vector>
 
 constexpr integer spc_ac_i = spc_i;
@@ -54,27 +56,22 @@ bool radiation_test_refine(integer level, integer max_level, real x, real y, rea
 }
 
 std::vector<real> radiation_test_problem(real x, real y, real z, real dx) {
-	//	return blast_wave(x,y,z,dx);
-
 	std::vector<real> u(opts().n_fields + NRF, real(0));
-	x -= 0.0e11;
-	y -= 0.0e11;
-	z -= 0.0e11;
 	real r = std::max(2.0 * dx, 0.50);
+	constexpr auto almost1 = 1.0 - sqrt(std::numeric_limits<double>::epsilon());
 	real eint;
 	if (x < 0) {
 		u[rho_i] = 1.0;
 		eint = 1;
-		u[opts().n_fields] = 1;
-		u[opts().n_fields + 1] = 0.999999;
+		u[opts().n_fields] = 1 / sqr(2.99792458e10);
+		u[opts().n_fields + 1] = u[opts().n_fields] * almost1;
 	} else {
-		u[opts().n_fields] = 1e-10;
-		u[opts().n_fields + 1] = 0.999999e-10;
+		u[opts().n_fields] = 1e-10 / sqr(2.99792458e10);
+		u[opts().n_fields + 1] = u[opts().n_fields] * almost1;
 		u[rho_i] = 1.0;
 		eint = 1;
 	}
 	u[tau_i] = POWER(eint * u[rho_i], 1.0 / grid::get_fgamma());
-	//	u[sx_i] = 0.0; //u[rho_i] / 10.0;
 	const real fgamma = grid::get_fgamma();
 	u[egas_i] = POWER(u[tau_i], fgamma);
 	const real rhoinv = INVERSE(u[rho_i]);
@@ -121,45 +118,52 @@ std::vector<real> radiation_coupling_test_problem(real x, real y, real z, real d
 	return u;
 }
 
-std::vector<real> radiation_diffusion_analytic(real x, real y, real z, real t) {
+std::vector<real> radiation_diffusion_analytic(real x_, real y_, real z_, real t) {
 	using std::exp;
+	using std::min;
 	using std::pow;
+	using std::sqrt;
 
 	auto const c = physcon().c;
-	auto const aR = 4.0_R * physcon().sigma / c;
-	auto const kB = physcon().kb;
-	auto const mh = physcon().mh;
 	auto const gamma = grid::get_fgamma();
-	auto const ndim = opts().rad_diff_ndim;
+	auto const gridScale = opts().xscale;
+	auto const D = opts().rad_diff_D;
 	auto const t0 = opts().rad_diff_t0;
-	auto const r_e = opts().rad_diff_r0;
+	auto Er0 = opts().rad_diff_Er0;
 
+	Vector<real, NDIM> x({x_, y_, z_});
 	std::vector<real> G(opts().n_fields, 0_R);
 	std::vector<real> R(NRF, 0_R);
+	auto const rho = 1_R;
+	auto const Ei = 1e-10_R;
 
-	auto const d0 = sqr(r_e) / (4.0 * t0);
-	auto const er0 = 1.0e-6_R;
-
-	auto const r2 = x * x + (ndim >= 2 ? y * y : 0.0_R) + (ndim == 3 ? z * z : 0.0_R);
-
-	auto const tp = t + t0;
-
-	auto const er = er0 * pow(t0 / tp, 0.5_R * ndim) * exp(-r2 / (4.0_R * d0 * tp));
-
-	auto const fx = 0.5_R * er * x / tp;
-	auto const fy = ndim >= 2 ? 0.5_R * er * y / tp : 0.0_R;
-	auto const fz = ndim == 3 ? 0.5_R * er * z / tp : 0.0_R;
-	auto const ei = 1.0e-6_R;
-	
-	G[spc_i] = G[rho_i] = 1_R;
-	G[tau_i] = pow(ei, 1.0_R / gamma);
-	G[egas_i] = ei;
-
-	R[0] = er;
-	R[1] = fx;
-	R[2] = fy;
-	R[3] = fz;
-
+	auto const period = 2.0_R * gridScale;
+	auto const r0 = sqrt(4.0_R * D * (t + t0));
+	Er0 *= pow(t0 / (t + t0), 1.5_R);
+	real Er = 0.0_R;
+	Vector<real, NDIM> F({0_R, 0_R, 0_R});
+	Vector<int, NDIM> i;
+	for (i[0] = -1; i[0] <= 1; i[0]++) {
+		for (i[1] = -1; i[1] <= 1; i[1]++) {
+			for (i[2] = -1; i[2] <= 1; i[2]++) {
+				auto const r = x + period * i;
+				auto const r2 = r.dot(r);
+				auto const thisEr = Er0 * exp(-r2 / sqr(r0));
+				Er += thisEr;
+				F += 0.5_R * thisEr * r / (t + t0);
+			}
+		}
+	}
+	auto const F2 = F.dot(F);
+	auto const E2 = 0.999 * sqr(c * Er);
+	if (F2 > E2) F *= sqrt(E2 / F2);
+	G[spc_i] = G[rho_i] = rho;
+	G[tau_i] = pow(Ei, 1.0_R / gamma);
+	G[egas_i] = Ei;
+	R[0] = Er;
+	R[1] = F[0];
+	R[2] = F[1];
+	R[3] = F[2];
 	G.insert(G.end(), R.begin(), R.end());
 	return G;
 }

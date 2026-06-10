@@ -49,8 +49,7 @@ void assertRange(Real const &lo, auto const &var, Real const &hi, char const *fi
 		os << "  Correct range: (" << lo << ", " << hi << ")";
 		os << "  File: " << filename;
 		os << "  Line: " << line;
-		//		throw std::runtime_error(os.str());
-		abort();
+		throw std::runtime_error(os.str());
 	}
 }
 
@@ -60,8 +59,7 @@ void assertNonzero(auto const &var, char const *filename, Integer line) {
 		os << "Zero when non-zero expected: " << var;
 		os << "  File: " << filename;
 		os << "  Line: " << line;
-		//		throw std::runtime_error(os.str());
-		abort();
+		throw std::runtime_error(os.str());
 	}
 }
 
@@ -71,8 +69,7 @@ void assertPositive(auto const &var, char const *filename, Integer line) {
 		os << "Non-positive when positive expected: " << var;
 		os << "  File: " << filename;
 		os << "  Line: " << line;
-		//		throw std::runtime_error(os.str());
-		abort();
+		throw std::runtime_error(os.str());
 	}
 }
 
@@ -82,8 +79,7 @@ void assertNonNegative(auto const &var, char const *filename, Integer line) {
 		os << "Negative when non-negative expected: " << var;
 		os << "  File: " << filename;
 		os << "  Line: " << line;
-		//		throw std::runtime_error(os.str());
-		abort();
+		throw std::runtime_error(os.str());
 	}
 }
 

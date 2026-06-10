@@ -22,10 +22,8 @@ U kappa_R(U rho, U e, U mmw, real X, real Z) {
 
 	case RADIATION_DIFFUSION: {
 		auto const c = physcon().c;
-		auto const t0 = opts().rad_diff_t0;
-		auto const r_e = opts().rad_diff_r0;
-		auto const d0 = sqr(r_e) / (4.0_R * t0);
-		return U(c / (3.0_R * d0));
+		auto const D = opts().rad_diff_D;
+		return U(c / (3_R * D));
 	}
 	case RADIATION_TEST:
 		return 0_R;
@@ -34,6 +32,20 @@ U kappa_R(U rho, U e, U mmw, real X, real Z) {
 		return 0_R;
 	}
 }
+
+template <class U>
+U kappa_p(U rho, U e, U mmw, real X, real Z) {
+	auto const cm = opts().code_to_cm;
+	switch (opts().problem) {
+	case RADIATION_DIFFUSION:
+	case RADIATION_TEST:
+		return U(0_R);
+	default:
+		assert(false);
+		return 0_R;
+	}
+}
+
 
 //	if (opts().problem == MARSHAK) {
 //		return MARSHAK_OPAC;
@@ -53,17 +65,6 @@ U kappa_R(U rho, U e, U mmw, real X, real Z) {
 //		return rho * k_tot;
 //	}
 
-template <class U>
-U kappa_p(U rho, U e, U mmw, real X, real Z) {
-	auto const cm = opts().code_to_cm;
-	switch (opts().problem) {
-	case RADIATION_DIFFUSION:
-	case RADIATION_TEST:
-		return U(0_R);
-	default:
-		assert(false);
-		return 0_R;
-	}
 	//	if (opts().problem == MARSHAK) {
 	//		return MARSHAK_OPAC;
 	//	} else if (opts().problem == RADIATION_TEST) {
@@ -78,7 +79,6 @@ U kappa_p(U rho, U e, U mmw, real X, real Z) {
 	//		const U k_tot = k_ff_bf;
 	//		return rho * k_tot;
 	//	}
-}
 
 template <class U>
 U B_p(U rho, U e, U mmw) {

@@ -86,6 +86,7 @@ public:
 		arc & dx;
 		arc & U;
 	}
+	void applyMMSSource(std::vector<std::vector<real>> &hydro, real t, real dt);
 	void compute_mmw(const std::vector<std::vector<safe_real>> &U);
 	void change_units(real m, real l, real t, real k);
 	void sanity_check();

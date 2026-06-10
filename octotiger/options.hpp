@@ -70,8 +70,9 @@ public:
 	int future_wait_time;
 	int ipr_nr_maxiter;
 	int rad_diff_ndim;
-	double rad_diff_r0;
+	double rad_diff_Er0;
 	double rad_diff_t0;
+	double rad_diff_D;
 
 	double grad_rho_refine;
 	double clight_retard;
@@ -285,9 +286,9 @@ public:
 		arc & code_to_g;
 		arc & code_to_s;
 		arc & code_to_cm;
-		arc & rad_diff_ndim;
-		arc & rad_diff_r0;
+		arc & rad_diff_Er0;
 		arc & rad_diff_t0;
+		arc & rad_diff_D;
 	}
 
 	OCTOTIGER_EXPORT bool process_options(int argc, char *argv[]);

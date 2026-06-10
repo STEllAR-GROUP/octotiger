@@ -18,11 +18,11 @@
 #include "octotiger/unitiger/safe_real.hpp"
 
 #define CHECK_FLUX(er, fx, fy, fz)                                                                                                         \
-	if (((fx) * (fx) + (fy) * (fy) + (fz) * (fz)) / (er * er * physcon().c * physcon().c) > 1) {                                           \
-		printf("flux exceded %s %i %e\n", __FILE__, __LINE__,                                                                              \
-			   sqrt(((fx) * (fx) + (fy) * (fy) + (fz) * (fz)) / (er * er * physcon().c * physcon().c)));                                   \
-		abort();                                                                                                                           \
-	}
+		if (((fx) * (fx) + (fy) * (fy) + (fz) * (fz)) / (er * er * physcon().c * physcon().c) > 1) {                                       \
+			printf("flux exceded %s %i %e\n", __FILE__, __LINE__,                                                                          \
+				   sqrt(((fx) * (fx) + (fy) * (fy) + (fz) * (fz)) / (er * er * physcon().c * physcon().c)));                               \
+			abort();                                                                                                                       \
+		}                                                                                                                                  \
 
 template <int NDIM>
 int radiation_physics<NDIM>::field_count() {

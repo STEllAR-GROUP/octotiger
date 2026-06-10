@@ -172,8 +172,8 @@ void node_server::compute_radiation(real dt, real omega) {
 	if (ns > std::numeric_limits<int>::max()) {
 		printf("Number of substeps greater than %i. dt = %e max_dt = %e\n", std::numeric_limits<int>::max(), dt, maxDt);
 	}
-//	printf("clight dt=%e arad=%e arad dt=%e chosen=%e\n", minDx / clight / 2, arad, arad > 0.0 ? minDx / arad * opts().cfl : HUGE_VAL,
-//		   maxDt);
+	//	printf("clight dt=%e arad=%e arad dt=%e chosen=%e\n", minDx / clight / 2, arad, arad > 0.0 ? minDx / arad * opts().cfl : HUGE_VAL,
+	//		   maxDt);
 	integer nsteps = std::max(int(ns), 1);
 	const real thisDt = dt * INVERSE(real(nsteps));
 
@@ -182,8 +182,8 @@ void node_server::compute_radiation(real dt, real omega) {
 	std::vector<std::vector<real>> &hydro = grid_ptr->data();
 
 	constexpr real γ = 1_R - inv(std::numbers::sqrt2_v<real>);
-//	printf("dt_code=%e dt_seconds=%e c=%e code_to_s=%e nsteps=%i thisDt=%e\n", dt, dt * opts().code_to_s, physcon().c, opts().code_to_s,
-//		   int(nsteps), thisDt);
+	//	printf("dt_code=%e dt_seconds=%e c=%e code_to_s=%e nsteps=%i thisDt=%e\n", dt, dt * opts().code_to_s, physcon().c, opts().code_to_s,
+	//		   int(nsteps), thisDt);
 	auto const explicitUpdate = [&](Real beta) {
 		all_rad_bounds();
 		rgrid->store();
@@ -194,6 +194,8 @@ void node_server::compute_radiation(real dt, real omega) {
 		rgrid->compute_flux(omega);
 		GET(exchange_rad_flux_corrections());
 		rgrid->advance(beta * thisDt, 0.5_R);
+		all_rad_bounds();
+		rgrid->applyMMSSource(hydro, get_time(), beta * thisDt);
 		all_rad_bounds();
 	};
 	auto const implicitUpdate = [&](Real beta) {
@@ -214,6 +216,143 @@ void node_server::compute_radiation(real dt, real omega) {
 	all_rad_bounds();
 }
 
+void rad_grid::applyMMSSource(std::vector<std::vector<real>> &hydro, real t, real dt) {
+	PROFILE()
+	using std::min;
+	using std::pow;
+	using std::sqrt;
+	if (opts().problem != RADIATION_DIFFUSION) {
+		return;
+	}
+
+	auto const c = physcon().c;
+	auto const c2 = sqr(c);
+	auto const D = opts().rad_diff_D;
+	auto const t0 = opts().rad_diff_t0;
+	auto const gridScale = opts().xscale;
+	auto const period = 2.0_R * gridScale;
+	auto const sourceTime = t + 0.5_R * dt;
+	auto const tau = sourceTime + t0;
+	auto const dxinv2 = 0.5_R / dx;
+
+	auto const eval = [&](Vector<real, NDIM> const& x) {
+		struct Result {
+			real E;
+			Vector<real, NDIM> F;
+			Vector<real, NDIM> dFdt;
+			Matrix<real, NDIM, NDIM> P;
+		};
+
+		Result out;
+		out.E = 0_R;
+		out.F = Vector<real, NDIM>({0_R, 0_R, 0_R});
+		out.dFdt = Vector<real, NDIM>({0_R, 0_R, 0_R});
+
+		auto Er0 = opts().rad_diff_Er0;
+		auto const r0 = sqrt(4.0_R * D * tau);
+		Er0 *= pow(t0 / tau, 1.5_R);
+
+		Vector<int, NDIM> i;
+		for (i[0] = -1; i[0] <= 1; i[0]++) {
+			for (i[1] = -1; i[1] <= 1; i[1]++) {
+				for (i[2] = -1; i[2] <= 1; i[2]++) {
+					auto const r = x + period * i;
+					auto const r2 = r.dot(r);
+					auto const thisEr = Er0 * exp(-r2 / sqr(r0));
+
+					out.E += thisEr;
+					out.F += 0.5_R * thisEr * r / tau;
+
+					auto const sourceFactor =
+						-5.0_R / (4.0_R * sqr(tau)) +
+						r2 / (8.0_R * D * tau * sqr(tau));
+
+					out.dFdt += thisEr * sourceFactor * r;
+				}
+			}
+		}
+
+		auto const F2 = out.F.dot(out.F);
+		auto const maxF2 = 0.999_R * sqr(c * out.E);
+		if (F2 > maxF2) {
+			out.F *= sqrt(maxF2 / F2);
+		}
+
+		for (auto a = 0; a < NDIM; a++) {
+			for (auto b = 0; b < NDIM; b++) {
+				out.P[a][b] = 0_R;
+			}
+		}
+
+		auto const denom = sqr(c * out.E);
+		auto const f2 = out.F.dot(out.F) / denom;
+
+		if (f2 > tiny_R) {
+			auto const f2safe = min(f2, 0.999_R);
+			auto const chiM = (3_R + 4_R * f2safe) / (5_R + 2_R * sqrt(4_R - 3_R * f2safe));
+			auto const A = 0.5_R * (1_R - chiM);
+			auto const B = 0.5_R * (3_R * chiM - 1_R);
+			auto const iF = inv(sqrt(out.F.dot(out.F)));
+			auto const n = out.F * iF;
+
+			for (auto a = 0; a < NDIM; a++) {
+				for (auto b = 0; b < NDIM; b++) {
+					out.P[a][b] = out.E * B * n[a] * n[b];
+					if (a == b) {
+						out.P[a][b] += out.E * A;
+					}
+				}
+			}
+		} else {
+			for (auto a = 0; a < NDIM; a++) {
+				out.P[a][a] = out.E / 3_R;
+			}
+		}
+
+		return out;
+	};
+
+	const integer off = H_BW - RAD_BW;
+	for (integer xi = RAD_BW; xi != RAD_NX - RAD_BW; ++xi) {
+		for (integer yi = RAD_BW; yi != RAD_NX - RAD_BW; ++yi) {
+			for (integer zi = RAD_BW; zi != RAD_NX - RAD_BW; ++zi) {
+				const integer ir = rindex(xi, yi, zi);
+				const integer ih = hindex(xi + off, yi + off, zi + off);
+
+				Vector<real, NDIM> x;
+				for (auto d = 0; d < NDIM; d++) {
+					x[d] = X[d][ir];
+				}
+
+				auto const q0 = eval(x);
+
+				Vector<real, NDIM> divP({0_R, 0_R, 0_R});
+
+				for (auto j = 0; j < NDIM; j++) {
+					auto xp = x;
+					auto xm = x;
+					xp[j] += dx;
+					xm[j] -= dx;
+
+					auto const qp = eval(xp);
+					auto const qm = eval(xm);
+
+					for (auto i = 0; i < NDIM; i++) {
+						divP[i] += (qp.P[i][j] - qm.P[i][j]) * dxinv2;
+					}
+				}
+
+				auto const dragCoeff = c2 / (3_R * D);
+
+				for (auto d = 0; d < NDIM; d++) {
+					auto const SF = q0.dFdt[d] + c2 * divP[d] + dragCoeff * q0.F[d];
+					U[fx_i + d][ir] += dt * SF;
+				}
+			}
+		}
+	}
+}
+
 void rad_grid::applyRadiationSource(std::vector<std::vector<real>> &hydro, std::vector<RadiationSource> const &updates, real dt) {
 	PROFILE()
 
@@ -228,12 +367,16 @@ void rad_grid::applyRadiationSource(std::vector<std::vector<real>> &hydro, std::
 				auto const &update = updates[ir];
 
 				U[er_i][ir] += dt * update.dEr_dt;
-				hydro[egas_i][ih] += dt * update.dEg_dt;
-				hydro[tau_i][ih] += dt * update.dtau_dt;
 
 				for (auto d = 0; d < NDIM; d++) {
 					U[fx_i + d][ir] += dt * update.dFr_dt[d];
-					hydro[sx_i + d][ih] += dt * update.dS_dt[d];
+				}
+				if (opts().hydro) {
+					hydro[egas_i][ih] += dt * update.dEg_dt;
+					hydro[tau_i][ih] += dt * update.dtau_dt;
+					for (auto d = 0; d < NDIM; d++) {
+						hydro[sx_i + d][ih] += dt * update.dS_dt[d];
+					}
 				}
 			}
 		}
@@ -450,6 +593,7 @@ void rad_grid::compute_flux(real omega) {
 		auto const E2 = E[i] * E[i];
 		ASSERT_RANGE(0_R, F2, E2);
 		H[i] = (1_R / 3_R) * (2_R * E[i] + sqrt(4_R * E2 - 3_R * F2));
+		ASSERT_NONZERO(H[i]);
 		auto const iH = inv(H[i]);
 		beta[i] = F[i] * iH;
 	}

@@ -1,0 +1,25 @@
+set terminal pngcairo size 1200,900 enhanced font "Arial,18"
+set output "diffusion_mms_convergence.png"
+
+set logscale xy
+set xlabel "Cells per dimension"
+set ylabel "Error"
+set title "Radiation Diffusion MMS Convergence"
+
+set key outside right
+set grid
+
+set xrange [24:180]
+
+# Reference second-order line, normalized near Er L1 at 32^3
+ref2(x) = 3.207759e-2 * (32.0/x)**2
+
+plot \
+    "< awk '$1==\"er\" {print 32,$2}' level2.dat; awk '$1==\"er\" {print 64,$2}' level3.dat; awk '$1==\"er\" {print 128,$2}' level4.dat" using 1:2 with linespoints title "Er L1", \
+    "< awk '$1==\"er\" {print 32,$3}' level2.dat; awk '$1==\"er\" {print 64,$3}' level3.dat; awk '$1==\"er\" {print 128,$3}' level4.dat" using 1:2 with linespoints title "Er L2", \
+    "< awk '$1==\"er\" {print 32,$4}' level2.dat; awk '$1==\"er\" {print 64,$4}' level3.dat; awk '$1==\"er\" {print 128,$4}' level4.dat" using 1:2 with linespoints title "Er Linf", \
+    "< awk '$1==\"fx\" {print 32,$2}' level2.dat; awk '$1==\"fx\" {print 64,$2}' level3.dat; awk '$1==\"fx\" {print 128,$2}' level4.dat" using 1:2 with linespoints title "Fx L1", \
+    "< awk '$1==\"fx\" {print 32,$3}' level2.dat; awk '$1==\"fx\" {print 64,$3}' level3.dat; awk '$1==\"fx\" {print 128,$3}' level4.dat" using 1:2 with linespoints title "Fx L2", \
+    "< awk '$1==\"fx\" {print 32,$4}' level2.dat; awk '$1==\"fx\" {print 64,$4}' level3.dat; awk '$1==\"fx\" {print 128,$4}' level4.dat" using 1:2 with linespoints title "Fx Linf", \
+    ref2(x) with lines dashtype 2 title "second order"
+    

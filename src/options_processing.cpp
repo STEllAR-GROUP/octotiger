@@ -183,9 +183,9 @@ bool options::process_options(int argc, char *argv[]) {
 		("code_to_s", po::value<double>(&(opts().code_to_s))->default_value(1), "code units to seconds")				//
 		("rotating_star_amr", po::value<bool>(&(opts().rotating_star_amr))->default_value(false), "rotating star with AMR boundary in star")																		   //
 		("rotating_star_x", po::value<double>(&(opts().rotating_star_x))->default_value(0.0), "x center of rotating_star") //
-		("rad_diff_ndim", po::value<int>(&(opts().rad_diff_ndim))->default_value(3), "number of dimensions to use for radiation diffusion test") //
-		("rad_diff_r0", po::value<double>(&(opts().rad_diff_r0))->default_value(0.3), "e-folding radius for radiation diffusion test") //
-		("rad_diff_t0", po::value<double>(&(opts().rad_diff_t0))->default_value(1.0), "initial time for radiation diffusion test") //
+		("rad_diff_Er0", po::value<double>(&(opts().rad_diff_Er0))->default_value(1.0), "radiation diffusion test - maximum radiation energy density") //
+		("rad_diff_t0", po::value<double>(&(opts().rad_diff_t0))->default_value(1.0), "radiation diffusion test - initial time (must be > 0)") //
+		("rad_diff_D", po::value<double>(&(opts().rad_diff_D))->default_value(1.0e-3), "radiation diffusion test - diffusion constant") //
 		;
 	// clang-format on
 	boost::program_options::variables_map vm;
