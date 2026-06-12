@@ -4,3 +4,6 @@
 [submodule "octotiger-performance-tests"]
 	path = octotiger-performance-tests
 	url = https://github.com/G-071/octotiger-performance-tests
+[submodule "octotiger/math"]
+	path = octotiger/math
+	url = https://github.com/dmarce1/math
