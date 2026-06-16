@@ -7,3 +7,7 @@
 [submodule "external/math_repo"]
 	path = external/math_repo
 	url = https://github.com/dmarce1/math
+	branch = main
+[submodule "external/hpxfft"]
+	path = external/hpxfft
+	url = https://github.com/dmarce1/hpxfft.git
