@@ -94,7 +94,7 @@ void these_units(real &m, real &l, real &t, real &k) {
 	} else if (opts().radiation) {
 		m = opts().code_to_g;
 		l = opts().code_to_cm;
-		t = opts().code_to_cm / 2.99792458e+10;
+		t = opts().code_to_s;
 		k = 1.0;
 	} else {
 		G = 1.0;
@@ -129,7 +129,7 @@ void normalize_constants() {
 	physcon().sigma = 5.67051e-5 * m / (t * t * t) / (k * k * k * k);
 	physcon().h = 6.6260755e-27 * m * l * l / t;
 	if (hpx::get_locality_id() == 0) {
-		printf("Normalized constants 222\n");
+		printf("Normalized constants\n");
 		printf("%e %e %e %e\n", 1.0 / m, 1.0 / l, 1.0 / t, 1.0 / k);
 		printf("A = %e | B = %e | G = %e | kb = %e | c = %e | mh = %e | sigma = %e | h = %e\n", physcon().A, physcon().B, physcon().G,
 			   physcon().kb, physcon().c, physcon().mh, physcon().sigma, physcon().h);
@@ -272,7 +272,8 @@ void mean_ion_weight(const specie_state_t<> species, real &mmw, real &X, real &Z
 	X = Z = 0;
 	for (integer i = 0; i != opts().n_species; ++i) {
 		const real m = species[i];
-		ntot += m * (opts().atomic_number[i] + 1.0) / opts().atomic_mass[i];
+		ASSERT_NONZERO(opts().atomic_mass[i]);
+		ntot += m * (opts().atomic_number[i] + 1.0) * inv(opts().atomic_mass[i]);
 		if (opts().atomic_number[i] == 1) {
 			X += m;
 		} else if (opts().atomic_number[i] > 2) {

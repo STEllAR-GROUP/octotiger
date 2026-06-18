@@ -418,7 +418,6 @@ void init_problem(void) {
 		set_problem(radiation_diffusion_test_problem);
 		set_refine_test(refine_test_marshak);
 	} else if (opts().problem == RADIATION_COUPLING) {
-		test_rad_imp_cell();
 		grid::set_fgamma(5.0 / 3.0);
 		set_analytic(nullptr);
 		set_problem(radiation_coupling_test_problem);

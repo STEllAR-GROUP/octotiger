@@ -71,7 +71,7 @@ void grid::complete_hydro_amr_boundary(bool energy_only) {
 	}
 
 	const auto limiter = [](double a, double b) {
-		return minmod_theta(a, b, 64./37.);
+		return minmod_theta(a, b, 64. / 37.);
 	};
 
 	for (int f = 0; f < opts().n_fields; f++) {
@@ -93,11 +93,14 @@ void grid::complete_hydro_amr_boundary(bool energy_only) {
 										const auto s_x = limiter(uc[iii0 + is * HS_DNX] - u0, u0 - uc[iii0 - is * HS_DNX]);
 										const auto s_y = limiter(uc[iii0 + js * HS_DNY] - u0, u0 - uc[iii0 - js * HS_DNY]);
 										const auto s_z = limiter(uc[iii0 + ks * HS_DNZ] - u0, u0 - uc[iii0 - ks * HS_DNZ]);
-										const auto s_xy = limiter(uc[iii0 + is * HS_DNX + js * HS_DNY] - u0, u0 - uc[iii0 - is * HS_DNX - js * HS_DNY]);
-										const auto s_xz = limiter(uc[iii0 + is * HS_DNX + ks * HS_DNZ] - u0, u0 - uc[iii0 - is * HS_DNX - ks * HS_DNZ]);
-										const auto s_yz = limiter(uc[iii0 + js * HS_DNY + ks * HS_DNZ] - u0, u0 - uc[iii0 - js * HS_DNY - ks * HS_DNZ]);
+										const auto s_xy =
+											limiter(uc[iii0 + is * HS_DNX + js * HS_DNY] - u0, u0 - uc[iii0 - is * HS_DNX - js * HS_DNY]);
+										const auto s_xz =
+											limiter(uc[iii0 + is * HS_DNX + ks * HS_DNZ] - u0, u0 - uc[iii0 - is * HS_DNX - ks * HS_DNZ]);
+										const auto s_yz =
+											limiter(uc[iii0 + js * HS_DNY + ks * HS_DNZ] - u0, u0 - uc[iii0 - js * HS_DNY - ks * HS_DNZ]);
 										const auto s_xyz = limiter(uc[iii0 + is * HS_DNX + js * HS_DNY + ks * HS_DNZ] - u0,
-												u0 - uc[iii0 - is * HS_DNX - js * HS_DNY - ks * HS_DNZ]);
+																   u0 - uc[iii0 - is * HS_DNX - js * HS_DNY - ks * HS_DNZ]);
 										auto &uf = Uf[f][iii0][ir][jr][kr];
 										uf = u0;
 										uf += (9.0 / 64.0) * (s_x + s_y + s_z);
@@ -125,9 +128,9 @@ void grid::complete_hydro_amr_boundary(bool energy_only) {
 									const auto i1 = 2 * i0 - H_BW + ir;
 									const auto j1 = 2 * j0 - H_BW + jr;
 									const auto k1 = 2 * k0 - H_BW + kr;
-									const auto x = (i1) * dx + xmin[XDIM];
-									const auto y = (j1) * dx + xmin[YDIM];
-									const auto z = (k1) * dx + xmin[ZDIM];
+									const auto x = (i1)*dx + xmin[XDIM];
+									const auto y = (j1)*dx + xmin[YDIM];
+									const auto z = (k1)*dx + xmin[ZDIM];
 									Uf[lx_i][iii0][ir][jr][kr] -= y * Uf[sz_i][iii0][ir][jr][kr] - z * Uf[sy_i][iii0][ir][jr][kr];
 									Uf[ly_i][iii0][ir][jr][kr] += x * Uf[sz_i][iii0][ir][jr][kr] - z * Uf[sx_i][iii0][ir][jr][kr];
 									Uf[lz_i][iii0][ir][jr][kr] -= x * Uf[sy_i][iii0][ir][jr][kr] - y * Uf[sx_i][iii0][ir][jr][kr];
@@ -162,9 +165,9 @@ void grid::complete_hydro_amr_boundary(bool energy_only) {
 									const auto i1 = 2 * i0 - H_BW + ir;
 									const auto j1 = 2 * j0 - H_BW + jr;
 									const auto k1 = 2 * k0 - H_BW + kr;
-									const auto x = (i1) * dx + xmin[XDIM];
-									const auto y = (j1) * dx + xmin[YDIM];
-									const auto z = (k1) * dx + xmin[ZDIM];
+									const auto x = (i1)*dx + xmin[XDIM];
+									const auto y = (j1)*dx + xmin[YDIM];
+									const auto z = (k1)*dx + xmin[ZDIM];
 									Uf[lx_i][iii0][ir][jr][kr] += y * Uf[sz_i][iii0][ir][jr][kr] - z * Uf[sy_i][iii0][ir][jr][kr];
 									Uf[ly_i][iii0][ir][jr][kr] -= x * Uf[sz_i][iii0][ir][jr][kr] - z * Uf[sx_i][iii0][ir][jr][kr];
 									Uf[lz_i][iii0][ir][jr][kr] += x * Uf[sy_i][iii0][ir][jr][kr] - y * Uf[sx_i][iii0][ir][jr][kr];

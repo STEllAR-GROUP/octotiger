@@ -110,4 +110,17 @@ endif()
 
 # non-hpx targets need this to be intalled
 install(TARGETS silo_planes silo_counter gen_rotating_star_init RUNTIME DESTINATION bin)
+target_link_libraries(silo_compare Silo::silo)
 
+
+################################################################################
+# Set up experiment
+################################################################################
+add_hpx_executable(
+  experiment
+  DEPENDENCIES
+    Silo::silo Boost::boost Boost::program_options PkgConfig::FFTW3 hpxfft_lib
+${dependencies_workaround}
+  SOURCES
+    experiment/experiment.cpp
+)

@@ -648,7 +648,7 @@ future<void> node_server::nonrefined_step() {
 									   dt_.dt = std::min(dt_.dt, maxdt);
 								   }
 								   if (opts().radiation) {
-								       dt_.dt = std::min(dt_.dt, dx / physcon().c);
+								      dt_.dt = std::min(dt_.dt, dx / physcon().c);
 								   }
 								   local_timestep_channels[NCHILD].set_value(dt_);
 							   }

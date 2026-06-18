@@ -152,18 +152,14 @@ future<hpx::id_type> node_server::create_child(hpx::id_type const &locality, int
 			}
 		}
 		if (opts().radiation) {
-			std::array<integer, NDIM> lb = {2 * R_BW, 2 * R_BW, 2 * R_BW};
-			std::array<integer, NDIM> ub;
+			std::array<int, NDIM> lb = {2 * R_BW, 2 * R_BW, 2 * R_BW};
+			std::array<int, NDIM> ub;
 			lb[XDIM] += (1 & (ci >> 0)) * (INX);
 			lb[YDIM] += (1 & (ci >> 1)) * (INX);
 			lb[ZDIM] += (1 & (ci >> 2)) * (INX);
-			for (integer d = 0; d != NDIM; ++d) {
+			for (int d = 0; d != NDIM; ++d) {
 				ub[d] = lb[d] + (INX);
 			}
-			/*	std::vector<real> outflows(NF, ZERO);
-			 if (ci == 0) {
-			 outflows = grid_ptr->get_outflows();
-			 }*/
 			if (current_time > ZERO) {
 				std::vector<real> prolong;
 				{

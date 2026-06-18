@@ -16,36 +16,66 @@ U temperature(U rho, U e, U mmw) {
 	return std::pow((e * INVERSE(rho)), 1.0 / 4.0);
 }
 
-template <class U>
-U kappa_R(U rho, U e, U mmw, real X, real Z) {
-	switch (opts().problem) {
-
-	case RADIATION_DIFFUSION: {
-		auto const c = physcon().c;
-		auto const D = opts().rad_diff_D;
-		return U(c / (3_R * D));
+struct Opacities {
+	Opacities() {
+		using std::pow;
+		CgsToCode const convert;
+		auto const kB = physcon().kb;
+		auto const mH = physcon().mh;
+		auto const gamma = grid::get_fgamma();
+		kappa_rho_exp = opts().kappa_rho_exp;
+		kappa_T_exp = opts().kappa_T_exp;
+		kappa0 = convert.inverseLength(opts().kappa0);
+		sigma_rho_exp = opts().sigma_rho_exp;
+		sigma_T_exp = opts().sigma_T_exp;
+		sigma0 = convert.inverseLength(opts().sigma0);
+		kappa0 *= pow(convert.massDensity(), -kappa_rho_exp);
+		kappa0 *= pow(convert.temperature(), -kappa_T_exp);
+		sigma0 *= pow(convert.massDensity(), -sigma_rho_exp);
+		sigma0 *= pow(convert.temperature(), -sigma_T_exp);
+		ei2Tcon = mH * inv((gamma - 1_R) * kB);
 	}
-	case RADIATION_TEST:
-		return 0_R;
-	default:
-		assert(false);
-		return 0_R;
+	real absorption(real rho, real T) const {
+		using std::pow;
+		return kappa0 * pow(rho, kappa_rho_exp) * pow(T, kappa_T_exp);
 	}
-}
-
-template <class U>
-U kappa_p(U rho, U e, U mmw, real X, real Z) {
-	auto const cm = opts().code_to_cm;
-	switch (opts().problem) {
-	case RADIATION_DIFFUSION:
-	case RADIATION_TEST:
-		return U(0_R);
-	default:
-		assert(false);
-		return 0_R;
+	real absorption(real rho, real ei, real mmw) const {
+		return absorption(rho, ei2Tcon * ei * mmw / rho);
 	}
-}
+	real scattering(real rho, real T) const {
+		using std::pow;
+		return sigma0 * pow(rho, sigma_rho_exp) * pow(T, sigma_T_exp);
+	}
+	real scattering(real rho, real ei, real mmw) const {
+		return scattering(rho, ei2Tcon * ei * mmw / rho);
+	}
+	real extinction(real rho, real T) const {
+		return scattering(rho, T) + absorption(rho, T);
+	}
+	real extinction(real rho, real ei, real mmw) const {
+		return extinction(rho, ei2Tcon * ei * mmw / rho);
+	}
+	std::string absorptionExpression(std::string const &rho = "rho", std::string const &T = "T") const {
+		return hpx::util::format("({:e}) * ({})^{:e} * ({})^{:e}", opts().kappa0, rho, opts().kappa_rho_exp, T, opts().kappa_T_exp);
+	}
 
+	std::string scatteringExpression(std::string const &rho = "rho", std::string const &T = "T") const {
+		return hpx::util::format("({:e}) * ({})^{:e} * ({})^{:e}", opts().sigma0, rho, opts().sigma_rho_exp, T, opts().sigma_T_exp);
+	}
+
+	std::string extinctionExpression(std::string const &rho = "rho", std::string const &T = "T") const {
+		return "(" + absorptionExpression(rho, T) + ") + (" + scatteringExpression(rho, T) + ")";
+	}
+
+private:
+	real kappa0;
+	real kappa_T_exp;
+	real kappa_rho_exp;
+	real sigma0;
+	real sigma_T_exp;
+	real sigma_rho_exp;
+	real ei2Tcon;
+};
 
 //	if (opts().problem == MARSHAK) {
 //		return MARSHAK_OPAC;
@@ -65,20 +95,20 @@ U kappa_p(U rho, U e, U mmw, real X, real Z) {
 //		return rho * k_tot;
 //	}
 
-	//	if (opts().problem == MARSHAK) {
-	//		return MARSHAK_OPAC;
-	//	} else if (opts().problem == RADIATION_TEST) {
-	//		return 1e-20;
-	//	} else if (opts().problem == RADIATION_DIFFUSION) {
-	//		return 1e2;
-	//	} else if (opts().problem == RADIATION_COUPLING) {
-	//		return 1e0;
-	//	} else {
-	//		const U T = temperature(rho, e, mmw);
-	//		const U k_ff_bf = U(30.262) * U(4.0e+25) * (U(1) + X) * (Z + U(0.0001)) * rho * POWER(SQRT(INVERSE(T)), U(7));
-	//		const U k_tot = k_ff_bf;
-	//		return rho * k_tot;
-	//	}
+//	if (opts().problem == MARSHAK) {
+//		return MARSHAK_OPAC;
+//	} else if (opts().problem == RADIATION_TEST) {
+//		return 1e-20;
+//	} else if (opts().problem == RADIATION_DIFFUSION) {
+//		return 1e2;
+//	} else if (opts().problem == RADIATION_COUPLING) {
+//		return 1e0;
+//	} else {
+//		const U T = temperature(rho, e, mmw);
+//		const U k_ff_bf = U(30.262) * U(4.0e+25) * (U(1) + X) * (Z + U(0.0001)) * rho * POWER(SQRT(INVERSE(T)), U(7));
+//		const U k_tot = k_ff_bf;
+//		return rho * k_tot;
+//	}
 
 template <class U>
 U B_p(U rho, U e, U mmw) {

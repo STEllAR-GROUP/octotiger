@@ -183,9 +183,15 @@ bool options::process_options(int argc, char *argv[]) {
 		("code_to_s", po::value<double>(&(opts().code_to_s))->default_value(1), "code units to seconds")				//
 		("rotating_star_amr", po::value<bool>(&(opts().rotating_star_amr))->default_value(false), "rotating star with AMR boundary in star")																		   //
 		("rotating_star_x", po::value<double>(&(opts().rotating_star_x))->default_value(0.0), "x center of rotating_star") //
-		("rad_diff_Er0", po::value<double>(&(opts().rad_diff_Er0))->default_value(1.0), "radiation diffusion test - maximum radiation energy density") //
-		("rad_diff_t0", po::value<double>(&(opts().rad_diff_t0))->default_value(1.0), "radiation diffusion test - initial time (must be > 0)") //
-		("rad_diff_D", po::value<double>(&(opts().rad_diff_D))->default_value(1.0e-3), "radiation diffusion test - diffusion constant") //
+		("rad_diff_Er0", po::value<double>(&(opts().rad_diff_Er0))->default_value(1.0), "radiation diffusion test - maximum radiation energy density (cgs)") //
+		("rad_diff_rho0", po::value<double>(&(opts().rad_diff_rho0))->default_value(1.0), "radiation diffusion test - background mass density (cgs)") //
+		("rad_diff_t0", po::value<double>(&(opts().rad_diff_t0))->default_value(1.0), "radiation diffusion test - initial time (must be > 0)  (cgs)") //
+		("kappa0", po::value<double>(&(opts().kappa0))->default_value(0.0), "constant of proportionality for absorption coefficient power law (cgs)") //
+		("kappa_rho_exp", po::value<double>(&(opts().kappa_rho_exp))->default_value(1.0), "density exponent for absorption coefficient power law") //
+		("kappa_T_exp", po::value<double>(&(opts().kappa_T_exp))->default_value(0.0), "temperature exponent for absorption coefficient power law") //
+		("sigma0", po::value<double>(&(opts().sigma0))->default_value(0.2), " for scattering coefficient power law") //
+		("sigma_rho_exp", po::value<double>(&(opts().sigma_rho_exp))->default_value(1.0), "density exponent for scattering coefficient power law") //
+		("sigma_T_exp", po::value<double>(&(opts().sigma_T_exp))->default_value(0.0), "temperature exponent for scattering coefficient power law") //
 		;
 	// clang-format on
 	boost::program_options::variables_map vm;
@@ -253,10 +259,6 @@ bool options::process_options(int argc, char *argv[]) {
 		opts().detected_intel_compiler = true;
 	}
 #endif
-	atomic_number.resize(n_species, 0_R);
-	atomic_mass.resize(n_species, 0_R);
-	for (int n = 0; n < n_species; n++) {
-	}
 	while (atomic_number.size() < opts().n_species) {
 		atomic_number.push_back(number_solar);
 	}
@@ -281,73 +283,127 @@ bool options::process_options(int argc, char *argv[]) {
 			silo_num_groups = num_loc;
 		}
 		SHOW(accretor_refine);
+		SHOW(amr_boundary_kernel_type);
 		SHOW(amrbnd_order);
 		SHOW(bench);
 		SHOW(cdisc_detect);
 		SHOW(cfl);
 		SHOW(clight_retard);
+		SHOW(code_to_cm);
+		SHOW(code_to_g);
+		SHOW(code_to_s);
 		SHOW(config_file);
 		SHOW(core_refine);
 		SHOW(correct_am_grav);
 		SHOW(correct_am_hydro);
-		SHOW(code_to_cm);
-		SHOW(code_to_g);
-		SHOW(code_to_s);
 		SHOW(data_dir);
+		SHOW(disable_analytic);
+		SHOW(disable_diagnostics);
 		SHOW(disable_output);
+		SHOW(donor_refine);
 		SHOW(driving_rate);
 		SHOW(driving_time);
 		SHOW(dt_max);
-		SHOW(donor_refine);
 		SHOW(dual_energy_sw1);
 		SHOW(dual_energy_sw2);
 		SHOW(eblast0);
-		SHOW(eos);
 		SHOW(entropy_driving_rate);
 		SHOW(entropy_driving_time);
+		SHOW(eos);
+		SHOW(executors_per_gpu);
+		SHOW(experiment);
+		SHOW(extra_regrid);
 		SHOW(future_wait_time);
 		SHOW(grad_rho_refine);
+		SHOW(gravity);
 		SHOW(hard_dt);
 		SHOW(hydro);
+		SHOW(hydro_device_kernel_type);
+		SHOW(hydro_host_kernel_type);
+		SHOW(idle_rates);
 		SHOW(inflow_bc);
 		SHOW(input_file);
-		SHOW(min_level);
+		SHOW(ipr_eint_floor);
+		SHOW(ipr_nr_maxiter);
+		SHOW(ipr_nr_tol);
+		SHOW(ipr_test);
+		SHOW(kappa0);
+		SHOW(kappa_rho_exp);
+		SHOW(kappa_T_exp);
+		SHOW(max_gpu_executor_queue_length);
+		SHOW(max_kernels_fused);
 		SHOW(max_level);
+		SHOW(min_level);
+		SHOW(monopole_device_kernel_type);
+		SHOW(monopole_host_kernel_type);
+		SHOW(moving_star_xvelocity);
+		SHOW(moving_star_yvelocity);
+		SHOW(moving_star_zvelocity);
+		SHOW(multipole_device_kernel_type);
+		SHOW(multipole_host_kernel_type);
 		SHOW(n_species);
 		SHOW(ngrids);
+		SHOW(number_gpus);
 		SHOW(omega);
+		SHOW(optimize_local_communication);
 		SHOW(output_dt);
 		SHOW(output_filename);
+		SHOW(periodic);
+		SHOW(polling_threads);
+		SHOW(print_times_per_timestep);
 		SHOW(problem);
+		SHOW(rad_diff_Er0);
+		SHOW(rad_diff_rho0);
+		SHOW(rad_diff_t0);
 		SHOW(rad_implicit);
 		SHOW(radiation);
 		SHOW(refinement_floor);
 		SHOW(reflect_bc);
 		SHOW(restart_filename);
+		SHOW(rewrite_silo);
+		SHOW(rho_floor);
+		SHOW(root_node_on_device);
 		SHOW(rotating_star_amr);
 		SHOW(rotating_star_x);
 		SHOW(scf_output_frequency);
+		SHOW(scf_rho_floor);
+		SHOW(sigma0);
+		SHOW(sigma_rho_exp);
+		SHOW(sigma_T_exp);
 		SHOW(silo_num_groups);
+		SHOW(silo_offset_x);
+		SHOW(silo_offset_y);
+		SHOW(silo_offset_z);
+		SHOW(sod_gamma);
+		SHOW(sod_phi);
+		SHOW(sod_pl);
+		SHOW(sod_pr);
+		SHOW(sod_rhol);
+		SHOW(sod_rhor);
+		SHOW(sod_theta);
+		SHOW(solid_sphere_mass);
+		SHOW(solid_sphere_radius);
+		SHOW(solid_sphere_rho_min);
+		SHOW(solid_sphere_xcenter);
+		SHOW(solid_sphere_ycenter);
+		SHOW(solid_sphere_zcenter);
+		SHOW(star_alpha);
+		SHOW(star_dr);
+		SHOW(star_egas_out);
+		SHOW(star_n);
+		SHOW(star_rho_center);
+		SHOW(star_rho_out);
+		SHOW(star_rmax);
+		SHOW(star_xcenter);
+		SHOW(star_ycenter);
+		SHOW(star_zcenter);
 		SHOW(stop_step);
 		SHOW(stop_time);
+		SHOW(tau_floor);
 		SHOW(theta);
 		SHOW(unigrid);
 		SHOW(v1309);
-		SHOW(idle_rates);
 		SHOW(xscale);
-		SHOW(number_gpus);
-		SHOW(executors_per_gpu);
-		SHOW(max_gpu_executor_queue_length);
-		SHOW(max_kernels_fused);
-		SHOW(amr_boundary_kernel_type);
-		SHOW(root_node_on_device);
-		SHOW(optimize_local_communication);
-		SHOW(multipole_device_kernel_type);
-		SHOW(multipole_host_kernel_type);
-		SHOW(monopole_device_kernel_type);
-		SHOW(monopole_host_kernel_type);
-		SHOW(hydro_device_kernel_type);
-		SHOW(hydro_host_kernel_type);
 	}
 	normalize_constants();
 	if (opts().problem == DWD) {

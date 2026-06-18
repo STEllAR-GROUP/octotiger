@@ -90,7 +90,7 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
     // interaction_host_kernel_type host_type = opts().hydro_host_kernel_type;
     // interaction_device_kernel_type device_type = opts().hydro_device_kernel_type;
 
-    // Timestep default value
+    // timestep_t default value
     auto max_lambda = timestep_t{};
 
     // Try accelerator implementation

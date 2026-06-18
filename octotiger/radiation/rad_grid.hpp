@@ -6,78 +6,69 @@
 #ifndef RAD_GRID_HPP_
 #define RAD_GRID_HPP_
 
+
 #include "octotiger/defs.hpp"
 #include "octotiger/geometry.hpp"
 #include "octotiger/io/silo.hpp"
 #include "octotiger/physcon.hpp"
-#include "octotiger/real.hpp"
 #include "octotiger/unitiger/hydro.hpp"
 #include "octotiger/unitiger/hydro_impl/flux.hpp"
 #include "octotiger/unitiger/hydro_impl/reconstruct.hpp"
 #include "octotiger/unitiger/radiation/radiation_physics.hpp"
-#include "octotiger/unitiger/safe_real.hpp"
-// #include "octotiger/sphere_points.hpp"
-#include "octotiger/real.hpp"
-
-#include <array>
-#include <cstddef>
-#include <string>
-#include <unordered_map>
-#include <vector>
-
+#include "octotiger/math/Real.hpp"
 #include "octotiger/math/Matrix.hpp"
 #include "octotiger/math/Vector.hpp"
 
+#include <string>
+#include <unordered_map>
+
+
 struct RadiationSource {
-	real dEr_dt = 0_R;
-	Vector<real, NDIM> dFr_dt = 0_R;
-	Vector<real, NDIM> dS_dt = 0_R;
-	real dEg_dt = 0_R;
-	real dtau_dt = 0_R;
+	Real dEr_dt = 0_R;
+	Vector<Real, NDIM> dFr_dt = 0_R;
+	Vector<Real, NDIM> dS_dt = 0_R;
+	Real dEg_dt = 0_R;
+	Real dtau_dt = 0_R;
 	int iters = 0;
 	bool converged = false;
 };
 
-RadiationSource radiationSource(real Er0, Vector<real, NDIM> F0, real tau, Vector<real, NDIM> S0, real rho, real mmw, real kappa,
-								real chi, real dt);
-
-void test_rad_imp_cell();
 
 class rad_grid {
 public:
-	static constexpr integer er_i = 0;
-	static constexpr integer fx_i = 1;
-	static constexpr integer fy_i = 2;
-	static constexpr integer fz_i = 3;
-	static constexpr integer wx_i = 4;
-	static constexpr integer wy_i = 5;
-	static constexpr integer wz_i = 6;
+	static constexpr int er_i = 0;
+	static constexpr int fx_i = 1;
+	static constexpr int fy_i = 2;
+	static constexpr int fz_i = 3;
+	static constexpr int wx_i = 4;
+	static constexpr int wy_i = 5;
+	static constexpr int wz_i = 6;
 
 private:
-	static constexpr integer DX = RAD_NX * RAD_NX;
-	static constexpr integer DY = RAD_NX;
-	static constexpr integer DZ = 1;
+	static constexpr int DX = RAD_NX * RAD_NX;
+	static constexpr int DY = RAD_NX;
+	static constexpr int DZ = 1;
 	static constexpr int R_DN[NDIM] = {RAD_NX * RAD_NX, RAD_NX, 1};
 	static std::unordered_map<std::string, int> str_to_index;
 	static std::unordered_map<int, std::string> index_to_str;
-	real dx;
+	Real dx;
 	std::vector<std::atomic<int>> is_coarse;
 	std::vector<std::atomic<int>> has_coarse;
-	std::vector<std::vector<real>> Ushad;
-	std::vector<std::vector<real>> U;
-	std::array<std::vector<real>, NRF> U0;
-	std::vector<std::vector<std::vector<real>>> flux;
-	std::array<std::array<std::vector<real> *, NDIM>, NDIM> P;
-	std::vector<std::vector<real>> X;
-	std::vector<real> mmw, X_spc, Z_spc;
+	std::vector<std::vector<Real>> Ushad;
+	std::vector<std::vector<Real>> U;
+	std::array<std::vector<Real>, NRF> U0;
+	std::vector<std::vector<std::vector<Real>>> flux;
+	std::array<std::array<std::vector<Real> *, NDIM>, NDIM> P;
+	std::vector<std::vector<Real>> X;
+	std::vector<Real> mmw, kappa, chi;
 	hydro_computer<NDIM, INX, radiation_physics<NDIM>> hydro;
 
 public:
 	static void static_init();
 	static std::vector<std::string> get_field_names();
-	void set(const std::string name, real *data);
+	void set(const std::string name, Real *data);
 	std::vector<silo_var_t> var_data() const;
-	void set_X(const std::vector<std::vector<real>> &x);
+	void set_X(const std::vector<std::vector<Real>> &x);
 	void restore();
 	void store();
 
@@ -86,44 +77,43 @@ public:
 		arc & dx;
 		arc & U;
 	}
-	void applyMMSSource(std::vector<std::vector<real>> &hydro, real t, real dt);
-	void compute_mmw(const std::vector<std::vector<safe_real>> &U);
-	void change_units(real m, real l, real t, real k);
+	using HydroState = std::vector<std::vector<Real>>;
+	void computeFlux();
+	std::vector<RadiationSource> computeSource(HydroState &, Real dt);
+	void applySource(HydroState&, std::vector<RadiationSource> const &, Real);
+	void applyFlux(Real, Real);
+	void computeMaterialProperties(const std::vector<std::vector<Real>> &);
+	void change_units(Real m, Real l, Real t, Real k);
 	void sanity_check();
-	void compute_flux(real);
-	void initialize_erad(const std::vector<safe_real> rho, const std::vector<safe_real> tau);
-	void set_dx(real dx);
+	void initialize_erad(const std::vector<Real> rho, const std::vector<Real> tau);
+	void set_dx(Real dx);
 	// void compute_fEdd();
-	void compute_fluxes();
-	void advance(real dt, real beta);
-	void applyRadiationSource(std::vector<std::vector<real>> &hydro, std::vector<RadiationSource> const &updates, real scale);
-	std::vector<RadiationSource> rad_imp(std::vector<std::vector<real>> &hydro, real dt);
-	std::vector<real> get_restrict() const;
-	std::vector<real> get_prolong(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub);
-	void set_prolong(const std::vector<real> &);
-	void set_restrict(const std::vector<real> &, const geo::octant &);
-	void set_flux_restrict(const std::vector<real> &data, const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub,
+	std::vector<Real> get_restrict() const;
+	std::vector<Real> get_prolong(const std::array<int, NDIM> &lb, const std::array<int, NDIM> &ub);
+	void set_prolong(const std::vector<Real> &);
+	void set_restrict(const std::vector<Real> &, const geo::octant &);
+	void set_flux_restrict(const std::vector<Real> &data, const std::array<int, NDIM> &lb, const std::array<int, NDIM> &ub,
 						   const geo::dimension &dim);
-	std::vector<real> get_flux_restrict(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub,
+	std::vector<Real> get_flux_restrict(const std::array<int, NDIM> &lb, const std::array<int, NDIM> &ub,
 										const geo::dimension &dim) const;
-	std::vector<real> get_intensity(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub, const geo::octant &);
+	std::vector<Real> get_intensity(const std::array<int, NDIM> &lb, const std::array<int, NDIM> &ub, const geo::octant &);
 	void allocate();
-	rad_grid(real dx);
+	rad_grid(Real dx);
 	rad_grid();
-	void set_boundary(const std::vector<real> &data, const geo::direction &dir);
-	real get_field(integer f, integer i, integer j, integer k) const;
-	void set_field(real v, integer f, integer i, integer j, integer k);
-	void set_physical_boundaries(geo::face f, real t);
-	std::vector<real> get_boundary(const geo::direction &dir);
-	using kappa_type = std::function<real(real)>;
+	void set_boundary(const std::vector<Real> &data, const geo::direction &dir);
+	Real get_field(int f, int i, int j, int k) const;
+	void set_field(Real v, int f, int i, int j, int k);
+	void set_physical_boundaries(geo::face f, Real t);
+	std::vector<Real> get_boundary(const geo::direction &dir);
+	using kappa_type = std::function<Real(Real)>;
 
-	real hydro_signal_speed(const std::vector<real> &egas, const std::vector<real> &tau, const std::vector<real> &sx,
-							const std::vector<real> &sy, const std::vector<real> &sz, const std::vector<real> &rho);
+	Real hydro_signal_speed(const std::vector<Real> &egas, const std::vector<Real> &tau, const std::vector<Real> &sx,
+							const std::vector<Real> &sy, const std::vector<Real> &sz, const std::vector<Real> &rho);
 
 	void clear_amr();
-	void set_rad_amr_boundary(const std::vector<real> &, const geo::direction &);
+	void set_rad_amr_boundary(const std::vector<Real> &, const geo::direction &);
 	void complete_rad_amr_boundary();
-	std::vector<real> get_subset(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub);
+	std::vector<Real> get_subset(const std::array<int, NDIM> &lb, const std::array<int, NDIM> &ub);
 
 	friend class node_server;
 };

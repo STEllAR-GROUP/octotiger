@@ -211,12 +211,6 @@ constexpr inline integer gindex(integer i, integer j, integer k)
 }
 
 template <typename T>
-constexpr inline T sqr(T const& val)
-{
-    return val * val;
-}
-
-template <typename T>
 constexpr inline T cube(T const& val)
 {
     return val * val * val;

@@ -69,10 +69,6 @@ public:
 	int silo_offset_z;
 	int future_wait_time;
 	int ipr_nr_maxiter;
-	int rad_diff_ndim;
-	double rad_diff_Er0;
-	double rad_diff_t0;
-	double rad_diff_D;
 
 	double grad_rho_refine;
 	double clight_retard;
@@ -163,6 +159,17 @@ public:
 
 	std::vector<double> atomic_mass;
 	std::vector<double> atomic_number;
+
+	double rad_diff_Er0;
+	double rad_diff_t0;
+	double rad_diff_rho0;
+	double kappa0;
+	double kappa_rho_exp;
+	double kappa_T_exp;
+
+	double sigma0;
+	double sigma_rho_exp;
+	double sigma_T_exp;
 
 	template <class Arc>
 	void serialize(Arc &arc, unsigned) {
@@ -286,9 +293,18 @@ public:
 		arc & code_to_g;
 		arc & code_to_s;
 		arc & code_to_cm;
+
 		arc & rad_diff_Er0;
 		arc & rad_diff_t0;
-		arc & rad_diff_D;
+		arc & rad_diff_rho0;
+
+		arc & kappa0;
+		arc & kappa_rho_exp;
+		arc & kappa_T_exp;
+
+		arc & sigma0;
+		arc & sigma_rho_exp;
+		arc & sigma_T_exp;
 	}
 
 	OCTOTIGER_EXPORT bool process_options(int argc, char *argv[]);

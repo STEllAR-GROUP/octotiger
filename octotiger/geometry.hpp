@@ -7,10 +7,12 @@
 #define GEOMETRY_HPP_
 
 #include "octotiger/defs.hpp"
+#include "octotiger/math/Math.hpp"
 
 #include <array>
 #include <cassert>
 #include <cstdlib>
+#include <span>
 #include <string>
 
 namespace geo {
@@ -40,12 +42,13 @@ class quadrant;
 class geo_type {
 protected:
 	integer i;
+
 public:
 	geo_type() = default;
 	constexpr geo_type(integer);
 	operator integer() const;
-	template<class Arc>
-	void serialize(Arc& arc, const unsigned);
+	template <class Arc>
+	void serialize(Arc &arc, const unsigned);
 
 	friend class side;
 	friend class dimension;
@@ -54,8 +57,9 @@ public:
 	friend class quadrant;
 };
 
-class side: public geo_type {
+class side : public geo_type {
 	static constexpr integer _count = 2;
+
 public:
 	side() = default;
 	constexpr side(integer);
@@ -64,8 +68,9 @@ public:
 	static constexpr std::array<side, _count> full_set();
 };
 
-class dimension: public geo_type {
+class dimension : public geo_type {
 	static constexpr integer _count = 3;
+
 public:
 	dimension() = default;
 	constexpr dimension(integer);
@@ -73,34 +78,34 @@ public:
 	static constexpr std::array<dimension, _count> full_set();
 };
 
-class face: public geo_type {
+class face : public geo_type {
 	static constexpr integer _count = 6;
+
 public:
 	face() = default;
 	constexpr face(integer);
-	face(const dimension&, const side&);
+	face(const dimension &, const side &);
 	dimension get_dimension() const;
 	side get_side() const;
 	face flip() const;
 	direction to_direction() const;
 	static constexpr integer count();
 	static constexpr std::array<face, _count> full_set();
-	static std::array<face, _count / NDIM> dimension_subset(const dimension&);
+	static std::array<face, _count / NDIM> dimension_subset(const dimension &);
 };
 
-class direction: public geo_type {
+class direction : public geo_type {
 	static constexpr integer _count = 26;
+
 public:
 	operator std::string() const {
 		std::string str;
-		for( int d = 0; d < NDIM; d++ ) {
-			if( (*this)[d] == 0 ) {
+		for (int d = 0; d < NDIM; d++) {
+			if ((*this)[d] == 0) {
 				str += std::string(" 0");
-			}
-			else if( (*this)[d] == +1 ) {
+			} else if ((*this)[d] == +1) {
 				str += std::string("+1");
-			}
-			else if( (*this)[d] == -1 ) {
+			} else if ((*this)[d] == -1) {
 				str += std::string("-1");
 			}
 		}
@@ -108,9 +113,9 @@ public:
 	}
 	direction() = default;
 	constexpr direction(integer j) :
-			geo_type(j) {
+		geo_type(j) {
 	}
-	integer operator[](const dimension& dim) const {
+	integer operator[](const dimension &dim) const {
 		switch (dim) {
 		case XDIM:
 			return (i % NDIM) - 1;
@@ -134,7 +139,7 @@ public:
 		if (!is_face()) {
 			return face(-1);
 		} else {
-			for (auto& dim : dimension::full_set()) {
+			for (auto &dim : dimension::full_set()) {
 				if ((*this)[dim] > 0) {
 					return face(dim, PLUS);
 				} else if ((*this)[dim] < 0) {
@@ -165,7 +170,6 @@ public:
 		} else if (z > 0) {
 			i += 2 * NDIM * NDIM;
 		}
-
 	}
 	direction flip() const {
 		return direction(_count - i);
@@ -174,44 +178,45 @@ public:
 		return (i < 14) ? i : (i - 1);
 	}
 
-    integer flat_index() const {
-        return (i < 14) ? i : (i - 1);
-    }
+	integer flat_index() const {
+		return (i < 14) ? i : (i - 1);
+	}
 
-    integer flat_index_with_center() const {
-        return i;
-    }
+	integer flat_index_with_center() const {
+		return i;
+	}
 
 	static constexpr integer count() {
 		return _count;
 	}
 	static constexpr std::array<direction, _count> full_set() {
-		return { {0,1,2,3,4,5,6,7,8,9,10,11,12,14,15,16,17,18,19,20,21,22,23,24,25,26}};
+		return {{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26}};
 	}
 	static constexpr std::array<direction, _count / 2> half_set() {
-		return { {0,1,2,3,4,5,6,7,8,9,10,11,12}};
+		return {{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}};
 	}
 };
 
-class octant: public geo_type {
+class octant : public geo_type {
 	static constexpr integer _count = 8;
+
 public:
 	octant() = default;
 	constexpr octant(integer);
-	octant(const std::array<side, NDIM>&);
-	side get_side(const dimension&) const;
-	bool is_on_face(const face&) const;
-	quadrant get_quadrant(const dimension&) const;
-	face get_face(const dimension& d) const{
+	octant(const std::array<side, NDIM> &);
+	side get_side(const dimension &) const;
+	bool is_on_face(const face &) const;
+	quadrant get_quadrant(const dimension &) const;
+	face get_face(const dimension &d) const {
 		const integer o = *this;
 		return face(2 * d + ((o >> d) & 1));
 	}
-	integer operator[](const dimension& dim) const {
+	integer operator[](const dimension &dim) const {
 		return (i >> dim) & 1;
 	}
-	octant neighbor(const direction& dir) {
+	octant neighbor(const direction &dir) {
 		integer ci = static_cast<integer>(ZERO);
-		for (auto& d : dimension::full_set()) {
+		for (auto &d : dimension::full_set()) {
 			const integer bit = integer(1) << integer(d);
 			if (dir[d] == 0) {
 				ci |= bit & i;
@@ -235,16 +240,17 @@ public:
 	}
 	static constexpr integer count();
 	static constexpr std::array<octant, _count> full_set();
-	static std::array<octant, _count / 2> face_subset(const face&);
+	static std::array<octant, _count / 2> face_subset(const face &);
 };
 
-class quadrant: public geo_type {
+class quadrant : public geo_type {
 	static constexpr integer _count = 4;
+
 public:
 	quadrant() = default;
 	constexpr quadrant(integer);
-	quadrant(const octant&, const dimension&);
-	octant get_octant_on_face(const face&) const;
+	quadrant(const octant &, const dimension &);
+	octant get_octant_on_face(const face &) const;
 	side get_side(integer) const;
 	static constexpr integer count();
 	static constexpr std::array<quadrant, _count> full_set();
@@ -255,27 +261,27 @@ inline side quadrant::get_side(integer d) const {
 }
 
 constexpr geo_type::geo_type(integer j) :
-		i(j) {
+	i(j) {
 }
 
 constexpr side::side(integer i) :
-		geo_type(i) {
+	geo_type(i) {
 }
 
 constexpr dimension::dimension(integer i) :
-		geo_type(i) {
+	geo_type(i) {
 }
 
 constexpr face::face(integer i) :
-		geo_type(i) {
+	geo_type(i) {
 }
 
 constexpr octant::octant(integer i) :
-		geo_type(i) {
+	geo_type(i) {
 }
 
 constexpr quadrant::quadrant(integer i) :
-		geo_type(i) {
+	geo_type(i) {
 }
 
 constexpr integer side::count() {
@@ -283,7 +289,7 @@ constexpr integer side::count() {
 }
 
 constexpr std::array<side, side::count()> side::full_set() {
-	return { {0,1}};
+	return {{0, 1}};
 }
 
 constexpr integer dimension::count() {
@@ -291,7 +297,7 @@ constexpr integer dimension::count() {
 }
 
 constexpr std::array<dimension, dimension::count()> dimension::full_set() {
-	return { {0,1,2}};
+	return {{0, 1, 2}};
 }
 
 constexpr integer face::count() {
@@ -299,7 +305,7 @@ constexpr integer face::count() {
 }
 
 constexpr std::array<face, face::count()> face::full_set() {
-	return { {0,1,2,3,4,5}};
+	return {{0, 1, 2, 3, 4, 5}};
 }
 
 constexpr integer octant::count() {
@@ -307,7 +313,7 @@ constexpr integer octant::count() {
 }
 
 constexpr std::array<octant, octant::count()> octant::full_set() {
-	return { {0,1,2,3,4,5,6,7}};
+	return {{0, 1, 2, 3, 4, 5, 6, 7}};
 }
 
 constexpr integer quadrant::count() {
@@ -315,14 +321,14 @@ constexpr integer quadrant::count() {
 }
 
 constexpr std::array<quadrant, quadrant::count()> quadrant::full_set() {
-	return { {0,1,2,3}};
+	return {{0, 1, 2, 3}};
 }
 
 inline geo_type::operator integer() const {
 	return i;
 }
 
-inline face::face(const dimension& d, const side& s) {
+inline face::face(const dimension &d, const side &s) {
 	i = 2 * d.i + s.i;
 }
 
@@ -330,11 +336,11 @@ inline dimension face::get_dimension() const {
 	return dimension(i / 2);
 }
 
-inline side octant::get_side(const dimension& d) const {
+inline side octant::get_side(const dimension &d) const {
 	return side((i >> d.i) & 1);
 }
 
-inline bool octant::is_on_face(const face& f) const {
+inline bool octant::is_on_face(const face &f) const {
 	return f.get_side() == get_side(f.get_dimension());
 }
 
@@ -342,17 +348,17 @@ inline side face::get_side() const {
 	return side(i & 1);
 }
 
-template<class Arc>
-void geo_type::serialize(Arc& arc, const unsigned) {
+template <class Arc>
+void geo_type::serialize(Arc &arc, const unsigned) {
 	arc & i;
 }
 
-inline quadrant::quadrant(const octant& o, const dimension& d) :
-		geo_type(o.get_quadrant(d)) {
+inline quadrant::quadrant(const octant &o, const dimension &d) :
+	geo_type(o.get_quadrant(d)) {
 }
 
-inline octant::octant(const std::array<side, NDIM>& sides) :
-		geo_type(sides[XDIM] | (sides[YDIM] << 1) | (sides[ZDIM] << 2)) {
+inline octant::octant(const std::array<side, NDIM> &sides) :
+	geo_type(sides[XDIM] | (sides[YDIM] << 1) | (sides[ZDIM] << 2)) {
 }
 
 inline side side::flip() const {
@@ -363,12 +369,33 @@ inline face face::flip() const {
 	return face(i ^ 1);
 }
 
-}
-
+} // namespace geo
 
 constexpr integer INNER = 0;
 constexpr integer OUTER = 1;
 
-integer get_boundary_size(std::array<integer, NDIM>&, std::array<integer, NDIM>&, const geo::direction&, const geo::side&, integer inx, integer bw, integer nx = -1);
+template <std::integral T>
+auto get_boundary_size(std::array<T, NDIM> &lb, std::array<T, NDIM> &ub, geo::direction const &dir, geo::side const &side,
+					   int inx, int bw, int use_bw = -1) {
+	int nx = 2 * bw + inx, hsize = 1;
+	if (use_bw < 0) use_bw = bw;
+	const auto off = (side == OUTER) ? use_bw : 0;
+	for (auto &d : geo::dimension::full_set()) {
+		auto this_dir = dir[d];
+		if (this_dir > 0) {
+			ub[d] = nx - bw + off;
+			lb[d] = ub[d] - use_bw;
+		} else if (this_dir < 0) {
+			lb[d] = bw - off;
+			ub[d] = lb[d] + use_bw;
+		} else {
+			lb[d] = bw;
+			ub[d] = nx - bw;
+		}
+		auto const width = ub[d] - lb[d];
+		hsize *= width;
+	}
+	return hsize;
+}
 
 #endif /* GEOMETRY_HPP_ */

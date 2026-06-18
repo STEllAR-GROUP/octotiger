@@ -128,6 +128,8 @@ find_package(Boost COMPONENTS system filesystem program_options REQUIRED)
 if(NOT MSVC)
   find_package(Threads REQUIRED)  # Required by target gen_rotating_star_init
 endif()
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(FFTW3 REQUIRED IMPORTED_TARGET fftw3)
 
 if(OCTOTIGER_WITH_CUDA)
   if (NOT ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang"))
@@ -172,6 +174,8 @@ FetchContent_Declare(
   GIT_TAG        c845b7d9d8da461457cc5aa88fdda5923773a4bf
 )
 FetchContent_MakeAvailable(kokkossimd)
+add_subdirectory(external/math_repo)
+add_subdirectory(external/hpxfft)
 set(SVE_LENGTH ${OCTOTIGER_SVE_LEN})
 FetchContent_Declare(
   svesimd
@@ -240,6 +244,7 @@ set(source_files
     src/test_problems/sod/exact_sod.cpp
     src/test_problems/amr/amr.cpp
     src/test_problems/blast/sedov.cpp
+    src/test_problems/gaussianPulse.cpp
 
     src/unitiger/hydro_impl/hydro_boundary_exchange.cpp # TODO Move to different location - it's not unitiger
     src/unitiger/hydro_impl/hydro_boundary_exchange_vc.cpp
@@ -313,17 +318,24 @@ set(header_files
     octotiger/multipole_interactions/legacy/multipole_cpu_kernel.hpp
     octotiger/multipole_interactions/legacy/multipole_cuda_kernel.hpp
     octotiger/multipole_interactions/legacy/multipole_interaction_interface.hpp
-    octotiger/radiation/cpu_kernel.hpp
-    octotiger/radiation/cuda_kernel.hpp
     octotiger/radiation/implicit.hpp
-    octotiger/radiation/kernel_interface.hpp
     octotiger/radiation/opacities.hpp
     octotiger/radiation/rad_grid.hpp
     octotiger/test_problems/rotating_star.hpp
     
 )
 
-list(APPEND octo_dependencies Silo::silo Vc::Vc Boost::boost Boost::program_options CPPuddle::buffer_manager CPPuddle::stream_manager)
+list(APPEND octo_dependencies
+  Silo::silo
+  Vc::Vc
+  Boost::boost
+  Boost::program_options
+  CPPuddle::buffer_manager
+  CPPuddle::stream_manager
+  PkgConfig::FFTW3
+  hpxfft_lib
+)
+
 # Can't completely remove Vc yet. compute_multipole and compute_expansions currently only work with Vc
 #if(OCTOTIGER_WITH_Vc)
 #  list(APPEND octo_dependencies Vc::Vc )
@@ -409,7 +421,15 @@ set(hydro_cu_source_files
    src/unitiger/hydro_impl/flux_cuda_kernel.cpp
    src/unitiger/hydro_impl/reconstruct_cuda_kernel.cpp)
 
- list(APPEND hydro_dependencies Silo::silo Boost::boost Boost::program_options CPPuddle::buffer_manager CPPuddle::stream_manager)
+list(APPEND hydro_dependencies
+  Silo::silo
+  Boost::boost
+  Boost::program_options
+  CPPuddle::buffer_manager
+  CPPuddle::stream_manager
+  PkgConfig::FFTW3
+  hpxfft_lib
+)
 if(OCTOTIGER_WITH_Vc)
   list(APPEND hydro_dependencies Vc::Vc)
 endif()
@@ -1061,3 +1081,4 @@ if(OCTOTIGER_WITH_TESTS)
 
   add_subdirectory(test_problems)
 endif()
+
