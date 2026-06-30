@@ -174,7 +174,7 @@ FetchContent_Declare(
   GIT_TAG        c845b7d9d8da461457cc5aa88fdda5923773a4bf
 )
 FetchContent_MakeAvailable(kokkossimd)
-add_subdirectory(external/math_repo)
+add_subdirectory(external/math)
 add_subdirectory(external/hpxfft)
 set(SVE_LENGTH ${OCTOTIGER_SVE_LEN})
 FetchContent_Declare(
