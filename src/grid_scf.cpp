@@ -178,7 +178,7 @@ void node_server::rho_move(real x) {
 	}
 	const auto dx_min = 2.0 * opts().xscale / H_NX / (1 << opts().max_level);
 	grid_ptr->rho_move(std::min(w0 * x / 2.0, dx_min / 10.0));
-	all_hydro_bounds();
+	all_hydro_bounds(0_R);
 	if (is_refined) {
 		for (auto &f : futs) {
 			GET(f);
@@ -210,7 +210,7 @@ void node_server::rho_mult(real f0, real f1) {
 		}
 	}
 	grid_ptr->rho_mult(f0, f1);
-	all_hydro_bounds();
+	all_hydro_bounds(0_R);
 	if (is_refined) {
 		for (auto &f : futs) {
 			GET(f);
@@ -233,7 +233,7 @@ real node_server::scf_update(real com, real omega, real c1, real c2, real c1_x, 
 	} else {
 		res = grid_ptr->scf_update(com, omega, c1, c2, c1_x, c2_x, l1_x, e1, e2);
 	}
-	all_hydro_bounds();
+	all_hydro_bounds(0_R);
 	if (is_refined) {
 		res = std::accumulate(futs.begin(), futs.end(), res, [](real res, future<real> &f) {
 			return res + f.get();
@@ -619,7 +619,7 @@ void node_server::run_scf(std::string const &data_dir) {
 			} else {
 				if (opts().v1309) {
 					const real ne = scf_options::ne1;
-					const real gamma = grid::get_fgamma();
+					const real gamma = opts().gas_gamma;
 					const real p0 = params.struct_eos1->P0();
 					const real de = params.struct_eos1->dE();
 					const real s1 = POWER(p0 * POWER(rhoc1 * INVERSE( de), 1.0 + 1.0 * INVERSE( ne)) / (gamma - 1.0), 1.0 / gamma) * INVERSE(rhoc1);
@@ -669,7 +669,7 @@ void node_server::run_scf(std::string const &data_dir) {
 	if (opts().radiation) {
 		if (opts().eos == WD) {
 			set_cgs();
-			all_hydro_bounds();
+			all_hydro_bounds(0_R);
 			grid_ptr->rad_init();
 		}
 	}
@@ -677,7 +677,7 @@ void node_server::run_scf(std::string const &data_dir) {
 
 std::vector<real> scf_binary(real x, real y, real z, real dx) {
 
-	const real fgamma = grid::get_fgamma();
+	const real fgamma = opts().gas_gamma;
 	std::vector<real> u(opts().n_fields, real(0));
 	static auto &params = initial_params();
 	if (!opts().restart_filename.empty()) {

@@ -153,16 +153,16 @@ future<void> node_server::exchange_flux_corrections() {
 	}, "node_server::exchange_flux_corrections::sync"));
 }
 
-void node_server::all_hydro_bounds() {
+void node_server::all_hydro_bounds(Real t) {
 	exchange_interlevel_hydro_data(); // bottom up step
-	collect_hydro_boundaries(); // interlevel step
+	collect_hydro_boundaries(t); // interlevel step
 	send_hydro_amr_boundaries(); // up-down step
 	++hcycle;
 }
 
-void node_server::energy_hydro_bounds() {
+void node_server::energy_hydro_bounds(Real t) {
 	exchange_interlevel_hydro_data();
-	collect_hydro_boundaries(true);
+	collect_hydro_boundaries(t, true);
 	send_hydro_amr_boundaries(true);
 	++hcycle;
 }
@@ -190,7 +190,7 @@ void node_server::exchange_interlevel_hydro_data() {
   }, "all_hydro_bounds::exchange_interlevel_hydro_data")();
 }
 
-void node_server::collect_hydro_boundaries(bool energy_only) {
+void node_server::collect_hydro_boundaries(Real time, bool energy_only) {
   hpx::annotated_function([&]() {
 	grid_ptr->clear_amr();
   const bool use_local_optimization = opts().optimize_local_communication;

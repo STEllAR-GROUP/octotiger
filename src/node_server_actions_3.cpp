@@ -15,10 +15,10 @@
 
 #include <cerrno>
 
+#include <hpx/collectives/broadcast.hpp>
 #include <hpx/include/lcos.hpp>
 #include <hpx/include/run_as.hpp>
 #include <hpx/include/util.hpp>
-#include <hpx/collectives/broadcast.hpp>
 
 #include <algorithm>
 #include <array>
@@ -29,14 +29,11 @@
 using send_gravity_boundary_action_type = node_server::send_gravity_boundary_action;
 HPX_REGISTER_ACTION(send_gravity_boundary_action_type);
 
-void node_client::send_gravity_boundary(gravity_boundary_type &&data, const geo::direction &dir, bool monopole,
-		std::size_t cycle) const {
-	hpx::apply<typename node_server::send_gravity_boundary_action>(get_unmanaged_gid(), std::move(data), dir, monopole,
-			cycle);
+void node_client::send_gravity_boundary(gravity_boundary_type &&data, const geo::direction &dir, bool monopole, std::size_t cycle) const {
+	hpx::apply<typename node_server::send_gravity_boundary_action>(get_unmanaged_gid(), std::move(data), dir, monopole, cycle);
 }
 
-void node_server::recv_gravity_boundary(gravity_boundary_type &&bdata, const geo::direction &dir, bool monopole,
-		std::size_t cycle) {
+void node_server::recv_gravity_boundary(gravity_boundary_type &&bdata, const geo::direction &dir, bool monopole, std::size_t cycle) {
 	neighbor_gravity_type tmp;
 	tmp.data = std::move(bdata);
 	tmp.is_monopole = monopole;
@@ -80,12 +77,11 @@ void node_server::recv_hydro_boundary(std::vector<real> &&bdata, const geo::dire
 	sibling_hydro_channels[dir].set_value(std::move(tmp), cycle);
 }
 
-
 using send_hydro_amr_boundary_action_type = node_server::send_hydro_amr_boundary_action;
 HPX_REGISTER_ACTION(send_hydro_amr_boundary_action_type);
 
 void node_client::send_hydro_amr_boundary(std::vector<real> &&data, const geo::direction &dir, std::size_t cycle) const {
-  hpx::apply<typename node_server::send_hydro_amr_boundary_action>(get_unmanaged_gid(), std::move(data), dir, cycle);
+	hpx::apply<typename node_server::send_hydro_amr_boundary_action>(get_unmanaged_gid(), std::move(data), dir, cycle);
 }
 
 void node_server::recv_hydro_amr_boundary(std::vector<real> &&bdata, const geo::direction &dir, std::size_t cycle) {
@@ -123,8 +119,7 @@ void node_client::send_hydro_children(std::vector<real> &&data, const geo::octan
 using send_hydro_flux_correct_action_type = node_server::send_hydro_flux_correct_action;
 HPX_REGISTER_ACTION(send_hydro_flux_correct_action_type);
 
-void node_client::send_hydro_flux_correct(std::vector<real> &&data, const geo::face &face,
-		const geo::octant &ci) const {
+void node_client::send_hydro_flux_correct(std::vector<real> &&data, const geo::face &face, const geo::octant &ci) const {
 	hpx::apply<typename node_server::send_hydro_flux_correct_action>(get_unmanaged_gid(), std::move(data), face, ci);
 }
 
@@ -188,9 +183,9 @@ line_of_centers_t node_server::line_of_centers(const std::pair<space_vector, spa
 	return return_line;
 }
 
-void line_of_centers_analyze(const line_of_centers_t &loc, real omega, std::pair<real, real> &rho1_max,
-		std::pair<real, real> &rho2_max, std::pair<real, real> &l1_phi, std::pair<real, real> &l2_phi,
-		std::pair<real, real> &l3_phi, real &rho1_phi, real &rho2_phi) {
+void line_of_centers_analyze(const line_of_centers_t &loc, real omega, std::pair<real, real> &rho1_max, std::pair<real, real> &rho2_max,
+							 std::pair<real, real> &l1_phi, std::pair<real, real> &l2_phi, std::pair<real, real> &l3_phi, real &rho1_phi,
+							 real &rho2_phi) {
 
 	constexpr integer spc_ac_i = spc_i;
 	constexpr integer spc_ae_i = spc_i + 1;
@@ -272,41 +267,38 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 	timings_.times_[timings::time_regrid] = 0.0;
 	timings_.times_[timings::time_fmm] = 0.0;
 	timings_.times_[timings::time_total] = 0.0;
-	integer output_cnt { };
-//	output_all("X", 0, false);
+	integer output_cnt{};
+	//	output_all("X", 0, false);
 
 	if (!opts().hydro && !opts().radiation) {
-//		diagnostics();
+		//		diagnostics();
 		if (!opts().disable_output) {
 			output_all(this, "final", output_cnt, true);
 		}
 		if (get_analytic() != nullptr) {
-      if (!opts().disable_analytic) { // Pure performance measurements - skip analytics 
-          compare_analytic();
-      }
-      if (opts().gravity) {
-        auto start_all_gravity = std::chrono::high_resolution_clock::now(); 
-        auto min_duration = std::chrono::milliseconds::max();
-        auto max_duration = std::chrono::milliseconds::min();
-        for (int iteration = 0; iteration < opts().stop_step; iteration++) {
-          std::cout << "Pure-gravity iteration " << iteration << std::endl;
-          auto start = std::chrono::high_resolution_clock::now(); 
-          solve_gravity(true, false);
-          auto stop = std::chrono::high_resolution_clock::now(); 
-          auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start); 
-          std::cout << "--> " << iteration + 1 << ". FMM iteration took: " << duration.count() << " ms" << std::endl; 
-          if (duration.count() < min_duration.count())
-            min_duration = duration;
-          if (duration.count() > max_duration.count())
-            max_duration = duration;
-
-        }
-        auto stop_all_gravity = std::chrono::high_resolution_clock::now(); 
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop_all_gravity - start_all_gravity); 
-        std::cout << "==> Overall execution time: " << duration.count() << " ms" << std::endl; 
-        std::cout << "==> Average iteration execution time: " << duration.count() / opts().stop_step << " ms" << std::endl; 
-        std::cout << "==> Minimal iteration execution time: " << min_duration.count() << " ms" << std::endl; 
-        std::cout << "==> Maximal iteration execution time: " << max_duration.count() << " ms" << std::endl; 
+			if (!opts().disable_analytic) { // Pure performance measurements - skip analytics
+				compare_analytic();
+			}
+			if (opts().gravity) {
+				auto start_all_gravity = std::chrono::high_resolution_clock::now();
+				auto min_duration = std::chrono::milliseconds::max();
+				auto max_duration = std::chrono::milliseconds::min();
+				for (int iteration = 0; iteration < opts().stop_step; iteration++) {
+					std::cout << "Pure-gravity iteration " << iteration << std::endl;
+					auto start = std::chrono::high_resolution_clock::now();
+					solve_gravity(true, false);
+					auto stop = std::chrono::high_resolution_clock::now();
+					auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+					std::cout << "--> " << iteration + 1 << ". FMM iteration took: " << duration.count() << " ms" << std::endl;
+					if (duration.count() < min_duration.count()) min_duration = duration;
+					if (duration.count() > max_duration.count()) max_duration = duration;
+				}
+				auto stop_all_gravity = std::chrono::high_resolution_clock::now();
+				auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop_all_gravity - start_all_gravity);
+				std::cout << "==> Overall execution time: " << duration.count() << " ms" << std::endl;
+				std::cout << "==> Average iteration execution time: " << duration.count() / opts().stop_step << " ms" << std::endl;
+				std::cout << "==> Minimal iteration execution time: " << min_duration.count() << " ms" << std::endl;
+				std::cout << "==> Maximal iteration execution time: " << max_duration.count() << " ms" << std::endl;
 			}
 			if (!opts().disable_output) {
 				output_all(this, "analytic", output_cnt, true);
@@ -352,7 +344,6 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 	}
 
 	real output_dt = opts().output_dt;
-
 	printf("OMEGA = %e, output_dt = %e\n", grid::get_omega(), output_dt);
 	real &t = current_time;
 	int step_num = 0;
@@ -363,15 +354,14 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 	real bench_start, bench_stop;
 	while (current_time < opts().stop_time) {
 		timings::scope ts(timings_, timings::time_total);
-		if (step_num > opts().stop_step)
-			break;
+		if (step_num > opts().stop_step) break;
 		auto time_start = std::chrono::high_resolution_clock::now();
 		auto diags = diagnostics();
 		if (opts().problem != DWD) {
 			std::sort(diags.xline.begin(), diags.xline.end(),
-					[](const std::pair<real, std::vector<real>> &a, const std::pair<real, std::vector<real>> &b) {
-						return (a.first < b.first);
-					});
+					  [](const std::pair<real, std::vector<real>> &a, const std::pair<real, std::vector<real>> &b) {
+						  return (a.first < b.first);
+					  });
 			static int fnum = 0;
 			std::string fname = "line." + std::to_string(fnum) + ".dat";
 			FILE *fp = fopen(fname.c_str(), "wt");
@@ -384,8 +374,8 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 				fprintf(fp, "\n");
 			}
 			fclose(fp);
-			fp = fopen( "temp.dat", "at");
-			fprintf( fp, "%e %e %e\n", current_time, diags.Tgas0, diags.Trad0);
+			fp = fopen("temp.dat", "at");
+			fprintf(fp, "%e %e %e\n", current_time, diags.Tgas0, diags.Trad0);
 			fclose(fp);
 			fnum++;
 		}
@@ -405,7 +395,6 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 			}
 			first_call = false;
 			++output_cnt;
-
 		}
 		if (step_num == 0) {
 			bench_start = hpx::chrono::high_resolution_clock::now() / 1e9;
@@ -421,30 +410,14 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 			if (!opts().disable_diagnostics) {
 				printf("diagnostics...\n");
 			}
-			omega = grid::get_omega();
-
-			const real dx = diags.com[1][XDIM] - diags.com[0][XDIM];
-			const real dy = diags.com[1][YDIM] - diags.com[0][YDIM];
-			const real dx_dot = diags.com_dot[1][XDIM] - diags.com_dot[0][XDIM];
-			const real dy_dot = diags.com_dot[1][YDIM] - diags.com_dot[0][YDIM];
-			theta = atan2(dy, dx);
-			omega = grid::get_omega();
-//			if (opts().variable_omega) {
-//				theta_dot = (dy_dot * dx - dx_dot * dy) / (dx * dx + dy * dy) - omega;
-//				const real w0 = grid::get_omega() * 10.0;
-//				const real theta_dot_dot = (2.0 * w0 * theta_dot + w0 * w0 * theta);
-//				omega_dot = theta_dot_dot;
-//				omega += omega_dot * dt;
-//			}
-			printf("New Omega = %e\n", omega);
 		} else {
 			printf("normal step...\n");
 			dt = GET(step(next_step - step_num));
 			omega = grid::get_omega();
 		}
 
-		double time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(
-				std::chrono::high_resolution_clock::now() - time_start).count();
+		double time_elapsed =
+			std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::high_resolution_clock::now() - time_start).count();
 
 		// run output on separate thread
 		if (!opts().disable_output) {
@@ -455,25 +428,22 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 				} else {
 					const auto vr = sqrt(sqr(dt_.ur[sx_i]) + sqr(dt_.ur[sy_i]) + sqr(dt_.ur[sz_i])) / dt_.ur[0];
 					const auto vl = sqrt(sqr(dt_.ul[sx_i]) + sqr(dt_.ul[sy_i]) + sqr(dt_.ul[sz_i])) / dt_.ul[0];
-					fprintf(fp, "%i %e %e %e %e %e %e %e %e %e %e %e %e %i %i %i %i\n", int(next_step - 1), double(t), double(dt_.dt), time_elapsed, rotational_time, dt_.x, dt_.y, dt_.z, dt_.a, dt_.ur[0], dt_.ul[0], vr,vl,dt_.dim, int(ngrids.total), int(ngrids.leaf), int(ngrids.amr_bnd));
+					fprintf(fp, "%i %e %e %e %e %e %e %e %e %e %e %e %e %i %i %i %i\n", int(next_step - 1), double(t), double(dt_.dt),
+							time_elapsed, rotational_time, dt_.x, dt_.y, dt_.z, dt_.a, dt_.ur[0], dt_.ul[0], vr, vl, dt_.dim,
+							int(ngrids.total), int(ngrids.leaf), int(ngrids.amr_bnd));
 					fclose(fp);
 				}
-			});     // do not wait for it to finish
+			}); // do not wait for it to finish
 		}
 
-		/* hpx::threads::run_as_os_thread( */
-		/* 		[=]() { */
-    {
-					const auto vr = sqrt(sqr(dt_.ur[sx_i]) + sqr(dt_.ur[sy_i]) + sqr(dt_.ur[sz_i])) / dt_.ur[0];
-					const auto vl = sqrt(sqr(dt_.ul[sx_i]) + sqr(dt_.ul[sy_i]) + sqr(dt_.ul[sz_i])) / dt_.ul[0];
-					printf("TS %i:: t: %e, dt: %e, time_elapsed: %e, rotational_time: %e, x: %e, y: %e, z: %e, ",
-						int(next_step), double(t), double(dt_.dt), time_elapsed, rotational_time,
-						dt_.x, dt_.y, dt_.z);
-					printf("a: %e, ur: %e, ul: %e, vr: %e, vl: %e, dim: %i, ngrids: %i, leafs: %i, amr_boundaries: %i\n", 
-						dt_.a, dt_.ur[0], dt_.ul[0], vr, vl, dt_.dim, int(ngrids.total),
-						int(ngrids.leaf), int(ngrids.amr_bnd));
-    }
-				/* });     // do not wait for output to finish */
+		//		{
+		//			const auto vr = sqrt(sqr(dt_.ur[sx_i]) + sqr(dt_.ur[sy_i]) + sqr(dt_.ur[sz_i])) / dt_.ur[0];
+		//			const auto vl = sqrt(sqr(dt_.ul[sx_i]) + sqr(dt_.ul[sy_i]) + sqr(dt_.ul[sz_i])) / dt_.ul[0];
+		//			printf("TS %i:: t: %e, dt: %e, time_elapsed: %e, rotational_time: %e, x: %e, y: %e, z: %e, ", int(next_step), double(t),
+		//				   double(dt_.dt), time_elapsed, rotational_time, dt_.x, dt_.y, dt_.z);
+		//			printf("a: %e, ur: %e, ul: %e, vr: %e, vl: %e, dim: %i, ngrids: %i, leafs: %i, amr_boundaries: %i\n", dt_.a, dt_.ur[0],
+		//				   dt_.ul[0], vr, vl, dt_.dim, int(ngrids.total), int(ngrids.leaf), int(ngrids.amr_bnd));
+		//		}
 
 		step_num = next_step;
 
@@ -502,8 +472,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 				}
 				return false;
 			});
-			if (GET(need_break))
-				break;
+			if (GET(need_break)) break;
 		}
 		if (scf) {
 			bench_stop = hpx::chrono::high_resolution_clock::now() / 1e9;
@@ -514,9 +483,9 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 	auto diags = diagnostics();
 	if (opts().problem != DWD) {
 		std::sort(diags.xline.begin(), diags.xline.end(),
-				[](const std::pair<real, std::vector<real>> &a, const std::pair<real, std::vector<real>> &b) {
-					return (a.first < b.first);
-				});
+				  [](const std::pair<real, std::vector<real>> &a, const std::pair<real, std::vector<real>> &b) {
+					  return (a.first < b.first);
+				  });
 		std::string fname = "line.final.dat";
 		FILE *fp = fopen(fname.c_str(), "wt");
 		const auto &ln = diags.xline;
@@ -552,14 +521,12 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 
 	if (opts().bench && !opts().disable_output) {
 		hpx::threads::run_as_os_thread([&]() {
-
 			FILE *fp = fopen((opts().data_dir + "scaling.dat").c_str(), "at");
 			const auto nproc = options::all_localities.size();
 			fprintf(fp, "%i %e\n", int(nproc), float(bench_stop - bench_start));
 			fclose(fp);
 		}).get();
 	}
-
 }
 
 using step_action_type = node_server::step_action;
@@ -571,17 +538,17 @@ future<real> node_client::step(integer steps) const {
 
 void node_server::refined_step() {
 
-//#if HPX_HAVE_ITTNOTIFY != 0 && !defined(HPX_HAVE_APEX)
-//	static hpx::util::itt::string_handle sh("node_server::refined_step");
-//	hpx::util::itt::task t(hpx::get_thread_itt_domain(), sh);
-//#endif
+	// #if HPX_HAVE_ITTNOTIFY != 0 && !defined(HPX_HAVE_APEX)
+	//	static hpx::util::itt::string_handle sh("node_server::refined_step");
+	//	hpx::util::itt::task t(hpx::get_thread_itt_domain(), sh);
+	// #endif
 
 	timings::scope ts(timings_, timings::time_computation);
 	const real dx = TWO * grid::get_scaling_factor() / real(INX << my_location.level());
 	real cfl0 = opts().cfl;
 
 	real a = std::numeric_limits<real>::min();
-	all_hydro_bounds();
+	all_hydro_bounds(current_time);
 	timestep_t tstep;
 	tstep.dt = std::numeric_limits<real>::max();
 	local_timestep_channels[NCHILD].set_value(tstep);
@@ -594,17 +561,12 @@ void node_server::refined_step() {
 			compute_fmm(DRHODT, false);
 			compute_fmm(RHO, true);
 		}
-		rk == NRK - 1 ? energy_hydro_bounds() : all_hydro_bounds();
-
+		rk == NRK - 1 ? energy_hydro_bounds(current_time) : all_hydro_bounds(current_time);
 	}
 
 	dt_ = GET(dt_fut);
 	update();
-	if (opts().radiation) {
-		compute_radiation(dt_.dt, grid_ptr->get_omega());
-		all_hydro_bounds();
-	}
-
+	if (opts().radiation) compute_radiation(dt_.dt);
 }
 
 future<void> node_server::nonrefined_step() {
@@ -618,7 +580,7 @@ future<void> node_server::nonrefined_step() {
 	real cfl0 = opts().cfl;
 	dt_.dt = ZERO;
 
-	all_hydro_bounds();
+	all_hydro_bounds(current_time);
 
 	grid_ptr->store();
 	future<void> fut = hpx::make_ready_future();
@@ -631,7 +593,6 @@ future<void> node_server::nonrefined_step() {
 					   hpx::annotated_function(
 						   [rk, cfl0, this, dt_fut](future<void> f) {
 							   GET(f);
-							   size_t current_hydro_promise = hcycle % (NRK + 1);
 							   timestep_t a = grid_ptr->compute_fluxes(); // hydro kernels
 							   future<void> fut_flux = exchange_flux_corrections();
 							   fut_flux.get();
@@ -648,22 +609,21 @@ future<void> node_server::nonrefined_step() {
 									   dt_.dt = std::min(dt_.dt, maxdt);
 								   }
 								   if (opts().radiation) {
-								      dt_.dt = std::min(dt_.dt, dx / physcon().c);
+									   dt_.dt = std::min(dt_.dt, dx / physcon().c);
 								   }
 								   local_timestep_channels[NCHILD].set_value(dt_);
 							   }
 							   grid_ptr->compute_sources(current_time, rotational_time);
 							   grid_ptr->compute_dudt();
 							   compute_fmm(DRHODT, false);
-							   if (rk == 0) {
-								   dt_ = GET(dt_fut);
-							   }
+							   if (rk == 0) dt_ = GET(dt_fut);
+
 							   if (!opts().gravity && opts().optimize_local_communication) {
 								   all_neighbors_got_hydro[(hcycle - 1) % number_hydro_exchange_promises].get();
 							   }
 							   grid_ptr->next_u(rk, current_time, dt_.dt);
 							   compute_fmm(RHO, true);
-							   rk == NRK - 1 ? energy_hydro_bounds() : all_hydro_bounds();
+							   rk == NRK - 1 ? energy_hydro_bounds(current_time) : all_hydro_bounds(current_time);
 						   },
 						   "node_server::nonrefined_step::compute_fluxes"));
 	}
@@ -671,12 +631,8 @@ future<void> node_server::nonrefined_step() {
 	return fut.then(hpx::launch::sync, hpx::annotated_function(
 										   [this](future<void> &&f) {
 											   GET(f);
-
+											   if (opts().radiation) compute_radiation(dt_.dt);
 											   update();
-											   if (opts().radiation) {
-												   compute_radiation(dt_.dt, grid_ptr->get_omega());
-												   all_hydro_bounds();
-											   }
 										   },
 										   "node_server::nonrefined_step::update"));
 }
@@ -716,55 +672,67 @@ future<real> node_server::local_step(integer steps) {
 			}
 		}
 
-		fut = fut.then(hpx::launch::async_policy(hpx::threads::thread_priority::boost), hpx::annotated_function([this, i, steps](future<void> fut) -> real {
-      try {
-        GET(fut);
-        auto time_start = std::chrono::high_resolution_clock::now();
-        auto next_dt = timestep_driver_descend();
+		fut = fut.then(hpx::launch::async_policy(hpx::threads::thread_priority::boost),
+					   hpx::annotated_function(
+						   [this, i, steps](future<void> fut) -> real {
+							   try {
+								   GET(fut);
+								   auto time_start = std::chrono::high_resolution_clock::now();
+								   auto next_dt = timestep_driver_descend();
 
-        if (is_refined) {
-          refined_step();
-        } else {
-          GET(nonrefined_step());
-        }
-
-        if (my_location.level() == 0) {
-          double time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::high_resolution_clock::now() - time_start).count();
-          const int local_step_num = step_num + 1;
-          if (opts().print_times_per_timestep)
-            timestep_util::add_time_per_timestep(time_elapsed);
-
-          hpx::threads::run_as_os_thread([=, this]() {
-            printf("%i %e %e %e %e\n", local_step_num, double(current_time), double(dt_.dt), time_elapsed, rotational_time);
-          });  // do not wait for output to finish
-        }
-        ++step_num;
-        GET(next_dt);
-        return dt_.dt;
-      } catch (hpx::exception const& e) {
-          std::cerr << "ERROR: Caught HPX exception during local_step!\n";
-          std::cerr << "{what}: " << hpx::get_error_what(e) << "\n";
-          std::cerr << "{locality-id}: " << hpx::get_error_locality_id(e)
-                    << "\n";
-          std::cerr << "{hostname}: " << hpx::get_error_host_name(e) << "\n";
-          std::cerr << "{pid}: " << hpx::get_error_process_id(e) << "\n";
-          std::cerr << "{function}: " << hpx::get_error_function_name(e)
-                    << "\n";
-          std::cerr << "{file}: " << hpx::get_error_file_name(e) << "\n";
-          std::cerr << "{line}: " << hpx::get_error_line_number(e) << "\n";
-          std::cerr << "Aborting now...\n";
-          abort();
-      } catch (std::exception const& e) {
-          std::cerr << "ERROR: Caught std::exception during local_step!\n";
-          std::cerr << "{what}: " << e.what() << "\n";
-          std::cerr << "Aborting now...\n";
-          abort();
-      } catch (...) {
-          std::cerr << "ERROR: Caught unknown exception during local_step!\n";
-          std::cerr << "Aborting now...\n";
-          abort();
-      }
-		}, "local_step::execute_step"));
+								   if (is_refined) {
+									   refined_step();
+								   } else {
+									   GET(nonrefined_step());
+								   }
+								   if (my_location.level() == 0) {
+									   const int local_step_num = step_num;
+									   const bool rotating = std::abs(grid::get_omega()) > 0.0;
+									   const bool radiation = opts().radiation;
+									   auto const time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(
+																	 std::chrono::high_resolution_clock::now() - time_start)
+																	 .count();
+									   hpx::threads::run_as_os_thread([=, this]() {
+										   if (local_step_num % int(refinement_freq()) == 0) {
+											   std::cout
+												   << print2string("%8s %14s %14s %14s%s%s\n", "step", "t", "dt", "wall ",
+																   rotating ? "       rot_time" : "", radiation ? "    rad_steps" : "");
+										   }
+										   auto const dt = dt_.dt;
+										   std::string rot;
+										   std::string rad;
+										   if (rotating) rot = print2string(" %14.6e", rotational_time);
+										   if (radiation) rad = print2string(" %12i", radiationSubstepCount(dt));
+										   std::cout << print2string("%8i %14.6e %14.6e %14.6e%s%s\n", local_step_num, double(current_time),
+																	 double(dt), time_elapsed, rot.c_str(), rad.c_str());
+									   });
+								   }
+								   ++step_num;
+								   GET(next_dt);
+								   return dt_.dt;
+							   } catch (hpx::exception const &e) {
+								   std::cerr << "ERROR: Caught HPX exception during local_step!\n";
+								   std::cerr << "{what}: " << hpx::get_error_what(e) << "\n";
+								   std::cerr << "{locality-id}: " << hpx::get_error_locality_id(e) << "\n";
+								   std::cerr << "{hostname}: " << hpx::get_error_host_name(e) << "\n";
+								   std::cerr << "{pid}: " << hpx::get_error_process_id(e) << "\n";
+								   std::cerr << "{function}: " << hpx::get_error_function_name(e) << "\n";
+								   std::cerr << "{file}: " << hpx::get_error_file_name(e) << "\n";
+								   std::cerr << "{line}: " << hpx::get_error_line_number(e) << "\n";
+								   std::cerr << "Aborting now...\n";
+								   abort();
+							   } catch (std::exception const &e) {
+								   std::cerr << "ERROR: Caught std::exception during local_step!\n";
+								   std::cerr << "{what}: " << e.what() << "\n";
+								   std::cerr << "Aborting now...\n";
+								   abort();
+							   } catch (...) {
+								   std::cerr << "ERROR: Caught unknown exception during local_step!\n";
+								   std::cerr << "Aborting now...\n";
+								   abort();
+							   }
+						   },
+						   "local_step::execute_step"));
 	}
 	return fut;
 }
@@ -782,14 +750,16 @@ future<real> node_server::step(integer steps) {
 	future<real> fut = local_step(steps);
 
 	if (is_refined) {
-		return hpx::dataflow(hpx::launch::sync,
-				[this](future<real> dt_fut, future<std::array<future<void>, NCHILD>> &&f) {
-					auto fi = GET(f); // propagate exceptions
-					for (auto &f : fi) {
-						GET(f);
-					}
-					return GET(dt_fut);
-				}, std::move(fut), hpx::when_all(std::move(child_futs)));
+		return hpx::dataflow(
+			hpx::launch::sync,
+			[this](future<real> dt_fut, future<std::array<future<void>, NCHILD>> &&f) {
+				auto fi = GET(f); // propagate exceptions
+				for (auto &f : fi) {
+					GET(f);
+				}
+				return GET(dt_fut);
+			},
+			std::move(fut), hpx::when_all(std::move(child_futs)));
 	}
 
 	return fut;
@@ -830,32 +800,36 @@ future<void> node_server::timestep_driver_descend() {
 			futs[index++] = local_timestep.get_future();
 		}
 
-		return hpx::dataflow(hpx::launch::sync, /*hpx::annotated_function(*/[this](std::array<future<timestep_t>, NCHILD + 1> dts_fut) {
-
-			auto dts = hpx::unwrap(dts_fut);
-			timestep_t dt;
-			dt.dt = 1.0e+99;
-			for (const auto &this_dt : dts) {
-				if (this_dt.dt < dt.dt) {
-					dt = this_dt;
+		return hpx::dataflow(
+			hpx::launch::sync, /*hpx::annotated_function(*/
+			[this](std::array<future<timestep_t>, NCHILD + 1> dts_fut) {
+				auto dts = hpx::unwrap(dts_fut);
+				timestep_t dt;
+				dt.dt = 1.0e+99;
+				for (const auto &this_dt : dts) {
+					if (this_dt.dt < dt.dt) {
+						dt = this_dt;
+					}
 				}
-			}
 
-			if (my_location.level() == 0) {
-				timestep_driver_ascend(dt);
-			} else {
-				parent.set_local_timestep(my_location.get_child_index(), dt);
-			}
+				if (my_location.level() == 0) {
+					timestep_driver_ascend(dt);
+				} else {
+					parent.set_local_timestep(my_location.get_child_index(), dt);
+				}
 
-			return;
-		}/*, "node_server::timestep_driver_descend")*/, futs);
+				return;
+			} /*, "node_server::timestep_driver_descend")*/,
+			futs);
 	} else {
-		return local_timestep_channels[NCHILD].get_future().then(hpx::launch::sync, hpx::annotated_function([this](future<timestep_t> &&f) {
-			timestep_t dt = GET(f);
-			parent.set_local_timestep(my_location.get_child_index(), dt);
-			return;
-		}, "timestep_driver_descend::set_local_timestep")
-		);
+		return local_timestep_channels[NCHILD].get_future().then(hpx::launch::sync,
+																 hpx::annotated_function(
+																	 [this](future<timestep_t> &&f) {
+																		 timestep_t dt = GET(f);
+																		 parent.set_local_timestep(my_location.get_child_index(), dt);
+																		 return;
+																	 },
+																	 "timestep_driver_descend::set_local_timestep"));
 	}
 }
 
@@ -883,25 +857,25 @@ void node_server::velocity_inc(const space_vector &dv) {
 }
 
 using energy_adj_action_type = node_server::energy_adj_action;
-HPX_REGISTER_ACTION (energy_adj_action_type);
+HPX_REGISTER_ACTION(energy_adj_action_type);
 
 future<void> node_client::energy_adj() const {
-        return hpx::async<typename node_server::energy_adj_action>(get_gid());
+	return hpx::async<typename node_server::energy_adj_action>(get_gid());
 }
 
 void node_server::energy_adj() {
-        if (is_refined) {
-                std::array<future<void>, NCHILD> futs;
-                integer index = 0;
-                for (auto &child : children) {
-                        futs[index++] = child.energy_adj();
-                }
-                //       wait_all_and_propagate_exceptions(futs);
-                for (auto &f : futs) {
-                        GET(f);
-                }
-        } else {
-                grid_ptr->energy_adj();
-        }
+	if (is_refined) {
+		std::array<future<void>, NCHILD> futs;
+		integer index = 0;
+		for (auto &child : children) {
+			futs[index++] = child.energy_adj();
+		}
+		//       wait_all_and_propagate_exceptions(futs);
+		for (auto &f : futs) {
+			GET(f);
+		}
+	} else {
+		grid_ptr->energy_adj();
+	}
 }
 #endif

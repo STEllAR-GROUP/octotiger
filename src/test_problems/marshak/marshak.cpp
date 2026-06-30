@@ -166,15 +166,15 @@ std::vector<double> marshak_wave_analytic(double x0, double y0, double z0, doubl
 	const double fy = 0;
 	const double fz = 0;
 	U[egas_i] = e;
-	U[tau_i] = std::pow(e, 1.0 / grid::get_fgamma());
+	U[tau_i] = std::pow(e, 1.0 / opts().gas_gamma);
 	assert(!std::isnan(erad));
 	assert(!std::isnan(fx));
 	assert(!std::isnan(fy));
 	assert(!std::isnan(fz));
-	U[opts().n_fields + rad_grid::er_i] = erad;
-	U[opts().n_fields + rad_grid::fx_i] = fx;
-	U[opts().n_fields + rad_grid::fy_i] = fy;
-	U[opts().n_fields + rad_grid::fz_i] = fz;
+	U[opts().n_fields + er_i] = erad;
+	U[opts().n_fields + fx_i] = fx;
+	U[opts().n_fields + fy_i] = fy;
+	U[opts().n_fields + fz_i] = fz;
 	return std::move(U);
 }
 
@@ -185,7 +185,7 @@ std::vector<double> marshak_wave(double x, double y, double z, double dx) {
 	double e = 1.0e-20;
 	u[rho_i] = u[spc_i] = 1.0;
 	u[egas_i] = e;
-	u[tau_i] = std::pow(e, grid::get_fgamma());
+	u[tau_i] = std::pow(e, opts().gas_gamma);
 	return u;
 
 }

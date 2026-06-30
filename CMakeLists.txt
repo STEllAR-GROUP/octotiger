@@ -237,14 +237,16 @@ set(source_files
     src/multipole_interactions/util/calculate_stencil.cpp
     src/multipole_interactions/legacy/multipole_cpu_kernel.cpp
     src/radiation/rad_grid.cpp
-    src/radiation/implicit.cpp
     src/test_problems/marshak/marshak.cpp
     src/test_problems/rotating_star/rotating_star.cpp
     src/test_problems/sod/sod.cpp
     src/test_problems/sod/exact_sod.cpp
     src/test_problems/amr/amr.cpp
     src/test_problems/blast/sedov.cpp
-    src/test_problems/gaussianPulse.cpp
+    src/test_problems/radiation/equilibriumSphere.cpp
+    src/test_problems/radiation/gaussianPulse.cpp
+    src/test_problems/radiation/streamingFront.cpp
+    src/test_problems/radiation/streamingWave.cpp
 
     src/unitiger/hydro_impl/hydro_boundary_exchange.cpp # TODO Move to different location - it's not unitiger
     src/unitiger/hydro_impl/hydro_boundary_exchange_vc.cpp
@@ -304,6 +306,7 @@ set(header_files
     octotiger/cuda_util/cuda_global_def.hpp
     octotiger/cuda_util/cuda_helper.hpp
     octotiger/cuda_util/cuda_scheduler.hpp
+    octotiger/gas/GasEoS.hpp
     octotiger/monopole_interactions/util/calculate_stencil.hpp
     octotiger/monopole_interactions/legacy/cuda_monopole_interaction_interface.hpp
     octotiger/monopole_interactions/kernel/monopole_kernel_templates.hpp
@@ -318,9 +321,9 @@ set(header_files
     octotiger/multipole_interactions/legacy/multipole_cpu_kernel.hpp
     octotiger/multipole_interactions/legacy/multipole_cuda_kernel.hpp
     octotiger/multipole_interactions/legacy/multipole_interaction_interface.hpp
-    octotiger/radiation/implicit.hpp
     octotiger/radiation/opacities.hpp
     octotiger/radiation/rad_grid.hpp
+    octotiger/radiation/RadiationEoS.hpp
     octotiger/test_problems/rotating_star.hpp
     
 )

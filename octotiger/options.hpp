@@ -18,14 +18,13 @@
 #include <vector>
 
 /* Must look like this - no spaces
- COMMAND_LINE_ENUM(problem_type,DWD,SOD,BLAST,NONE,SOLID_SPHERE,STAR,MOVING_STAR,RADIATION_TEST,ROTATING_STAR,MARSHAK,AMR_TEST);
-
+ 
  COMMAND_LINE_ENUM(eos_type,IDEAL,WD);
  */
 
-COMMAND_LINE_ENUM(problem_type, DWD, SOD, BLAST, NONE, SOLID_SPHERE, STAR, MOVING_STAR, RADIATION_TEST, ROTATING_STAR, MARSHAK, AMR_TEST,
-				  ADVECTION, RADIATION_DIFFUSION, RADIATION_COUPLING);
-COMMAND_LINE_ENUM(eos_type, IDEAL, WD, IPR);
+COMMAND_LINE_ENUM(problem_type,DWD,SOD,BLAST,NONE,SOLID_SPHERE,STAR,MOVING_STAR,RADIATION_COUPLING,ROTATING_STAR,MARSHAK,AMR_TEST,
+				ADVECTION,RADIATION_GAUSSIAN_PULSE,RADIATION_STREAMING_FRONT,RADIATION_STREAMING_WAVE,RADIATION_EQUILIBRIUM_SPHERE);
+COMMAND_LINE_ENUM(eos_type,IDEAL,WD,IPR);
 
 class options {
 public:
@@ -104,7 +103,7 @@ public:
 	double sod_pr;
 	double sod_theta;
 	double sod_phi;
-	double sod_gamma;
+	double gas_gamma;
 
 	double solid_sphere_xcenter;
 	double solid_sphere_ycenter;
@@ -187,7 +186,7 @@ public:
 		arc & sod_pr;
 		arc & sod_theta;
 		arc & sod_phi;
-		arc & sod_gamma;
+		arc & gas_gamma;
 		arc & solid_sphere_xcenter;
 		arc & solid_sphere_ycenter;
 		arc & solid_sphere_zcenter;

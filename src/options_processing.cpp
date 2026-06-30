@@ -74,7 +74,7 @@ bool options::process_options(int argc, char *argv[]) {
 		("sod_pr", po::value<double>(&(opts().sod_pr))->default_value(0.1), "pressure in the right part of the grid")			   //
 		("sod_theta", po::value<double>(&(opts().sod_theta))->default_value(0.0), "angle made by diaphragm normal w/x-axis (deg)") //
 		("sod_phi", po::value<double>(&(opts().sod_phi))->default_value(90.0), "angle made by diaphragm normal w/z-axis (deg)")	   //
-		("sod_gamma", po::value<double>(&(opts().sod_gamma))->default_value(1.4), "ratio of specific heats for gas")			   //
+		("gas_gamma", po::value<double>(&(opts().gas_gamma))->default_value(5.0/3.0), "ratio of specific heats for gas")			   //
 		("solid_sphere_xcenter", po::value<double>(&(opts().solid_sphere_xcenter))->default_value(0.25), "x-position of the sphere center") //
 		("solid_sphere_ycenter", po::value<double>(&(opts().solid_sphere_ycenter))->default_value(0.0), "y-position of the sphere center") //
 		("solid_sphere_zcenter", po::value<double>(&(opts().solid_sphere_zcenter))->default_value(0.0), "z-position of the sphere center")																							//
@@ -187,10 +187,10 @@ bool options::process_options(int argc, char *argv[]) {
 		("rad_diff_rho0", po::value<double>(&(opts().rad_diff_rho0))->default_value(1.0), "radiation diffusion test - background mass density (cgs)") //
 		("rad_diff_t0", po::value<double>(&(opts().rad_diff_t0))->default_value(1.0), "radiation diffusion test - initial time (must be > 0)  (cgs)") //
 		("kappa0", po::value<double>(&(opts().kappa0))->default_value(0.0), "constant of proportionality for absorption coefficient power law (cgs)") //
-		("kappa_rho_exp", po::value<double>(&(opts().kappa_rho_exp))->default_value(1.0), "density exponent for absorption coefficient power law") //
+		("kappa_rho_exp", po::value<double>(&(opts().kappa_rho_exp))->default_value(0.0), "density exponent for absorption coefficient power law") //
 		("kappa_T_exp", po::value<double>(&(opts().kappa_T_exp))->default_value(0.0), "temperature exponent for absorption coefficient power law") //
 		("sigma0", po::value<double>(&(opts().sigma0))->default_value(0.2), " for scattering coefficient power law") //
-		("sigma_rho_exp", po::value<double>(&(opts().sigma_rho_exp))->default_value(1.0), "density exponent for scattering coefficient power law") //
+		("sigma_rho_exp", po::value<double>(&(opts().sigma_rho_exp))->default_value(0.0), "density exponent for scattering coefficient power law") //
 		("sigma_T_exp", po::value<double>(&(opts().sigma_T_exp))->default_value(0.0), "temperature exponent for scattering coefficient power law") //
 		;
 	// clang-format on
@@ -374,7 +374,7 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(silo_offset_x);
 		SHOW(silo_offset_y);
 		SHOW(silo_offset_z);
-		SHOW(sod_gamma);
+		SHOW(gas_gamma);
 		SHOW(sod_phi);
 		SHOW(sod_pl);
 		SHOW(sod_pr);

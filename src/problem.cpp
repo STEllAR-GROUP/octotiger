@@ -55,37 +55,7 @@ bool radiation_test_refine(integer level, integer max_level, real x, real y, rea
 	// return rc;
 }
 
-std::vector<real> radiation_test_problem(real x, real y, real z, real dx) {
-	auto const c = physcon().c;
-	std::vector<real> u(opts().n_fields + NRF, real(0));
-	real r = std::max(2.0 * dx, 0.50);
-	constexpr auto almost1 = 1.0 - sqrt(std::numeric_limits<double>::epsilon());
-	real eint;
-	if (x < 0) {
-		u[rho_i] = 1.0;
-		eint = 1;
-		u[opts().n_fields] = 1;
-		u[opts().n_fields + 1] = u[opts().n_fields] * c * almost1;
-	} else {
-		u[opts().n_fields] = 1e-10;
-		u[opts().n_fields + 1] = u[opts().n_fields] * c * almost1;
-		u[rho_i] = 1.0;
-		eint = 1;
-	}
-	u[tau_i] = POWER(eint * u[rho_i], 1.0 / grid::get_fgamma());
-	const real fgamma = grid::get_fgamma();
-	u[egas_i] = POWER(u[tau_i], fgamma);
-	const real rhoinv = INVERSE(u[rho_i]);
-	u[egas_i] += u[sx_i] * u[sx_i] * rhoinv / 2.0;
-	u[egas_i] += u[sy_i] * u[sy_i] * rhoinv / 2.0;
-	u[egas_i] += u[sz_i] * u[sz_i] * rhoinv / 2.0;
-	u[spc_ac_i] = u[rho_i];
-	return u;
-}
 
-std::vector<real> radiation_diffusion_test_problem(real x, real y, real z, real dx) {
-	return radiation_diffusion_analytic(x, y, z, 0);
-}
 
 std::vector<real> radiation_coupling_test_problem(real x, real y, real z, real dx) {
 	std::vector<real> u(opts().n_fields + NRF, real(0));
@@ -104,9 +74,9 @@ std::vector<real> radiation_coupling_test_problem(real x, real y, real z, real d
 	double T = pow(er / (4.0 * physcon().sigma / physcon().c), 0.25);
 	T *= 10.0;
 	double Pgas = u[rho_i] * T * physcon().kb / (physcon().mh * mmw);
-	const real fgamma = grid::get_fgamma();
+	const real fgamma = opts().gas_gamma;
 	double ei = (1.0 / (fgamma - 1.0)) * Pgas;
-	u[tau_i] = POWER(ei, 1.0 / grid::get_fgamma());
+	u[tau_i] = POWER(ei, 1.0 / opts().gas_gamma);
 	u[egas_i] = POWER(u[tau_i], fgamma);
 	double fx, fy, fz;
 	fx = fy = fz = 0.0;
@@ -378,7 +348,7 @@ std::vector<real> solid_sphere(real x0, real y0, real z0, real dx, real xshift) 
 }
 
 std::vector<real> star(real x, real y, real z, real) {
-	const real fgamma = grid::get_fgamma();
+	const real fgamma = opts().gas_gamma;
 	const real rho_out = opts().star_rho_out;
 	std::vector<real> u(opts().n_fields, real(0));
 	if (opts().eos == WD) {
@@ -500,7 +470,7 @@ std::vector<real> equal_mass_binary(real x, real y, real z, real) {
 	const real dr = rmax / 128.0;
 	const integer don_i = spc_ac_i;
 	const integer acc_i = spc_dc_i;
-	const real fgamma = grid::get_fgamma();
+	const real fgamma = opts().gas_gamma;
 
 	real theta;
 	real alpha = 1.0 / 15.0;

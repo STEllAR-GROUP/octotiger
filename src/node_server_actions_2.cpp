@@ -27,7 +27,7 @@
 #if !defined(HPX_COMPUTE_DEVICE_CODE)
 
 using check_for_refinement_action_type = node_server::check_for_refinement_action;
-HPX_REGISTER_ACTION(check_for_refinement_action_type);
+HPX_REGISTER_ACTION (check_for_refinement_action_type);
 
 future<void> node_client::check_for_refinement(real omega, real r) const {
 	return hpx::async<typename node_server::check_for_refinement_action>(get_unmanaged_gid(), omega, r);
@@ -36,7 +36,7 @@ future<void> node_client::check_for_refinement(real omega, real r) const {
 void node_server::check_for_refinement(real omega, real new_floor) {
 	static hpx::mutex mtx;
 	{
-		std::lock_guard<hpx::mutex> lock(mtx);
+		std::lock_guard < hpx::mutex > lock(mtx);
 		grid::omega = omega;
 		if (new_floor > 0) {
 			opts().refinement_floor = new_floor;
@@ -55,7 +55,7 @@ void node_server::check_for_refinement(real omega, real new_floor) {
 		}
 	}
 	if (opts().hydro || opts().problem == AMR_TEST) {
-		all_hydro_bounds();
+		all_hydro_bounds(current_time);
 	}
 	if (!rc) {
 		rc = grid_ptr->refine_me(my_location.level(), new_floor);
@@ -74,7 +74,7 @@ void node_server::check_for_refinement(real omega, real new_floor) {
 }
 
 using enforce_bc_action_type = node_server::enforce_bc_action;
-HPX_REGISTER_ACTION(enforce_bc_action_type);
+HPX_REGISTER_ACTION (enforce_bc_action_type);
 
 future<void> node_client::enforce_bc() const {
 	return hpx::async<typename node_server::enforce_bc_action>(get_unmanaged_gid());
@@ -91,7 +91,7 @@ void node_server::enforce_bc() {
 			futs[index++] = child.enforce_bc();
 		}
 	}
-	all_hydro_bounds();
+	all_hydro_bounds(current_time);
 	for (auto &f : futs) {
 		GET(f);
 	}
@@ -99,7 +99,7 @@ void node_server::enforce_bc() {
 }
 
 using kill_action_type = node_server::kill_action;
-HPX_REGISTER_ACTION(kill_action_type);
+HPX_REGISTER_ACTION (kill_action_type);
 
 hpx::future<void> node_client::kill() const {
 	return hpx::async<typename node_server::kill_action>(get_gid());
@@ -111,7 +111,7 @@ void node_server::kill() {
 }
 
 using copy_to_locality_action_type = node_server::copy_to_locality_action;
-HPX_REGISTER_ACTION(copy_to_locality_action_type);
+HPX_REGISTER_ACTION (copy_to_locality_action_type);
 
 future<hpx::id_type> node_client::copy_to_locality(const hpx::id_type &id) const {
 	return hpx::async<typename node_server::copy_to_locality_action>(get_gid(), id);
@@ -121,15 +121,16 @@ future<hpx::id_type> node_server::copy_to_locality(const hpx::id_type &id) {
 
 	node_registry::delete_(my_location);
 
-	std::vector<hpx::id_type> cids;
+	std::vector < hpx::id_type > cids;
 	if (is_refined) {
 		cids.resize(NCHILD);
 		for (auto ci : geo::octant::full_set()) {
 			cids[ci] = children[ci].get_gid();
 		}
 	}
-	auto rc = hpx::new_<node_server>(id, my_location, step_num, bool(is_refined), current_time, rotational_time, child_descendant_count, std::move(*grid_ptr),
-			cids, std::size_t(hcycle), std::size_t(rcycle), std::size_t(gcycle), position);
+	auto rc = hpx::new_ < node_server
+			> (id, my_location, step_num, bool(is_refined), current_time, rotational_time, child_descendant_count, std::move(*grid_ptr), cids, std::size_t(
+					hcycle), std::size_t(rcycle), std::size_t(gcycle), position);
 	clear_family();
 	parent = hpx::invalid_id;
 	std::fill(neighbors.begin(), neighbors.end(), hpx::invalid_id);
@@ -138,14 +139,14 @@ future<hpx::id_type> node_server::copy_to_locality(const hpx::id_type &id) {
 }
 
 using diagnostics_action_type = node_server::diagnostics_action;
-HPX_REGISTER_ACTION(diagnostics_action_type);
+HPX_REGISTER_ACTION (diagnostics_action_type);
 
 future<diagnostics_t> node_client::diagnostics(const diagnostics_t &d) const {
 	return hpx::async<typename node_server::diagnostics_action>(get_unmanaged_gid(), d);
 }
 
 using compare_analytic_action_type = node_server::compare_analytic_action;
-HPX_REGISTER_ACTION(compare_analytic_action_type);
+HPX_REGISTER_ACTION (compare_analytic_action_type);
 
 future<analytic_t> node_client::compare_analytic() const {
 	return hpx::async<typename node_server::compare_analytic_action>(get_unmanaged_gid());
@@ -265,9 +266,9 @@ const diagnostics_t& diagnostics_t::compute() {
 	}
 	z_mom_orb = mu * sep2;
 
-	feenableexcept(FE_DIVBYZERO);
-	feenableexcept(FE_INVALID);
-	feenableexcept(FE_OVERFLOW);
+	feenableexcept (FE_DIVBYZERO);
+	feenableexcept (FE_INVALID);
+	feenableexcept (FE_OVERFLOW);
 
 	return *this;
 }
@@ -357,11 +358,11 @@ diagnostics_t node_server::diagnostics(const diagnostics_t &diags) {
 		auto rc = hpx::async(hpx::annotated_function([&]() {
 			return child_diagnostics(diags);
 		}, "diagnostics::return_child_diagnostics"));
-		all_hydro_bounds();
+		all_hydro_bounds(current_time);
 		auto diags = GET(rc);
 		return diags;
 	} else {
-		all_hydro_bounds();
+		all_hydro_bounds(current_time);
 		return local_diagnostics(diags);
 	}
 }
@@ -383,7 +384,7 @@ diagnostics_t node_server::local_diagnostics(const diagnostics_t &diags) {
 }
 
 using force_nodes_to_exist_action_type = node_server::force_nodes_to_exist_action;
-HPX_REGISTER_ACTION(force_nodes_to_exist_action_type);
+HPX_REGISTER_ACTION (force_nodes_to_exist_action_type);
 
 future<void> node_client::force_nodes_to_exist(std::vector<node_location> &&locs) const {
 	return hpx::async<typename node_server::force_nodes_to_exist_action>(get_unmanaged_gid(), std::move(locs));
@@ -393,7 +394,7 @@ void node_server::force_nodes_to_exist(std::vector<node_location> &&locs) {
 	std::vector<future<void>> futs;
 	std::vector<node_location> parent_list;
 	std::array<std::vector<node_location>, geo::direction::count()> sibling_lists;
-	std::vector<std::vector<node_location>> child_lists(NCHILD);
+	std::vector < std::vector < node_location >> child_lists(NCHILD);
 
 	futs.reserve(geo::octant::count() + 2);
 	parent_list.reserve(locs.size());
@@ -456,7 +457,7 @@ void node_server::force_nodes_to_exist(std::vector<node_location> &&locs) {
 }
 
 typedef node_server::form_tree_action form_tree_action_type;
-HPX_REGISTER_ACTION(form_tree_action_type);
+HPX_REGISTER_ACTION (form_tree_action_type);
 
 future<int> node_client::form_tree(hpx::id_type &&id1, hpx::id_type &&id2, std::vector<hpx::id_type> &&ids) {
 	return hpx::async<typename node_server::form_tree_action>(get_unmanaged_gid(), std::move(id1), std::move(id2), std::move(ids));
@@ -515,7 +516,7 @@ int node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std::
 						}
 					}
 					cfuts[index++] = hpx::dataflow(hpx::launch::async, [this, ci](std::array<future<hpx::id_type>, geo::direction::count()> &&cns) {
-						std::vector<hpx::id_type> child_neighbors(geo::direction::count());
+						std::vector < hpx::id_type > child_neighbors(geo::direction::count());
 						for (auto dir : geo::direction::full_set()) {
 							child_neighbors[dir] = GET(cns[dir]);
 							amr_flags[ci][dir] = bool(child_neighbors[dir] == hpx::invalid_id);
@@ -545,8 +546,7 @@ int node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std::
 		for (auto f : geo::face::full_set()) {
 			const auto &neighbor = neighbors[f.to_direction()];
 			if (!neighbor.empty()) {
-				nfuts.push_back(neighbor.set_child_aunt(me.get_gid(), f ^ 1).then(
-                    hpx::annotated_function([this, f](future<set_child_aunt_type> &&n) {
+				nfuts.push_back(neighbor.set_child_aunt(me.get_gid(), f ^ 1).then(hpx::annotated_function([this, f](future<set_child_aunt_type> &&n) {
 					nieces[f] = GET(n);
 				}, "node_server::form_tree::sync")));
 			} else {
@@ -561,7 +561,7 @@ int node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std::
 }
 
 using get_child_client_action_type = node_server::get_child_client_action;
-HPX_REGISTER_ACTION(get_child_client_action_type);
+HPX_REGISTER_ACTION (get_child_client_action_type);
 
 future<hpx::id_type> node_client::get_child_client(const node_location &parent_loc, const geo::octant &ci) {
 	future<hpx::id_type> rfut;
@@ -619,7 +619,7 @@ hpx::id_type node_server::get_child_client(const geo::octant &ci) {
 }
 
 using set_child_aunt_action_type = node_server::set_child_aunt_action;
-HPX_REGISTER_ACTION(set_child_aunt_action_type);
+HPX_REGISTER_ACTION (set_child_aunt_action_type);
 
 future<set_child_aunt_type> node_client::set_child_aunt(const hpx::id_type &aunt, const geo::face &f) const {
 	return hpx::async<typename node_server::set_child_aunt_action>(get_unmanaged_gid(), aunt, f);
@@ -652,7 +652,7 @@ set_child_aunt_type node_server::set_child_aunt(const hpx::id_type &aunt, const 
 }
 
 future<std::shared_ptr<node_server>> node_client::get_ptr() const {
-    return hpx::get_ptr<node_server>(get_unmanaged_gid());
+	return hpx::get_ptr < node_server > (get_unmanaged_gid());
 }
 
 #endif

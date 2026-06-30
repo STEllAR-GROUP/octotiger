@@ -114,7 +114,7 @@ real struct_eos::dE() const {
 	return f_E * d0();
 }
 real struct_eos::s0() const {
-	const real fgamma = grid::get_fgamma();
+	const real fgamma = opts().gas_gamma;
 	return POWER(P0() / (fgamma - 1.0), 1.0 / fgamma) * INVERSE(dE());
 }
 real struct_eos::P0() const {

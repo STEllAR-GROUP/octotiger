@@ -25,7 +25,7 @@ real ztwd_sound_speed(real d, real ei) {
 	const real A = physcon().A;
 	const real B = physcon().B;
 	real x, dp_depsilon, dp_drho, cs2;
-	const real fgamma = grid::get_fgamma();
+	const real fgamma = opts().gas_gamma;
 	x = pow(d / B, 1.0 / 3.0);
 	dp_drho = ((8.0 * A) / (3.0 * B)) * sqr(x) / sqrt(sqr(x) + 1.0) + (fgamma - 1.0) * ei / d;
 	dp_depsilon = (fgamma - 1.0) * d;
@@ -37,7 +37,7 @@ real ztwd_sound_speed(real d, real ei) {
 real roe_fluxes(hydro_state_t<std::vector<real>> &F, hydro_state_t<std::vector<real>> &UL, hydro_state_t<std::vector<real>> &UR,
 		const std::vector<space_vector> &X, real omega, integer dimension, real dx) {
 
-	const real fgamma = grid::get_fgamma();
+	const real fgamma = opts().gas_gamma;
 	const std::size_t sz = UL[0].size();
 	const integer u_i = vx_i + dimension;
 	const integer v_i = vx_i + (dimension == XDIM ? YDIM : XDIM);

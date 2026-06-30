@@ -16,9 +16,9 @@
 #include "octotiger/profiler.hpp"
 #include "octotiger/taylor.hpp"
 
+#include <hpx/collectives/broadcast.hpp>
 #include <hpx/include/lcos.hpp>
 #include <hpx/include/run_as.hpp>
-#include <hpx/collectives/broadcast.hpp>
 
 #include <boost/iostreams/stream.hpp>
 
@@ -62,8 +62,6 @@ HPX_REGISTER_ACTION(regrid_gather_action_type);
 future<node_count_type> node_client::regrid_gather(bool rb) const {
 	return hpx::async<typename node_server::regrid_gather_action>(get_unmanaged_gid(), rb);
 }
-
-
 
 node_count_type node_server::regrid_gather(bool rebalance_only) {
 	node_registry::delete_(my_location);
@@ -114,7 +112,6 @@ node_count_type node_server::regrid_gather(bool rebalance_only) {
 
 			for (auto &ci : geo::octant::full_set()) {
 				child_descendant_count[ci] = 1;
-
 			}
 		}
 	}
@@ -124,53 +121,58 @@ node_count_type node_server::regrid_gather(bool rebalance_only) {
 }
 
 future<hpx::id_type> node_server::create_child(hpx::id_type const &locality, integer ci) {
-	return hpx::async(hpx::annotated_function([ci, this](hpx::id_type const locality) {
-
-		return hpx::new_<node_server>(locality, my_location.get_child(ci), me, current_time, rotational_time, step_num, hcycle, rcycle, gcycle).then([this, ci](future<hpx::id_type> &&child_idf) {
-		hpx::id_type child_id = child_idf.get();
-		node_client child = child_id;
-		{
-			std::array<integer, NDIM> lb = {2 * H_BW, 2 * H_BW, 2 * H_BW};
-			std::array<integer, NDIM> ub;
-			lb[XDIM] += (1 & (ci >> 0)) * (INX);
-			lb[YDIM] += (1 & (ci >> 1)) * (INX);
-			lb[ZDIM] += (1 & (ci >> 2)) * (INX);
-			for (integer d = 0; d != NDIM; ++d) {
-				ub[d] = lb[d] + (INX);
-			}
-			std::vector<real> outflows(opts().n_fields, ZERO);
-			if (ci == 0) {
-				outflows = grid_ptr->get_outflows_raw();
-			}
-			if (current_time > ZERO || opts().restart_filename != "") {
-				std::vector<real> prolong;
-				{
-					std::unique_lock < hpx::spinlock > lk(prolong_mtx);
-					prolong = grid_ptr->get_prolong(lb, ub);
-				}
-				GET(child.set_grid(std::move(prolong), std::move(outflows)));
-			}
-		}
-		if (opts().radiation) {
-			std::array<int, NDIM> lb = {2 * R_BW, 2 * R_BW, 2 * R_BW};
-			std::array<int, NDIM> ub;
-			lb[XDIM] += (1 & (ci >> 0)) * (INX);
-			lb[YDIM] += (1 & (ci >> 1)) * (INX);
-			lb[ZDIM] += (1 & (ci >> 2)) * (INX);
-			for (int d = 0; d != NDIM; ++d) {
-				ub[d] = lb[d] + (INX);
-			}
-			if (current_time > ZERO) {
-				std::vector<real> prolong;
-				{
-					std::unique_lock < hpx::spinlock > lk(prolong_mtx);
-					prolong = rad_grid_ptr->get_prolong(lb, ub);
-				}
-				child.set_rad_grid(std::move(prolong)/*, std::move(outflows)*/).get();
-			}
-		}
-		return child_id;
-	});}, "node_server::create_child::lambda"), locality);
+	return hpx::async(hpx::annotated_function(
+						  [ci, this](hpx::id_type const locality) {
+							  return hpx::new_<node_server>(locality, my_location.get_child(ci), me, current_time, rotational_time,
+															step_num, hcycle, rcycle, gcycle)
+								  .then([this, ci](future<hpx::id_type> &&child_idf) {
+									  hpx::id_type child_id = child_idf.get();
+									  node_client child = child_id;
+									  {
+										  std::array<integer, NDIM> lb = {2 * H_BW, 2 * H_BW, 2 * H_BW};
+										  std::array<integer, NDIM> ub;
+										  lb[XDIM] += (1 & (ci >> 0)) * (INX);
+										  lb[YDIM] += (1 & (ci >> 1)) * (INX);
+										  lb[ZDIM] += (1 & (ci >> 2)) * (INX);
+										  for (integer d = 0; d != NDIM; ++d) {
+											  ub[d] = lb[d] + (INX);
+										  }
+										  std::vector<real> outflows(opts().n_fields, ZERO);
+										  if (ci == 0) {
+											  outflows = grid_ptr->get_outflows_raw();
+										  }
+										  if (current_time > ZERO || opts().restart_filename != "") {
+											  std::vector<real> prolong;
+											  {
+												  std::unique_lock<hpx::spinlock> lk(prolong_mtx);
+												  prolong = grid_ptr->get_prolong(lb, ub);
+											  }
+											  GET(child.set_grid(std::move(prolong), std::move(outflows)));
+										  }
+									  }
+									  if (opts().radiation) {
+										  std::array<int, NDIM> lb = {2 * R_BW, 2 * R_BW, 2 * R_BW};
+										  std::array<int, NDIM> ub;
+										  lb[XDIM] += (1 & (ci >> 0)) * (INX);
+										  lb[YDIM] += (1 & (ci >> 1)) * (INX);
+										  lb[ZDIM] += (1 & (ci >> 2)) * (INX);
+										  for (int d = 0; d != NDIM; ++d) {
+											  ub[d] = lb[d] + (INX);
+										  }
+										  if (current_time > ZERO) {
+											  std::vector<real> prolong;
+											  {
+												  std::unique_lock<hpx::spinlock> lk(prolong_mtx);
+												  prolong = rad_grid_ptr->get_prolong(lb, ub);
+											  }
+											  child.set_rad_grid(std::move(prolong) /*, std::move(outflows)*/).get();
+										  }
+									  }
+									  return child_id;
+								  });
+						  },
+						  "node_server::create_child::lambda"),
+					  locality);
 }
 
 using regrid_scatter_action_type = node_server::regrid_scatter_action;
@@ -218,23 +220,23 @@ void node_server::regrid_scatter(integer a_, integer total) {
 		}
 	}
 	clear_family();
-  if (opts().optimize_local_communication) {
-    // Renew promises
-    ready_for_hydro_exchange.clear();
-    for (int i = 0; i < number_hydro_exchange_promises; i++)
-      ready_for_hydro_exchange.emplace_back();
-    ready_for_amr_hydro_exchange.clear();
-    for (int i = 0; i < number_hydro_exchange_promises; i++)
-      ready_for_amr_hydro_exchange.emplace_back();
-    if (!opts().gravity) {
-      ready_for_hydro_update.clear();
-      for (int i = 0; i < number_hydro_exchange_promises; i++)
-        ready_for_hydro_update.emplace_back();
-      all_neighbors_got_hydro.clear();
-      for (int i = 0; i < number_hydro_exchange_promises; i++)
-        all_neighbors_got_hydro.emplace_back(hpx::make_ready_future());
-    }
-  }
+	if (opts().optimize_local_communication) {
+		// Renew promises
+		ready_for_hydro_exchange.clear();
+		for (int i = 0; i < number_hydro_exchange_promises; i++)
+			ready_for_hydro_exchange.emplace_back();
+		ready_for_amr_hydro_exchange.clear();
+		for (int i = 0; i < number_hydro_exchange_promises; i++)
+			ready_for_amr_hydro_exchange.emplace_back();
+		if (!opts().gravity) {
+			ready_for_hydro_update.clear();
+			for (int i = 0; i < number_hydro_exchange_promises; i++)
+				ready_for_hydro_update.emplace_back();
+			all_neighbors_got_hydro.clear();
+			for (int i = 0; i < number_hydro_exchange_promises; i++)
+				all_neighbors_got_hydro.emplace_back(hpx::make_ready_future());
+		}
+	}
 }
 
 node_count_type node_server::regrid(const hpx::id_type &root_gid, real omega, real new_floor, bool rb, bool grav_energy_comp) {

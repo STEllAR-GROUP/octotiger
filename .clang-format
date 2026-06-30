@@ -5,7 +5,6 @@ BasedOnStyle: LLVM
 UseTab: Always
 IndentWidth: 4
 TabWidth: 4
-
 # ==== BRACES ====
 # Match your K&R brace positioning with braces always kept.
 BreakBeforeBraces: Custom
@@ -24,7 +23,7 @@ BraceWrapping:
 # ==== CONTROL STRUCTURE BRACES (your explicit preference) ====
 # Forces: if (...) { ... } even if single-line
 AlwaysBreakAfterReturnType: None
-AllowShortIfStatementsOnASingleLine: true
+AllowShortIfStatementsOnASingleLine: AllIfsAndElse
 AllowShortLoopsOnASingleLine: false
 AllowShortCaseLabelsOnASingleLine:  false
 AllowShortFunctionsOnASingleLine: None

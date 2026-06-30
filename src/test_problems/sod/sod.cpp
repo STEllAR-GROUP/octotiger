@@ -19,7 +19,7 @@ OCTOTIGER_EXPORT std::vector<real> advection_test_init(real x, real y, real z, r
 
 OCTOTIGER_EXPORT std::vector<real> advection_test_analytic(real x, real y, real z, real t) {
 	std::vector<real> U(opts().n_fields, 0.0);
-	const real fgamma = grid::get_fgamma();
+	const real fgamma = opts().gas_gamma;
 	const auto r0 = 1.0/3.0;
 	constexpr auto x0 = 0.5;
 	constexpr auto y0 = 0.0;
@@ -41,7 +41,7 @@ std::vector<real> sod_shock_tube_init(real x, real y, real z, real dx) {
 
 std::vector<real> sod_shock_tube_analytic(real x0, real y, real z, real t) {
 	std::vector<real> U(opts().n_fields, 0.0);
-        const real fgamma = grid::get_fgamma();
+        const real fgamma = opts().gas_gamma;
 
         const real theta = opts().sod_theta;
         real cos_theta = std::cos(theta * M_PI / 180.0);
