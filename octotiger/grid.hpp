@@ -23,8 +23,8 @@
 // #include "octotiger/simd_legacy.hpp"
 #include "octotiger/space_vector.hpp"
 // #include "octotiger/taylor.hpp"
-#include "octotiger/math/Real.hpp"
 #include "octotiger/gas/GasEoS.hpp"
+#include "octotiger/math/Real.hpp"
 
 #include <hpx/serialization/serialize.hpp>
 #include <hpx/serialization/traits/is_bitwise_serializable.hpp>
@@ -143,13 +143,13 @@ public:
 	struct node_point;
 	OCTOTIGER_EXPORT static void set_min_level(integer l);
 	OCTOTIGER_EXPORT static void set_max_level(integer l);
-//	OCTOTIGER_EXPORT static void set_fgamma(real fg) {
-//		fgamma = fg;
-//	}
+	//	OCTOTIGER_EXPORT static void set_fgamma(real fg) {
+	//		fgamma = fg;
+	//	}
 	OCTOTIGER_EXPORT static void static_init();
-//	OCTOTIGER_EXPORT static real get_fgamma() {
-//		return fgamma;
-//	}
+	//	OCTOTIGER_EXPORT static real get_fgamma() {
+	//		return fgamma;
+	//	}
 	using roche_type = char;
 
 private:
@@ -171,12 +171,12 @@ private:
 	std::vector<roche_type> roche_lobe;
 	std::vector<int> is_coarse;
 	std::vector<int> has_coarse;
-	StateVector Ushad;
-	StateVector U;
-	StateVector U0;
-	StateVector dUdt;
+	GasStateVector Ushad;
+	GasStateVector U;
+	GasStateVector U0;
+	GasStateVector dUdt;
 	std::vector<hydro_state_t<std::vector<Real>>> F;
-	StateVector X;
+	std::vector<std::vector<Real>> X;
 #if defined(__AVX2__) && defined(OCTOTIGER_LEGACY_VC)
 	std::vector<v4sd> G;
 #else
@@ -246,7 +246,7 @@ public:
 	real get_dx() {
 		return dx;
 	}
-	StateVector &get_X() {
+	auto &get_X() {
 		return X;
 	}
 
@@ -267,16 +267,16 @@ public:
 	auto const &data() const {
 		return U;
 	}
-	std::vector<Real> &get_field(integer f) {
+	auto &get_field(integer f) {
 		return U[f];
 	}
-	const std::vector<Real> &get_field(integer f) const {
+	auto const &get_field(integer f) const {
 		return U[f];
 	}
-	void set_field(std::vector<Real> &&data, integer f) {
+	void set_field(auto &&data, integer f) {
 		U[f] = std::move(data);
 	}
-	void set_field(const std::vector<Real> &data, integer f) {
+	void set_field(auto const &data, integer f) {
 		U[f] = data;
 	}
 	analytic_t compute_analytic(real);

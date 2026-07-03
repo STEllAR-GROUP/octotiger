@@ -35,8 +35,8 @@
 #include "octotiger/unitiger/hydro_impl/flux_kernel_interface.hpp"
 #include "octotiger/unitiger/hydro_impl/reconstruct_kernel_interface.hpp"
 // #include "octotiger/unitiger/hydro_impl/hydro_cuda_interface.hpp"
-#include "octotiger/unitiger/hydro_impl/hydro_kernel_interface.hpp"
 #include "octotiger/radiation/RadiationEoS.hpp"
+#include "octotiger/unitiger/hydro_impl/hydro_kernel_interface.hpp"
 
 #if !defined(HPX_COMPUTE_DEVICE_CODE)
 
@@ -1627,17 +1627,7 @@ space_vector grid::center_of_mass() const {
 }
 
 grid::grid(Real _dx, std::array<Real, NDIM> _xmin) :
-	is_coarse(H_N3),
-	has_coarse(H_N3),
-	Ushad(opts().n_fields),
-	U(opts().n_fields),
-	U0(opts().n_fields),
-	dUdt(opts().n_fields),
-	F(NDIM),
-	X(NDIM),
-	G(NGF),
-	is_root(false),
-	is_leaf(true) {
+	is_coarse(H_N3), has_coarse(H_N3), F(NDIM), X(NDIM), G(NGF), is_root(false), is_leaf(true) {
 	dx = _dx;
 	xmin = _xmin;
 	allocate();
@@ -1838,10 +1828,6 @@ void grid::allocate() {
 grid::grid() :
 	is_coarse(H_N3),
 	has_coarse(H_N3),
-	Ushad(opts().n_fields),
-	U(opts().n_fields),
-	U0(opts().n_fields),
-	dUdt(opts().n_fields),
 	F(NDIM),
 	X(NDIM),
 	G(NGF),
@@ -1856,10 +1842,6 @@ grid::grid() :
 grid::grid(const init_func_type &init_func, Real _dx, std::array<Real, NDIM> _xmin) :
 	is_coarse(H_N3),
 	has_coarse(H_N3),
-	Ushad(opts().n_fields),
-	U(opts().n_fields),
-	U0(opts().n_fields),
-	dUdt(opts().n_fields),
 	F(NDIM),
 	X(NDIM),
 	G(NGF),

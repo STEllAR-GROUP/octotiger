@@ -21,6 +21,18 @@
 #include <cmath>
 
 #if !defined(HPX_COMPUTE_DEVICE_CODE)
+void radiationTransportFluxes(RadiationFluxVector &flux, RadiationStateVector const &Ur, std::vector<Real> const &χ, Real dx);
+RadiationStateVector radiationImplicitSource(RadiationStateVector const &Ur, GasStateVector const &Ug, Real dt);
+RadiationStateVector radiationExternalSource(std::vector<std::vector<Real>> x, Real t);
+void radiationApplyFluxes(RadiationStateVector const &U0, RadiationStateVector &U, RadiationFluxVector const &F, Real β, Real h);
+void radiationApplyImplicitSource(RadiationStateVector &Ur, GasStateVector &Ug, RadiationStateVector const &dUdt, Real dt);
+void radiationApplyExternalSource(RadiationStateVector &Ur, RadiationStateVector const &dUdt, Real dt);
+std::pair<std::vector<Real>, std::vector<Real>> radiationOpacities(GasStateVector const &U);
+
+constexpr auto interiorBox = Box<NDIM>(INX);
+constexpr auto exteriorRadBox = interiorBox.pad(RAD_BW);
+constexpr auto exteriorGasBox = interiorBox.pad(H_BW);
+constexpr auto radStride = Vector<int, NDIM>({sqr(RAD_NX), RAD_NX, 1});
 
 void node_server::compute_radiation(Real timestepSize) {
 	try {
@@ -46,9 +58,10 @@ void node_server::compute_radiation(Real timestepSize) {
 		for (int i = 0; i < substepCount; i++) {
 			U0r = Ur;
 			U0g = Ug;
+			auto const [χ, κ] = radiationOpacities(Ug);
 			//		if (my_location.level() == 0) printf("Substep %i\n", i);
 			auto const time = current_time + Real(i) * dt;
-			radiationTransportFluxes(radGrid.flux, Ur, Ug, dx);
+			radiationTransportFluxes(radGrid.flux, Ur, χ, dx);
 			exchange_rad_flux_corrections().get();
 			radiationApplyFluxes(U0r, Ur, radGrid.flux, 1_R, dt / dx);
 			auto const R = radiationImplicitSource(Ur, Ug, dt);
@@ -67,6 +80,19 @@ void node_server::compute_radiation(Real timestepSize) {
 	}
 }
 
+std::pair<std::vector<Real>, std::vector<Real>> radiationOpacities(GasStateVector const &U) {
+	std::vector<Real> χ(RAD_N3), κ(RAD_N3);
+	forEach(exteriorGasBox, [&](auto I) {
+		auto const idx = exteriorGasBox.flatten(I);
+		auto const gas = U(idx);
+		auto const ρ = gas.massDensity();
+		auto const T = gas.temperature();
+		χ[idx] = κ[idx] = ρ * opacityAbsorption(ρ, T);
+		χ[idx] += ρ * opacityScattering(ρ, T);
+	});
+	return std::pair(χ, κ);
+}
+
 auto const ghostCount(auto idx) {
 	int cnt = 0;
 	for (int d = 0; d < NDIM; d++) {
@@ -83,65 +109,64 @@ int radiationSubstepCount(Real dt) {
 	return max(int(ceil(c * dt * inv(cflFactor * minimumCellWidth()))), 1);
 }
 
-void radiationApplyImplicitSource(StateVector &Ur, StateVector &Ug, StateVector const &dUdt, Real dt) {
+void radiationApplyImplicitSource(RadiationStateVector &Ur, GasStateVector &Ug, RadiationStateVector const &dUdt, Real dt) {
 	FpeGuard fpeGuard{};
 	auto const Γ = opts().gas_gamma;
 	auto const c = physcon().c;
 	auto const c2 = sqr(c);
-	constexpr auto intBox = Box<NDIM>(INX);
-	constexpr auto extRadBox = intBox.pad(RAD_BW);
-	constexpr auto extGasBox = intBox.pad(H_BW);
-	forEach(intBox, [&](auto idx) {
-		auto const ir = extRadBox.flatten(idx);
-		auto const ih = extGasBox.flatten(idx);
+	constexpr auto interiorBox = Box<NDIM>(INX);
+	constexpr auto exteriorRadBox = interiorBox.pad(RAD_BW);
+	constexpr auto exteriorGasBox = interiorBox.pad(H_BW);
+	forEach(interiorBox, [&](auto idx) {
+		auto const ir = exteriorRadBox.flatten(idx);
+		auto const ig = exteriorGasBox.flatten(idx);
+		auto const gas = Ug(ig);
+		auto const v = gas.velocity();
+		auto const ρ = gas.massDensity();
+		auto const τ = gas.entropyTracer();
 		auto const de = dUdt[er_i][ir] * dt;
 		auto const dF = Vector<Real, NDIM>({dUdt[fx_i][ir], dUdt[fy_i][ir], dUdt[fz_i][ir]}) * dt;
-		auto const v = gasVelocityAt(Ug, ih);
-		auto const ρ = Ug[rho_i][ih];
 		auto const F = radiationFluxAt(Ur, ir);
 		auto const dS = -dF / c2;
 		auto const dE = de + v.dot(dF / c2);
-		//		printf("loc %lu ih=%i tau=%e egas=%e dE=%e\n", my_location.to_id(), ih, double(Ug[tau_i][ih]), double(Ug[egas_i][ih]),
-		// double(dE));
 		Ur[er_i][ir] += dE;
-		Ug[egas_i][ih] -= dE;
+		Ug[egas_i][ig] -= dE;
 		for (int d = 0; d < NDIM; d++) {
 			Ur[fx_i + d][ir] += dF[d];
-		//	Ug[sx_i + d][ih] -= dF[d] / c2;
+			Ug[sx_i + d][ig] -= dF[d] / c2;
 		}
-		auto &τ = Ug[tau_i][ih];
-		auto const e = pow(expectPositive(τ), Γ);
-		τ = pow(expectPositive(e - de), 1_R / Γ);
-		Ug[tau_i][ih] = expectPositive(gasEntropyUpdateAt(Ug, ih));
+		auto const e0 = std::pow(τ, Γ);
+		auto const e1 = expectPositive(e0 - de);
+		Ug[tau_i][ig] = pow(e1, 1_R / Γ);
+		Ug[tau_i][ig] = gas.entropyUpdate();
 	});
 }
 
-void radiationApplyExternalSource(StateVector &U, StateVector const &dUdt, Real dt) {
+void radiationApplyExternalSource(RadiationStateVector &U, RadiationStateVector const &dUdt, Real dt) {
 	auto const Γ = opts().gas_gamma;
 	auto const c = physcon().c;
 	auto const c2 = sqr(c);
-	constexpr auto intBox = Box<NDIM>(INX);
-	constexpr auto extRadBox = intBox.pad(RAD_BW);
-	constexpr auto extGasBox = intBox.pad(H_BW);
+	constexpr auto interiorBox = Box<NDIM>(INX);
+	constexpr auto exteriorRadBox = interiorBox.pad(RAD_BW);
+	constexpr auto exteriorGasBox = interiorBox.pad(H_BW);
 	for (int k = 0; k < NRF; k++) {
 		auto const &dUk = dUdt[k];
-		forEach(extRadBox, [&](auto idx) {
-			auto const ir = extRadBox.flatten(idx);
+		forEach(exteriorRadBox, [&](auto idx) {
+			auto const ir = exteriorRadBox.flatten(idx);
 			U[k][ir] += dUk[ir] * dt;
 		});
 	}
 }
 
-void radiationApplyFluxes(StateVector const &U0, StateVector &U, std::vector<StateVector> const &F, Real β, Real h) {
-	constexpr auto intBox = Box<NDIM>(INX);
-	constexpr auto extBox = intBox.pad(RAD_BW);
-	constexpr auto stride = Vector<int, NDIM>({sqr(RAD_NX), RAD_NX, 1});
-	forEach(intBox, [&](auto idx) {
+void radiationApplyFluxes(RadiationStateVector const &U0, RadiationStateVector &U, RadiationFluxVector const &F, Real β, Real h) {
+	constexpr auto interiorBox = Box<NDIM>(INX);
+	constexpr auto extBox = interiorBox.pad(RAD_BW);
+	forEach(interiorBox, [&](auto idx) {
 		auto const ir = extBox.flatten(idx);
 		for (int f = 0; f < NRF; f++) {
 			auto dU = 0_R;
 			for (int d = 0; d < NDIM; d++) {
-				auto const Fp = F[d][f][ir + stride[d]];
+				auto const Fp = F[d][f][ir + radStride[d]];
 				auto const Fm = F[d][f][ir];
 				dU -= (Fp - Fm) * h;
 			}
@@ -150,137 +175,208 @@ void radiationApplyFluxes(StateVector const &U0, StateVector &U, std::vector<Sta
 	});
 }
 
-Vector<Real, NDIM> minmod(Vector<Real, NDIM> const &a, Vector<Real, NDIM> const &b) {
-	Vector<Real, NDIM> c;
-	for (int d = 0; d < NDIM; d++) {
-		c[d] = minmod(a[d], b[d]);
-	}
-	return c;
-}
-
-auto minmodTheta(auto const &a, auto const &b, Real θ) {
-	return minmod(0.5_R * (a + b), θ * minmod(a, b));
-}
-
 enum class Riemann : int { LF, HLL };
 constexpr Riemann riemann = Riemann::HLL;
 
-void radiationTransportFluxes(std::vector<StateVector> &flux, StateVector const &Ur, StateVector const &Ug, Real dx) {
+// StateVector radiationConservedToPrimitive(StateVector const &U) {
+//	StateVector V;
+// }
+//
+
+std::array<RadiationStateVector, NDIM> radiationModalReconstruction(RadiationStateVector const &U) {
+	using std::min;
+	using std::sqrt;
+	constexpr auto theta = 1.5_R;
+	std::array<RadiationStateVector, NDIM> dUdx;
+	forEach(interiorBox.pad(1), [&](auto I) {
+		auto const idx = exteriorRadBox.flatten(I);
+		auto const u0 = U.get(idx);
+		Vector<ConservedRadiationState, NDIM> dudx;
+		for (int dim = 0; dim < NDIM; dim++) {
+			auto const dn = radStride[dim];
+			auto const up = U.get(idx + dn);
+			auto const um = U.get(idx - dn);
+			dudx[dim] = 0.5_R * minmod(up - u0, u0 - um, theta);
+		}
+		auto const [E, F] = u0.split();
+		auto θ = 1_R;
+		for (int ci = 0; ci < 8; ci++) {
+			Vector<int, NDIM> sign;
+			for (int dim = 0; dim < NDIM; dim++) {
+				sign[dim] = (((ci >> dim) & 1) << 1) - 1;
+			}
+			ConservedRadiationState dU = 0_R;
+			for (int dim = 0; dim < NDIM; dim++) {
+				dU += sign[dim] * dudx[dim];
+			}
+			auto const [dE, dF] = dU.split();
+			auto const a = sqr(dE) - dF.dot(dF);
+			if (a < 0_R) {
+				auto const b = 2_R * (E * dE - F.dot(dF));
+				auto const c = sqr(E) - F.dot(F);
+				auto const d2 = expectNonNegative(sqr(b) - 4_R * a * c);
+				auto const d = std::sqrt(d2);
+				auto const i2a = 0.5_R / a;
+				auto const θ1 = i2a * (d - b);
+				auto const θ2 = i2a * (d + b);
+				if (θ1 >= 0 && θ1 < 1_R) θ = min(θ1, θ);
+				if (θ2 >= 0 && θ2 < 1_R) θ = min(θ2, θ);
+			}
+			for (int dim = 0; dim < NDIM; dim++) {
+				dudx[dim] *= θ;
+			}
+		}
+		for (int dim = 0; dim < NDIM; dim++) {
+			dUdx[dim].set(idx, dudx[dim]);
+		}
+	});
+	return dUdx;
+}
+
+void radiationTransportFluxes(RadiationFluxVector &flux, RadiationStateVector const &U, std::vector<Real> const &χ, Real dx) {
+	FpeGuard fpeGuard{};
 	using std::abs;
 	using std::max;
 	using std::min;
 	using std::sqrt;
-	FpeGuard fpeGuard{};
-	constexpr auto stride = Vector<int, NDIM>({sqr(RAD_NX), RAD_NX, 1});
 	auto const c = physcon().c;
 	auto const c2 = sqr(c);
 	auto const ic = inv(c);
-	std::vector<Real> ρχ(RAD_N3);
-	std::vector<Real> E(RAD_N3), H(RAD_N3), Hₚ(RAD_N3), Hₘ(RAD_N3);
-	std::vector<Vector<Real, NDIM>> F(RAD_N3), β(RAD_N3), βₚ(RAD_N3), βₘ(RAD_N3);
-	constexpr auto intBox = Box<NDIM>(INX);
-	constexpr auto extRadBox = intBox.pad(RAD_BW);
-	constexpr auto extGasBox = intBox.pad(H_BW);
-	// Α Β Γ Δ Ε Ζ Η Θ Ι Κ Λ Μ Ν Ξ Ο Π Ρ Σ Τ Υ Φ Χ Ψ Ω
-	// α β γ δ ε ζ η θ ι κ λ μ ν ξ ο π ρ σ ς τ υ φ χ ψ ω
-	auto const conservedFlux = [](Real H, Vector<Real, NDIM> const &β, int k) {
-		auto const fE = H * β[k];
-		auto fF = H * β * β[k];
-		fF[k] += 0.25_R * (1_R - β.dot(β)) * H;
-		return std::pair<Real, Vector<Real, NDIM>>(fE, fF);
-	};
-	forEach(intBox.pad(2), [&](auto idx) {
-		auto const ir = extRadBox.flatten(idx);
-		auto const ig = extGasBox.flatten(idx);
-		E[ir] = expectPositive(Ur[er_i][ir]);
-		auto const ρ = expectPositive(Ug[rho_i][ig]);
-		auto const T = gasTemperatureAt(Ug, ig);
-		auto const κ = radiationAbsorption(ρ, T);
-		auto const σ = radiationScattering(ρ, T);
-		ρχ[ir] = ρ * (κ + σ);
-		for (auto d = 0; d < NDIM; d++) {
-			F[ir][d] = Ur[fx_i + d][ir] * ic;
-		}
-		auto const E2 = sqr(E[ir]);
-		auto const F2 = expectRange(0_R, F[ir].dot(F[ir]), E2);
-		H[ir] = expectPositive((1_R / 3_R) * (2_R * E[ir] + sqrt(E2 - 3_R * (F2 - E2))));
-		β[ir] = F[ir] / H[ir];
-	});
-	for (auto dir = 0; dir < NDIM; dir++) {
-		auto const dn = stride[dir];
-		forEach(intBox.pad(dir, 1), [&](auto idx) {
-			// if (ghostCount(idx) > 1) return;
-			auto const ir = extRadBox.flatten(idx);
-			auto const dH = 0.5_R * minmodTheta(H[ir + dn] - H[ir], H[ir] - H[ir - dn], 1_R);
-			auto dβ = 0.5_R * minmodTheta(β[ir + dn] - β[ir], β[ir] - β[ir - dn], 1_R);
-			auto const dβ2 = dβ.dot(dβ);
-			auto const βdβ = β[ir].dot(dβ);
-			auto const β2 = expectNonNegative(β[ir].dot(β[ir]));
-			auto const δ = max(0_R, almostOne - β2);
-			auto θ = expectNonNegative(δ / (tiny_R + (sqrt(sqr(βdβ) + δ * dβ2) + abs(βdβ))));
-			θ = max(0_R, min(1_R, θ));
-			Hₚ[ir] = H[ir] + θ * dH;
-			Hₘ[ir] = H[ir] - θ * dH;
-			βₚ[ir] = β[ir] + θ * dβ;
-			βₘ[ir] = β[ir] - θ * dβ;
-		});
-		forEach(intBox.pad(dir, std::pair(0, 1)), [&](auto idx) {
-			//	if (ghostCount(idx) > 1) return;
-			auto const ir = extRadBox.flatten(idx);
-			auto const Hᵣ = Hₘ[ir];
-			auto const Hₗ = Hₚ[ir - dn];
-			auto const βᵣ = βₘ[ir];
-			auto const βₗ = βₚ[ir - dn];
-			auto const τᵣ = ρχ[ir] * dx;
-			auto const τₗ = ρχ[ir - dn] * dx;
-			auto const λₐ = (τᵣ + τₗ) / (τᵣ + τₗ + 1.5_R * τᵣ * τₗ + tiny_R);
-			auto const τ = max(tiny_R, ρχ[ir - dn]) * dx;
-			auto const β2ᵣ = expectRange(0_R, βᵣ.dot(βᵣ), 1_R);
-			auto const β2ₗ = expectRange(0_R, βₗ.dot(βₗ), 1_R);
-			auto const [flxEₗ, flxFₗ] = conservedFlux(Hₗ, βₗ, dir);
-			auto const [flxEᵣ, flxFᵣ] = conservedFlux(Hᵣ, βᵣ, dir);
-			auto const Fᵣ = βᵣ * Hᵣ;
-			auto const Fₗ = βₗ * Hₗ;
-			auto const Eᵣ = (0.75_R + 0.25_R * β2ᵣ) * Hᵣ;
-			auto const Eₗ = (0.75_R + 0.25_R * β2ₗ) * Hₗ;
-			auto const Xᵣ = sqrt((1_R - β2ᵣ) * (3_R - β2ᵣ - 2_R * sqr(βᵣ[dir])));
-			auto const Xₗ = sqrt((1_R - β2ₗ) * (3_R - β2ₗ - 2_R * sqr(βₗ[dir])));
-			Real flxE;
-			Vector<Real, NDIM> flxF;
-			if constexpr (riemann == Riemann::LF) {
-				auto const λᵣ = (2_R * abs(βᵣ[dir]) + Xᵣ) / (3_R - β2ᵣ);
-				auto const λₗ = (2_R * abs(βₗ[dir]) + Xₗ) / (3_R - β2ₗ);
-				auto const λ = min(λₐ, max(λₗ, λᵣ));
-				flxE = (flxEₗ + flxEᵣ - λ * (Eᵣ - Eₗ)) * 0.5_R;
-				flxF = (flxFₗ + flxFᵣ - λ * (Fᵣ - Fₗ)) * 0.5_R;
-			} else if constexpr (riemann == Riemann::HLL) {
-				auto const λₚᵣ = (2_R * βᵣ[dir] + Xᵣ) / (3_R - β2ᵣ);
-				auto const λₘᵣ = (2_R * βᵣ[dir] - Xᵣ) / (3_R - β2ᵣ);
-				auto const λₚₗ = (2_R * βₗ[dir] + Xₗ) / (3_R - β2ₗ);
-				auto const λₘₗ = (2_R * βₗ[dir] - Xₗ) / (3_R - β2ₗ);
-				auto λᵣ = max(0_R, max(λₚᵣ, λₚₗ));
-				auto λₗ = min(0_R, min(λₘᵣ, λₘₗ));
-				λᵣ = min(+λₐ, λᵣ);
-				λₗ = max(-λₐ, λₗ);
-				auto const iλ = inv(λᵣ - λₗ);
-				flxE = (λᵣ * flxEₗ - λₗ * flxEᵣ + (λᵣ * λₗ * (Eᵣ - Eₗ))) * iλ;
-				flxF = (λᵣ * flxFₗ - λₗ * flxFᵣ + (λᵣ * λₗ * (Fᵣ - Fₗ))) * iλ;
-			} else {
-				assert(false);
-			}
-			flux[dir][er_i][ir] = c * flxE;
-			for (auto d = 0; d < NDIM; d++) {
-				flux[dir][fx_i + d][ir] = c2 * flxF[d];
-			}
+	auto const dU_dx = radiationModalReconstruction(U);
+	for (int dir = 0; dir < NDIM; dir++) {
+		auto const dn = radStride[dir];
+		forEach(interiorBox.pad(dir, std::pair(0, 1)), [&](auto I) {
+			auto const idx = exteriorRadBox.flatten(I);
+			auto const Ur = ConservedRadiationState(U.get(idx) - dU_dx[dir].get(idx));
+			auto const Ul = ConservedRadiationState(U.get(idx - dn) + dU_dx[dir].get(idx - dn));
+			auto const Vr = radiationConservedToPrimitive(Ur);
+			auto const Vl = radiationConservedToPrimitive(Ul);
+			auto const [Hr, βr] = Vr.split();
+			auto const [Hl, βl] = Vl.split();
+			auto const β2r = expectRange(0_R, βr.dot(βr), 1_R);
+			auto const β2l = expectRange(0_R, βl.dot(βl), 1_R);
+			auto const Xr = sqrt((1_R - β2r) * (3_R - β2r - 2_R * sqr(βr[dir])));
+			auto const Xl = sqrt((1_R - β2l) * (3_R - β2l - 2_R * sqr(βl[dir])));
+			auto const ξr = 1_R / (3_R - β2r);
+			auto const ξl = 1_R / (3_R - β2l);
+			auto const λdr = +1_R / (1_R + 1.5_R * χ[idx] * dx);
+			auto const λdl = -1_R / (1_R + 1.5_R * χ[idx - dn] * dx);
+			auto const λpr = ξr * (2_R * βr[dir] + Xr);
+			auto const λmr = ξr * (2_R * βr[dir] - Xr) / (3_R - β2r);
+			auto const λpl = ξl * (2_R * βl[dir] + Xl) / (3_R - β2l);
+			auto const λml = ξl * (2_R * βl[dir] - Xl) / (3_R - β2l);
+			auto const ar = min(λdr, expectNonNegative(max(λpr, λpl)));
+			auto const al = max(λdl, expectNonPositive(min(λmr, λml)));
+			auto const Fr = radiationConservedFlux(Vr, dir);
+			auto const Fl = radiationConservedFlux(Vl, dir);
+			auto const F = c * (ar * Fr - al * Fl + ar * al * (Ul - Ur)) / expectPositive(ar - al);
+			flux[dir].set(idx, ConservedRadiationState(F));
 		});
 	}
+
+	//	std::vector<Real> ρχ(RAD_N3);
+	//	std::vector<Real> E(RAD_N3), H(RAD_N3), Hₚ(RAD_N3), Hₘ(RAD_N3);
+	//	std::vector<Vector<Real, NDIM>> F(RAD_N3), β(RAD_N3), βₚ(RAD_N3), βₘ(RAD_N3);
+	// Α Β Γ Δ Ε Ζ Η Θ Ι Κ Λ Μ Ν Ξ Ο Π Ρ Σ Τ Υ Φ Χ Ψ Ω
+	// α β γ δ ε ζ η θ ι κ λ μ ν ξ ο π ρ σ ς τ υ φ χ ψ ω
+	//	auto const conservedFlux = [](Real H, Vector<Real, NDIM> const &β, int k) {
+	//		auto const fE = H * β[k];
+	//		auto fF = H * β * β[k];
+	//		fF[k] += 0.25_R * (1_R - β.dot(β)) * H;
+	//		return std::pair<Real, Vector<Real, NDIM>>(fE, fF);
+	//	};
+	//	forEach(interiorBox.pad(2), [&](auto idx) {
+	//		auto const ir = exteriorRadBox.flatten(idx);
+	//		auto const ig = exteriorGasBox.flatten(idx);
+	//		auto const gas = Ug(ig);
+	//		E[ir] = expectPositive(Ur[er_i][ir]);
+	//		auto const ρ = gas.massDensity();
+	//		auto const T = gas.temperature();
+	//		auto const χ = opacityTotal(ρ, T);
+	//		ρχ[ir] = ρ * χ;
+	//		for (auto d = 0; d < NDIM; d++) {
+	//			F[ir][d] = Ur[fx_i + d][ir] * ic;
+	//		}
+	//		auto const E2 = sqr(E[ir]);
+	//		auto const F2 = expectRange(0_R, F[ir].dot(F[ir]), E2);
+	//		H[ir] = expectPositive((1_R / 3_R) * (2_R * E[ir] + sqrt(E2 - 3_R * (F2 - E2))));
+	//		β[ir] = F[ir] / H[ir];
+	//	});
+	//	for (auto dir = 0; dir < NDIM; dir++) {
+	//		auto const dn = stride[dir];
+	//		forEach(interiorBox.pad(dir, 1), [&](auto idx) {
+	//			// if (ghostCount(idx) > 1) return;
+	//			auto const ir = exteriorRadBox.flatten(idx);
+	//			auto const dH = 0.5_R * minmodTheta(H[ir + dn] - H[ir], H[ir] - H[ir - dn], 1_R);
+	//			auto dβ = 0.5_R * minmodTheta(β[ir + dn] - β[ir], β[ir] - β[ir - dn], 1_R);
+	//			auto const dβ2 = dβ.dot(dβ);
+	//			auto const βdβ = β[ir].dot(dβ);
+	//			auto const β2 = expectNonNegative(β[ir].dot(β[ir]));
+	//			auto const δ = max(0_R, almostOne - β2);
+	//			auto θ = expectNonNegative(δ / (tiny_R + (sqrt(sqr(βdβ) + δ * dβ2) + abs(βdβ))));
+	//			θ = max(0_R, min(1_R, θ));
+	//			Hₚ[ir] = H[ir] + θ * dH;
+	//			Hₘ[ir] = H[ir] - θ * dH;
+	//			βₚ[ir] = β[ir] + θ * dβ;
+	//			βₘ[ir] = β[ir] - θ * dβ;
+	//		});
+	//		forEach(interiorBox.pad(dir, std::pair(0, 1)), [&](auto idx) {
+	//			//	if (ghostCount(idx) > 1) return;
+	//			auto const ir = exteriorRadBox.flatten(idx);
+	//			auto const Hᵣ = Hₘ[ir];
+	//			auto const Hₗ = Hₚ[ir - dn];
+	//			auto const βᵣ = βₘ[ir];
+	//			auto const βₗ = βₚ[ir - dn];
+	//			auto const τᵣ = ρχ[ir] * dx;
+	//			auto const τₗ = ρχ[ir - dn] * dx;
+	//			auto const λₐ = (τᵣ + τₗ) / (τᵣ + τₗ + 1.5_R * τᵣ * τₗ + tiny_R);
+	//			auto const τ = max(tiny_R, ρχ[ir - dn]) * dx;
+	//			auto const β2ᵣ = expectRange(0_R, βᵣ.dot(βᵣ), 1_R);
+	//			auto const β2ₗ = expectRange(0_R, βₗ.dot(βₗ), 1_R);
+	//			auto const [flxEₗ, flxFₗ] = conservedFlux(Hₗ, βₗ, dir);
+	//			auto const [flxEᵣ, flxFᵣ] = conservedFlux(Hᵣ, βᵣ, dir);
+	//			auto const Fᵣ = βᵣ * Hᵣ;
+	//			auto const Fₗ = βₗ * Hₗ;
+	//			auto const Eᵣ = (0.75_R + 0.25_R * β2ᵣ) * Hᵣ;
+	//			auto const Eₗ = (0.75_R + 0.25_R * β2ₗ) * Hₗ;
+	//			auto const Xᵣ = sqrt((1_R - β2ᵣ) * (3_R - β2ᵣ - 2_R * sqr(βᵣ[dir])));
+	//			auto const Xₗ = sqrt((1_R - β2ₗ) * (3_R - β2ₗ - 2_R * sqr(βₗ[dir])));
+	//			Real flxE;
+	//			Vector<Real, NDIM> flxF;
+	//			if constexpr (riemann == Riemann::LF) {
+	//				auto const λᵣ = (2_R * abs(βᵣ[dir]) + Xᵣ) / (3_R - β2ᵣ);
+	//				auto const λₗ = (2_R * abs(βₗ[dir]) + Xₗ) / (3_R - β2ₗ);
+	//				auto const λ = min(λₐ, max(λₗ, λᵣ));
+	//				flxE = (flxEₗ + flxEᵣ - λ * (Eᵣ - Eₗ)) * 0.5_R;
+	//				flxF = (flxFₗ + flxFᵣ - λ * (Fᵣ - Fₗ)) * 0.5_R;
+	//			} else if constexpr (riemann == Riemann::HLL) {
+	//				auto const λₚᵣ = (2_R * βᵣ[dir] + Xᵣ) / (3_R - β2ᵣ);
+	//				auto const λₘᵣ = (2_R * βᵣ[dir] - Xᵣ) / (3_R - β2ᵣ);
+	//				auto const λₚₗ = (2_R * βₗ[dir] + Xₗ) / (3_R - β2ₗ);
+	//				auto const λₘₗ = (2_R * βₗ[dir] - Xₗ) / (3_R - β2ₗ);
+	//				auto λᵣ = max(0_R, max(λₚᵣ, λₚₗ));
+	//				auto λₗ = min(0_R, min(λₘᵣ, λₘₗ));
+	//				λᵣ = min(+λₐ, λᵣ);
+	//				λₗ = max(-λₐ, λₗ);
+	//				auto const iλ = inv(λᵣ - λₗ);
+	//				flxE = (λᵣ * flxEₗ - λₗ * flxEᵣ + (λᵣ * λₗ * (Eᵣ - Eₗ))) * iλ;
+	//				flxF = (λᵣ * flxFₗ - λₗ * flxFᵣ + (λᵣ * λₗ * (Fᵣ - Fₗ))) * iλ;
+	//			} else {
+	//				assert(false);
+	//			}
+	//			flux[dir][er_i][ir] = c * flxE;
+	//			for (auto d = 0; d < NDIM; d++) {
+	//				flux[dir][fx_i + d][ir] = c2 * flxF[d];
+	//			}
+	//		});
+	//	}
 }
 
-StateVector radiationExternalSource(std::vector<std::vector<Real>> x, Real t) {
+RadiationStateVector radiationExternalSource(std::vector<std::vector<Real>> x, Real t) {
 	auto const problemType = opts().problem;
-	using Source = std::function<FieldVector(Real, Real, Real, Real)>;
+	using Source = std::function<std::vector<Real>(Real, Real, Real, Real)>;
 	Source S{};
-	StateVector dU(NRF);
+	RadiationStateVector dU;
 	switch (problemType) {
 	case RADIATION_EQUILIBRIUM_SPHERE:
 		S = static_cast<Source>(radiationSourceEquilibriumSphere);
@@ -290,8 +386,8 @@ StateVector radiationExternalSource(std::vector<std::vector<Real>> x, Real t) {
 		break;
 	}
 	if (S) {
-		constexpr auto intBox = Box<NDIM>(INX);
-		constexpr auto extBox = intBox.pad(RAD_BW);
+		constexpr auto interiorBox = Box<NDIM>(INX);
+		constexpr auto extBox = interiorBox.pad(RAD_BW);
 		for (auto &u : dU) {
 			u.resize(RAD_N3, 0_R);
 		}
@@ -315,7 +411,7 @@ StateVector radiationExternalSource(std::vector<std::vector<Real>> x, Real t) {
 // ∞ ∂ ∇ ∆ ∑ ∏ ∫ √ ≈ ≠ ≤ ≥ ± × · → ← ↔ ħ ℏ Å °	⁰ ¹ ² ³ ⁴ ⁵ ⁶ ⁷ ⁸ ⁹ ⁻ ⁼ ⁽ ⁾
 // ₊ ₋ ₌ ₍ ₎
 
-StateVector radiationImplicitSource(StateVector const &Ur, StateVector const &Ug, Real dt) {
+RadiationStateVector radiationImplicitSource(RadiationStateVector const &Ur, GasStateVector const &Ug, Real dt) {
 	auto const quarticSolve = [](auto a, auto b, auto c) {
 		using std::abs;
 		using std::max;
@@ -342,9 +438,6 @@ StateVector radiationImplicitSource(StateVector const &Ur, StateVector const &Ug
 		throw std::runtime_error(print2string("quarticSolve failed to converge for a = %e b = %e c = %e\n", a, b, c));
 		return 0_R;
 	};
-	// Morel O(v/c) mixed-frame momentum source:
-	// dE/dt + (χ - 2 κ) * c * β · (F - (4/3) β E) + c κ (E - B) = 0
-	// dF/dt + c χ (F - (4/3) β E) = 0
 	using std::abs;
 	using std::max;
 	using std::min;
@@ -356,71 +449,38 @@ StateVector radiationImplicitSource(StateVector const &Ur, StateVector const &Ug
 	auto const amu = physcon().mh;
 	auto const aR = 4_R * physcon().sigma / physcon().c;
 	auto const Γ = opts().gas_gamma;
-	constexpr auto intBox = Box<NDIM>(INX);
-	constexpr auto extRadBox = intBox.pad(RAD_BW);
-	constexpr auto extGasBox = intBox.pad(H_BW);
-	StateVector dUr(NRF);
-	for (auto &du : dUr) {
-		du.resize(RAD_N3, 0_R);
-	}
+	constexpr auto interiorBox = Box<NDIM>(INX);
+	constexpr auto exteriorRadBox = interiorBox.pad(RAD_BW);
+	constexpr auto exteriorGasBox = interiorBox.pad(H_BW);
+	RadiationStateVector dU{};
 	auto const tol = std::sqrt(eps_R);
-	forEach(intBox, [&](auto idx) {
-		// if (ghostCount(idx) > 1) return;
-		auto const ir = extRadBox.flatten(idx);
-		auto const ih = extGasBox.flatten(idx);
-		auto const ρ = expectPositive(Ug[rho_i][ih]);
-		auto const T = gasTemperatureAt(Ug, ih);
-		auto const S = gasMomentumAt(Ug, ih);
-		auto const e_com = ρ * gasSpecificEnergyAt(Ug, ih);
-		auto E_lab = expectNonNegative(Ur[er_i][ir]);
-		auto const F_lab = radiationFluxAt(Ur, ir);
-		auto const κ = radiationAbsorption(ρ, T);
-		auto const σ = radiationScattering(ρ, T);
-		auto const B = aR * sqr(sqr(T));
-		auto const β = S / (ρ * c);
-		auto const λ = c * ρ * κ * dt;
-		auto E_com = E_lab - 2_R * β.dot(F_lab / c);
-		auto F_com = F_lab - (4_R / 3_R) * c * β * E_lab;
-		auto const Etot = E_com + e_com;
-		auto const x = quarticSolve(λ * B, e_com * (1_R + λ), λ * E_com + (1_R + λ) * e_com);
-		auto const dE_com = e_com * (1_R - x);
-		E_com = E_com + dE_com;
-		F_com /= 1_R + c * ρ * (σ + κ) * dt;
-		E_lab = (E_com + 2_R * β.dot(F_com / c)) / expectPositive(1_R - (8_R / 3_R) * β.dot(β));
-		auto const dF = F_com + (4_R / 3_R) * c * β * E_lab - F_lab;
-		dUr[er_i][ir] = dE_com / dt;
-		for (int d = 0; d < NDIM; d++) {
-			dUr[fx_i + d][ir] = dF[d] / dt;
-		}
+	forEach(interiorBox, [&](auto I) {
+		auto const radIdx = exteriorRadBox.flatten(I);
+		auto const gasIdx = exteriorGasBox.flatten(I);
+		auto const Ugas = Ug(gasIdx);
+		auto const U0 = Ur.get(radIdx);
+		auto const ρ = Ugas.massDensity();
+		auto const T = Ugas.temperature();
+		auto const S = Ugas.momentumDensity();
+		auto const κ = ρ * opacityAbsorption(ρ, T);
+		auto const χ = ρ * opacityTotal(ρ, T);
+		auto const βgas = S / (ρ * c);
+		auto const e = Ugas.internalEnergyDensity();
+		auto const [E, F] = radiationLab2Comoving(U0, βgas).split();
+		auto const Bo = aR * sqr(sqr(T));
+		auto const λa = c * κ * dt;
+		auto const λt = c * χ * dt;
+		auto const qa = λa * Bo;
+		auto const qb = e * (1_R + λa);
+		auto const qc = λa * (E + e) + e;
+		auto const x = quarticSolve(qa, qb, qc);
+		auto const dE = (1_R - expectNonNegative(x)) * e;
+		auto const dF = λt / (1_R + λt) * F;
+		auto const U1 = radiationComoving2Lab(ConservedRadiationState(E + dE, F + dF), βgas);
+		dU.set(radIdx, (U1 - U0) / dt);
 	});
-	return dUr;
+	return dU;
 }
-
-// void rad_grid::computeMaterialProperties(const StateVector &hydro) {
-//	auto const dualEnergySwitch = opts().dual_energy_sw1;
-//	auto const speciesCount = opts().n_species;
-//	auto const &atomicMasses = opts().atomic_mass;
-//	auto const &atomicNumbers = opts().atomic_number;
-//	auto const gamma = opts().gas_gamma;
-//	meanMolecularWeight.resize(RAD_N3);
-//	extinctionCoefficient.resize(RAD_N3);
-//	absorptionCoefficient.resize(RAD_N3);
-//	for (int i = 0; i != RAD_NX; ++i) {
-//		for (int j = 0; j != RAD_NX; ++j) {
-//			for (int k = 0; k != RAD_NX; ++k) {
-//				const int d = H_BW - RAD_BW;
-//				const int ir = rindex(i, j, k);
-//				const int ih = hindex(i + d, j + d, k + d);
-//				meanMolecularWeight[ir] = gasMeanMolecularWeight(gasSpeciesAt(hydro, ih));
-//				auto const ρ = hydro[rho_i][ih];
-//				ASSERT_POSITIVE(ρ);
-//				auto const T = gasTemperatureAt(hydro, ih);
-//				absorptionCoefficient[ir] = radiationAbsorptionCoefficient(ρ, T);
-//				extinctionCoefficient[ir] = radiationExtinctionCoefficient(ρ, T);
-//			}
-//		}
-//	}
-// }
 
 std::unordered_map<std::string, int> rad_grid::str_to_index;
 std::unordered_map<int, std::string> rad_grid::index_to_str;
@@ -550,7 +610,7 @@ void rad_grid::set_dx(Real _dx) {
 	dx = _dx;
 }
 
-void rad_grid::set_X(const StateVector &x) {
+void rad_grid::set_X(const std::vector<std::vector<Real>> &x) {
 	X.resize(NDIM);
 	for (int d = 0; d != NDIM; ++d) {
 		X[d].resize(RAD_N3);
@@ -569,10 +629,8 @@ void rad_grid::set_X(const StateVector &x) {
 }
 
 // ΑαΒβΔδΕεΦφΓγΗηΙιΚκΛλΜμΝνΟοΠπΡρΣσςΤτΥυΧχΨψΩωΖζΘθΞξ
-Real radiationHydroSignalSpeed(StateVector const &Ur, StateVector const &Ug, Real dx) {
-	using namespace std;
-	constexpr auto Γr = 4_R / 3_R;
-	auto const Γg = opts().gas_gamma;
+Real radiationHydroSignalSpeed(RadiationStateVector const &Ur, GasStateVector const &Ug, Real dx) {
+	auto const Γ = opts().gas_gamma;
 	auto λmax = 0_R;
 	auto const τmax = 1 * log(huge_R);
 	auto const τo = sqrt(eps_R);
@@ -581,46 +639,26 @@ Real radiationHydroSignalSpeed(StateVector const &Ur, StateVector const &Ug, Rea
 			for (int zi = RAD_BW; zi != RAD_NX - RAD_BW; ++zi) {
 				const int D = H_BW - RAD_BW;
 				const int ir = rindex(xi, yi, zi);
-				const int ih = hindex(xi + D, yi + D, zi + D);
-				auto const ρ = expectPositive(Ug[rho_i][ih]);
-				auto const T = gasTemperatureAt(Ug, ih);
-				auto const E = expectPositive(Ur[er_i][ir]);
-				auto const κ = radiationAbsorption(ρ, T);
-				auto const σ = radiationScattering(ρ, T);
-				auto const Pg = gasPressureAt(Ug, ih);
-				auto const Pr = (Γr - 1_R) * E;
-				auto const τ = min(ρ * (σ + κ) * dx, τmax);
-				auto const α = (τ > τo) ? (1_R - exp(-τ)) : (τ * (1_R + τ));
-				auto const λ = sqrt((Γg * Pg + α * Γr * Pr) / ρ);
-				λmax = max(λmax, α * λ);
+				const int ig = hindex(xi, yi, zi);
+				auto const gas = Ug(ig);
+				auto const ρ = gas.massDensity();
+				auto const T = gas.temperature();
+				auto const κ = opacityAbsorption(ρ, T);
+				auto const σ = opacityScattering(ρ, T);
+				auto const Er = expectPositive(Ur[er_i][ir]);
+				auto const τ = std::min(ρ * (σ + κ) * dx, τmax);
+				auto const α = (τ > τo) ? (1_R - std::exp(-τ)) : (τ * (1_R + τ));
+				auto const λgas = gas.soundSpeed();
+				auto const λrad = std::sqrt((4_R / 9_R) * Er / ρ);
+				auto const λ = std::sqrt(sqr(λgas) + α * sqr(λrad));
+				λmax = std::max(λmax, α * λ);
 			}
 		}
 	}
 	return λmax;
 }
 
-template <class T>
-T minmod(T a, T b) {
-	return (std::copysign(0.5, a) + std::copysign(0.5, b)) * std::min(std::abs(a), std::abs(b));
-}
-
 void rad_grid::allocate() {
-	rad_grid::dx = dx;
-	U.resize(NRF);
-	U0.resize(NRF);
-	Ushad.resize(NRF);
-	flux.resize(NDIM);
-	for (int d = 0; d < NDIM; d++) {
-		flux[d].resize(NRF);
-	}
-	for (int f = 0; f != NRF; ++f) {
-		U0[f].resize(RAD_N3);
-		U[f].resize(RAD_N3);
-		Ushad[f].resize(RAD_N3);
-		for (int d = 0; d != NDIM; ++d) {
-			flux[d][f].resize(RAD_N3);
-		}
-	}
 }
 
 void rad_grid::store() {
@@ -1167,7 +1205,7 @@ void rad_grid::complete_rad_amr_boundary() {
 	}
 
 	const auto limiter = [](double a, double b) {
-		return minmod_theta(a, b, 64. / 37.);
+		return minmod(a, b, 64. / 37.);
 	};
 
 	for (int f = 0; f < NRF; f++) {

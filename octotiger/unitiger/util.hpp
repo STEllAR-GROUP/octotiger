@@ -46,12 +46,6 @@ static inline void make_monotone(T &ql, T q0, T &qr) {
 }
 
 
-static inline safe_real minmod(safe_real a, safe_real b) {
-	return (std::copysign(0.5, a) + std::copysign(0.5, b)) * std::min(std::abs(a), std::abs(b));
-}
 
-static inline safe_real minmod_theta(safe_real a, safe_real b, safe_real c) {
-	return minmod(c * minmod(a, b), 0.5 * (a + b));
-}
 
 #endif /* OCTOTIGER_UNITIGER_UTIL_HPP_ */

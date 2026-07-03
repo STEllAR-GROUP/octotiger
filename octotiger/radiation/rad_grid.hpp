@@ -25,14 +25,10 @@
 
 inline static auto almostOne = 1_R - 4_R * std::sqrt(eps_R);
 
+using RadiationFluxVector = std::array<RadiationStateVector, NDIM>;
+
 int radiationSubstepCount(Real dt);
-Real radiationHydroSignalSpeed(StateVector const &Ur, StateVector const &Ug, Real dx);
-void radiationTransportFluxes(std::vector<StateVector>& flux, StateVector const &Ur, StateVector const &Ug, Real dx);
-StateVector radiationImplicitSource(StateVector const &Ur, StateVector const &Ug, Real dt);
-StateVector radiationExternalSource(std::vector<std::vector<Real>> x, Real t);
-void radiationApplyFluxes(StateVector const &U0, StateVector& U, std::vector<StateVector> const &F, Real β, Real h);
-void radiationApplyImplicitSource(StateVector &Ur, StateVector &Ug, StateVector const &dUdt, Real dt);
-void radiationApplyExternalSource(StateVector &Ur, StateVector const &dUdt, Real dt);
+Real radiationHydroSignalSpeed(RadiationStateVector const &Ur, GasStateVector const &Ug, Real dx);
 
 inline auto boundaryCount(std::integral auto... n) {
 	using namespace std;
@@ -51,12 +47,11 @@ private:
 	Real dx;
 	std::vector<std::atomic<int>> is_coarse;
 	std::vector<std::atomic<int>> has_coarse;
-	StateVector Ushad;
-	StateVector U = StateVector(NRF);
-	StateVector U0 = StateVector(NRF);
-	std::vector<StateVector> flux;
-	std::array<std::array<std::vector<Real> *, NDIM>, NDIM> P;
-	StateVector X;
+	RadiationStateVector Ushad;
+	RadiationStateVector U;
+	RadiationStateVector U0;
+	RadiationFluxVector flux;
+	std::vector<std::vector<Real>> X;
 	hydro_computer<NDIM, INX, radiation_physics<NDIM>> hydro;
 
 public:
@@ -64,7 +59,7 @@ public:
 	static std::vector<std::string> get_field_names();
 	void set(const std::string name, Real *data);
 	std::vector<silo_var_t> var_data() const;
-	void set_X(const StateVector &x);
+	void set_X(const std::vector<std::vector<Real>> &x);
 	void restore();
 	void store();
 	auto const &get_X() const {
@@ -75,9 +70,6 @@ public:
 		arc & dx;
 		arc & U;
 	}
-	StateVector computeTransport(std::function<void()> const &);
-	std::pair<StateVector, StateVector> computeSource(StateVector &, Real dt) const;
-	//	void computeMaterialProperties(const StateVector &);
 	void change_units(Real m, Real l, Real t, Real k);
 	void sanity_check();
 	void initialize_erad(const std::vector<Real> rho, const std::vector<Real> tau);

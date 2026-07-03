@@ -9,6 +9,7 @@
 
 #include "octotiger/unitiger/physics.hpp"
 #include "octotiger/unitiger/physics_impl.hpp"
+#include "octotiger/Limiters.hpp"
 
 #include <octotiger/common_kernel/struct_of_array_data.hpp>
 #include <octotiger/cuda_util/cuda_helper.hpp>
@@ -83,7 +84,7 @@ void hydro_computer<NDIM, INX, PHYSICS>::reconstruct_ppm(std::vector<std::vector
 #pragma ivdep
                 for (int l = 0; l < geo.H_NX_ZM2; l++) {
                     const int i = geo.to_index(j + 1, k + 1, l + 1);
-                    D1[i] = minmod_theta(u[i + di] - u[i], u[i] - u[i - di], 2.0);
+                    D1[i] = minmod(u[i + di] - u[i], u[i] - u[i - di], 2_R);
                 }
             }
         }
@@ -130,18 +131,16 @@ void hydro_computer<NDIM, INX, PHYSICS>::reconstruct_ppm(std::vector<std::vector
                                         eta = -(d2p - d2m) / dif;
                                     }
                                     eta = std::max(0.0, std::min(eta1 * (eta - eta2), 1.0));
-                                    if (eta > 0.0) {
-                                        auto ul = um +
-                                            0.5 * minmod_theta(u[i] - um, um - u[i - 2 * di], 2.0);
-                                        auto ur = up -
-                                            0.5 * minmod_theta(u[i + 2 * di] - up, up - u[i], 2.0);
-                                        auto& qp = q[d][i];
-                                        auto& qm = q[geo.flip(d)][i];
-                                        qp += eta * (ur - qp);
-                                        qm += eta * (ul - qm);
-                                    }
-                                }
-                            }
+									if (eta > 0.0) {
+										auto ul = um + 0.5 * minmod(u[i] - um, um - u[i - 2 * di], 2.0);
+										auto ur = up - 0.5 * minmod(u[i + 2 * di] - up, up - u[i], 2.0);
+										auto &qp = q[d][i];
+										auto &qm = q[geo.flip(d)][i];
+										qp += eta * (ur - qp);
+										qm += eta * (ul - qm);
+									}
+								}
+							}
                         }
                     }
                 }
