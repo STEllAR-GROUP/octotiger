@@ -7,7 +7,7 @@
 #define GEOMETRY_HPP_
 
 #include "octotiger/defs.hpp"
-#include "octotiger/math/Math.hpp"
+#include "octotiger/astrolib/Math.hpp"
 
 #include <array>
 #include <cassert>

@@ -8,7 +8,7 @@
 
 #include "octotiger/config/export_definitions.hpp"
 #include "octotiger/defs.hpp"
-#include "octotiger/math/Real.hpp"
+#include "octotiger/astrolib/Real.hpp"
 #include "octotiger/real.hpp"
 
 #include <array>

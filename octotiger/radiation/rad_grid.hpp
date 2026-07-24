@@ -10,9 +10,9 @@
 #include "octotiger/gas/GasEoS.hpp"
 #include "octotiger/geometry.hpp"
 #include "octotiger/io/silo.hpp"
-#include "octotiger/math/Matrix.hpp"
-#include "octotiger/math/Real.hpp"
-#include "octotiger/math/Vector.hpp"
+#include "octotiger/astrolib/Matrix.hpp"
+#include "octotiger/astrolib/Real.hpp"
+#include "octotiger/astrolib/Vector.hpp"
 #include "octotiger/physcon.hpp"
 #include "octotiger/radiation/RadiationEoS.hpp"
 #include "octotiger/unitiger/hydro.hpp"
@@ -29,6 +29,11 @@ using RadiationFluxVector = std::array<RadiationStateVector, NDIM>;
 
 int radiationSubstepCount(Real dt);
 Real radiationHydroSignalSpeed(RadiationStateVector const &Ur, GasStateVector const &Ug, Real dx);
+void radiationTransportFluxes(RadiationFluxVector &flux, RadiationStateVector const &Ur, std::vector<Real> const &χ, Real dx);
+RadiationStateVector radiationImplicitSource(RadiationStateVector const &Ur, GasStateVector const &Ug, Real dt);
+void radiationApplyFluxes(RadiationStateVector &U, RadiationFluxVector const &F, Real h) ;
+void radiationApplySource(RadiationStateVector &Ur, GasStateVector &Ug, RadiationStateVector const &dUdt, Real dt);
+std::array<RadiationStateVector, NDIM> radiationModalReconstruction(RadiationStateVector const &U);
 
 inline auto boundaryCount(std::integral auto... n) {
 	using namespace std;
@@ -101,6 +106,30 @@ public:
 		return std::tie(U0, U);
 	}
 	friend class node_server;
+};
+
+struct RadGrid {
+	static constexpr auto stride = Vector<int, NDIM>({sqr(RAD_NX), RAD_NX, 1});
+	struct interior {
+		static constexpr auto width = INX;
+		static constexpr auto box = Box<NDIM>(INX);
+	};
+	struct exterior {
+		static constexpr auto width = RAD_NX;
+		static constexpr auto box = interior::box.pad(RAD_BW);
+	};
+};
+
+struct GasGrid {
+	static constexpr auto stride = Vector<int, NDIM>({sqr(H_NX), H_NX, 1});
+	struct interior {
+		static constexpr auto width = INX;
+		static constexpr auto box = Box<NDIM>(INX);
+	};
+	struct exterior {
+		static constexpr auto width = H_NX;
+		static constexpr auto box = interior::box.pad(H_BW);
+	};
 };
 
 #endif /* RAD_GRID_HPP_ */

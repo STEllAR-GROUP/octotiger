@@ -12,7 +12,7 @@
 #include "octotiger/real.hpp"
 #include "octotiger/safe_math.hpp"
 #include "octotiger/space_vector.hpp"
-#include "octotiger/math/Math.hpp"
+#include "octotiger/astrolib/Math.hpp"
 
 #include <algorithm>
 #include <vector>

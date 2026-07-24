@@ -6,7 +6,7 @@
 #ifndef SRC_PHYSCON444_HPP_
 #define SRC_PHYSCON444_HPP_
 
-#include "octotiger/math/Real.hpp"
+#include "octotiger/astrolib/Real.hpp"
 #include "octotiger/options.hpp"
 
 #include <hpx/serialization/traits/is_bitwise_serializable.hpp>

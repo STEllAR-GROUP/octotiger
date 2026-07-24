@@ -210,11 +210,6 @@ constexpr inline integer gindex(integer i, integer j, integer k)
     return i * G_DNX + j * G_DNY + k * G_DNZ;
 }
 
-template <typename T>
-constexpr inline T cube(T const& val)
-{
-    return val * val * val;
-}
 
 template <typename T>
 constexpr inline T average(T const& s1, T const& s2)

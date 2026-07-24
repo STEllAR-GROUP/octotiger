@@ -24,7 +24,7 @@
 #include "octotiger/space_vector.hpp"
 // #include "octotiger/taylor.hpp"
 #include "octotiger/gas/GasEoS.hpp"
-#include "octotiger/math/Real.hpp"
+#include "octotiger/astrolib/Real.hpp"
 
 #include <hpx/serialization/serialize.hpp>
 #include <hpx/serialization/traits/is_bitwise_serializable.hpp>

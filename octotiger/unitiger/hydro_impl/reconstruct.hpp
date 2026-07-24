@@ -168,17 +168,6 @@ inline safe_real maxmod(safe_real a, safe_real b) {
     return (std::copysign(0.5, a) + std::copysign(0.5, b)) * std::max(std::abs(a), std::abs(b));
 }
 
-inline safe_real vanleer(safe_real a, safe_real b) {
-    const auto abs_a = std::abs(a);
-    const auto abs_b = std::abs(b);
-    const auto den = abs_a + abs_b;
-    if (den > 0.0) {
-        return (a * abs_b + b * abs_a) / den;
-    } else {
-        return 0.0;
-    }
-}
-
 inline safe_real ospre(safe_real a, safe_real b) {
     const auto a2 = a * a;
     const auto b2 = b * b;

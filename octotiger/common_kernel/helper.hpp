@@ -8,7 +8,7 @@
 #include "octotiger/common_kernel/multiindex.hpp"
 
 #include "octotiger/defs.hpp"
-#include "octotiger/math/Math.hpp"
+#include "octotiger/astrolib/Math.hpp"
 #include "octotiger/real.hpp"
 
 #include <cmath>
