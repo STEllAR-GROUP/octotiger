@@ -174,7 +174,7 @@ FetchContent_Declare(
   GIT_TAG        c845b7d9d8da461457cc5aa88fdda5923773a4bf
 )
 FetchContent_MakeAvailable(kokkossimd)
-add_subdirectory(external/math)
+add_subdirectory(external/astrolib)
 add_subdirectory(external/hpxfft)
 set(SVE_LENGTH ${OCTOTIGER_SVE_LEN})
 FetchContent_Declare(
@@ -237,6 +237,9 @@ set(source_files
     src/multipole_interactions/util/calculate_stencil.cpp
     src/multipole_interactions/legacy/multipole_cpu_kernel.cpp
     src/radiation/rad_grid.cpp
+    src/radiation/reconstruct.cpp
+   	src/radiation/source.cpp
+    src/radiation/transport.cpp
     src/test_problems/marshak/marshak.cpp
     src/test_problems/rotating_star/rotating_star.cpp
     src/test_problems/sod/sod.cpp
