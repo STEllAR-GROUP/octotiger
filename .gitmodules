@@ -7,5 +7,6 @@
 [submodule "external/hpxfft"]
 	path = external/hpxfft
 	url = https://github.com/dmarce1/hpxfft.git
-[submodule "external/math"]
-	path = external/math
+[submodule "external/astrolib"]
+    path = external/astrolib
+    url = git@github.com:dmarce1/astrolib.git
