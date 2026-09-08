@@ -129,6 +129,8 @@ if(NOT MSVC)
   find_package(Threads REQUIRED)  # Required by target gen_rotating_star_init
 endif()
 
+target_link_libraries(HPX::wrap_main INTERFACE tbb)
+
 if(OCTOTIGER_WITH_CUDA)
   if (NOT ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang"))
     enable_language(CUDA)
@@ -630,7 +632,7 @@ add_hpx_executable(
 )
 set_property(TARGET octotiger PROPERTY FOLDER "Octo-Tiger")
 target_link_options(octotiger PRIVATE -rdynamic)
-
+target_link_libraries(octotiger PRIVATE tbb)
 if(OCTOTIGER_WITH_CUDA)
   target_compile_definitions(octotiger PUBLIC OCTOTIGER_HAVE_CUDA)
 endif()
