@@ -445,7 +445,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 
 		// run output on separate thread
 		if (!opts().disable_output) {
-			hpx::threads::run_as_os_thread([=]() {
+			hpx::threads::run_as_os_thread([=, this]() {
 				FILE *fp = fopen((opts().data_dir + "step.dat").c_str(), "at");
 				if (fp == NULL) {
 					printf("Unable to open step.dat for writing %s\n", std::strerror(errno));
@@ -731,7 +731,7 @@ future<real> node_server::local_step(integer steps) {
           if (opts().print_times_per_timestep)
             timestep_util::add_time_per_timestep(time_elapsed);
 
-          hpx::threads::run_as_os_thread([=]() {
+          hpx::threads::run_as_os_thread([=, this]() {
             printf("%i %e %e %e %e\n", local_step_num, double(current_time), double(dt_.dt), time_elapsed, rotational_time);
           });  // do not wait for output to finish
         }
