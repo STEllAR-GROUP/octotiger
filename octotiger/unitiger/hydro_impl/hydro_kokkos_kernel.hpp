@@ -1388,9 +1388,9 @@ timestep_t device_interface_kokkos_hydro(
 // Output F
 template <typename executor_t>
 timestep_t launch_hydro_kokkos_kernels(const hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
-    const std::vector<std::vector<safe_real>>& U, const std::vector<std::vector<safe_real>>& X,
+    const std::vector<std::vector<Real>>& U, const std::vector<std::vector<Real>>& X,
     const double omega, const size_t n_species, 
-    std::vector<hydro_state_t<std::vector<safe_real>>>& F) {
+    std::vector<hydro_state_t<std::vector<Real>>>& F) {
     static const cell_geometry<NDIM, INX> geo;
 
     // Some assumptions must be true for the kernel to work

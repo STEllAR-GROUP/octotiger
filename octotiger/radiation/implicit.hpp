@@ -7,8 +7,8 @@
 #define SRC_RADIATION_IMPLICIT_HPP_
 
 #include "octotiger/physcon.hpp"
-#include "octotiger/real.hpp"
-#include "octotiger/safe_math.hpp"
+#include "octotiger/math/Real.hpp"
+#include "octotiger/math/Debug.hpp"
 #include "octotiger/space_vector.hpp"
 
 #include <cstdio>

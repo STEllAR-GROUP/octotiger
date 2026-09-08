@@ -12,7 +12,7 @@
 #include <iostream>
 #include "./libeos/libeos.hpp"
 
-using real = double;
+using Real = double;
 using integer = long long int;
 integer hydro, gravity, radiation, n_species;
 
@@ -31,7 +31,7 @@ T read_var(DBfile* db, const std::string& name) {
 	n = read_var<integer>(db, #n );
 
 #define READ_REAL(n) \
-	n = read_var<real>(db, #n );
+	n = read_var<Real>(db, #n );
 
 int main(int argc, char* argv[]) {
 	if (argc < 2) {
@@ -51,7 +51,7 @@ int main(int argc, char* argv[]) {
 		abort();
 	}
 
-	real cm, g, s, K;
+	Real cm, g, s, K;
 	integer eos;
 	READ_INT(hydro);
 	READ_INT(radiation);
@@ -100,16 +100,16 @@ int main(int argc, char* argv[]) {
 		field_names.push_back("fz");
 	}
 
-	std::unordered_map<std::string, std::shared_ptr<real>> grid_sum;
+	std::unordered_map<std::string, std::shared_ptr<Real>> grid_sum;
 
 	for (const auto& name : field_names) {
-		grid_sum[name] = std::make_shared<real>(0);
+		grid_sum[name] = std::make_shared<Real>(0);
 	}
 
 	for (int i = 0; i < multimesh->nblocks; i++) {
 //		printf( "%i\n", i);
 		std::unordered_map<std::string, DBquadvar*> vars;
-//		std::unordered_map<std::string, real> outflows;r
+//		std::unordered_map<std::string, Real> outflows;r
 		std::string meshname = multimesh->meshnames[i];
 		auto* mesh = DBGetQuadmesh(db, meshname.c_str());
 		if (mesh == NULL) {
@@ -123,7 +123,7 @@ int main(int argc, char* argv[]) {
 				printf("Could not read variable %s\n", var_name.c_str());
 				abort();
 			}
-			real o;
+			Real o;
 		//	if (DBReadVar(db, out_name.c_str(), &o) == 0) {
 		//		outflows[field] = o;
 		//	} else {
@@ -132,47 +132,47 @@ int main(int argc, char* argv[]) {
 	//		}
 
 			int lll = 0;
-			real* coords[3];
+			Real* coords[3];
 			for (int d = 0; d < 3; d++) {
-				coords[d] = static_cast<real*>(mesh->coords[d]);
+				coords[d] = static_cast<Real*>(mesh->coords[d]);
 			}
 
-			real virial = 0.0;
-			real virial_norm = 0.0;
-			const real dx = coords[0][1] - coords[0][0];
-			const real dv = dx * dx * dx;
+			Real virial = 0.0;
+			Real virial_norm = 0.0;
+			const Real dx = coords[0][1] - coords[0][0];
+			const Real dv = dx * dx * dx;
 			printf( "%i %i %i\n", mesh->dims[0], mesh->dims[1], mesh->dims[2]);
 			for (int k = 0; k < mesh->dims[2]-1; k++) {
 				for (int j = 0; j < mesh->dims[1]-1; j++) {
 					for (int i = 0; i < mesh->dims[0]-1; i++) {
 				//		printf( "%s %e\n", field.c_str(), ((double*) vars["sx"]->vals[0])[0] );
-						const real x = 0.5 * (coords[0][i + 1] + coords[0][i]);
-						const real y = 0.5 * (coords[1][j + 1] + coords[1][j]);
-						const real z = 0.5 * (coords[2][k + 1] + coords[2][k]);
+						const Real x = 0.5 * (coords[0][i + 1] + coords[0][i]);
+						const Real y = 0.5 * (coords[1][j + 1] + coords[1][j]);
+						const Real z = 0.5 * (coords[2][k + 1] + coords[2][k]);
 #define VAR(f) ((double*) vars[f]->vals[0])
 						for (const auto& name : hydro_names) {
 							*grid_sum[name] += VAR(name)[lll] * dv;
 						}
 						if (hydro) {
-							const real rho = VAR("rho_1")[lll];
-							const real sx = VAR("sx")[lll];
-							const real sy = VAR("sy")[lll];
-							const real sz = VAR("sz")[lll];
-							const real egas = VAR("egas")[lll];
-							const real tau = VAR("tau")[lll];
-							real etot = egas;
+							const Real rho = VAR("rho_1")[lll];
+							const Real sx = VAR("sx")[lll];
+							const Real sy = VAR("sy")[lll];
+							const Real sz = VAR("sz")[lll];
+							const Real egas = VAR("egas")[lll];
+							const Real tau = VAR("tau")[lll];
+							Real etot = egas;
 							*grid_sum["zx"] += rho * (y * sz - z * sy);
 							*grid_sum["zy"] -= rho * (x * sz - z * sx);
 							*grid_sum["zz"] += rho * (y * sz - z * sy);
-							const real ek = 0.5 * (sx * sx + sy * sy + sz * sz) / 2.0;
-							const real ein = egas - ek;
-							const real p = eos::pressure_de(rho, egas, tau, ek);
+							const Real ek = 0.5 * (sx * sx + sy * sy + sz * sz) / 2.0;
+							const Real ein = egas - ek;
+							const Real p = eos::pressure_de(rho, egas, tau, ek);
 							if (gravity) {
-								real& phi = VAR("phi")[lll];
+								Real& phi = VAR("phi")[lll];
 								etot += 0.5 * phi * rho;
-								const real v1 = 3.0 * p;
-								const real v2 = 3.0 * ek;
-								const real v3 = 0.5 * rho * phi;
+								const Real v1 = 3.0 * p;
+								const Real v2 = 3.0 * ek;
+								const Real v3 = 0.5 * rho * phi;
 								virial += (v1 + v2 + v3) * dv;
 								virial_norm += (std::abs(v1) + std::abs(v2) + std::abs(v3)) * dv;
 							}

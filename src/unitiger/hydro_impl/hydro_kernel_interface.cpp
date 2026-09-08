@@ -81,8 +81,8 @@ using executor_interface_cuda_t = stream_interface<device_executor_cuda, device_
 #endif
 
 timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
-    const std::vector<std::vector<safe_real>>& U, std::vector<std::vector<safe_real>>& X,
-    const double omega, std::vector<hydro_state_t<std::vector<safe_real>>>& F,
+    const std::vector<std::vector<Real>>& U, std::vector<std::vector<Real>>& X,
+    const double omega, std::vector<hydro_state_t<std::vector<Real>>>& F,
     const interaction_host_kernel_type host_type, const interaction_device_kernel_type device_type,
     const size_t max_gpu_executor_queue_length) {
     static const cell_geometry<NDIM, INX> geo;
@@ -184,8 +184,8 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
 #endif
     } else if (host_type == interaction_host_kernel_type::LEGACY) {
         // Legacy implementation
-        static thread_local auto f = std::vector<std::vector<std::vector<safe_real>>>(NDIM,
-            std::vector<std::vector<safe_real>>(opts().n_fields, std::vector<safe_real>(H_N3)));
+        static thread_local auto f = std::vector<std::vector<std::vector<Real>>>(NDIM,
+            std::vector<std::vector<Real>>(opts().n_fields, std::vector<Real>(H_N3)));
 #ifdef HPX_HAVE_APEX
         auto reconstruct_timer = apex::start("kernel hydro_reconstruct legacy");
 #endif
@@ -207,7 +207,7 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
                         for (integer k = 0; k <= INX; ++k) {
                             const auto i0 = findex(i, j, k);
                             F[dim][field][i0] = f[dim][field][hindex(i + H_BW, j + H_BW, k + H_BW)];
-                            real rho_tot = 0.0;
+                            Real rho_tot = 0.0;
                             for (integer field = spc_i; field != spc_i + opts().n_species;
                                  ++field) {
                                 rho_tot += F[dim][field][i0];

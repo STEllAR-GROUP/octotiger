@@ -23,14 +23,14 @@ private:
 public:
 	double interpolate(const std::vector<std::vector<double>>& f, double R, double z) const {
                 // bicubic interpolation by the prescreption: f(x,y) = (x^3 x^2 x 1)A(y^3 y^2 y 1)^T, and F = BAB^T
-                static constexpr real mycoeff[4][4] = {{1., 0., 0., 0.}, {-1.83333333, 3., -1.5, 0.333333333}, {1., -2.5,
+                static constexpr Real mycoeff[4][4] = {{1., 0., 0., 0.}, {-1.83333333, 3., -1.5, 0.333333333}, {1., -2.5,
   2., -0.5}, {-0.166666667, 0.5, -0.5, 0.166666667}}; // B^-1
-                real coeff2[4][4] = { }; // initialize A, the coefficients per interval, with zeros
+                Real coeff2[4][4] = { }; // initialize A, the coefficients per interval, with zeros
                 R = std::abs(R);
                 z = std::abs(z);
                 int i = int(R / dr_ - 0.5) + nr_ / 2; // dens(R_i)=dens((i+nr/2+0.5)*dr)
                 int k = int(z / dz_ - 0.5) + nz_ / 2; // z_i = (k+nz/2+0.5)dz
-                real rc = 0.0;
+                Real rc = 0.0;
                 if (i >= 0 && i < nr_ - 3 && k >= 0 && k < nz_ - 3) {
                         for (int i0 = 0; i0 < 4; i0++) {
                                 for (int k0 = 0; k0 < 4; k0++) {
@@ -92,13 +92,13 @@ public:
 
 };
 
-std::vector<real> rotating_star(real x, real y, real z, real dx) {
-	std::vector<real> u(opts().n_fields, real(0));
+std::vector<Real> rotating_star(Real x, Real y, Real z, Real dx) {
+	std::vector<Real> u(opts().n_fields, Real(0));
 
 	x -= opts().rotating_star_x;
 
 	static rotating_star_analytic rs;
-	const real fgamma = 5.0 / 3.0;
+	const Real fgamma = 5.0 / 3.0;
 	rs.state_at(u[rho_i], u[egas_i], u[sx_i], u[sy_i], x, y, z);
 //	u[egas_i] = (1.681244e-01) * std::pow(u[rho_i],fgamma) / (fgamma-1.0);
 	u[rho_i] = std::max(u[rho_i], 1.0e-10);
@@ -126,6 +126,6 @@ std::vector<real> rotating_star(real x, real y, real z, real dx) {
 	return u;
 }
 
-std::vector<real> rotating_star_a(real x, real y, real z, real) {
+std::vector<Real> rotating_star_a(Real x, Real y, Real z, Real) {
 	return rotating_star(x, y, z, 0);
 }

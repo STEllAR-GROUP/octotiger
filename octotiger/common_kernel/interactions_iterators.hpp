@@ -33,7 +33,7 @@ namespace fmm {
         }
     }
 
-    multiindex<> get_padding_real_size(const geo::direction& dir); 
+    multiindex<> get_padding_Real_size(const geo::direction& dir); 
     multiindex<> get_padding_start_indices(const geo::direction& dir); 
     multiindex<> get_padding_end_indices(const geo::direction& dir); 
 
@@ -41,7 +41,7 @@ namespace fmm {
     void iterate_padding(const geo::direction& dir, const F& f) {
         multiindex<> start_index = get_padding_start_indices(dir);
         multiindex<> end_index = get_padding_end_indices(dir);
-        multiindex<> size = get_padding_real_size(dir);
+        multiindex<> size = get_padding_Real_size(dir);
         assert(end_index.x - start_index.x == size.x);
         assert(end_index.y - start_index.y == size.y);
         assert(end_index.z - start_index.z == size.z);

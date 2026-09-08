@@ -942,12 +942,12 @@ namespace fmm {
         // --------------------------------------- Kernel interface
 
         template <typename executor_t>
-        void multipole_kernel(executor_t& exec, std::vector<real>& monopoles,
+        void multipole_kernel(executor_t& exec, std::vector<Real>& monopoles,
             std::vector<multipole>& M_ptr,
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
-            std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx, real theta,
+            std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, Real dx, Real theta,
             std::array<bool, geo::direction::count()>& is_direction_empty,
-            std::array<real, NDIM> xbase, std::shared_ptr<grid> grid, const bool use_root_stencil,
+            std::array<Real, NDIM> xbase, std::shared_ptr<grid> grid, const bool use_root_stencil,
             const size_t device_id) {
             // input buffers
             host_buffer<double> host_monopoles(NUMBER_LOCAL_MONOPOLE_VALUES);

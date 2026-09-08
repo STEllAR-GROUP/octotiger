@@ -5,33 +5,33 @@
 
 
 #include "octotiger/lane_emden.hpp"
-#include "octotiger/real.hpp"
+#include "octotiger/math/Real.hpp"
 
 #include <cmath>
 
-static inline real pow_n(real y, real n) {
+static inline Real pow_n(Real y, Real n) {
     return std::pow(y, n);
 }
 
-static inline real fy(real y, real z, real r) {
+static inline Real fy(Real y, Real z, Real r) {
 	return z;
 }
 
-static inline real fz(real y, real z, real r, real n) {
+static inline Real fz(Real y, Real z, Real r, Real n) {
 	if (r != 0.0) {
 		return -(pow_n(y, n) + 2.0 * z / r);
 	}
 	return -3.0;
 }
 
-static inline real fm(real theta, real dummy, real r, real n) {
-    constexpr static real four_pi = real(4) * M_PI;
+static inline Real fm(Real theta, Real dummy, Real r, Real n) {
+    constexpr static Real four_pi = Real(4) * M_PI;
 	return four_pi * pow_n(theta, n) * r * r;
 }
 
-real lane_emden(real r0, real dr, real n, real* m_enc) {
-    real dy1, dz1, y, z, r, dy2, dz2, dy3, dz3, dy4, dz4, y0, z0;
-	real dm1, m, dm2, dm3, dm4, m0;
+Real lane_emden(Real r0, Real dr, Real n, Real* m_enc) {
+    Real dy1, dz1, y, z, r, dy2, dz2, dy3, dz3, dy4, dz4, y0, z0;
+	Real dm1, m, dm2, dm3, dm4, m0;
 	int done = 0;
 	y = 1.0;
 	z = 0.0;
@@ -59,7 +59,7 @@ real lane_emden(real r0, real dr, real n, real* m_enc) {
 			y = 0.0;
 			break;
 		}
-        real rdr2 = r + 0.5 * dr;
+        Real rdr2 = r + 0.5 * dr;
 		dy2 = fy(y, z, rdr2) * dr;
 		dz2 = fz(y, z, rdr2, n) * dr;
 		dm2 = fm(y, z, rdr2, n) * dr;
@@ -80,7 +80,7 @@ real lane_emden(real r0, real dr, real n, real* m_enc) {
 			y = 0.0;
 			break;
 		}
-        real rdr = r + dr;
+        Real rdr = r + dr;
 		dy4 = fy(y, z, rdr) * dr;
 		dz4 = fz(y, z, rdr, n) * dr;
 		dm4 = fm(y, z, rdr, n) * dr;
@@ -102,12 +102,12 @@ real lane_emden(real r0, real dr, real n, real* m_enc) {
 	return y;
 }
 
-real wd_radius(real mass, real* rho0) {
-	real rho_min, rho_max, rho_mid;
-	real test_mass;
+Real wd_radius(Real mass, Real* rho0) {
+	Real rho_min, rho_max, rho_mid;
+	Real test_mass;
 	rho_min = 1.0e-3;
 	rho_max = 1.0e+3;
-	real r;
+	Real r;
 	do {
 		rho_mid = sqrt(rho_min * rho_max);
 		r = lane_emden(rho_mid, 0.001, 1.5, &test_mass);
@@ -145,15 +145,15 @@ double find_l1(double q) {
 
 }
 
-real find_V(real q) {
+Real find_V(Real q) {
 
-	const real qp1 = 1.0 + q;
-	const real qp1inv = 1.0 / qp1;
-	real x, y, z;
-	real fx, fy, fz, r1inv, r2inv, phi, phi_l1;
-	real h = 5.0e-2;
-    real r1inv3, r2inv3;
-	const real l1_x = find_l1(q);
+	const Real qp1 = 1.0 + q;
+	const Real qp1inv = 1.0 / qp1;
+	Real x, y, z;
+	Real fx, fy, fz, r1inv, r2inv, phi, phi_l1;
+	Real h = 5.0e-2;
+    Real r1inv3, r2inv3;
+	const Real l1_x = find_l1(q);
 	r1inv = 1.0 / sqrt(pow(l1_x + q * qp1inv, 2));
 	r2inv = 1.0 / sqrt(pow(l1_x - qp1inv, 2));
 	phi_l1 = -1.0 * r1inv - q * r2inv - 0.5 * qp1 * (l1_x * l1_x);
@@ -168,7 +168,7 @@ real find_V(real q) {
 				if (phi < phi_l1) {
 					r1inv3 = r1inv * r1inv * r1inv;
 					r2inv3 = r2inv * r2inv * r2inv;
-					real dx = x - qp1inv;
+					Real dx = x - qp1inv;
 					fx = -(x + q * qp1inv) * r1inv3 - q * dx * r2inv3 + qp1 * x;
 					fy = -y * r1inv3 - y * q * r2inv3 + qp1 * y;
 					fz = -z * r1inv3 - z * q * r2inv3;
@@ -183,11 +183,11 @@ real find_V(real q) {
 	return 4.0 * in * h * h * h;
 }
 
-real binary_separation(real accretor_mass, real donor_mass, real donor_radius, real fill_factor) {
-    constexpr static real pi_4_3 = 4.0 / 3.0 * M_PI;
-	real q = donor_mass / accretor_mass;
-	real normalized_roche_volume = find_V(q) * fill_factor;
-	real roche_radius = std::pow(normalized_roche_volume / pi_4_3, 1.0 / 3.0);
-	real separation = donor_radius / roche_radius;
+Real binary_separation(Real accretor_mass, Real donor_mass, Real donor_radius, Real fill_factor) {
+    constexpr static Real pi_4_3 = 4.0 / 3.0 * M_PI;
+	Real q = donor_mass / accretor_mass;
+	Real normalized_roche_volume = find_V(q) * fill_factor;
+	Real roche_radius = std::pow(normalized_roche_volume / pi_4_3, 1.0 / 3.0);
+	Real separation = donor_radius / roche_radius;
 	return separation;
 }

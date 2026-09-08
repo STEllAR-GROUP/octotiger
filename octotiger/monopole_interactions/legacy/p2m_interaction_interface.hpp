@@ -26,7 +26,7 @@ namespace fmm {
         static OCTOTIGER_EXPORT std::vector<multiindex<>>& p2m_stencil();
         /// Uses a cube with true/flags instead of the spherical multiindex stencil
         static OCTOTIGER_EXPORT std::vector<bool>& p2m_stencil_masks();
-        void compute_p2m_interactions_neighbors_only(const std::vector<real>& monopoles,
+        void compute_p2m_interactions_neighbors_only(const std::vector<Real>& monopoles,
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
             std::array<bool, geo::direction::count()>& is_direction_empty,
@@ -38,12 +38,12 @@ namespace fmm {
             p2m_interaction_interface();
             /** Takes AoS data, converts it, calculates monopole-multipole FMM interactions,
                 stores results in L, L_c */
-            void compute_p2m_interactions(std::vector<real>& monopoles,
+            void compute_p2m_interactions(std::vector<Real>& monopoles,
                 std::vector<multipole>& M_ptr,
                 std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
                 std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
                 std::array<bool, geo::direction::count()>& is_direction_empty);
-            void compute_p2m_interactions_neighbors_only(const std::vector<real>& monopoles,
+            void compute_p2m_interactions_neighbors_only(const std::vector<Real>& monopoles,
                 std::vector<multipole>& M_ptr,
                 std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
                 std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
@@ -141,7 +141,7 @@ namespace fmm {
                     });
                 auto list = grid_ptr->get_ilist_n_bnd(neighbor_dir);
                 multiindex<> start_index = get_padding_start_indices(neighbor_dir);
-                multiindex<> size = get_padding_real_size(neighbor_dir);
+                multiindex<> size = get_padding_Real_size(neighbor_dir);
                 size_t counter = 0;
                 for (auto i : list) {
                     const integer iii = i.second;

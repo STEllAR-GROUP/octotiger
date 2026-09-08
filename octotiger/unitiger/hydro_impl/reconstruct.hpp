@@ -50,7 +50,7 @@ static inline bool PPM_test(const T& ql, const T& q0, const T& qr) {
 }
 
 template <int NDIM, int INX>
-void reconstruct_minmod(std::vector<std::vector<safe_real>>& q, const std::vector<safe_real>& u) {
+void reconstruct_minmod(std::vector<std::vector<Real>>& q, const std::vector<Real>& u) {
     PROFILE();
     static const cell_geometry<NDIM, INX> geo;
     static constexpr auto dir = geo.direction();
@@ -68,14 +68,14 @@ void reconstruct_minmod(std::vector<std::vector<safe_real>>& q, const std::vecto
 }
 
 template <int NDIM, int INX, class PHYSICS>
-void hydro_computer<NDIM, INX, PHYSICS>::reconstruct_ppm(std::vector<std::vector<safe_real>>& q,
-    const std::vector<safe_real>& u, bool smooth, bool disc_detect,
+void hydro_computer<NDIM, INX, PHYSICS>::reconstruct_ppm(std::vector<std::vector<Real>>& q,
+    const std::vector<Real>& u, bool smooth, bool disc_detect,
     const std::vector<std::vector<double>>& disc) {
     PROFILE();
 
     static const cell_geometry<NDIM, INX> geo;
     static constexpr auto dir = geo.direction();
-    static thread_local auto D1 = std::vector<safe_real>(geo.H_N3, 0.0);
+    static thread_local auto D1 = std::vector<Real>(geo.H_N3, 0.0);
     for (int d = 0; d < geo.NDIR / 2; d++) {
         const auto di = dir[d];
         for (int j = 0; j < geo.H_NX_XM2; j++) {
@@ -165,11 +165,11 @@ void hydro_computer<NDIM, INX, PHYSICS>::reconstruct_ppm(std::vector<std::vector
     }
 }
 
-inline safe_real maxmod(safe_real a, safe_real b) {
+inline Real maxmod(Real a, Real b) {
     return (std::copysign(0.5, a) + std::copysign(0.5, b)) * std::max(std::abs(a), std::abs(b));
 }
 
-inline safe_real vanleer(safe_real a, safe_real b) {
+inline Real vanleer(Real a, Real b) {
     const auto abs_a = std::abs(a);
     const auto abs_b = std::abs(b);
     const auto den = abs_a + abs_b;
@@ -180,7 +180,7 @@ inline safe_real vanleer(safe_real a, safe_real b) {
     }
 }
 
-inline safe_real ospre(safe_real a, safe_real b) {
+inline Real ospre(Real a, Real b) {
     const auto a2 = a * a;
     const auto b2 = b * b;
     if (a * b <= 0.0) {
@@ -192,12 +192,12 @@ inline safe_real ospre(safe_real a, safe_real b) {
 
 template <int NDIM, int INX, class PHYS>
 const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(
-    const hydro::state_type& U_, const hydro::x_type& X, safe_real omega) {
+    const hydro::state_type& U_, const hydro::x_type& X, Real omega) {
     PROFILE();
-    static thread_local std::vector<std::vector<safe_real>> AM(
-        geo::NANGMOM, std::vector<safe_real>(geo::H_N3));
-    static thread_local std::vector<std::vector<std::vector<safe_real>>> Q(
-        nf_, std::vector<std::vector<safe_real>>(geo::NDIR, std::vector<safe_real>(geo::H_N3)));
+    static thread_local std::vector<std::vector<Real>> AM(
+        geo::NANGMOM, std::vector<Real>(geo::H_N3));
+    static thread_local std::vector<std::vector<std::vector<Real>>> Q(
+        nf_, std::vector<std::vector<Real>>(geo::NDIR, std::vector<Real>(geo::H_N3)));
 
     static constexpr auto xloc = geo::xloc();
     static constexpr auto levi_civita = geo::levi_civita();

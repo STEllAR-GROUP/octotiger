@@ -10,7 +10,7 @@
 #include "octotiger/cuda_util/cuda_helper.hpp"
 #include "octotiger/cuda_util/cuda_scheduler.hpp"
 
-#include "octotiger/real.hpp"
+#include "octotiger/math/Real.hpp"
 
 #include <array>
 #include <vector>
@@ -30,15 +30,15 @@ namespace fmm {
         public:
             cuda_multipole_interaction_interface();
             /// Takes AoS input, converts, launches kernel and writes AoS results back into L,L_c
-            void compute_multipole_interactions(std::vector<real>& monopoles,
+            void compute_multipole_interactions(std::vector<Real>& monopoles,
                 std::vector<multipole>& M_ptr,
                 std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
-                std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
+                std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, Real dx,
                 std::array<bool, geo::direction::count()>& is_direction_empty,
-                std::array<real, NDIM> xbase, const bool use_root_stencil);
+                std::array<Real, NDIM> xbase, const bool use_root_stencil);
 
         protected:
-            real theta;
+            Real theta;
         };
 
     }    // namespace multipole_interactions

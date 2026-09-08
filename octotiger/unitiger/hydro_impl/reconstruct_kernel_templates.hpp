@@ -44,7 +44,7 @@ constexpr int dir[27] = {
     /**/ -HR_DNX + HR_DNY + HR_DNZ, +HR_DN0 + HR_DNY + HR_DNZ, +HR_DNX + HR_DNY + HR_DNZ  /**/
 
 };
-constexpr safe_real vw[27] = {
+constexpr Real vw[27] = {
     /**/ 1. / 216., 4. / 216., 1. / 216., 4. / 216., 16. / 216., 4. / 216., 1. / 216., 4. / 216.,
     1. / 216.,
     /****/ 4. / 216., 16. / 216., 4. / 216., 16. / 216., 64. / 216., 16. / 216., 4. / 216.,
@@ -92,7 +92,7 @@ CUDA_CALLABLE_METHOD const int dir[27] = {
     /**/ -HR_DNX + HR_DNY + HR_DNZ, +HR_DN0 + HR_DNY + HR_DNZ, +HR_DNX + HR_DNY + HR_DNZ  /**/
 
 };
-CUDA_CALLABLE_METHOD const safe_real vw[27] = {
+CUDA_CALLABLE_METHOD const Real vw[27] = {
     /**/ 1. / 216., 4. / 216., 1. / 216., 4. / 216., 16. / 216., 4. / 216., 1. / 216., 4. / 216.,
     1. / 216.,
     /****/ 4. / 216., 16. / 216., 4. / 216., 16. / 216., 64. / 216., 16. / 216., 4. / 216.,
@@ -158,7 +158,7 @@ CUDA_GLOBAL_METHOD inline void cell_find_contact_discs_phase1(container_t &P,
         edeg = rho * hdeg - pdeg;
     }
 
-    safe_real ek = 0.0;
+    Real ek = 0.0;
     for (int dim = 0; dim < NDIM; dim++) {
         ek += combined_u[(sx_i + dim) * u_face_offset + i] *
             combined_u[(sx_i + dim) * u_face_offset + i] * rhoinv * 0.5;
@@ -195,7 +195,7 @@ CUDA_GLOBAL_METHOD inline void cell_find_contact_discs_phase2(
 // =================================================================================================
 
 template <typename container_t, typename const_container_t>
-CUDA_GLOBAL_METHOD inline void cell_hydro_pre_recon(const_container_t& X, safe_real omega, bool angmom,
+CUDA_GLOBAL_METHOD inline void cell_hydro_pre_recon(const_container_t& X, Real omega, bool angmom,
         container_t &u, const int nf, const int n_species_, const unsigned int x,
         const unsigned int y, const unsigned int z) {
     const int i = (x) * inx_large * inx_large + (y) * inx_large + (z);
@@ -685,7 +685,7 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p1_simd(const size_t 
 }
 
 template <typename simd_t, typename simd_mask_t>
-CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p2_simd(const safe_real omega,
+CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p2_simd(const Real omega,
     const int angmom_index_, double* __restrict__ combined_q, const double* __restrict__ combined_x,
     const double* __restrict__ combined_u, const double* __restrict__ AM, const double dx,
     const int d, const int i, const int q_i, const int ndir, const int nangmom,

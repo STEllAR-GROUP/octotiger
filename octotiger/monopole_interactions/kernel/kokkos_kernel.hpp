@@ -1105,7 +1105,7 @@ namespace fmm {
                     // Indices to address the interaction and stencil data
                     multiindex<> start_index = get_padding_start_indices(dir);
                     multiindex<> end_index = get_padding_end_indices(dir);
-                    multiindex<> neighbor_size = get_padding_real_size(dir);
+                    multiindex<> neighbor_size = get_padding_Real_size(dir);
                     multiindex<> dir_index;
                     dir_index.x = dir[0];
                     dir_index.y = dir[1];
@@ -1217,7 +1217,7 @@ namespace fmm {
                     // Indices to address the interaction and stencil data
                     multiindex<> start_index = get_padding_start_indices(dir);
                     multiindex<> end_index = get_padding_end_indices(dir);
-                    multiindex<> neighbor_size = get_padding_real_size(dir);
+                    multiindex<> neighbor_size = get_padding_Real_size(dir);
                     multiindex<> dir_index;
                     dir_index.x = dir[0];
                     dir_index.y = dir[1];
@@ -1277,9 +1277,9 @@ namespace fmm {
         // --------------------------------------- Kernel interface
 
         template <typename executor_t>
-        void monopole_kernel(executor_t& exec, std::vector<real>& monopoles,
+        void monopole_kernel(executor_t& exec, std::vector<Real>& monopoles,
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
-            std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx, real theta,
+            std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, Real dx, Real theta,
             std::array<bool, geo::direction::count()>& is_direction_empty,
             std::shared_ptr<grid> grid_ptr, const bool contains_multipole_neighbor,
             const size_t device_id) {
@@ -1354,9 +1354,9 @@ namespace fmm {
         }
 
         template <typename executor_t>
-        void monopole_kernel_agg(std::vector<real>& monopoles,
+        void monopole_kernel_agg(std::vector<Real>& monopoles,
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
-            std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx, real theta,
+            std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, Real dx, Real theta,
             std::array<bool, geo::direction::count()>& is_direction_empty,
             std::shared_ptr<grid> grid_ptr, const bool contains_multipole_neighbor,
             const size_t device_id) {

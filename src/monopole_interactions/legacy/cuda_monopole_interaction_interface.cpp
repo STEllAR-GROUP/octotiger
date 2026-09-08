@@ -87,9 +87,9 @@ namespace fmm {
           : monopole_interaction_interface()
           , theta(opts().theta) {}
 
-        void cuda_monopole_interaction_interface::compute_interactions(std::vector<real>& monopoles,
+        void cuda_monopole_interaction_interface::compute_interactions(std::vector<Real>& monopoles,
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
-            std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
+            std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, Real dx,
             std::array<bool, geo::direction::count()>& is_direction_empty,
             std::shared_ptr<grid>& grid_ptr, const bool contains_multipole_neighbor) {
             // Check where we want to run this:
@@ -185,8 +185,8 @@ namespace fmm {
                           (INNER_CELLS + SOA_PADDING) * 3 * sizeof(double));
                     // Convert and move inner cells coms to device
                     std::vector<space_vector> const& com0 = *(com_ptr[0]);
-                    struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
-                        std::vector<real, recycler::recycle_allocator_cuda_host<real>>>
+                    struct_of_array_data<space_vector, Real, 3, INNER_CELLS, SOA_PADDING,
+                        std::vector<Real, recycler::recycle_allocator_cuda_host<Real>>>
                         center_of_masses_inner_cells_staging_area;
                     iterate_inner_cells_padded(
                         [&center_of_masses_inner_cells_staging_area, com0](const multiindex<>& i,
@@ -225,13 +225,13 @@ namespace fmm {
                     }
                     // Input kernel buffers for p2m kernels - 2 host-side and 2 device-side buffers
                     // for each of the three kernel types
-                    std::vector<struct_of_array_data<expansion, real, 20, buffer_size_kernel_type1,
+                    std::vector<struct_of_array_data<expansion, Real, 20, buffer_size_kernel_type1,
                         SOA_PADDING,
-                        std::vector<real, recycler::recycle_allocator_cuda_host<real>>>>
+                        std::vector<Real, recycler::recycle_allocator_cuda_host<Real>>>>
                         local_expansions_staging_area_type1(number_kernel_type1);
-                    std::vector<struct_of_array_data<space_vector, real, 3,
+                    std::vector<struct_of_array_data<space_vector, Real, 3,
                         buffer_size_kernel_type1, SOA_PADDING,
-                        std::vector<real, recycler::recycle_allocator_cuda_host<real>>>>
+                        std::vector<Real, recycler::recycle_allocator_cuda_host<Real>>>>
                         center_of_masses_staging_area_type1(number_kernel_type1);
                     device_buffer_t<double> local_expansions_type1(
                         (buffer_size_kernel_type1 + SOA_PADDING) * 20 * number_kernel_type1 + 32,
@@ -240,13 +240,13 @@ namespace fmm {
                         (buffer_size_kernel_type1 + SOA_PADDING) * 3 * number_kernel_type1 + 32,
                         device_id);
                     // Input buffers for type 2
-                    std::vector<struct_of_array_data<expansion, real, 20, buffer_size_kernel_type2,
+                    std::vector<struct_of_array_data<expansion, Real, 20, buffer_size_kernel_type2,
                         SOA_PADDING,
-                        std::vector<real, recycler::recycle_allocator_cuda_host<real>>>>
+                        std::vector<Real, recycler::recycle_allocator_cuda_host<Real>>>>
                         local_expansions_staging_area_type2(number_kernel_type2);
-                    std::vector<struct_of_array_data<space_vector, real, 3,
+                    std::vector<struct_of_array_data<space_vector, Real, 3,
                         buffer_size_kernel_type2, SOA_PADDING,
-                        std::vector<real, recycler::recycle_allocator_cuda_host<real>>>>
+                        std::vector<Real, recycler::recycle_allocator_cuda_host<Real>>>>
                         center_of_masses_staging_area_type2(number_kernel_type2);
                     device_buffer_t<double> local_expansions_type2(
                         (buffer_size_kernel_type2 + SOA_PADDING) * 20 * number_kernel_type2 + 32,
@@ -255,13 +255,13 @@ namespace fmm {
                         (buffer_size_kernel_type2 + SOA_PADDING) * 3 * number_kernel_type2 + 32,
                         device_id);
                     // Input buffers for type 3
-                    std::vector<struct_of_array_data<expansion, real, 20, buffer_size_kernel_type3,
+                    std::vector<struct_of_array_data<expansion, Real, 20, buffer_size_kernel_type3,
                         SOA_PADDING,
-                        std::vector<real, recycler::recycle_allocator_cuda_host<real>>>>
+                        std::vector<Real, recycler::recycle_allocator_cuda_host<Real>>>>
                         local_expansions_staging_area_type3(number_kernel_type3);
-                    std::vector<struct_of_array_data<space_vector, real, 3,
+                    std::vector<struct_of_array_data<space_vector, Real, 3,
                         buffer_size_kernel_type3, SOA_PADDING,
-                        std::vector<real, recycler::recycle_allocator_cuda_host<real>>>>
+                        std::vector<Real, recycler::recycle_allocator_cuda_host<Real>>>>
                         center_of_masses_staging_area_type3(number_kernel_type3);
                     device_buffer_t<double> local_expansions_type3(
                         (buffer_size_kernel_type3 + SOA_PADDING) * 20 * number_kernel_type3 + 32,
@@ -330,7 +330,7 @@ namespace fmm {
                             // Indices to address the interaction and stencil data
                             multiindex<> start_index = get_padding_start_indices(dir);
                             multiindex<> end_index = get_padding_end_indices(dir);
-                            multiindex<> neighbor_size = get_padding_real_size(dir);
+                            multiindex<> neighbor_size = get_padding_Real_size(dir);
                             multiindex<> dir_index;
                             dir_index.x = dir[0];
                             dir_index.y = dir[1];

@@ -7,9 +7,9 @@
 #include "octotiger/test_problems/amr/amr.hpp"
 #include "octotiger/unitiger/util.hpp"
 
-std::vector<real> grid::get_subset(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub, bool energy_only) {
+std::vector<Real> grid::get_subset(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub, bool energy_only) {
 	PROFILE();
-	std::vector<real> data;
+	std::vector<Real> data;
 	for (int f = 0; f < opts().n_fields; f++) {
 		if (!energy_only || f == egas_i) {
 			for (int i = lb[0]; i < ub[0]; i++) {
@@ -24,7 +24,7 @@ std::vector<real> grid::get_subset(const std::array<integer, NDIM> &lb, const st
 	return std::move(data);
 }
 
-void grid::set_hydro_amr_boundary(const std::vector<real> &data, const geo::direction &dir, bool energy_only) {
+void grid::set_hydro_amr_boundary(const std::vector<Real> &data, const geo::direction &dir, bool energy_only) {
 	PROFILE();
 
 	std::array<integer, NDIM> lb, ub;
@@ -188,7 +188,7 @@ void grid::complete_hydro_amr_boundary(bool energy_only) {
 						const int iiir = hindex(i, j, k);
 						if (is_coarse[iii0]) {
 							int ir, jr, kr;
-							if HOST_CONSTEXPR (H_BW % 2 == 0) {
+							if constexpr (H_BW % 2 == 0) {
 								ir = i % 2;
 								jr = j % 2;
 								kr = k % 2;
@@ -206,7 +206,7 @@ void grid::complete_hydro_amr_boundary(bool energy_only) {
 	}
 }
 
-std::pair<real, real> grid::amr_error() const {
+std::pair<Real, Real> grid::amr_error() const {
 
 	const auto is_physical = [this](int i, int j, int k) {
 		const integer iii = hindex(i, j, k);
@@ -225,8 +225,8 @@ std::pair<real, real> grid::amr_error() const {
 		return false;
 	};
 
-	real sum = 0.0, V = 0.0;
-	const real dV = dx * dx * dx;
+	Real sum = 0.0, V = 0.0;
+	const Real dV = dx * dx * dx;
 	for (int i = 0; i < H_NX; i++) {
 		for (int j = 0; j < H_NX; j++) {
 			for (int k = 0; k < H_NX; k++) {

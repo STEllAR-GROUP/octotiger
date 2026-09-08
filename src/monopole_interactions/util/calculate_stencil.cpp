@@ -16,12 +16,12 @@ namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
 
-        std::pair<std::vector<multiindex<>>, std::vector<std::array<real, 4>>> calculate_stencil() {
+        std::pair<std::vector<multiindex<>>, std::vector<std::array<Real, 4>>> calculate_stencil() {
             std::array<std::vector<multiindex<>>, 8> stencils;
 
             // used to check the radii of the outer and inner sphere
-            const real theta0 = opts().theta;
-            // const real theta0 = 1/6;
+            const Real theta0 = opts().theta;
+            // const Real theta0 = 1/6;
 
             // int64_t i0 = 0;
             // int64_t i1 = 0;
@@ -49,7 +49,7 @@ namespace fmm {
                                     const int64_t j1_c = (j1 + INX) / 2 - INX / 2;
                                     const int64_t j2_c = (j2 + INX) / 2 - INX / 2;
 
-                                    const real theta_c = detail::reciprocal_distance(
+                                    const Real theta_c = detail::reciprocal_distance(
                                         i0_c, i1_c, i2_c, j0_c, j1_c, j2_c);
 
                                     if (theta_c > theta0) {
@@ -80,15 +80,15 @@ namespace fmm {
                 // std::cout << "Stencil size: " << stencils[i].size() << std::endl;
             }
 
-            std::vector<std::array<real, 4>> four_constants;
+            std::vector<std::array<Real, 4>> four_constants;
             for (auto stencil_element : superimposed_stencil) {
-                const real x = stencil_element.x;
-                const real y = stencil_element.y;
-                const real z = stencil_element.z;
-                const real tmp = sqr(x) + sqr(y) + sqr(z);
-                const real r = std::sqrt(tmp);
-                const real r3 = r * r * r;
-                std::array<real, 4> four;
+                const Real x = stencil_element.x;
+                const Real y = stencil_element.y;
+                const Real z = stencil_element.z;
+                const Real tmp = sqr(x) + sqr(y) + sqr(z);
+                const Real r = std::sqrt(tmp);
+                const Real r3 = r * r * r;
+                std::array<Real, 4> four;
                 four[0] = -1.0 / r;
                 four[1] = x / r3;
                 four[2] = y / r3;
@@ -142,15 +142,15 @@ namespace fmm {
 
             }
 
-            return std::pair<std::vector<multiindex<>>, std::vector<std::array<real, 4>>>(
+            return std::pair<std::vector<multiindex<>>, std::vector<std::array<Real, 4>>>(
                 superimposed_stencil, four_constants);
         }
-        std::pair<std::vector<bool>, std::vector<std::array<real, 4>>>
+        std::pair<std::vector<bool>, std::vector<std::array<Real, 4>>>
         calculate_stencil_masks(std::vector<multiindex<>> superimposed_stencil) {
 
-            std::array<real, 4> four_constants_defaults = {0, 0, 0, 0};
+            std::array<Real, 4> four_constants_defaults = {0, 0, 0, 0};
             std::vector<bool> stencil_masks(FULL_STENCIL_SIZE, false);
-            std::vector<std::array<real, 4>> four_constants_stencil(FULL_STENCIL_SIZE, four_constants_defaults);
+            std::vector<std::array<Real, 4>> four_constants_stencil(FULL_STENCIL_SIZE, four_constants_defaults);
             for (auto stencil_element : superimposed_stencil) {
                 const int x = stencil_element.x + STENCIL_MAX;
                 const int y = stencil_element.y + STENCIL_MAX;
@@ -159,13 +159,13 @@ namespace fmm {
                 stencil_masks[index] = true;
             }
             for (auto stencil_element : superimposed_stencil) {
-                const real x = stencil_element.x;
-                const real y = stencil_element.y;
-                const real z = stencil_element.z;
-                const real tmp = sqr(x) + sqr(y) + sqr(z);
-                const real r = std::sqrt(tmp);
-                const real r3 = r * r * r;
-                std::array<real, 4> four;
+                const Real x = stencil_element.x;
+                const Real y = stencil_element.y;
+                const Real z = stencil_element.z;
+                const Real tmp = sqr(x) + sqr(y) + sqr(z);
+                const Real r = std::sqrt(tmp);
+                const Real r3 = r * r * r;
+                std::array<Real, 4> four;
                 four[0] = -1.0 / r;
                 four[1] = x / r3;
                 four[2] = y / r3;
@@ -173,7 +173,7 @@ namespace fmm {
                 size_t index = (x + STENCIL_MAX) * STENCIL_INX * STENCIL_INX + (y + STENCIL_MAX) * STENCIL_INX + (z + STENCIL_MAX);
                 four_constants_stencil[index] = four;
             }
-            return std::pair<std::vector<bool>, std::vector<std::array<real, 4>>>(stencil_masks, four_constants_stencil);
+            return std::pair<std::vector<bool>, std::vector<std::array<Real, 4>>>(stencil_masks, four_constants_stencil);
 
         }
 

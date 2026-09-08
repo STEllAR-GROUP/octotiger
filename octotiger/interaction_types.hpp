@@ -27,7 +27,7 @@ using semaphore = hpx::counting_semaphore_var<hpx::spinlock>;
 struct gravity_boundary_type
 {
     std::shared_ptr<std::vector<multipole>> M;
-    std::shared_ptr<std::vector<real>> m;
+    std::shared_ptr<std::vector<Real>> m;
     std::shared_ptr<std::vector<space_vector>> x;
     semaphore* local_semaphore;
     gravity_boundary_type()
@@ -38,7 +38,7 @@ struct gravity_boundary_type
         local_semaphore = nullptr;
         if (M == nullptr) {
             M = std::make_shared<std::vector<multipole>>();
-            m = std::make_shared<std::vector<real>>();
+            m = std::make_shared<std::vector<Real>>();
             x = std::make_shared<std::vector<space_vector>>();
         }
     }
@@ -94,7 +94,7 @@ class interaction_type
 #if defined(OCTOTIGER_LEGACY_VC)
     alignas(32) v4sd four;
 #else
-    alignas(32) std::array<real, 4> four;
+    alignas(32) std::array<Real, 4> four;
 #endif
     // // helper variable for vectorization
     // std::uint32_t inner_loop_stop;
@@ -142,7 +142,7 @@ struct boundary_interaction_type
 #if defined(__AVX2__) && defined(OCTOTIGER_LEGACY_VC)
     std::vector<v4sd> four;
 #else
-    std::vector<std::array<real, 4>> four;
+    std::vector<std::array<Real, 4>> four;
 #endif
     // index vector in cell
     space_vector x;

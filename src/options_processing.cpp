@@ -7,7 +7,7 @@
 #include "octotiger/grid.hpp"
 #include "octotiger/options.hpp"
 #include "octotiger/physcon.hpp"
-#include "octotiger/real.hpp"
+#include "octotiger/math/Real.hpp"
 #include "octotiger/common_kernel/interaction_constants.hpp"
 
 #include <boost/program_options.hpp>
@@ -26,17 +26,17 @@
 
 #define IN_OPTIONS_CPP
 
-constexpr real mass_solar = 1.2969;
-constexpr real number_solar = 1.0994;
-constexpr real X_solar = 0.7068;
-constexpr real Z_solar = 0.0181;
+constexpr Real mass_solar = 1.2969;
+constexpr Real number_solar = 1.0994;
+constexpr Real X_solar = 0.7068;
+constexpr Real Z_solar = 0.0181;
 
 
 inline std::string to_string(const std::string &str) {
 	return str;
 }
 
-inline std::string to_string(const real &num) {
+inline std::string to_string(const Real &num) {
 	std::ostringstream strm;
 	strm << std::scientific << num;
 	return strm.str();
@@ -61,67 +61,67 @@ bool options::process_options(int argc, char *argv[]) {
 	po::options_description command_opts("options");
 
 	command_opts.add_options() //
-	("help", "produce help message")("xscale", po::value<real>(&(opts().xscale))->default_value(1.0), "grid scale")           //
-	("dt_max", po::value<real>(&(opts().dt_max))->default_value(0.333333), "max allowed pct change for positive fields in a timestep")           //
-	("cfl", po::value<real>(&(opts().cfl))->default_value(0.4), "cfl factor")           //
-	("omega", po::value<real>(&(opts().omega))->default_value(0.0), "(initial) angular frequency")                          //
+	("help", "produce help message")("xscale", po::value<Real>(&(opts().xscale))->default_value(1.0), "grid scale")           //
+	("dt_max", po::value<Real>(&(opts().dt_max))->default_value(0.333333), "max allowed pct change for positive fields in a timestep")           //
+	("cfl", po::value<Real>(&(opts().cfl))->default_value(0.4), "cfl factor")           //
+	("omega", po::value<Real>(&(opts().omega))->default_value(0.0), "(initial) angular frequency")                          //
 	("v1309", po::value<bool>(&(opts().v1309))->default_value(false), "V1309 subproblem of DWD")                   //
 	("idle_rates", po::value<bool>(&(opts().idle_rates))->default_value(false), "show idle rates and locality info in SILO")                 //
-	("eblast0", po::value<real>(&(opts().eblast0))->default_value(1.0), "energy for blast wave")     //
-	("rho_floor", po::value<real>(&(opts().rho_floor))->default_value(0.0), "density floor")     //
-	("tau_floor", po::value<real>(&(opts().tau_floor))->default_value(0.0), "entropy tracer floor")     //
-	("sod_rhol", po::value<real>(&(opts().sod_rhol))->default_value(1.0), "density in the left part of the grid")     //
-	("sod_rhor", po::value<real>(&(opts().sod_rhor))->default_value(0.125), "density in the right part of the grid")     //
-	("sod_pl", po::value<real>(&(opts().sod_pl))->default_value(1.0), "pressure in the left part of the grid")     //
-	("sod_pr", po::value<real>(&(opts().sod_pr))->default_value(0.1), "pressure in the right part of the grid")     //
-	("sod_theta", po::value<real>(&(opts().sod_theta))->default_value(0.0), "angle made by diaphragm normal w/x-axis (deg)")     //
-	("sod_phi", po::value<real>(&(opts().sod_phi))->default_value(90.0), "angle made by diaphragm normal w/z-axis (deg)")     //
-	("sod_gamma", po::value<real>(&(opts().sod_gamma))->default_value(1.4), "ratio of specific heats for gas")     //
-        ("solid_sphere_xcenter", po::value<real>(&(opts().solid_sphere_xcenter))->default_value(0.25), "x-position of the sphere center")     //
-        ("solid_sphere_ycenter", po::value<real>(&(opts().solid_sphere_ycenter))->default_value(0.0), "y-position of the sphere center")     //
-        ("solid_sphere_zcenter", po::value<real>(&(opts().solid_sphere_zcenter))->default_value(0.0), "z-position of the sphere center")     //
-        ("solid_sphere_radius", po::value<real>(&(opts().solid_sphere_radius))->default_value(1.0 / 3.0), "radius of the sphere")     //
-        ("solid_sphere_mass", po::value<real>(&(opts().solid_sphere_mass))->default_value(1.0), "total mass enclosed inside the sphere")     //
-        ("solid_sphere_rho_min", po::value<real>(&(opts().solid_sphere_rho_min))->default_value(1.0e-12), "minimal density outside (and within) the sphere")     //
-        ("star_xcenter", po::value<real>(&(opts().star_xcenter))->default_value(0.0), "x-position of the star center")     //
-        ("star_ycenter", po::value<real>(&(opts().star_ycenter))->default_value(0.0), "y-position of the star center")     //
-        ("star_zcenter", po::value<real>(&(opts().star_zcenter))->default_value(0.0), "z-position of the star center")     //
-        ("star_n", po::value<real>(&(opts().star_n))->default_value(1.5), "polytropic index of the star")     //
-        ("star_rmax", po::value<real>(&(opts().star_rmax))->default_value(1.0 / 3.0), "maximal star radius")     //
-        ("star_dr", po::value<real>(&(opts().star_dr))->default_value(1.0 / (3.0 * 128.0)), "differential radius for solving the Lane-Emden equation")     //
-        ("star_alpha", po::value<real>(&(opts().star_alpha))->default_value(1.0 / (3.0 * 3.65375)), "scaling factor for the Lane-Emden equation") // for default n=3/2, ksi_1=3.65375 and alpha=rmax/ksi_1
-        ("star_rho_center", po::value<real>(&(opts().star_rho_center))->default_value(1.0), "density at the center of the star")     //
-        ("star_rho_out", po::value<real>(&(opts().star_rho_out))->default_value(1.0e-10), "density outside the star")     //
-	("star_egas_out", po::value<real>(&(opts().star_egas_out))->default_value(1.0e-10), "gas energy outside the star")     //
-        ("moving_star_xvelocity", po::value<real>(&(opts().moving_star_xvelocity))->default_value(1.0), "velocity of the star in the x-direction")     //
-        ("moving_star_yvelocity", po::value<real>(&(opts().moving_star_yvelocity))->default_value(1.0), "velocity of the star in the y-direction")     //
-        ("moving_star_zvelocity", po::value<real>(&(opts().moving_star_zvelocity))->default_value(1.0), "velocity of the star in the z-direction")     //
-	("clight_retard", po::value<real>(&(opts().clight_retard))->default_value(1.0), "retardation factor for speed of light")                 //
-	("driving_rate", po::value<real>(&(opts().driving_rate))->default_value(0.0), "angular momentum loss driving rate")     //
-	("driving_time", po::value<real>(&(opts().driving_time))->default_value(0.0), "A.M. driving rate time")                 //
-	("entropy_driving_time", po::value<real>(&(opts().entropy_driving_time))->default_value(0.0), "entropy driving rate time")                 //
-	("entropy_driving_rate", po::value<real>(&(opts().entropy_driving_rate))->default_value(0.0), "entropy loss driving rate")      //
+	("eblast0", po::value<Real>(&(opts().eblast0))->default_value(1.0), "energy for blast wave")     //
+	("rho_floor", po::value<Real>(&(opts().rho_floor))->default_value(0.0), "density floor")     //
+	("tau_floor", po::value<Real>(&(opts().tau_floor))->default_value(0.0), "entropy tracer floor")     //
+	("sod_rhol", po::value<Real>(&(opts().sod_rhol))->default_value(1.0), "density in the left part of the grid")     //
+	("sod_rhor", po::value<Real>(&(opts().sod_rhor))->default_value(0.125), "density in the right part of the grid")     //
+	("sod_pl", po::value<Real>(&(opts().sod_pl))->default_value(1.0), "pressure in the left part of the grid")     //
+	("sod_pr", po::value<Real>(&(opts().sod_pr))->default_value(0.1), "pressure in the right part of the grid")     //
+	("sod_theta", po::value<Real>(&(opts().sod_theta))->default_value(0.0), "angle made by diaphragm normal w/x-axis (deg)")     //
+	("sod_phi", po::value<Real>(&(opts().sod_phi))->default_value(90.0), "angle made by diaphragm normal w/z-axis (deg)")     //
+	("sod_gamma", po::value<Real>(&(opts().sod_gamma))->default_value(1.4), "ratio of specific heats for gas")     //
+        ("solid_sphere_xcenter", po::value<Real>(&(opts().solid_sphere_xcenter))->default_value(0.25), "x-position of the sphere center")     //
+        ("solid_sphere_ycenter", po::value<Real>(&(opts().solid_sphere_ycenter))->default_value(0.0), "y-position of the sphere center")     //
+        ("solid_sphere_zcenter", po::value<Real>(&(opts().solid_sphere_zcenter))->default_value(0.0), "z-position of the sphere center")     //
+        ("solid_sphere_radius", po::value<Real>(&(opts().solid_sphere_radius))->default_value(1.0 / 3.0), "radius of the sphere")     //
+        ("solid_sphere_mass", po::value<Real>(&(opts().solid_sphere_mass))->default_value(1.0), "total mass enclosed inside the sphere")     //
+        ("solid_sphere_rho_min", po::value<Real>(&(opts().solid_sphere_rho_min))->default_value(1.0e-12), "minimal density outside (and within) the sphere")     //
+        ("star_xcenter", po::value<Real>(&(opts().star_xcenter))->default_value(0.0), "x-position of the star center")     //
+        ("star_ycenter", po::value<Real>(&(opts().star_ycenter))->default_value(0.0), "y-position of the star center")     //
+        ("star_zcenter", po::value<Real>(&(opts().star_zcenter))->default_value(0.0), "z-position of the star center")     //
+        ("star_n", po::value<Real>(&(opts().star_n))->default_value(1.5), "polytropic index of the star")     //
+        ("star_rmax", po::value<Real>(&(opts().star_rmax))->default_value(1.0 / 3.0), "maximal star radius")     //
+        ("star_dr", po::value<Real>(&(opts().star_dr))->default_value(1.0 / (3.0 * 128.0)), "differential radius for solving the Lane-Emden equation")     //
+        ("star_alpha", po::value<Real>(&(opts().star_alpha))->default_value(1.0 / (3.0 * 3.65375)), "scaling factor for the Lane-Emden equation") // for default n=3/2, ksi_1=3.65375 and alpha=rmax/ksi_1
+        ("star_rho_center", po::value<Real>(&(opts().star_rho_center))->default_value(1.0), "density at the center of the star")     //
+        ("star_rho_out", po::value<Real>(&(opts().star_rho_out))->default_value(1.0e-10), "density outside the star")     //
+	("star_egas_out", po::value<Real>(&(opts().star_egas_out))->default_value(1.0e-10), "gas energy outside the star")     //
+        ("moving_star_xvelocity", po::value<Real>(&(opts().moving_star_xvelocity))->default_value(1.0), "velocity of the star in the x-direction")     //
+        ("moving_star_yvelocity", po::value<Real>(&(opts().moving_star_yvelocity))->default_value(1.0), "velocity of the star in the y-direction")     //
+        ("moving_star_zvelocity", po::value<Real>(&(opts().moving_star_zvelocity))->default_value(1.0), "velocity of the star in the z-direction")     //
+	("clight_retard", po::value<Real>(&(opts().clight_retard))->default_value(1.0), "retardation factor for speed of light")                 //
+	("driving_rate", po::value<Real>(&(opts().driving_rate))->default_value(0.0), "angular momentum loss driving rate")     //
+	("driving_time", po::value<Real>(&(opts().driving_time))->default_value(0.0), "A.M. driving rate time")                 //
+	("entropy_driving_time", po::value<Real>(&(opts().entropy_driving_time))->default_value(0.0), "entropy driving rate time")                 //
+	("entropy_driving_rate", po::value<Real>(&(opts().entropy_driving_rate))->default_value(0.0), "entropy loss driving rate")      //
 	("future_wait_time", po::value<integer>(&(opts().future_wait_time))->default_value(-1), "")      //
 	("silo_offset_x", po::value<integer>(&(opts().silo_offset_x))->default_value(0), "")      //
 	("silo_offset_y", po::value<integer>(&(opts().silo_offset_y))->default_value(0), "")      //
 	("silo_offset_z", po::value<integer>(&(opts().silo_offset_z))->default_value(0), "")      //
 	("amrbnd_order", po::value<integer>(&(opts().amrbnd_order))->default_value(1), "amr boundary interpolation order")        //
 	("scf_output_frequency", po::value<integer>(&(opts().scf_output_frequency))->default_value(25), "Frequency of SCF output")        //
-	("scf_rho_floor", po::value<real>(&(opts().scf_rho_floor))->default_value(1.0e-12), "scf density floor")     //
+	("scf_rho_floor", po::value<Real>(&(opts().scf_rho_floor))->default_value(1.0e-12), "scf density floor")     //
 	("silo_num_groups", po::value<integer>(&(opts().silo_num_groups))->default_value(-1), "Number of SILO I/O groups")        //
 	("core_refine", po::value<bool>(&(opts().core_refine))->default_value(false), "refine cores by one more level")           //
-	("grad_rho_refine", po::value<real>(&(opts().grad_rho_refine))->default_value(-1.0), "density gradient refinement criteria (-1=off)")           //
+	("grad_rho_refine", po::value<Real>(&(opts().grad_rho_refine))->default_value(-1.0), "density gradient refinement criteria (-1=off)")           //
 	("accretor_refine", po::value<integer>(&(opts().accretor_refine))->default_value(0), "number of extra levels for accretor") //
 	("extra_regrid", po::value<integer>(&(opts().extra_regrid))->default_value(0), "number of extra regrids on startup") //
 	("donor_refine", po::value<integer>(&(opts().donor_refine))->default_value(0), "number of extra levels for donor")      //
 	("ngrids", po::value<integer>(&(opts().ngrids))->default_value(-1), "fix numbger of grids")                             //
-	("refinement_floor", po::value<real>(&(opts().refinement_floor))->default_value(1.0e-3), "density refinement floor")      //
-	("theta", po::value<real>(&(opts().theta))->default_value(0.5), "controls nearness determination for FMM, must be between 1/3 and 1/2")               //
+	("refinement_floor", po::value<Real>(&(opts().refinement_floor))->default_value(1.0e-3), "density refinement floor")      //
+	("theta", po::value<Real>(&(opts().theta))->default_value(0.5), "controls nearness determination for FMM, must be between 1/3 and 1/2")               //
 	("eos", po::value<eos_type>(&(opts().eos))->default_value(IDEAL), "gas equation of state")                              //
-        ("ipr_nr_tol", po::value<real>(&(opts().ipr_nr_tol))->default_value(1.48e-08), "Newton-Raphson tolerance for solving ideal gas plus radiation eos")                              //
+        ("ipr_nr_tol", po::value<Real>(&(opts().ipr_nr_tol))->default_value(1.48e-08), "Newton-Raphson tolerance for solving ideal gas plus radiation eos")                              //
         ("ipr_nr_maxiter", po::value<integer>(&(opts().ipr_nr_maxiter))->default_value(50), "Newton-Raphson max iterations for solving ideal gas plus radiation eos")                              //
         ("ipr_test", po::value<bool>(&(opts().ipr_test))->default_value(false), "test consistency of the ideal gas plus radiation eos")                              //
-        ("ipr_eint_floor", po::value<real>(&(opts().ipr_eint_floor))->default_value(0.0), "floor thermal energy for ideal gas plus radiation eos")                              //
+        ("ipr_eint_floor", po::value<Real>(&(opts().ipr_eint_floor))->default_value(0.0), "floor thermal energy for ideal gas plus radiation eos")                              //
 	("hydro", po::value<bool>(&(opts().hydro))->default_value(true), "hydro on/off")    //
 	("radiation", po::value<bool>(&(opts().radiation))->default_value(false), "radiation on/off")    //
 	("correct_am_hydro", po::value<bool>(&(opts().correct_am_hydro))->default_value(false), "Angular momentum correction switch for hydro")    //
@@ -132,10 +132,10 @@ bool options::process_options(int argc, char *argv[]) {
 	("bench", po::value<bool>(&(opts().bench))->default_value(false), "run benchmark") //
 	("datadir", po::value<std::string>(&(opts().data_dir))->default_value("./"), "directory for output") //
 	("output", po::value<std::string>(&(opts().output_filename))->default_value(""), "filename for output") //
-	("odt", po::value<real>(&(opts().output_dt))->default_value(1.0 / 100.0), "output frequency") //
-	("dual_energy_sw1", po::value<real>(&(opts().dual_energy_sw1))->default_value(0.001), "dual energy switch 1") //
-	("dual_energy_sw2", po::value<real>(&(opts().dual_energy_sw2))->default_value(0.1), "dual energy switch 2") //
-	("hard_dt", po::value<real>(&(opts().hard_dt))->default_value(-1), "timestep size") //
+	("odt", po::value<Real>(&(opts().output_dt))->default_value(1.0 / 100.0), "output frequency") //
+	("dual_energy_sw1", po::value<Real>(&(opts().dual_energy_sw1))->default_value(0.001), "dual energy switch 1") //
+	("dual_energy_sw2", po::value<Real>(&(opts().dual_energy_sw2))->default_value(0.1), "dual energy switch 2") //
+	("hard_dt", po::value<Real>(&(opts().hard_dt))->default_value(-1), "timestep size") //
 	("experiment", po::value<int>(&(opts().experiment))->default_value(0), "experiment") //
 	("unigrid", po::value<bool>(&(opts().unigrid))->default_value(false), "unigrid") //
 	("inflow_bc", po::value<bool>(&(opts().inflow_bc))->default_value(false), "Inflow Boundary Conditions") //
@@ -146,7 +146,7 @@ bool options::process_options(int argc, char *argv[]) {
 	("disable_diagnostics", po::value<bool>(&(opts().disable_diagnostics))->default_value(false), "disable diagnostics") //
 	("problem", po::value<problem_type>(&(opts().problem))->default_value(NONE), "problem type")                            //
 	("restart_filename", po::value<std::string>(&(opts().restart_filename))->default_value(""), "restart filename")         //
-	("stop_time", po::value<real>(&(opts().stop_time))->default_value(std::numeric_limits<real>::max()), "time to end simulation") //
+	("stop_time", po::value<Real>(&(opts().stop_time))->default_value(std::numeric_limits<Real>::max()), "time to end simulation") //
 	("stop_step", po::value<integer>(&(opts().stop_step))->default_value(std::numeric_limits<integer>::max() - 1), "number of timesteps to run")          //
 	("min_level", po::value<integer>(&(opts().min_level))->default_value(1), "minimum number of refinement levels")         //
 	("max_level", po::value<integer>(&(opts().max_level))->default_value(1), "maximum number of refinement levels")         //
@@ -177,15 +177,15 @@ bool options::process_options(int argc, char *argv[]) {
 	("input_file", po::value<std::string>(&(opts().input_file))->default_value(""), "input file for test problems") //
 	("config_file", po::value<std::string>(&(opts().config_file))->default_value(""), "configuration file") //
 	("n_species", po::value<integer>(&(opts().n_species))->default_value(5), "number of mass species") //
-	("atomic_mass", po::value<std::vector<real>>(&(opts().atomic_mass))->multitoken(), "atomic masses") //
-	("atomic_number", po::value<std::vector<real>>(&(opts().atomic_number))->multitoken(), "atomic numbers") //
-	("X", po::value<std::vector<real>>(&(opts().X))->multitoken(), "X - hydrogen mass fraction") //
-	("Z", po::value<std::vector<real>>(&(opts().Z))->multitoken(), "Z - metallicity") //
-	("code_to_g", po::value<real>(&(opts().code_to_g))->default_value(1), "code units to grams") //
-	("code_to_cm", po::value<real>(&(opts().code_to_cm))->default_value(1), "code units to centimeters") //
-	("code_to_s", po::value<real>(&(opts().code_to_s))->default_value(1), "code units to seconds") //
+	("atomic_mass", po::value<std::vector<Real>>(&(opts().atomic_mass))->multitoken(), "atomic masses") //
+	("atomic_number", po::value<std::vector<Real>>(&(opts().atomic_number))->multitoken(), "atomic numbers") //
+	("X", po::value<std::vector<Real>>(&(opts().X))->multitoken(), "X - hydrogen mass fraction") //
+	("Z", po::value<std::vector<Real>>(&(opts().Z))->multitoken(), "Z - metallicity") //
+	("code_to_g", po::value<Real>(&(opts().code_to_g))->default_value(1), "code units to grams") //
+	("code_to_cm", po::value<Real>(&(opts().code_to_cm))->default_value(1), "code units to centimeters") //
+	("code_to_s", po::value<Real>(&(opts().code_to_s))->default_value(1), "code units to seconds") //
 	("rotating_star_amr", po::value<bool>(&(opts().rotating_star_amr))->default_value(false), "rotating star with AMR boundary in star") //
-	("rotating_star_x", po::value<real>(&(opts().rotating_star_x))->default_value(0.0), "x center of rotating_star") //
+	("rotating_star_x", po::value<Real>(&(opts().rotating_star_x))->default_value(0.0), "x center of rotating_star") //
 			;
 
 	boost::program_options::variables_map vm;

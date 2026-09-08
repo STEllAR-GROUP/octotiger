@@ -4,7 +4,7 @@
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 #include "octotiger/profiler.hpp"
-#include "octotiger/real.hpp"
+#include "octotiger/math/Real.hpp"
 
 //#include <hpx/util/high_resolution_clock.hpp>
 
@@ -19,8 +19,8 @@
 #include <utility>
 
 static thread_local std::stack<std::string> callstack;
-static thread_local real t = 0.0;
-std::unordered_map<std::string, std::shared_ptr<real> > map;
+static thread_local Real t = 0.0;
+std::unordered_map<std::string, std::shared_ptr<Real> > map;
 
 std::string make_name(const char* f, int l) {
 	std::string str = f;
@@ -38,15 +38,15 @@ profiler_register::profiler_register(const char* func, int line) {
 	std::string str = make_name(func, line);
 	while (lock()++ != 0) {
 		--lock();}
-auto 	cntptr = std::make_shared < real > (0.0);
-	std::pair < std::string, std::shared_ptr<real> > entry;
+auto 	cntptr = std::make_shared < Real > (0.0);
+	std::pair < std::string, std::shared_ptr<Real> > entry;
 	entry.first = str;
 	entry.second = cntptr;
 	map.insert(entry);
 	--lock();}
 
 static/**/void accumulate() {
-	const real told = t;
+	const Real told = t;
 	t = hpx::chrono::high_resolution_clock::now() / 1e9;
 	if (!callstack.empty()) {
 		const std::string& str(callstack.top());
@@ -56,7 +56,7 @@ static/**/void accumulate() {
 		}
 		auto ptr = map[str];
 		--lock();
-		real dt = t - told;
+		Real dt = t - told;
 		(*ptr) += dt;
 	}
 }
@@ -82,10 +82,10 @@ void profiler_exit() {
 
 void profiler_output(FILE* _fp) {
 #ifndef PROFILE_OFF
-	std::map < real, std::string > ranks;
-	real ttot = 0.0;
+	std::map < Real, std::string > ranks;
+	Real ttot = 0.0;
 	for (auto i = map.begin(); i != map.end(); ++i) {
-		real& tm = *(i->second);
+		Real& tm = *(i->second);
 		ranks[tm] = i->first;
 		ttot += tm;
 		tm = 0.0;

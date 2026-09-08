@@ -106,7 +106,7 @@ namespace fmm {
                 multiindex<> partner_index_coarse(partner_index);
                 partner_index_coarse.transform_coarse();
 
-                // Create mask - TODO is this really necessay in the non-vectorized code..?
+                // Create mask - TODO is this Really necessay in the non-vectorized code..?
                 const double theta_c_rec_squared = static_cast<double>(
                     distance_squared_reciprocal(cell_index_coarse, partner_index_coarse));
                 const bool mask_b = theta_rec_squared > theta_c_rec_squared;

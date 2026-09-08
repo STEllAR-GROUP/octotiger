@@ -7,7 +7,7 @@
 #define POLYTROPE_HPP_
 
 #include "octotiger/config/export_definitions.hpp"
-#include "octotiger/real.hpp"
+#include "octotiger/math/Real.hpp"
 
 #include <hpx/serialization/traits/is_bitwise_serializable.hpp>
 
@@ -15,32 +15,32 @@
 
 class struct_eos {
 protected:
-	static constexpr real G = 1.0;
-	real dhdot_dr(real h, real hdot, real r) const;
-	real dh_dr(real h, real hdot, real r) const;
+	static constexpr Real G = 1.0;
+	Real dhdot_dr(Real h, Real hdot, Real r) const;
+	Real dh_dr(Real h, Real hdot, Real r) const;
 
 public:
-	real density_at(real, real);
+	Real density_at(Real, Real);
 	struct_eos() {
 	}
 
 //	class wd_struct_eos: public struct_eos {
 public:
-	real hfloor() const {
+	Real hfloor() const {
 		if (rho_cut > 0.0) {
-			const real h0_ = density_to_enthalpy(rho_cut);
+			const Real h0_ = density_to_enthalpy(rho_cut);
 			return h0_ * (1.0 - 2.5 / (1.0 + n_E));
 		} else {
 			return 0.0;
 		}
 	}
-	real B() const;
-	real A, d0_, my_radius;
-	void conversion_factors(real &m, real &l, real &t) const;
-	struct_eos(real M, real R);
-	struct_eos(real M, const struct_eos &other);
-	real energy(real d) const;
-	real d0() const;
+	Real B() const;
+	Real A, d0_, my_radius;
+	void conversion_factors(Real &m, Real &l, Real &t) const;
+	struct_eos(Real M, Real R);
+	struct_eos(Real M, const struct_eos &other);
+	Real energy(Real d) const;
+	Real d0() const;
 	template<typename Archive>
 	void serialize(Archive &arc, const unsigned int version) {
 		arc & rho_cut;
@@ -59,47 +59,47 @@ public:
 
 //		class bipolytropic_struct_eos: public struct_eos {
 public:
-	real M0, R0;
-	real wd_eps, wd_T0;
-	real wd_core_cut;
+	Real M0, R0;
+	Real wd_eps, wd_T0;
+	Real wd_core_cut;
 private:
-	real n_C, n_E;
-	real f_C, f_E;
-	real rho_cut;
+	Real n_C, n_E;
+	Real f_C, f_E;
+	Real rho_cut;
 public:
 	void set_wd_T0(double t, double abar, double zbar);
-	void set_cutoff_density(real d) {
+	void set_cutoff_density(Real d) {
 		rho_cut = d;
 	}
-	real get_cutoff_density() const {
+	Real get_cutoff_density() const {
 		return rho_cut;
 	}
-	OCTOTIGER_EXPORT void initialize(real&, real&);
-	OCTOTIGER_EXPORT void initialize(real&, real&, real&);
+	OCTOTIGER_EXPORT void initialize(Real&, Real&);
+	OCTOTIGER_EXPORT void initialize(Real&, Real&, Real&);
 
 public:
-	real get_R0() const;
-	real dC() const;
+	Real get_R0() const;
+	Real dC() const;
 
-	void set_d0_using_struct_eos(real newd, const struct_eos &other);
-	struct_eos(real M, real R, real _n_C, real _n_E, real core_frac, real mu);
-	struct_eos(real M, real R, real _n_C, real _n_E, real mu, const struct_eos &other);
-	struct_eos(real M, real _n_C, const struct_eos &other);
-	void set_entropy(real other_s0);
+	void set_d0_using_struct_eos(Real newd, const struct_eos &other);
+	struct_eos(Real M, Real R, Real _n_C, Real _n_E, Real core_frac, Real mu);
+	struct_eos(Real M, Real R, Real _n_C, Real _n_E, Real mu, const struct_eos &other);
+	struct_eos(Real M, Real _n_C, const struct_eos &other);
+	void set_entropy(Real other_s0);
 	~struct_eos() = default;
-	real enthalpy_to_density(real h) const;
-	real dE() const;
-	real s0() const;
-	real P0() const;
-	void set_frac(real f);
-	real get_frac() const;
-	real HC() const;
-	real HE() const;
-	real h0() const;
-	void set_h0(real h);
-	void set_d0(real d);
-	real density_to_enthalpy(real d) const;
-	real pressure(real d) const;
+	Real enthalpy_to_density(Real h) const;
+	Real dE() const;
+	Real s0() const;
+	Real P0() const;
+	void set_frac(Real f);
+	Real get_frac() const;
+	Real HC() const;
+	Real HE() const;
+	Real h0() const;
+	void set_h0(Real h);
+	void set_d0(Real d);
+	Real density_to_enthalpy(Real d) const;
+	Real pressure(Real d) const;
 
 };
 

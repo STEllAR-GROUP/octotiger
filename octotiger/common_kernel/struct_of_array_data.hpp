@@ -166,48 +166,48 @@ namespace fmm {
 
     constexpr uint64_t SIMD_LENGTH_BYTES = 32;
 
-    using cpu_expansion_buffer_t = struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING,
-        std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>;
+    using cpu_expansion_buffer_t = struct_of_array_data<expansion, Real, 20, ENTRIES, SOA_PADDING,
+        std::vector<Real, recycler::aggressive_recycle_aligned<Real, SIMD_LENGTH_BYTES>>>;
     using cpu_space_vector_buffer_t =
-        struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING,
-            std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>;
+        struct_of_array_data<space_vector, Real, 3, ENTRIES, SOA_PADDING,
+            std::vector<Real, recycler::aggressive_recycle_aligned<Real, SIMD_LENGTH_BYTES>>>;
     using cpu_expansion_result_buffer_t =
-        struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING,
-            std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>;
+        struct_of_array_data<expansion, Real, 20, INNER_CELLS, SOA_PADDING,
+            std::vector<Real, recycler::aggressive_recycle_aligned<Real, SIMD_LENGTH_BYTES>>>;
     using cpu_angular_result_t =
-        struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
-            std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>;
+        struct_of_array_data<space_vector, Real, 3, INNER_CELLS, SOA_PADDING,
+            std::vector<Real, recycler::aggressive_recycle_aligned<Real, SIMD_LENGTH_BYTES>>>;
     using cpu_monopole_buffer_t =
-        std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>;
+        std::vector<Real, recycler::aggressive_recycle_aligned<Real, SIMD_LENGTH_BYTES>>;
 
 #ifdef OCTOTIGER_HAVE_CUDA
-    using cuda_expansion_buffer_t = struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING,
-        std::vector<real, recycler::recycle_allocator_cuda_host<real>>>;
+    using cuda_expansion_buffer_t = struct_of_array_data<expansion, Real, 20, ENTRIES, SOA_PADDING,
+        std::vector<Real, recycler::recycle_allocator_cuda_host<Real>>>;
     using cuda_space_vector_buffer_t =
-        struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING,
-            std::vector<real, recycler::recycle_allocator_cuda_host<real>>>;
+        struct_of_array_data<space_vector, Real, 3, ENTRIES, SOA_PADDING,
+            std::vector<Real, recycler::recycle_allocator_cuda_host<Real>>>;
     using cuda_expansion_result_buffer_t =
-        struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING,
-            std::vector<real, recycler::recycle_allocator_cuda_host<real>>>;
+        struct_of_array_data<expansion, Real, 20, INNER_CELLS, SOA_PADDING,
+            std::vector<Real, recycler::recycle_allocator_cuda_host<Real>>>;
     using cuda_angular_result_t =
-        struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
-            std::vector<real, recycler::recycle_allocator_cuda_host<real>>>;
+        struct_of_array_data<space_vector, Real, 3, INNER_CELLS, SOA_PADDING,
+            std::vector<Real, recycler::recycle_allocator_cuda_host<Real>>>;
     using cuda_monopole_buffer_t =
-        std::vector<real, recycler::recycle_allocator_cuda_host<real>>;
+        std::vector<Real, recycler::recycle_allocator_cuda_host<Real>>;
 #elif OCTOTIGER_HAVE_HIP
-    using cuda_expansion_buffer_t = struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING,
-        std::vector<real, recycler::recycle_allocator_hip_host<real>>>;
+    using cuda_expansion_buffer_t = struct_of_array_data<expansion, Real, 20, ENTRIES, SOA_PADDING,
+        std::vector<Real, recycler::recycle_allocator_hip_host<Real>>>;
     using cuda_space_vector_buffer_t =
-        struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING,
-            std::vector<real, recycler::recycle_allocator_hip_host<real>>>;
+        struct_of_array_data<space_vector, Real, 3, ENTRIES, SOA_PADDING,
+            std::vector<Real, recycler::recycle_allocator_hip_host<Real>>>;
     using cuda_expansion_result_buffer_t =
-        struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING,
-            std::vector<real, recycler::recycle_allocator_hip_host<real>>>;
+        struct_of_array_data<expansion, Real, 20, INNER_CELLS, SOA_PADDING,
+            std::vector<Real, recycler::recycle_allocator_hip_host<Real>>>;
     using cuda_angular_result_t =
-        struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
-            std::vector<real, recycler::recycle_allocator_hip_host<real>>>;
+        struct_of_array_data<space_vector, Real, 3, INNER_CELLS, SOA_PADDING,
+            std::vector<Real, recycler::recycle_allocator_hip_host<Real>>>;
     using cuda_monopole_buffer_t =
-        std::vector<real, recycler::recycle_allocator_hip_host<real>>;
+        std::vector<Real, recycler::recycle_allocator_hip_host<Real>>;
 #endif
 
 }    // namespace fmm

@@ -8,7 +8,7 @@
 
 #include "octotiger/config/export_definitions.hpp"
 #include "octotiger/defs.hpp"
-#include "octotiger/real.hpp"
+#include "octotiger/math/Real.hpp"
 #include "octotiger/node_location.hpp"
 
 #include <hpx/include/naming.hpp>
@@ -32,17 +32,17 @@ class node_server;
 struct silo_var_t {
 private:
 	std::string name_;
-	std::vector<real> data_;
-	std::pair<real,real> range_;
+	std::vector<Real> data_;
+	std::pair<Real,Real> range_;
 public:
-	void set_range(real val ) {
+	void set_range(Real val ) {
 		range_.first = std::min(range_.first, val);
 		range_.second = std::max(range_.second, val);
 	}
-	real min() const {
+	Real min() const {
 		return range_.first;
 	}
-	real max() const {
+	Real max() const {
 		return range_.second;
 	}
 	std::size_t size() const {
@@ -70,8 +70,8 @@ public:
 
 struct  silo_load_t {
 	integer nx;
-	std::vector<std::pair<std::string,std::vector<real>>> vars;
-	std::vector<std::pair<std::string,real>> outflows;
+	std::vector<std::pair<std::string,std::vector<Real>>> vars;
+	std::vector<std::pair<std::string,Real>> outflows;
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {
 		arc & nx;
@@ -100,7 +100,7 @@ struct db_type<integer> {
 };
 
 template<>
-struct db_type<real> {
+struct db_type<Real> {
 	static constexpr int d = DB_DOUBLE;
 };
 

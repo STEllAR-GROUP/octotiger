@@ -72,7 +72,7 @@ void node_server::register_counters() {
 	hpx::performance_counters::install_counter_type("/octotiger/amr_bounds", &cumulative_amrs_count, "total number of amr bounds processed");
 }
 
-real node_server::get_rotation_count() const {
+Real node_server::get_rotation_count() const {
 	if (opts().problem == DWD) {
 		return rotational_time / (2.0 * M_PI);
 	}
@@ -110,7 +110,7 @@ future<void> node_server::exchange_flux_corrections() {
 		if (this->nieces[f] == +1) {
 			for (auto const &quadrant : geo::quadrant::full_set()) {
 				futs[index++] = niece_hydro_channels[f][quadrant].get_future().then(
-				hpx::annotated_function([this, f, quadrant](future<std::vector<real> > &&fdata) -> void {
+				hpx::annotated_function([this, f, quadrant](future<std::vector<Real> > &&fdata) -> void {
 					const auto face_dim = f.get_dimension();
 					std::array<integer, NDIM> lb, ub;
 					switch (face_dim) {
@@ -170,7 +170,7 @@ void node_server::energy_hydro_bounds() {
 void node_server::exchange_interlevel_hydro_data() {
   hpx::annotated_function([&]() {
     if (is_refined) {
-      std::vector<real> outflow(opts().n_fields, ZERO);
+      std::vector<Real> outflow(opts().n_fields, ZERO);
       for (auto const &ci : geo::octant::full_set()) {
         auto data = GET(child_hydro_channels[ci].get_future(hcycle));
         grid_ptr->set_restrict(data, ci);
@@ -437,7 +437,7 @@ void node_server::send_hydro_amr_boundaries(bool energy_only) {
           // TODO If flags and children_ci is_local, then set child amr_hydro_parent_ready_promise
           if (flags[dir] && (!children[ci].is_local() || !use_local_optimization)) { 
             std::array<integer, NDIM> lb, ub;
-            std::vector<real> data;
+            std::vector<Real> data;
             get_boundary_size(lb, ub, dir, OUTER, INX / 2, H_BW);
             for (integer dim = 0; dim != NDIM; ++dim) {
               lb[dim] = std::max(lb[dim] - 1, integer(0));
@@ -499,7 +499,7 @@ void node_server::static_initialize() {
 	}
 }
 
-void node_server::initialize(real t, real rt) {
+void node_server::initialize(Real t, Real rt) {
 	for (auto const &dir : geo::direction::full_set()) {
 		neighbor_signals[dir].signal();
 	}
@@ -512,7 +512,7 @@ void node_server::initialize(real t, real rt) {
 	nieces.resize(NFACE);
 	current_time = t;
 	rotational_time = rt;
-	dx = TWO * grid::get_scaling_factor() / real(INX << my_location.level());
+	dx = TWO * grid::get_scaling_factor() / Real(INX << my_location.level());
 	for (auto &d : geo::dimension::full_set()) {
 		xmin[d] = grid::get_scaling_factor() * my_location.x_location(d);
 	}
@@ -555,7 +555,7 @@ void node_server::initialize(real t, real rt) {
 node_server::~node_server() {
 }
 
-node_server::node_server(const node_location &loc, const node_client &parent_id, real t, real rt, std::size_t _step_num, std::size_t _hcycle,
+node_server::node_server(const node_location &loc, const node_client &parent_id, Real t, Real rt, std::size_t _step_num, std::size_t _hcycle,
 		std::size_t _rcycle, std::size_t _gcycle) :
 		my_location(loc), parent(parent_id) {
 	initialize(t, rt);
@@ -565,7 +565,7 @@ node_server::node_server(const node_location &loc, const node_client &parent_id,
 	rcycle = _rcycle;
 }
 
-node_server::node_server(const node_location &_my_location, integer _step_num, bool _is_refined, real _current_time, real _rotational_time,
+node_server::node_server(const node_location &_my_location, integer _step_num, bool _is_refined, Real _current_time, Real _rotational_time,
 		const std::array<integer, NCHILD> &_child_d, grid _grid, const std::vector<hpx::id_type> &_c, std::size_t _hcycle, std::size_t _rcycle,
 		std::size_t _gcycle, integer position_) {
 	my_location = _my_location;
@@ -695,7 +695,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 
 	// Get all input structures we need as input
 	std::vector<multipole> &M_ptr = grid_ptr->get_M();
-	std::vector<real> &mon_ptr = grid_ptr->get_mon();
+	std::vector<Real> &mon_ptr = grid_ptr->get_mon();
 	std::vector<std::shared_ptr<std::vector<space_vector>>> &com_ptr = grid_ptr->get_com_ptr();
 
 	// initialize to zero
@@ -710,7 +710,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 #endif
 	if (!grid_ptr->get_leaf()) {
 		// Input structure, needed for multipole-monopole interactions
-		std::array<real, NDIM> Xbase = {
+		std::array<Real, NDIM> Xbase = {
 		grid_ptr->get_X()[0][hindex(H_BW, H_BW, H_BW)],
 		grid_ptr->get_X()[1][hindex(H_BW, H_BW, H_BW)],
 		grid_ptr->get_X()[2][hindex(H_BW, H_BW, H_BW)] };

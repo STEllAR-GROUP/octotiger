@@ -35,12 +35,12 @@ namespace fmm {
         public:
             multipole_interaction_interface();
             /// Takes AoS data, converts it, calculates FMM interactions, stores results in L, L_c
-            void compute_multipole_interactions(std::vector<real>& monopoles,
+            void compute_multipole_interactions(std::vector<Real>& monopoles,
                 std::vector<multipole>& M_ptr,
                 std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
-                std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
+                std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, Real dx,
                 std::array<bool, geo::direction::count()>& is_direction_empty,
-                std::array<real, NDIM> xbase, const bool use_root_stencil);
+                std::array<Real, NDIM> xbase, const bool use_root_stencil);
             /// Sets the grid pointer - usually only required once
             void set_grid_ptr(std::shared_ptr<grid> ptr) {
                 grid_ptr = ptr;
@@ -62,9 +62,9 @@ namespace fmm {
 
         protected:
             gsolve_type type;
-            real dX;
+            Real dX;
             /// Needed for the center of masses calculation for multipole-monopole interactions
-            std::array<real, NDIM> xBase;
+            std::array<Real, NDIM> xBase;
             std::shared_ptr<grid> grid_ptr;
             /// Option whether SoA Kernels should be called or the old AoS methods
             interaction_host_kernel_type m2m_type;
@@ -87,10 +87,10 @@ namespace fmm {
         /// Converts AoS input data into SoA data
         template <typename monopole_container, typename expansion_soa_container,
             typename masses_soa_container>
-        void update_input(std::vector<real>& monopoles, std::vector<multipole>& M_ptr,
+        void update_input(std::vector<Real>& monopoles, std::vector<multipole>& M_ptr,
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
-            std::vector<neighbor_gravity_type>& neighbors, gsolve_type t, real dx,
-            std::array<real, NDIM> xbase, monopole_container& local_monopoles,
+            std::vector<neighbor_gravity_type>& neighbors, gsolve_type t, Real dx,
+            std::array<Real, NDIM> xbase, monopole_container& local_monopoles,
             expansion_soa_container& local_expansions_SoA,
             masses_soa_container& center_of_masses_SoA, std::shared_ptr<grid>& grid_ptr,
             bool is_root) {
@@ -210,7 +210,7 @@ namespace fmm {
                                 });
                         } else {
                             // Get multipole data into our input structure
-                            std::vector<real>& neighbor_mons = *(neighbor.data.m);
+                            std::vector<Real>& neighbor_mons = *(neighbor.data.m);
                             const bool fullsizes = neighbor_mons.size() == INNER_CELLS;
                             if (fullsizes) {
                                 iterate_inner_cells_padding(dir,

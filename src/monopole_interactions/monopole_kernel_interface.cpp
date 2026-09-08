@@ -94,9 +94,9 @@ namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
 
-        void monopole_kernel_interface(std::vector<real>& monopoles,
+        void monopole_kernel_interface(std::vector<Real>& monopoles,
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
-            std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
+            std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, Real dx,
             std::array<bool, geo::direction::count()>& is_direction_empty,
             std::shared_ptr<grid>& grid_ptr, const bool contains_multipole_neighbor) {
             interaction_host_kernel_type host_type = opts().monopole_host_kernel_type;

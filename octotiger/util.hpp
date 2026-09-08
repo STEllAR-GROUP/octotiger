@@ -15,23 +15,23 @@
 
 
 
-/*OCTOTIGER_FORCEINLINE real minmod(real a, real b) {
+/*OCTOTIGER_FORCEINLINE Real minmod(Real a, Real b) {
 //	return (std::copysign(HALF, a) + std::copysign(HALF, b)) * std::min(std::abs(a), std::abs(b));
 	bool a_is_neg = a < 0;
 	bool b_is_neg = b < 0;
 	if (a_is_neg != b_is_neg)
 		return ZERO;
 
-	real val = std::min(std::abs(a), std::abs(b));
+	Real val = std::min(std::abs(a), std::abs(b));
 	return a_is_neg ? -val : val;
 }*/
 
-OCTOTIGER_FORCEINLINE real minmod_theta(real a, real b, real c, real theta) {
+OCTOTIGER_FORCEINLINE Real minmod_theta(Real a, Real b, Real c, Real theta) {
 	return minmod(theta * minmod(a, b), c);
 }
 
 
-real LambertW(real z);
+Real LambertW(Real z);
 
 inline integer refinement_freq() {
 	return  integer(2.0 / opts().cfl + 0.5);
@@ -60,10 +60,10 @@ int lprint( const char* log, const char* str, Args&&...args) {
 }
 
 
-bool find_root(std::function<real(real)>& func, real xmin, real xmax,
-		real& root, real toler = 1.0e-10);
+bool find_root(std::function<Real(Real)>& func, Real xmin, Real xmax,
+		Real& root, Real toler = 1.0e-10);
 
-inline real  assert_positive(real r, const char* filename, int line) {
+inline Real  assert_positive(Real r, const char* filename, int line) {
 	if( r <= 0.0 ) {
 		FILE* fp = fopen("assert.log", "at");
 		printf( "ASSERT_POSITIVE FAILED\n");
@@ -76,7 +76,7 @@ inline real  assert_positive(real r, const char* filename, int line) {
 	return r;
 }
 
-inline void  assert_nonan(real r, const char* filename, int line) {
+inline void  assert_nonan(Real r, const char* filename, int line) {
 	if( std::isnan(r) ) {
 		FILE* fp = fopen("assert.log", "at");
 		printf( "ASSERT_NONAN FAILED\n");
@@ -88,7 +88,7 @@ inline void  assert_nonan(real r, const char* filename, int line) {
 	}
 }
 
-#define ASSERT_POSITIVE(r) assert_positive((r), __FILE__, __LINE__)
+//#define ASSERT_POSITIVE(r) assert_positive((r), __FILE__, __LINE__)
 #define ASSERT_NONAN(r) assert_nonan((r), __FILE__, __LINE__)
 
 

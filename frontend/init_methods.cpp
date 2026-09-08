@@ -415,10 +415,10 @@ void init_problem(void) {
     } else if (opts().problem == SOLID_SPHERE) {
         //	opts().hydro = false;
         set_analytic(
-            [](real x, real y, real z, real dx) { return solid_sphere(x, y, z, dx, 0.25); });
+            [](Real x, Real y, Real z, Real dx) { return solid_sphere(x, y, z, dx, 0.25); });
         set_refine_test(refine_test_center);
         set_problem(init_func_type(
-            [](real x, real y, real z, real dx) { return solid_sphere(x, y, z, dx, 0.25); }));
+            [](Real x, Real y, Real z, Real dx) { return solid_sphere(x, y, z, dx, 0.25); }));
     } else {
         std::cerr << "Error: No problem specified\n";
         std::terminate();

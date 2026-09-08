@@ -9,7 +9,7 @@
 #include <limits>
 
 scf_data_t::scf_data_t() {
-	donor_phi_max = accretor_phi_max = l1_phi = -std::numeric_limits < real > ::max();
+	donor_phi_max = accretor_phi_max = l1_phi = -std::numeric_limits < Real > ::max();
 	accretor_mass = donor_mass = donor_central_enthalpy = accretor_central_enthalpy = ZERO;
 	phiA = phiB = phiC = 0.0;
 	virial_sum = virial_norm = 0.0;

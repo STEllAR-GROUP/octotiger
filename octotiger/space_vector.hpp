@@ -7,7 +7,7 @@
 #define SPACE_VECTOR_HPP_
 
 #include "octotiger/defs.hpp"
-#include "octotiger/real.hpp"
+#include "octotiger/math/Real.hpp"
 
 #include <hpx/serialization/traits/is_bitwise_serializable.hpp>
 
@@ -21,10 +21,10 @@
 
 #if defined(__AVX2__) && defined(OCTOTIGER_LEGACY_VC)
 #include <Vc/Vc>
-using space_vector = Vc::Vector<real, Vc::VectorAbi::Avx>;
+using space_vector = Vc::Vector<Real, Vc::VectorAbi::Avx>;
 #else
 //using floatv = Vc::float_v;
- template<class T = real>
+ template<class T = Real>
  class space_vector_gen : public std::array<T, NDIM> {
  public:
  	template<class Archive>
@@ -121,12 +121,12 @@ using space_vector = Vc::Vector<real, Vc::VectorAbi::Avx>;
      {};
  }}
 
-using space_vector = space_vector_gen<real>;
+using space_vector = space_vector_gen<Real>;
 
-//using space_vector = Vc::Vector<real, Vc::VectorAbi::Scalar>;
+//using space_vector = Vc::Vector<Real, Vc::VectorAbi::Scalar>;
 #endif
 // #else
-// using space_vector = hpx::parallel::traits::vector_pack_type<real, 4>::type;
+// using space_vector = hpx::parallel::traits::vector_pack_type<Real, 4>::type;
 // #endif
 
 // #endif

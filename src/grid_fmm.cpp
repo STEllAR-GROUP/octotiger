@@ -13,7 +13,7 @@
 #include "octotiger/options.hpp"
 #include "octotiger/physcon.hpp"
 #include "octotiger/profiler.hpp"
-#include "octotiger/real.hpp"
+#include "octotiger/math/Real.hpp"
 #include "octotiger/simd_legacy.hpp"
 #include "octotiger/space_vector.hpp"
 #include "octotiger/taylor.hpp"
@@ -25,7 +25,7 @@
 #include <utility>
 #include <vector>
 
-extern taylor<4, real> factor;
+extern taylor<4, Real> factor;
 extern taylor<4, m2m_vector> factor_half_v;
 extern taylor<4, m2m_vector> factor_sixth_v;
 
@@ -158,7 +158,7 @@ static std::vector<interaction_type> ilist_d;
 static std::vector<interaction_type> ilist_r;
 static std::vector<std::vector<boundary_interaction_type>> ilist_d_bnd(geo::direction::count());
 static std::vector<std::vector<boundary_interaction_type>> ilist_n_bnd(geo::direction::count());
-extern taylor<4, real> factor;
+extern taylor<4, Real> factor;
 
 template<class T>
 void load_multipole(taylor<4, T> &m, space_vector &c, const gravity_boundary_type &data, integer iter, bool monopole) {
@@ -179,9 +179,9 @@ void load_multipole(taylor<4, T> &m, space_vector &c, const gravity_boundary_typ
 	}
 }
 
-void find_eigenvectors(real q[3][3], real e[3][3], real lambda[3]) {
+void find_eigenvectors(Real q[3][3], Real e[3][3], Real lambda[3]) {
 
-	real b0[3], b1[3], A, bdif;
+	Real b0[3], b1[3], A, bdif;
 	int iter = 0;
 	for (int l = 0; l < 3; l++) {
 		b0[0] = b0[1] = b0[2] = 0.0;
@@ -218,11 +218,11 @@ void find_eigenvectors(real q[3][3], real e[3][3], real lambda[3]) {
 
 std::pair<space_vector, space_vector> grid::find_axis() const {
 
-	real quad_moment[NDIM][NDIM];
-	real eigen[NDIM][NDIM];
-	real lambda[NDIM];
+	Real quad_moment[NDIM][NDIM];
+	Real eigen[NDIM][NDIM];
+	Real lambda[NDIM];
 	space_vector this_com;
-	real mtot = 0.0;
+	Real mtot = 0.0;
 	for (integer i = 0; i != NDIM; ++i) {
 		this_com[i] = 0.0;
 		for (integer j = 0; j != NDIM; ++j) {
@@ -241,7 +241,7 @@ std::pair<space_vector, space_vector> grid::find_axis() const {
 				space_vector const &com0iii1 = com0[iii1];
 				multipole const &Miii1 = M[iii1];
 				for (integer n = 0; n != NDIM; ++n) {
-					real mass;
+					Real mass;
 					if (is_leaf) {
 						mass = mon[iii1];
 					} else {
@@ -403,8 +403,8 @@ void grid::compute_interactions(gsolve_type type) {
 				if (type == RHO) {
 					// this branch computes the angular momentum correction, (20) in the paper
 					// divide by mass of other cell
-					real const tmp1 = Miii1() / Miii0();
-					real const tmp2 = Miii0() / Miii1();
+					Real const tmp1 = Miii1() / Miii0();
+					Real const tmp2 = Miii0() / Miii1();
 					// calculating the coefficients for formula (M are the octopole moments)
 					// the coefficients are calculated in (17) and (18)
 					// TODO: Dominic
@@ -656,7 +656,7 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
 
 		load_multipole(m0, Y, mpoles, index, false);
 
-		std::array<simd_vector, NDIM> simdY = { simd_vector(real(Y[0])), simd_vector(real(Y[1])), simd_vector(real(Y[2])), };
+		std::array<simd_vector, NDIM> simdY = { simd_vector(Real(Y[0])), simd_vector(Real(Y[1])), simd_vector(Real(Y[2])), };
 
 		const integer list_size = bnd.first.size();
 		for (integer li = 0; li < list_size; li += simd_len) {
@@ -671,7 +671,7 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
 			}
 			if (type == RHO) {
 				multipole const &Miii0 = M[iii0];
-				real const tmp = m0()[i] / Miii0();
+				Real const tmp = m0()[i] / Miii0();
 				for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
 					n0[j][i] = m0[j][i] - Miii0[j] * tmp;
 				}
@@ -824,7 +824,7 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
 		integer index = (mpoles.local_semaphore != nullptr) ? bnd.second : si;
 		load_multipole(m0, Y, mpoles, index, false);
 
-		std::array<simd_vector, NDIM> simdY = { simd_vector(real(Y[0])), simd_vector(real(Y[1])), simd_vector(real(Y[2])), };
+		std::array<simd_vector, NDIM> simdY = { simd_vector(Real(Y[0])), simd_vector(Real(Y[1])), simd_vector(Real(Y[2])), };
 
 		if (type == RHO) {
 #pragma GCC ivdep
@@ -945,7 +945,7 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type, co
 	auto &M = *M_ptr;
 	auto &mon = *mon_ptr;
 
-	std::array<real, NDIM> Xbase = { X[0][hindex(H_BW, H_BW, H_BW)], X[1][hindex(H_BW, H_BW, H_BW)], X[2][hindex(H_BW, H_BW, H_BW)] };
+	std::array<Real, NDIM> Xbase = { X[0][hindex(H_BW, H_BW, H_BW)], X[1][hindex(H_BW, H_BW, H_BW)], X[2][hindex(H_BW, H_BW, H_BW)] };
 
 	std::vector<space_vector> const &com0 = *(com_ptr[0]);
 	hpx::experimental::for_loop(for_loop_policy, 0, ilist_n_bnd.size(), [&mpoles, &Xbase, &com0, &ilist_n_bnd, type, this, &M](std::size_t si) {
@@ -974,7 +974,7 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type, co
 		}
 		if (type == RHO) {
 			multipole const &Miii0 = M[iii0];
-			real const tmp = m0[i] / Miii0();
+			Real const tmp = m0[i] / Miii0();
 #pragma GCC ivdep
 		for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
 			n0[j][i] = -Miii0[j] * tmp;
@@ -1113,9 +1113,9 @@ void compute_ilist() {
 	std::vector<interaction_type> ilist_d0;
 	std::array<std::vector<interaction_type>, geo::direction::count()> ilist_n0_bnd;
 	std::array<std::vector<interaction_type>, geo::direction::count()> ilist_d0_bnd;
-	const real theta0 = opts().theta;
+	const Real theta0 = opts().theta;
 	const auto theta = [](integer i0, integer j0, integer k0, integer i1, integer j1, integer k1) {
-		real tmp = (sqr(i0 - i1) + sqr(j0 - j1) + sqr(k0 - k1));
+		Real tmp = (sqr(i0 - i1) + sqr(j0 - j1) + sqr(k0 - k1));
 		// protect against sqrt(0)
 		if (tmp > 0.0) {
 			return 1.0 / (std::sqrt(tmp));
@@ -1170,17 +1170,17 @@ void compute_ilist() {
 				for (integer i1 = ilb; i1 < iub; ++i1) {
 					for (integer j1 = jlb; j1 < jub; ++j1) {
 						for (integer k1 = klb; k1 < kub; ++k1) {
-							const real x = i0 - i1;
-							const real y = j0 - j1;
-							const real z = k0 - k1;
+							const Real x = i0 - i1;
+							const Real y = j0 - j1;
+							const Real z = k0 - k1;
 							// protect against sqrt(0)
-							const real tmp = sqr(x) + sqr(y) + sqr(z);
-							const real r = (tmp == 0) ? 0 : std::sqrt(tmp);
-							const real r3 = r * r * r;
+							const Real tmp = sqr(x) + sqr(y) + sqr(z);
+							const Real r = (tmp == 0) ? 0 : std::sqrt(tmp);
+							const Real r3 = r * r * r;
 #if defined(OCTOTIGER_LEGACY_VC)
                             v4sd four;
 #else
-							std::array<real, 4> four;
+							std::array<Real, 4> four;
 #endif
 							if (r > 0.0) {
 								four[0] = -1.0 / r;
@@ -1201,8 +1201,8 @@ void compute_ilist() {
 							const integer i1_c = (i1 + INX) / 2 - INX / 2;
 							const integer j1_c = (j1 + INX) / 2 - INX / 2;
 							const integer k1_c = (k1 + INX) / 2 - INX / 2;
-							const real theta_f = theta(i0, j0, k0, i1, j1, k1);
-							const real theta_c = theta(i0_c, j0_c, k0_c, i1_c, j1_c, k1_c);
+							const Real theta_f = theta(i0, j0, k0, i1, j1, k1);
+							const Real theta_c = theta(i0_c, j0_c, k0_c, i1_c, j1_c, k1_c);
 							const integer iii0 = gindex(i0, j0, k0);
 							const integer iii1n = gindex((i1 + INX) % INX, (j1 + INX) % INX, (k1 + INX) % INX);
 							const integer iii1 = gindex(i1, j1, k1);
@@ -1320,17 +1320,17 @@ void compute_ilist() {
 //         center_of_masses.at(flat_index_unpadded) = com0.at(flat_index_unpadded);
 //     });
 
-//     octotiger::fmm::struct_of_array_data<expansion, real, 20, octotiger::fmm::ENTRIES,
+//     octotiger::fmm::struct_of_array_data<expansion, Real, 20, octotiger::fmm::ENTRIES,
 //         octotiger::fmm::SOA_PADDING>
 //         potential_expansions_SoA(local_expansions);
-//     octotiger::fmm::struct_of_array_data<space_vector, real, 3, octotiger::fmm::ENTRIES,
+//     octotiger::fmm::struct_of_array_data<space_vector, Real, 3, octotiger::fmm::ENTRIES,
 //         octotiger::fmm::SOA_PADDING>
 //         center_of_masses_SoA(center_of_masses);
 //     // Get parents expansions as dummies
-//     octotiger::fmm::struct_of_array_data<expansion, real, 20, octotiger::fmm::ENTRIES,
+//     octotiger::fmm::struct_of_array_data<expansion, Real, 20, octotiger::fmm::ENTRIES,
 //         octotiger::fmm::SOA_PADDING>
 //         parent_expansions_SoA(local_expansions);
-//     octotiger::fmm::struct_of_array_data<space_vector, real, 3, octotiger::fmm::ENTRIES,
+//     octotiger::fmm::struct_of_array_data<space_vector, Real, 3, octotiger::fmm::ENTRIES,
 //         octotiger::fmm::SOA_PADDING>
 //         parent_corrections_SoA(center_of_masses);
 
@@ -1640,9 +1640,9 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 	PROFILE();
 
 	integer lev = 0;
-	const real dx3 = dx * dx * dx;
+	const Real dx3 = dx * dx * dx;
 	M_ptr = std::make_shared<std::vector<multipole>>();
-	mon_ptr = std::make_shared<std::vector<real>>();
+	mon_ptr = std::make_shared<std::vector<Real>>();
 	auto &M = *M_ptr;
 	auto &mon = *mon_ptr;
 	if (is_leaf) {
@@ -1658,7 +1658,7 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 	if (type == RHO) {
 		com_ptr[0] = std::make_shared<std::vector<space_vector>>(G_N3);
 		const integer iii0 = hindex(H_BW, H_BW, H_BW);
-		const std::array<real, NDIM> x0 = { X[XDIM][iii0], X[YDIM][iii0], X[ZDIM][iii0] };
+		const std::array<Real, NDIM> x0 = { X[XDIM][iii0], X[YDIM][iii0], X[ZDIM][iii0] };
 		for (integer i = 0; i != G_NX; ++i) {
 			for (integer j = 0; j != G_NX; ++j) {
 				for (integer k = 0; k != G_NX; ++k) {
@@ -1680,7 +1680,7 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 		mret.second.resize(INX * INX * INX / NCHILD);
 	} else {
 	}
-	taylor<4, real> MM;
+	taylor<4, Real> MM;
 	integer index = 0;
 	for (integer inx = INX; (inx >= INX / 2); inx >>= 1) {
 		const integer nxp = inx;
@@ -1713,9 +1713,9 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 								}
 							}
 #if !defined(HPX_HAVE_DATAPAR_VC) || (defined(Vc_IS_VERSION_1) && Vc_IS_VERSION_1)
-							real mtot = mc.sum();
+							Real mtot = mc.sum();
 #else
-                            real mtot = Vc::reduce(mc);
+                            Real mtot = Vc::reduce(mc);
 #endif
 							for (integer d = 0; d < NDIM; ++d) {
 #if !defined(HPX_HAVE_DATAPAR_VC) || (defined(Vc_IS_VERSION_1) && Vc_IS_VERSION_1)

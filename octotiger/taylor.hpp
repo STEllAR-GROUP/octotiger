@@ -10,7 +10,7 @@
 
 #include "octotiger/defs.hpp"
 #include "octotiger/profiler.hpp"
-#include "octotiger/real.hpp"
+#include "octotiger/math/Real.hpp"
 //#include "octotiger/simd_legacy.hpp"
 #include "octotiger/space_vector.hpp"
 
@@ -27,7 +27,7 @@ constexpr std::size_t MAX_ORDER = 5;
 
 struct taylor_consts
 {
-    static const real delta[3][3];
+    static const Real delta[3][3];
     static integer map2[3][3];
     static integer map3[3][3][3];
     static integer map4[3][3][3][3];
@@ -36,7 +36,7 @@ struct taylor_consts
 constexpr integer taylor_sizes[MAX_ORDER] = {1, 4, 10, 20, 35};
 
 ///////////////////////////////////////////////////////////////////////////////
-template <int N, class T = real >class taylor
+template <int N, class T = Real >class taylor
 {
 private:
     static constexpr integer my_size = taylor_sizes[N - 1];
@@ -421,10 +421,10 @@ constexpr integer to_c[] = {
 };
 
 
-using multipole = taylor<4, real>;
-using expansion = taylor<4, real>;
+using multipole = taylor<4, Real>;
+using expansion = taylor<4, Real>;
 
-template <int N, class T = real>
+template <int N, class T = Real>
 std::ostream& operator<<(std::ostream& os, const taylor<N, T>& t) {
     std::cout << "(";
     for (size_t i = 0; i < t.size(); i++) {

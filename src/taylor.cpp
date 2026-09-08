@@ -5,7 +5,7 @@
 
 #include "octotiger/taylor.hpp"
 #include "octotiger/defs.hpp"
-#include "octotiger/real.hpp"
+#include "octotiger/math/Real.hpp"
 
 integer taylor_consts::map2[3][3] = {
     { 0, 1, 2 },
@@ -29,7 +29,7 @@ integer taylor_consts::map4[3][3][3][3] = {
       { { 5,  8,  9 }, { 8, 12, 13 }, { 9, 13, 14 } } }
 };
 
-const real taylor_consts::delta[3][3] = {
+const Real taylor_consts::delta[3][3] = {
     { ONE, ZERO, ZERO },
     { ZERO, ONE, ZERO },
     { ZERO, ZERO, ONE }

@@ -11,7 +11,7 @@
 
 namespace octotiger {
 namespace fmm {
-    multiindex<> get_padding_real_size(const geo::direction& dir) {
+    multiindex<> get_padding_Real_size(const geo::direction& dir) {
         multiindex<> size;
         if (dir[0] == -1 || dir[0] == 1)
             size.x = STENCIL_MAX;
@@ -66,11 +66,11 @@ namespace fmm {
             return false;
         }
         for (size_t i = 0; i < mine.size(); i++) {
-            if (std::abs(ref[i] - mine[i]) >= 10000.0 * std::numeric_limits<real>::epsilon()) {
+            if (std::abs(ref[i] - mine[i]) >= 10000.0 * std::numeric_limits<Real>::epsilon()) {
                 std::cout << "error: index padded: " << i << ", mine[" << i << "] != ref[" << i
                           << "] <=> " << mine[i] << " != " << ref[i] << ", "
                           << std::abs(ref[i] - mine[i])
-                          << " >= " << 1000.0 * std::numeric_limits<real>::epsilon() << std::endl;
+                          << " >= " << 1000.0 * std::numeric_limits<Real>::epsilon() << std::endl;
                 return false;
             }
         }
@@ -79,11 +79,11 @@ namespace fmm {
 
     bool space_vector_comparator(const space_vector& ref, const space_vector& mine) {
         for (size_t i = 0; i < mine.size(); i++) {
-            if (std::abs(ref[i] - mine[i]) >= 10000.0 * std::numeric_limits<real>::epsilon()) {
+            if (std::abs(ref[i] - mine[i]) >= 10000.0 * std::numeric_limits<Real>::epsilon()) {
                 std::cout << "error: index padded: " << i << ", mine[" << i << "] != ref[" << i
                           << "] <=> " << mine[i] << " != " << ref[i] << ", "
                           << std::abs(ref[i] - mine[i])
-                          << " >= " << 1000.0 * std::numeric_limits<real>::epsilon() << std::endl;
+                          << " >= " << 1000.0 * std::numeric_limits<Real>::epsilon() << std::endl;
                 return false;
             }
         }

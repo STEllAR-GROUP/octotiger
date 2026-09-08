@@ -6,12 +6,12 @@
 #include "octotiger/common_kernel/kernel_simd_types.hpp"
 #include "octotiger/compute_factor.hpp"
 #include "octotiger/defs.hpp"
-#include "octotiger/real.hpp"
+#include "octotiger/math/Real.hpp"
 #include "octotiger/taylor.hpp"
 
 // TODO Can we remove this?
 
-taylor<4, real> factor;
+taylor<4, Real> factor;
 taylor<4, m2m_vector> factor_half_v;
 taylor<4, m2m_vector> factor_sixth_v;
 m2m_vector factor_half[20];

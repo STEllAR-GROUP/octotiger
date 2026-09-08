@@ -130,10 +130,10 @@ private:
 	static constexpr int lower_face_members[3][3][9] = { { { 0 } }, { { 3, 0, 6 }, { 1, 0, 2 } }, { { 12, 0, 3, 6, 9, 15, 18, 21, 24 }, { 10, 0, 1, 2, 9, 11,
 			18, 19, 20 }, { 4, 0, 1, 2, 3, 5, 6, 7, 8 } } };
 
-	static constexpr safe_real quad_weights[3][9] = { { 1.0 }, { 2.0 / 3.0, 1.0 / 6.0, 1.0 / 6.0 }, { 16. / 36., 1. / 36., 4. / 36., 1. / 36., 4. / 36., 4.
+	static constexpr Real quad_weights[3][9] = { { 1.0 }, { 2.0 / 3.0, 1.0 / 6.0, 1.0 / 6.0 }, { 16. / 36., 1. / 36., 4. / 36., 1. / 36., 4. / 36., 4.
 			/ 36., 1. / 36., 4. / 36., 1. / 36. } };
 
-	static constexpr safe_real vol_weights[3][27] = {
+	static constexpr Real vol_weights[3][27] = {
 	/**/{ 1. / 6., 4. / 6., 1. / 6. },
 	/**/{ 1. / 36., 4. / 36., 1. / 36., 4. / 36., 16. / 36., 4. / 36., 1. / 36., 4. / 36., 1. / 36. },
 	/**/{ 1. / 216., 4. / 216., 1. / 216., 4. / 216., 16. / 216., 4. / 216., 1. / 216., 4. / 216., 1. / 216.,
@@ -185,7 +185,7 @@ private:
 			for (int j = -1; j < 2; j++) {
 				for (int k = -1; k < 2; k++) {
 					const int index = (i + 1) + 3 * (j + 1) + 9 * (k + 1);
-					safe_real sum = H_DN[0] * i;
+					Real sum = H_DN[0] * i;
 					sum += H_DN[1] * j;
 					sum += H_DN[2] * k;
 					if (directions[2][index] != sum) {
@@ -386,10 +386,10 @@ template<int NDIM, int INX>
 constexpr int cell_geometry<NDIM, INX>::lower_face_members[3][3][9];
 
 template<int NDIM, int INX>
-constexpr safe_real cell_geometry<NDIM, INX>::quad_weights[3][9];
+constexpr Real cell_geometry<NDIM, INX>::quad_weights[3][9];
 
 template<int NDIM, int INX>
-constexpr safe_real cell_geometry<NDIM, INX>::vol_weights[3][27];
+constexpr Real cell_geometry<NDIM, INX>::vol_weights[3][27];
 
 template<int NDIM, int INX>
 constexpr int cell_geometry<NDIM, INX>::face_locs[3][27][3];

@@ -18,7 +18,7 @@
 #include "octotiger/util/vec_vc_wrapper.hpp"
 
 void complete_hydro_amr_boundary_vc(const double dx, const bool energy_only,
-    const std::vector<std::vector<real>>& Ushad, const std::vector<int>& is_coarse,
+    const std::vector<std::vector<Real>>& Ushad, const std::vector<int>& is_coarse,
     const std::array<double, NDIM>& xmin, std::vector<std::vector<double>>& U) {
 
     std::vector<double, recycler::aggressive_recycle_aligned<double, 32>> unified_u(

@@ -14,7 +14,7 @@
 #include "octotiger/cuda_util/cuda_global_def.hpp"
 #include "octotiger/hydro_defs.hpp"
 #include "octotiger/unitiger/hydro.hpp"
-#include "octotiger/unitiger/safe_real.hpp"
+#include "octotiger/math/Real.hpp"
 
 #include "octotiger/unitiger/physics.hpp"
 #include "octotiger/unitiger/physics_impl.hpp"

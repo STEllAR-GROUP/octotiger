@@ -6,12 +6,12 @@
 #ifndef LANE_EMDEN_HPP_
 #define LANE_EMDEN_HPP_
 
-#include "octotiger/real.hpp"
+#include "octotiger/math/Real.hpp"
 
-real lane_emden(real r0, real dr, real n, real* m_enc = nullptr);
-real wd_radius(double mass, double* rho0);
-real binary_separation( real accretor_mass, real donor_mass, real donor_radius, real fill_factor = 1.0);
+Real lane_emden(Real r0, Real dr, Real n, Real* m_enc = nullptr);
+Real wd_radius(double mass, double* rho0);
+Real binary_separation( Real accretor_mass, Real donor_mass, Real donor_radius, Real fill_factor = 1.0);
 
 
-real find_V(real q);
+Real find_V(Real q);
 #endif /* LANE_EMDEN_HPP_ */

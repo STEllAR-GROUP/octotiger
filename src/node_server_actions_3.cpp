@@ -9,7 +9,7 @@
 #include "octotiger/node_server.hpp"
 #include "octotiger/options.hpp"
 #include "octotiger/problem.hpp"
-#include "octotiger/real.hpp"
+#include "octotiger/math/Real.hpp"
 #include "octotiger/util.hpp"
 #include "octotiger/util/timestep_util.hpp"
 
@@ -69,11 +69,11 @@ void node_server::recv_gravity_multipoles(multipole_pass_type &&v, const geo::oc
 using send_hydro_boundary_action_type = node_server::send_hydro_boundary_action;
 HPX_REGISTER_ACTION(send_hydro_boundary_action_type);
 
-void node_client::send_hydro_boundary(std::vector<real> &&data, const geo::direction &dir, std::size_t cycle) const {
+void node_client::send_hydro_boundary(std::vector<Real> &&data, const geo::direction &dir, std::size_t cycle) const {
 	hpx::apply<typename node_server::send_hydro_boundary_action>(get_unmanaged_gid(), std::move(data), dir, cycle);
 }
 
-void node_server::recv_hydro_boundary(std::vector<real> &&bdata, const geo::direction &dir, std::size_t cycle) {
+void node_server::recv_hydro_boundary(std::vector<Real> &&bdata, const geo::direction &dir, std::size_t cycle) {
 	sibling_hydro_type tmp;
 	tmp.data = std::move(bdata);
 	tmp.direction = dir;
@@ -84,11 +84,11 @@ void node_server::recv_hydro_boundary(std::vector<real> &&bdata, const geo::dire
 using send_hydro_amr_boundary_action_type = node_server::send_hydro_amr_boundary_action;
 HPX_REGISTER_ACTION(send_hydro_amr_boundary_action_type);
 
-void node_client::send_hydro_amr_boundary(std::vector<real> &&data, const geo::direction &dir, std::size_t cycle) const {
+void node_client::send_hydro_amr_boundary(std::vector<Real> &&data, const geo::direction &dir, std::size_t cycle) const {
   hpx::apply<typename node_server::send_hydro_amr_boundary_action>(get_unmanaged_gid(), std::move(data), dir, cycle);
 }
 
-void node_server::recv_hydro_amr_boundary(std::vector<real> &&bdata, const geo::direction &dir, std::size_t cycle) {
+void node_server::recv_hydro_amr_boundary(std::vector<Real> &&bdata, const geo::direction &dir, std::size_t cycle) {
 	sibling_hydro_type tmp;
 	tmp.data = std::move(bdata);
 	tmp.direction = dir;
@@ -98,11 +98,11 @@ void node_server::recv_hydro_amr_boundary(std::vector<real> &&bdata, const geo::
 using send_flux_check_action_type = node_server::send_flux_check_action;
 HPX_REGISTER_ACTION(send_flux_check_action_type);
 
-void node_client::send_flux_check(std::vector<real> &&data, const geo::direction &dir, std::size_t cycle) const {
+void node_client::send_flux_check(std::vector<Real> &&data, const geo::direction &dir, std::size_t cycle) const {
 	hpx::apply<typename node_server::send_flux_check_action>(get_unmanaged_gid(), std::move(data), dir, cycle);
 }
 
-void node_server::recv_flux_check(std::vector<real> &&bdata, const geo::direction &dir, std::size_t cycle) {
+void node_server::recv_flux_check(std::vector<Real> &&bdata, const geo::direction &dir, std::size_t cycle) {
 	sibling_hydro_type tmp;
 	tmp.data = std::move(bdata);
 	tmp.direction = dir;
@@ -112,23 +112,23 @@ void node_server::recv_flux_check(std::vector<real> &&bdata, const geo::directio
 using send_hydro_children_action_type = node_server::send_hydro_children_action;
 HPX_REGISTER_ACTION(send_hydro_children_action_type);
 
-void node_server::recv_hydro_children(std::vector<real> &&data, const geo::octant &ci, std::size_t cycle) {
+void node_server::recv_hydro_children(std::vector<Real> &&data, const geo::octant &ci, std::size_t cycle) {
 	child_hydro_channels[ci].set_value(std::move(data), cycle);
 }
 
-void node_client::send_hydro_children(std::vector<real> &&data, const geo::octant &ci, std::size_t cycle) const {
+void node_client::send_hydro_children(std::vector<Real> &&data, const geo::octant &ci, std::size_t cycle) const {
 	hpx::apply<typename node_server::send_hydro_children_action>(get_unmanaged_gid(), std::move(data), ci, cycle);
 }
 
 using send_hydro_flux_correct_action_type = node_server::send_hydro_flux_correct_action;
 HPX_REGISTER_ACTION(send_hydro_flux_correct_action_type);
 
-void node_client::send_hydro_flux_correct(std::vector<real> &&data, const geo::face &face,
+void node_client::send_hydro_flux_correct(std::vector<Real> &&data, const geo::face &face,
 		const geo::octant &ci) const {
 	hpx::apply<typename node_server::send_hydro_flux_correct_action>(get_unmanaged_gid(), std::move(data), face, ci);
 }
 
-void node_server::recv_hydro_flux_correct(std::vector<real> &&data, const geo::face &face, const geo::octant &ci) {
+void node_server::recv_hydro_flux_correct(std::vector<Real> &&data, const geo::face &face, const geo::octant &ci) {
 	const geo::quadrant index(ci, face.get_dimension());
 	if (face >= nieces.size()) {
 		for (integer i = 0; i != 100; ++i) {
@@ -170,7 +170,7 @@ line_of_centers_t node_server::line_of_centers(const std::pair<space_vector, spa
 		for (integer ci = 0; ci != NCHILD; ++ci) {
 			futs[ci] = children[ci].line_of_centers(line);
 		}
-		std::map<real, std::vector<real>> map;
+		std::map<Real, std::vector<Real>> map;
 		for (auto &&fut : futs) {
 			auto tmp = fut.get();
 			for (integer ii = 0; ii != tmp.size(); ++ii) {
@@ -188,9 +188,9 @@ line_of_centers_t node_server::line_of_centers(const std::pair<space_vector, spa
 	return return_line;
 }
 
-void line_of_centers_analyze(const line_of_centers_t &loc, real omega, std::pair<real, real> &rho1_max,
-		std::pair<real, real> &rho2_max, std::pair<real, real> &l1_phi, std::pair<real, real> &l2_phi,
-		std::pair<real, real> &l3_phi, real &rho1_phi, real &rho2_phi) {
+void line_of_centers_analyze(const line_of_centers_t &loc, Real omega, std::pair<Real, Real> &rho1_max,
+		std::pair<Real, Real> &rho2_max, std::pair<Real, Real> &l1_phi, std::pair<Real, Real> &l2_phi,
+		std::pair<Real, Real> &l3_phi, Real &rho1_phi, Real &rho2_phi) {
 
 	constexpr integer spc_ac_i = spc_i;
 	constexpr integer spc_ae_i = spc_i + 1;
@@ -209,9 +209,9 @@ void line_of_centers_analyze(const line_of_centers_t &loc, real omega, std::pair
 	integer rho1_maxi, rho2_maxi;
 	///	printf( "LOCSIZE %i\n", loc.size());
 	for (integer i = 0; i != loc.size(); ++i) {
-		const real x = loc[i].first;
-		const real rho = loc[i].second[rho_i];
-		const real pot = loc[i].second[pot_i];
+		const Real x = loc[i].first;
+		const Real rho = loc[i].second[rho_i];
+		const Real pot = loc[i].second[pot_i];
 		if (loc[i].second[spc_ac_i] + loc[i].second[spc_ae_i] > 0.5 * loc[i].second[rho_i]) {
 			//		printf("%e %e\n", x, rho);
 			if (rho1_max.second < rho) {
@@ -219,33 +219,33 @@ void line_of_centers_analyze(const line_of_centers_t &loc, real omega, std::pair
 				rho1_max.second = rho;
 				rho1_max.first = x;
 				rho1_maxi = i;
-				real phi_eff = pot / ASSERT_POSITIVE(rho) - 0.5 * x * x * omega * omega;
+				Real phi_eff = pot / expectPositive(rho) - 0.5 * x * x * omega * omega;
 				rho1_phi = phi_eff;
 			}
 		}
 	}
 	for (integer i = 0; i != loc.size(); ++i) {
-		const real x = loc[i].first;
+		const Real x = loc[i].first;
 		if (loc[i].second[spc_dc_i] + loc[i].second[spc_de_i] > 0.5 * loc[i].second[rho_i]) {
-			const real rho = loc[i].second[rho_i];
-			const real pot = loc[i].second[pot_i];
+			const Real rho = loc[i].second[rho_i];
+			const Real pot = loc[i].second[pot_i];
 			if (rho2_max.second < rho) {
 				rho2_max.second = rho;
 				rho2_max.first = x;
 				rho2_maxi = i;
-				real phi_eff = pot / ASSERT_POSITIVE(rho) - 0.5 * x * x * omega * omega;
+				Real phi_eff = pot / expectPositive(rho) - 0.5 * x * x * omega * omega;
 				rho2_phi = phi_eff;
 			}
 		}
 	}
-	l1_phi.second = -std::numeric_limits<real>::max();
-	l2_phi.second = -std::numeric_limits<real>::max();
-	l3_phi.second = -std::numeric_limits<real>::max();
+	l1_phi.second = -std::numeric_limits<Real>::max();
+	l2_phi.second = -std::numeric_limits<Real>::max();
+	l3_phi.second = -std::numeric_limits<Real>::max();
 	for (integer i = 0; i != loc.size(); ++i) {
-		const real x = loc[i].first;
-		const real rho = loc[i].second[rho_i];
-		const real pot = loc[i].second[pot_i];
-		real phi_eff = pot / ASSERT_POSITIVE(rho) - 0.5 * x * x * omega * omega;
+		const Real x = loc[i].first;
+		const Real rho = loc[i].second[rho_i];
+		const Real pot = loc[i].second[pot_i];
+		Real phi_eff = pot / expectPositive(rho) - 0.5 * x * x * omega * omega;
 		if (x > std::min(rho1_max.first, rho2_max.first) && x < std::max(rho1_max.first, rho2_max.first)) {
 			if (phi_eff > l1_phi.second) {
 				l1_phi.second = phi_eff;
@@ -348,16 +348,16 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 		ngrids = regrid(me.get_gid(), grid::get_omega(), -1, false);
 	}
 
-	real output_dt = opts().output_dt;
+	Real output_dt = opts().output_dt;
 
 	printf("OMEGA = %e, output_dt = %e\n", grid::get_omega(), output_dt);
-	real &t = current_time;
+	Real &t = current_time;
 	integer step_num = 0;
 
 	output_cnt = root_ptr->get_rotation_count() / output_dt;
 	printf("%e %e\n", root_ptr->get_rotation_count(), output_dt);
 
-	real bench_start, bench_stop;
+	Real bench_start, bench_stop;
 	while (current_time < opts().stop_time) {
 		timings::scope ts(timings_, timings::time_total);
 		if (step_num > opts().stop_step)
@@ -366,7 +366,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 		auto diags = diagnostics();
 		if (opts().problem != DWD) {
 			std::sort(diags.xline.begin(), diags.xline.end(),
-					[](const std::pair<real, std::vector<real>> &a, const std::pair<real, std::vector<real>> &b) {
+					[](const std::pair<Real, std::vector<Real>> &a, const std::pair<Real, std::vector<Real>> &b) {
 						return (a.first < b.first);
 					});
 			static int fnum = 0;
@@ -408,9 +408,9 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 			bench_start = hpx::chrono::high_resolution_clock::now() / 1e9;
 		}
 
-		real dt = 0;
+		Real dt = 0;
 		integer next_step = (std::min)(step_num + refinement_freq(), opts().stop_step + 1);
-		real omega_dot = 0.0, omega = 0.0, theta = 0.0, theta_dot = 0.0;
+		Real omega_dot = 0.0, omega = 0.0, theta = 0.0, theta_dot = 0.0;
 
 		if ((opts().problem == DWD) && (step_num % refinement_freq() == 0)) {
 			printf("dwd step...\n");
@@ -420,16 +420,16 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 			}
 			omega = grid::get_omega();
 
-			const real dx = diags.com[1][XDIM] - diags.com[0][XDIM];
-			const real dy = diags.com[1][YDIM] - diags.com[0][YDIM];
-			const real dx_dot = diags.com_dot[1][XDIM] - diags.com_dot[0][XDIM];
-			const real dy_dot = diags.com_dot[1][YDIM] - diags.com_dot[0][YDIM];
+			const Real dx = diags.com[1][XDIM] - diags.com[0][XDIM];
+			const Real dy = diags.com[1][YDIM] - diags.com[0][YDIM];
+			const Real dx_dot = diags.com_dot[1][XDIM] - diags.com_dot[0][XDIM];
+			const Real dy_dot = diags.com_dot[1][YDIM] - diags.com_dot[0][YDIM];
 			theta = atan2(dy, dx);
 			omega = grid::get_omega();
 //			if (opts().variable_omega) {
 //				theta_dot = (dy_dot * dx - dx_dot * dy) / (dx * dx + dy * dy) - omega;
-//				const real w0 = grid::get_omega() * 10.0;
-//				const real theta_dot_dot = (2.0 * w0 * theta_dot + w0 * w0 * theta);
+//				const Real w0 = grid::get_omega() * 10.0;
+//				const Real theta_dot_dot = (2.0 * w0 * theta_dot + w0 * w0 * theta);
 //				omega_dot = theta_dot_dot;
 //				omega += omega_dot * dt;
 //			}
@@ -475,9 +475,9 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 		step_num = next_step;
 
 		if (step_num % refinement_freq() == 0) {
-			real new_floor = opts().refinement_floor;
+			Real new_floor = opts().refinement_floor;
 			if (opts().ngrids > 0) {
-				new_floor *= std::pow(real(ngrids.total) / real(opts().ngrids), 2);
+				new_floor *= std::pow(Real(ngrids.total) / Real(opts().ngrids), 2);
 				printf("Old refinement floor = %e\n", opts().refinement_floor);
 				printf("New refinement floor = %e\n", new_floor);
 			}
@@ -511,7 +511,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 	auto diags = diagnostics();
 	if (opts().problem != DWD) {
 		std::sort(diags.xline.begin(), diags.xline.end(),
-				[](const std::pair<real, std::vector<real>> &a, const std::pair<real, std::vector<real>> &b) {
+				[](const std::pair<Real, std::vector<Real>> &a, const std::pair<Real, std::vector<Real>> &b) {
 					return (a.first < b.first);
 				});
 		std::string fname = "line.final.dat";
@@ -562,7 +562,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 using step_action_type = node_server::step_action;
 HPX_REGISTER_ACTION(step_action_type);
 
-future<real> node_client::step(integer steps) const {
+future<Real> node_client::step(integer steps) const {
 	return hpx::async<typename node_server::step_action>(get_unmanaged_gid(), steps);
 }
 
@@ -574,13 +574,13 @@ void node_server::refined_step() {
 //#endif
 
 	timings::scope ts(timings_, timings::time_computation);
-	const real dx = TWO * grid::get_scaling_factor() / real(INX << my_location.level());
-	real cfl0 = opts().cfl;
+	const Real dx = TWO * grid::get_scaling_factor() / Real(INX << my_location.level());
+	Real cfl0 = opts().cfl;
 
-	real a = std::numeric_limits<real>::min();
+	Real a = std::numeric_limits<Real>::min();
 	all_hydro_bounds();
 	timestep_t tstep;
-	tstep.dt = std::numeric_limits<real>::max();
+	tstep.dt = std::numeric_limits<Real>::max();
 	local_timestep_channels[NCHILD].set_value(tstep);
 	auto dt_fut = global_timestep_channel.get_future();
 
@@ -613,7 +613,7 @@ future<void> node_server::nonrefined_step() {
 	timings::scope ts(timings_, timings::time_computation);
 
 
-	real cfl0 = opts().cfl;
+	Real cfl0 = opts().cfl;
 	dt_.dt = ZERO;
 
 	all_hydro_bounds();
@@ -635,11 +635,11 @@ future<void> node_server::nonrefined_step() {
 					fut_flux.get();
 //					a = std::max(a, grid_ptr->compute_positivity_speed_limit());
 					if (rk == 0) {
-						const real dx = TWO * grid::get_scaling_factor() / real(INX << my_location.level());
+						const Real dx = TWO * grid::get_scaling_factor() / Real(INX << my_location.level());
 						dt_ = a;
 						dt_.dt = cfl0 * dx / a.a;
 						if (opts().stop_time > 0.0) {
-							real maxdt = (opts().stop_time - current_time)
+							Real maxdt = (opts().stop_time - current_time)
 									/ (refinement_freq() - (step_num % refinement_freq()));
 							if (opts().hard_dt > 0.0) {
 								maxdt = std::min(maxdt, opts().hard_dt);
@@ -688,8 +688,8 @@ void node_server::update() {
 	}
 }
 
-future<real> node_server::local_step(integer steps) {
-	future<real> fut = hpx::make_ready_future(0.0);
+future<Real> node_server::local_step(integer steps) {
+	future<Real> fut = hpx::make_ready_future(0.0);
 	for (integer i = 0; i != steps; ++i) {
 
 		{
@@ -713,7 +713,7 @@ future<real> node_server::local_step(integer steps) {
 			}
 		}
 
-		fut = fut.then(hpx::launch::async_policy(hpx::threads::thread_priority::boost), hpx::annotated_function([this, i, steps](future<void> fut) -> real {
+		fut = fut.then(hpx::launch::async_policy(hpx::threads::thread_priority::boost), hpx::annotated_function([this, i, steps](future<void> fut) -> Real {
       try {
         GET(fut);
         auto time_start = std::chrono::high_resolution_clock::now();
@@ -766,7 +766,7 @@ future<real> node_server::local_step(integer steps) {
 	return fut;
 }
 
-future<real> node_server::step(integer steps) {
+future<Real> node_server::step(integer steps) {
 	grid_ptr->set_coordinates();
 
 	std::array<future<void>, NCHILD> child_futs;
@@ -776,11 +776,11 @@ future<real> node_server::step(integer steps) {
 		}
 	}
 
-	future<real> fut = local_step(steps);
+	future<Real> fut = local_step(steps);
 
 	if (is_refined) {
 		return hpx::dataflow(hpx::launch::sync,
-				[this](future<real> dt_fut, future<std::array<future<void>, NCHILD>> &&f) {
+				[this](future<Real> dt_fut, future<std::array<future<void>, NCHILD>> &&f) {
 					auto fi = GET(f); // propagate exceptions
 					for (auto &f : fi) {
 						GET(f);

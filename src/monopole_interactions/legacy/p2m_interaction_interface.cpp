@@ -8,7 +8,7 @@
 #include "octotiger/monopole_interactions/legacy/p2m_cpu_kernel.hpp"
 #include "octotiger/monopole_interactions/util/calculate_stencil.hpp"
 #include "octotiger/options.hpp"
-#include "octotiger/real.hpp"
+#include "octotiger/math/Real.hpp"
 
 #include <algorithm>
 #include <array>
@@ -23,11 +23,11 @@ namespace fmm {
 
         template <size_t buffer_size>
         bool check_neighbor_conversion(
-            struct_of_array_data<expansion, real, 20, buffer_size, SOA_PADDING,
-                std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&
+            struct_of_array_data<expansion, Real, 20, buffer_size, SOA_PADDING,
+                std::vector<Real, recycler::aggressive_recycle_aligned<Real, SIMD_LENGTH_BYTES>>>&
                 local_expansions_staging_area,
-            struct_of_array_data<space_vector, real, 3, buffer_size, SOA_PADDING,
-                std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&
+            struct_of_array_data<space_vector, Real, 3, buffer_size, SOA_PADDING,
+                std::vector<Real, recycler::aggressive_recycle_aligned<Real, SIMD_LENGTH_BYTES>>>&
                 center_of_masses_staging_area,
             cpu_expansion_buffer_t& local_expansions_compare,
             cpu_space_vector_buffer_t& center_of_masses_compare, const geo::direction& dir) {
@@ -35,7 +35,7 @@ namespace fmm {
 
             multiindex<> start_index = get_padding_start_indices(dir);
             multiindex<> end_index = get_padding_end_indices(dir);
-            multiindex<> size = get_padding_real_size(dir);
+            multiindex<> size = get_padding_Real_size(dir);
             for (size_t x = start_index.x; x < end_index.x; x++) {
                 for (size_t y = start_index.y; y < end_index.y; y++) {
                     for (size_t z = start_index.z; z < end_index.z; z++) {
@@ -125,7 +125,7 @@ namespace fmm {
             this->p2m_type = opts().monopole_host_kernel_type;
         }
 
-        void p2m_interaction_interface::compute_p2m_interactions(std::vector<real>& monopoles,
+        void p2m_interaction_interface::compute_p2m_interactions(std::vector<Real>& monopoles,
             std::vector<multipole>& M_ptr,
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
@@ -138,7 +138,7 @@ namespace fmm {
             compute_interactions(type, is_direction_empty, neighbors, local_expansions_staging_area,
                 center_of_masses_staging_area);
         }
-        void compute_p2m_interactions_neighbors_only(const std::vector<real>& monopoles,
+        void compute_p2m_interactions_neighbors_only(const std::vector<Real>& monopoles,
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
             std::array<bool, geo::direction::count()>& is_direction_empty,
@@ -175,8 +175,8 @@ namespace fmm {
             // assert(update_input(M_ptr, com_ptr, neighbors, type, local_expansions_compare,
             //    center_of_masses_compare));
 
-            struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
-                std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>
+            struct_of_array_data<space_vector, Real, 3, INNER_CELLS, SOA_PADDING,
+                std::vector<Real, recycler::aggressive_recycle_aligned<Real, SIMD_LENGTH_BYTES>>>
                 center_of_masses_inner_cells_staging_area;
             std::vector<space_vector> const& com0 = *(com_ptr[0]);
             cpu_expansion_result_buffer_t potential_expansions_SoA;
@@ -211,16 +211,16 @@ namespace fmm {
                         size == STENCIL_MAX * STENCIL_MAX * STENCIL_MAX);
                     multiindex<> start_index = get_padding_start_indices(dir);
                     multiindex<> end_index = get_padding_end_indices(dir);
-                    multiindex<> neighbor_size = get_padding_real_size(dir);
+                    multiindex<> neighbor_size = get_padding_Real_size(dir);
                     if (size == INX * INX * STENCIL_MAX) {
                         constexpr size_t buffer_size = INX * INX * STENCIL_MAX;
-                        struct_of_array_data<expansion, real, 20, buffer_size, SOA_PADDING,
-                            std::vector<real,
-                                recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>
+                        struct_of_array_data<expansion, Real, 20, buffer_size, SOA_PADDING,
+                            std::vector<Real,
+                                recycler::aggressive_recycle_aligned<Real, SIMD_LENGTH_BYTES>>>
                             local_expansions_staging_area;
-                        struct_of_array_data<space_vector, real, 3, buffer_size, SOA_PADDING,
-                            std::vector<real,
-                                recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>
+                        struct_of_array_data<space_vector, Real, 3, buffer_size, SOA_PADDING,
+                            std::vector<Real,
+                                recycler::aggressive_recycle_aligned<Real, SIMD_LENGTH_BYTES>>>
                             center_of_masses_staging_area;
 
                         update_neighbor_input(dir, com_ptr, neighbors, type,
@@ -243,13 +243,13 @@ namespace fmm {
 #endif
                     } else if (size == INX * STENCIL_MAX * STENCIL_MAX) {
                         constexpr size_t buffer_size = INX * STENCIL_MAX * STENCIL_MAX;
-                        struct_of_array_data<expansion, real, 20, buffer_size, SOA_PADDING,
-                            std::vector<real,
-                                recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>
+                        struct_of_array_data<expansion, Real, 20, buffer_size, SOA_PADDING,
+                            std::vector<Real,
+                                recycler::aggressive_recycle_aligned<Real, SIMD_LENGTH_BYTES>>>
                             local_expansions_staging_area;
-                        struct_of_array_data<space_vector, real, 3, buffer_size, SOA_PADDING,
-                            std::vector<real,
-                                recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>
+                        struct_of_array_data<space_vector, Real, 3, buffer_size, SOA_PADDING,
+                            std::vector<Real,
+                                recycler::aggressive_recycle_aligned<Real, SIMD_LENGTH_BYTES>>>
                             center_of_masses_staging_area;
 
                         update_neighbor_input(dir, com_ptr, neighbors, type,
@@ -272,13 +272,13 @@ namespace fmm {
 #endif
                     } else if (size == STENCIL_MAX * STENCIL_MAX * STENCIL_MAX) {
                         constexpr size_t buffer_size = STENCIL_MAX * STENCIL_MAX * STENCIL_MAX;
-                        struct_of_array_data<expansion, real, 20, buffer_size, SOA_PADDING,
-                            std::vector<real,
-                                recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>
+                        struct_of_array_data<expansion, Real, 20, buffer_size, SOA_PADDING,
+                            std::vector<Real,
+                                recycler::aggressive_recycle_aligned<Real, SIMD_LENGTH_BYTES>>>
                             local_expansions_staging_area;
-                        struct_of_array_data<space_vector, real, 3, buffer_size, SOA_PADDING,
-                            std::vector<real,
-                                recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>
+                        struct_of_array_data<space_vector, Real, 3, buffer_size, SOA_PADDING,
+                            std::vector<Real,
+                                recycler::aggressive_recycle_aligned<Real, SIMD_LENGTH_BYTES>>>
                             center_of_masses_staging_area;
 
                         update_neighbor_input(dir, com_ptr, neighbors, type,

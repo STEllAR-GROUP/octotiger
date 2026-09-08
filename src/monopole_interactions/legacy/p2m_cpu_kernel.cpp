@@ -13,7 +13,7 @@
 #include "octotiger/defs.hpp"
 #include "octotiger/interaction_types.hpp"
 #include "octotiger/options.hpp"
-#include "octotiger/real.hpp"
+#include "octotiger/math/Real.hpp"
 
 #include <array>
 #include <cstddef>
@@ -22,7 +22,7 @@
 
 // std::vector<interaction_type> ilist_debugging;
 
-extern taylor<4, real> factor;
+extern taylor<4, Real> factor;
 extern taylor<4, m2m_vector> factor_half_v;
 extern taylor<4, m2m_vector> factor_sixth_v;
 
@@ -330,14 +330,14 @@ namespace fmm {
         template <size_t buffer_size>
         void neighbor_interaction_rho(const multiindex<>& neighbor_size,
             const multiindex<>& start_index, const multiindex<>& end_index,
-            const struct_of_array_data<expansion, real, 20, buffer_size, SOA_PADDING,
-                std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&
+            const struct_of_array_data<expansion, Real, 20, buffer_size, SOA_PADDING,
+                std::vector<Real, recycler::aggressive_recycle_aligned<Real, SIMD_LENGTH_BYTES>>>&
                 local_expansions_SoA,
-            const struct_of_array_data<space_vector, real, 3, buffer_size, SOA_PADDING,
-                std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&
+            const struct_of_array_data<space_vector, Real, 3, buffer_size, SOA_PADDING,
+                std::vector<Real, recycler::aggressive_recycle_aligned<Real, SIMD_LENGTH_BYTES>>>&
                 center_of_masses_SoA,
-            const struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
-                std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&
+            const struct_of_array_data<space_vector, Real, 3, INNER_CELLS, SOA_PADDING,
+                std::vector<Real, recycler::aggressive_recycle_aligned<Real, SIMD_LENGTH_BYTES>>>&
                 center_of_masses_inner_cells_SoA,
             cpu_expansion_result_buffer_t& potential_expansions_SoA,
             cpu_angular_result_t& angular_corrections_SoA, const multiindex<>& cell_index,
@@ -512,14 +512,14 @@ namespace fmm {
         template <size_t buffer_size>
         void neighbor_interaction_non_rho(const multiindex<>& neighbor_size,
             const multiindex<>& start_index, const multiindex<>& end_index,
-            const struct_of_array_data<expansion, real, 20, buffer_size, SOA_PADDING,
-                std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&
+            const struct_of_array_data<expansion, Real, 20, buffer_size, SOA_PADDING,
+                std::vector<Real, recycler::aggressive_recycle_aligned<Real, SIMD_LENGTH_BYTES>>>&
                 local_expansions_SoA,
-            const struct_of_array_data<space_vector, real, 3, buffer_size, SOA_PADDING,
-                std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&
+            const struct_of_array_data<space_vector, Real, 3, buffer_size, SOA_PADDING,
+                std::vector<Real, recycler::aggressive_recycle_aligned<Real, SIMD_LENGTH_BYTES>>>&
                 center_of_masses_SoA,
-            const struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
-                std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&
+            const struct_of_array_data<space_vector, Real, 3, INNER_CELLS, SOA_PADDING,
+                std::vector<Real, recycler::aggressive_recycle_aligned<Real, SIMD_LENGTH_BYTES>>>&
                 center_of_masses_inner_cells_SoA,
             cpu_expansion_result_buffer_t& potential_expansions_SoA, const multiindex<>& cell_index,
             const size_t cell_flat_index, const multiindex<m2m_int_vector>& cell_index_coarse,
@@ -677,14 +677,14 @@ namespace fmm {
         template <size_t buffer_size>
         void p2m_kernel::apply_stencil_neighbor(const multiindex<>& neighbor_size,
             const multiindex<>& neighbor_start_index, const multiindex<>& neighbor_end_index,
-            const struct_of_array_data<expansion, real, 20, buffer_size, SOA_PADDING,
-                std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&
+            const struct_of_array_data<expansion, Real, 20, buffer_size, SOA_PADDING,
+                std::vector<Real, recycler::aggressive_recycle_aligned<Real, SIMD_LENGTH_BYTES>>>&
                 local_expansions_SoA,
-            const struct_of_array_data<space_vector, real, 3, buffer_size, SOA_PADDING,
-                std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&
+            const struct_of_array_data<space_vector, Real, 3, buffer_size, SOA_PADDING,
+                std::vector<Real, recycler::aggressive_recycle_aligned<Real, SIMD_LENGTH_BYTES>>>&
                 center_of_masses_SoA,
-            const struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
-                std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&
+            const struct_of_array_data<space_vector, Real, 3, INNER_CELLS, SOA_PADDING,
+                std::vector<Real, recycler::aggressive_recycle_aligned<Real, SIMD_LENGTH_BYTES>>>&
                 center_of_masses_inner_cells_SoA,
             cpu_expansion_result_buffer_t& potential_expansions_SoA,
             cpu_angular_result_t& angular_corrections_SoA, const std::vector<bool>& stencil_masks,
@@ -751,32 +751,32 @@ namespace fmm {
         // Required template instances (as template declaration is in the header)
         template void p2m_kernel::apply_stencil_neighbor<((INX == STENCIL_MAX)? INX+1 : INX) * ((INX == STENCIL_MAX)? INX+1 : INX) * STENCIL_MAX>(
             const multiindex<>&, const multiindex<>&, const multiindex<>&,
-            const struct_of_array_data<expansion, real, 20, ((INX == STENCIL_MAX)? INX+1 : INX) * ((INX == STENCIL_MAX)? INX+1 : INX) * STENCIL_MAX, SOA_PADDING,
-                std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&,
-            const struct_of_array_data<space_vector, real, 3, ((INX == STENCIL_MAX)? INX+1 : INX) * ((INX == STENCIL_MAX)? INX+1 : INX) * STENCIL_MAX, SOA_PADDING,
-                std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&,
-            const struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
-                std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&,
+            const struct_of_array_data<expansion, Real, 20, ((INX == STENCIL_MAX)? INX+1 : INX) * ((INX == STENCIL_MAX)? INX+1 : INX) * STENCIL_MAX, SOA_PADDING,
+                std::vector<Real, recycler::aggressive_recycle_aligned<Real, SIMD_LENGTH_BYTES>>>&,
+            const struct_of_array_data<space_vector, Real, 3, ((INX == STENCIL_MAX)? INX+1 : INX) * ((INX == STENCIL_MAX)? INX+1 : INX) * STENCIL_MAX, SOA_PADDING,
+                std::vector<Real, recycler::aggressive_recycle_aligned<Real, SIMD_LENGTH_BYTES>>>&,
+            const struct_of_array_data<space_vector, Real, 3, INNER_CELLS, SOA_PADDING,
+                std::vector<Real, recycler::aggressive_recycle_aligned<Real, SIMD_LENGTH_BYTES>>>&,
             cpu_expansion_result_buffer_t&, cpu_angular_result_t&, const std::vector<bool>&,
             gsolve_type, const geo::direction&);
         template void p2m_kernel::apply_stencil_neighbor<((INX == STENCIL_MAX)? INX+1 : INX) * STENCIL_MAX * STENCIL_MAX>(
             const multiindex<>&, const multiindex<>&, const multiindex<>&,
-            const struct_of_array_data<expansion, real, 20, ((INX == STENCIL_MAX)? INX+1 : INX) * STENCIL_MAX * STENCIL_MAX, SOA_PADDING,
-                std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&,
-            const struct_of_array_data<space_vector, real, 3, ((INX == STENCIL_MAX)? INX+1 : INX) * STENCIL_MAX * STENCIL_MAX, SOA_PADDING,
-                std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&,
-            const struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
-                std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&,
+            const struct_of_array_data<expansion, Real, 20, ((INX == STENCIL_MAX)? INX+1 : INX) * STENCIL_MAX * STENCIL_MAX, SOA_PADDING,
+                std::vector<Real, recycler::aggressive_recycle_aligned<Real, SIMD_LENGTH_BYTES>>>&,
+            const struct_of_array_data<space_vector, Real, 3, ((INX == STENCIL_MAX)? INX+1 : INX) * STENCIL_MAX * STENCIL_MAX, SOA_PADDING,
+                std::vector<Real, recycler::aggressive_recycle_aligned<Real, SIMD_LENGTH_BYTES>>>&,
+            const struct_of_array_data<space_vector, Real, 3, INNER_CELLS, SOA_PADDING,
+                std::vector<Real, recycler::aggressive_recycle_aligned<Real, SIMD_LENGTH_BYTES>>>&,
             cpu_expansion_result_buffer_t&, cpu_angular_result_t&, const std::vector<bool>&,
             gsolve_type, const geo::direction&);
         template void p2m_kernel::apply_stencil_neighbor<STENCIL_MAX * STENCIL_MAX * STENCIL_MAX>(
             const multiindex<>&, const multiindex<>&, const multiindex<>&,
-            const struct_of_array_data<expansion, real, 20, STENCIL_MAX * STENCIL_MAX * STENCIL_MAX, SOA_PADDING,
-                std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&,
-            const struct_of_array_data<space_vector, real, 3, STENCIL_MAX * STENCIL_MAX * STENCIL_MAX, SOA_PADDING,
-                std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&,
-            const struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
-                std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&,
+            const struct_of_array_data<expansion, Real, 20, STENCIL_MAX * STENCIL_MAX * STENCIL_MAX, SOA_PADDING,
+                std::vector<Real, recycler::aggressive_recycle_aligned<Real, SIMD_LENGTH_BYTES>>>&,
+            const struct_of_array_data<space_vector, Real, 3, STENCIL_MAX * STENCIL_MAX * STENCIL_MAX, SOA_PADDING,
+                std::vector<Real, recycler::aggressive_recycle_aligned<Real, SIMD_LENGTH_BYTES>>>&,
+            const struct_of_array_data<space_vector, Real, 3, INNER_CELLS, SOA_PADDING,
+                std::vector<Real, recycler::aggressive_recycle_aligned<Real, SIMD_LENGTH_BYTES>>>&,
             cpu_expansion_result_buffer_t&, cpu_angular_result_t&, const std::vector<bool>&,
             gsolve_type, const geo::direction&);
     }    // namespace monopole_interactions

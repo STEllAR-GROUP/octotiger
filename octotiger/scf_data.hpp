@@ -7,34 +7,34 @@
 #define SCF_DATA_HPP_
 
 #include "octotiger/defs.hpp"
-#include "octotiger/real.hpp"
+#include "octotiger/math/Real.hpp"
 
 #include <hpx/serialization/traits/is_bitwise_serializable.hpp>
 
 struct scf_data_t {
-	real m_x;
-	real m;
-	real virial_sum;
-	real virial_norm;
-	real phiA;
-	real phiB;
-	real phiC;
-	real entC;
-	real donor_phi_min;
-	real accretor_phi_min;
-	real donor_phi_max;
-	real accretor_phi_max;
-	real donor_x;
-	real accretor_x;
-	real l1_phi;
-	real l1_x;
-	real accretor_mass;
-	real donor_mass;
-	real donor_central_enthalpy;
-	real accretor_central_enthalpy;
-	real donor_central_density;
-	real accretor_central_density;
-	real xA, xB, xC;
+	Real m_x;
+	Real m;
+	Real virial_sum;
+	Real virial_norm;
+	Real phiA;
+	Real phiB;
+	Real phiC;
+	Real entC;
+	Real donor_phi_min;
+	Real accretor_phi_min;
+	Real donor_phi_max;
+	Real accretor_phi_max;
+	Real donor_x;
+	Real accretor_x;
+	Real l1_phi;
+	Real l1_x;
+	Real accretor_mass;
+	Real donor_mass;
+	Real donor_central_enthalpy;
+	Real accretor_central_enthalpy;
+	Real donor_central_density;
+	Real accretor_central_density;
+	Real xA, xB, xC;
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {
 		arc & xA;

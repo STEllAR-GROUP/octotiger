@@ -84,7 +84,7 @@ void load_options_from_silo(std::string fname, DBfile *db) {
 		if (db != nullptr) {
 
 			read_silo_var<integer> ri;
-			read_silo_var<real> rr;
+			read_silo_var<Real> rr;
 			integer version = ri(db, "version");
 			if (version > SILO_VERSION) {
 				printf("WARNING: Attempting to load a version %i SILO file, maximum version allowed for this Octo-tiger is %i\n", int(version), SILO_VERSION);
@@ -137,7 +137,7 @@ void load_open(std::string fname, dir_map_type map) {
 	load_options_from_silo(fname, db_); /**/
 	hpx::threads::run_as_os_thread([&]() {
 		db_ = DBOpenReal(fname.c_str(), DB_UNKNOWN, DB_READ);
-		read_silo_var<real> rr;
+		read_silo_var<Real> rr;
 		silo_output_time() = rr(db_, "cgs_time"); /**/
 		silo_output_rotation_time() = 2 * M_PI * rr(db_, "rotational_time"); /**/
 //		printf("rotational_time = %e\n", silo_output_rotation_time());
@@ -204,9 +204,9 @@ node_server::node_server(const node_location &loc) :
 				const int nvar = load.nx * load.nx * load.nx;
 				load.outflows[f].first = load.vars[f].first = hydro_names[f];
 				load.vars[f].second.resize(nvar);
-				read_silo_var<real> rd;
+				read_silo_var<Real> rd;
 				load.outflows[f].second = rd(db, outflow_name(this_name).c_str());
-				std::memcpy(load.vars[f].second.data(), var->vals[0], sizeof(real) * nvar);
+				std::memcpy(load.vars[f].second.data(), var->vals[0], sizeof(Real) * nvar);
 				DBFreeQuadvar(var);
 			}
 			DBClose(db);
@@ -275,7 +275,7 @@ void load_data_from_silo(std::string fname, std::shared_ptr<node_server> root_pt
 		DBmultimesh *master_mesh = GET(hpx::threads::run_as_os_thread([&]() {
 			return DBGetMultimesh(db, "quadmesh");
 		}));
-		const int chunk_size = std::ceil(real(master_mesh->nblocks) / real(sz));
+		const int chunk_size = std::ceil(Real(master_mesh->nblocks) / Real(sz));
 		hpx::threads::run_as_os_thread([&]() {
 			const read_silo_var<integer> ri;
 			node_count = ri(db, "node_count");
@@ -347,8 +347,8 @@ void node_server::reconstruct_tree() {
 
 silo_var_t::silo_var_t(const std::string &name, std::size_t nx) :
 		name_(name), data_(nx * nx * nx) {
-	range_.first = +std::numeric_limits<real>::max();
-	range_.second = -std::numeric_limits<real>::max();
+	range_.first = +std::numeric_limits<Real>::max();
+	range_.second = -std::numeric_limits<Real>::max();
 }
 
 double&

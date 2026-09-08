@@ -11,7 +11,7 @@
 #include "octotiger/cuda_util/cuda_helper.hpp"
 #include "octotiger/cuda_util/cuda_scheduler.hpp"
 
-#include "octotiger/real.hpp"
+#include "octotiger/math/Real.hpp"
 
 #include <array>
 #include <vector>
@@ -33,17 +33,17 @@ namespace fmm {
             cuda_monopole_interaction_interface();
             /** Takes AoS data, converts it, calculates FMM monopole-monopole interactions,
              * stores results in L */
-            void compute_interactions(std::vector<real>& monopoles,
+            void compute_interactions(std::vector<Real>& monopoles,
                 std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
-                std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
+                std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, Real dx,
                 std::array<bool, geo::direction::count()>& is_direction_empty,
                 std::shared_ptr<grid>& grid, const bool contains_multipole_neighbor);
 
         protected:
-            real theta;
+            Real theta;
             /// Host-side pinned memory buffer for potential expansions results
-            // struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING,
-            //     std::vector<real, cuda_pinned_allocator<real>>>
+            // struct_of_array_data<expansion, Real, 20, INNER_CELLS, SOA_PADDING,
+            //     std::vector<Real, cuda_pinned_allocator<Real>>>
             //     potential_expansions_SoA;
         };
 

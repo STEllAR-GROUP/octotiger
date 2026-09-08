@@ -13,7 +13,7 @@
 //#define FACE_ONLY_HYDRO
 
 template<int NDIM, int INX, class PHYS>
-timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X,	safe_real omega) {
+timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X,	Real omega) {
 
 	PROFILE();
 	// input Q, X
@@ -22,7 +22,7 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, con
 	timestep_t ts;
 	ts.a = 0.0;
 	// bunch of tmp containers
-	static thread_local std::vector<safe_real> UR(nf_), UL(nf_), this_flux(nf_);
+	static thread_local std::vector<Real> UR(nf_), UL(nf_), this_flux(nf_);
 
     // bunch of small helpers
 	static const cell_geometry<NDIM, INX> geo;
@@ -47,8 +47,8 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, con
 		}
 
 		for (const auto &i : indices) {
-			safe_real ap = 0.0, am = 0.0;
-			safe_real this_ap, this_am;
+			Real ap = 0.0, am = 0.0;
+			Real this_ap, this_am;
 			for (int fi = 0; fi < geo.NFACEDIR; fi++) {
 #ifdef FACE_ONLY_HYDRO
 				if( fi != 0 ) {
@@ -61,28 +61,28 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, con
 					UR[f] = Q[f][d][i];
 					UL[f] = Q[f][geo::flip_dim(d, dim)][i - geo.H_DN[dim]];
 				}
-				std::array < safe_real, NDIM > x;
-				std::array < safe_real, NDIM > vg;
+				std::array < Real, NDIM > x;
+				std::array < Real, NDIM > vg;
 				for (int dim = 0; dim < NDIM; dim++) {
 					x[dim] = X[dim][i] + 0.5 * xloc[d][dim] * dx;
 				}
-				if HOST_CONSTEXPR (NDIM > 1) {
+				if constexpr (NDIM > 1) {
 					vg[0] = -omega * (X[1][i] + 0.5 * xloc[d][1] * dx);
 					vg[1] = +omega * (X[0][i] + 0.5 * xloc[d][0] * dx);
-					if HOST_CONSTEXPR (NDIM == 3) {
+					if constexpr (NDIM == 3) {
 						vg[2] = 0.0;
 					}
 				} else {
 					vg[0] = 0.0;
 				}
 
-				safe_real amr, apr, aml, apl;
-				static thread_local std::vector<safe_real> FR(nf_), FL(nf_);
+				Real amr, apr, aml, apl;
+				static thread_local std::vector<Real> FR(nf_), FL(nf_);
 
 				PHYS::template physical_flux<INX>(UR, FR, dim, amr, apr, x, vg);
 				PHYS::template physical_flux<INX>(UL, FL, dim, aml, apl, x, vg);
-				this_ap = std::max(std::max(apr, apl), safe_real(0.0));
-				this_am = std::min(std::min(amr, aml), safe_real(0.0));
+				this_ap = std::max(std::max(apr, apl), Real(0.0));
+				this_am = std::min(std::min(amr, aml), Real(0.0));
 #pragma ivdep
 				for (int f = 0; f < nf_; f++) {
 					// this isn't vectorized
@@ -106,7 +106,7 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, con
 #endif
 				}
 			}
-			const auto this_amax = std::max(ap, safe_real(-am));
+			const auto this_amax = std::max(ap, Real(-am));
 			if (this_amax > ts.a) {
 				ts.a = this_amax;
 				ts.x = X[0][i];

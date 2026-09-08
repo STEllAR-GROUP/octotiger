@@ -14,7 +14,7 @@
 #include "octotiger/unitiger/physics_impl.hpp"
 #include "octotiger/unitiger/radiation/radiation_physics.hpp"
 #include "octotiger/unitiger/radiation/radiation_physics_impl.hpp"
-#include "octotiger/unitiger/safe_real.hpp"
+#include "octotiger/math/Real.hpp"
 #include "octotiger/unitiger/hydro_impl/reconstruct.hpp"
 #include "octotiger/unitiger/hydro_impl/flux.hpp"
 #include "octotiger/unitiger/hydro_impl/boundaries.hpp"
@@ -22,7 +22,7 @@
 #include "octotiger/unitiger/hydro_impl/output.hpp"
 
 static constexpr double tmax = 1.0;
-static constexpr safe_real dt_out = tmax / 100;
+static constexpr Real dt_out = tmax / 100;
 
 #define H_BW 3
 #define H_NX (INX + 2 * H_BW)
@@ -41,7 +41,7 @@ void run_test(typename PHYS::test_type problem, bool with_correction, bool writi
 
 template<int NDIM, int INX, class PHYS>
 void run_test(typename PHYS::test_type problem, bool with_correction, bool writingForTest) {
-	static constexpr safe_real CFL = (0.4 / NDIM);
+	static constexpr Real CFL = (0.4 / NDIM);
 	hydro_computer<NDIM, INX, PHYS> computer;
 	if (with_correction) {
 		computer.use_angmom_correction(PHYS::get_angmom_index());
@@ -51,15 +51,15 @@ void run_test(typename PHYS::test_type problem, bool with_correction, bool writi
 	for (int s = 0; s < 5; s++) {
 		computer.use_disc_detect(PHYS::spc_i + s);
 	}
-	std::vector<std::vector<std::vector<safe_real>>> F(NDIM, std::vector<std::vector<safe_real>>(nf, std::vector<safe_real>(H_N3)));
-	std::vector<std::vector<safe_real>> U(nf, std::vector<safe_real>(H_N3));
-	std::vector<std::vector<safe_real>> U0(nf, std::vector<safe_real>(H_N3));
+	std::vector<std::vector<std::vector<Real>>> F(NDIM, std::vector<std::vector<Real>>(nf, std::vector<Real>(H_N3)));
+	std::vector<std::vector<Real>> U(nf, std::vector<Real>(H_N3));
+	std::vector<std::vector<Real>> U0(nf, std::vector<Real>(H_N3));
 	hydro::x_type X(NDIM);
 	for (int dim = 0; dim < NDIM; dim++) {
 		X[dim].resize(H_N3);
 	}
 
-	safe_real t = 0.0;
+	Real t = 0.0;
 	int iter = 0;
 	int oter = 0;
 	bool printEachTimeStep = true;
@@ -67,10 +67,10 @@ void run_test(typename PHYS::test_type problem, bool with_correction, bool writi
 	hydro::recon_type<NDIM> q;
 	PHYS phys;
 	computer.set_bc(phys.template initialize<INX>(problem, U, X));
-	const safe_real dx = X[0][cell_geometry<NDIM, INX>::H_DNX] - X[0][0];
+	const Real dx = X[0][cell_geometry<NDIM, INX>::H_DNX] - X[0][0];
 	computer.output(U, X, oter++, 0);
-//	const safe_real omega = 2.0 * M_PI / tmax / 10.0;
-	const safe_real omega = 0.0;
+//	const Real omega = 2.0 * M_PI / tmax / 10.0;
+	const Real omega = 0.0;
 	printf("omega = %e\n", (double) omega);
 
 	constexpr int RK = 2;
@@ -78,14 +78,14 @@ void run_test(typename PHYS::test_type problem, bool with_correction, bool writi
 	const auto tstart = time(NULL);
 	while (t < tmax) {
 		U0 = U;
-		safe_real dt;
+		Real dt;
 		q = computer.reconstruct(U, X, omega);
 		auto a = computer.flux(U, q, F, X, omega);
 		dt = CFL * dx / a.a;
 		dt = std::min(double(dt), tmax - t + 1.0e-20);
 		computer.advance(U0, U, F, X, dx, dt, 1.0, omega);
 		computer.boundaries(U, X);
-		if HOST_CONSTEXPR (RK == 3) {
+		if constexpr (RK == 3) {
 			q = computer.reconstruct(U, X, omega);
 			computer.flux(U, q, F, X, omega);
 			computer.advance(U0, U, F, X, dx, dt, 0.25, omega);
@@ -94,7 +94,7 @@ void run_test(typename PHYS::test_type problem, bool with_correction, bool writi
 			computer.flux(U, q, F, X, omega);
 			computer.advance(U0, U, F, X, dx, dt, 2.0 / 3.0, omega);
 			computer.boundaries(U, X);
-		} else if HOST_CONSTEXPR (RK == 2) {
+		} else if constexpr (RK == 2) {
 			q = computer.reconstruct(U, X, omega);
 			computer.flux(U, q, F, X, omega);
 			computer.advance(U0, U, F, X, dx, dt, 0.5, omega);
@@ -129,9 +129,9 @@ void run_test(typename PHYS::test_type problem, bool with_correction, bool writi
 //
 //      phys.template pre_recon<INX>(U0, X, omega, with_correction);
 //      phys.template pre_recon<INX>(U, X, omega, with_correction);
-//      std::vector<safe_real> L1(nf);
-//      std::vector<safe_real> L2(nf);
-//      std::vector<safe_real> Linf(nf);
+//      std::vector<Real> L1(nf);
+//      std::vector<Real> L2(nf);
+//      std::vector<Real> Linf(nf);
 //      for (int f = 0; f < nf; f++) {
 //              L1[f] = L2[f] = Linf[f];
 //              for (int i = 0; i < H_N3; i++) {

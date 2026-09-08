@@ -72,19 +72,19 @@ public:
     OCTOTIGER_EXPORT node_client(future<hpx::id_type>&& fut);
     OCTOTIGER_EXPORT node_client(const hpx::id_type& _id);
     future<scf_data_t> scf_params() const;
-    future<void> rho_mult(real, real) const;
-    future<void> rho_move(real) const;
+    future<void> rho_mult(Real, Real) const;
+    future<void> rho_move(Real) const;
     future<void> check_channels() const;
-    future<real> scf_update(
-        real, real, real, real, real, real, real, struct_eos, struct_eos) const;
-    future<std::pair<real,real>> amr_error() const;
+    future<Real> scf_update(
+        Real, Real, Real, Real, Real, Real, Real, struct_eos, struct_eos) const;
+    future<std::pair<Real,Real>> amr_error() const;
     void send_hydro_children(
-        std::vector<real>&&, const geo::octant& ci, std::size_t cycle) const;
-    void send_hydro_flux_correct(std::vector<real>&&, const geo::face& face,
+        std::vector<Real>&&, const geo::octant& ci, std::size_t cycle) const;
+    void send_hydro_flux_correct(std::vector<Real>&&, const geo::face& face,
         const geo::octant& ci) const;
-    void send_read_flux_correct(std::vector<real>&&, const geo::face& face,
+    void send_read_flux_correct(std::vector<Real>&&, const geo::face& face,
         const geo::octant& ci) const;
-    void send_rad_flux_correct(std::vector<real>&&, const geo::face& face,
+    void send_rad_flux_correct(std::vector<Real>&&, const geo::face& face,
         const geo::octant& ci) const;
     future<diagnostics_t> diagnostics(const diagnostics_t&) const;
     future<analytic_t> compare_analytic() const;
@@ -102,38 +102,38 @@ public:
     future<node_count_type> regrid_gather(bool) const;
     future<line_of_centers_t> line_of_centers(
         const std::pair<space_vector, space_vector>& line) const;
-    void send_flux_check(std::vector<real>&&, const geo::direction& dir,
+    void send_flux_check(std::vector<Real>&&, const geo::direction& dir,
         std::size_t cycle) const;
-    void send_hydro_boundary(std::vector<real>&&, const geo::direction& dir,
+    void send_hydro_boundary(std::vector<Real>&&, const geo::direction& dir,
         std::size_t cycle) const;
-    void send_hydro_amr_boundary(std::vector<real>&&, const geo::direction& dir,
+    void send_hydro_amr_boundary(std::vector<Real>&&, const geo::direction& dir,
         std::size_t cycle) const;
-    void send_rad_amr_boundary(std::vector<real>&&, const geo::direction& dir,
+    void send_rad_amr_boundary(std::vector<Real>&&, const geo::direction& dir,
         std::size_t cycle) const;
     void send_gravity_boundary(gravity_boundary_type&&, const geo::direction&,
         bool monopole, std::size_t cycle) const;
     void send_gravity_multipoles(
         multipole_pass_type&&, const geo::octant& ci) const;
     void send_gravity_expansions(expansion_pass_type&&) const;
-    future<real> step(integer) const;
+    future<Real> step(integer) const;
     future<void> solve_gravity(bool ene, bool aonly) const;
     future<hpx::id_type> copy_to_locality(const hpx::id_type&) const;
-    future<void> set_grid(std::vector<real>&&, std::vector<real>&&) const;
+    future<void> set_grid(std::vector<Real>&&, std::vector<Real>&&) const;
     void timestep_driver_ascend(timestep_t) const;
     void set_local_timestep(integer, timestep_t) const;
     future<void> velocity_inc(const space_vector&) const;
     future<void> energy_adj() const;
-    future<void> check_for_refinement(real omega, real) const;
+    future<void> check_for_refinement(Real omega, Real) const;
     future<void> enforce_bc() const;
     future<void> force_nodes_to_exist(std::vector<node_location>&& loc) const;
     void report_timing() const;
-    future<void> change_units(real, real, real, real) const;
+    future<void> change_units(Real, Real, Real, Real) const;
     future<void> erad_init() const;
     void send_rad_children(
-        std::vector<real>&&, const geo::octant& ci, std::size_t cycle) const;
+        std::vector<Real>&&, const geo::octant& ci, std::size_t cycle) const;
     void send_rad_boundary(
-        std::vector<real>&&, const geo::direction&, std::size_t cycle) const;
-    future<void> set_rad_grid(std::vector<real>&&) const;
+        std::vector<Real>&&, const geo::direction&, std::size_t cycle) const;
+    future<void> set_rad_grid(std::vector<Real>&&) const;
     future<void> kill() const;
 };
 #endif /* NODE_CLIENT_HPP_ */

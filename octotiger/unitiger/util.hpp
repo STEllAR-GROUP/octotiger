@@ -46,11 +46,11 @@ static inline void make_monotone(T &ql, T q0, T &qr) {
 }
 
 
-static inline safe_real minmod(safe_real a, safe_real b) {
+static inline Real minmod(Real a, Real b) {
 	return (std::copysign(0.5, a) + std::copysign(0.5, b)) * std::min(std::abs(a), std::abs(b));
 }
 
-static inline safe_real minmod_theta(safe_real a, safe_real b, safe_real c) {
+static inline Real minmod_theta(Real a, Real b, Real c) {
 	return minmod(c * minmod(a, b), 0.5 * (a + b));
 }
 

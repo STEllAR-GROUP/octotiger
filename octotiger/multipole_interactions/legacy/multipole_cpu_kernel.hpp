@@ -13,7 +13,7 @@
 #include "octotiger/common_kernel/multiindex.hpp"
 #include "octotiger/common_kernel/struct_of_array_data.hpp"
 
-#include "octotiger/real.hpp"
+#include "octotiger/math/Real.hpp"
 #include "octotiger/taylor.hpp"
 
 #include <cstddef>

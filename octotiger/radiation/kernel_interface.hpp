@@ -8,7 +8,7 @@
 #include "octotiger/defs.hpp"
 #include "octotiger/radiation/cpu_kernel.hpp"
 #include "octotiger/radiation/cuda_kernel.hpp"
-#include "octotiger/real.hpp"
+#include "octotiger/math/Real.hpp"
 
 #include <hpx/include/run_as.hpp>
 
@@ -145,19 +145,19 @@ namespace octotiger { namespace radiation {
 
     template <integer er_i, integer fx_i, integer fy_i, integer fz_i>
     void radiation_kernel(integer const d,
-        std::vector<real> const& rho,
-        std::vector<real>& sx,
-        std::vector<real>& sy,
-        std::vector<real>& sz,
-        std::vector<real>& egas,
-        std::vector<real>& tau,
-        real const fgamma,
-        std::vector<std::vector<real>>& U,
-        std::vector<real> const& mmw,
-        std::vector<real> const& X_spc,
-        std::vector<real> const& Z_spc,
-        real dt,
-        real const clightinv)
+        std::vector<Real> const& rho,
+        std::vector<Real>& sx,
+        std::vector<Real>& sy,
+        std::vector<Real>& sz,
+        std::vector<Real>& egas,
+        std::vector<Real>& tau,
+        Real const fgamma,
+        std::vector<std::vector<Real>>& U,
+        std::vector<Real> const& mmw,
+        std::vector<Real> const& X_spc,
+        std::vector<Real> const& Z_spc,
+        Real dt,
+        Real const clightinv)
     {
 #if defined(OCTOTIGER_DUMP_RADIATION_CASES)
         static std::atomic_size_t next_index(0);

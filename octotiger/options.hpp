@@ -10,7 +10,7 @@
 #include "octotiger/defs.hpp"
 #include "octotiger/interaction_types.hpp"
 #include "octotiger/options_enum.hpp"
-#include "octotiger/real.hpp"
+#include "octotiger/math/Real.hpp"
 
 #include <hpx/include/naming.hpp>
 
@@ -43,8 +43,8 @@ public:
 	bool gravity;
 	bool hydro;
 	bool radiation;
-	real grad_rho_refine;
-	real clight_retard;
+	Real grad_rho_refine;
+	Real clight_retard;
 	bool v1309;
 	bool rad_implicit;
 	bool rewrite_silo;
@@ -72,61 +72,61 @@ public:
 	integer future_wait_time;
 	integer ipr_nr_maxiter;
 
-	real dt_max;
-	real eblast0;
-	real rotating_star_x;
-	real dual_energy_sw2;
-	real dual_energy_sw1;
-	real hard_dt;
-	real driving_rate;
-	real driving_time;
-	real entropy_driving_rate;
-	real entropy_driving_time;
-	real omega;
-	real output_dt;
-	real refinement_floor;
-	real stop_time;
-	real theta;
-	real xscale;
-	real code_to_g;
-	real code_to_s;
-	real code_to_cm;
-	real cfl;
-	real rho_floor;
-	real tau_floor;
-	real scf_rho_floor;
-	real ipr_eint_floor;
-	real ipr_nr_tol;
+	Real dt_max;
+	Real eblast0;
+	Real rotating_star_x;
+	Real dual_energy_sw2;
+	Real dual_energy_sw1;
+	Real hard_dt;
+	Real driving_rate;
+	Real driving_time;
+	Real entropy_driving_rate;
+	Real entropy_driving_time;
+	Real omega;
+	Real output_dt;
+	Real refinement_floor;
+	Real stop_time;
+	Real theta;
+	Real xscale;
+	Real code_to_g;
+	Real code_to_s;
+	Real code_to_cm;
+	Real cfl;
+	Real rho_floor;
+	Real tau_floor;
+	Real scf_rho_floor;
+	Real ipr_eint_floor;
+	Real ipr_nr_tol;
 
-	real sod_rhol;
-	real sod_rhor;
-	real sod_pl;
-	real sod_pr;
-	real sod_theta;
-	real sod_phi;
-	real sod_gamma;
+	Real sod_rhol;
+	Real sod_rhor;
+	Real sod_pl;
+	Real sod_pr;
+	Real sod_theta;
+	Real sod_phi;
+	Real sod_gamma;
 
-	real solid_sphere_xcenter;
-	real solid_sphere_ycenter;
-	real solid_sphere_zcenter;
-	real solid_sphere_radius;
-	real solid_sphere_mass;
-	real solid_sphere_rho_min;
+	Real solid_sphere_xcenter;
+	Real solid_sphere_ycenter;
+	Real solid_sphere_zcenter;
+	Real solid_sphere_radius;
+	Real solid_sphere_mass;
+	Real solid_sphere_rho_min;
 
-	real star_xcenter;
-	real star_ycenter;
-	real star_zcenter;
-	real star_rmax;
-	real star_alpha;
-	real star_rho_out;
-	real star_egas_out;
-	real star_dr;
-	real star_n;
-	real star_rho_center;
+	Real star_xcenter;
+	Real star_ycenter;
+	Real star_zcenter;
+	Real star_rmax;
+	Real star_alpha;
+	Real star_rho_out;
+	Real star_egas_out;
+	Real star_dr;
+	Real star_n;
+	Real star_rho_center;
 
-	real moving_star_xvelocity;
-        real moving_star_yvelocity;
-        real moving_star_zvelocity;
+	Real moving_star_xvelocity;
+        Real moving_star_yvelocity;
+        Real moving_star_zvelocity;
 
 	size_t number_gpus;
 	size_t executors_per_gpu;
@@ -157,10 +157,10 @@ public:
 	interaction_host_kernel_type hydro_host_kernel_type;
 	interaction_device_kernel_type hydro_device_kernel_type;
 
-	std::vector<real> atomic_mass;
-	std::vector<real> atomic_number;
-	std::vector<real> X;
-	std::vector<real> Z;
+	std::vector<Real> atomic_mass;
+	std::vector<Real> atomic_number;
+	std::vector<Real> X;
+	std::vector<Real> Z;
 
 	template<class Arc>
 	void serialize(Arc &arc, unsigned) {
@@ -294,7 +294,7 @@ public:
 
 OCTOTIGER_EXPORT options& opts();
 
-template<class T = real>
+template<class T = Real>
 struct hydro_state_t: public std::vector<T> {
 	hydro_state_t() :
 			std::vector<T>(opts().n_fields) {

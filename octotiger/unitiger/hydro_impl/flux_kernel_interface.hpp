@@ -12,7 +12,7 @@
 #include "octotiger/cuda_util/cuda_global_def.hpp"
 #include "octotiger/hydro_defs.hpp"
 #include "octotiger/unitiger/hydro.hpp"
-#include "octotiger/unitiger/safe_real.hpp"
+#include "octotiger/math/Real.hpp"
 
 #ifdef OCTOTIGER_HAVE_CUDA
 #include "octotiger/cuda_util/cuda_helper.hpp"
@@ -32,7 +32,7 @@
 #include <boost/container/vector.hpp>    // to get non-specialized vector<bool>
 
 timestep_t flux_kernel_interface(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F,
-    hydro::x_type& X, safe_real omega, const size_t nf_);
+    hydro::x_type& X, Real omega, const size_t nf_);
 
 #if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)
 #include <aggregation_manager.hpp>

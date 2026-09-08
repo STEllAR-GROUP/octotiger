@@ -7,7 +7,7 @@
 #define DEFS_HPP_
 
 #include "octotiger/debug.hpp"
-#include "octotiger/real.hpp"
+#include "octotiger/math/Real.hpp"
 
 #include <array>
 //#include <cstddef>
@@ -23,7 +23,7 @@ constexpr double MARSHAK_OPAC = 1.0e+2;
 
 //#define OCTOTIGER_FLUX_CHECK
 
-constexpr real rho_floor_old = 1.0e-12;
+constexpr Real rho_floor_old = 1.0e-12;
 constexpr int REFINE_BW = 2;
 
 //#define FIND_AXIS_V2
@@ -85,9 +85,9 @@ enum gsolve_type {
 
 
 
-//#define GRID_SIZE real(2.0)
+//#define GRID_SIZE Real(2.0)
 
-constexpr real DEFAULT_OMEGA = 0.0;
+constexpr Real DEFAULT_OMEGA = 0.0;
 
 //const integer MAX_LEVEL = 5;
 
@@ -149,26 +149,26 @@ constexpr integer NFACE = 2 * NDIM;
 constexpr integer NVERTEX = 8;
 constexpr integer NCHILD = 8;
 
-constexpr real ZERO = real(0);
-constexpr real ONE = real(1);
-constexpr real TWO = real(2);
-constexpr real THREE = real(3);
-constexpr real FOUR = real(4);
+constexpr Real ZERO = Real(0);
+constexpr Real ONE = Real(1);
+constexpr Real TWO = Real(2);
+constexpr Real THREE = Real(3);
+constexpr Real FOUR = Real(4);
 
-constexpr real HALF = real(real(1) / real(2));
-constexpr real SIXTH = real(real(1) / real(6));
-constexpr real TWELFTH = real(real(1) / real(12));
+constexpr Real HALF = Real(Real(1) / Real(2));
+constexpr Real SIXTH = Real(Real(1) / Real(6));
+constexpr Real TWELFTH = Real(Real(1) / Real(12));
 
-constexpr real ei_floor = 1.0e-15;
+constexpr Real ei_floor = 1.0e-15;
 
 #define USE_RK3
 
 #ifdef USE_RK3
 constexpr integer NRK = 3;
-constexpr real rk_beta[3] = { 1.0, 1.0/4.0, 2.0/3.0 };
+constexpr Real rk_beta[3] = { 1.0, 1.0/4.0, 2.0/3.0 };
 #else
 constexpr integer NRK = 2;
-constexpr real rk_beta[2] = { ONE, HALF };
+constexpr Real rk_beta[2] = { ONE, HALF };
 #endif
 
 

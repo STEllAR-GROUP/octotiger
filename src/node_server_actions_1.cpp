@@ -33,12 +33,12 @@
 using amr_error_action_type = node_server::amr_error_action;
 HPX_REGISTER_ACTION(amr_error_action_type);
 
-future<std::pair<real, real>> node_client::amr_error() const {
+future<std::pair<Real, Real>> node_client::amr_error() const {
 	return hpx::async<typename node_server::amr_error_action>(get_unmanaged_gid());
 }
 
-std::pair<real, real> node_server::amr_error() {
-	std::vector<hpx::future<std::pair<real, real>>> kfuts;
+std::pair<Real, Real> node_server::amr_error() {
+	std::vector<hpx::future<std::pair<Real, Real>>> kfuts;
 	auto sum = std::make_pair(0.0, 0.0);
 	if (is_refined) {
 		for (int i = 0; i < NCHILD; i++) {
@@ -138,12 +138,12 @@ future<hpx::id_type> node_server::create_child(hpx::id_type const &locality, int
 			for (integer d = 0; d != NDIM; ++d) {
 				ub[d] = lb[d] + (INX);
 			}
-			std::vector<real> outflows(opts().n_fields, ZERO);
+			std::vector<Real> outflows(opts().n_fields, ZERO);
 			if (ci == 0) {
 				outflows = grid_ptr->get_outflows_raw();
 			}
 			if (current_time > ZERO || opts().restart_filename != "") {
-				std::vector<real> prolong;
+				std::vector<Real> prolong;
 				{
 					std::unique_lock < hpx::spinlock > lk(prolong_mtx);
 					prolong = grid_ptr->get_prolong(lb, ub);
@@ -160,12 +160,12 @@ future<hpx::id_type> node_server::create_child(hpx::id_type const &locality, int
 			for (integer d = 0; d != NDIM; ++d) {
 				ub[d] = lb[d] + (INX);
 			}
-			/*	std::vector<real> outflows(NF, ZERO);
+			/*	std::vector<Real> outflows(NF, ZERO);
 			 if (ci == 0) {
 			 outflows = grid_ptr->get_outflows();
 			 }*/
 			if (current_time > ZERO) {
-				std::vector<real> prolong;
+				std::vector<Real> prolong;
 				{
 					std::unique_lock < hpx::spinlock > lk(prolong_mtx);
 					prolong = rad_grid_ptr->get_prolong(lb, ub);
@@ -241,7 +241,7 @@ void node_server::regrid_scatter(integer a_, integer total) {
   }
 }
 
-node_count_type node_server::regrid(const hpx::id_type &root_gid, real omega, real new_floor, bool rb, bool grav_energy_comp) {
+node_count_type node_server::regrid(const hpx::id_type &root_gid, Real omega, Real new_floor, bool rb, bool grav_energy_comp) {
 	timings::scope ts(timings_, timings::time_regrid);
 	hpx::chrono::high_resolution_timer timer;
 	assert(grid_ptr != nullptr);
@@ -253,22 +253,22 @@ node_count_type node_server::regrid(const hpx::id_type &root_gid, real omega, re
 		node_registry::clear();
 	}
 	printf("regridding\n");
-	real tstart = timer.elapsed();
+	Real tstart = timer.elapsed();
 	auto a = regrid_gather(rb);
-	real tstop = timer.elapsed();
-	printf("Regridded tree in %f seconds\n", real(tstop - tstart));
+	Real tstop = timer.elapsed();
+	printf("Regridded tree in %f seconds\n", Real(tstop - tstart));
 	printf("rebalancing %i nodes with %i leaves\n", int(a.total), int(a.leaf));
 	tstart = timer.elapsed();
 	regrid_scatter(0, a.total);
 	tstop = timer.elapsed();
-	printf("Rebalanced tree in %f seconds\n", real(tstop - tstart));
+	printf("Rebalanced tree in %f seconds\n", Real(tstop - tstart));
 	assert(grid_ptr != nullptr);
 	tstart = timer.elapsed();
 	printf("forming tree connections\n");
 	a.amr_bnd = form_tree(hpx::unmanaged(root_gid));
 	printf("%lu amr boundaries\n", a.amr_bnd);
 	tstop = timer.elapsed();
-	printf("Formed tree in %f seconds\n", real(tstop - tstart));
+	printf("Formed tree in %f seconds\n", Real(tstop - tstart));
 	printf("solving gravity\n");
 	solve_gravity(grav_energy_comp, false);
 	double elapsed = timer.elapsed();
@@ -294,11 +294,11 @@ void node_server::set_aunt(const hpx::id_type &aunt, const geo::face &face) {
 using set_grid_action_type = node_server::set_grid_action;
 HPX_REGISTER_ACTION(set_grid_action_type);
 
-future<void> node_client::set_grid(std::vector<real> &&g, std::vector<real> &&o) const {
+future<void> node_client::set_grid(std::vector<Real> &&g, std::vector<Real> &&o) const {
 	return hpx::async<typename node_server::set_grid_action>(get_unmanaged_gid(), std::move(g), std::move(o));
 }
 
-void node_server::set_grid(const std::vector<real> &data, std::vector<real> &&outflows) {
+void node_server::set_grid(const std::vector<Real> &data, std::vector<Real> &&outflows) {
 	grid_ptr->set_prolong(data, std::move(outflows));
 }
 

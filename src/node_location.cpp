@@ -195,9 +195,9 @@ bool node_location::is_child_of(const node_location& other) const {
 	return rc;
 }
 
-real node_location::x_location(integer d) const {
-	const real dx = TWO / real(1 << lev);
-	return real(xloc[d]) * dx - 1.0;
+Real node_location::x_location(integer d) const {
+	const Real dx = TWO / Real(1 << lev);
+	return Real(xloc[d]) * dx - 1.0;
 }
 
 node_location::node_location() {

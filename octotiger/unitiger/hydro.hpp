@@ -7,10 +7,10 @@
 #define OCTOTIGER_UNITIGER_HYDRO_HPP_
 #include <vector>
 
-#include "safe_real.hpp"
+#include "octotiger/math/Debug.hpp"
 
 //#define SAFE_MATH_ON
-#include "../../octotiger/safe_math.hpp"
+#include "../../octotiger/math/Debug.hpp"
 
 #ifdef NOHPX
 #include <future>
@@ -46,20 +46,20 @@ struct timestep_t {
 
 namespace hydro {
 
-using x_type = std::vector<std::vector<safe_real>>;
+using x_type = std::vector<std::vector<Real>>;
 
-using flux_type = std::vector<std::vector<std::vector<safe_real>>>;
+using flux_type = std::vector<std::vector<std::vector<Real>>>;
 
 template<int NDIM>
-using recon_type =std::vector<std::vector<std::vector<safe_real>>>;
+using recon_type =std::vector<std::vector<std::vector<Real>>>;
 
-using state_type = std::vector<std::vector<safe_real>>;
+using state_type = std::vector<std::vector<Real>>;
 }
 
 template<int NDIM, int INX, class PHYSICS>
 struct hydro_computer: public cell_geometry<NDIM, INX> {
 
-	void reconstruct_ppm(std::vector<std::vector<safe_real>> &q, const std::vector<safe_real> &u, bool smooth, bool disc_detect,
+	void reconstruct_ppm(std::vector<std::vector<Real>> &q, const std::vector<Real> &u, bool smooth, bool disc_detect,
 			const std::vector<std::vector<double>> &disc);
 
 	using geo = cell_geometry<NDIM,INX>;
@@ -68,22 +68,22 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 		OUTFLOW, PERIODIC
 	};
 
-	const hydro::recon_type<NDIM>& reconstruct(const hydro::state_type &U, const hydro::x_type&, safe_real);
+	const hydro::recon_type<NDIM>& reconstruct(const hydro::state_type &U, const hydro::x_type&, Real);
 //#ifdef OCTOTIGER_WITH_CUDA
-	const hydro::recon_type<NDIM>& reconstruct_cuda(hydro::state_type &U, const hydro::x_type&, safe_real);
+	const hydro::recon_type<NDIM>& reconstruct_cuda(hydro::state_type &U, const hydro::x_type&, Real);
 //#endif
 
-	timestep_t flux(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X, safe_real omega);
-	timestep_t flux_experimental(const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X, safe_real omega);
+	timestep_t flux(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X, Real omega);
+	timestep_t flux_experimental(const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X, Real omega);
 
-	void post_process(hydro::state_type &U, const hydro::state_type &X, safe_real dx);
+	void post_process(hydro::state_type &U, const hydro::state_type &X, Real dx);
 
 	void boundaries(hydro::state_type &U, const hydro::x_type &X);
 
-	void advance(const hydro::state_type &U0, hydro::state_type &U, const hydro::flux_type &F, const hydro::x_type &X, safe_real dx, safe_real dt,
-			safe_real beta, safe_real omega);
+	void advance(const hydro::state_type &U0, hydro::state_type &U, const hydro::flux_type &F, const hydro::x_type &X, Real dx, Real dt,
+			Real beta, Real omega);
 
-	void output(const hydro::state_type &U, const hydro::x_type &X, int num, safe_real);
+	void output(const hydro::state_type &U, const hydro::x_type &X, int num, Real);
 
 	void outputU(const hydro::state_type &U, int num, std::string test_type);
 
@@ -107,9 +107,9 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 		experiment = num;
 	}
 
-	std::vector<safe_real> get_field_sums(const hydro::state_type &U, safe_real dx);
+	std::vector<Real> get_field_sums(const hydro::state_type &U, Real dx);
 
-	std::vector<safe_real> get_field_mags(const hydro::state_type &U, safe_real dx);
+	std::vector<Real> get_field_mags(const hydro::state_type &U, Real dx);
 
 	hydro_computer();
 

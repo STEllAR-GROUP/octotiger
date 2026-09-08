@@ -11,7 +11,7 @@
 #include "octotiger/multipole_interactions/util/calculate_stencil.hpp"
 
 #include "octotiger/options.hpp"
-#include "octotiger/real.hpp"
+#include "octotiger/math/Real.hpp"
 
 #include <cstddef>
 #include <memory>
@@ -50,8 +50,8 @@ namespace fmm {
             std::cout << "Init FMM GPU constants on device " << gpu_id << " ..." << std::endl;
             // Stuff to move to constant memory
             std::unique_ptr<bool[]> stencil_masks = std::make_unique<bool[]>(FULL_STENCIL_SIZE);
-            std::unique_ptr<real[]> four_constants_tmp =
-                std::make_unique<real[]>(4 * FULL_STENCIL_SIZE);
+            std::unique_ptr<Real[]> four_constants_tmp =
+                std::make_unique<Real[]>(4 * FULL_STENCIL_SIZE);
             for (auto i = 0; i < FULL_STENCIL_SIZE; ++i) {
                 four_constants_tmp[i * 4 + 0] = p2p_four_constants[i][0];
                 four_constants_tmp[i * 4 + 1] = p2p_four_constants[i][1];

@@ -7,7 +7,7 @@
 
 constexpr int db_type<integer>::d;
 constexpr int db_type<char>::d;
-constexpr int db_type<real>::d;
+constexpr int db_type<Real>::d;
 
 
 double& silo_output_time() {

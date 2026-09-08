@@ -6,13 +6,12 @@
 #ifndef DIAGNOSTICS_HPP_
 #define DIAGNOSTICS_HPP_
 
-#include "octotiger/unitiger/safe_real.hpp"
+#include "octotiger/math/Debug.hpp"
 #include "octotiger/defs.hpp"
 #include "octotiger/options.hpp"
 #include "octotiger/space_vector.hpp"
 #include "octotiger/taylor.hpp"
 
-#include "safe_math.hpp"
 
 #include <array>
 #include <limits>
@@ -22,46 +21,46 @@ struct diagnostics_t {
 	static constexpr integer nspec = 2;
 	bool failed;
 	integer stage;
-	safe_real a;
-	safe_real l1_phi;
-	safe_real l2_phi;
-	safe_real l3_phi;
-	safe_real omega;
-	safe_real Torb;
-	safe_real jorb;
-	safe_real virial;
-	safe_real virial_norm;
-	safe_real z_mom_orb;
-	safe_real munbound1;
-	safe_real munbound2;
+	Real a;
+	Real l1_phi;
+	Real l2_phi;
+	Real l3_phi;
+	Real omega;
+	Real Torb;
+	Real jorb;
+	Real virial;
+	Real virial_norm;
+	Real z_mom_orb;
+	Real munbound1;
+	Real munbound2;
 	space_vector grid_com;
-	std::array<safe_real, nspec> m;
-	std::array<safe_real, nspec> Ts;
-	std::array<safe_real, nspec> phi_eff_min;
-	std::array<safe_real, nspec> js;
-	std::array<safe_real, nspec> ekin;
-	std::array<safe_real, nspec> epot;
-	std::array<safe_real, nspec> eint;
-	std::array<safe_real, nspec> lz1;
-	std::array<safe_real, nspec> lz2;
-	std::array<safe_real, nspec> rL;
-	std::array<safe_real, nspec> tidal;
-	std::array<safe_real, nspec> roche_vol;
-	std::array<safe_real, nspec> stellar_vol;
-	std::array<safe_real, nspec> z_moment;
-	std::array<safe_real, nspec> rho_max;
+	std::array<Real, nspec> m;
+	std::array<Real, nspec> Ts;
+	std::array<Real, nspec> phi_eff_min;
+	std::array<Real, nspec> js;
+	std::array<Real, nspec> ekin;
+	std::array<Real, nspec> epot;
+	std::array<Real, nspec> eint;
+	std::array<Real, nspec> lz1;
+	std::array<Real, nspec> lz2;
+	std::array<Real, nspec> rL;
+	std::array<Real, nspec> tidal;
+	std::array<Real, nspec> roche_vol;
+	std::array<Real, nspec> stellar_vol;
+	std::array<Real, nspec> z_moment;
+	std::array<Real, nspec> rho_max;
 	std::array<space_vector, nspec> g;
 	std::array<space_vector, nspec> com;
 	std::array<space_vector, nspec> com_dot;
 	std::array<taylor<3>, nspec> mom;
 	hydro_state_t<> grid_sum;
 	hydro_state_t<> grid_out;
-	std::array<safe_real, NDIM> lsum;
-	safe_real nonvacj;
-	safe_real nonvacjlz;
-	std::vector<std::pair<real,std::vector<real>>> xline;
-	safe_real Trad0;
-	safe_real Tgas0;
+	std::array<Real, NDIM> lsum;
+	Real nonvacj;
+	Real nonvacjlz;
+	std::vector<std::pair<Real,std::vector<Real>>> xline;
+	Real Trad0;
+	Real Tgas0;
 	diagnostics_t() {
 		failed = false;
 		stage = 1;
@@ -75,7 +74,7 @@ struct diagnostics_t {
 			grid_out[f] = 0.0;
 		}
 		for (integer s = 0; s != nspec; ++s) {
-			phi_eff_min[s] = std::numeric_limits<safe_real>::max();
+			phi_eff_min[s] = std::numeric_limits<Real>::max();
 			m[s] = 0.0;
 			roche_vol[s] = 0.0;
 			stellar_vol[s] = 0.0;
@@ -102,15 +101,15 @@ struct diagnostics_t {
 		a = 0.0;
 		nonvacj = 0.0;
 		nonvacjlz = 0.0;
-		l1_phi = -std::numeric_limits<safe_real>::max();
-		l2_phi = -std::numeric_limits<safe_real>::max();
-		l3_phi = -std::numeric_limits<safe_real>::max();
+		l1_phi = -std::numeric_limits<Real>::max();
+		l2_phi = -std::numeric_limits<Real>::max();
+		l3_phi = -std::numeric_limits<Real>::max();
 	}
-	static inline safe_real RL_radius(safe_real q) {
-		const safe_real q13 = std::pow(q, 1.0 / 3.0);
-		const safe_real q23 = q13 * q13;
-		const safe_real n = 0.49 * q23;
-		const safe_real d = 0.6 * q23 + std::log(1.0 + q13);
+	static inline Real RL_radius(Real q) {
+		const Real q13 = std::pow(q, 1.0 / 3.0);
+		const Real q23 = q13 * q13;
+		const Real n = 0.49 * q23;
+		const Real d = 0.6 * q23 + std::log(1.0 + q13);
 		return n / d;
 	}
 	const diagnostics_t& compute();

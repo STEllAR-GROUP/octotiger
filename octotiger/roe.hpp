@@ -9,8 +9,8 @@
 #include "octotiger/defs.hpp"
 #include "octotiger/options.hpp"
 #include "octotiger/physcon.hpp"
-#include "octotiger/real.hpp"
-#include "octotiger/safe_math.hpp"
+#include "octotiger/math/Real.hpp"
+#include "octotiger/math/Debug.hpp"
 #include "octotiger/space_vector.hpp"
 
 #include <algorithm>
@@ -19,12 +19,12 @@
 #define de_switch1 (opts().dual_energy_sw1)
 #define de_switch2 (opts().dual_energy_sw2)
 
-real roe_fluxes(hydro_state_t<std::vector<real>> &F, hydro_state_t<std::vector<real>> &UL, hydro_state_t<std::vector<real>> &UR,
-		const std::vector<space_vector> &X, real omega, integer dimension, real dx);
+Real roe_fluxes(hydro_state_t<std::vector<Real>> &F, hydro_state_t<std::vector<Real>> &UL, hydro_state_t<std::vector<Real>> &UR,
+		const std::vector<space_vector> &X, Real omega, integer dimension, Real dx);
 
-inline real ztwd_pressure(real d, real A = physcon().A, real B = physcon().B) {
-	const real x = POWER(d / B, 1.0 / 3.0);
-	real p;
+inline Real ztwd_pressure(Real d, Real A = physcon().A, Real B = physcon().B) {
+	const Real x = POWER(d / B, 1.0 / 3.0);
+	Real p;
 	if (x < 0.01) {
 		p = 1.6 * A * POWER(x, 5);
 	} else {
@@ -33,21 +33,21 @@ inline real ztwd_pressure(real d, real A = physcon().A, real B = physcon().B) {
 	return p;
 }
 
-inline real ipr_pressure(real t, real rho, real mu) {
-        const real cg = physcon().kb / (mu * physcon().mh);
-        const real cr = (4.0 * physcon().sigma) / (3.0 * physcon().c);
+inline Real ipr_pressure(Real t, Real rho, Real mu) {
+        const Real cg = physcon().kb / (mu * physcon().mh);
+        const Real cr = (4.0 * physcon().sigma) / (3.0 * physcon().c);
         return cg * rho * t + cr * POWER(t, 4);
 }
 
-inline real ztwd_enthalpy(real d, real A = physcon().A, real B = physcon().B) {
+inline Real ztwd_enthalpy(Real d, Real A = physcon().A, Real B = physcon().B) {
 #ifndef NDEBUG
 	if (d < 0.0) {
 		printf("d = %e in ztwd_enthalpy\n", d);
 		abort();
 	}
 #endif
-	const real x = pow(d / B, 1.0 / 3.0);
-	real h;
+	const Real x = pow(d / B, 1.0 / 3.0);
+	Real h;
 	if (x < 0.01) {
 		h = 4.0 * A / B * x*x;
 	} else {
@@ -56,16 +56,16 @@ inline real ztwd_enthalpy(real d, real A = physcon().A, real B = physcon().B) {
 	return h;
 }
 
-OCTOTIGER_FORCEINLINE real ztwd_energy(real d, real A = physcon().A, real B = physcon().B) {
-	const real x = pow(d / B, 1.0 / 3.0);
+OCTOTIGER_FORCEINLINE Real ztwd_energy(Real d, Real A = physcon().A, Real B = physcon().B) {
+	const Real x = pow(d / B, 1.0 / 3.0);
 	if (x < 0.01) {
 		return 2.4 * A * POWER(x, 5);
 	} else {
-		return std::max(ztwd_enthalpy(d) * d - ztwd_pressure(d), real(0));
+		return std::max(ztwd_enthalpy(d) * d - ztwd_pressure(d), Real(0));
 
 	}
 }
 
-real ztwd_sound_speed(real d, real ei);
+Real ztwd_sound_speed(Real d, Real ei);
 
 #endif /* ROE_HPP_ */

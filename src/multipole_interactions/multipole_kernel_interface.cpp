@@ -70,11 +70,11 @@ namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {
 
-        void multipole_kernel_interface(std::vector<real>& monopoles, std::vector<multipole>& M_ptr,
+        void multipole_kernel_interface(std::vector<Real>& monopoles, std::vector<multipole>& M_ptr,
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
-            std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
+            std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, Real dx,
             std::array<bool, geo::direction::count()>& is_direction_empty,
-            std::array<real, NDIM> xbase, std::shared_ptr<grid> grid, const bool use_root_stencil) {
+            std::array<Real, NDIM> xbase, std::shared_ptr<grid> grid, const bool use_root_stencil) {
             interaction_host_kernel_type host_type = opts().multipole_host_kernel_type;
             interaction_device_kernel_type device_type = opts().multipole_device_kernel_type;
 

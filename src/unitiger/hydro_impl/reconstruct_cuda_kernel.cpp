@@ -254,7 +254,7 @@ void launch_find_contact_discs_cuda(
 }
 
 __global__ void __launch_bounds__(64, 4)
-    hydro_pre_recon_cuda(double* __restrict__ device_X, safe_real omega, bool angmom,
+    hydro_pre_recon_cuda(double* __restrict__ device_X, Real omega, bool angmom,
         double* __restrict__ device_u, const int nf, const int n_species_) {
     // Index mapping to actual grid
     const int index = (blockIdx.z * 1 + threadIdx.x) * 64 + (threadIdx.y) * 8 + (threadIdx.z);

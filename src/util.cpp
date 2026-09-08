@@ -9,7 +9,7 @@
 
 
 #include "octotiger/defs.hpp"
-#include "octotiger/real.hpp"
+#include "octotiger/math/Real.hpp"
 
 #include <hpx/include/run_as.hpp>
 #include <hpx/include/threads.hpp>
@@ -21,17 +21,17 @@
 //#include <sse_mathfun.h>
 #include <cstdio>
 
-using real = double;
+using Real = double;
 
 
-real LambertW(real z) {
-	real W;
+Real LambertW(Real z) {
+	Real W;
 	if (z >= 0.0) {
 		W = z < 1.0 ? z : 1.0 + std::log(z);
 		for (int i = 0; i != 7; ++i) {
-			const real eW = std::exp(W);
-			const real WeW = W * eW;
-			const real WeWmz = WeW - z;
+			const Real eW = std::exp(W);
+			const Real WeW = W * eW;
+			const Real WeWmz = WeW - z;
 			W -= WeWmz / (eW + WeW - 0.5 * ((W + 2.0) * WeWmz) / (W + 1.0));
 		}
 	} else {

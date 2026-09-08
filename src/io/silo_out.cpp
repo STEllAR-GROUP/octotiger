@@ -51,9 +51,9 @@ struct node_list_t {
 struct mesh_vars_t {
 	std::vector<silo_var_t> vars;
 	std::vector<std::string> var_names;
-	std::vector<std::pair<std::string, real>> outflow;
+	std::vector<std::pair<std::string, Real>> outflow;
 	std::string mesh_name;
-	std::vector<std::vector<real>> X;
+	std::vector<std::vector<Real>> X;
 	std::array<int, NDIM> X_dims;
 	std::array<int, NDIM> var_dims;
 	node_location location;
@@ -63,11 +63,11 @@ struct mesh_vars_t {
 		const int nx = INX;
 		X_dims[0] = X_dims[1] = X_dims[2] = nx + 1;
 		var_dims[0] = var_dims[1] = var_dims[2] = nx;
-		const real dx = 2.0 * opts().xscale / nx / (1 << loc.level());
+		const Real dx = 2.0 * opts().xscale / nx / (1 << loc.level());
 		for (int d = 0; d < NDIM; d++) {
 			const int d0 = d;
 			X[d0].resize(X_dims[d0]);
-			const real o = loc.x_location(d) * opts().xscale;
+			const Real o = loc.x_location(d) * opts().xscale;
 			for (int i = 0; i < X_dims[d0]; i++) {
 				X[d0][i] = (o + i * dx) * opts().code_to_cm;
 			}
@@ -106,7 +106,7 @@ void output_stage1(std::string fname, int cycle) {
 			futs_.push_back(hpx::async(hpx::launch::async_policy(hpx::threads::thread_priority::boost), [](node_location loc, node_registry::node_ptr ptr) {
 				const auto this_ptr = ptr.get_ptr().get();
 				assert(this_ptr);
-				const real dx = TWO / real(1 << loc.level()) / real(INX);
+				const Real dx = TWO / Real(1 << loc.level()) / Real(INX);
 				mesh_vars_t rc(loc);
 				const std::string suffix = oct_to_str(loc.to_id());
 				const grid &gridref = this_ptr->get_hydro_grid();
@@ -204,7 +204,7 @@ void output_stage3(std::string fname, int cycle, int gn, int gb, int ge) {
 		int count = 0;
 		for (const auto &mesh_vars : all_mesh_vars) {
 			const auto &X = mesh_vars.X;
-			const real *coords[NDIM];
+			const Real *coords[NDIM];
 			for (int d = 0; d < NDIM; d++) {
 				coords[d] = X[d].data();
 			}
@@ -225,8 +225,8 @@ void output_stage3(std::string fname, int cycle, int gn, int gb, int ge) {
 				const auto &o = mesh_vars.vars[m];
 				const bool is_hydro = grid::is_hydro_field(o.name());
 				if (is_hydro) {
-					real outflow = mesh_vars.outflow[m].second;
-					write_silo_var<real> f;
+					Real outflow = mesh_vars.outflow[m].second;
+					write_silo_var<Real> f;
 					f(db, outflow_name(o.name()).c_str(), outflow);
 					DBAddOption(optlist_var, DBOPT_CONSERVED, &one);
 					DBAddOption(optlist_var, DBOPT_EXTENSIVE, &one);
@@ -304,11 +304,11 @@ void output_stage4(std::string fname, int cycle) {
 		extents.reserve(node_locs.size() * 6);
 		for (const auto &n0 : node_locs) {
 			const auto &n = n0.second;
-			const real scale = opts().xscale * opts().code_to_cm;
+			const Real scale = opts().xscale * opts().code_to_cm;
 			const double xmin = n.x_location(0) * scale;
 			const double ymin = n.x_location(1) * scale;
 			const double zmin = n.x_location(2) * scale;
-			const double d = TWO / real(1 << n.level()) * scale;
+			const double d = TWO / Real(1 << n.level()) * scale;
 			const double xmax = xmin + d;
 			const double ymax = ymin + d;
 			const double zmax = zmin + d;
@@ -353,7 +353,7 @@ void output_stage4(std::string fname, int cycle) {
 			DBFreeOptlist(optlist);
 		}
 		write_silo_var<integer> fi;
-		write_silo_var<real> fr;
+		write_silo_var<Real> fr;
 		fi(db, "version", SILO_VERSION);
 		fr(db, "code_to_g", opts().code_to_g);
 		fr(db, "code_to_s", opts().code_to_s);
@@ -377,10 +377,10 @@ void output_stage4(std::string fname, int cycle) {
 		DBWrite(db, "node_list", node_list_.all.data(), &nnodes, 1, DB_LONG_LONG);
 		DBWrite(db, "node_positions", node_list_.positions.data(), &nnodes, 1, db_type<integer>::d);
 		int nspc = opts().n_species;
-		DBWrite(db, "X", opts().X.data(), &nspc, 1, db_type<real>::d);
-		DBWrite(db, "Z", opts().Z.data(), &nspc, 1, db_type<real>::d);
-		DBWrite(db, "atomic_mass", opts().atomic_mass.data(), &nspc, 1, db_type<real>::d);
-		DBWrite(db, "atomic_number", opts().atomic_number.data(), &nspc, 1, db_type<real>::d);
+		DBWrite(db, "X", opts().X.data(), &nspc, 1, db_type<Real>::d);
+		DBWrite(db, "Z", opts().Z.data(), &nspc, 1, db_type<Real>::d);
+		DBWrite(db, "atomic_mass", opts().atomic_mass.data(), &nspc, 1, db_type<Real>::d);
+		DBWrite(db, "atomic_number", opts().atomic_number.data(), &nspc, 1, db_type<Real>::d);
 		fi(db, "node_count", integer(nnodes));
 		fi(db, "leaf_count", integer(node_list_.silo_leaves.size()));
 		write_silo_var<integer>()(db, "timestamp", timestamp);

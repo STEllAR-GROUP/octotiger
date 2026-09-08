@@ -54,7 +54,7 @@ public:
 //	hpx::future<hpx::id_type> get_id() const;
 //	hpx::future<node_client> get_client() const;
 	bool is_physical_boundary(integer) const;
-	real x_location(integer d) const;
+	Real x_location(integer d) const;
 	std::string to_str() const;
 	template<class Archive>
 	void serialize(Archive& arc, unsigned) {

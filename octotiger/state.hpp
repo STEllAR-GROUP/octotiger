@@ -6,18 +6,18 @@
 #ifndef STATE_HPP_
 #define STATE_HPP_
 
-#include "octotiger/real.hpp"
+#include "octotiger/math/Real.hpp"
 
 #include <array>
 
 class state {
 private:
-	std::array<real, NF> a;
+	std::array<Real, NF> a;
 public:
-	const real& operator()(int i) const {
+	const Real& operator()(int i) const {
 		return a[i];
 	}
-	real& operator()(int i) {
+	Real& operator()(int i) {
 		return a[i];
 	}
 	template<class Archive>

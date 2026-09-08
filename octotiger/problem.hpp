@@ -8,64 +8,64 @@
 
 #include "octotiger/config/export_definitions.hpp"
 #include "octotiger/defs.hpp"
-#include "octotiger/real.hpp"
+#include "octotiger/math/Real.hpp"
 
 #include <array>
 #include <functional>
 #include <vector>
 
-using init_func_type = std::function<std::vector<real>(real, real, real, real)>;
+using init_func_type = std::function<std::vector<Real>(Real, Real, Real, Real)>;
 using analytic_func_type = init_func_type;
-using refine_test_type = std::function<bool(integer, integer, real, real, real,
-    std::vector<real> const&, std::array<std::vector<real>, NDIM> const&)>;
+using refine_test_type = std::function<bool(integer, integer, Real, Real, Real,
+    std::vector<Real> const&, std::array<std::vector<Real>, NDIM> const&)>;
 
 const static init_func_type null_problem = nullptr;
-OCTOTIGER_EXPORT std::vector<real> old_scf(
-    real, real, real, real, real, real, real);
-OCTOTIGER_EXPORT std::vector<real> blast_wave(real, real, real, real);
+OCTOTIGER_EXPORT std::vector<Real> old_scf(
+    Real, Real, Real, Real, Real, Real, Real);
+OCTOTIGER_EXPORT std::vector<Real> blast_wave(Real, Real, Real, Real);
 #if defined(OCTOTIGER_HAVE_BLAST_TEST)
-OCTOTIGER_EXPORT std::vector<real> blast_wave_analytic(
-    real x, real y, real z, real t);
+OCTOTIGER_EXPORT std::vector<Real> blast_wave_analytic(
+    Real x, Real y, Real z, Real t);
 #endif
-OCTOTIGER_EXPORT std::vector<real> advection_test_init(real,real,real,real);
-OCTOTIGER_EXPORT std::vector<real> advection_test_analytic(real,real,real,real);
+OCTOTIGER_EXPORT std::vector<Real> advection_test_init(Real,Real,Real,Real);
+OCTOTIGER_EXPORT std::vector<Real> advection_test_analytic(Real,Real,Real,Real);
 
-OCTOTIGER_EXPORT std::vector<real> sod_shock_tube_init(real, real, real, real);
-OCTOTIGER_EXPORT std::vector<real> sod_shock_tube_analytic(
-    real, real, real, real);
-OCTOTIGER_EXPORT std::vector<real> marshak_wave(real, real, real, real);
-OCTOTIGER_EXPORT std::vector<real> marshak_wave_analytic(real, real, real, real);
-OCTOTIGER_EXPORT std::vector<real> star(real, real, real, real);
-OCTOTIGER_EXPORT std::vector<real> moving_star_analytic(real, real, real, real);
-OCTOTIGER_EXPORT std::vector<real> moving_star(real, real, real, real);
-OCTOTIGER_EXPORT std::vector<real> equal_mass_binary(real, real, real, real);
-OCTOTIGER_EXPORT std::vector<real> scf_binary(real, real, real, real);
-//std::vector<real> null_problem(real x, real y, real z, real);
-OCTOTIGER_EXPORT std::vector<real> solid_sphere(real, real, real, real, real);
-OCTOTIGER_EXPORT std::vector<real> solid_sphere_analytic_phi(
-    real x, real y, real z, real);
-OCTOTIGER_EXPORT std::vector<real> double_solid_sphere(real, real, real, real);
-OCTOTIGER_EXPORT std::vector<real> double_solid_sphere_analytic_phi(
-    real x, real y, real z);
+OCTOTIGER_EXPORT std::vector<Real> sod_shock_tube_init(Real, Real, Real, Real);
+OCTOTIGER_EXPORT std::vector<Real> sod_shock_tube_analytic(
+    Real, Real, Real, Real);
+OCTOTIGER_EXPORT std::vector<Real> marshak_wave(Real, Real, Real, Real);
+OCTOTIGER_EXPORT std::vector<Real> marshak_wave_analytic(Real, Real, Real, Real);
+OCTOTIGER_EXPORT std::vector<Real> star(Real, Real, Real, Real);
+OCTOTIGER_EXPORT std::vector<Real> moving_star_analytic(Real, Real, Real, Real);
+OCTOTIGER_EXPORT std::vector<Real> moving_star(Real, Real, Real, Real);
+OCTOTIGER_EXPORT std::vector<Real> equal_mass_binary(Real, Real, Real, Real);
+OCTOTIGER_EXPORT std::vector<Real> scf_binary(Real, Real, Real, Real);
+//std::vector<Real> null_problem(Real x, Real y, Real z, Real);
+OCTOTIGER_EXPORT std::vector<Real> solid_sphere(Real, Real, Real, Real, Real);
+OCTOTIGER_EXPORT std::vector<Real> solid_sphere_analytic_phi(
+    Real x, Real y, Real z, Real);
+OCTOTIGER_EXPORT std::vector<Real> double_solid_sphere(Real, Real, Real, Real);
+OCTOTIGER_EXPORT std::vector<Real> double_solid_sphere_analytic_phi(
+    Real x, Real y, Real z);
 
-OCTOTIGER_EXPORT bool refine_test_center(integer level, integer maxl, real, real,
-    real, std::vector<real> const& U,
-    std::array<std::vector<real>, NDIM> const& dudx);
-OCTOTIGER_EXPORT bool refine_test(integer level, integer maxl, real, real, real,
-    std::vector<real> const& U,
-    std::array<std::vector<real>, NDIM> const& dudx);
-OCTOTIGER_EXPORT bool refine_test_marshak(integer level, integer maxl, real, real,
-    real, std::vector<real> const& U,
-    std::array<std::vector<real>, NDIM> const& dudx);
-OCTOTIGER_EXPORT bool refine_test_moving_star(integer level, integer maxl, real,
-    real, real, std::vector<real> const& U,
-    std::array<std::vector<real>, NDIM> const& dudx);
-OCTOTIGER_EXPORT bool refine_sod(integer level, integer max_level, real x, real y,
-    real z, std::vector<real> const& U,
-    std::array<std::vector<real>, NDIM> const& dudx);
-OCTOTIGER_EXPORT bool refine_blast(integer level, integer max_level, real x,
-    real y, real z, std::vector<real> const& U,
-    std::array<std::vector<real>, NDIM> const& dudx);
+OCTOTIGER_EXPORT bool refine_test_center(integer level, integer maxl, Real, Real,
+    Real, std::vector<Real> const& U,
+    std::array<std::vector<Real>, NDIM> const& dudx);
+OCTOTIGER_EXPORT bool refine_test(integer level, integer maxl, Real, Real, Real,
+    std::vector<Real> const& U,
+    std::array<std::vector<Real>, NDIM> const& dudx);
+OCTOTIGER_EXPORT bool refine_test_marshak(integer level, integer maxl, Real, Real,
+    Real, std::vector<Real> const& U,
+    std::array<std::vector<Real>, NDIM> const& dudx);
+OCTOTIGER_EXPORT bool refine_test_moving_star(integer level, integer maxl, Real,
+    Real, Real, std::vector<Real> const& U,
+    std::array<std::vector<Real>, NDIM> const& dudx);
+OCTOTIGER_EXPORT bool refine_sod(integer level, integer max_level, Real x, Real y,
+    Real z, std::vector<Real> const& U,
+    std::array<std::vector<Real>, NDIM> const& dudx);
+OCTOTIGER_EXPORT bool refine_blast(integer level, integer max_level, Real x,
+    Real y, Real z, std::vector<Real> const& U,
+    std::array<std::vector<Real>, NDIM> const& dudx);
 
 OCTOTIGER_EXPORT void set_refine_test(const refine_test_type&);
 OCTOTIGER_EXPORT refine_test_type get_refine_test();
@@ -75,10 +75,10 @@ OCTOTIGER_EXPORT init_func_type get_problem();
 OCTOTIGER_EXPORT analytic_func_type get_analytic();
 
 OCTOTIGER_EXPORT bool radiation_test_refine(integer level, integer max_level,
-    real x, real y, real z, std::vector<real> U,
-    std::array<std::vector<real>, NDIM> const& dudx);
-OCTOTIGER_EXPORT std::vector<real> radiation_test_problem(real, real, real, real);
-std::vector<real> radiation_diffusion_test_problem(real x, real y, real z, real dx);
-std::vector<real> radiation_coupling_test_problem(real x, real y, real z, real dx);
-std::vector<real> radiation_diffusion_analytic(real x, real y, real z, real t);
+    Real x, Real y, Real z, std::vector<Real> U,
+    std::array<std::vector<Real>, NDIM> const& dudx);
+OCTOTIGER_EXPORT std::vector<Real> radiation_test_problem(Real, Real, Real, Real);
+std::vector<Real> radiation_diffusion_test_problem(Real x, Real y, Real z, Real dx);
+std::vector<Real> radiation_coupling_test_problem(Real x, Real y, Real z, Real dx);
+std::vector<Real> radiation_diffusion_analytic(Real x, Real y, Real z, Real t);
 #endif /* PROBLEM_HPP_ */

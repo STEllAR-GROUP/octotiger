@@ -8,7 +8,7 @@
 
 #include "octotiger/options.hpp"
 #include "octotiger/physcon.hpp"
-#include "octotiger/safe_math.hpp"
+#include "octotiger/math/Debug.hpp"
 
 template<class U>
 U temperature(U rho, U e, U mmw) {
@@ -17,7 +17,7 @@ U temperature(U rho, U e, U mmw) {
 }
 
 template<class U>
-U kappa_R(U rho, U e, U mmw, real X, real Z) {
+U kappa_R(U rho, U e, U mmw, Real X, Real Z) {
 	if (opts().problem == MARSHAK) {
 		return MARSHAK_OPAC;
 	} else if (opts().problem == RADIATION_TEST) {
@@ -38,7 +38,7 @@ U kappa_R(U rho, U e, U mmw, real X, real Z) {
 }
 
 template<class U>
-U kappa_p(U rho, U e, U mmw, real X, real Z) {
+U kappa_p(U rho, U e, U mmw, Real X, Real Z) {
 	if (opts().problem == MARSHAK) {
 		return MARSHAK_OPAC;
 	} else if (opts().problem == RADIATION_TEST) {

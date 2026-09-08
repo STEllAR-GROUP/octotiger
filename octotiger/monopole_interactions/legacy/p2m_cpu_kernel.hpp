@@ -66,17 +66,17 @@ namespace fmm {
             template <size_t buffer_size>
             void apply_stencil_neighbor(const multiindex<>& neighbor_size,
                 const multiindex<>& neighbor_start_index, const multiindex<>& neighbor_end_index,
-                const struct_of_array_data<expansion, real, 20, buffer_size, SOA_PADDING,
-                    std::vector<real,
-                        recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&
+                const struct_of_array_data<expansion, Real, 20, buffer_size, SOA_PADDING,
+                    std::vector<Real,
+                        recycler::aggressive_recycle_aligned<Real, SIMD_LENGTH_BYTES>>>&
                     local_expansions_SoA,
-                const struct_of_array_data<space_vector, real, 3, buffer_size, SOA_PADDING,
-                    std::vector<real,
-                        recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&
+                const struct_of_array_data<space_vector, Real, 3, buffer_size, SOA_PADDING,
+                    std::vector<Real,
+                        recycler::aggressive_recycle_aligned<Real, SIMD_LENGTH_BYTES>>>&
                     center_of_masses_SoA,
-                const struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
-                    std::vector<real,
-                        recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&
+                const struct_of_array_data<space_vector, Real, 3, INNER_CELLS, SOA_PADDING,
+                    std::vector<Real,
+                        recycler::aggressive_recycle_aligned<Real, SIMD_LENGTH_BYTES>>>&
                     center_of_masses_inner_cells_SoA,
                 cpu_expansion_result_buffer_t& potential_expansions_SoA,
                 cpu_angular_result_t& angular_corrections_SoA,

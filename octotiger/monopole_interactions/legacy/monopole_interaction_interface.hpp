@@ -32,20 +32,20 @@ namespace fmm {
             monopole_interaction_interface();
             /** Takes AoS data, converts it, calculates FMM monopole-monopole interactions,
              * stores results in L */
-            void compute_interactions(const std::vector<real>& monopoles,
+            void compute_interactions(const std::vector<Real>& monopoles,
                 std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
-                std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
+                std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, Real dx,
                 std::array<bool, geo::direction::count()>& is_direction_empty,
                 std::shared_ptr<grid>& grid, const bool contains_multipole_neighbor);
 
         protected:
             // template <typename monopole_container>
-            // void update_input(const std::vector<real>& mons,
+            // void update_input(const std::vector<Real>& mons,
             //     std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
             //     monopole_container& local_monopoles);
             void compute_interactions(gsolve_type type,
                 std::array<bool, geo::direction::count()>& is_direction_empty,
-                std::vector<neighbor_gravity_type>& all_neighbor_interaction_data, real dx,
+                std::vector<neighbor_gravity_type>& all_neighbor_interaction_data, Real dx,
                 const cpu_monopole_buffer_t& local_monopoles_staging_area, std::shared_ptr<grid>& grid);
 
             interaction_host_kernel_type p2p_type;
@@ -57,12 +57,12 @@ namespace fmm {
             /// The stencil is used to identify the neighbors
             static OCTOTIGER_EXPORT std::vector<multiindex<>>& stencil();
             static OCTOTIGER_EXPORT std::vector<bool>& stencil_masks();
-            static OCTOTIGER_EXPORT std::vector<std::array<real, 4>>& four();
-            static OCTOTIGER_EXPORT std::vector<std::array<real, 4>>& stencil_four_constants();
+            static OCTOTIGER_EXPORT std::vector<std::array<Real, 4>>& four();
+            static OCTOTIGER_EXPORT std::vector<std::array<Real, 4>>& stencil_four_constants();
         };
 
         template <typename monopole_container>
-        void update_input(const std::vector<real>& mons,
+        void update_input(const std::vector<Real>& mons,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
             monopole_container& local_monopoles,
             std::shared_ptr<grid> &grid_ptr) {
@@ -95,7 +95,7 @@ namespace fmm {
                                     local_monopoles[flat_index] = 0.0;
                                 });
                         } else {
-                            std::vector<real>& neighbor_mons = *(neighbor.data.m);
+                            std::vector<Real>& neighbor_mons = *(neighbor.data.m);
                             const bool fullsizes = neighbor_mons.size() == INNER_CELLS;
                             if (fullsizes) {
                                 iterate_inner_cells_padding(dir,

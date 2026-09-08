@@ -29,11 +29,11 @@
 using check_for_refinement_action_type = node_server::check_for_refinement_action;
 HPX_REGISTER_ACTION(check_for_refinement_action_type);
 
-future<void> node_client::check_for_refinement(real omega, real r) const {
+future<void> node_client::check_for_refinement(Real omega, Real r) const {
 	return hpx::async<typename node_server::check_for_refinement_action>(get_unmanaged_gid(), omega, r);
 }
 
-void node_server::check_for_refinement(real omega, real new_floor) {
+void node_server::check_for_refinement(Real omega, Real new_floor) {
 	static hpx::mutex mtx;
 	{
 		std::lock_guard<hpx::mutex> lock(mtx);
@@ -167,7 +167,7 @@ analytic_t node_server::compare_analytic() {
 	}
 	if (my_location.level() == 0) {
 		printf("L1, L2\n");
-		real vol = 1.0;
+		Real vol = 1.0;
 		for (int d = 0; d < NDIM; d++) {
 			vol *= 2.0 * opts().xscale;
 		}
@@ -225,12 +225,12 @@ const diagnostics_t& diagnostics_t::compute() {
 	if (opts().problem != DWD) {
 		return *this;
 	}
-	real dX[NDIM], V[NDIM];
+	Real dX[NDIM], V[NDIM];
 	for (integer d = 0; d != NDIM; ++d) {
 		dX[d] = com[1][d] - com[0][d];
 		V[d] = com_dot[1][d] - com_dot[0][d];
 	}
-	real sep2 = dX[0] * dX[0] + dX[1] * dX[1] + dX[2] * dX[2];
+	Real sep2 = dX[0] * dX[0] + dX[1] * dX[1] + dX[2] * dX[2];
 	if (sep2 == 0.0) {
 		failed = true;
 		return *this;
@@ -240,10 +240,10 @@ const diagnostics_t& diagnostics_t::compute() {
 	Torb += com[1][XDIM] * g[1][YDIM] - com[1][YDIM] * g[1][XDIM];
 //	printf( "%e %e %e %e %e\n", dX[XDIM], V[XDIM], dX[YDIM], V[YDIM], omega);
 	a = std::sqrt(sep2);
-	real mu = m[0] * m[1] / (m[1] + m[0]);
+	Real mu = m[0] * m[1] / (m[1] + m[0]);
 	jorb = mu * omega * sep2;
 	if (m[0] > 0.0 && m[1] > 0.0) {
-		const real q = m[1] / m[0];
+		const Real q = m[1] / m[0];
 		rL[0] = RL_radius(1.0 / q) * a;
 		rL[1] = RL_radius(q) * a;
 	}

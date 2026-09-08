@@ -7,20 +7,20 @@
 #define amr_test_amr_test_HPP_
 
 #include "octotiger/config/export_definitions.hpp"
-#include "octotiger/real.hpp"
+#include "octotiger/math/Real.hpp"
 
 #include <vector>
 #include <array>
 #include "octotiger/defs.hpp"
 
 
-OCTOTIGER_EXPORT std::vector<real> amr_test(real x, real y, real z, real);
+OCTOTIGER_EXPORT std::vector<Real> amr_test(Real x, Real y, Real z, Real);
 
-OCTOTIGER_EXPORT std::vector<real> amr_test_a(real x, real y, real z, real);
+OCTOTIGER_EXPORT std::vector<Real> amr_test_a(Real x, Real y, Real z, Real);
 
-OCTOTIGER_EXPORT real amr_test_analytic(real x, real y, real z);
+OCTOTIGER_EXPORT Real amr_test_analytic(Real x, Real y, Real z);
 
-OCTOTIGER_EXPORT bool refine_test_amr(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U,
-		std::array<std::vector<real>, NDIM> const& dudx);
+OCTOTIGER_EXPORT bool refine_test_amr(integer level, integer max_level, Real x, Real y, Real z, std::vector<Real> const& U,
+		std::array<std::vector<Real>, NDIM> const& dudx);
 
 #endif /* amr_test_ROTATING_STAR_HPP_ */

@@ -8,19 +8,19 @@
 
 #include "octotiger/defs.hpp"
 
-#include "octotiger/real.hpp"
+#include "octotiger/math/Real.hpp"
 
 #include <array>
 #include <vector>
 
 namespace octotiger { namespace radiation {
     template <integer er_i, integer fx_i, integer fy_i, integer fz_i>
-    void radiation_cuda_kernel(integer const d, std::vector<real> const& rho,
-        std::vector<real>& sx, std::vector<real>& sy, std::vector<real>& sz,
-        std::vector<real>& egas, std::vector<real>& tau, real const fgamma,
-        std::array<std::vector<real>, NRF> U, std::vector<real> mmw,
-        std::vector<real> X_spc, std::vector<real> Z_spc, real dt,
-        real const clightinv)
+    void radiation_cuda_kernel(integer const d, std::vector<Real> const& rho,
+        std::vector<Real>& sx, std::vector<Real>& sy, std::vector<Real>& sz,
+        std::vector<Real>& egas, std::vector<Real>& tau, Real const fgamma,
+        std::array<std::vector<Real>, NRF> U, std::vector<Real> mmw,
+        std::vector<Real> X_spc, std::vector<Real> Z_spc, Real dt,
+        Real const clightinv)
     {
         throw std::logic_error{"Not Implemented"};
     }

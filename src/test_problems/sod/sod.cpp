@@ -9,17 +9,17 @@
 #include "octotiger/defs.hpp"
 #include "octotiger/grid.hpp"
 #include "octotiger/options.hpp"
-#include "octotiger/real.hpp"
+#include "octotiger/math/Real.hpp"
 
 #include <cmath>
 
-OCTOTIGER_EXPORT std::vector<real> advection_test_init(real x, real y, real z, real dx) {
+OCTOTIGER_EXPORT std::vector<Real> advection_test_init(Real x, Real y, Real z, Real dx) {
 	return advection_test_analytic(x, y, z, 0.0);
 }
 
-OCTOTIGER_EXPORT std::vector<real> advection_test_analytic(real x, real y, real z, real t) {
-	std::vector<real> U(opts().n_fields, 0.0);
-	const real fgamma = grid::get_fgamma();
+OCTOTIGER_EXPORT std::vector<Real> advection_test_analytic(Real x, Real y, Real z, Real t) {
+	std::vector<Real> U(opts().n_fields, 0.0);
+	const Real fgamma = grid::get_fgamma();
 	const auto r0 = 1.0/3.0;
 	constexpr auto x0 = 0.5;
 	constexpr auto y0 = 0.0;
@@ -35,22 +35,22 @@ OCTOTIGER_EXPORT std::vector<real> advection_test_analytic(real x, real y, real 
 	return U;
 }
 
-std::vector<real> sod_shock_tube_init(real x, real y, real z, real dx) {
+std::vector<Real> sod_shock_tube_init(Real x, Real y, Real z, Real dx) {
 	return sod_shock_tube_analytic(x,y,z,-dx);
 }
 
-std::vector<real> sod_shock_tube_analytic(real x0, real y, real z, real t) {
-	std::vector<real> U(opts().n_fields, 0.0);
-        const real fgamma = grid::get_fgamma();
+std::vector<Real> sod_shock_tube_analytic(Real x0, Real y, Real z, Real t) {
+	std::vector<Real> U(opts().n_fields, 0.0);
+        const Real fgamma = grid::get_fgamma();
 
-        const real theta = opts().sod_theta;
-        real cos_theta = std::cos(theta * M_PI / 180.0);
-        real sin_theta = std::sin(theta * M_PI / 180.0);
-        const real phi = opts().sod_phi;
-        real cos_phi = std::cos(phi * M_PI / 180.0);
-        real sin_phi = std::sin(phi * M_PI / 180.0);
+        const Real theta = opts().sod_theta;
+        Real cos_theta = std::cos(theta * M_PI / 180.0);
+        Real sin_theta = std::sin(theta * M_PI / 180.0);
+        const Real phi = opts().sod_phi;
+        Real cos_phi = std::cos(phi * M_PI / 180.0);
+        Real sin_phi = std::sin(phi * M_PI / 180.0);
 
-        real dx = 0.0;
+        Real dx = 0.0;
         if (t < 0.0) {   // if t is negative initialize
                 dx = -t; // dx is important for knowing which cells lay in both sides of the initial discontinuity.
                 t = 0.0; // Those in-betweem cells are set to the average values, i.e., (q_l+q_r)/2
@@ -81,7 +81,7 @@ std::vector<real> sod_shock_tube_analytic(real x0, real y, real z, real t) {
         sod_initial.pl = opts().sod_pl;
         sod_initial.pr = opts().sod_pr;
         sod_initial.gamma = fgamma;
-        real x = x0 * cos_theta * sin_phi + y * sin_theta * sin_phi + z * cos_phi;
+        Real x = x0 * cos_theta * sin_phi + y * sin_theta * sin_phi + z * cos_phi;
         exact_sod(&s, &sod_initial, x, t, dx);
 	U[rho_i] = s.rho;
 	U[egas_i] = s.p / (fgamma - 1.0);

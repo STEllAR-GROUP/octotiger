@@ -53,8 +53,8 @@ namespace fmm {
             }
             return stencil_masks_;
         }
-        std::vector<std::array<real, 4>>& monopole_interaction_interface::four() {
-            static thread_local std::vector<std::array<real, 4>> four_;
+        std::vector<std::array<Real, 4>>& monopole_interaction_interface::four() {
+            static thread_local std::vector<std::array<Real, 4>> four_;
             static thread_local bool initialized = false;
             if (!initialized) {
                 four_ = calculate_stencil().second;
@@ -62,8 +62,8 @@ namespace fmm {
             }
             return four_;
         }
-        std::vector<std::array<real, 4>>& monopole_interaction_interface::stencil_four_constants() {
-            static thread_local std::vector<std::array<real, 4>> stencil_four_constants_;
+        std::vector<std::array<Real, 4>>& monopole_interaction_interface::stencil_four_constants() {
+            static thread_local std::vector<std::array<Real, 4>> stencil_four_constants_;
             static thread_local bool initialized = false;
             if (!initialized) {
                 stencil_four_constants_ =
@@ -78,9 +78,9 @@ namespace fmm {
         }
 
         void monopole_interaction_interface::compute_interactions(
-            const std::vector<real>& monopoles,
+            const std::vector<Real>& monopoles,
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
-            std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
+            std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, Real dx,
             std::array<bool, geo::direction::count()>& is_direction_empty,
             std::shared_ptr<grid>& grid_ptr, const bool contains_multipole_neighbor) {
             cpu_launch_counter()++;
@@ -99,7 +99,7 @@ namespace fmm {
 
         void monopole_interaction_interface::compute_interactions(gsolve_type type,
             std::array<bool, geo::direction::count()>& is_direction_empty,
-            std::vector<neighbor_gravity_type>& all_neighbor_interaction_data, real dx,
+            std::vector<neighbor_gravity_type>& all_neighbor_interaction_data, Real dx,
             const cpu_monopole_buffer_t& local_monopoles_staging_area,
             std::shared_ptr<grid>& grid_ptr) {
             if (p2p_type == interaction_host_kernel_type::VC) {

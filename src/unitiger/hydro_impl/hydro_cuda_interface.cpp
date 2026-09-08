@@ -107,9 +107,9 @@ __host__ bool* get_gpu_masks(const size_t gpu_id = 0) {
 // Output F
 // TODO remove obsolete executor
 timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
-    const std::vector<std::vector<safe_real>>& U, const std::vector<std::vector<safe_real>>& X,
+    const std::vector<std::vector<Real>>& U, const std::vector<std::vector<Real>>& X,
     const double omega, const size_t device_id,
-    std::vector<hydro_state_t<std::vector<safe_real>>>& F) {
+    std::vector<hydro_state_t<std::vector<Real>>>& F) {
 
     // Init local kernel pool if not done already
     hpx::call_once(init_hydro_pool_flag, init_hydro_aggregation_pool);

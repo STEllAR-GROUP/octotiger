@@ -12,7 +12,7 @@
 #include "octotiger/common_kernel/multiindex.hpp"
 #include "octotiger/common_kernel/struct_of_array_data.hpp"
 
-#include "octotiger/real.hpp"
+#include "octotiger/math/Real.hpp"
 #include "octotiger/taylor.hpp"
 
 #include <array>
@@ -45,8 +45,8 @@ namespace fmm {
                 const multiindex<>& __restrict__ cell_index_unpadded,
                 const size_t cell_flat_index_unpadded,
                 const std::vector<bool>& __restrict__ stencil,
-                const std::vector<std::array<real, 4>>& __restrict__ four_constants,
-                const size_t outer_stencil_index, real dx);
+                const std::vector<std::array<Real, 4>>& __restrict__ four_constants,
+                const size_t outer_stencil_index, Real dx);
 
         public:
             p2p_cpu_kernel();
@@ -59,8 +59,8 @@ namespace fmm {
 
             void apply_stencil(const cpu_monopole_buffer_t& local_expansions,
                 cpu_expansion_result_buffer_t& potential_expansions_SoA,
-                const std::vector<bool>& stencil, const std::vector<std::array<real, 4>>& four,
-                real dx);
+                const std::vector<bool>& stencil, const std::vector<std::array<Real, 4>>& four,
+                Real dx);
         };
 
     }    // namespace monopole_interactions

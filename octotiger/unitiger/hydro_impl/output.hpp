@@ -7,7 +7,7 @@
 
 
 template<int NDIM, int INX, class PHYS>
-void hydro_computer<NDIM, INX, PHYS>::output(const hydro::state_type &U, const hydro::x_type &X, int num, safe_real t) {
+void hydro_computer<NDIM, INX, PHYS>::output(const hydro::state_type &U, const hydro::x_type &X, int num, Real t) {
 
 	const auto dx = X[0][1] - X[0][0];
 	FILE *fp = fopen("sums.dat", "at");
@@ -54,9 +54,9 @@ void hydro_computer<NDIM, INX, PHYS>::output(const hydro::state_type &U, const h
 		DBAddOption(opts, DBOPT_DTIME, &t);
 
 		const char *coord_names[] = { "x", "y", "z" };
-		safe_real coords[NDIM][geo::H_NX + 1];
+		Real coords[NDIM][geo::H_NX + 1];
 		for (int i = 0; i < geo::H_NX + 1; i++) {
-			const auto x = safe_real(i - geo::H_BW) / INX - safe_real(0.5);
+			const auto x = Real(i - geo::H_BW) / INX - Real(0.5);
 			for (int dim = 0; dim < NDIM; dim++) {
 				coords[dim][i] = x;
 			}
