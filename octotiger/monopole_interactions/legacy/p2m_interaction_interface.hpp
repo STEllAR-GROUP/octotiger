@@ -4,7 +4,7 @@
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 #pragma once
-
+#include "octotiger/common_kernel/struct_of_array_data.hpp"
 #include "octotiger/common_kernel/interaction_constants.hpp"
 #include "octotiger/common_kernel/interactions_iterators.hpp"
 #include "octotiger/common_kernel/multiindex.hpp"

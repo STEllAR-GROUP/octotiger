@@ -20,19 +20,19 @@ project(octotiger CXX C)
 # Search path for CMake modules to be loaded by include() and find_package()
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 
-set(OCTOTIGER_CXX_STANDARD "17")
-option(OCTOTIGER_WITH_CXX17 "Compile Octo-Tiger with c++17" OFF)
+# Debug.hpp and the radiation kernels require at least C++20.
+option(OCTOTIGER_WITH_CXX17 "Compile Octo-Tiger with c++17 (unsupported)" OFF)
 option(OCTOTIGER_WITH_CXX20 "Compile Octo-Tiger with c++20" OFF)
+option(OCTOTIGER_WITH_CXX23 "Compile Octo-Tiger with c++23" ON)
 if (OCTOTIGER_WITH_CXX17)
-  set(OCTOTIGER_CXX_STANDARD "17")
+  message(FATAL_ERROR "This source tree requires C++20 or newer; disable OCTOTIGER_WITH_CXX17")
 elseif(OCTOTIGER_WITH_CXX20)
   set(OCTOTIGER_CXX_STANDARD "20")
 else()
-  set(OCTOTIGER_CXX_STANDARD "17")
-  set(OCTOTIGER_WITH_CXX17 ON)
-  message(INFO " No valid CXX Standard set. Using the default ${OCTOTIGER_CXX_STANDARD}")
+  set(OCTOTIGER_CXX_STANDARD "23")
 endif()
 set(CMAKE_CXX_STANDARD ${OCTOTIGER_CXX_STANDARD})
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 ################################################################################
 # Options
 ################################################################################
@@ -247,6 +247,9 @@ set(source_files
 
 )
 
+set_property(SOURCE src/grid_fmm.cpp APPEND PROPERTY COMPILE_OPTIONS
+    "$<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:GNU>>:-Og>")
+
 # Octo-Tiger library headers
 set(header_files
     octotiger/config/export_definitions.hpp
@@ -317,6 +320,8 @@ set(header_files
     octotiger/radiation/kernel_interface.hpp
     octotiger/radiation/opacities.hpp
     octotiger/radiation/rad_grid.hpp
+    octotiger/radiation/m1.hpp
+    octotiger/timestep.hpp
     octotiger/test_problems/rotating_star.hpp
     
 )

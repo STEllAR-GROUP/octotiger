@@ -11,13 +11,16 @@
 #include "octotiger/math/Debug.hpp"
 
 template<class U>
-U temperature(U rho, U e, U mmw) {
-	constexpr U gm1 = U(2.0) / U(3.0);
-	return std::pow((e * INVERSE(rho)), 1.0 / 4.0);
+U temperature(U rho, U e, U mmw, Real gamma = 5.0 / 3.0) {
+    // S&O (2013), equations (2), (44): ideal-gas temperature in kelvin.
+    // e excludes kinetic and cold-degenerate energy. The old fourth-root
+    // expression was inconsistent with both this EOS and dB_p_de below.
+    const U gm1 = U(gamma - 1);
+    return gm1 * mmw * U(physcon().mh / physcon().kb) * e / expectPositive(rho);
 }
 
 template<class U>
-U kappa_R(U rho, U e, U mmw, Real X, Real Z) {
+U kappa_R(U rho, U e, U mmw, Real X, Real Z, Real gamma = 5.0 / 3.0) {
 	if (opts().problem == MARSHAK) {
 		return MARSHAK_OPAC;
 	} else if (opts().problem == RADIATION_TEST) {
@@ -27,7 +30,7 @@ U kappa_R(U rho, U e, U mmw, Real X, Real Z) {
 	} else if (opts().problem == RADIATION_COUPLING) {
 		return 1;
 	} else {
-		const U T = temperature(rho, e, mmw);
+		const U T = temperature(rho, e, mmw, gamma);
 		const U f1 = (T * T + U(2.7e+11) * rho);
 		const U f2 = (U(1.0) + std::pow(T / U(4.5e+8), U(0.86)));
 		const U k_ff_bf = U(4.0e+25) * (U(1) + X) * (Z + U(0.001)) * rho * POWER(SQRT(INVERSE(T)), U(7));
@@ -38,7 +41,7 @@ U kappa_R(U rho, U e, U mmw, Real X, Real Z) {
 }
 
 template<class U>
-U kappa_p(U rho, U e, U mmw, Real X, Real Z) {
+U kappa_p(U rho, U e, U mmw, Real X, Real Z, Real gamma = 5.0 / 3.0) {
 	if (opts().problem == MARSHAK) {
 		return MARSHAK_OPAC;
 	} else if (opts().problem == RADIATION_TEST) {
@@ -48,7 +51,7 @@ U kappa_p(U rho, U e, U mmw, Real X, Real Z) {
 	} else if (opts().problem == RADIATION_COUPLING) {
 		return 1e0;
 	} else {
-		const U T = temperature(rho, e, mmw);
+		const U T = temperature(rho, e, mmw, gamma);
 		const U k_ff_bf = U(30.262) * U(4.0e+25) * (U(1) + X) * (Z + U(0.0001)) * rho * POWER(SQRT(INVERSE(T)), U(7));
 		const U k_tot = k_ff_bf;
 		return rho * k_tot;
@@ -56,24 +59,24 @@ U kappa_p(U rho, U e, U mmw, Real X, Real Z) {
 }
 
 template<class U>
-U B_p(U rho, U e, U mmw) {
+U B_p(U rho, U e, U mmw, Real gamma = 5.0 / 3.0) {
 	if (opts().problem == MARSHAK) {
 		return U((physcon().c / 4.0 / M_PI)) * e;
 	} else {
-		const U T = temperature(rho, e, mmw);
+		const U T = temperature(rho, e, mmw, gamma);
 		return (U(physcon().sigma) / U(M_PI)) * T * T * T * T;
 	}
 }
 
 template<class U>
-U dB_p_de(U rho, U e, U mmw) {
+U dB_p_de(U rho, U e, U mmw, Real gamma = 5.0 / 3.0) {
 	if (opts().problem == MARSHAK) {
-		return U((physcon().c / 4.0 * M_PI));
+		return U(physcon().c / (4.0 * M_PI));
 	} else {
 		if (e == U(0)) {
 			return U(0);
 		} else {
-			return 4.0 * B_p(rho, e, mmw) / e;
+			return 4.0 * B_p(rho, e, mmw, gamma) / e;
 		}
 	}
 }

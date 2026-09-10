@@ -6,6 +6,8 @@
 #ifndef NODE_CLIENT_HPP_
 #define NODE_CLIENT_HPP_
 
+#include "octotiger/timestep.hpp"
+
 #include "octotiger/config/export_definitions.hpp"
 #include "octotiger/radiation/rad_grid.hpp"
 #include "octotiger/defs.hpp"

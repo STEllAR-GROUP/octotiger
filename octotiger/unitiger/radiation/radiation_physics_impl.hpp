@@ -16,9 +16,9 @@
 #include "octotiger/test_problems/blast.hpp"
 #include "octotiger/test_problems/exact_sod.hpp"
 #include "octotiger/physcon.hpp"
+#include "octotiger/radiation/m1.hpp"
 
 
-#define CHECK_FLUX( er, fx, fy, fz) if( ((fx)*(fx)+(fy)*(fy)+(fz)*(fz))/(er*er*physcon().c*physcon().c) > 1 ) {printf( "flux exceded %s %i %e fx %e fy %e fz %e er %e\n", __FILE__, __LINE__, sqrt(((fx)*(fx)+(fy)*(fy)+(fz)*(fz))/(er*er*physcon().c*physcon().c)), fx, fy, fz, er*physcon().c); abort();}
 
 template<int NDIM>
 int radiation_physics<NDIM>::field_count() {
@@ -29,69 +29,13 @@ template<int NDIM>
 template<int INX>
 void radiation_physics<NDIM>::physical_flux(const std::vector<Real> &U, std::vector<Real> &F, int dim,
 		Real &am, Real &ap, std::array<Real, NDIM> &x, std::array<Real, NDIM> &vg) {
-	static const cell_geometry<NDIM, INX> geo;
-	static constexpr auto levi_civita = geo.levi_civita();
-	const double c = clight;
-	double fmag = 0.0;
-	const auto &er = U[er_i];
-	const auto *fr = &U[fx_i];
-	std::array<double, NDIM> n;
-	std::array<double, NDIM> T;
-	for (int d = 0; d < NDIM; d++) {
-		fmag += fr[d] * fr[d];
-	}
-	fmag = std::sqrt(fmag);
-	const auto fedd = fmag / (c * er);
-	if (fmag > 0.0) {
-		const auto fmaginv = 1.0 / fmag;
-		for (int d = 0; d < NDIM; d++) {
-			n[d] = fr[d] * fmaginv;
-		}
-	} else {
-		for (int d = 0; d < NDIM; d++) {
-			n[d] = 0.0;
-		}
-	}
-
-	const auto f2 = fedd * fedd;
-	const auto tmp2 = 4 - 3 * f2;
-	const auto tmp = sqrt(tmp2);
-	const auto tmp3 = (2.0 / 3.0) * (tmp2 - tmp) + 2 * n[dim] * n[dim] * (2 - f2 - tmp);
-//	if( tmp3 < 0.0 ) {
-//		printf( "%e %e %e\n",f2, (2.0 / 3.0) * (tmp2 - tmp) , 2 * n[dim] * n[dim] * (2 - f2 - tmp) );
-//	}
-	ap = (n[dim] * fedd + sqrt(tmp3)) / tmp;
-	am = (n[dim] * fedd - sqrt(tmp3)) / tmp;
-	ap *= physcon().c;
-	am *= physcon().c;
-	ap = std::max(ap, 0.0);
-	am = std::min(am, 0.0);
-	if (fabs(ap) > 1 || fabs(am) > 1) {
-		printf("Error %s %i\n", __FILE__, __LINE__);
-		abort();
-	}
-//	ap = physcon().c;
-//	am = -physcon().c;
-	const auto chi = (3 + 4 * fedd * fedd) / (5 + 2 * tmp);
-	for (int d = 0; d < NDIM; d++) {
-		T[d] = (3 * chi - 1) / 2. * n[dim] * n[d];
-	}
-	T[dim] += (1 - chi) / 2.;
-
-	F[er_i] = fr[dim] - vg[dim] * er;
-	for (int d = 0; d < NDIM; d++) {
-		if (fabs(T[dim] - .333) > 0.1) {
-		//	printf("%i %i %e\n", dim, d, T[d]);
-		}
-		F[fx_i + d] = er * T[d] - vg[dim] * fr[d];
-	}
-	for (int n = 0; n < geo.NANGMOM; n++) {
-#pragma ivdep
-		for (int m = 0; m < NDIM; m++) {
-			F[wx_i + n] = 0.0;
-		}
-	}
-
+    // Legacy adapter: physical units and Hanawa-Audit M1 closure, just as rad_grid.
+    radiation_m1::state u{};
+    for (int f = 0; f < 1 + NDIM; ++f) u[f] = U[f];
+    const auto result = radiation_m1::physical_flux(u, dim, physcon().c, vg[dim]);
+    am = std::min(Real(0), result.minus);
+    ap = std::max(Real(0), result.plus);
+    for (int f = 0; f < 1 + NDIM; ++f) F[f] = result.flux[f];
 }
 
 template<int NDIM>
@@ -115,19 +59,7 @@ template<int INX>
 void radiation_physics<NDIM>::pre_angmom(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q,
 		std::array<Real, cell_geometry<NDIM, INX>::NANGMOM> &Z,
 		std::array<std::array<Real, cell_geometry<NDIM, INX>::NDIR>, NDIM> &S, int i, Real dx) {
-	static const cell_geometry<NDIM, INX> geo;
-	for (int d = 0; d < geo.NDIR; d++) {
-		if (d != geo.NDIR / 2) {
-			const auto er = Q[er_i][i][d];
-			for (int f = 0; f < NDIM; f++) {
-				S[f][d] *= er;
-			}
-		}
-	}
-	for (int f = 0; f < geo.NANGMOM; f++) {
-		const auto er = U[er_i][i];
-		Z[f] *= er;
-	}
+    // Radiation carries only E and F; no auxiliary angular-momentum fields.
 
 }
 
@@ -138,19 +70,7 @@ template<int INX>
 void radiation_physics<NDIM>::post_angmom(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q,
 		std::array<Real, cell_geometry<NDIM, INX>::NANGMOM> &Z,
 		std::array<std::array<Real, cell_geometry<NDIM, INX>::NDIR>, NDIM> &S, int i, Real dx) {
-	static const cell_geometry<NDIM, INX> geo;
-	for (int d = 0; d < geo.NDIR; d++) {
-		if (d != geo.NDIR / 2) {
-			const auto er = Q[er_i][i][d];
-			for (int f = 0; f < NDIM; f++) {
-				S[f][d] /= er;
-			}
-		}
-	}
-	for (int f = 0; f < geo.NANGMOM; f++) {
-		const auto er = U[er_i][i];
-		Z[f] /= er;
-	}
+    // Radiation carries only E and F; no auxiliary angular-momentum fields.
 
 }
 
@@ -160,26 +80,13 @@ template<int NDIM>
 template<int INX>
 const hydro::state_type& radiation_physics<NDIM>::pre_recon(const hydro::state_type &U, const hydro::x_type X,
 		Real omega, bool angmom) {
-	static const cell_geometry<NDIM, INX> geo;
-	static const auto indices = geo.find_indices(0, geo.H_NX);
-	static thread_local hydro::state_type V;
-	V = U;
-	const auto dx = X[0][geo.H_DNX] - X[0][0];
-	for (int j = 0; j < geo.H_NX_X; j++) {
-		for (int k = 0; k < geo.H_NX_Y; k++) {
-			for (int l = 0; l < geo.H_NX_Z; l++) {
-				const int i = geo.to_index(j, k, l);
-				const auto er = V[er_i][i];
-				const auto erinv = 1.0 / er;
-				CHECK_FLUX(V[er_i][i], V[fx_i][i], V[fy_i][i], V[fz_i][i]);
-				for (int dim = 0; dim < NDIM; dim++) {
-					V[fx_i + dim][i] *= erinv;
-				}
-				V[wx_i][i] = sqrt(V[fx_i][i] * V[fx_i][i] + V[fy_i][i] * V[fy_i][i] + V[fz_i][i] * V[fz_i][i]);
-			}
-		}
-	}
-	return V;
+    static thread_local hydro::state_type V;
+    V = U;
+    for (std::size_t i = 0; i < U[0].size(); ++i) {
+        const Real E = U[er_i][i];
+        for (int d = 0; d < NDIM; ++d) V[fx_i + d][i] = E > 0 ? U[fx_i + d][i] / physcon().c / E : 0;
+    }
+    return V;
 }
 
 /*** Reconstruct uses this - GPUize****/
@@ -188,34 +95,15 @@ template<int NDIM>
 template<int INX>
 void radiation_physics<NDIM>::post_recon(std::vector<std::vector<std::vector<Real>>> &Q, const hydro::x_type X,
 		Real omega, bool angmom) {
-	static const cell_geometry<NDIM, INX> geo;
-	const auto dx = X[0][geo.H_DNX] - X[0][0];
-	const auto xloc = geo.xloc();
-	for (int d = 0; d < geo.NDIR; d++) {
-		if (d != geo.NDIR / 2) {
-			for (int j = 0; j < geo.H_NX_XM4; j++) {
-				for (int k = 0; k < geo.H_NX_YM4; k++) {
-					for (int l = 0; l < geo.H_NX_ZM4; l++) {
-						const int i = geo.to_index(j + 2, k + 2, l + 2);
-						const auto er = Q[er_i][d][i];
-						static constexpr auto lc = geo.levi_civita();
-						auto &nx = Q[fx_i][d][i];
-						auto &ny = Q[fy_i][d][i];
-						auto &nz = Q[fz_i][d][i];
-						double n2 = nx * nx + ny * ny + nz * nz;
-						if (n2 > 0) {
-							double ninv = 1.0 / sqrt(n2);
-							ninv *= Q[wx_i][d][i] * er;
-							nx *= ninv;
-							ny *= ninv;
-							nz *= ninv;
-						}
-						CHECK_FLUX(Q[er_i][d][i], Q[fx_i][d][i], Q[fy_i][d][i], Q[fz_i][d][i]);
-					}
-				}
-			}
-		}
-	}
+    // Only used by the legacy unitiger driver; rad_grid reconstructs six faces itself.
+    for (std::size_t direction = 0; direction < Q[0].size(); ++direction) {
+        for (std::size_t i = 0; i < Q[0][direction].size(); ++i) {
+            Real f2 = 0;
+            for (int d = 0; d < NDIM; ++d) f2 += Q[fx_i + d][direction][i] * Q[fx_i + d][direction][i];
+            const Real scale = physcon().c * Q[er_i][direction][i] / std::sqrt(std::max(Real(1), f2));
+            for (int d = 0; d < NDIM; ++d) Q[fx_i + d][direction][i] *= scale;
+        }
+    }
 }
 
 template<int NDIM>

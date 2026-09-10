@@ -317,9 +317,9 @@ public:
 	hpx::future<void> exchange_rad_flux_corrections();
 	void compute_radiation(Real dt, Real omega);
 	hpx::future<void> exchange_interlevel_rad_data();
-	void all_rad_bounds();
+	void all_rad_bounds(Real boundary_time);
 
-	void collect_radiation_bounds();
+	void collect_radiation_bounds(Real boundary_time);
 	void send_rad_amr_bounds();
 
 	void recv_rad_flux_correct(std::vector<Real>&&, const geo::face& face, const geo::octant& ci);/**/

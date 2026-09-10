@@ -38,7 +38,8 @@ constexpr int REFINE_BW = 2;
 
 
 //#define EXPERIMENT
-constexpr int NRF = 7;
+// Radiation energy density and three physical flux densities.
+constexpr int NRF = 4;
 
 #define abort_error() printf( "Error in %s on line %i\n", __FILE__, __LINE__); abort()
 

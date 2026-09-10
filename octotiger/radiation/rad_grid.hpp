@@ -10,16 +10,12 @@
 #include "octotiger/defs.hpp"
 #include "octotiger/geometry.hpp"
 #include "octotiger/physcon.hpp"
-#include "octotiger/math/Real.hpp"
 #include "octotiger/io/silo.hpp"
-#include "octotiger/unitiger/hydro.hpp"
-#include "octotiger/unitiger/hydro_impl/reconstruct.hpp"
-#include "octotiger/unitiger/hydro_impl/flux.hpp"
-#include "octotiger/unitiger/radiation/radiation_physics.hpp"
-//#include "octotiger/sphere_points.hpp"
 
 #include <array>
+#include <atomic>
 #include <cstddef>
+#include <functional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -30,9 +26,6 @@ public:
 	static constexpr integer fx_i = 1;
 	static constexpr integer fy_i = 2;
 	static constexpr integer fz_i = 3;
-	static constexpr integer wx_i = 4;
-	static constexpr integer wy_i = 5;
-	static constexpr integer wz_i = 6;
 private:
 	static constexpr integer DX = RAD_NX * RAD_NX;
 	static constexpr integer DY = RAD_NX;
@@ -40,25 +33,24 @@ private:
 	static constexpr int R_DN[NDIM] = { RAD_NX * RAD_NX, RAD_NX, 1 };
 	static std::unordered_map<std::string, int> str_to_index;
 	static std::unordered_map<int, std::string> index_to_str;
-	Real dx;
+	Real dx = 0;
 	std::vector<std::atomic<int>> is_coarse;
 	std::vector<std::atomic<int>> has_coarse;
 	std::vector<std::vector<Real>> Ushad;
+	// Structure of arrays; only E and physical Fx,Fy,Fz are evolved/serialized.
 	std::vector<std::vector<Real>> U;
-	std::array<std::vector<Real>, NRF> U0;
 	std::vector<std::vector<std::vector<Real>>> flux;
-	std::array<std::array<std::vector<Real>*, NDIM>, NDIM> P;
+	// Per-grid scratch avoids allocations and thread-local reuse across HPX tasks.
+	std::array<std::vector<Real>, NRF> primitive;
+	std::array<std::array<std::vector<Real>, NRF>, 2> faces;
 	std::vector<std::vector<Real>> X;
 	std::vector<Real> mmw, X_spc, Z_spc;
-	hydro_computer<NDIM,INX,radiation_physics<NDIM>> hydro;
 public:
 	static void static_init();
 	static std::vector<std::string> get_field_names();
 	void set(const std::string name, Real* data);
 	std::vector<silo_var_t> var_data() const;
 	void set_X( const std::vector<std::vector<Real>>& x );
-	void restore();
-	void store();
 
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {
@@ -67,14 +59,12 @@ public:
 	}
 	void compute_mmw(const std::vector<std::vector<Real>>& U);
 	void change_units(Real m, Real l, Real t, Real k);
-	Real rad_imp_comoving(Real& E, Real& e, Real rho, Real mmw, Real X, Real Z, Real dt);
 	void sanity_check();
 	void compute_flux(Real);
-	void initialize_erad(const std::vector<Real> rho, const std::vector<Real> tau);
+	Real max_timestep(Real omega) const;
+	void initialize_erad(const std::vector<Real>& rho, const std::vector<Real>& tau);
 	void set_dx(Real dx);
-	//void compute_fEdd();
-	void compute_fluxes();
-	void advance(Real dt, Real beta);
+	void advance(Real dt, Real omega);
 	void rad_imp(std::vector<Real>& egas, std::vector<Real>& tau, std::vector<Real>& sx, std::vector<Real>& sy, std::vector<Real>& sz,
 			const std::vector<Real>& rho, Real dt);
 	std::vector<Real> get_restrict() const;
@@ -110,4 +100,3 @@ public:
 
 
 #endif /* RAD_GRID_HPP_ */
-

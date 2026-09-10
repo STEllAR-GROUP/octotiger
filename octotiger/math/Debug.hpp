@@ -16,7 +16,12 @@
 #include <sstream>
 #define BOOST_STACKTRACE_USE_ADDR2LINE
 // #define BOOST_STACKTRACE_USE_BACKTRACE
+// Keep the numerical headers usable in standalone tests without Boost.
+// The full application build supplies Boost and retains stack traces.
+#if __has_include(<boost/stacktrace.hpp>)
 #include <boost/stacktrace.hpp>
+#define OCTOTIGER_DEBUG_HAS_STACKTRACE 1
+#endif
 
 #ifdef NDEBUG
 #define ASSERT_RANGE(l, v, u)
@@ -52,7 +57,7 @@
 
 void assertRange(Real const& lo, auto const& var, Real const& hi, char const* expr,
     char const* filename, Integer line) {
-    if ((lo > var) || (var > hi)) {
+    if (!(lo <= var && var <= hi)) {
         std::ostringstream os;
         os << "Out of range: " << expr << " = " << var;
         os << "  Correct range: (" << lo << ", " << hi << ")";
@@ -72,13 +77,15 @@ void assertNonzero(auto const& var, char const* expr, char const* filename, Inte
         os << "Zero when non-zero expected: " << expr << " = " << var;
         os << "  File: " << filename;
         os << "  Line: " << line;
+#ifdef OCTOTIGER_DEBUG_HAS_STACKTRACE
         std::cout << boost::stacktrace::stacktrace();
+#endif
         throw std::runtime_error(os.str());
     }
 }
 
 void assertPositive(auto const& var, char const* expr, char const* filename, Integer line) {
-    if (var <= 0_R) {
+    if (!(var > 0_R)) {
         std::ostringstream os;
         os << "Non-positive when positive expected: " << expr << " = " << var;
         os << "  File: " << filename;
@@ -88,7 +95,7 @@ void assertPositive(auto const& var, char const* expr, char const* filename, Int
 }
 
 void assertNonNegative(auto const& var, char const* expr, char const* filename, Integer line) {
-    if (var < 0_R) {
+    if (!(var >= 0_R)) {
         std::ostringstream os;
         os << "Negative when non-negative expected: " << expr << " = " << var;
         os << "  File: " << filename;
@@ -156,29 +163,36 @@ private:
     int prevEnabled_ = 0;
 };
 
+// Ordered comparisons below reject NaNs; finite checks also reject infinities.
+inline constexpr auto __expectFinite(auto value, char const* file, int line) {
+    if (!std::isfinite(value))
+        throw std::runtime_error(print2string("Expected finite value, got %e. %s:%i\n", value, file, line));
+    return value;
+}
+
 inline constexpr auto __expectPositive(auto&& value, char const* file, int line) {
-    if (value <= 0_R)
+    if (!(value > 0_R))
         throw std::runtime_error(
             print2string("Expected v > 0, got v = %e. %s:%i\n", value, file, line));
     return value;
 }
 
 inline constexpr auto __expectNegative(auto&& value, char const* file, int line) {
-    if (value >= 0_R)
+    if (!(value < 0_R))
         throw std::runtime_error(
             print2string("Expected v < 0, got v = %e. %s:%i\n", value, file, line));
     return value;
 }
 
 inline constexpr auto __expectNonPositive(auto&& value, char const* file, int line) {
-    if (value > 0_R)
+    if (!(value <= 0_R))
         throw std::runtime_error(
             print2string("Expected v <= 0, got v = %e. %s:%i\n", value, file, line));
     return value;
 }
 
 inline constexpr auto __expectNonNegative(auto&& value, char const* file, int line) {
-    if (value < 0_R)
+    if (!(value >= 0_R))
         throw std::runtime_error(
             print2string("Expected v >= 0, got v = %e. %s:%i\n", value, file, line));
     return value;
@@ -192,11 +206,11 @@ inline constexpr auto __expectNonZero(auto&& value, char const* file, int line) 
 }
 
 inline constexpr auto __expectRange(auto a, auto&& value, auto b, char const* file, int line) {
-    if (value < a)
+    if (!(value >= a))
         throw std::runtime_error(
             print2string("Expected %e <= v got v = %e, %e too little.   %s:%i\n", a, value,
                 a - value, file, line));
-    else if (value > b)
+    else if (!(value <= b))
         throw std::runtime_error(print2string("Expected v <= %e got v = %e, %e too much.   %s:%i\n",
             b, value, value - b, file, line));
 
@@ -204,6 +218,7 @@ inline constexpr auto __expectRange(auto a, auto&& value, auto b, char const* fi
 }
 
 #ifndef NDEBUG
+#define expectFinite(v) __expectFinite((v), __FILE__, __LINE__)
 #define expectPositive(v) __expectPositive((v), __FILE__, __LINE__)
 #define expectNegative(v) __expectNegative((v), __FILE__, __LINE__)
 #define expectNonPositive(v) __expectNonPositive((v), __FILE__, __LINE__)
@@ -211,6 +226,7 @@ inline constexpr auto __expectRange(auto a, auto&& value, auto b, char const* fi
 #define expectNonZero(v) __expectNonZero((v), __FILE__, __LINE__)
 #define expectRange(a, v, b) __expectRange((a), (v), (b), __FILE__, __LINE__)
 #else
+#define expectFinite(v) (v)
 #define expectPositive(v) (v)
 #define expectNegative(v) (v)
 #define expectNonPositive(v) (v)

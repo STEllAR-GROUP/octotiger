@@ -13,7 +13,7 @@
 #endif
 
 #include "frontend-helper.hpp"
-#include "octotiger/debug.hpp"
+#include <octotiger/debug.hpp>
 
 #include <chrono>
 #include <cstdio>

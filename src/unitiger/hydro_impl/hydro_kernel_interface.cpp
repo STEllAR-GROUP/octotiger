@@ -16,6 +16,9 @@
 #include "octotiger/unitiger/hydro_impl/hydro_kokkos_kernel.hpp"
 #endif
 
+#include "octotiger/unitiger/hydro_impl/reconstruct.hpp"
+#include "octotiger/unitiger/hydro_impl/flux.hpp"
+
 #if defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_SYCL) 
 #if defined(OCTOTIGER_HAVE_INTEL_GPU_WORKAROUND)
 #include "octotiger/sycl_initialization_guard.hpp"

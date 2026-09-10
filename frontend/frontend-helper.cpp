@@ -7,40 +7,40 @@
 #include <hpx/runtime_distributed/find_all_localities.hpp>
 #include <hpx/runtime_distributed/get_num_localities.hpp>
 
-#include "octotiger/compute_factor.hpp"
-#include "octotiger/defs.hpp"
-// #include "octotiger/future.hpp"
-#include "octotiger/grid_fmm.hpp"
-#include "octotiger/grid_scf.hpp"
-#include "octotiger/node_client.hpp"
-#include "octotiger/node_server.hpp"
-#include "octotiger/options.hpp"
-#include "octotiger/physcon.hpp"
-#include "octotiger/problem.hpp"
-#include "octotiger/test_problems/blast.hpp"
-#include "octotiger/test_problems/rotating_star.hpp"
-#include "octotiger/unitiger/physics.hpp"
-#include "octotiger/unitiger/physics_impl.hpp"
+#include <octotiger/compute_factor.hpp>
+#include <octotiger/defs.hpp>
+// #include <octotiger/future.hpp>
+#include <octotiger/grid_fmm.hpp>
+#include <octotiger/grid_scf.hpp>
+#include <octotiger/node_client.hpp>
+#include <octotiger/node_server.hpp>
+#include <octotiger/options.hpp>
+#include <octotiger/physcon.hpp>
+#include <octotiger/problem.hpp>
+#include <octotiger/test_problems/blast.hpp>
+#include <octotiger/test_problems/rotating_star.hpp>
+#include <octotiger/unitiger/physics.hpp>
+#include <octotiger/unitiger/physics_impl.hpp>
 
-#include "octotiger/test_problems/amr/amr.hpp"
+#include <octotiger/test_problems/amr/amr.hpp>
 
 #ifdef OCTOTIGER_HAVE_CUDA
 #include <stream_manager.hpp>
-#include "octotiger/cuda_util/cuda_helper.hpp"
-#include "octotiger/cuda_util/cuda_scheduler.hpp"
-#include "octotiger/monopole_interactions/legacy/cuda_monopole_interaction_interface.hpp"
-#include "octotiger/multipole_interactions/legacy/cuda_multipole_interaction_interface.hpp"
+#include <octotiger/cuda_util/cuda_helper.hpp>
+#include <octotiger/cuda_util/cuda_scheduler.hpp>
+#include <octotiger/monopole_interactions/legacy/cuda_monopole_interaction_interface.hpp>
+#include <octotiger/multipole_interactions/legacy/cuda_multipole_interaction_interface.hpp>
 
 #endif
-#include "octotiger/common_kernel/interaction_constants.hpp"
-#include "octotiger/monopole_interactions/legacy/monopole_interaction_interface.hpp"
-#include "octotiger/monopole_interactions/legacy/p2m_interaction_interface.hpp"
-#include "octotiger/monopole_interactions/util/calculate_stencil.hpp"
-#include "octotiger/multipole_interactions/legacy/multipole_interaction_interface.hpp"
-#include "octotiger/multipole_interactions/util/calculate_stencil.hpp"
+#include <octotiger/common_kernel/interaction_constants.hpp>
+#include <octotiger/monopole_interactions/legacy/monopole_interaction_interface.hpp>
+#include <octotiger/monopole_interactions/legacy/p2m_interaction_interface.hpp>
+#include <octotiger/monopole_interactions/util/calculate_stencil.hpp>
+#include <octotiger/multipole_interactions/legacy/multipole_interaction_interface.hpp>
+#include <octotiger/multipole_interactions/util/calculate_stencil.hpp>
 
-#include "octotiger/unitiger/hydro_impl/hydro_performance_counters.hpp"
-#include "octotiger/common_kernel/gravity_performance_counters.hpp"
+#include <octotiger/unitiger/hydro_impl/hydro_performance_counters.hpp>
+#include <octotiger/common_kernel/gravity_performance_counters.hpp>
 
 #include <hpx/collectives/broadcast_direct.hpp>
 #include <hpx/hpx_init.hpp>

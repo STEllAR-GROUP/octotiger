@@ -596,11 +596,11 @@ void node_server::refined_step() {
 	}
 
 	dt_ = GET(dt_fut);
-	update();
 	if (opts().radiation) {
 		compute_radiation(dt_.dt, grid_ptr->get_omega());
 		all_hydro_bounds();
 	}
+	update();
 
 }
 
@@ -636,14 +636,35 @@ future<void> node_server::nonrefined_step() {
 //					a = std::max(a, grid_ptr->compute_positivity_speed_limit());
 					if (rk == 0) {
 						const Real dx = TWO * grid::get_scaling_factor() / Real(INX << my_location.level());
+                        // Some hydro kernels leave diagnostics empty when every
+                        // signal speed is zero. A radiation-limited step is still valid.
+                        if (a.ur.size() < std::size_t(opts().n_fields) || a.ul.size() < std::size_t(opts().n_fields)) {
+                            const auto h = hindex(H_BW, H_BW, H_BW);
+                            a.ur.resize(opts().n_fields);
+                            a.ul.resize(opts().n_fields);
+                            for (int field = 0; field < opts().n_fields; ++field) {
+                                a.ur[field] = a.ul[field] = grid_ptr->U[field][h];
+                            }
+                            a.x = grid_ptr->get_X()[XDIM][h];
+                            a.y = grid_ptr->get_X()[YDIM][h];
+                            a.z = grid_ptr->get_X()[ZDIM][h];
+                        }
 						dt_ = a;
-						dt_.dt = cfl0 * dx / a.a;
+						(void) expectNonNegative(expectFinite(a.a));
+						dt_.dt = a.a > 0 ? cfl0 * dx / a.a : std::numeric_limits<Real>::max();
+                        // Radiation and hydro advance once over the SAME global step.
+                        // Reduce the light-speed CFL on every leaf, including pure
+                        // radiation states where the hydro signal speed can be zero.
+                        if (opts().radiation) {
+                            rad_grid_ptr->set_dx(dx);
+                            rad_grid_ptr->set_X(grid_ptr->get_X());
+                            dt_.dt = std::min(dt_.dt, rad_grid_ptr->max_timestep(grid_ptr->get_omega()));
+                        }
+                        // hard_dt is an upper bound even when stop_time is disabled.
+                        if (opts().hard_dt > 0) dt_.dt = std::min(dt_.dt, opts().hard_dt);
 						if (opts().stop_time > 0.0) {
 							Real maxdt = (opts().stop_time - current_time)
 									/ (refinement_freq() - (step_num % refinement_freq()));
-							if (opts().hard_dt > 0.0) {
-								maxdt = std::min(maxdt, opts().hard_dt);
-							}
 							dt_.dt = std::min(dt_.dt, maxdt);
 						}
 						local_timestep_channels[NCHILD].set_value(dt_);
@@ -668,11 +689,11 @@ future<void> node_server::nonrefined_step() {
 
 		GET(f);
 
-		update();
 		if (opts().radiation) {
 			compute_radiation(dt_.dt, grid_ptr->get_omega());
 			all_hydro_bounds();
 		}
+		update();
 
 	}, "node_server::nonrefined_step::update" )
 	);
@@ -849,7 +870,9 @@ future<void> node_server::timestep_driver_descend() {
 	} else {
 		return local_timestep_channels[NCHILD].get_future().then(hpx::launch::sync, hpx::annotated_function([this](future<timestep_t> &&f) {
 			timestep_t dt = GET(f);
-			parent.set_local_timestep(my_location.get_child_index(), dt);
+            // A level-zero leaf has no parent to return its timestep to.
+            if (my_location.level() == 0) timestep_driver_ascend(dt);
+            else parent.set_local_timestep(my_location.get_child_index(), dt);
 			return;
 		}, "timestep_driver_descend::set_local_timestep")
 		);

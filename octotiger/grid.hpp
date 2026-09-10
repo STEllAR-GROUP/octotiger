@@ -32,7 +32,9 @@
 #include <memory>
 #include <utility>
 #include <vector>
-//#include "octotiger/unitiger/hydro.hpp"
+// Gas types are direct dependencies; rad_grid no longer includes hydro internals.
+#include "octotiger/unitiger/hydro.hpp"
+#include "octotiger/unitiger/physics.hpp"
 
 class struct_eos;
 

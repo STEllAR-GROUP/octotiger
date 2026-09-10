@@ -45,7 +45,6 @@ public:
 	bool periodic;
 	bool radiation;
 	Real grad_rho_refine;
-	Real clight_retard;
 	bool v1309;
 	bool rad_implicit;
 	bool rewrite_silo;
@@ -242,7 +241,6 @@ public:
 		arc & refinement_floor;
 		arc & ngrids;
 		arc & v1309;
-		arc & clight_retard;
 		arc & stop_time;
 		arc & min_level;
 		arc & max_level;

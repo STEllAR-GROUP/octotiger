@@ -96,7 +96,6 @@ bool options::process_options(int argc, char *argv[]) {
         ("moving_star_xvelocity", po::value<Real>(&(opts().moving_star_xvelocity))->default_value(1.0), "velocity of the star in the x-direction")     //
         ("moving_star_yvelocity", po::value<Real>(&(opts().moving_star_yvelocity))->default_value(1.0), "velocity of the star in the y-direction")     //
         ("moving_star_zvelocity", po::value<Real>(&(opts().moving_star_zvelocity))->default_value(1.0), "velocity of the star in the z-direction")     //
-	("clight_retard", po::value<Real>(&(opts().clight_retard))->default_value(1.0), "retardation factor for speed of light")                 //
 	("driving_rate", po::value<Real>(&(opts().driving_rate))->default_value(0.0), "angular momentum loss driving rate")     //
 	("driving_time", po::value<Real>(&(opts().driving_time))->default_value(0.0), "A.M. driving rate time")                 //
 	("entropy_driving_time", po::value<Real>(&(opts().entropy_driving_time))->default_value(0.0), "entropy driving rate time")                 //
@@ -286,7 +285,6 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(bench);
 		SHOW(cdisc_detect);
 		SHOW(cfl);
-		SHOW(clight_retard);
 		SHOW(config_file);
 		SHOW(core_refine);
 		SHOW(correct_am_grav);
