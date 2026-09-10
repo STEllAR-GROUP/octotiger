@@ -187,6 +187,7 @@ FetchContent_MakeAvailable(svesimd)
 ################################################################################
 # Octo-Tiger library sources
 set(source_files
+    src/radiation/rad_grid.cpp
     src/compute_factor.cpp
     src/eos.cpp
     src/geometry.cpp
@@ -208,7 +209,6 @@ set(source_files
     src/problem.cpp
     src/options_processing.cpp
     src/profiler.cpp
-    src/real.cpp
     src/roe.cpp
     src/scf_data.cpp
     src/scf_data.cpp
@@ -234,7 +234,6 @@ set(source_files
     src/multipole_interactions/legacy/multipole_cuda_kernel.cpp
     src/multipole_interactions/util/calculate_stencil.cpp
     src/multipole_interactions/legacy/multipole_cpu_kernel.cpp
-    src/radiation/rad_grid.cpp
     src/test_problems/marshak/marshak.cpp
     src/test_problems/rotating_star/rotating_star.cpp
     src/test_problems/sod/sod.cpp
@@ -274,9 +273,7 @@ set(header_files
     octotiger/physcon.hpp
     octotiger/problem.hpp
     octotiger/profiler.hpp
-    octotiger/real.hpp
     octotiger/roe.hpp
-    octotiger/safe_math.hpp
     octotiger/scf_data.hpp
     octotiger/io/silo.hpp
     octotiger/simd_legacy.hpp
@@ -377,7 +374,6 @@ set(hydro_header_files
     octotiger/unitiger/physics.hpp
     octotiger/unitiger/physics_impl.hpp
     octotiger/unitiger/cell_geometry.hpp
-    octotiger/unitiger/safe_real.hpp
     octotiger/unitiger/hydro_impl/boundaries.hpp
     octotiger/unitiger/hydro_impl/advance.hpp
     octotiger/unitiger/hydro_impl/output.hpp
