@@ -27,7 +27,7 @@ struct Parameters {
 		for (double v : {length, c, chi, width, background, amplitude, time, luminosity})
 			if (!std::isfinite(v)) throw std::runtime_error("Nonfinite radiation test parameter");
 		if (!(length > 0 && c > 0 && chi >= 0 && width > 0 && width <= length / 4 && background > 0 && amplitude > 0 && time > 0 &&
-			luminosity > 0))
+			  luminosity > 0))
 			throw std::runtime_error("Invalid radiation test parameters");
 	}
 };
@@ -53,7 +53,7 @@ inline State streamingWave(Point x, double t, double dx, Parameters const &p) {
 		average *= sinc(pi * mode[d] * dx / p.length);
 	}
 	double const E = 1 + .5 * average * std::cos(2 * pi * phase / p.length);
-	return {E, p.c * E * 2 / std::sqrt(14.), -p.c * E * 3 / std::sqrt(14.), p.c * E / std::sqrt(14.)};
+	return {E, p.c * E * mode[0] / amplitude, p.c * E * mode[1] / amplitude, p.c * mode[2] * E / amplitude};
 }
 // Integral of the periodic half-filled square wave; evaluating at cell edges
 // gives the exact finite-volume average even while a discontinuity crosses a cell.

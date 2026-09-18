@@ -188,6 +188,7 @@ FetchContent_MakeAvailable(svesimd)
 # Octo-Tiger library sources
 set(source_files
     src/radiation/rad_grid.cpp
+    src/test_problems/radiation/radiation.cpp
     src/compute_factor.cpp
     src/eos.cpp
     src/geometry.cpp
@@ -321,6 +322,10 @@ set(header_files
     octotiger/radiation/opacities.hpp
     octotiger/radiation/rad_grid.hpp
     octotiger/radiation/m1.hpp
+    octotiger/radiation/conservation.hpp
+    octotiger/test_problems/radiation.hpp
+    octotiger/test_problems/radiation/profiles.hpp
+    octotiger/test_problems/radiation/reference.hpp
     octotiger/timestep.hpp
     octotiger/test_problems/rotating_star.hpp
     
@@ -565,6 +570,7 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/io/silo_out.cpp
     src/io/silo_in.cpp
     src/radiation/rad_grid.cpp
+    src/test_problems/radiation/radiation.cpp
     frontend/frontend-helper.cpp
 
     src/eos.cpp
@@ -1062,4 +1068,5 @@ if(OCTOTIGER_WITH_TESTS)
     enable_testing()
 
   add_subdirectory(test_problems)
+  add_subdirectory(tests)
 endif()

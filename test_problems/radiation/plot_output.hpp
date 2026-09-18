@@ -1,5 +1,6 @@
 // Copyright (c) 2026 AUTHORS. Boost Software License, Version 1.0.
 #pragma once
+#include "octotiger/math/Debug.hpp"
 #include <array>
 #include <cmath>
 #include <filesystem>
@@ -28,6 +29,7 @@ public:
 	template<class Reference, class ReadField>
 	void capture(double x, double y, double z, Reference const& reference,
 			int offset, ReadField read) {
+		FpeGuard fpeGuard{};
 		if (!enabled_ || std::abs(z - dx_ / 2) >
 				128 * std::numeric_limits<double>::epsilon() * length_) return;
 		if (!stream_.is_open()) {
