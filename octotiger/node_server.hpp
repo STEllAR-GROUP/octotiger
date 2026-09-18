@@ -8,6 +8,7 @@
 
 #include "octotiger/config/export_definitions.hpp"
 #include "octotiger/radiation/rad_grid.hpp"
+#include "octotiger/radiation/conservation.hpp"
 #include "octotiger/interaction_types.hpp"
 #include "octotiger/channel.hpp"
 #include "octotiger/defs.hpp"
@@ -316,6 +317,8 @@ private:
 public:
 	hpx::future<void> exchange_rad_flux_corrections();
 	void compute_radiation(Real dt, Real omega);
+	radiationConservation::Totals collectRadiationConservation();
+	HPX_DEFINE_COMPONENT_ACTION(node_server, collectRadiationConservation, collectRadiationConservationAction);
 	hpx::future<void> exchange_interlevel_rad_data();
 	void all_rad_bounds(Real boundary_time);
 
@@ -385,6 +388,7 @@ HPX_REGISTER_ACTION_DECLARATION(node_server::send_rad_children_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_rad_flux_correct_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::set_rad_grid_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::erad_init_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::collectRadiationConservationAction);
 HPX_REGISTER_ACTION_DECLARATION(node_server::amr_error_action);
 //HPX_REGISTER_ACTION_DECLARATION(node_server::set_parent_action);
 

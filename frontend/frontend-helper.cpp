@@ -9,6 +9,7 @@
 
 #include <octotiger/compute_factor.hpp>
 #include <octotiger/defs.hpp>
+#include <octotiger/test_problems/radiation.hpp>
 // #include <octotiger/future.hpp>
 #include <octotiger/grid_fmm.hpp>
 #include <octotiger/grid_scf.hpp>
@@ -106,6 +107,7 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
       grid::static_init();
       std::cerr << "Finished static_init" << std::endl;
       normalize_constants();
+      if (radiationRegressionProblem()) validateRadiationTest();
       std::cerr << "Finished normalizing" << std::endl;
 #ifdef SILO_UNITS
 //	grid::set_unit_conversions();

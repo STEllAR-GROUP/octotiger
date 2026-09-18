@@ -9,6 +9,7 @@
 #include "octotiger/node_server.hpp"
 #include "octotiger/options.hpp"
 #include "octotiger/problem.hpp"
+#include "octotiger/math/Debug.hpp"
 #include "octotiger/math/Real.hpp"
 #include "octotiger/util.hpp"
 #include "octotiger/util/timestep_util.hpp"
@@ -23,6 +24,10 @@
 #include <algorithm>
 #include <array>
 #include <cstdio>
+#include <filesystem>
+#include <fstream>
+#include <limits>
+#include <stdexcept>
 
 #if !defined(HPX_COMPUTE_DEVICE_CODE)
 
@@ -358,10 +363,41 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 	printf("%e %e\n", root_ptr->get_rotation_count(), output_dt);
 
 	Real bench_start, bench_stop;
+	// Keep radiation diagnostics available with hydro diagnostics or SILO disabled.
+	// Each process/restart starts a new baseline; diagnostic counters are not serialized.
+	radiationConservation::Ledger radiationLedger;
+	std::ofstream radiationOutput;
+	Real lastRadiationTime = -std::numeric_limits<Real>::infinity();
+	if (opts().radiation) {
+		const auto filename = (std::filesystem::path(opts().data_dir) / "radiation-conservation.csv").string();
+		radiationOutput.open(filename, std::ios::out | std::ios::trunc);
+		if (!radiationOutput) throw std::runtime_error("Cannot write " + filename);
+		radiationOutput.exceptions(std::ios::badbit | std::ios::failbit);
+		radiationConservation::writeCsvHeader(radiationOutput);
+	}
+	auto sampleRadiation = [&]() {
+		if (!opts().radiation) return;
+		bool newSample;
+		{
+			FpeGuard fpeGuard{};
+			newSample = current_time > lastRadiationTime;
+		}
+		if (!newSample) return;
+		// The collection can suspend; enter arithmetic guards only after it returns.
+		const auto interval = collectRadiationConservation();
+		const auto sample = radiationLedger.consume(interval);
+		radiationConservation::writeCsvRow(radiationOutput, current_time, sample);
+		radiationOutput.flush();
+		lastRadiationTime = current_time;
+	};
+	sampleRadiation();
 	while (current_time < opts().stop_time) {
 		timings::scope ts(timings_, timings::time_total);
 		if (step_num > opts().stop_step)
 			break;
+		// Sample after the preceding regrid so remapping errors remain visible.
+		// This also drains interval budgets before output/checkpoint serialization.
+		sampleRadiation();
 		auto time_start = std::chrono::high_resolution_clock::now();
 		auto diags = diagnostics();
 		if (opts().problem != DWD) {
@@ -482,6 +518,12 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 				printf("New refinement floor = %e\n", new_floor);
 			}
 
+			if (opts().radiation) {
+				// Drain before children can be deleted or migrated. The next sample
+				// uses post-regrid field totals with these retained interval budgets.
+				const auto interval = collectRadiationConservation();
+				radiationLedger.consume(interval);
+			}
 			ngrids = regrid(me.get_gid(), omega, new_floor, false);
 
 			// run output on separate thread
@@ -508,6 +550,8 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 			break;
 		}
 	}
+	// Final numerical sample precedes analytic comparison, which replaces fields.
+	sampleRadiation();
 	auto diags = diagnostics();
 	if (opts().problem != DWD) {
 		std::sort(diags.xline.begin(), diags.xline.end(),
@@ -635,37 +679,41 @@ future<void> node_server::nonrefined_step() {
 					fut_flux.get();
 //					a = std::max(a, grid_ptr->compute_positivity_speed_limit());
 					if (rk == 0) {
-						const Real dx = TWO * grid::get_scaling_factor() / Real(INX << my_location.level());
-                        // Some hydro kernels leave diagnostics empty when every
-                        // signal speed is zero. A radiation-limited step is still valid.
-                        if (a.ur.size() < std::size_t(opts().n_fields) || a.ul.size() < std::size_t(opts().n_fields)) {
-                            const auto h = hindex(H_BW, H_BW, H_BW);
-                            a.ur.resize(opts().n_fields);
-                            a.ul.resize(opts().n_fields);
-                            for (int field = 0; field < opts().n_fields; ++field) {
-                                a.ur[field] = a.ul[field] = grid_ptr->U[field][h];
-                            }
-                            a.x = grid_ptr->get_X()[XDIM][h];
-                            a.y = grid_ptr->get_X()[YDIM][h];
-                            a.z = grid_ptr->get_X()[ZDIM][h];
-                        }
-						dt_ = a;
-						(void) expectNonNegative(expectFinite(a.a));
-						dt_.dt = a.a > 0 ? cfl0 * dx / a.a : std::numeric_limits<Real>::max();
-                        // Radiation and hydro advance once over the SAME global step.
-                        // Reduce the light-speed CFL on every leaf, including pure
-                        // radiation states where the hydro signal speed can be zero.
-                        if (opts().radiation) {
-                            rad_grid_ptr->set_dx(dx);
-                            rad_grid_ptr->set_X(grid_ptr->get_X());
-                            dt_.dt = std::min(dt_.dt, rad_grid_ptr->max_timestep(grid_ptr->get_omega()));
-                        }
-                        // hard_dt is an upper bound even when stop_time is disabled.
-                        if (opts().hard_dt > 0) dt_.dt = std::min(dt_.dt, opts().hard_dt);
-						if (opts().stop_time > 0.0) {
-							Real maxdt = (opts().stop_time - current_time)
-									/ (refinement_freq() - (step_num % refinement_freq()));
-							dt_.dt = std::min(dt_.dt, maxdt);
+						{
+							// Keep OS-thread FP state local to the non-suspending calculation.
+							FpeGuard fpeGuard;
+							const Real dx = TWO * grid::get_scaling_factor() / Real(INX << my_location.level());
+							// Some hydro kernels leave diagnostics empty when every
+							// signal speed is zero. A radiation-limited step is still valid.
+							if (a.ur.size() < std::size_t(opts().n_fields) || a.ul.size() < std::size_t(opts().n_fields)) {
+								const auto h = hindex(H_BW, H_BW, H_BW);
+								a.ur.resize(opts().n_fields);
+								a.ul.resize(opts().n_fields);
+								for (int field = 0; field < opts().n_fields; ++field) {
+									a.ur[field] = a.ul[field] = grid_ptr->U[field][h];
+								}
+								a.x = grid_ptr->get_X()[XDIM][h];
+								a.y = grid_ptr->get_X()[YDIM][h];
+								a.z = grid_ptr->get_X()[ZDIM][h];
+							}
+							dt_ = a;
+							(void) expectNonNegative(a.a);
+							dt_.dt = a.a > 0 ? cfl0 * dx / a.a : std::numeric_limits<Real>::max();
+							// Radiation and hydro advance once over the SAME global step.
+							// Reduce the light-speed CFL on every leaf, including pure
+							// radiation states where the hydro signal speed can be zero.
+							if (opts().radiation) {
+								rad_grid_ptr->set_dx(dx);
+								rad_grid_ptr->set_X(grid_ptr->get_X());
+								dt_.dt = std::min(dt_.dt, rad_grid_ptr->maxTimestep(grid_ptr->get_omega()));
+							}
+							// hard_dt is an upper bound even when stop_time is disabled.
+							if (opts().hard_dt > 0) dt_.dt = std::min(dt_.dt, opts().hard_dt);
+							if (opts().stop_time > 0.0) {
+								Real maxdt = (opts().stop_time - current_time)
+										/ (refinement_freq() - (step_num % refinement_freq()));
+								dt_.dt = std::min(dt_.dt, maxdt);
+							}
 						}
 						local_timestep_channels[NCHILD].set_value(dt_);
 					}

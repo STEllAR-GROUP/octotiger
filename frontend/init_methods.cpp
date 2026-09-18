@@ -25,6 +25,7 @@
 
 #include <octotiger/compute_factor.hpp>
 #include <octotiger/defs.hpp>
+#include <octotiger/test_problems/radiation.hpp>
 // #include <octotiger/future.hpp>
 #include <octotiger/grid_fmm.hpp>
 #include <octotiger/grid_scf.hpp>
@@ -353,7 +354,12 @@ void init_problem(void) {
     grid::set_scaling_factor(opts().xscale);
     grid::set_min_level(opts().min_level);
     grid::set_max_level(opts().max_level);
-    if (opts().problem == RADIATION_TEST) {
+    if (radiationRegressionProblem()) {
+        grid::set_fgamma(5.0 / 3.0);
+        set_problem(radiationRegressionInit);
+        set_analytic(radiationRegressionAnalytic);
+        set_refine_test(radiation_test_refine); // unigrid overrides this selector
+    } else if (opts().problem == RADIATION_TEST) {
         assert(opts().radiation);
         //		opts().gravity = false;
         set_problem(radiation_test_problem);

@@ -12,6 +12,7 @@
 #ifndef OCTOTIGER_UNITIGER_radiation_physics_HPP12443_
 #define OCTOTIGER_UNITIGER_radiation_physics_HPP12443_
 
+#include "octotiger/math/Debug.hpp"
 #include "octotiger/math/Real.hpp"
 #include "octotiger/test_problems/blast.hpp"
 #include "octotiger/test_problems/exact_sod.hpp"
@@ -29,13 +30,18 @@ template<int NDIM>
 template<int INX>
 void radiation_physics<NDIM>::physical_flux(const std::vector<Real> &U, std::vector<Real> &F, int dim,
 		Real &am, Real &ap, std::array<Real, NDIM> &x, std::array<Real, NDIM> &vg) {
-    // Legacy adapter: physical units and Hanawa-Audit M1 closure, just as rad_grid.
-    radiation_m1::state u{};
-    for (int f = 0; f < 1 + NDIM; ++f) u[f] = U[f];
-    const auto result = radiation_m1::physical_flux(u, dim, physcon().c, vg[dim]);
-    am = std::min(Real(0), result.minus);
-    ap = std::max(Real(0), result.plus);
-    for (int f = 0; f < 1 + NDIM; ++f) F[f] = result.flux[f];
+	FpeGuard fpeGuard{};
+	// Legacy arrays store physical flux F; the M1 state stores Q = F / c.
+	using M1 = RadiationM1<Real, NDIM>;
+	const Real c = physcon().c;
+	typename M1::ConservedState conserved{};
+	conserved[er_i] = U[er_i];
+	for (int direction = 0; direction < NDIM; ++direction) conserved[fx_i + direction] = U[fx_i + direction] / c;
+	const auto result = conserved.physicalFlux(dim, c, vg[dim]);
+	am = std::min(Real(0), result.minus);
+	ap = std::max(Real(0), result.plus);
+	F[er_i] = result.flux[er_i];
+	for (int direction = 0; direction < NDIM; ++direction) F[fx_i + direction] = c * result.flux[fx_i + direction];
 }
 
 template<int NDIM>
@@ -80,13 +86,25 @@ template<int NDIM>
 template<int INX>
 const hydro::state_type& radiation_physics<NDIM>::pre_recon(const hydro::state_type &U, const hydro::x_type X,
 		Real omega, bool angmom) {
-    static thread_local hydro::state_type V;
-    V = U;
-    for (std::size_t i = 0; i < U[0].size(); ++i) {
-        const Real E = U[er_i][i];
-        for (int d = 0; d < NDIM; ++d) V[fx_i + d][i] = E > 0 ? U[fx_i + d][i] / physcon().c / E : 0;
-    }
-    return V;
+	FpeGuard fpeGuard{};
+	using M1 = RadiationM1<Real, NDIM>;
+	static thread_local hydro::state_type primitives;
+	primitives = U;
+	const Real c = physcon().c;
+	const std::size_t cellCount = U[er_i].size();
+	// Each iteration owns one cell. Load its complete conserved state before
+	// writing: callers can pass the previous thread-local result back as U.
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC ivdep
+#endif
+	for (std::size_t cell = 0; cell < cellCount; ++cell) {
+		typename M1::ConservedState conserved{};
+		conserved[er_i] = U[er_i][cell];
+		for (int dim = 0; dim < NDIM; ++dim) conserved[fx_i + dim] = U[fx_i + dim][cell] / c;
+		const auto primitive = conserved.toPrimitives();
+		for (int field = 0; field < 1 + NDIM; ++field) primitives[field][cell] = primitive[field];
+	}
+	return primitives;
 }
 
 /*** Reconstruct uses this - GPUize****/
@@ -95,15 +113,30 @@ template<int NDIM>
 template<int INX>
 void radiation_physics<NDIM>::post_recon(std::vector<std::vector<std::vector<Real>>> &Q, const hydro::x_type X,
 		Real omega, bool angmom) {
-    // Only used by the legacy unitiger driver; rad_grid reconstructs six faces itself.
-    for (std::size_t direction = 0; direction < Q[0].size(); ++direction) {
-        for (std::size_t i = 0; i < Q[0][direction].size(); ++i) {
-            Real f2 = 0;
-            for (int d = 0; d < NDIM; ++d) f2 += Q[fx_i + d][direction][i] * Q[fx_i + d][direction][i];
-            const Real scale = physcon().c * Q[er_i][direction][i] / std::sqrt(std::max(Real(1), f2));
-            for (int d = 0; d < NDIM; ++d) Q[fx_i + d][direction][i] *= scale;
-        }
-    }
+	FpeGuard fpeGuard{};
+	using M1 = RadiationM1<Real, NDIM>;
+	// Only used by the legacy unitiger driver; rad_grid reconstructs six faces itself.
+	const Real c = physcon().c;
+	for (std::size_t direction = 0; direction < Q[er_i].size(); ++direction) {
+		const std::size_t cellCount = Q[er_i][direction].size();
+		// Distinct cells never overlap; the beta-norm reduction stays inside a cell.
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC ivdep
+#endif
+		for (std::size_t cell = 0; cell < cellCount; ++cell) {
+			typename M1::Primitives primitive{};
+			for (int field = 0; field < 1 + NDIM; ++field) primitive[field] = Q[field][direction][cell];
+			Real betaSquared = 0;
+			for (int dim = 0; dim < NDIM; ++dim) betaSquared += primitive[fx_i + dim] * primitive[fx_i + dim];
+			// Rescale the whole vector: component-wise clipping does not enforce |beta| <= 1.
+			const Real betaScale = 1 / std::sqrt(std::max(Real(1), betaSquared));
+			for (int dim = 0; dim < NDIM; ++dim) primitive[fx_i + dim] *= betaScale;
+			primitive.checkState();
+			const auto conserved = primitive.toConserved();
+			Q[er_i][direction][cell] = conserved[er_i];
+			for (int dim = 0; dim < NDIM; ++dim) Q[fx_i + dim][direction][cell] = c * conserved[fx_i + dim];
+		}
+	}
 }
 
 template<int NDIM>
@@ -117,6 +150,7 @@ template<int NDIM>
 template<int INX>
 std::vector<typename hydro_computer<NDIM, INX, radiation_physics<NDIM>>::bc_type> radiation_physics<NDIM>::initialize(
 		radiation_physics<NDIM>::test_type t, hydro::state_type &U, hydro::x_type &X) {
+	FpeGuard fpeGuard{};
 	static const cell_geometry<NDIM, INX> geo;
 
 	std::vector<typename hydro_computer<NDIM, INX, radiation_physics<NDIM>>::bc_type> bc(2 * NDIM);

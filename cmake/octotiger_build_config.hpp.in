@@ -1,0 +1,8 @@
+// Copyright (c) 2026 AUTHORS
+// Distributed under the Boost Software License, Version 1.0.
+// See LICENSE_1_0.txt or http://www.boost.org/LICENSE_1_0.txt.
+#pragma once
+
+#define HPX_APPLICATION_STRING "octotiger"
+#define OCTOTIGER_GIT_COMMIT_HASH "@OCTOTIGER_WITH_GIT_COMMIT_ESCAPED@"
+#define OCTOTIGER_GIT_COMMIT_MESSAGE "@OCTOTIGER_WITH_GIT_COMMIT_MESSAGE_ESCAPED@"

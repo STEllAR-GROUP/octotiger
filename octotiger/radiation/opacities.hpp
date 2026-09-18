@@ -12,15 +12,18 @@
 
 template<class U>
 U temperature(U rho, U e, U mmw, Real gamma = 5.0 / 3.0) {
-    // S&O (2013), equations (2), (44): ideal-gas temperature in kelvin.
-    // e excludes kinetic and cold-degenerate energy. The old fourth-root
-    // expression was inconsistent with both this EOS and dB_p_de below.
+    FpeGuard fpeGuard{};
+    // Skinner & Ostriker (2013), (2), (44), https://arxiv.org/abs/1306.0010:
+    // T = (γ - 1)e μ/(ρ k_B), with their mean particle mass μ = mmw*m_h.
+    // This is the EOS used in their ℰ_eq = αe⁴ thermal exchange relation;
+    // e here excludes kinetic and cold-degenerate energy, and T is in kelvin.
     const U gm1 = U(gamma - 1);
     return gm1 * mmw * U(physcon().mh / physcon().kb) * e / expectPositive(rho);
 }
 
 template<class U>
 U kappa_R(U rho, U e, U mmw, Real X, Real Z, Real gamma = 5.0 / 3.0) {
+	FpeGuard fpeGuard{};
 	if (opts().problem == MARSHAK) {
 		return MARSHAK_OPAC;
 	} else if (opts().problem == RADIATION_TEST) {
@@ -42,6 +45,7 @@ U kappa_R(U rho, U e, U mmw, Real X, Real Z, Real gamma = 5.0 / 3.0) {
 
 template<class U>
 U kappa_p(U rho, U e, U mmw, Real X, Real Z, Real gamma = 5.0 / 3.0) {
+	FpeGuard fpeGuard{};
 	if (opts().problem == MARSHAK) {
 		return MARSHAK_OPAC;
 	} else if (opts().problem == RADIATION_TEST) {
@@ -60,6 +64,7 @@ U kappa_p(U rho, U e, U mmw, Real X, Real Z, Real gamma = 5.0 / 3.0) {
 
 template<class U>
 U B_p(U rho, U e, U mmw, Real gamma = 5.0 / 3.0) {
+	FpeGuard fpeGuard{};
 	if (opts().problem == MARSHAK) {
 		return U((physcon().c / 4.0 / M_PI)) * e;
 	} else {
@@ -70,6 +75,7 @@ U B_p(U rho, U e, U mmw, Real gamma = 5.0 / 3.0) {
 
 template<class U>
 U dB_p_de(U rho, U e, U mmw, Real gamma = 5.0 / 3.0) {
+	FpeGuard fpeGuard{};
 	if (opts().problem == MARSHAK) {
 		return U(physcon().c / (4.0 * M_PI));
 	} else {

@@ -1,0 +1,8 @@
+CompileFlags:
+  Add: [-std=c++23]
+  CompilationDatabase: debug
+InlayHints: {Enabled: false}
+Completion: {Enable: false, Snippets: false, AllScopes: false, FilterAndSort: false}
+Diagnostics:
+  Suppress: [unused-command-line-argument, -Wunknown-warning-option]
+Index: {Background: Build, MemoryUsage: 80%}

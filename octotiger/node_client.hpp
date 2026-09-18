@@ -10,6 +10,7 @@
 
 #include "octotiger/config/export_definitions.hpp"
 #include "octotiger/radiation/rad_grid.hpp"
+#include "octotiger/radiation/conservation.hpp"
 #include "octotiger/defs.hpp"
 #include "octotiger/diagnostics.hpp"
 #include "octotiger/eos.hpp"
@@ -89,6 +90,7 @@ public:
     void send_rad_flux_correct(std::vector<Real>&&, const geo::face& face,
         const geo::octant& ci) const;
     future<diagnostics_t> diagnostics(const diagnostics_t&) const;
+    future<radiationConservation::Totals> collectRadiationConservation() const;
     future<analytic_t> compare_analytic() const;
     //	hpx::future<void> set_parent(hpx::id_type);
     node_client();

@@ -11,6 +11,7 @@
 #include "octotiger/geometry.hpp"
 #include "octotiger/physcon.hpp"
 #include "octotiger/io/silo.hpp"
+#include "octotiger/radiation/conservation.hpp"
 
 #include <array>
 #include <atomic>
@@ -38,13 +39,20 @@ private:
 	std::vector<std::atomic<int>> has_coarse;
 	std::vector<std::vector<Real>> Ushad;
 	// Structure of arrays; only E and physical Fx,Fy,Fz are evolved/serialized.
+	// Divide flux components by c when creating an M1 ConservedState=(E,Q).
 	std::vector<std::vector<Real>> U;
+	// Finite-volume fluxes/reflux messages retain the same physical storage units.
 	std::vector<std::vector<std::vector<Real>>> flux;
-	// Per-grid scratch avoids allocations and thread-local reuse across HPX tasks.
+	// Per-grid (H, beta) scratch avoids allocations and reuse across HPX tasks.
 	std::array<std::vector<Real>, NRF> primitive;
+	// Reconstructed faces also hold (H, beta), avoiding inverse conversions in HLL.
 	std::array<std::array<std::vector<Real>, NRF>, 2> faces;
 	std::vector<std::vector<Real>> X;
 	std::vector<Real> mmw, X_spc, Z_spc;
+	// Interval budgets use physical (E,F) units and are drained before regridding.
+	// Diagnostic intervals are not serialized; checkpoint field layout stays intact.
+	radiationConservation::Moments conservationBoundary{};
+	radiationConservation::Moments conservationSource{};
 public:
 	static void static_init();
 	static std::vector<std::string> get_field_names();
@@ -61,10 +69,13 @@ public:
 	void change_units(Real m, Real l, Real t, Real k);
 	void sanity_check();
 	void compute_flux(Real);
-	Real max_timestep(Real omega) const;
+	Real maxTimestep(Real omega) const;
 	void initialize_erad(const std::vector<Real>& rho, const std::vector<Real>& tau);
 	void set_dx(Real dx);
 	void advance(Real dt, Real omega);
+	void applyRegressionSource(Real dt);
+	radiationConservation::Totals takeConservation();
+	void accountBoundaryFlux(Real dt, geo::face face);
 	void rad_imp(std::vector<Real>& egas, std::vector<Real>& tau, std::vector<Real>& sx, std::vector<Real>& sy, std::vector<Real>& sz,
 			const std::vector<Real>& rho, Real dt);
 	std::vector<Real> get_restrict() const;
@@ -85,7 +96,7 @@ public:
 	std::vector<Real> get_boundary(const geo::direction& dir);
 	using kappa_type = std::function<Real(Real)>;
 
-	Real hydro_signal_speed(const std::vector<Real>& egas, const std::vector<Real>& tau, const std::vector<Real>& sx, const std::vector<Real>& sy, const std::vector<Real>& sz,
+	Real hydroSignalSpeed(const std::vector<Real>& egas, const std::vector<Real>& tau, const std::vector<Real>& sx, const std::vector<Real>& sy, const std::vector<Real>& sz,
 			const std::vector<Real>& rho);
 
 	void clear_amr();

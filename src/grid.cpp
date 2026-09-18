@@ -1,3 +1,6 @@
+#include "octotiger/math/Debug.hpp"
+#include "octotiger/test_problems/radiation.hpp"
+#include "octotiger/test_problems/radiation/plot_output.hpp"
 //  Copyright (c) 2019 AUTHORS
 //
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
@@ -1749,6 +1752,7 @@ std::vector<std::pair<std::string, std::string>> grid::get_vector_expressions() 
 }
 
 analytic_t grid::compute_analytic(Real t) {
+	FpeGuard fpeGuard{};
 	analytic_t a;
 	if (opts().hydro) {
 		a = analytic_t(opts().n_fields);
@@ -1757,6 +1761,9 @@ analytic_t grid::compute_analytic(Real t) {
 	}
 	const auto func = get_analytic();
 	const Real dv = dx * dx * dx;
+	// RADIATION_PLOT_EXPORT_BEGIN: opt in by creating datadir/radiation-slices.
+	radiationTests::SliceOutput radiationSlice(radiationRegressionProblem(),
+		opts().data_dir, double(t), double(dx), 2 * double(opts().xscale));
 	for (integer i = H_BW; i != H_NX - H_BW; ++i)
 		for (integer j = H_BW; j != H_NX - H_BW; ++j)
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
@@ -1793,6 +1800,11 @@ analytic_t grid::compute_analytic(Real t) {
 						break;
 					}
 				}
+				radiationSlice.capture(double(X[XDIM][iii]), double(X[YDIM][iii]),
+					double(X[ZDIM][iii]), A, opts().n_fields, [&](int f) {
+						return double(rad_grid_ptr->get_field(f, i - H_BW + R_BW,
+							j - H_BW + R_BW, k - H_BW + R_BW));
+					});
 				for (integer field = 0; field != opts().n_fields; ++field) {
 					Real dif = std::abs(A[field] - U[field][iii]);
 					a.l1[field] += dif * dv;
@@ -1820,6 +1832,7 @@ analytic_t grid::compute_analytic(Real t) {
 					U[pot_i][hindex(i, j, k)] = a[0] * U[rho_i][hindex(i, j, k)];
 				}
 			}
+	radiationSlice.finish();
 	return a;
 }
 

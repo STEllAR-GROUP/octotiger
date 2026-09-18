@@ -24,7 +24,7 @@
  COMMAND_LINE_ENUM(eos_type,IDEAL,WD);
  */
 
-COMMAND_LINE_ENUM(problem_type, DWD, SOD, BLAST, NONE, SOLID_SPHERE, STAR, MOVING_STAR, RADIATION_TEST, ROTATING_STAR, MARSHAK, AMR_TEST, ADVECTION, RADIATION_DIFFUSION, RADIATION_COUPLING);
+COMMAND_LINE_ENUM(problem_type, DWD, SOD, BLAST, NONE, SOLID_SPHERE, STAR, MOVING_STAR, RADIATION_TEST, ROTATING_STAR, MARSHAK, AMR_TEST, ADVECTION, RADIATION_DIFFUSION, RADIATION_COUPLING, RADIATION_STREAMING_WAVE, RADIATION_STREAMING_FRONT, RADIATION_GAUSSIAN_PULSE, RADIATION_EQUILIBRIUM_SPHERE);
 
 COMMAND_LINE_ENUM(eos_type, IDEAL, WD, IPR);
 
@@ -47,6 +47,10 @@ public:
 	Real grad_rho_refine;
 	bool v1309;
 	bool rad_implicit;
+	// Prescribed-medium regression parameters, all in physical code units.
+	std::string radReference = "gaussian_pulse.bin";
+	Real radTestChi = 5, radTestWidth = .2;
+	Real radTestBackground = 1, radTestAmplitude = .01, radTestLuminosity = .01;
 	bool rewrite_silo;
 	bool correct_am_grav;
 	bool correct_am_hydro;
@@ -219,6 +223,8 @@ public:
 		arc & correct_am_hydro;
 		arc & rewrite_silo;
 		arc & rad_implicit;
+		arc & radReference & radTestChi & radTestWidth;
+		arc & radTestBackground & radTestAmplitude & radTestLuminosity;
 		arc & n_fields;
 		arc & n_species;
 		arc & input_file;

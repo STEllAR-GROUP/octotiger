@@ -7,6 +7,7 @@
 #include <fenv.h>
 
 #include "octotiger/diagnostics.hpp"
+#include "octotiger/math/Debug.hpp"
 #include "octotiger/future.hpp"
 #include "octotiger/node_client.hpp"
 #include "octotiger/node_registry.hpp"
@@ -14,6 +15,7 @@
 #include "octotiger/options.hpp"
 #include "octotiger/profiler.hpp"
 #include "octotiger/taylor.hpp"
+#include "octotiger/test_problems/radiation.hpp"
 
 #include <hpx/include/lcos.hpp>
 #include <hpx/include/run_as.hpp>
@@ -144,6 +146,34 @@ future<diagnostics_t> node_client::diagnostics(const diagnostics_t &d) const {
 	return hpx::async<typename node_server::diagnostics_action>(get_unmanaged_gid(), d);
 }
 
+using collectRadiationConservationActionType = node_server::collectRadiationConservationAction;
+HPX_REGISTER_ACTION(collectRadiationConservationActionType);
+
+future<radiationConservation::Totals> node_client::collectRadiationConservation() const {
+	return hpx::async<node_server::collectRadiationConservationAction>(get_unmanaged_gid());
+}
+
+radiationConservation::Totals node_server::collectRadiationConservation() {
+	if (!is_refined) {
+		return rad_grid_ptr->takeConservation();
+	}
+	// Coarse cells cover their children and must not enter this volume integral.
+	std::array<future<radiationConservation::Totals>, NCHILD> pending;
+	for (int child = 0; child < NCHILD; ++child) {
+		pending[child] = children[child].collectRadiationConservation();
+	}
+	radiationConservation::Totals result;
+	for (auto &child : pending) {
+		// Do not retain a thread-local floating-point environment across an HPX wait.
+		const auto childTotals = GET(child);
+		{
+			FpeGuard fpeGuard{};
+			result += childTotals;
+		}
+	}
+	return result;
+}
+
 using compare_analytic_action_type = node_server::compare_analytic_action;
 HPX_REGISTER_ACTION(compare_analytic_action_type);
 
@@ -166,6 +196,11 @@ analytic_t node_server::compare_analytic() {
 		}
 	}
 	if (my_location.level() == 0) {
+		FpeGuard fpeGuard{};
+		if (radiationRegressionProblem()) {
+			// The comparator rejects runs that stop before the requested final time.
+			printf("RADIATION_TEST_FINISHED %s t=%.17e\n", to_string(opts().problem).c_str(), double(current_time));
+		}
 		printf("L1, L2\n");
 		Real vol = 1.0;
 		for (int d = 0; d < NDIM; d++) {
