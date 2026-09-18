@@ -1,0 +1,2 @@
+/usr/bin/ar qc librr_core.a CMakeFiles/rr_core.dir/cpp/common.cpp.o CMakeFiles/rr_core.dir/cpp/data.cpp.o CMakeFiles/rr_core.dir/cpp/plot.cpp.o CMakeFiles/rr_core.dir/cpp/movie.cpp.o CMakeFiles/rr_core.dir/cpp/visit_session.cpp.o CMakeFiles/rr_core.dir/cpp/run.cpp.o CMakeFiles/rr_core.dir/cpp/maintenance.cpp.o CMakeFiles/rr_core.dir/cpp/report.cpp.o
+/usr/bin/ranlib librr_core.a
