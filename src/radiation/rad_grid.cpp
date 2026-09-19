@@ -244,8 +244,7 @@ void rad_grid::rad_imp(std::vector<Real>& egas, std::vector<Real>& tau,
         for (integer k=RAD_BW; k<RAD_NX-RAD_BW; ++k) {
             auto const r=rindex(i,j,k), h=hindex(i+offset,j+offset,k+offset);
             Real const e=radiationGasInternal(egas[h],tau[h],sx[h],sy[h],sz[h],rho[h]);
-            Real const chi=opts().rad_opacity>=0 ? rho[h]*opts().rad_opacity :
-                kappa_p(rho[h],e,mmw[r],X_spc[r],Z_spc[r],gamma);
+            Real const chi=radiationAbsorption(rho[h],e,mmw[r],X_spc[r],Z_spc[r],gamma);
             Real const logAlpha=marshak ? 0 : logAr+4*std::log(tempFactor*mmw[r]/rho[h]);
             auto const next=M1::thermalExchange(e,U[0][r],dt*c*chi,logAlpha,
                 marshak,ratio,opts().rad_theta);
@@ -276,10 +275,8 @@ void rad_grid::prepareSources(const std::vector<std::vector<Real>>& gas) {
             Real const rho=gas[rho_i][h];
             Real const e=radiationGasInternal(gas[egas_i][h],gas[tau_i][h],
                 gas[sx_i][h],gas[sy_i][h],gas[sz_i][h],rho);
-            chiAbsorption[r]=opts().rad_opacity>=0 ? rho*opts().rad_opacity :
-                kappa_p(rho,e,mmw[r],X_spc[r],Z_spc[r],grid::get_fgamma());
-            chiTotal[r]=opts().rad_opacity>=0 ? rho*opts().rad_opacity :
-                kappa_R(rho,e,mmw[r],X_spc[r],Z_spc[r],grid::get_fgamma());
+            chiAbsorption[r]=radiationAbsorption(rho,e,mmw[r],X_spc[r],Z_spc[r],grid::get_fgamma());
+            chiTotal[r]=radiationTransport(rho,e,mmw[r],X_spc[r],Z_spc[r],grid::get_fgamma());
             if (!(std::isfinite(chiAbsorption[r]) && chiAbsorption[r]>=0 &&
                   std::isfinite(chiTotal[r]) && chiTotal[r]>=0))
                 throw std::runtime_error("Invalid radiation opacity");
@@ -355,8 +352,7 @@ Real rad_grid::hydroSignalSpeed(const std::vector<Real>& egas, const std::vector
                 integer const h = hindex(i + offset, j + offset, k + offset);
                 Real const e = radiationGasInternal(egas[h], tau[h], sx[h], sy[h], sz[h], rho[h]);
                 Real const opticalDepth = expectNonNegative(
-                    (opts().rad_opacity>=0 ? rho[h]*opts().rad_opacity :
-                    kappa_R(rho[h], e, mmw[r], X_spc[r], Z_spc[r], grid::get_fgamma())) * dx);
+                    radiationTransport(rho[h], e, mmw[r], X_spc[r], Z_spc[r], grid::get_fgamma()) * dx);
                 speed2 = std::max(
                     speed2, (4.0 / 9.0) * U[er_i][r] / rho[h] * (-std::expm1(-opticalDepth)));
             }

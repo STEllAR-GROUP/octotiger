@@ -153,6 +153,15 @@ void silos(const fs::path &folder, const Json &m)
 int main(int argc, char **argv)
 {
 	try {
+        auto op = opacity_metadata({{"radiation.opacity.model", "grey"},
+            {"radiation.opacity.absorption", "2"}, {"radiation.opacity.scattering", "3"},
+            {"radiation.test.extinction", "5"}});
+        expect(op.at("material_model")=="grey" && op.at("absorption")=="2" &&
+            op.at("scattering")=="3" && op.at("transport_absorption")=="-1" &&
+            op.at("prescribed_test_chi_code_inverse_length")=="5", "opacity metadata roles");
+        expect(opacity_metadata({{"rad_opacity", "0.7"}}).at("legacy_constant")=="0.7",
+            "legacy opacity metadata");
+
 		if (argc > 1 && std::string(argv[1]) == "--fake-visit") {
 			// Test double for the terminal/encoder regression, not a VisIt compatibility test.
 			std::map<std::string, std::string> opts;

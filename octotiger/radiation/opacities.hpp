@@ -62,6 +62,21 @@ U kappa_p(U rho, U e, U mmw, Real X, Real Z, Real gamma = 5.0 / 3.0) {
 	}
 }
 
+// Active M1 selectors. Keep legacy evaluation lazy: a thermal solve must not
+// evaluate a Rosseland expression it previously never needed (and vice versa).
+inline Real radiationAbsorption(Real rho, Real e, Real mmw, Real X, Real Z, Real gamma) {
+    auto const& o = opts();
+    if (o.radiationOpacity.model == "grey")
+        return radiation::greyCoefficients(o.radiationOpacity, rho, o.code_to_g, o.code_to_cm).absorption;
+    return o.rad_opacity >= 0 ? rho * o.rad_opacity : kappa_p(rho,e,mmw,X,Z,gamma);
+}
+inline Real radiationTransport(Real rho, Real e, Real mmw, Real X, Real Z, Real gamma) {
+    auto const& o = opts();
+    if (o.radiationOpacity.model == "grey")
+        return radiation::greyCoefficients(o.radiationOpacity, rho, o.code_to_g, o.code_to_cm).transport;
+    return o.rad_opacity >= 0 ? rho * o.rad_opacity : kappa_R(rho,e,mmw,X,Z,gamma);
+}
+
 template<class U>
 U B_p(U rho, U e, U mmw, Real gamma = 5.0 / 3.0) {
 	FpeGuard fpeGuard{};

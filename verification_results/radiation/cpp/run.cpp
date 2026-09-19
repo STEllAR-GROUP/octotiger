@@ -276,7 +276,8 @@ int run(Options o)
 				 {"src/grid.cpp", "src/physcon.cpp", "src/radiation/rad_grid.cpp",
 				  "octotiger/test_problems/radiation/profiles.hpp",
 				  "octotiger/test_problems/radiation/plot_output.hpp", "octotiger/radiation/conservation.hpp",
-				  "octotiger/radiation/rad_grid.hpp", "src/node_server_actions_3.cpp"})
+				  "octotiger/radiation/rad_grid.hpp", "octotiger/radiation/grey_opacity.hpp",
+                  "octotiger/radiation/opacities.hpp", "src/options_processing.cpp", "src/node_server_actions_3.cpp"})
 				sources[s] = sha256(source / s);
 			saved = {{"created_utc", stamp()},
 					 {"root", o.root.string()},
@@ -361,6 +362,7 @@ int run(Options o)
 				fs::create_directories(folder / "radiation-slices");
 				cfg["datadir"] = folder.string() + "/";
 				meta = expected;
+                meta["opacity"] = opacity_metadata(cfg);
 				meta["status"] = "running";
 				write_json(folder / "run.json", meta);
 				if (name == "gaussian_pulse") {

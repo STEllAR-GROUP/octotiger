@@ -109,6 +109,10 @@ void load_options_from_silo(std::string fname, DBfile *db) {
 			opts().problem = problem_type(ri(db, "problem"));
 			opts().radiation = ri(db, "radiation");
             if (loadRadiationControls) {
+            opts().radiationOpacity = radiation::loadGreyOpacity(
+                [&](char const* key) { return DBInqVarExists(db, key); },
+                [&](char const* key) { return ri(db, key); },
+                [&](char const* key) { return rr(db, key); });
 			if (DBInqVarExists(db,"rad_implicit")) opts().rad_implicit=ri(db,"rad_implicit");
 			if (DBInqVarExists(db,"rad_subcycling")) opts().rad_subcycling=ri(db,"rad_subcycling");
 			if (DBInqVarExists(db,"rad_c_ratio")) opts().rad_c_ratio=rr(db,"rad_c_ratio");

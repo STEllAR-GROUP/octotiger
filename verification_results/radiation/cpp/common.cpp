@@ -412,4 +412,23 @@ std::string field_label(const Json &m, int f)
 	return std::array<std::string, 4>{"E", "Fx", "Fy", "Fz"}[f] +
 		   (cgs(m) ? (f == 0 ? " (erg/cm^3)" : " (erg/(cm^2 s))") : " (code units)");
 }
+// Record configured material settings separately from prescribed-medium test chi.
+// Values are strings, like run.ini/config; the source/executable hashes identify defaults.
+Json opacity_metadata(const Json &config)
+{
+    Json result{{"schema_version", 1}, {"material_model", "legacy"},
+        {"units", "cm2/g"}, {"absorption", "0"}, {"scattering", "0"},
+        {"transport_absorption", "-1"}, {"legacy_constant", "-1"},
+        {"legacy_constant_units", "code area/mass"}};
+    for (auto key : {"units", "absorption", "scattering", "transport_absorption"})
+        if (config.contains(std::string("radiation.opacity.") + key))
+            result[key] = config.at(std::string("radiation.opacity.") + key);
+    if (config.contains("radiation.opacity.model")) result["material_model"] = config.at("radiation.opacity.model");
+    for (auto key : {"rad_opacity", "radiation.opacity.constant"})
+        if (config.contains(key)) result["legacy_constant"] = config.at(key);
+    for (auto key : {"rad_test_chi", "radiation.test.extinction"})
+        if (config.contains(key)) result["prescribed_test_chi_code_inverse_length"] = config.at(key);
+    result["scope"] = "Material settings; prescribed regression sources retain their independent test chi";
+    return result;
+}
 } // namespace rr

@@ -119,6 +119,7 @@ std::string settings(const Json &m)
 			s += row(title, cfg.contains(key) ? show(cfg.at(key)) + " " + (cgs(m) ? unit : "(code units)")
 											  : "Not recorded");
 	}
+    s += row("Opacity model and coefficients", m.contains("opacity") ? html(m.at("opacity").dump()) : "Not recorded (older run)");
 	if (cfg.empty())
 		s += row("Effective configuration", "Not recorded in this run's metadata");
 	return s + "</tbody></table></div>";

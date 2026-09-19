@@ -1,4 +1,5 @@
 #include "octotiger/radiation/m1.hpp"
+#include "octotiger/radiation/grey_opacity.hpp"
 #include "octotiger/radiation/subcycle.hpp"
 #include "octotiger/radiation/conservation.hpp"
 #include "octotiger/test_problems/radiation/profiles.hpp"
@@ -26,6 +27,8 @@ using M1=RadiationM1<Real,NDIM>;
 integer rindex(integer i,integer j,integer k) { return k+RAD_NX*(j+RAD_NX*i); }
 integer hindex(integer i,integer j,integer k) { return rindex(i,j,k); }
 struct options_fixture {
+    radiation::GreyOpacity radiationOpacity;
+    Real code_to_g=1, code_to_cm=1;
     Real rad_c_ratio=1,rad_cfl=.4,rad_theta=1,rad_opacity=.7,xscale=.5;
     bool rad_subcycling=true,rad_velocity_terms=true,rad_log_subcycles=false;
     bool hydro=true,rad_implicit=false,periodic=true,gravity=false,optimize_local_communication=false;

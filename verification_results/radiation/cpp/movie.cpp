@@ -537,6 +537,8 @@ Json make_movie(const fs::path &folder, const Options &o)
 				{"time_units", rendered.at("time_units")},
 				{"field_units", rendered.at("field_units")},
 				{"units", m.value("units", Json::object())}};
+    result["opacity"] = m.value("opacity", Json());
+    result["run_metadata"] = m;
 	write_json(destination / "movie.json", result);
 	return result;
 }

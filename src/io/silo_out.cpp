@@ -374,6 +374,9 @@ void output_stage4(std::string fname, int cycle) {
 		fr(db, "rad_theta", opts().rad_theta);
 		fi(db, "rad_velocity_terms", integer(opts().rad_velocity_terms));
 		fr(db, "rad_opacity", opts().rad_opacity);
+        radiation::saveGreyOpacity(opts().radiationOpacity,
+            [&](char const* key, int value) { fi(db, key, integer(value)); },
+            [&](char const* key, double value) { fr(db, key, value); });
 		fi(db, "rad_energy_mode", integer(opts().rad_energy_mode=="thermal" ? 0 : opts().rad_energy_mode=="absorption" ? 1 : 2));
 		fi(db, "rad_log_subcycles", integer(opts().rad_log_subcycles));
 		fr(db, "refinement_floor", opts().refinement_floor);

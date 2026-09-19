@@ -21,6 +21,7 @@ namespace rr
 {
 namespace fs = std::filesystem;
 using Json = nlohmann::json;
+Json opacity_metadata(const Json &config);
 inline constexpr double c_cgs = 2.99792458e10, half_width = 3e10;
 inline const std::array<std::string, 4> fields{"er", "fx", "fy", "fz"};
 inline const std::array<std::string, 3> norms{"L1", "L2", "Linf"};

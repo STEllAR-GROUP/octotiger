@@ -11,6 +11,7 @@
 #include "octotiger/interaction_types.hpp"
 #include "octotiger/options_enum.hpp"
 #include "octotiger/math/Real.hpp"
+#include "octotiger/radiation/grey_opacity.hpp"
 
 #include <hpx/include/naming.hpp>
 
@@ -82,6 +83,7 @@ public:
 	Real rad_theta = 1.0;
 	bool rad_velocity_terms = true;
 	Real rad_opacity = -1.0;
+	radiation::GreyOpacity radiationOpacity;
 	std::string rad_energy_mode = "thermal";
 	bool rad_log_subcycles = false;
 
@@ -210,7 +212,12 @@ public:
 	struct radiation_group {
 		struct opacity_group {
 			option_reference<Real> constant;
-			explicit opacity_group(Real& value) : constant(value) {
+			option_reference<std::string> model, units;
+			option_reference<double> absorption, scattering, transport_absorption;
+			explicit opacity_group(options& o) : constant(o.rad_opacity),
+				model(o.radiationOpacity.model), units(o.radiationOpacity.units),
+				absorption(o.radiationOpacity.absorption), scattering(o.radiationOpacity.scattering),
+				transport_absorption(o.radiationOpacity.transport_absorption) {
 			}
 		} opacity;
 		option_reference<bool> enabled;
@@ -223,7 +230,7 @@ public:
 		option_reference<bool> velocity_terms;
 		option_reference<std::string> energy_mode;
 		option_reference<bool> log_subcycles;
-		radiation_group(options& owner) : opacity(owner.rad_opacity),
+		radiation_group(options& owner) : opacity(owner),
 			enabled(owner.radiation), implicit(owner.rad_implicit),
 			subcycling(owner.rad_subcycling), reduced_light_speed_ratio(owner.rad_c_ratio),
 			cfl(owner.rad_cfl), max_subcycles(owner.rad_max_subcycles),
@@ -481,6 +488,8 @@ public:
 		arc & code_to_g;
 		arc & code_to_s;
 		arc & code_to_cm;
+		// Same-build HPX broadcast extension. Disk checkpoints use versioned Silo fields.
+		arc & radiationOpacity;
 	}
 
 	OCTOTIGER_EXPORT bool process_options(int argc, char *argv[]);

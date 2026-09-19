@@ -7,6 +7,7 @@
 #include "octotiger/grid.hpp"
 #include "octotiger/options.hpp"
 #include "octotiger/options_compatibility.hpp"
+#include "octotiger/radiation/grey_opacity_options.hpp"
 #include "octotiger/physcon.hpp"
 #include "octotiger/math/Real.hpp"
 #include "octotiger/common_kernel/interaction_constants.hpp"
@@ -352,6 +353,8 @@ bool options::process_options(int argc, char *argv[]) {
 #undef CANONICAL_MULTI
 #undef CANONICAL
 
+    radiation::addGreyOpacityOptions(canonical_opts, radiationOpacity);
+
     po::options_description command_opts("All options");
     command_opts.add(canonical_opts).add(legacy_opts);
 
@@ -412,6 +415,7 @@ bool options::process_options(int argc, char *argv[]) {
 		auto const explicit_rad_theta = opts().rad_theta;
 		auto const explicit_rad_velocity_terms = opts().rad_velocity_terms;
 		auto const explicit_rad_opacity = opts().rad_opacity;
+		auto const explicit_opacity_model = radiationOpacity;
 		auto const explicit_rad_energy_mode = opts().rad_energy_mode;
 		auto const explicit_rad_log_subcycles = opts().rad_log_subcycles;
 		FILE *fp = fopen(opts().restart_filename.c_str(), "rb");
@@ -433,10 +437,26 @@ bool options::process_options(int argc, char *argv[]) {
         if (explicit_setting("rad_theta", "radiation.source_theta")) opts().rad_theta=explicit_rad_theta;
         if (explicit_setting("rad_velocity_terms", "radiation.velocity_terms")) opts().rad_velocity_terms=explicit_rad_velocity_terms;
         if (explicit_setting("rad_opacity", "radiation.opacity.constant")) opts().rad_opacity=explicit_rad_opacity;
+        radiation::restoreGreyOpacityOverrides(radiationOpacity, explicit_opacity_model,
+            [&](char const* key) { return supplied.count(key) != 0; });
+
         if (explicit_setting("rad_energy_mode", "radiation.energy_mode")) opts().rad_energy_mode=explicit_rad_energy_mode;
         if (explicit_setting("rad_log_subcycles", "radiation.log_subcycles")) opts().rad_log_subcycles=explicit_rad_log_subcycles;
 
 	}
+    try {
+        radiationOpacity.validate(rad_opacity);
+        if (radiationOpacity.model == "grey" &&
+            (!(std::isfinite(code_to_g) && code_to_g > 0 && std::isfinite(code_to_cm) && code_to_cm > 0)))
+            throw std::runtime_error("Grey opacity requires positive finite units.grams and units.centimeters");
+        if (radiationOpacity.model != "legacy" &&
+            (problem == RADIATION_STREAMING_WAVE || problem == RADIATION_STREAMING_FRONT ||
+             problem == RADIATION_GAUSSIAN_PULSE || problem == RADIATION_EQUILIBRIUM_SPHERE))
+            throw std::runtime_error("Prescribed radiation regression problems use radiation.test parameters; material opacity models require a coupled problem");
+    } catch (std::exception const& error) {
+        std::cerr << error.what() << "\n";
+        return false;
+    }
     // Validate after restart metadata is loaded as well as after CLI/config parsing.
     if (!(std::isfinite(rad_c_ratio) && rad_c_ratio>0 && rad_c_ratio<=1) ||
         !(std::isfinite(rad_cfl) && rad_cfl>0 && rad_cfl<=.5) ||
@@ -546,6 +566,11 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(rad_theta);
 		SHOW(rad_velocity_terms);
 		SHOW(rad_opacity);
+        std::cout << "radiation.opacity.model = " << radiationOpacity.model << '\n'
+                  << "radiation.opacity.units = " << radiationOpacity.units << '\n'
+                  << "radiation.opacity.absorption = " << radiationOpacity.absorption << '\n'
+                  << "radiation.opacity.scattering = " << radiationOpacity.scattering << '\n'
+                  << "radiation.opacity.transport_absorption = " << radiationOpacity.transport_absorption << '\n';
 		SHOW(rad_energy_mode);
 		SHOW(rad_log_subcycles);
 

@@ -23,8 +23,9 @@ def main():
     parser.add_argument('--cxx', default='g++')
     parser.add_argument('--sanitize', action='store_true')
     parser.add_argument('--release', action='store_true')
+    parser.add_argument('--opacity-checks', action='store_true', help='Also run grey opacity production-source tests')
     args = parser.parse_args()
-    root = Path(__file__).resolve().parents[1]
+    root = Path(__file__).resolve().parents[2]
     support = root/'verification_results/radiation/tests_so'
     source = (root/'src/radiation/rad_grid.cpp').read_text()
     header = '\n'.join(line for line in (root/'octotiger/radiation/rad_grid.hpp').read_text().splitlines()
@@ -44,10 +45,17 @@ def main():
     with tempfile.TemporaryDirectory(prefix='octotiger-so-') as directory:
         path = Path(directory)
         cpp = (support/'fixture.inc').read_text() + '\n' + header
+        opacity = (root/'octotiger/radiation/opacities.hpp').read_text()
+        cpp += '\n' + method(opacity, 'inline Real radiationAbsorption(')
+        cpp += '\n' + method(opacity, 'inline Real radiationTransport(')
         cpp += '\n#undef private\n' + '\n'.join(method(source, signature) for signature in signatures)
         cpp += '\n' + (support/'driver.inc').read_text()
         cpp += '\n' + method(source, 'void node_server::compute_radiation(')
-        cpp += '\n' + (support/'checks.inc').read_text()
+        checks = (support/'checks.inc').read_text()
+        if args.opacity_checks:
+            checks = checks.replace('int main() {', (support/'opacity_checks.inc').read_text() + '\nint main() {')
+            checks = checks.replace('kernel_checks();thermal_checks();', 'opacity_source_checks();kernel_checks();thermal_checks();')
+        cpp += '\n' + checks
         (path/'check.cpp').write_text(cpp)
         flags = ['-O1', '-g', '-fsanitize=address,undefined', '-fno-omit-frame-pointer'] if args.sanitize else ['-O2']
         if args.release:

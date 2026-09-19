@@ -1,4 +1,5 @@
 #include "octotiger/options_compatibility.hpp"
+#include "octotiger/radiation/grey_opacity_options.hpp"
 
 #include <boost/program_options.hpp>
 
@@ -24,6 +25,7 @@ struct values {
 
 struct fixture {
     values value;
+    radiation::GreyOpacity opacity;
     po::options_description canonical{"Canonical options"};
     po::options_description legacy{"Legacy options"};
     po::options_description all{"All options"};
@@ -46,6 +48,7 @@ struct fixture {
             "gravity.enabled", "gravity", &value.gravity);
         add_canonical_option(canonical, migrations,
             "problem.name", "problem", &value.problem);
+        radiation::addGreyOpacityOptions(canonical, opacity);
         all.add(canonical).add(legacy);
     }
 
@@ -155,6 +158,24 @@ int main() {
                 restored.value.gravity == original.value.gravity &&
                 restored.value.problem == original.value.problem,
             "round-trip values");
+    }
+    {
+        fixture test;
+        check(test.parse({"--radiation.opacity.model=grey", "--radiation.opacity.scattering=3"},
+            "radiation.opacity.model=legacy\nradiation.opacity.scattering=1\nradiation.opacity.absorption=2\n"),
+            "grey CLI/config parse");
+        test.opacity.validate(test.value.opacity);
+        check(test.opacity.model=="grey" && test.opacity.scattering==3 && test.opacity.absorption==2,
+            "grey CLI overrides config; config overrides defaults");
+        fixture restored;
+        check(restored.parse({}, "radiation.opacity.model=grey\nradiation.opacity.scattering=3\nradiation.opacity.absorption=2\n"),
+            "grey config round trip");
+        check(restored.opacity.absorption==test.opacity.absorption && restored.opacity.scattering==test.opacity.scattering,
+            "grey round-trip values");
+        std::string diagnostic;
+        fixture conflict;
+        check(!conflict.parse({"--rad_opacity=1", "--radiation.opacity.constant=1"}, {}, &diagnostic),
+            "opacity legacy/canonical conflict");
     }
     return failures == 0 ? 0 : 1;
 }

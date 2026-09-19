@@ -320,6 +320,8 @@ set(header_files
     octotiger/radiation/implicit.hpp
     octotiger/radiation/kernel_interface.hpp
     octotiger/radiation/opacities.hpp
+    octotiger/radiation/grey_opacity.hpp
+    octotiger/radiation/grey_opacity_options.hpp
     octotiger/radiation/rad_grid.hpp
     octotiger/radiation/m1.hpp
     octotiger/radiation/conservation.hpp

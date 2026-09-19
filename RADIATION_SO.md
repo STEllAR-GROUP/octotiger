@@ -1,5 +1,8 @@
 # M1 radiation: S&O transport, RSLA and subcycling
 
+Step 04 adds an opt-in grey opacity model; the behavior below remains the default.
+See [grey opacity options, equations, units, and limits](doc/grey-opacity-step-04.md).
+
 This patch is based on the supplied `code.tar(20260919-033724).gz`. It replaces the active M1 transport and coupling path. Hydrodynamic reconstruction, Riemann solvers, source evaluation, and RK stages are unchanged. The node driver gains radiation timestep metadata, the radiation contribution to its acoustic timestep bound, and communication safeguards.
 
 ## Numerical method

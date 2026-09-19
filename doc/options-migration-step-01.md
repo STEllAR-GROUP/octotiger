@@ -159,3 +159,7 @@ Existing command lines and configuration files remain accepted with unchanged va
 Every existing parser spelling has a migration entry. No option was split into a new physical setting. In particular, the single existing `rad_opacity` remains one constant-gray-opacity control named `radiation.opacity.constant`; absorption/scattering controls were not invented because the snapshot does not yet define those separate semantics. `sod_gamma` maps to `hydro.gamma` because its parser description and sole initialization consumer establish it as the gas ratio of specific heats.
 
 
+
+Step 04 adds canonical-only `radiation.opacity.model`, `.units`, `.absorption`,
+`.scattering`, and `.transport_absorption`; no historical alias is removed.
+See [grey opacity compatibility](grey-opacity-step-04.md).

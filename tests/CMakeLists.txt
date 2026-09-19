@@ -33,3 +33,13 @@ if(Python3_Interpreter_FOUND)
     COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/options_compatibility_test.py"
   )
 endif()
+
+add_executable(greyOpacityTests greyOpacity.cpp)
+target_include_directories(greyOpacityTests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
+target_compile_features(greyOpacityTests PRIVATE cxx_std_20)
+add_test(NAME greyOpacity COMMAND greyOpacityTests)
+if(Python3_Interpreter_FOUND)
+  add_test(NAME greyOpacitySources COMMAND "${Python3_EXECUTABLE}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../verification_results/radiation/validate_so.py"
+    --cxx "${CMAKE_CXX_COMPILER}" --opacity-checks)
+endif()
