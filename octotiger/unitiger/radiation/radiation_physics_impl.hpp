@@ -88,12 +88,12 @@ const hydro::state_type& radiation_physics<NDIM>::pre_recon(const hydro::state_t
 		Real omega, bool angmom) {
 	FpeGuard fpeGuard{};
 	using M1 = RadiationM1<Real, NDIM>;
-	static thread_local hydro::state_type primitives;
-	primitives = U;
+	static thread_local hydro::state_type numericalState;
+	numericalState = U;
 	const Real c = physcon().c;
 	const std::size_t cellCount = U[er_i].size();
-	// Each iteration owns one cell. Load its complete conserved state before
-	// writing: callers can pass the previous thread-local result back as U.
+	// This legacy adapter reconstructs the direct S&O numerical state (E,Q),
+	// Q=F/c. The active rad_grid path performs Athena PLM itself.
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC ivdep
 #endif
@@ -101,10 +101,11 @@ const hydro::state_type& radiation_physics<NDIM>::pre_recon(const hydro::state_t
 		typename M1::ConservedState conserved{};
 		conserved[er_i] = U[er_i][cell];
 		for (int dim = 0; dim < NDIM; ++dim) conserved[fx_i + dim] = U[fx_i + dim][cell] / c;
-		const auto primitive = conserved.toPrimitives();
-		for (int field = 0; field < 1 + NDIM; ++field) primitives[field][cell] = primitive[field];
+		conserved.checkState("unitiger radiation pre-reconstruction");
+		for (int field = 0; field < 1 + NDIM; ++field)
+			numericalState[field][cell] = conserved[field];
 	}
-	return primitives;
+	return numericalState;
 }
 
 /*** Reconstruct uses this - GPUize****/
@@ -124,15 +125,19 @@ void radiation_physics<NDIM>::post_recon(std::vector<std::vector<std::vector<Rea
 #pragma GCC ivdep
 #endif
 		for (std::size_t cell = 0; cell < cellCount; ++cell) {
-			typename M1::Primitives primitive{};
-			for (int field = 0; field < 1 + NDIM; ++field) primitive[field] = Q[field][direction][cell];
-			Real betaSquared = 0;
-			for (int dim = 0; dim < NDIM; ++dim) betaSquared += primitive[fx_i + dim] * primitive[fx_i + dim];
-			// Rescale the whole vector: component-wise clipping does not enforce |beta| <= 1.
-			const Real betaScale = 1 / std::sqrt(std::max(Real(1), betaSquared));
-			for (int dim = 0; dim < NDIM; ++dim) primitive[fx_i + dim] *= betaScale;
-			primitive.checkState();
-			const auto conserved = primitive.toConserved();
+			typename M1::ConservedState conserved{};
+			for (int field = 0; field < 1 + NDIM; ++field)
+				conserved[field] = Q[field][direction][cell];
+			Real fluxNorm = 0;
+			for (int dim = 0; dim < NDIM; ++dim)
+				fluxNorm = std::hypot(fluxNorm, conserved[fx_i + dim]);
+			// Generic Unitiger PLM predates rad_grid. Preserve its component
+			// monotonicity while projecting only roundoff/cone overshoots radially.
+			if (fluxNorm > conserved[er_i] && conserved[er_i] >= 0) {
+				const Real scale = conserved[er_i] / fluxNorm;
+				for (int dim = 0; dim < NDIM; ++dim) conserved[fx_i + dim] *= scale;
+			}
+			conserved.checkState("unitiger radiation post-reconstruction");
 			Q[er_i][direction][cell] = conserved[er_i];
 			for (int dim = 0; dim < NDIM; ++dim) Q[fx_i + dim][direction][cell] = c * conserved[fx_i + dim];
 		}

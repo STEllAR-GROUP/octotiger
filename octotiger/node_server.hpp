@@ -325,7 +325,7 @@ public:
 	void collect_radiation_bounds(Real boundary_time);
 	void send_rad_amr_bounds();
 
-	void recv_rad_flux_correct(std::vector<Real>&&, const geo::face& face, const geo::octant& ci);/**/
+	void recv_rad_flux_correct(std::vector<Real>&&, const geo::face& face, const geo::octant& ci, std::size_t cycle);/**/
 	HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_rad_flux_correct, send_rad_flux_correct_action);
 
 	void recv_rad_boundary(std::vector<Real>&&, const geo::direction&, std::size_t cycle);/**/
@@ -334,7 +334,7 @@ public:
 	void recv_rad_children(std::vector<Real>&&, const geo::octant& ci, std::size_t cycle);/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server, recv_rad_children, send_rad_children_action);
 
-	std::array<std::array<channel<std::vector<Real>>, 4>, NFACE> niece_rad_channels;
+	std::array<std::array<unordered_channel<std::vector<Real>>, 4>, NFACE> niece_rad_channels;
 
 	void set_rad_grid(const std::vector<Real>&/*, std::vector<Real>&&*/);/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server, set_rad_grid, set_rad_grid_action);

@@ -1,0 +1,9 @@
+additional_options=--log\=error
+background_index=true
+clangd_path=/usr/bin/clangd-21
+completion_style=detailed
+eclipse.preferences.version=1
+pretty_print=true
+query_driver=/usr/bin/*
+set_compilation_database=true
+use_tidy=true

@@ -73,7 +73,11 @@ static dir_map_type node_dir_;
 	if( i != 0 ) printf( "SILO call failed at %i\n", __LINE__ );
 
 void load_options_from_silo(std::string fname, DBfile *db) {
-	const auto func = [&fname, &db]() {
+    // process_options first loads defaults with db==nullptr, then reapplies
+    // explicit CLI/config controls. load_open later rereads ordinary metadata
+    // through an open handle; it must not overwrite those radiation overrides.
+    bool const loadRadiationControls=db==nullptr;
+	const auto func = [&fname, &db, loadRadiationControls]() {
 		bool leaveopen;
 		if (db == nullptr) {
 			db = DBOpenReal(fname.c_str(), DB_UNKNOWN, DB_READ);
@@ -104,6 +108,21 @@ void load_options_from_silo(std::string fname, DBfile *db) {
 			opts().output_dt = rr(db, "output_frequency");
 			opts().problem = problem_type(ri(db, "problem"));
 			opts().radiation = ri(db, "radiation");
+            if (loadRadiationControls) {
+			if (DBInqVarExists(db,"rad_implicit")) opts().rad_implicit=ri(db,"rad_implicit");
+			if (DBInqVarExists(db,"rad_subcycling")) opts().rad_subcycling=ri(db,"rad_subcycling");
+			if (DBInqVarExists(db,"rad_c_ratio")) opts().rad_c_ratio=rr(db,"rad_c_ratio");
+			if (DBInqVarExists(db,"rad_cfl")) opts().rad_cfl=rr(db,"rad_cfl");
+			if (DBInqVarExists(db,"rad_max_subcycles")) opts().rad_max_subcycles=ri(db,"rad_max_subcycles");
+			if (DBInqVarExists(db,"rad_theta")) opts().rad_theta=rr(db,"rad_theta");
+			if (DBInqVarExists(db,"rad_velocity_terms")) opts().rad_velocity_terms=ri(db,"rad_velocity_terms");
+			if (DBInqVarExists(db,"rad_opacity")) opts().rad_opacity=rr(db,"rad_opacity");
+			if (DBInqVarExists(db,"rad_energy_mode")) {
+                auto const mode=ri(db,"rad_energy_mode");
+                opts().rad_energy_mode=mode==0 ? "thermal" : mode==1 ? "absorption" : mode==2 ? "equilibrium" : "invalid";
+            }
+			if (DBInqVarExists(db,"rad_log_subcycles")) opts().rad_log_subcycles=ri(db,"rad_log_subcycles");
+            }
 			opts().refinement_floor = rr(db, "refinement_floor");
 			opts().xscale = rr(db, "xscale");
 			opts().atomic_number.resize(opts().n_species);

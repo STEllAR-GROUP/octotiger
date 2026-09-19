@@ -45,7 +45,9 @@ int main(int argc,char** argv) {
                     for(int f=0;f<4;++f)g.U[f][rindex(i,j,k)]=g.U[f][rindex(wrap(i),wrap(j),wrap(k))];
             }
             double const dt=std::min(g.maxTimestep(0),p.time-t);
-            g.compute_flux(0);
+            std::array<bool,2*NDIM> physical{};
+            physical.fill(test==3);
+            g.compute_flux(dt,0,t,physical);
             if(test==3)for(int face=0;face<6;++face)g.accountBoundaryFlux(dt,face);
             g.advance(dt,0);
             if(test>=2)g.applyRegressionSource(dt);

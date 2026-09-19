@@ -351,6 +351,7 @@ add_hpx_library(
     # As we need silo to load the options and the options get saved via silo 
   HEADERS
     octotiger/options.hpp
+    octotiger/options_compatibility.hpp
     octotiger/options_enum.hpp
 )
 

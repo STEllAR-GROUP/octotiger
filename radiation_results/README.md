@@ -220,8 +220,8 @@ fields follow Octo-TIGER's output-unit conversions.
 | `sphere` | `RADIATION_EQUILIBRIUM_SPHERE` | Steady diffusion solution for the matching Gaussian bulb, with analytic boundary values |
 
 The Gaussian and sphere references are linearized/diffusion limits, so nonlinear
-model error can eventually limit refinement. The RK1 time update can limit smooth
-problems to first order. A moving discontinuity can converge at different rates
+model error can eventually limit refinement. The VL transport step is second order
+in smooth regions; source and hydro/radiation splitting can limit coupled problems to first order. A moving discontinuity can converge at different rates
 in L1, L2, and Linf. These figures expose those rates; they do not label a run
 passing merely because it finished. The original CTest tolerance checks remain
 available separately:

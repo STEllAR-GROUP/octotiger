@@ -88,7 +88,7 @@ public:
     void send_read_flux_correct(std::vector<Real>&&, const geo::face& face,
         const geo::octant& ci) const;
     void send_rad_flux_correct(std::vector<Real>&&, const geo::face& face,
-        const geo::octant& ci) const;
+        const geo::octant& ci, std::size_t cycle) const;
     future<diagnostics_t> diagnostics(const diagnostics_t&) const;
     future<radiationConservation::Totals> collectRadiationConservation() const;
     future<analytic_t> compare_analytic() const;

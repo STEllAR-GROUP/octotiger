@@ -699,14 +699,26 @@ future<void> node_server::nonrefined_step() {
 							dt_ = a;
 							(void) expectNonNegative(a.a);
 							dt_.dt = a.a > 0 ? cfl0 * dx / a.a : std::numeric_limits<Real>::max();
-							// Radiation and hydro advance once over the SAME global step.
-							// Reduce the light-speed CFL on every leaf, including pure
-							// radiation states where the hydro signal speed can be zero.
-							if (opts().radiation) {
-								rad_grid_ptr->set_dx(dx);
-								rad_grid_ptr->set_X(grid_ptr->get_X());
-								dt_.dt = std::min(dt_.dt, rad_grid_ptr->maxTimestep(grid_ptr->get_omega()));
-							}
+                            // Gas and radiation CFL minima are reduced independently.
+                            // Pure radiation runs retain a radiation-sized output step.
+                            if (opts().radiation) {
+                                rad_grid_ptr->set_dx(dx);
+                                rad_grid_ptr->set_X(grid_ptr->get_X());
+                                dt_.radiation_dt=rad_grid_ptr->maxTimestep(grid_ptr->get_omega());
+                                if (opts().hydro && opts().rad_implicit) {
+                                    rad_grid_ptr->compute_mmw(grid_ptr->U);
+                                    Real const radSpeed=rad_grid_ptr->hydroSignalSpeed(
+                                        grid_ptr->get_field(egas_i),grid_ptr->get_field(tau_i),
+                                        grid_ptr->get_field(sx_i),grid_ptr->get_field(sy_i),
+                                        grid_ptr->get_field(sz_i),grid_ptr->get_field(rho_i));
+                                    // Conservative bound on the radiation-modified acoustic
+                                    // speed (S&O 29); hydro kernels and RK stages are unchanged.
+                                    if (a.a+radSpeed>0) dt_.dt=std::min(dt_.dt,cfl0*dx/(a.a+radSpeed));
+                                }
+                                Real const budget=(opts().rad_subcycling && opts().hydro) ?
+                                    Real(opts().rad_max_subcycles) : Real(1);
+                                dt_.dt=std::min(dt_.dt,dt_.radiation_dt*budget);
+                            }
 							// hard_dt is an upper bound even when stop_time is disabled.
 							if (opts().hard_dt > 0) dt_.dt = std::min(dt_.dt, opts().hard_dt);
 							if (opts().stop_time > 0.0) {
@@ -902,9 +914,7 @@ future<void> node_server::timestep_driver_descend() {
 			timestep_t dt;
 			dt.dt = 1.0e+99;
 			for (const auto &this_dt : dts) {
-				if (this_dt.dt < dt.dt) {
-					dt = this_dt;
-				}
+                dt.reduce(this_dt);
 			}
 
 			if (my_location.level() == 0) {

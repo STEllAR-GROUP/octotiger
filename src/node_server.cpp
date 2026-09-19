@@ -536,7 +536,9 @@ void node_server::initialize(Real t, Real rt) {
 
   number_hydro_exchange_promises = 0;
   if (opts().optimize_local_communication) {
-    number_hydro_exchange_promises = (refinement_freq() + 1) * (NRK + 1 + static_cast<int>(opts().radiation)) + 1;
+    // Radiation can refresh frozen material halos once and coupled gas once
+    // per gas step; radiation subcycles never consume these hydro promises.
+    number_hydro_exchange_promises = (refinement_freq() + 1) * (NRK + 1 + 2 * static_cast<int>(opts().radiation)) + 1;
     ready_for_hydro_exchange.clear();
     for (int i = 0; i < number_hydro_exchange_promises; i++)
       ready_for_hydro_exchange.emplace_back();

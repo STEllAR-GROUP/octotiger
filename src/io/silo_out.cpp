@@ -366,6 +366,16 @@ void output_stage4(std::string fname, int cycle) {
 		fr(db, "output_frequency", opts().output_dt);
 		fi(db, "problem", integer(opts().problem));
 		fi(db, "radiation", integer(opts().radiation));
+		fi(db, "rad_implicit", integer(opts().rad_implicit));
+		fi(db, "rad_subcycling", integer(opts().rad_subcycling));
+		fr(db, "rad_c_ratio", opts().rad_c_ratio);
+		fr(db, "rad_cfl", opts().rad_cfl);
+		fi(db, "rad_max_subcycles", integer(opts().rad_max_subcycles));
+		fr(db, "rad_theta", opts().rad_theta);
+		fi(db, "rad_velocity_terms", integer(opts().rad_velocity_terms));
+		fr(db, "rad_opacity", opts().rad_opacity);
+		fi(db, "rad_energy_mode", integer(opts().rad_energy_mode=="thermal" ? 0 : opts().rad_energy_mode=="absorption" ? 1 : 2));
+		fi(db, "rad_log_subcycles", integer(opts().rad_log_subcycles));
 		fr(db, "refinement_floor", opts().refinement_floor);
 		fr(db, "cgs_time", dtime);
 		fr(db, "rotational_time", rtime);

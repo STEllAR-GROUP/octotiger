@@ -25,6 +25,9 @@ integer rindex(integer i,integer j,integer k){return k+RAD_NX*(j+RAD_NX*i);}
 integer hindex(integer i,integer j,integer k){return rindex(i,j,k);}
 struct options_fixture {
     Real cfl=.4,xscale=1,stop_time=.2,omega=0;
+    Real rad_c_ratio=1,rad_cfl=.4,rad_theta=1;
+    bool rad_velocity_terms=true;
+    std::string rad_energy_mode="thermal";
     Real radTestChi=5,radTestWidth=.2,radTestBackground=1,radTestAmplitude=.01,radTestLuminosity=.01;
     int problem=0,n_fields=15,max_level=0;
     bool radiation=true,hydro=false,gravity=false,unigrid=true,periodic=true,rad_implicit=false;

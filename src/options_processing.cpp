@@ -6,6 +6,7 @@
 #include "octotiger/defs.hpp"
 #include "octotiger/grid.hpp"
 #include "octotiger/options.hpp"
+#include "octotiger/options_compatibility.hpp"
 #include "octotiger/physcon.hpp"
 #include "octotiger/math/Real.hpp"
 #include "octotiger/common_kernel/interaction_constants.hpp"
@@ -18,6 +19,7 @@
 
 #include <cmath>
 #include <iosfwd>
+#include <set>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -56,11 +58,12 @@ inline std::string to_string(const bool &b) {
 
 bool options::process_options(int argc, char *argv[]) {
 	namespace po = boost::program_options;
+	using namespace octotiger::options_compatibility;
 	code_to_s = code_to_g = code_to_cm = 1.0;
 
-	po::options_description command_opts("options");
+	po::options_description legacy_opts("Legacy options (deprecated; retained for compatibility)");
 
-	command_opts.add_options() //
+	legacy_opts.add_options() //
 	("help", "produce help message")("xscale", po::value<Real>(&(opts().xscale))->default_value(1.0), "grid scale")           //
 	("dt_max", po::value<Real>(&(opts().dt_max))->default_value(0.333333), "max allowed pct change for positive fields in a timestep")           //
 	("cfl", po::value<Real>(&(opts().cfl))->default_value(0.4), "cfl factor")           //
@@ -128,6 +131,15 @@ bool options::process_options(int argc, char *argv[]) {
 	("correct_am_grav", po::value<bool>(&(opts().correct_am_grav))->default_value(true), "Angular momentum correction switch for gravity")    //
 	("rewrite_silo", po::value<bool>(&(opts().rewrite_silo))->default_value(false), "rewrite silo and exit")    //
 	("rad_implicit", po::value<bool>(&(opts().rad_implicit))->default_value(true), "implicit radiation on/off")    //
+	("rad_subcycling", po::value<bool>(&(opts().rad_subcycling))->default_value(true), "Enable radiation subcycles inside each gas timestep")
+	("rad_c_ratio", po::value<Real>(&(opts().rad_c_ratio))->default_value(1.0), "Reduced light speed c_hat/c in (0,1]; physical c and stored F are unchanged")
+	("rad_cfl", po::value<Real>(&(opts().rad_cfl))->default_value(0.4), "Radiation Courant number for the sum-of-direction speed bound, in (0,0.5]")
+	("rad_max_subcycles", po::value<integer>(&(opts().rad_max_subcycles))->default_value(1024), "Maximum radiation steps per gas step; caps the gas timestep")
+	("rad_theta", po::value<Real>(&(opts().rad_theta))->default_value(1.0), "Source theta in [0.5,1]; 1=backward Euler, 0.51=near trapezoidal; stiff fallback to 1")
+	("rad_velocity_terms", po::value<bool>(&(opts().rad_velocity_terms))->default_value(true), "Include S&O O(v/c) work and O(beta tau) momentum sources")
+	("rad_opacity", po::value<Real>(&(opts().rad_opacity))->default_value(-1.0), "Constant gray opacity per mass in code units; negative uses existing Planck/Rosseland opacities")
+	("rad_energy_mode", po::value<std::string>(&(opts().rad_energy_mode))->default_value("thermal"), "Radiation energy exchange: thermal, absorption (energy escapes this band), equilibrium")
+	("rad_log_subcycles", po::value<bool>(&(opts().rad_log_subcycles))->default_value(false), "Print global gas/radiation timesteps and radiation subcycle counts")
 	("gravity", po::value<bool>(&(opts().gravity))->default_value(true), "gravity on/off")    //
 	("bench", po::value<bool>(&(opts().bench))->default_value(false), "run benchmark") //
 	("datadir", po::value<std::string>(&(opts().data_dir))->default_value("./"), "directory for output") //
@@ -194,24 +206,188 @@ bool options::process_options(int argc, char *argv[]) {
 	("rotating_star_x", po::value<Real>(&(opts().rotating_star_x))->default_value(0.0), "x center of rotating_star") //
 			;
 
+    // Boost.Program_options option names are deliberately flat strings.  The
+    // dots are our canonical namespace; they do not imply parser nesting.
+    po::options_description canonical_opts("Canonical options");
+    std::vector<migration> migrations;
+#define CANONICAL(canonical, legacy, member)                                      \
+    add_canonical_option(canonical_opts, migrations, canonical, legacy,           \
+        &(opts().member))
+#define CANONICAL_MULTI(canonical, legacy, member)                                \
+    add_canonical_multitoken_option(canonical_opts, migrations, canonical, legacy,\
+        &(opts().member))
+    canonical_opts.add_options()("runtime.help", "produce help message");
+    migrations.emplace_back("help", "runtime.help");
+    CANONICAL("mesh.scale", "xscale", xscale);
+    CANONICAL("timestep.max_change", "dt_max", dt_max);
+    CANONICAL("hydro.cfl", "cfl", cfl);
+    CANONICAL("gravity.angular_frequency", "omega", omega);
+    CANONICAL("problem.dwd.v1309", "v1309", v1309);
+    CANONICAL("output.idle_rates", "idle_rates", idle_rates);
+    CANONICAL("blast.energy", "eblast0", eblast0);
+    CANONICAL("hydro.density_floor", "rho_floor", rho_floor);
+    CANONICAL("hydro.entropy_floor", "tau_floor", tau_floor);
+    CANONICAL("problem.sod.density_left", "sod_rhol", sod_rhol);
+    CANONICAL("problem.sod.density_right", "sod_rhor", sod_rhor);
+    CANONICAL("problem.sod.pressure_left", "sod_pl", sod_pl);
+    CANONICAL("problem.sod.pressure_right", "sod_pr", sod_pr);
+    CANONICAL("problem.sod.theta", "sod_theta", sod_theta);
+    CANONICAL("problem.sod.phi", "sod_phi", sod_phi);
+    CANONICAL("hydro.gamma", "sod_gamma", sod_gamma);
+    CANONICAL("problem.solid_sphere.center_x", "solid_sphere_xcenter", solid_sphere_xcenter);
+    CANONICAL("problem.solid_sphere.center_y", "solid_sphere_ycenter", solid_sphere_ycenter);
+    CANONICAL("problem.solid_sphere.center_z", "solid_sphere_zcenter", solid_sphere_zcenter);
+    CANONICAL("problem.solid_sphere.radius", "solid_sphere_radius", solid_sphere_radius);
+    CANONICAL("problem.solid_sphere.mass", "solid_sphere_mass", solid_sphere_mass);
+    CANONICAL("problem.solid_sphere.minimum_density", "solid_sphere_rho_min", solid_sphere_rho_min);
+    CANONICAL("problem.star.center_x", "star_xcenter", star_xcenter);
+    CANONICAL("problem.star.center_y", "star_ycenter", star_ycenter);
+    CANONICAL("problem.star.center_z", "star_zcenter", star_zcenter);
+    CANONICAL("problem.star.polytropic_index", "star_n", star_n);
+    CANONICAL("problem.star.maximum_radius", "star_rmax", star_rmax);
+    CANONICAL("problem.star.radial_step", "star_dr", star_dr);
+    CANONICAL("problem.star.alpha", "star_alpha", star_alpha);
+    CANONICAL("problem.star.central_density", "star_rho_center", star_rho_center);
+    CANONICAL("problem.star.external_density", "star_rho_out", star_rho_out);
+    CANONICAL("problem.star.external_gas_energy", "star_egas_out", star_egas_out);
+    CANONICAL("problem.moving_star.velocity_x", "moving_star_xvelocity", moving_star_xvelocity);
+    CANONICAL("problem.moving_star.velocity_y", "moving_star_yvelocity", moving_star_yvelocity);
+    CANONICAL("problem.moving_star.velocity_z", "moving_star_zvelocity", moving_star_zvelocity);
+    CANONICAL("problem.driving.angular_momentum.rate", "driving_rate", driving_rate);
+    CANONICAL("problem.driving.angular_momentum.duration", "driving_time", driving_time);
+    CANONICAL("problem.driving.entropy.duration", "entropy_driving_time", entropy_driving_time);
+    CANONICAL("problem.driving.entropy.rate", "entropy_driving_rate", entropy_driving_rate);
+    CANONICAL("runtime.future_wait_time", "future_wait_time", future_wait_time);
+    CANONICAL("output.silo.offset_x", "silo_offset_x", silo_offset_x);
+    CANONICAL("output.silo.offset_y", "silo_offset_y", silo_offset_y);
+    CANONICAL("output.silo.offset_z", "silo_offset_z", silo_offset_z);
+    CANONICAL("mesh.amr.boundary_order", "amrbnd_order", amrbnd_order);
+    CANONICAL("problem.scf.output_frequency", "scf_output_frequency", scf_output_frequency);
+    CANONICAL("problem.scf.density_floor", "scf_rho_floor", scf_rho_floor);
+    CANONICAL("output.silo.groups", "silo_num_groups", silo_num_groups);
+    CANONICAL("mesh.refinement.core", "core_refine", core_refine);
+    CANONICAL("mesh.refinement.density_gradient", "grad_rho_refine", grad_rho_refine);
+    CANONICAL("mesh.refinement.accretor_levels", "accretor_refine", accretor_refine);
+    CANONICAL("mesh.extra_initial_regrids", "extra_regrid", extra_regrid);
+    CANONICAL("mesh.refinement.donor_levels", "donor_refine", donor_refine);
+    CANONICAL("mesh.fixed_grid_count", "ngrids", ngrids);
+    CANONICAL("mesh.refinement.density_floor", "refinement_floor", refinement_floor);
+    CANONICAL("gravity.opening_angle", "theta", theta);
+    CANONICAL("hydro.eos", "eos", eos);
+    CANONICAL("hydro.ipr.newton_tolerance", "ipr_nr_tol", ipr_nr_tol);
+    CANONICAL("hydro.ipr.newton_max_iterations", "ipr_nr_maxiter", ipr_nr_maxiter);
+    CANONICAL("hydro.ipr.test", "ipr_test", ipr_test);
+    CANONICAL("hydro.ipr.internal_energy_floor", "ipr_eint_floor", ipr_eint_floor);
+    CANONICAL("hydro.enabled", "hydro", hydro);
+    CANONICAL("hydro.boundary.periodic", "periodic", periodic);
+    CANONICAL("radiation.enabled", "radiation", radiation);
+    CANONICAL("hydro.angular_momentum_correction", "correct_am_hydro", correct_am_hydro);
+    CANONICAL("gravity.angular_momentum_correction", "correct_am_grav", correct_am_grav);
+    CANONICAL("output.rewrite_silo", "rewrite_silo", rewrite_silo);
+    CANONICAL("radiation.implicit", "rad_implicit", rad_implicit);
+    CANONICAL("radiation.subcycling", "rad_subcycling", rad_subcycling);
+    CANONICAL("radiation.reduced_light_speed_ratio", "rad_c_ratio", rad_c_ratio);
+    CANONICAL("radiation.cfl", "rad_cfl", rad_cfl);
+    CANONICAL("radiation.max_subcycles", "rad_max_subcycles", rad_max_subcycles);
+    CANONICAL("radiation.source_theta", "rad_theta", rad_theta);
+    CANONICAL("radiation.velocity_terms", "rad_velocity_terms", rad_velocity_terms);
+    CANONICAL("radiation.opacity.constant", "rad_opacity", rad_opacity);
+    CANONICAL("radiation.energy_mode", "rad_energy_mode", rad_energy_mode);
+    CANONICAL("radiation.log_subcycles", "rad_log_subcycles", rad_log_subcycles);
+    CANONICAL("gravity.enabled", "gravity", gravity);
+    CANONICAL("runtime.benchmark", "bench", bench);
+    CANONICAL("output.directory", "datadir", data_dir);
+    CANONICAL("output.filename", "output", output_filename);
+    CANONICAL("output.interval", "odt", output_dt);
+    CANONICAL("hydro.dual_energy.switch1", "dual_energy_sw1", dual_energy_sw1);
+    CANONICAL("hydro.dual_energy.switch2", "dual_energy_sw2", dual_energy_sw2);
+    CANONICAL("timestep.fixed", "hard_dt", hard_dt);
+    CANONICAL("problem.experiment", "experiment", experiment);
+    CANONICAL("mesh.unigrid", "unigrid", unigrid);
+    CANONICAL("hydro.boundary.inflow", "inflow_bc", inflow_bc);
+    CANONICAL("hydro.boundary.reflecting", "reflect_bc", reflect_bc);
+    CANONICAL("hydro.contact_discontinuity_detection", "cdisc_detect", cdisc_detect);
+    CANONICAL("output.disabled", "disable_output", disable_output);
+    CANONICAL("radiation.test.reference", "rad_reference", radReference);
+    CANONICAL("radiation.test.extinction", "rad_test_chi", radTestChi);
+    CANONICAL("radiation.test.width", "rad_test_width", radTestWidth);
+    CANONICAL("radiation.test.background", "rad_test_background", radTestBackground);
+    CANONICAL("radiation.test.amplitude", "rad_test_amplitude", radTestAmplitude);
+    CANONICAL("radiation.test.luminosity", "rad_test_luminosity", radTestLuminosity);
+    CANONICAL("problem.disable_analytic", "disable_analytic", disable_analytic);
+    CANONICAL("runtime.disable_diagnostics", "disable_diagnostics", disable_diagnostics);
+    CANONICAL("problem.name", "problem", problem);
+    CANONICAL("restart.filename", "restart_filename", restart_filename);
+    CANONICAL("runtime.stop_time", "stop_time", stop_time);
+    CANONICAL("runtime.stop_step", "stop_step", stop_step);
+    CANONICAL("mesh.level.minimum", "min_level", min_level);
+    CANONICAL("mesh.level.maximum", "max_level", max_level);
+    CANONICAL("execution.kernel.amr_boundary", "amr_boundary_kernel_type", amr_boundary_kernel_type);
+    CANONICAL("execution.kernel.multipole.host", "multipole_host_kernel_type", multipole_host_kernel_type);
+    CANONICAL("execution.kernel.multipole.device", "multipole_device_kernel_type", multipole_device_kernel_type);
+    CANONICAL("execution.kernel.monopole.host", "monopole_host_kernel_type", monopole_host_kernel_type);
+    CANONICAL("execution.kernel.monopole.device", "monopole_device_kernel_type", monopole_device_kernel_type);
+    CANONICAL("execution.kernel.hydro.host", "hydro_host_kernel_type", hydro_host_kernel_type);
+    CANONICAL("execution.kernel.hydro.device", "hydro_device_kernel_type", hydro_device_kernel_type);
+    CANONICAL("execution.gpu.count", "number_gpus", number_gpus);
+    CANONICAL("execution.gpu.executors_per_gpu", "executors_per_gpu", executors_per_gpu);
+    CANONICAL("execution.gpu.max_queue_length", "max_gpu_executor_queue_length", max_gpu_executor_queue_length);
+    CANONICAL("execution.polling_threads", "polling-threads", polling_threads);
+    CANONICAL("execution.max_kernels_fused", "max_kernels_fused", max_kernels_fused);
+    CANONICAL("execution.root_node_on_device", "root_node_on_device", root_node_on_device);
+    CANONICAL("execution.optimize_local_communication", "optimize_local_communication", optimize_local_communication);
+    CANONICAL("runtime.print_times_per_timestep", "print_times_per_timestep", print_times_per_timestep);
+    CANONICAL("problem.input_file", "input_file", input_file);
+    CANONICAL("runtime.config_file", "config_file", config_file);
+    CANONICAL("hydro.species.count", "n_species", n_species);
+    CANONICAL_MULTI("hydro.species.atomic_mass", "atomic_mass", atomic_mass);
+    CANONICAL_MULTI("hydro.species.atomic_number", "atomic_number", atomic_number);
+    CANONICAL_MULTI("hydro.species.hydrogen_fraction", "X", X);
+    CANONICAL_MULTI("hydro.species.metallicity", "Z", Z);
+    CANONICAL("units.grams", "code_to_g", code_to_g);
+    CANONICAL("units.centimeters", "code_to_cm", code_to_cm);
+    CANONICAL("units.seconds", "code_to_s", code_to_s);
+    CANONICAL("problem.rotating_star.amr", "rotating_star_amr", rotating_star_amr);
+    CANONICAL("problem.rotating_star.center_x", "rotating_star_x", rotating_star_x);
+#undef CANONICAL_MULTI
+#undef CANONICAL
+
+    po::options_description command_opts("All options");
+    command_opts.add(canonical_opts).add(legacy_opts);
+
 	boost::program_options::variables_map vm;
-	//po::store(po::parse_command_line(argc, argv, command_opts), vm);
-  po::store(po::command_line_parser(argc, argv).options(command_opts).allow_unregistered().run(), vm);
+	std::set<std::string> supplied;
+    auto const command_line =
+        po::command_line_parser(argc, argv).options(command_opts).allow_unregistered().run();
+    remember_supplied(supplied, command_line);
+    po::store(command_line, vm);
 	po::notify(vm);
-	if (vm.count("help")) {
-		std::cout << command_opts << "\n";
+	reapply_canonical_values(vm, canonical_opts, migrations);
+	if (vm.count("help") || vm.count("runtime.help")) {
+		if (!check_compatibility_spellings(supplied, migrations)) {
+			return false;
+		}
+		warn_legacy_spellings(supplied, migrations);
+		std::cout << canonical_opts << "\n\n" << legacy_opts << "\n";
 		return false;
 	}
 	if (!config_file.empty()) {
-		std::ifstream cfg_fs { vm["config_file"].as<std::string>() };
+		std::ifstream cfg_fs { config_file };
 		if (cfg_fs) {
-			po::store(po::parse_config_file(cfg_fs, command_opts), vm);
+			auto const config = po::parse_config_file(cfg_fs, command_opts);
+            remember_supplied(supplied, config);
+            po::store(config, vm);
 		} else {
 			printf("Configuration file %s not found!\n", config_file.c_str());
 			return false;
 		}
 	}
+	if (!check_compatibility_spellings(supplied, migrations)) {
+        return false;
+    }
 	po::notify(vm);
+	reapply_canonical_values(vm, canonical_opts, migrations);
+	warn_legacy_spellings(supplied, migrations);
 	if (opts().silo_num_groups == -1) {
 		opts().silo_num_groups = hpx::find_all_localities().size();
 
@@ -224,6 +400,20 @@ bool options::process_options(int argc, char *argv[]) {
 	}
 	n_fields = n_species + 10;
 	if (!opts().restart_filename.empty()) {
+		// Preserve the already-resolved config/CLI value across checkpoint loading.
+		auto const explicit_setting = [&supplied](char const* legacy, char const* canonical) {
+			return supplied.count(legacy) != 0 || supplied.count(canonical) != 0;
+		};
+		auto const explicit_rad_implicit = opts().rad_implicit;
+		auto const explicit_rad_subcycling = opts().rad_subcycling;
+		auto const explicit_rad_c_ratio = opts().rad_c_ratio;
+		auto const explicit_rad_cfl = opts().rad_cfl;
+		auto const explicit_rad_max_subcycles = opts().rad_max_subcycles;
+		auto const explicit_rad_theta = opts().rad_theta;
+		auto const explicit_rad_velocity_terms = opts().rad_velocity_terms;
+		auto const explicit_rad_opacity = opts().rad_opacity;
+		auto const explicit_rad_energy_mode = opts().rad_energy_mode;
+		auto const explicit_rad_log_subcycles = opts().rad_log_subcycles;
 		FILE *fp = fopen(opts().restart_filename.c_str(), "rb");
 		if (fp == NULL) {
 			printf("restart.silo does not exist or invalid permissions\n");
@@ -233,7 +423,31 @@ bool options::process_options(int argc, char *argv[]) {
 			fclose(fp);
 		}
 		load_options_from_silo(opts().restart_filename);
+        // Explicit CLI/config values override radiation checkpoint defaults,
+        // irrespective of whether the canonical or legacy spelling was used.
+        if (explicit_setting("rad_implicit", "radiation.implicit")) opts().rad_implicit=explicit_rad_implicit;
+        if (explicit_setting("rad_subcycling", "radiation.subcycling")) opts().rad_subcycling=explicit_rad_subcycling;
+        if (explicit_setting("rad_c_ratio", "radiation.reduced_light_speed_ratio")) opts().rad_c_ratio=explicit_rad_c_ratio;
+        if (explicit_setting("rad_cfl", "radiation.cfl")) opts().rad_cfl=explicit_rad_cfl;
+        if (explicit_setting("rad_max_subcycles", "radiation.max_subcycles")) opts().rad_max_subcycles=explicit_rad_max_subcycles;
+        if (explicit_setting("rad_theta", "radiation.source_theta")) opts().rad_theta=explicit_rad_theta;
+        if (explicit_setting("rad_velocity_terms", "radiation.velocity_terms")) opts().rad_velocity_terms=explicit_rad_velocity_terms;
+        if (explicit_setting("rad_opacity", "radiation.opacity.constant")) opts().rad_opacity=explicit_rad_opacity;
+        if (explicit_setting("rad_energy_mode", "radiation.energy_mode")) opts().rad_energy_mode=explicit_rad_energy_mode;
+        if (explicit_setting("rad_log_subcycles", "radiation.log_subcycles")) opts().rad_log_subcycles=explicit_rad_log_subcycles;
+
 	}
+    // Validate after restart metadata is loaded as well as after CLI/config parsing.
+    if (!(std::isfinite(rad_c_ratio) && rad_c_ratio>0 && rad_c_ratio<=1) ||
+        !(std::isfinite(rad_cfl) && rad_cfl>0 && rad_cfl<=.5) ||
+        !(std::isfinite(rad_theta) && rad_theta>=.5 && rad_theta<=1) ||
+        !std::isfinite(rad_opacity) || rad_max_subcycles<1 ||
+        (rad_energy_mode!="thermal" && rad_energy_mode!="absorption" && rad_energy_mode!="equilibrium")) {
+        std::cerr << "Invalid radiation options: require 0<rad_c_ratio<=1, 0<rad_cfl<=.5, "
+                     ".5<=rad_theta<=1, finite rad_opacity, rad_max_subcycles>=1, "
+                     "rad_energy_mode=thermal|absorption|equilibrium\n";
+        return false;
+    }
     if (opts().executors_per_gpu > 0 && opts().number_gpus == 0) {
         opts().number_gpus = 1;
 	}
@@ -325,6 +539,16 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(output_filename);
 		SHOW(problem);
 		SHOW(rad_implicit);
+		SHOW(rad_subcycling);
+		SHOW(rad_c_ratio);
+		SHOW(rad_cfl);
+		SHOW(rad_max_subcycles);
+		SHOW(rad_theta);
+		SHOW(rad_velocity_terms);
+		SHOW(rad_opacity);
+		SHOW(rad_energy_mode);
+		SHOW(rad_log_subcycles);
+
 		SHOW(radReference);
 		SHOW(radTestChi);
 		SHOW(radTestWidth);

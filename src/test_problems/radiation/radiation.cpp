@@ -8,7 +8,7 @@
 radiationTests::Parameters radiationTestParameters() {
 	FpeGuard fpeGuard{};
 	radiationTests::Parameters p;
-	p.length=2*opts().xscale; p.c=physcon().c; p.time=opts().stop_time;
+	p.length=2*opts().xscale; p.c=physcon().c; p.time=opts().stop_time*opts().rad_c_ratio;
 	p.chi=opts().radTestChi; p.width=opts().radTestWidth;
 	p.background=opts().radTestBackground; p.amplitude=opts().radTestAmplitude;
 	p.luminosity=opts().radTestLuminosity;
@@ -25,6 +25,7 @@ std::vector<Real> sample(Real x,Real y,Real z,Real dx,Real t) {
 	FpeGuard fpeGuard{};
 	auto const p=radiationTestParameters();
 	radiationTests::Point const pos{x,y,z};
+	t*=opts().rad_c_ratio; // RSLA rescales time, not the physical normalization of F.
 	radiationTests::State r;
 	switch (opts().problem) {
 	case RADIATION_STREAMING_WAVE: r=radiationTests::streamingWave(pos,t,dx,p); break;
@@ -59,7 +60,7 @@ void validateRadiationTest() {
 		if (!same(p.length,r.p.length) || !same(p.c,r.p.c) || !same(p.chi,r.p.chi) ||
 			!same(p.width,r.p.width) || !same(p.background,r.p.background) ||
 			!same(p.amplitude,r.p.amplitude) || !same(p.time,r.p.time))
-			throw std::runtime_error("Gaussian reference parameters do not match this simulation");
+			throw std::runtime_error("Gaussian reference parameters do not match this simulation (reference time must be stop_time * rad_c_ratio)");
 	}
 }
 std::vector<Real> radiationRegressionInit(Real x,Real y,Real z,Real dx) {

@@ -43,10 +43,14 @@ private:
 	std::vector<std::vector<Real>> U;
 	// Finite-volume fluxes/reflux messages retain the same physical storage units.
 	std::vector<std::vector<std::vector<Real>>> flux;
-	// Per-grid (H, beta) scratch avoids allocations and reuse across HPX tasks.
-	std::array<std::vector<Real>, NRF> primitive;
-	// Reconstructed faces also hold (H, beta), avoiding inverse conversions in HLL.
+	// VL predictor states use (E,Q=F/c), including the two-cell ghost ring.
+	std::array<std::vector<Real>, NRF> Uhalf;
 	std::array<std::array<std::vector<Real>, NRF>, 2> faces;
+	bool sourceEnabled = false;
+	std::vector<Real> chiAbsorption, chiTotal;
+	std::array<std::vector<Real>, NDIM> gasVelocity;
+	// Accumulated gas feedback; the material state stays fixed during subcycles.
+	std::array<std::vector<Real>, NRF> gasDelta;
 	std::vector<std::vector<Real>> X;
 	std::vector<Real> mmw, X_spc, Z_spc;
 	// Interval budgets use physical (E,F) units and are drained before regridding.
@@ -68,7 +72,10 @@ public:
 	void compute_mmw(const std::vector<std::vector<Real>>& U);
 	void change_units(Real m, Real l, Real t, Real k);
 	void sanity_check();
-	void compute_flux(Real);
+	void compute_flux(Real dt, Real omega, Real time = 0,
+        std::array<bool, 2 * NDIM> physicalFaces = {});
+    void prepareSources(const std::vector<std::vector<Real>>& gas);
+    void finishSources(std::vector<std::vector<Real>>& gas);
 	Real maxTimestep(Real omega) const;
 	void initialize_erad(const std::vector<Real>& rho, const std::vector<Real>& tau);
 	void set_dx(Real dx);
@@ -92,7 +99,7 @@ public:
 	void set_boundary(const std::vector<Real>& data, const geo::direction& dir);
 	Real get_field(integer f, integer i, integer j, integer k) const;
 	void set_field(Real v, integer f, integer i, integer j, integer k);
-	void set_physical_boundaries(geo::face f, Real t);
+	void set_physical_boundaries(geo::face f, Real t, bool half = false);
 	std::vector<Real> get_boundary(const geo::direction& dir);
 	using kappa_type = std::function<Real(Real)>;
 

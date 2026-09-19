@@ -1,6 +1,6 @@
 CompileFlags:
   Add: [-std=c++23]
-  CompilationDatabase: debug
+  CompilationDatabase: /home/dmarce1/octotiger/build/octotiger/release
 InlayHints: {Enabled: false}
 Completion: {Enable: false, Snippets: false, AllScopes: false, FilterAndSort: false}
 Diagnostics:

@@ -1,41 +1,38 @@
 #!/usr/bin/env bash
 
-set -euo pipefail
+set -Eeuo pipefail
 
-repo="$HOME/workspace/octotiger"
+source_dir="$HOME/octotiger/src/octotiger"
+git_root="$(git -C "$source_dir" rev-parse --show-toplevel)"
 archive="$HOME/Desktop/code.tar.gz"
+status_file="$HOME/Desktop/code-status-before-archive.txt"
+
+git -C "$git_root" status --short > "$status_file"
 
 rm -f "$archive"
 
-tar -czvf "$archive" \
-	-C "$repo" \
-	--exclude-vcs \
-	--exclude='*.silo' \
-	--exclude='*.silo.*' \
-	--exclude='*.h5' \
-	--exclude='*.hdf5' \
-	--exclude='*.bin' \
-	--exclude='*.session' \
-	--exclude='*.dat' \
-	--exclude='*.log' \
-	--exclude='*.mp4' \
-	--exclude='*.avi' \
-	--exclude='*.webm' \
-	--exclude='core' \
-	--exclude='core.*' \
-	--exclude='__pycache__' \
-	--exclude='.venv' \
-	--exclude='CMakeFiles' \
-	--exclude='CMakeCache.txt' \
-	--exclude='test_results/**/octotiger' \
-	--exclude='test_results/results' \
-	--exclude='test_results/serial-preview' \
-	src \
-	octotiger \
-	frontend \
-	cmake \
-	test_problems \
-	test_results \
-	CMakeLists.txt
+(
+    cd "$git_root"
 
+    {
+        printf '%s\0' .git
+        git ls-files -z --cached --others --exclude-standard
+    } |
+        tar \
+            --null \
+            --files-from=- \
+            --create \
+            --gzip \
+            --verbose \
+            --file="$archive"
+)
+
+if ! tar -tzf "$archive" | grep -Eq '(^|/)\.git(/|$)'; then
+    echo "ERROR: archive does not contain .git" >&2
+    exit 1
+fi
+
+echo
+echo "Git metadata included."
+echo "Pre-archive status: $status_file"
 du -h "$archive"

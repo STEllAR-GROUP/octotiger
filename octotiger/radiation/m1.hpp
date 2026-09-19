@@ -5,504 +5,313 @@
 #include "octotiger/math/Debug.hpp"
 #include "octotiger/math/Real.hpp"
 #include "octotiger/math/Vector.hpp"
-
 #include <algorithm>
 #include <cmath>
 #include <limits>
 #include <stdexcept>
+#include <sstream>
 #include <utility>
 
-// Method references (equation numbers below refer to these papers):
-// Hanawa & Audit, JQSRT 145, 9--16 (2014), "Reformulation of the M1 model
-// of radiative transfer", https://doi.org/10.1016/j.jqsrt.2014.04.014.
-// Skinner & Ostriker, ApJS 206, 21 (2013), "A Two-moment Radiation
-// Hydrodynamics Module in Athena Using a Time-explicit Godunov Method",
-// https://doi.org/10.1088/0067-0049/206/2/21; https://arxiv.org/abs/1306.0010.
-// S&O write radiation energy as ℰ and use physical F. Here E = ℰ and
-// Q = F/c, so every ConservedState component has energy-density units.
-// We use the full light speed (their ĉ = c); subgrid storage still holds F.
-//
-// dimensionCount counts transported flux components. The closure retains the
-// physical three-dimensional angular moments (P = E I / 3 at isotropy), also
-// when a one- or two-dimensional spatial problem is being solved.
-// A namespace-like template container: operations on a state belong to that state.
+// Skinner & Ostriker (2013), ApJS 206:21, https://arxiv.org/abs/1306.0010.
+// Equation numbers below refer to S&O. Storage/checkpoints contain physical F;
+// numerical states use Q=F/c (a constant change of units, NOT F/c_hat).
+// Reconstruct (E,Q) directly. There are no Hanawa variables or eigensystems.
 template <typename Type = Real, int dimensionCount = 3>
 class RadiationM1 {
-	static_assert(dimensionCount > 0);
-
+    static_assert(dimensionCount > 0);
 public:
-	RadiationM1() = delete;
+    RadiationM1() = delete;
+    using Scalar = Type;
+    using SpatialVector = Vector<Type, dimensionCount>;
+    using StateVector = Vector<Type, dimensionCount + 1>;
+    static constexpr int fieldCount = dimensionCount + 1;
+    static constexpr Type roundoff = Type(4096) * std::numeric_limits<Type>::epsilon();
 
-	using Scalar = Type;
-	using SpatialVector = Vector<Type, dimensionCount>;
-	using StateVector = Vector<Type, dimensionCount + 1>;
-	static constexpr int fieldCount = dimensionCount + 1;
-	static constexpr Type reconstructionTheta = Type(1.3L);
-	// Allow accumulated roundoff after conservative cancellation near streaming.
-	static constexpr Type roundoff = Type(4096) * std::numeric_limits<Type>::epsilon();
+    struct Closure {
+        Type chi, isotropic, directed;
+        SpatialVector reducedFlux;
+        // P_ij = isotropic delta_ij + directed f_i f_j, f=Q/E.
+    };
+    struct FluxState {
+        StateVector flux;
+        Type minus, plus;
+    };
+    struct Energies { Type gas, radiation; };
 
-	class Primitives;
-	struct Closure;
-	struct FluxState;
-	struct CoupledState;
+    class ConservedState : public StateVector {
+    public:
+        using StateVector::StateVector;
+        constexpr ConservedState() = default;
+        constexpr ConservedState(StateVector const& u) : StateVector(u) {}
+        constexpr Type& energyDensity() { return (*this)[0]; }
+        constexpr Type energyDensity() const { return (*this)[0]; }
+        constexpr SpatialVector normalizedFlux() const { return this->template split<1>().second; }
+        void checkState(char const* context = "") const {
+            if (!admissible(*this)) {
+                std::ostringstream message;
+                message.precision(17);
+                message << context << ": M1 state requires finite E >= 0 and |F| <= c E; (E,F/c)=(";
+                for (int f=0; f<fieldCount; ++f) message << (f ? "," : "") << (*this)[f];
+                throw std::runtime_error(message.str()+")");
+            }
+        }
+        Closure closure() const {
+            FpeGuard guard;
+            checkState("closure");
+            Closure m{};
+            m.chi = Type(1)/3;
+            if ((*this)[0] == 0) return m;
+            m.reducedFlux = normalizedFlux() / (*this)[0];
+            Type f2 = m.reducedFlux.dot(m.reducedFlux);
+            if (f2 > 1) { // roundoff only; the state was checked above
+                m.reducedFlux /= std::sqrt(f2);
+                f2 = 1;
+            }
+            Type const s = std::sqrt(Type(4)-Type(3)*f2);
+            // Equations (14)--(15), evaluated without dividing by |F| at vacuum.
+            m.chi = (Type(3)+Type(4)*f2)/(Type(5)+Type(2)*s);
+            m.isotropic = (*this)[0] * (Type(1)-f2)/(s+Type(1));
+            m.directed = (*this)[0] * Type(3)/(s+Type(2));
+            return m;
+        }
+        FluxState physicalFlux(int normal, Type chat, Type gridVelocity = 0) const {
+            FpeGuard guard;
+            if (!(chat > 0) || normal < 0 || normal >= dimensionCount)
+                throw std::runtime_error("Invalid M1 flux speed or normal");
+            auto const m = closure();
+            auto const f2 = std::min(Type(1), m.reducedFlux.dot(m.reducedFlux));
+            auto const fn = m.reducedFlux[normal];
+            auto const mu2 = f2 > 0 ? std::min(Type(1), fn*fn/f2) : Type(0);
+            auto const s = std::sqrt(Type(4)-Type(3)*f2);
+            // Eq. (41a): the radical is rewritten as
+            // 2(1-f^2)[s+mu^2(s-2)]/(s+1), finite at f=0 and f=1.
+            auto const radical = std::sqrt(std::max(Type(0),
+                Type(2)*(Type(1)-f2)*(s+mu2*(s-Type(2)))/(s+Type(1))));
+            FluxState out;
+            out.minus = chat*(fn-radical)/s-gridVelocity;
+            out.plus = chat*(fn+radical)/s-gridVelocity;
+            // Eq. (21), rescaled to (E,Q): flux = c_hat (Q_n, P_nj).
+            out.flux[0] = chat*(*this)[0]*fn-gridVelocity*(*this)[0];
+            for (int d=0; d<dimensionCount; ++d) {
+                Type const pressure = m.directed*fn*m.reducedFlux[d]
+                    + (normal==d ? m.isotropic : Type(0));
+                out.flux[d+1] = chat*pressure-gridVelocity*(*this)[d+1];
+            }
+            return out;
+        }
+    };
+    using ConservedFlux = StateVector;
 
-	// Hanawa & Audit (42): U = (E, Hβ) = (E, Q), Q = Fphysical/c.
-	class ConservedState : public StateVector {
-	public:
-		using StateVector::StateVector;
-		constexpr ConservedState() = default;
-		constexpr ConservedState(StateVector const &state) : StateVector(state) {
-		}
-		constexpr Type &energyDensity() {
-			return (*this)[0];
-		}
-		constexpr Type energyDensity() const {
-			return (*this)[0];
-		}
-		// All components have energy-density units; this returns Fphysical / c.
-		constexpr SpatialVector normalizedFlux() const {
-			return this->template split<1>().second;
-		}
-		Primitives toPrimitives() const;
-		Closure closure() const;
-		CoupledState couple(SpatialVector const &momentum, Type gasEnergy, Type internalEnergy,
-			Type rho, Type chiA, Type chiT, Type dt, Type c, Type logAlpha, bool marshak = false) const;
-		FluxState physicalFlux(int normal, Type c, Type gridVelocity = 0) const;
-		void checkState() const {
-#ifndef NDEBUG
-			FpeGuard fpeGuard{};
-			auto const &u = *this;
-			(void) nonNegative(u[0]);
-			if (u[0] == 0) {
-				for (int d = 1; d <= dimensionCount; ++d) {
-					if (u[d] != 0) throw std::runtime_error("Radiation vacuum has nonzero flux");
-				}
-			} else {
-				SpatialVector f;
-				for (int d = 0; d < dimensionCount; ++d) f[d] = u[d + 1] / u[0];
-				if (!(f.dot(f) <= Type(1) + roundoff)) {
-					throw std::runtime_error("Normalized radiation flux exceeds E");
-				}
-			}
-#endif
-		}
-	};
+    static bool admissible(StateVector const& u) {
+        if (!(u[0] >= 0) || !std::isfinite(u[0])) return false;
+        Type norm = 0;
+        for (int d=1; d<fieldCount; ++d) {
+            if (!std::isfinite(u[d])) return false;
+            norm = std::hypot(norm, u[d]);
+        }
+        return norm <= u[0] || (u[0] > 0 && norm-u[0] <= roundoff*u[0]);
+    }
 
-	// Hanawa & Audit (11), (14): H = E + P, βᵢ = Fᵢ/(cH) = Qᵢ/H.
-	// P is the isotropic pressure component; H is not comoving radiation energy.
-	// Primitives are (H, β), with |β| ≤ 1.
-	class Primitives : public StateVector {
-	public:
-		using StateVector::StateVector;
-		constexpr Primitives() = default;
-		constexpr Primitives(StateVector const &state) : StateVector(state) {
-		}
-		constexpr Type &enthalpy() {
-			return (*this)[0];
-		}
-		constexpr Type enthalpy() const {
-			return (*this)[0];
-		}
-		constexpr SpatialVector beta() const {
-			return this->template split<1>().second;
-		}
-		Type pressure() const {
-			FpeGuard fpeGuard{};
-			// Hanawa & Audit (20): P = (1 - β²)H/4, β² = Σᵢ βᵢ².
-			auto const b = beta();
-			return Type(0.25) * enthalpy() * std::max(Type(0), Type(1) - b.dot(b));
-		}
-		void checkState() const {
-#ifndef NDEBUG
-			FpeGuard fpeGuard{};
-			(void) nonNegative(enthalpy());
-			auto const b = beta();
-			if (!(b.dot(b) <= Type(1) + roundoff)) {
-				throw std::runtime_error("Radiation primitive beta lies outside the unit ball");
-			}
-#endif
-		}
-		Closure closure() const;
-		FluxState physicalFlux(int normal, Type c, Type gridVelocity = 0) const;
-		ConservedState toConserved() const {
-			FpeGuard fpeGuard{};
-			return conservedFromPrimitives(canonicalPrimitives(*this));
-		}
+    // Resolve floating-point cancellation at the boundary of the cone. The
+    // tolerance is measured against the local update, never an absolute floor.
+    // The caller records any full-step correction in its conservation ledger.
+    static ConservedState roundoffState(ConservedState u, Type updateScale) {
+        Type magnitude=0;
+        for (int f=1; f<fieldCount; ++f) magnitude=std::hypot(magnitude,u[f]);
+        Type const tolerance=roundoff*updateScale;
+        if (u[0]<0 && -u[0]<=tolerance && magnitude<=tolerance) return {};
+        if (u[0]>=0 && magnitude>u[0] && magnitude-u[0]<=tolerance)
+            for (int f=1; f<fieldCount; ++f) u[f]*=u[0]/magnitude;
+        u.checkState("roundoff correction");
+        return u;
+    }
 
-	};
+    // Athena's primitive PLM limiter (lr_states_prim2.c, steps 1--3).
+    // For same-sign differences its limited slope is the harmonic mean.
+    // Scaling avoids overflow in the usual 2*dl*dr/(dl+dr) expression.
+    static Type plmSlope(Type dl, Type dr) {
+        if (!((dl>0 && dr>0) || (dl<0 && dr<0))) return 0;
+        Type const small = std::min(std::abs(dl), std::abs(dr));
+        Type const large = std::max(std::abs(dl), std::abs(dr));
+        return std::copysign(small * (Type(2)/(Type(1)+small/large)), dl);
+    }
+    static std::pair<ConservedState, ConservedState> reconstruct(
+        ConservedState const& left, ConservedState const& center, ConservedState const& right) {
+        FpeGuard guard;
+        center.checkState("PLM center");
+        StateVector slope;
+        for (int f=0; f<fieldCount; ++f)
+            slope[f] = Type(.5)*plmSlope(center[f]-left[f], right[f]-center[f]);
+        // M1-specific addition to component PLM: scale ALL slopes together
+        // so both faces remain in the convex realizability cone. The cell
+        // average and the existing component monotonicity are preserved.
+        auto valid = [&](Type a) { return admissible(center-a*slope) && admissible(center+a*slope); };
+        Type a = 1;
+        if (!valid(a)) {
+            Type lo=0, hi=1;
+            for (int it=0; it<56; ++it) {
+                Type const mid=Type(.5)*(lo+hi);
+                if (valid(mid)) lo=mid; else hi=mid;
+            }
+            a=lo;
+        }
+        return {ConservedState(center-a*slope), ConservedState(center+a*slope)};
+    }
 
-	// Hanawa & Audit (41)--(43): ∂ₜU + c ∂ₙF = 0, U = (E, Hβ).
-	// Our ConservedFlux includes c: ℱₙ(U) = c F = (c Qₙ, c Pₙⱼ).
-	// This also follows from S&O (20)--(21), ĉ = c, after rescaling Fphysical/c.
-	// physicalFlux means the PDE flux of U; it does not convert Q back to F.
-	class ConservedFlux : public StateVector {
-	public:
-		using StateVector::StateVector;
-		constexpr ConservedFlux() = default;
-		constexpr ConservedFlux(StateVector const &flux) : StateVector(flux) {
-		}
-	};
+    // Equations (38)--(39): upwind HLL with the extreme speeds from BOTH states.
+    static ConservedFlux hll(ConservedState const& left, ConservedState const& right,
+        int normal, Type chat, Type gridVelocity = 0) {
+        FpeGuard guard;
+        auto canonical=[](ConservedState u) {
+            u.checkState("HLL input");
+            Type magnitude=0;
+            for (int d=1; d<fieldCount; ++d) magnitude=std::hypot(magnitude,u[d]);
+            if (magnitude>u[0])
+                for (int d=1; d<fieldCount; ++d) u[d]*=u[0]/magnitude;
+            return u;
+        };
+        auto const ul=canonical(left),ur=canonical(right);
+        auto const l=ul.physicalFlux(normal,chat,gridVelocity);
+        auto const r=ur.physicalFlux(normal,chat,gridVelocity);
+        auto const sm=std::min(l.minus,r.minus), sp=std::max(l.plus,r.plus);
+        if (sm>=0) return l.flux;
+        if (sp<=0) return r.flux;
+        auto const wr=sp/(sp-sm), wl=-sm/(sp-sm);
+        // Group each one-sided wave contribution BEFORE weighting. This
+        // cancels a streaming wave against vacuum exactly, rather than leaving
+        // a tiny negative photon density from separately rounded large terms.
+        return wr*(l.flux-sm*ul)+wl*(r.flux-sp*ur);
+    }
 
-	struct Closure {
-		Type H, pressure;
-		SpatialVector beta;
-		Type beta2;
-	};
+    // Conservative realizability limiter for the final transport flux. Each
+    // face gives two admissible one-face updates; the full unsplit FV update
+    // is their convex average. Both neighbors compute the SAME face flux from
+    // the t^n halo. No cell clipping or midstep boundary exchange is involved.
+    static ConservedFlux limitFlux(ConservedState const& left, ConservedState const& right,
+        ConservedFlux const& high, int normal, Type chat, Type gridVelocity, Type dtOverDx) {
+        if (dtOverDx==0) return high;
+        auto const l=left.physicalFlux(normal,chat,gridVelocity).flux;
+        auto const r=right.physicalFlux(normal,chat,gridVelocity).flux;
+        Type const factor=Type(2*dimensionCount)*dtOverDx;
+        Type const tolerance=roundoff*(left[0]+right[0]);
+        auto validState=[&](StateVector const& u) {
+            if (admissible(u)) return true;
+            if (!std::isfinite(u[0]) || u[0]<-tolerance) return false;
+            Type norm=0;
+            for (int f=1; f<fieldCount; ++f) {
+                if (!std::isfinite(u[f])) return false;
+                norm=std::hypot(norm,u[f]);
+            }
+            return norm-std::max(Type(0),u[0])<=tolerance;
+        };
+        auto valid=[&](StateVector const& flux) {
+            return validState(left-factor*(flux-l)) && validState(right+factor*(flux-r));
+        };
+        if (valid(high)) return high;
+        // Global-wave-speed HLL (local Lax-Friedrichs) is the realizable
+        // first-order fallback. Roundoff padding handles exactly streaming F.
+        Type const a=(chat+std::abs(gridVelocity))*(Type(1)+roundoff);
+        ConservedFlux const low=Type(.5)*(l+r-a*(right-left));
+        if (!valid(low)) throw std::runtime_error("M1 first-order flux violates realizability; reduce rad_cfl");
+        Type lo=0,hi=1;
+        for (int it=0; it<56; ++it) {
+            Type const mid=Type(.5)*(lo+hi);
+            if (valid(low+mid*(high-low))) lo=mid; else hi=mid;
+        }
+        return low+lo*(high-low);
+    }
 
-	struct FluxState {
-		ConservedFlux flux;
-		Type minus, plus;
-	};
+    // Sum-of-direction CFL for VL and its convex limiter; cfl is in (0,0.5].
+    static Type transportTimestep(Type dx, Type chat, Type cfl, Type gridSpeed = 0) {
+        if (!(dx>0 && chat>0 && cfl>0 && cfl<=Type(.5) && gridSpeed>=0))
+            throw std::runtime_error("Invalid radiation CFL parameters");
+        return cfl*dx/(Type(dimensionCount)*(chat+gridSpeed));
+    }
 
-	struct Energies {
-		Type gas, radiation;
-	};
+    // Eq. (25), using the isotropic O(beta tau) simplification (18).
+    // chiA != chiT extends the work term using (5a), preserving the existing
+    // opacity model; equal means (or rad_opacity >= 0) recover S&O exactly.
+    static StateVector explicitSource(ConservedState const& u, SpatialVector const& velocity,
+        Type chiA, Type chiT, Type c, Type ratio, bool velocityTerms = true) {
+        StateVector source{};
+        if (!velocityTerms) return source;
+        source[0]=ratio*(Type(2)*chiA-chiT)*velocity.dot(u.normalizedFlux());
+        for (int d=0; d<dimensionCount; ++d)
+            source[d+1]=ratio*chiT*(Type(4)/3)*u[0]*velocity[d];
+        (void)c; // velocity is physical; ratio=c_hat/c supplies the v/c factor
+        return source;
+    }
 
-	struct CoupledState {
-		ConservedState radiation;
-		SpatialVector momentum;
-		Type gasEnergy, internalEnergy;
-	};
+    // Equation (43), with an optional explicit transport/source increment.
+    // A theta<1 update that would reverse a damped quantity uses BE instead.
+    static Type damp(Type old, Type increment, Type eta, Type theta) {
+        if (!(eta>=0 && theta>=Type(.5) && theta<=1))
+            throw std::runtime_error("Invalid radiation damping parameters");
+        if ((Type(1)-theta)*eta>1) theta=1;
+        Type const inv=Type(1)/(Type(1)+theta*eta);
+        return (Type(1)-(Type(1)-theta)*eta)*inv*old+inv*increment;
+    }
 
-	static Type minmodTheta(Type left, Type right, Type theta = reconstructionTheta) {
-		FpeGuard fpeGuard{};
-		if ((left > 0 && right > 0) || (left < 0 && right < 0)) {
-			return std::copysign(std::min({theta * std::abs(left), theta * std::abs(right),
-				Type(0.5) * std::abs(left + right)}), left);
-		}
-		return 0;
-	}
-
-	// One face pair per direction. Reconstruct H and beta directly; the
-	// conserved-state wrapper below converts the result back to (E,Q). The scalar
-	// limiter keeps H nonnegative, and the common
-	// vector limiter keeps both reconstructed beta vectors inside the unit ball.
-	static std::pair<Primitives, Primitives> reconstructPrimitives(Primitives const &qm,
-		Primitives const &q, Primitives const &qp) {
-		FpeGuard fpeGuard{};
-		q.checkState();
-		StateVector slope;
-		for (int f = 0; f < fieldCount; ++f) {
-			slope[f] = Type(0.5) * minmodTheta(q[f] - qm[f], qp[f] - q[f]);
-		}
-		auto const beta = q.beta();
-		auto const dBeta = slope.template split<1>().second;
-		auto const a = dBeta.dot(dBeta);
-		auto const b = std::abs(beta.dot(dBeta));
-		auto const room = std::max(Type(0), Type(1) - beta.dot(beta));
-		if (a + Type(2) * b > room) {
-			auto const denominator = std::sqrt(b * b + a * room) + b;
-			auto const scale = denominator > 0 ? room / denominator : Type(0);
-			for (int d = 1; d <= dimensionCount; ++d) slope[d] *= scale;
-		}
-		Primitives const minus = q - slope;
-		Primitives const plus = q + slope;
-		return {canonicalPrimitives(minus), canonicalPrimitives(plus)};
-	}
-
-	static std::pair<ConservedState, ConservedState> reconstruct(Primitives const &qm,
-		Primitives const &q, Primitives const &qp) {
-		FpeGuard fpeGuard{};
-		auto const [minus, plus] = reconstructPrimitives(qm, q, qp);
-		return {minus.toConserved(), plus.toConserved()};
-	}
-
-	// S&O (2013), (38)--(39), with ĉ = c; formula in hllFromFluxes below.
-	// Use the extreme Hanawa-Audit characteristics from both reconstructed states.
-	static ConservedFlux hll(ConservedState const &left, ConservedState const &right,
-		int normal, Type c, Type gridVelocity = 0) {
-		FpeGuard fpeGuard{};
-		auto const l = left.physicalFlux(normal, c, gridVelocity);
-		auto const r = right.physicalFlux(normal, c, gridVelocity);
-		return hllFromFluxes(left, right, l, r);
-	}
-
-	static ConservedFlux hll(Primitives const &left, Primitives const &right,
-		int normal, Type c, Type gridVelocity = 0) {
-		FpeGuard fpeGuard{};
-		auto const qLeft = canonicalPrimitives(left);
-		auto const qRight = canonicalPrimitives(right);
-		auto const uLeft = conservedFromPrimitives(qLeft);
-		auto const uRight = conservedFromPrimitives(qRight);
-		auto const l = fluxFromClosure(uLeft, closureFromPrimitives(qLeft), normal, c, gridVelocity);
-		auto const r = fluxFromClosure(uRight, closureFromPrimitives(qRight), normal, c, gridVelocity);
-		return hllFromFluxes(uLeft, uRight, l, r);
-	}
-
-	// Restrictive multidimensional CFL for PLM + forward Euler; the factor 1/4
-	// is an implementation choice, not a coefficient from either paper.
-	// gridSpeed is the maximum |vGrid| component on this block and its faces.
-	static Type transportTimestep(Type dx, Type c, Type cfl, Type gridSpeed = 0) {
-		FpeGuard fpeGuard{};
-		(void) positive(dx);
-		(void) positive(c);
-		(void) positive(cfl);
-		(void) nonNegative(gridSpeed);
-		return std::min(cfl, Type(0.25)) * dx / (Type(dimensionCount) * (c + gridSpeed));
-	}
-
-	// S&O (44a,b), with ĉ = c and χₐ = ρ κ₀:
-	//   ∂ₜe = -c χₐ(αe⁴ - ℰ),  ∂ₜℰ = c χₐ(αe⁴ - ℰ),
-	//   α = aᵣ[(γ - 1)μ/(ρ k_B)]⁴,  ℰ_eq = αe⁴ = aᵣT⁴.
-	// Here logAlpha = ln(α); μ is the mean particle mass. Freeze opacities
-	// for the step and use θ = 1 in (47)--(49) (backward Euler).
-	// The Marshak test substitutes ℰ_eq = e for this ideal-gas relation.
-	static Energies thermalExchange(Type e, Type E, Type eta, Type logAlpha,
-		bool marshak = false) {
-		FpeGuard fpeGuard{};
-		(void) nonNegative(E);
-		(void) nonNegative(eta);
-		if (eta == 0) return {nonNegative(e), E};
-		// Rearrangement of S&O (49): x + w αx⁴ = r, with x = eⁿ⁺¹,
-		// η = c χₐ Δt, w = η/(1 + η), r = eⁿ + w ℰⁿ.
-		// From (47)--(48), ℰⁿ⁺¹ = ℰⁿ/(1 + η) + w αx⁴.
-		auto const inverse = Type(1) / (Type(1) + eta);
-		auto const weight = eta * inverse;
-		auto const rhs = nonNegative(e + weight * E);
-		if (marshak) {
-			auto const gas = rhs / (Type(1) + weight);
-			return {gas, inverse * E + weight * gas};
-		}
-		if (rhs == 0) return {0, inverse * E};
-		auto const logCoefficient = std::log(weight) + logAlpha;
-		auto const logRhs = std::log(rhs);
-		auto const quarticLogScale = (logRhs - logCoefficient) / Type(4);
-		auto const linearBound = logRhs <= quarticLogScale;
-		auto const scale = linearBound ? rhs : std::exp(quarticLogScale);
-		// Implementation scaling of that quartic: x = s y, s = min(r, (r/(wα))¼),
-		// so (s/r)y + (wαs⁴/r)y⁴ = 1, with both coefficients ≤ 1.
-		// The active bounding coefficient must be exactly one: exp(log(rhs))
-		// can round below rhs and put a nearly linear root outside [0,1].
-		auto const linear = linearBound ? Type(1) : scale / rhs;
-		auto const quartic = linearBound ? std::exp(std::min(Type(0), logCoefficient + Type(3) * logRhs)) : Type(1);
-		Type lo = 0, hi = 1, y = 1;
-		for (int iteration = 0; iteration < 80; ++iteration) {
-			auto const y2 = y * y;
-			auto const residual = linear * y + quartic * y2 * y2 - Type(1);
-			if (std::abs(residual) <= Type(16) * std::numeric_limits<Type>::epsilon()) {
-				return {scale * y, inverse * E + rhs * quartic * y2 * y2};
-			}
-			if (residual > 0) hi = y;
-			else lo = y;
-			auto const next = y - residual / (linear + Type(4) * quartic * y2 * y);
-			y = next > lo && next < hi ? next : Type(0.5) * (lo + hi);
-		}
-		throw std::runtime_error("Radiation thermal exchange did not converge");
-	}
-
-private:
-	static Primitives canonicalPrimitives(Primitives q) {
-		FpeGuard fpeGuard{};
-		q.checkState();
-		// Vacuum has no preferred direction; use the same isotropic speeds
-		// whether a face enters the solver as conserved or primitive variables.
-		if (q.enthalpy() == 0) return {};
-		auto const beta = q.beta();
-		auto const beta2 = beta.dot(beta);
-		if (beta2 > 1) {
-			auto const scale = Type(1) / std::sqrt(beta2);
-			for (int d = 1; d <= dimensionCount; ++d) q[d] *= scale;
-		}
-		return q;
-	}
-
-	// Both helpers consume the same already-canonical primitive state, so the
-	// HLL conserved jump and physical flux use identical beta components.
-	static ConservedState conservedFromPrimitives(Primitives const &q) {
-		FpeGuard fpeGuard{};
-		auto const beta = q.beta();
-		auto const beta2 = std::min(Type(1), beta.dot(beta));
-		// Hanawa & Audit (19), (14): E = (3 + β²)H/4, Qᵢ = Hβᵢ.
-		auto const energy = q.enthalpy() * (Type(0.25) * (Type(3) + beta2));
-		ConservedState const result = concatenate(energy, beta * q.enthalpy());
-		result.checkState();
-		return result;
-	}
-
-	static Closure closureFromPrimitives(Primitives const &q) {
-		FpeGuard fpeGuard{};
-		// Hanawa & Audit (17), (20): Pᵢⱼ = Hβᵢβⱼ + Pδᵢⱼ,
-		// P = (1 - β²)H/4. Store the factors; form a pressure row only as needed.
-		auto const beta = q.beta();
-		auto const beta2 = std::min(Type(1), beta.dot(beta));
-		return {q.enthalpy(), Type(0.25) * (Type(1) - beta2) * q.enthalpy(), beta, beta2};
-	}
-
-	static FluxState fluxFromClosure(ConservedState const &u, Closure const &m,
-		int normal, Type c, Type gridVelocity) {
-		FpeGuard fpeGuard{};
-		(void) positive(c);
-		if (normal < 0 || normal >= dimensionCount) {
-			throw std::out_of_range("Radiation flux normal is outside the spatial dimensions");
-		}
-		auto const bn = m.beta[normal];
-		Type transverse2 = 0;
-		for (int d = 0; d < dimensionCount; ++d) {
-			if (d != normal) transverse2 += m.beta[d] * m.beta[d];
-		}
-		// Hanawa & Audit (51), (53), with their z replaced by this face normal n:
-		// λ₁,₄ = c[2βₙ ± √((1 - β²)(3 - β² - 2βₙ²))]/(3 - β²).
-		// Their λ₁ is plus, λ₄ is minus. Evaluate the equivalent radicand
-		// (1 - β²)[3(1 - β²) + 2β⊥²], β⊥² = Σⱼ≠ₙ βⱼ², to avoid cancellation.
-		auto const oneMinusBeta2 = Type(1) - m.beta2;
-		auto const root = std::sqrt(oneMinusBeta2 * (Type(3) * oneMinusBeta2 + Type(2) * transverse2));
-		FluxState result;
-		// Moving-grid transformation of the published stationary-grid system:
-		// λ_grid = λ - v_grid,n, ℱ_grid = ℱₙ - v_grid,n U.
-		result.minus = c * (Type(2) * bn - root) / (Type(3) - m.beta2) - gridVelocity;
-		result.plus = c * (Type(2) * bn + root) / (Type(3) - m.beta2) - gridVelocity;
-		result.flux[0] = c * u[normal + 1] - gridVelocity * u[0];
-		for (int d = 0; d < dimensionCount; ++d) {
-			// Hanawa & Audit (17): Pₙⱼ = Hβₙβⱼ + Pδₙⱼ; ℱₙ from (41)--(43).
-			auto const pressureNd = m.H * bn * m.beta[d] + (d == normal ? m.pressure : Type(0));
-			result.flux[d + 1] = c * pressureNd - gridVelocity * u[d + 1];
-		}
-		return result;
-	}
-
-	static ConservedFlux hllFromFluxes(ConservedState const &left, ConservedState const &right,
-		FluxState const &l, FluxState const &r) {
-		FpeGuard fpeGuard{};
-		// S&O (39): ℱ_HLL = [Sᴿ⁺ℱᴸ - Sᴸ⁻ℱᴿ + Sᴿ⁺Sᴸ⁻(Uᴿ - Uᴸ)]
-		//                         / (Sᴿ⁺ - Sᴸ⁻),
-		// Sᴸ = min(λ_minᴸ, λ_minᴿ), Sᴿ = max(λ_maxᴸ, λ_maxᴿ),
-		// Sᴸ⁻ = min(Sᴸ, 0), Sᴿ⁺ = max(Sᴿ, 0). The upwind cases (38)
-		// are handled first; the mixed case below uses equivalent weights.
-		auto const sm = std::min(l.minus, r.minus);
-		auto const sp = std::max(l.plus, r.plus);
-		// Also handles coincident zero-speed waves without a 0/0 denominator.
-		if (sm >= 0) return l.flux;
-		if (sp <= 0) return r.flux;
-		auto const wr = sp / (sp - sm);
-		auto const wl = -sm / (sp - sm);
-		auto const viscosity = sm * wr;
-		return wr * l.flux + wl * r.flux + viscosity * (right - left);
-	}
-
-	// Scalar checks avoid legacy printf-based diagnostics, which assume double
-	// arguments and are not valid for a long-double instantiation.
-
-	static Type positive(Type value) {
-#ifndef NDEBUG
-		FpeGuard fpeGuard{};
-		if (!(value > 0)) throw std::runtime_error("Expected positive radiation value");
-#endif
-		return value;
-	}
-	static Type nonNegative(Type value) {
-#ifndef NDEBUG
-		FpeGuard fpeGuard{};
-		if (!(value >= 0)) throw std::runtime_error("Expected nonnegative radiation value");
-#endif
-		return value;
-	}
+    // Equations (44)--(49). eta=c*chiA*dt uses PHYSICAL c and ratio=c_hat/c.
+    // The invariant is e+E/ratio, not e+E. logAlpha=log(a_R[(gamma-1)mu/rho/kB]^4).
+    // Solve the monotone scaled quartic with safeguarded Newton/bisection.
+    // Fall back from theta<1 to BE if no nonnegative solution exists (S&O 3.4).
+    static Energies thermalExchange(Type e, Type E, Type eta, Type logAlpha,
+        bool marshak = false, Type ratio = 1, Type theta = 1) {
+        FpeGuard guard;
+        if (!(e>=0 && E>=0 && eta>=0 && ratio>0 && ratio<=1 && theta>=Type(.5) && theta<=1))
+            throw std::runtime_error("Invalid radiation thermal-exchange parameters");
+        if (eta==0) return {e,E};
+        for (int attempt=0; attempt<2; ++attempt) {
+            Type const inv=Type(1)/(Type(1)+theta*ratio*eta);
+            Type const w=theta*eta*inv;
+            Type oldEmission=0;
+            if (theta<1 && e>0) {
+                Type const logEmission=logAlpha+Type(4)*std::log(e);
+                if (!marshak && logEmission>std::log(std::numeric_limits<Type>::max())) {
+                    theta=1; continue;
+                }
+                oldEmission=marshak ? e : std::exp(logEmission);
+            }
+            Type const explicitPart=(Type(1)-theta)*eta*inv*oldEmission;
+            Type const rhs=e+eta*inv*E-explicitPart;
+            if (!(rhs>=0)) { theta=1; continue; }
+            Type gas=0, emissionTerm=0;
+            if (marshak) {
+                gas=rhs/(Type(1)+w);
+                emissionTerm=w*gas;
+            } else if (rhs>0) {
+                Type const logRhs=std::log(rhs);
+                Type const logCoefficient=std::log(w)+logAlpha;
+                Type const quarticLogScale=(logRhs-logCoefficient)/Type(4);
+                bool const linearBound=logRhs<=quarticLogScale;
+                Type const scale=linearBound ? rhs : std::exp(quarticLogScale);
+                Type const linear=linearBound ? Type(1) : scale/rhs;
+                Type const quartic=linearBound ?
+                    std::exp(std::min(Type(0),logCoefficient+Type(3)*logRhs)) : Type(1);
+                Type lo=0, hi=1, y=1;
+                bool solved=false;
+                for (int it=0; it<100; ++it) {
+                    Type const y2=y*y;
+                    Type const residual=linear*y+quartic*y2*y2-Type(1);
+                    if (std::abs(residual)<=Type(8)*std::numeric_limits<Type>::epsilon()) {
+                        gas=scale*y;
+                        emissionTerm=rhs*quartic*y2*y2;
+                        solved=true; break;
+                    }
+                    if (residual>0) hi=y; else lo=y;
+                    Type const next=y-residual/(linear+Type(4)*quartic*y2*y);
+                    y=(next>lo && next<hi) ? next : Type(.5)*(lo+hi);
+                }
+                if (!solved) throw std::runtime_error("Radiation thermal exchange did not converge");
+            }
+            // Direct radiation update avoids subtraction of two gas energies
+            // when radiation is weak; the quartic enforces the same invariant.
+            Type const nextE=(Type(1)-(Type(1)-theta)*ratio*eta)*inv*E
+                +ratio*(explicitPart+emissionTerm);
+            if (nextE>=0 && std::isfinite(nextE)) return {gas,nextE};
+            theta=1;
+        }
+        throw std::runtime_error("Radiation thermal exchange has no physical solution");
+    }
 };
-
-template <typename Type, int dimensionCount>
-auto RadiationM1<Type, dimensionCount>::ConservedState::toPrimitives() const -> Primitives {
-	FpeGuard fpeGuard{};
-	checkState();
-	if (energyDensity() == 0) return {};
-	SpatialVector f;
-	for (int d = 0; d < dimensionCount; ++d) f[d] = (*this)[d + 1] / energyDensity();
-	auto f2 = f.dot(f);
-	// An admissible conserved state can exceed |Q|/E=1 only by roundoff.
-	if (f2 > 1) {
-		f *= Type(1) / std::sqrt(f2);
-		f2 = Type(1);
-	}
-	// Hanawa & Audit (8), (16): fᵢ = Qᵢ/E, βᵢ = 3fᵢ/[2 + √(4 - 3f²)].
-	// Rearranging (14) gives H/E = [2 + √(4 - 3f²)]/3, finite also at f = 0.
-	auto const hOverE = (Type(2) + std::sqrt(Type(4) - Type(3) * f2)) / Type(3);
-	return concatenate(energyDensity() * hOverE, f / hOverE);
-}
-
-template <typename Type, int dimensionCount>
-auto RadiationM1<Type, dimensionCount>::ConservedState::physicalFlux(int normal, Type c,
-	Type gridVelocity) const -> FluxState {
-	FpeGuard fpeGuard{};
-	return fluxFromClosure(*this, closure(), normal, c, gridVelocity);
-}
-
-template <typename Type, int dimensionCount>
-auto RadiationM1<Type, dimensionCount>::Primitives::physicalFlux(int normal, Type c,
-	Type gridVelocity) const -> FluxState {
-	FpeGuard fpeGuard{};
-	// The reconstructed primitive state supplies the closure directly.
-	auto const q = canonicalPrimitives(*this);
-	return fluxFromClosure(conservedFromPrimitives(q), closureFromPrimitives(q),
-		normal, c, gridVelocity);
-}
-
-template <typename Type, int dimensionCount>
-auto RadiationM1<Type, dimensionCount>::ConservedState::closure() const -> Closure {
-	FpeGuard fpeGuard{};
-	return closureFromPrimitives(toPrimitives());
-}
-
-template <typename Type, int dimensionCount>
-auto RadiationM1<Type, dimensionCount>::Primitives::closure() const -> Closure {
-	FpeGuard fpeGuard{};
-	return closureFromPrimitives(canonicalPrimitives(*this));
-}
-
-// S&O (5a), through first order in gas v/c, with κ₀E = κ₀P:
-//   ∂ₜℰ = c χₐ(aᵣT⁴ - ℰ) + (2χₐ - χₜ) v·Q.
-// Here χₐ = ρ κ₀P (chiA), χₜ = ρ κ₀F (chiT), both inverse lengths.
-// S&O (8e), generalized from their equal means to χₜ, supplies
-//   ∂ₜQ = -c χₜ Q + χₜ(ℰ I + P)·v.
-// As in (8e), this uses aᵣT⁴ ≈ ℰ in the velocity-dependent momentum terms;
-// it is not the full unequal-opacity expression (5b). We keep the full
-// pressure tensor rather than the isotropic substitution (18).
-// Gas v/c here is distinct from the radiation primitive β. The velocity
-// terms must be non-stiff; a light-crossing CFL alone does not guarantee this.
-template <typename Type, int dimensionCount>
-auto RadiationM1<Type, dimensionCount>::ConservedState::couple(SpatialVector const &momentum,
-	Type gasEnergy, Type internalEnergy, Type rho, Type chiA, Type chiT, Type dt,
-	Type c, Type logAlpha, bool marshak) const -> CoupledState {
-	FpeGuard fpeGuard{};
-	auto const &u = *this;
-	checkState();
-	(void) positive(c);
-	(void) positive(rho);
-	(void) nonNegative(internalEnergy);
-	(void) nonNegative(chiA);
-	(void) nonNegative(chiT);
-	(void) nonNegative(dt);
-	if (dt == 0 || (chiA == 0 && chiT == 0)) {
-		return {u, momentum, gasEnergy, internalEnergy};
-	}
-	auto const velocity = momentum / rho;
-	auto const Q = u.normalizedFlux();
-	auto const m = closure();
-	auto const eta = nonNegative(dt * c * chiT);
-	auto const inverse = Type(1) / (Type(1) + eta);
-	auto const weight = eta * inverse;
-	auto const betaV = m.beta.dot(velocity);
-	CoupledState result;
-	Type kineticChange = 0;
-	// Backward-Euler damping (S&O 43, θ = 1), with the (8e) velocity source
-	// evaluated at the old state: Qⁿ⁺¹ = [Qⁿ + Δt χₜ(ℰ I + P)·v]/(1 + c χₜ Δt).
-	// Opposite gas increments conserve m + Q/c (S&O 8b,e with ĉ = c).
-	for (int d = 0; d < dimensionCount; ++d) {
-		auto const advectiveFlux = ((u[0] + m.pressure) * velocity[d] + m.H * m.beta[d] * betaV) / c;
-		result.radiation[d + 1] = inverse * Q[d] + weight * advectiveFlux;
-		auto const dm = (Q[d] - result.radiation[d + 1]) / c;
-		result.momentum[d] = momentum[d] + dm;
-		kineticChange += dm * (velocity[d] + Type(0.5) * dm / rho);
-	}
-	auto const explicitWork = dt * (Type(2) * chiA - chiT) * velocity.dot(Q);
-	auto const eRadiationStar = u[0] + explicitWork;
-	auto const eGasStar = internalEnergy - explicitWork - kineticChange;
-	// No clipping of a failed explicit update: that would destroy conservation.
-	if (!(eRadiationStar >= 0) || !(eGasStar + (dt * c * chiA / (Type(1) + dt * c * chiA)) * eRadiationStar >= 0)) {
-		throw std::runtime_error("Radiation explicit source step exhausted the available energy; decrease the shared timestep");
-	}
-	auto const energy = thermalExchange(eGasStar, eRadiationStar, dt * c * chiA, logAlpha, marshak);
-	result.radiation[0] = energy.radiation;
-	result.gasEnergy = gasEnergy + (u[0] - energy.radiation);
-	result.internalEnergy = energy.gas;
-	result.radiation.checkState();
-	(void) nonNegative(result.internalEnergy);
-	return result;
-}

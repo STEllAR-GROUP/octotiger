@@ -17,6 +17,7 @@
 #include <hpx/include/future.hpp>
 
 #include "octotiger/radiation/m1.hpp"
+#include "octotiger/radiation/subcycle.hpp"
 
 #include <algorithm>
 #include <array>
@@ -170,15 +171,15 @@ using send_rad_flux_correct_action_type = node_server::send_rad_flux_correct_act
 HPX_REGISTER_ACTION(send_rad_flux_correct_action_type);
 
 void node_client::send_rad_flux_correct(
-    std::vector<Real>&& data, const geo::face& face, const geo::octant& ci) const {
+    std::vector<Real>&& data, const geo::face& face, const geo::octant& ci, std::size_t cycle) const {
     hpx::apply<typename node_server::send_rad_flux_correct_action>(
-        get_unmanaged_gid(), std::move(data), face, ci);
+        get_unmanaged_gid(), std::move(data), face, ci, cycle);
 }
 
 void node_server::recv_rad_flux_correct(
-    std::vector<Real>&& data, const geo::face& face, const geo::octant& ci) {
+    std::vector<Real>&& data, const geo::face& face, const geo::octant& ci, std::size_t cycle) {
     const geo::quadrant index(ci, face.get_dimension());
-    niece_rad_channels[face][index].set_value(std::move(data));
+    niece_rad_channels[face][index].set_value(std::move(data),cycle);
 }
 
 void node_client::send_rad_boundary(
@@ -224,54 +225,94 @@ Real radiationGasInternal(Real egas, Real tau, Real sx, Real sy, Real sz, Real r
 }
 }    // namespace
 
-void rad_grid::rad_imp(std::vector<Real>& egas, std::vector<Real>& tau, std::vector<Real>& sx,
-    std::vector<Real>& sy, std::vector<Real>& sz, const std::vector<Real>& rho, Real dt) {
+void rad_grid::rad_imp(std::vector<Real>& egas, std::vector<Real>& tau,
+    std::vector<Real>& sx, std::vector<Real>& sy, std::vector<Real>& sz,
+    const std::vector<Real>& rho, Real dt) {
     PROFILE();
-    FpeGuard fpeGuard;
-    long double const cellVolume = static_cast<long double>(dx) * dx * dx;
-    Real const c = expectPositive(physcon().c);
-    Real const gamma = grid::get_fgamma();
-    bool const marshak = opts().problem == MARSHAK;
-    Real const logAr = marshak ? 0 : std::log(expectPositive(4 * physcon().sigma / c));
-    Real const temperatureFactor = (gamma - 1) * physcon().mh / physcon().kb;
-    constexpr integer offset = H_BW - RAD_BW;
-    // Each iteration owns one gas cell and one radiation cell. The nonlinear
-    // solve has data-dependent iteration counts, so no forced SIMD pragma here.
-    for (integer i = RAD_BW; i < RAD_NX - RAD_BW; ++i) {
-        for (integer j = RAD_BW; j < RAD_NX - RAD_BW; ++j) {
-            for (integer k = RAD_BW; k < RAD_NX - RAD_BW; ++k) {
-                integer const r = rindex(i, j, k);
-                integer const h = hindex(i + offset, j + offset, k + offset);
-                Real const e = radiationGasInternal(egas[h], tau[h], sx[h], sy[h], sz[h], rho[h]);
-                // These routines already include rho: units are inverse length.
-                // Composition belongs to the radiation mesh, hence index r.
-                Real const chiAbsorption = kappa_p(rho[h], e, mmw[r], X_spc[r], Z_spc[r], gamma);
-                Real const chiTotal = kappa_R(rho[h], e, mmw[r], X_spc[r], Z_spc[r], gamma);
-                // S&O (44): α = aᵣ[(γ - 1)μ/(ρ k_B)]⁴, ℰ_eq = αe⁴,
-                // with μ = mmw*m_h and aᵣ = 4σ_SB/c. Store ln(α) for the
-                // scaled quartic solve; these κ routines already return ρ κ.
-                Real const logAlpha = marshak ?
-                    0 :
-                    logAr + 4 * std::log(expectPositive(temperatureFactor * mmw[r] / rho[h]));
-                // Grid/checkpoint fields are physical F; the M1 state uses Q=F/c.
-                const M1::ConservedState old{
-                    U[er_i][r], U[fx_i][r] / c, U[fy_i][r] / c, U[fz_i][r] / c};
-                const auto next = old.couple({sx[h], sy[h], sz[h]}, egas[h], e,
-                    rho[h], chiAbsorption, chiTotal, dt, c, logAlpha, marshak);
-                // Commit all four components together, after checking a complete state.
-                for (int f = 0; f < NRF; f++) {
-                    Real const updated = f == er_i ? next.radiation[f] : c * next.radiation[f];
-                    conservationSource[f] += (static_cast<long double>(updated) - U[f][r]) * cellVolume;
-                    U[f][r] = updated;
-                }
-                sx[h] = next.momentum[0];
-                sy[h] = next.momentum[1];
-                sz[h] = next.momentum[2];
-                egas[h] = next.gasEnergy;
-                tau[h] = std::pow(next.internalEnergy, 1 / gamma);
-            }
+    FpeGuard guard;
+    // S&O (44)--(49): thermal exchange once on the GAS timestep. Momentum
+    // damping belongs to the radiation subcycles, not this nonlinear solve.
+    if (opts().rad_energy_mode != "thermal") return;
+    Real const c=physcon().c, ratio=opts().rad_c_ratio, gamma=grid::get_fgamma();
+    bool const marshak=opts().problem==MARSHAK;
+    Real const logAr=marshak ? 0 : std::log(4*physcon().sigma/c);
+    Real const tempFactor=(gamma-1)*physcon().mh/physcon().kb;
+    long double const dv=static_cast<long double>(dx)*dx*dx;
+    constexpr integer offset=H_BW-RAD_BW;
+    for (integer i=RAD_BW; i<RAD_NX-RAD_BW; ++i)
+      for (integer j=RAD_BW; j<RAD_NX-RAD_BW; ++j)
+        for (integer k=RAD_BW; k<RAD_NX-RAD_BW; ++k) {
+            auto const r=rindex(i,j,k), h=hindex(i+offset,j+offset,k+offset);
+            Real const e=radiationGasInternal(egas[h],tau[h],sx[h],sy[h],sz[h],rho[h]);
+            Real const chi=opts().rad_opacity>=0 ? rho[h]*opts().rad_opacity :
+                kappa_p(rho[h],e,mmw[r],X_spc[r],Z_spc[r],gamma);
+            Real const logAlpha=marshak ? 0 : logAr+4*std::log(tempFactor*mmw[r]/rho[h]);
+            auto const next=M1::thermalExchange(e,U[0][r],dt*c*chi,logAlpha,
+                marshak,ratio,opts().rad_theta);
+            // A thermal-only split can exhaust E beneath an existing beam.
+            // Never clip F or E to conceal this: choose absorption mode when
+            // emission is absent, or shorten the gas step for thermal problems.
+            if (!M1::admissible({next.radiation,U[1][r]/c,U[2][r]/c,U[3][r]/c}))
+                throw std::runtime_error("Thermal split produced |F| > c E; reduce hard_dt "
+                    "(use rad_energy_mode=absorption for an absorption-only medium)");
+            conservationSource[0]+=(static_cast<long double>(next.radiation)-U[0][r])*dv;
+            U[0][r]=next.radiation;
+            egas[h]+=next.gas-e;
+            tau[h]=std::pow(next.gas,1/gamma);
         }
-    }
+}
+
+void rad_grid::prepareSources(const std::vector<std::vector<Real>>& gas) {
+    FpeGuard guard;
+    sourceEnabled=opts().rad_implicit && !radiationFixedMediumProblem();
+    for (auto& delta:gasDelta) std::fill(delta.begin(),delta.end(),Real(0));
+    if (!sourceEnabled) return;
+    compute_mmw(gas);
+    constexpr integer offset=H_BW-RAD_BW;
+    for (integer i=0; i<RAD_NX; ++i)
+      for (integer j=0; j<RAD_NX; ++j)
+        for (integer k=0; k<RAD_NX; ++k) {
+            auto const r=rindex(i,j,k), h=hindex(i+offset,j+offset,k+offset);
+            Real const rho=gas[rho_i][h];
+            Real const e=radiationGasInternal(gas[egas_i][h],gas[tau_i][h],
+                gas[sx_i][h],gas[sy_i][h],gas[sz_i][h],rho);
+            chiAbsorption[r]=opts().rad_opacity>=0 ? rho*opts().rad_opacity :
+                kappa_p(rho,e,mmw[r],X_spc[r],Z_spc[r],grid::get_fgamma());
+            chiTotal[r]=opts().rad_opacity>=0 ? rho*opts().rad_opacity :
+                kappa_R(rho,e,mmw[r],X_spc[r],Z_spc[r],grid::get_fgamma());
+            if (!(std::isfinite(chiAbsorption[r]) && chiAbsorption[r]>=0 &&
+                  std::isfinite(chiTotal[r]) && chiTotal[r]>=0))
+                throw std::runtime_error("Invalid radiation opacity");
+            for (int d=0; d<NDIM; ++d) gasVelocity[d][r]=gas[sx_i+d][h]/rho;
+        }
+}
+
+void rad_grid::finishSources(std::vector<std::vector<Real>>& gas) {
+    FpeGuard guard;
+    if (!sourceEnabled) return;
+    // S&O freeze the gas during subcycling and correct its source afterwards.
+    // Here the correction uses the actually integrated radiation sources:
+    // gas+E/(c_hat/c), and momentum+F/(c*c_hat), balance to roundoff.
+    // It is outside hydro's RK stages, so the hydro/radiation split is order 1.
+    constexpr integer offset=H_BW-RAD_BW;
+    for (integer i=RAD_BW; i<RAD_NX-RAD_BW; ++i)
+      for (integer j=RAD_BW; j<RAD_NX-RAD_BW; ++j)
+        for (integer k=RAD_BW; k<RAD_NX-RAD_BW; ++k) {
+            auto const r=rindex(i,j,k), h=hindex(i+offset,j+offset,k+offset);
+            Real const rho=gas[rho_i][h];
+            Real const e=radiationGasInternal(gas[egas_i][h],gas[tau_i][h],
+                gas[sx_i][h],gas[sy_i][h],gas[sz_i][h],rho);
+            Real dk=0;
+            for (int d=0; d<NDIM; ++d)
+                dk+=gasDelta[d+1][r]*(gas[sx_i+d][h]/rho+Real(.5)*gasDelta[d+1][r]/rho);
+            Real const nextInternal=e+gasDelta[0][r]-dk;
+            if (!(std::isfinite(nextInternal) && nextInternal>=0))
+                throw std::runtime_error("Radiation feedback exhausted gas internal energy; reduce hard_dt");
+            gas[egas_i][h]+=gasDelta[0][r];
+            gas[tau_i][h]=std::pow(nextInternal,1/grid::get_fgamma());
+            for (int d=0; d<NDIM; ++d) gas[sx_i+d][h]+=gasDelta[d+1][r];
+        }
+    sourceEnabled=false;
 }
 
 void rad_grid::set_dx(Real _dx) {
@@ -300,7 +341,7 @@ void rad_grid::set_X(const std::vector<std::vector<Real>>& x) {
 // c_eff² = [γP + (4/9)ℰ(1 - exp(-ρ κ₀ Δx))]/ρ.
 // Return only the radiation contribution's square root; hydro supplies γP/ρ.
 // Here ℰ = U[er_i], ρ κ₀ = kappa_R(...). Use -expm1(-τ) for 1 - exp(-τ)
-// at small τ = ρ κ₀ Δx. Transport separately uses the full light speed.
+// at small τ = ρ κ₀ Δx. Transport separately uses the configured reduced light speed.
 Real rad_grid::hydroSignalSpeed(const std::vector<Real>& egas, const std::vector<Real>& tau,
     const std::vector<Real>& sx, const std::vector<Real>& sy, const std::vector<Real>& sz,
     const std::vector<Real>& rho) {
@@ -314,7 +355,8 @@ Real rad_grid::hydroSignalSpeed(const std::vector<Real>& egas, const std::vector
                 integer const h = hindex(i + offset, j + offset, k + offset);
                 Real const e = radiationGasInternal(egas[h], tau[h], sx[h], sy[h], sz[h], rho[h]);
                 Real const opticalDepth = expectNonNegative(
-                    kappa_R(rho[h], e, mmw[r], X_spc[r], Z_spc[r], grid::get_fgamma()) * dx);
+                    (opts().rad_opacity>=0 ? rho[h]*opts().rad_opacity :
+                    kappa_R(rho[h], e, mmw[r], X_spc[r], Z_spc[r], grid::get_fgamma())) * dx);
                 speed2 = std::max(
                     speed2, (4.0 / 9.0) * U[er_i][r] / rho[h] * (-std::expm1(-opticalDepth)));
             }
@@ -345,49 +387,58 @@ void rad_grid::compute_mmw(const std::vector<std::vector<Real>>& U) {
 }
 
 void node_server::compute_radiation(Real dt, Real omega) {
-    auto& rgrid = *rad_grid_ptr;
+    auto& rgrid=*rad_grid_ptr;
     rgrid.set_dx(grid_ptr->get_dx());
     rgrid.set_X(grid_ptr->get_X());
-    {
-        // FP state belongs to the OS thread. End the guard before HPX waits.
-        FpeGuard fpeGuard;
-        (void) expectNonNegative(dt);
-        // The global hydro timestep reduction includes this same light-speed bound.
-        // Do not silently repair a bad timestep by taking extra radiation steps.
-        if (dt > rgrid.maxTimestep(omega) * (1 + M1::roundoff)) {
-            throw std::runtime_error("Shared timestep exceeds the radiation CFL limit");
-        }
-    }
+    // EVERY node uses these same globally reduced values. A local CFL or local
+    // refinement level here would desynchronize sibling/parent radiation keys.
+    radiation::SubcyclePlan const plan(dt,dt_.radiation_dt,
+        opts().rad_subcycling && opts().hydro,opts().rad_max_subcycles);
+    if (opts().rad_log_subcycles && my_location.level()==0)
+        printf("RAD gas_dt=%.17e rad_limit=%.17e subcycles=%zu rad_dt=%.17e\n",
+            dt,dt_.radiation_dt,plan.count,plan.dt(0));
 
-    // One forward-Euler transport stage; AMR face fluxes are synchronized before
-    // the conservative update. Refined nodes participate in communication only.
-    all_rad_bounds(current_time);
-    rgrid.compute_flux(omega);
-    GET(exchange_rad_flux_corrections());
-    if (!is_refined) {
-        for (auto face : geo::face::full_set()) {
-            if (!opts().periodic && my_location.is_physical_boundary(face))
-                rgrid.accountBoundaryFlux(dt, face);
-        }
-        rgrid.advance(dt, omega);
-        if (radiationFixedMediumProblem()) {
-            rgrid.applyRegressionSource(dt);
-        } else if (opts().rad_implicit) {
+    bool const coupled=opts().rad_implicit && !radiationFixedMediumProblem();
+    if (coupled) {
+        if (!is_refined) {
+            if (!opts().gravity && opts().optimize_local_communication)
+                GET(all_neighbors_got_hydro[(hcycle-1)%number_hydro_exchange_promises]);
             rgrid.compute_mmw(grid_ptr->U);
-            // First-order operator split, S&O (2013), section 3.1/3.4.
-            rgrid.rad_imp(grid_ptr->get_field(egas_i), grid_ptr->get_field(tau_i),
-                grid_ptr->get_field(sx_i), grid_ptr->get_field(sy_i), grid_ptr->get_field(sz_i),
-                grid_ptr->get_field(rho_i), dt);
+            rgrid.rad_imp(grid_ptr->get_field(egas_i),grid_ptr->get_field(tau_i),
+                grid_ptr->get_field(sx_i),grid_ptr->get_field(sy_i),grid_ptr->get_field(sz_i),
+                grid_ptr->get_field(rho_i),dt);
+        }
+        // One material halo refresh for the frozen source data, on ALL levels.
+        // This uses hcycle; the following radiation substeps use only rcycle.
+        all_hydro_bounds();
+        rgrid.prepareSources(grid_ptr->U);
+    }
+    std::array<bool,2*NDIM> physical{};
+    for (auto face:geo::face::full_set())
+        physical[face]=!opts().periodic && my_location.is_physical_boundary(face);
+    for (std::size_t sub=0; sub<plan.count; ++sub) {
+        Real const subdt=plan.dt(sub);
+        Real const time=current_time+plan.offset(sub);
+        // One radiation state exchange per substep. VL builds the half-time
+        // halo locally; only the FINAL time-centered flux is refluxed.
+        all_rad_bounds(time);
+        rgrid.compute_flux(subdt,omega,time,physical);
+        GET(exchange_rad_flux_corrections());
+        if (!is_refined) {
+            for (auto face:geo::face::full_set())
+                if (physical[face]) rgrid.accountBoundaryFlux(subdt,face);
+            rgrid.advance(subdt,omega);
+            if (radiationFixedMediumProblem()) rgrid.applyRegressionSource(subdt);
         }
     }
-    // Restrict the updated leaf solution to parents, and apply time-dependent
-    // physical boundaries at the end of this SAME shared timestep.
-    Real boundaryTime;
-    {
-        FpeGuard fpeGuard;
-        boundaryTime = current_time + dt;
+    if (coupled && !is_refined) {
+        if (!opts().gravity && opts().optimize_local_communication)
+            GET(all_neighbors_got_hydro[(hcycle-1)%number_hydro_exchange_promises]);
+        rgrid.finishSources(grid_ptr->U);
     }
-    all_rad_bounds(boundaryTime);
+    // Final restriction/physical boundaries at the exact end of the GAS step.
+    // Regridding/migration subsequently inherit this same rcycle on all nodes.
+    all_rad_bounds(current_time+dt);
 }
 
 void rad_grid::applyRegressionSource(Real dt) {
@@ -404,7 +455,7 @@ void rad_grid::applyRegressionSource(Real dt) {
                 Real const emission = bulb ? radiationTests::bulbSourceAverage(
                     {X[0][r], X[1][r], X[2][r]}, dx, parameters) : 0;
                 auto const updated = radiationTests::mediumSource(
-                    {U[0][r], U[1][r], U[2][r], U[3][r]}, dt, parameters, emission);
+                    {U[0][r], U[1][r], U[2][r], U[3][r]}, dt * opts().rad_c_ratio, parameters, emission);
                 M1::ConservedState{updated[0], updated[1] / parameters.c,
                     updated[2] / parameters.c, updated[3] / parameters.c}.checkState();
                 for (int f = 0; f < NRF; ++f) {
@@ -417,6 +468,9 @@ void rad_grid::applyRegressionSource(Real dt) {
 }
 
 void rad_grid::allocate() {
+    chiAbsorption.resize(RAD_N3);
+    chiTotal.resize(RAD_N3);
+    for (auto& velocity:gasVelocity) velocity.resize(RAD_N3);
     U.resize(NRF);
     Ushad.resize(NRF);
     flux.resize(NDIM);
@@ -426,7 +480,8 @@ void rad_grid::allocate() {
     for (integer f = 0; f != NRF; ++f) {
         U[f].resize(RAD_N3);
         Ushad[f].resize(HS_N3);
-        primitive[f].resize(RAD_N3);
+        Uhalf[f].resize(RAD_N3);
+        gasDelta[f].resize(RAD_N3);
         for (auto& face : faces)
             face[f].resize(RAD_N3);
         for (integer d = 0; d != NDIM; ++d) {
@@ -460,83 +515,104 @@ Real rad_grid::maxTimestep(Real omega) const {
                 gridSpeed = std::max(gridSpeed, std::abs(omega * x));
         }
     }
-    return M1::transportTimestep(dx, physcon().c, opts().cfl, gridSpeed);
+    return M1::transportTimestep(dx, physcon().c * opts().rad_c_ratio, opts().rad_cfl, gridSpeed);
 }
 
-void rad_grid::compute_flux(Real omega) {
+void rad_grid::compute_flux(Real dt, Real omega, Real time,
+    std::array<bool,2*NDIM> physicalFaces) {
     PROFILE();
-    FpeGuard fpeGuard;
-    static_assert(NDIM == 3 && NRF == 4);
-    static_assert(RAD_BW >= 2 && H_BW >= RAD_BW);
-    Real const c = expectPositive(physcon().c);
-    // Scratch holds (H, beta); U always stores (E, physical flux density).
-    // Every output index is distinct and the input/scratch allocations do not alias.
-#if defined(__GNUC__) && !defined(__clang__) && !defined(__CUDACC__) && !defined(__HIPCC__)
-#pragma GCC ivdep
-#endif
-    for (integer r = 0; r < RAD_N3; ++r) {
-        const auto q = M1::ConservedState{
-            U[0][r], U[1][r] / c, U[2][r] / c, U[3][r] / c}.toPrimitives();
-        for (int f = 0; f < NRF; ++f)
-            primitive[f][r] = q[f];
-    }
-    const auto loadPrimitives = [this](integer r) {
-        return M1::Primitives{
-            primitive[0][r], primitive[1][r], primitive[2][r], primitive[3][r]};
+    FpeGuard guard;
+    static_assert(NDIM==3 && NRF==4 && RAD_BW>=3 && H_BW>=RAD_BW);
+    Real const c=physcon().c, ratio=opts().rad_c_ratio, chat=c*ratio;
+    auto load=[&](integer r) {
+        return M1::ConservedState{U[0][r],U[1][r]/c,U[2][r]/c,U[3][r]/c};
     };
-    // Reuse two face buffers for successive directions. No edges, vertices,
-    // transverse quadrature, or hydro reconstruction machinery is involved.
-    for (int normal = 0; normal < NDIM; ++normal) {
-        integer const stride = R_DN[normal];
-        std::array<integer, NDIM> lo{RAD_BW, RAD_BW, RAD_BW};
-        std::array<integer, NDIM> hi{RAD_NX - RAD_BW, RAD_NX - RAD_BW, RAD_NX - RAD_BW};
-        --lo[normal];
-        ++hi[normal];
-        for (integer i = lo[0]; i < hi[0]; ++i) {
-            for (integer j = lo[1]; j < hi[1]; ++j) {
-#if defined(__GNUC__) && !defined(__clang__) && !defined(__CUDACC__) && !defined(__HIPCC__)
-#pragma GCC ivdep
-#endif
-                for (integer k = lo[2]; k < hi[2]; ++k) {
-                    integer const r = rindex(i, j, k);
-                    const auto [minus, plus] = M1::reconstructPrimitives(loadPrimitives(r - stride),
-                        loadPrimitives(r), loadPrimitives(r + stride));
-                    for (int f = 0; f < NRF; ++f) {
-                        faces[0][f][r] = minus[f];
-                        faces[1][f][r] = plus[f];
-                    }
+    auto half=[&](integer r) {
+        return M1::ConservedState{Uhalf[0][r],Uhalf[1][r],Uhalf[2][r],Uhalf[3][r]};
+    };
+    auto speed=[&](int normal,integer left,integer right) {
+        if (omega==0 || normal==ZDIM) return Real(0);
+        int const transverse=normal==XDIM ? YDIM : XDIM;
+        return (normal==XDIM ? -omega : omega)*Real(.5)*(X[transverse][left]+X[transverse][right]);
+    };
+    for (integer r=0; r<RAD_N3; ++r)
+        for (int f=0; f<NRF; ++f) Uhalf[f][r]=U[f][r]/(f==0 ? 1 : c);
+
+    // Athena VL predictor: first-order HLL fluxes from cell averages, an
+    // unsplit half-step, and first-order sources. Predict TWO ghost layers
+    // from the three-layer t^n halo; no halfway communication is necessary.
+    for (integer i=1; i<RAD_NX-1; ++i)
+      for (integer j=1; j<RAD_NX-1; ++j)
+        for (integer k=1; k<RAD_NX-1; ++k) {
+            integer const r=rindex(i,j,k);
+            auto const old=load(r);
+            M1::StateVector increment{};
+            Real updateScale=old[0];
+            for (int d=0; d<NDIM; ++d) {
+                auto const stride=R_DN[d];
+                updateScale+=Real(.5)*dt/dx*(chat+std::abs(speed(d,r-stride,r))+
+                    std::abs(speed(d,r,r+stride)))*(U[0][r-stride]+2*old[0]+U[0][r+stride]);
+                auto const minus=M1::hll(load(r-stride),old,d,chat,speed(d,r-stride,r));
+                auto const plus=M1::hll(old,load(r+stride),d,chat,speed(d,r,r+stride));
+                increment-=Real(.5)*dt/dx*(plus-minus);
+                for (int f=0; f<NRF; ++f)
+                    updateScale+=Real(.5)*dt/dx*(std::abs(plus[f])+std::abs(minus[f]));
+            }
+            if (sourceEnabled) {
+                auto const src=M1::explicitSource(old,
+                    {gasVelocity[0][r],gasVelocity[1][r],gasVelocity[2][r]},
+                    chiAbsorption[r],chiTotal[r],c,ratio,opts().rad_velocity_terms);
+                increment+=Real(.5)*dt*src;
+                for (int f=0; f<NRF; ++f) updateScale+=Real(.5)*dt*std::abs(src[f]);
+            }
+            M1::ConservedState predicted=old+increment;
+            if (sourceEnabled) {
+                for (int f=1; f<NRF; ++f)
+                    predicted[f]=M1::damp(old[f],increment[f],Real(.5)*dt*chat*chiTotal[r],1);
+                if (opts().rad_energy_mode=="absorption")
+                    predicted[0]=M1::damp(old[0],increment[0],Real(.5)*dt*chat*chiAbsorption[r],1);
+            }
+            if (omega!=0) {
+                Real const cs=std::cos(Real(.5)*omega*dt), sn=std::sin(Real(.5)*omega*dt);
+                Real const x=predicted[1], y=predicted[2];
+                predicted[1]=cs*x+sn*y; predicted[2]=cs*y-sn*x;
+            }
+            predicted=M1::roundoffState(predicted,updateScale);
+            for (int f=0; f<NRF; ++f) Uhalf[f][r]=predicted[f];
+        }
+    // Prescribed/time-dependent physical faces must be evaluated at half time,
+    // not evolved as though they were interior cells (notably Marshak inflow).
+    for (int face=0; face<2*NDIM; ++face)
+        if (physicalFaces[face]) set_physical_boundaries(geo::face(face),time+Real(.5)*dt,true);
+
+    // S&O 3.3: PLM of half-time E and F, then HLL. Dividing F by the constant
+    // physical c merely rescales the identical component reconstruction.
+    for (int normal=0; normal<NDIM; ++normal) {
+        integer const stride=R_DN[normal];
+        std::array<integer,NDIM> lo{RAD_BW,RAD_BW,RAD_BW};
+        std::array<integer,NDIM> hi{RAD_NX-RAD_BW,RAD_NX-RAD_BW,RAD_NX-RAD_BW};
+        --lo[normal]; ++hi[normal];
+        for (integer i=lo[0]; i<hi[0]; ++i)
+          for (integer j=lo[1]; j<hi[1]; ++j)
+            for (integer k=lo[2]; k<hi[2]; ++k) {
+                integer const r=rindex(i,j,k);
+                auto const pair=M1::reconstruct(half(r-stride),half(r),half(r+stride));
+                for (int f=0; f<NRF; ++f) {
+                    faces[0][f][r]=pair.first[f]; faces[1][f][r]=pair.second[f];
                 }
             }
-        }
         ++lo[normal];
-        for (integer i = lo[0]; i < hi[0]; ++i) {
-            for (integer j = lo[1]; j < hi[1]; ++j) {
-#if defined(__GNUC__) && !defined(__clang__) && !defined(__CUDACC__) && !defined(__HIPCC__)
-#pragma GCC ivdep
-#endif
-                for (integer k = lo[2]; k < hi[2]; ++k) {
-                    integer const right = rindex(i, j, k);
-                    integer const left = right - stride;
-                    M1::Primitives leftPrimitives, rightPrimitives;
-                    for (int f = 0; f < NRF; ++f) {
-                        leftPrimitives[f] = faces[1][f][left];
-                        rightPrimitives[f] = faces[0][f][right];
-                    }
-                    // The face is indexed by the cell on its positive side, as
-                    // required by advance() and the existing AMR flux restriction.
-                    Real vg = 0;
-                    if (omega != 0 && normal != ZDIM) {
-                        const int transverse = normal == XDIM ? YDIM : XDIM;
-                        Real const x = 0.5 * (X[transverse][left] + X[transverse][right]);
-                        vg = (normal == XDIM ? -omega : omega) * x;
-                    }
-                    const auto F = M1::hll(leftPrimitives, rightPrimitives, normal, c, vg);
-                    // The finite-volume/reflux buffers evolve physical F, not Q.
-                    for (int f = 0; f < NRF; ++f)
-                        flux[normal][f][right] = f == er_i ? F[f] : c * F[f];
-                }
+        for (integer i=lo[0]; i<hi[0]; ++i)
+          for (integer j=lo[1]; j<hi[1]; ++j)
+            for (integer k=lo[2]; k<hi[2]; ++k) {
+                integer const right=rindex(i,j,k), left=right-stride;
+                M1::ConservedState l,r;
+                for (int f=0; f<NRF; ++f) { l[f]=faces[1][f][left]; r[f]=faces[0][f][right]; }
+                Real const velocity=speed(normal,left,right);
+                auto const high=M1::hll(l,r,normal,chat,velocity);
+                auto const F=M1::limitFlux(load(left),load(right),high,normal,chat,velocity,dt/dx);
+                for (int f=0; f<NRF; ++f) flux[normal][f][right]=F[f]*(f==0 ? 1 : c);
             }
-        }
     }
 }
 
@@ -557,54 +633,79 @@ void rad_grid::change_units(Real m, Real l, Real t, Real k) {
 }
 
 void rad_grid::advance(Real dt, Real omega) {
-    FpeGuard fpeGuard;
-    Real const factor = dt / expectPositive(dx);
-    for (int f = 0; f < NRF; ++f) {
-        // Distinct field/flux allocations make these restrict contracts valid.
-        Real* __restrict__ u = U[f].data();
-        const Real* __restrict__ fx = flux[XDIM][f].data();
-        const Real* __restrict__ fy = flux[YDIM][f].data();
-        const Real* __restrict__ fz = flux[ZDIM][f].data();
-        for (integer i = RAD_BW; i < RAD_NX - RAD_BW; ++i) {
-            for (integer j = RAD_BW; j < RAD_NX - RAD_BW; ++j) {
-#if defined(__GNUC__) && !defined(__clang__) && !defined(__CUDACC__) && !defined(__HIPCC__)
-#pragma GCC ivdep
-#endif
-                for (integer k = RAD_BW; k < RAD_NX - RAD_BW; ++k) {
-                    integer const r = rindex(i, j, k);
-                    u[r] -= factor *
-                        ((fx[r + DX] - fx[r]) + (fy[r + DY] - fy[r]) + (fz[r + DZ] - fz[r]));
+    FpeGuard guard;
+    Real const c=physcon().c, ratio=opts().rad_c_ratio, chat=c*ratio;
+    long double const dv=static_cast<long double>(dx)*dx*dx;
+    for (integer i=RAD_BW; i<RAD_NX-RAD_BW; ++i)
+      for (integer j=RAD_BW; j<RAD_NX-RAD_BW; ++j)
+        for (integer k=RAD_BW; k<RAD_NX-RAD_BW; ++k) {
+            integer const r=rindex(i,j,k);
+            M1::ConservedState old, next;
+            M1::StateVector transport{};
+            Real updateScale=U[0][r];
+            for (int d=0; d<NDIM; ++d)
+                updateScale+=dt/dx*(chat+std::abs(omega)*(std::abs(X[0][r])+std::abs(X[1][r])))
+                    *(Uhalf[0][r-R_DN[d]]+2*Uhalf[0][r]+Uhalf[0][r+R_DN[d]]);
+            for (int f=0; f<NRF; ++f) {
+                Real const unit=f==0 ? 1 : c;
+                old[f]=U[f][r]/unit;
+                for (int d=0; d<NDIM; ++d) {
+                    transport[f]-=dt/dx*(flux[d][f][r+R_DN[d]]-flux[d][f][r])/unit;
+                    updateScale+=dt/dx*(std::abs(flux[d][f][r+R_DN[d]])+std::abs(flux[d][f][r]))/unit;
                 }
+                next[f]=old[f]+transport[f];
+            }
+            if (sourceEnabled) {
+                M1::ConservedState const mid{Uhalf[0][r],Uhalf[1][r],Uhalf[2][r],Uhalf[3][r]};
+                auto const src=M1::explicitSource(mid,
+                    {gasVelocity[0][r],gasVelocity[1][r],gasVelocity[2][r]},
+                    chiAbsorption[r],chiTotal[r],c,ratio,opts().rad_velocity_terms);
+                Real work=dt*src[0];
+                next[0]+=work;
+                if (opts().rad_energy_mode=="absorption") {
+                    Real const eta=dt*chat*chiAbsorption[r];
+                    Real theta=opts().rad_theta;
+                    if ((1-theta)*eta>1) theta=1;
+                    next[0]=M1::damp(old[0],transport[0]+work,eta,theta);
+                    // Absorbed energy escapes this band, as in S&O (51)--(52).
+                    // Only the velocity work has equal-and-opposite gas energy.
+                    work/=1+theta*eta;
+                }
+                gasDelta[0][r]-=work/ratio;
+                for (int f=1; f<NRF; ++f) {
+                    next[f]=M1::damp(old[f],transport[f]+dt*src[f],
+                        dt*chat*chiTotal[r],opts().rad_theta);
+                    gasDelta[f][r]-=(next[f]-old[f]-transport[f])/chat;
+                }
+                for (int f=0; f<NRF; ++f)
+                    conservationSource[f]+=(static_cast<long double>(next[f])-old[f]-transport[f])
+                        *(f==0 ? 1 : c)*dv;
+            }
+            if (omega!=0) {
+                // Integrating-factor correction: rotate U^n a full step and
+                // the time-centered increment a half step. This complements
+                // the predictor's half rotation without first-order splitting.
+                Real const cs=std::cos(omega*dt), sn=std::sin(omega*dt);
+                Real const ch=std::cos(Real(.5)*omega*dt), sh=std::sin(Real(.5)*omega*dt);
+                Real const ix=next[1]-old[1], iy=next[2]-old[2];
+                Real const x=cs*old[1]+sn*old[2]+ch*ix+sh*iy;
+                Real const y=cs*old[2]-sn*old[1]+ch*iy-sh*ix;
+                conservationSource[1]+=(static_cast<long double>(x)-next[1])*c*dv;
+                conservationSource[2]+=(static_cast<long double>(y)-next[2])*c*dv;
+                next[1]=x; next[2]=y;
+            }
+            auto const rounded=M1::roundoffState(next,updateScale+std::abs(next[0]));
+            for (int f=0; f<NRF; ++f) {
+                conservationSource[f]+=(static_cast<long double>(rounded[f])-next[f])*(f==0 ? 1 : c)*dv;
+                U[f][r]=rounded[f]*(f==0 ? 1 : c);
             }
         }
-    }
-    if (omega != 0) {
-        // Lab-frame flux components expressed in the rotating grid basis obey
-        // dFx/dt=omega*Fy, dFy/dt=-omega*Fx. An exact local rotation preserves
-        // |F|; Euler here would artificially increase the reduced flux of a beam.
-        Real const cs = std::cos(omega * dt), sn = std::sin(omega * dt);
-        long double const cellVolume = static_cast<long double>(dx) * dx * dx;
-        for (integer i = RAD_BW; i < RAD_NX - RAD_BW; ++i) {
-            for (integer j = RAD_BW; j < RAD_NX - RAD_BW; ++j) {
-                // The source budget is a reduction, so this loop cannot assert
-                // independent iterations with ivdep.
-                for (integer k = RAD_BW; k < RAD_NX - RAD_BW; ++k) {
-                    integer const r = rindex(i, j, k);
-                    Real const fx = U[fx_i][r], fy = U[fy_i][r];
-                    U[fx_i][r] = cs * fx + sn * fy;
-                    U[fy_i][r] = cs * fy - sn * fx;
-                    conservationSource[fx_i] += (static_cast<long double>(U[fx_i][r]) - fx) * cellVolume;
-                    conservationSource[fy_i] += (static_cast<long double>(U[fy_i][r]) - fy) * cellVolume;
-                }
-            }
-        }
-    }
-    // Checking inside the field loop would inspect a partially updated state.
-    sanity_check();
 }
 
-void rad_grid::set_physical_boundaries(geo::face face, Real t) {
+void rad_grid::set_physical_boundaries(geo::face face, Real t, bool half) {
     FpeGuard fpeGuard;
+    auto state=[&](int f,integer r)->Real& { return half ? Uhalf[f][r] : U[f][r]; };
+    auto unit=[&](int f) { return half && f!=er_i ? Real(1)/physcon().c : Real(1); };
     for (integer i = 0; i != RAD_NX; ++i) {
         for (integer j = 0; j != RAD_NX; ++j) {
             for (integer k = 0; k != RAD_BW; ++k) {
@@ -638,44 +739,44 @@ void rad_grid::set_physical_boundaries(geo::face face, Real t) {
                 if (opts().problem == RADIATION_EQUILIBRIUM_SPHERE) {
                     // The reference includes incoming radiation at the box faces;
                     // ordinary outflow clipping would change this prescribed test.
-                    auto const state = radiationTests::sphereAverage(
+                    auto const profile = radiationTests::sphereAverage(
                         {X[0][iii1], X[1][iii1], X[2][iii1]}, dx, radiationTestParameters());
                     for (int f = 0; f < NRF; ++f)
-                        U[f][iii1] = state[f];
+                        state(f,iii1) = profile[f]*unit(f);
                     continue;
                 }
                 for (integer f = 0; f != NRF; ++f) {
-                    U[f][iii1] = U[f][iii0];
+                    state(f,iii1) = state(f,iii0);
                 }
                 switch (face) {
                 case 0:
                     if (opts().problem == MARSHAK) {
                         if (t > 0) {
                             auto u = marshak_wave_analytic(-opts().xscale, 0, 0, t);
-                            U[fx_i][iii1] = u[opts().n_fields + fx_i];
-                            U[er_i][iii1] = std::max(u[opts().n_fields + er_i], 1.0e-10);
+                            state(fx_i,iii1) = u[opts().n_fields + fx_i]*unit(fx_i);
+                            state(er_i,iii1) = std::max(u[opts().n_fields + er_i], 1.0e-10);
                         } else {
-                            U[fx_i][iii1] = 0.0;
-                            U[er_i][iii1] = 1.0e-10;
+                            state(fx_i,iii1) = 0.0;
+                            state(er_i,iii1) = 1.0e-10;
                         }
                     } else {
-                        U[fx_i][iii1] = std::min(U[fx_i][iii1], 0.0);
+                        state(fx_i,iii1) = std::min(state(fx_i,iii1), 0.0);
                     }
                     break;
                 case 1:
-                    U[fx_i][iii1] = std::max(U[fx_i][iii1], 0.0);
+                    state(fx_i,iii1) = std::max(state(fx_i,iii1), 0.0);
                     break;
                 case 2:
-                    U[fy_i][iii1] = std::min(U[fy_i][iii1], 0.0);
+                    state(fy_i,iii1) = std::min(state(fy_i,iii1), 0.0);
                     break;
                 case 3:
-                    U[fy_i][iii1] = std::max(U[fy_i][iii1], 0.0);
+                    state(fy_i,iii1) = std::max(state(fy_i,iii1), 0.0);
                     break;
                 case 4:
-                    U[fz_i][iii1] = std::min(U[fz_i][iii1], 0.0);
+                    state(fz_i,iii1) = std::min(state(fz_i,iii1), 0.0);
                     break;
                 case 5:
-                    U[fz_i][iii1] = std::max(U[fz_i][iii1], 0.0);
+                    state(fz_i,iii1) = std::max(state(fz_i,iii1), 0.0);
                     break;
                 }
             }
@@ -700,7 +801,7 @@ hpx::future<void> node_server::exchange_rad_flux_corrections() {
             }
             ub[face_dim] = lb[face_dim] + 1;
             auto data = rad_grid_ptr->get_flux_restrict(lb, ub, face_dim);
-            this_aunt.send_rad_flux_correct(std::move(data), f.flip(), ci);
+            this_aunt.send_rad_flux_correct(std::move(data), f.flip(), ci, rcycle);
         }
     }
 
@@ -713,7 +814,7 @@ hpx::future<void> node_server::exchange_rad_flux_corrections() {
     for (auto const& f : geo::face::full_set()) {
         if (this->nieces[f] == +1) {
             for (auto const& quadrant : geo::quadrant::full_set()) {
-                futs[index++] = niece_rad_channels[f][quadrant].get_future().then(
+                futs[index++] = niece_rad_channels[f][quadrant].get_future(rcycle).then(
                     [this, f, quadrant](hpx::future<std::vector<Real>>&& fdata) -> void {
                         const auto face_dim = f.get_dimension();
                         std::array<integer, NDIM> lb, ub;
@@ -1136,7 +1237,7 @@ void rad_grid::complete_rad_amr_boundary() {
                     for (int d = 0; d < NDIM; ++d) {
                         if (has_coarse[coarse - stride[d]] && has_coarse[coarse + stride[d]]) {
                             slope[d][f] = 0.25 *
-                                M1::minmodTheta(center[f] - Ushad[f][coarse - stride[d]],
+                                M1::plmSlope(center[f] - Ushad[f][coarse - stride[d]],
                                     Ushad[f][coarse + stride[d]] - center[f]);
                         }
                     }
