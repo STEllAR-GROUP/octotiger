@@ -1,46 +1,92 @@
-"""Mechanical adapter for existing Octo-TIGER hydro/gravity scenarios."""
+"""Isolated scenario smoke runs; full legacy CTest equivalence is a separate gate."""
 from __future__ import annotations
-import datetime as dt, hashlib, json, os, re, subprocess
+import argparse
+import datetime as dt
+import hashlib
+import html
+import json
+import os
 from pathlib import Path
+import re
+import subprocess
 
 
 def execute(selected, arguments, plan=False):
     from verification_results import runner
-    output_arg=runner.option_value(arguments,'--output')
-    output=Path(output_arg or runner.default_output('run')).expanduser().resolve()
-    levels, build=runner.positional_settings(arguments,None,'run')
-    exe=runner.option_value(arguments,'--exe')
-    root=Path(runner.option_value(arguments,'--root') or runner.SOURCE_ROOT).resolve()
-    exe_path=Path(exe).expanduser() if exe else root/'build'/'octotiger'/'octotiger'
-    selected=selected
-    manifest={'schema_version':runner.SCHEMA_VERSION,'created_utc':dt.datetime.now(dt.timezone.utc).isoformat(),
-      'source':{'commit':runner.git_value('rev-parse','HEAD'),'dirty':bool(runner.git_value('status','--porcelain'))},
-      'harness':{'name':'verification_results','adapter':'scenario'},'build':runner.compiler_metadata(build,root),
-      'execution':{'mode':'suite','thread_count':int(runner.option_value(arguments,'--threads') or 12),'resolution_levels':levels,'arguments':arguments},
-      'tests':[],'artifacts':{'root':str(output),'plots':'plots','movies':'movies','logs':'logs'}}
-    for path,value in selected:
-        p=value['parameters']; item={'identifier':f"{value['family']}.{value['suite']}.{value['name']}",'family':value['family'],'suite':value['suite'],'name':value['name'],'regime':value['regime'],'descriptor':str(path.relative_to(runner.SOURCE_ROOT)),'parameters':p,'status':'planned'}
-        item['descriptor_sha256']=hashlib.sha256(path.read_bytes()).hexdigest(); manifest['tests'].append(item)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('build_type', nargs='?', default='Release')
+    parser.add_argument('--build', type=Path)
+    parser.add_argument('--root', type=Path, default=runner.SOURCE_ROOT)
+    parser.add_argument('--exe', type=Path)
+    parser.add_argument('--threads', type=int, default=1)
+    parser.add_argument('--output', type=Path)
+    opts = parser.parse_args(arguments)
+    builds = {v.lower(): v for v in ('Debug', 'Release', 'RelWithDebInfo')}
+    if opts.build_type.lower() not in builds or opts.threads < 1:
+        raise ValueError('Use Debug/Release/RelWithDebInfo and positive threads; scenario resolutions are fixed by legacy inputs')
+    build_type = builds[opts.build_type.lower()]
+    output = runner.safe_output(opts.output or runner.default_output('run'))
+    root = opts.root.expanduser().resolve()
+    source = root/'src/octotiger' if (root/'src/octotiger/test_problems').is_dir() else root
+    build = (opts.build or root/'build/octotiger'/build_type.lower()).expanduser().resolve()
+    exe = (opts.exe or build/'octotiger').expanduser().resolve()
+    manifest = {
+        'schema_version': 1, 'created_utc': dt.datetime.now(dt.timezone.utc).isoformat(),
+        'source': {'commit': runner.git_value('rev-parse', 'HEAD'), 'dirty': bool(runner.git_value('status', '--porcelain'))},
+        'harness': {'name': 'verification_results', 'adapter': 'scenario'},
+        'build': runner.compiler_metadata(str(build), root),
+        'execution': {'thread_count': opts.threads, 'arguments': arguments, 'requested_build_type': build_type},
+        'tests': [],
+    }
+    manifest['build']['requested_build_type'] = build_type
+    for path, value in selected:
+        p = value['parameters']; config = source/p['config']
+        config_text = config.read_text() if config.is_file() else None
+        identifier = f"{value['family']}.{value['suite']}.{value['name']}"
+        item = {'identifier': identifier, 'family': value['family'], 'regime': value['regime'],
+                'descriptor': value, 'parameters': p, 'status': 'planned',
+                'descriptor_sha256': hashlib.sha256(path.read_bytes()).hexdigest(),
+                'config_text': config_text,
+                'config_sha256': hashlib.sha256(config_text.encode()).hexdigest() if config_text is not None else None,
+                'command': [str(exe), f'--config_file={config}', f'--hpx:threads={opts.threads}', *p.get('arguments', [])],
+                'working_directory': str(output/identifier),
+                'coverage': 'Scenario smoke run only: incomplete regex subset, no Silo comparison or kernel-variant coverage; cannot establish migration equivalence'}
+        item['input_options'] = dict(line.split('=', 1) for raw in (config_text or '').splitlines()
+                                     if (line := raw.split('#', 1)[0].strip()) and '=' in line)
+        manifest['tests'].append(item)
     if plan:
-        print(json.dumps(manifest,indent=2,sort_keys=True)); return 0
-    output.mkdir(parents=True,exist_ok=True); (output/'logs').mkdir(exist_ok=True)
-    failures=[]
-    for item,(_,value) in zip(manifest['tests'],selected):
-        p=value['parameters']; caseout=output/item['identifier']; caseout.mkdir(parents=True,exist_ok=True)
-        config=(root/p['config']).resolve(); cmd=[str(exe_path),f'--config_file={config}']+p.get('arguments',[])
-        log=caseout/'stdout.log'
-        if not exe_path.is_file():
-            item['status']='conditional'; item['reason']='octotiger executable unavailable'; continue
-        with log.open('w') as stream:
-            rc=subprocess.run(cmd,cwd=root,stdout=stream,stderr=subprocess.STDOUT,check=False).returncode
-        item['command']=cmd; item['status']='passed' if rc==0 else 'failed'; item['returncode']=rc
-        text=log.read_text(errors='replace')
-        checks=[]
-        for pattern in p.get('pass_regular_expressions',[]): checks.append({'pattern':pattern,'passed':bool(re.search(pattern,text))})
-        item['checks']=checks
-        if rc or any(not c['passed'] for c in checks): failures.append(item['identifier'])
-    manifest['status']='failed' if failures else ('conditional' if any(x['status']=='conditional' for x in manifest['tests']) else 'complete')
-    manifest['failures']=failures
-    (output/'verification.json').write_text(json.dumps(manifest,indent=2,sort_keys=True)+'\n')
-    (output/'report.html').write_text('<html><body><h1>Hydro and gravity verification</h1><pre>'+json.dumps(manifest,indent=2)+'</pre></body></html>')
-    return 1 if failures else (3 if manifest['status']=='conditional' else 0)
+        print(json.dumps(manifest, indent=2)); return 0
+    if output.exists() and any(output.iterdir()):
+        raise ValueError('Scenario output must be empty; choose a new directory')
+    output.mkdir(parents=True, exist_ok=True)
+    for item in manifest['tests']:
+        folder = Path(item['working_directory']); folder.mkdir()
+        log = folder/'stdout.log'; item['checks'] = []
+        if not exe.is_file() or not os.access(exe, os.X_OK):
+            item.update(status='conditional', reason='Octo-TIGER executable unavailable')
+        elif item['config_text'] is None:
+            item.update(status='failed', reason='Missing legacy configuration')
+        elif 'input_file' in item['input_options']:
+            item.update(status='conditional', reason='Required generated input must be prepared by legacy CTest fixture; standalone scenario is not equivalent')
+        else:
+            try:
+                item['executable_sha256'] = hashlib.sha256(exe.read_bytes()).hexdigest()
+                with log.open('w') as stream:
+                    item['returncode'] = subprocess.run(item['command'], cwd=folder, stdout=stream,
+                                                       stderr=subprocess.STDOUT, check=False).returncode
+                text = log.read_text(errors='replace')
+                item['checks'] = [{'pattern': p, 'passed': bool(re.search(p, text))}
+                                  for p in item['parameters'].get('pass_regular_expressions', [])]
+                failed = item['returncode'] != 0 or any(not c['passed'] for c in item['checks'])
+                item.update(status='failed' if failed else 'conditional',
+                            reason='Scenario execution/check failed' if failed else item['coverage'])
+            except OSError as error:
+                item.update(status='failed', reason=str(error))
+        if not log.exists(): log.write_text(item['reason']+'\n')
+        (folder/'run.json').write_text(json.dumps(item, indent=2)+'\n')
+    failed = any(x['status'] == 'failed' for x in manifest['tests'])
+    manifest['status'] = 'failed' if failed else 'conditional'
+    (output/'verification.json').write_text(json.dumps(manifest, indent=2)+'\n')
+    document = '<!doctype html><meta charset="utf-8"><h1>Scenario validation</h1><pre>'+html.escape(json.dumps(manifest, indent=2))+'</pre>'
+    for name in ('index.html', 'report.html'): (output/name).write_text(document)
+    return 1 if failed else 3

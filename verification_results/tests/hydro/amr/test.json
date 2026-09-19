@@ -6,13 +6,9 @@
   "regime": "AMR Sod shock tube",
   "dimensionality": 1,
   "resolution_levels": [
-    0
+    3
   ],
-  "build_type": [
-    "Debug",
-    "Release",
-    "RelWithDebInfo"
-  ],
+  "build_type": "Release",
   "required_executable": "octotiger",
   "parameters": {
     "units": "code units as defined by legacy input",
@@ -25,11 +21,14 @@
     "process exit status"
   ],
   "reference_data": {
+    "owner": "legacy test_problems CTest definitions",
+    "description": "Incomplete Step 06 smoke adapter; legacy CTest remains required for full regression equivalence",
     "kind": "regression",
     "source": "test_problems/sod/sod_big.ini",
     "comparison": "preserve existing CTest stdout/Silo reference"
   },
   "tolerance_policy": {
+    "owner": "legacy test_problems CTest definitions",
     "mode": "regression",
     "description": "existing CTest regex/Silo tolerances; no retuning"
   },

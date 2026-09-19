@@ -64,6 +64,11 @@ def validate_descriptor(value: dict[str, Any], path: Path | str = "descriptor") 
         raise HarnessError(f"{path}: unsupported schema_version")
     if value["family"] not in {"hydro", "gravity", "radiation"}:
         raise HarnessError(f"{path}: unknown family")
+    if value["build_type"] not in ("Debug", "Release", "RelWithDebInfo"):
+        raise HarnessError(f"{path}: build_type must be one canonical build mode")
+    for field in ("reference_data", "tolerance_policy"):
+        if not {"owner", "description"} <= value[field].keys():
+            raise HarnessError(f"{path}: {field} requires owner and description")
     if not isinstance(value["dimensionality"], int) or value["dimensionality"] not in {1, 2, 3}:
         raise HarnessError(f"{path}: dimensionality must be 1, 2, or 3")
     levels = value["resolution_levels"]
@@ -215,13 +220,15 @@ def compiler_metadata(build: str, project_root: Path) -> dict[str, str]:
     if not directory.is_absolute():
         directory = project_root / "build" / "octotiger" / build.lower()
     cache = directory / "CMakeCache.txt"
-    result = {"build_type": build, "build_directory": str(directory), "compiler": "unknown"}
+    result = {"build_type": build if build.lower() in {"debug", "release", "relwithdebinfo"} else "unknown", "build_directory": str(directory), "compiler": "unknown"}
     if cache.is_file():
         for line in cache.read_text(encoding="utf-8", errors="replace").splitlines():
             if line.startswith("CMAKE_CXX_COMPILER:FILEPATH="):
                 result["compiler"] = line.split("=", 1)[1]
             elif line.startswith("CMAKE_CXX_COMPILER_VERSION:STRING="):
                 result["compiler_version"] = line.split("=", 1)[1]
+            elif line.startswith("CMAKE_BUILD_TYPE:STRING="):
+                result["build_type"] = line.split("=", 1)[1] or "unknown"
     return result
 
 
@@ -302,13 +309,16 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     # Suite is additive: historical all/radiation run commands retain their behavior.
     exact = available.get(options.selector)
-    if options.command == "suite" or options.selector in {"radiation.diagnostics", "radiation.ensman"} or (exact and exact[1]["adapter"]["name"] in {"native_suite", "conditional", "octotiger_scenario"}):
+    if options.command == "suite" or (options.command == "plan" and options.selector == "all") or options.selector in {"hydro", "gravity", "radiation.diagnostics", "radiation.ensman"} or (exact and exact[1]["adapter"]["name"] in {"native_suite", "conditional", "octotiger_scenario"}):
         selected = [(key, value) for key, (_, value) in available.items()
                     if options.selector in {"all", value["family"], value["family"]+"."+value["suite"], key}]
         if not selected:
             raise HarnessError("No suite descriptors match " + options.selector)
         scenario_selected = [(available[key][0], value) for key, value in selected if value["adapter"]["name"] == "octotiger_scenario"]
         native_selected = [(key, value) for key, value in selected if value["adapter"]["name"] != "octotiger_scenario"]
+        if scenario_selected and native_selected:
+            from verification_results.adapters import unified
+            return unified.execute({key: available[key] for key, _ in selected}, options.arguments, plan=options.command == "plan")
         if scenario_selected:
             rc = scenario.execute(scenario_selected, options.arguments, plan=options.command == "plan")
             if options.selector != "all" or not native_selected or options.command == "plan":

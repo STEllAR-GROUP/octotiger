@@ -6,13 +6,9 @@
   "regime": "Self-gravitating sphere",
   "dimensionality": 3,
   "resolution_levels": [
-    0
+    3
   ],
-  "build_type": [
-    "Debug",
-    "Release",
-    "RelWithDebInfo"
-  ],
+  "build_type": "Release",
   "required_executable": "octotiger",
   "parameters": {
     "units": "code units as defined by legacy input",
@@ -20,7 +16,7 @@
     "arguments": [],
     "pass_regular_expressions": [
       "rho 1.048130e-03 1.989298e-02",
-      "pot 4.470774e-01 3.176879e+00"
+      "pot 4.470774e-01 3.176879e.00"
     ]
   },
   "expected_diagnostics": [
@@ -28,11 +24,14 @@
     "process exit status"
   ],
   "reference_data": {
+    "owner": "legacy test_problems CTest definitions",
+    "description": "Incomplete Step 06 smoke adapter; legacy CTest remains required for full regression equivalence",
     "kind": "regression",
     "source": "test_problems/sphere/sphere.ini",
     "comparison": "preserve existing CTest stdout/Silo reference"
   },
   "tolerance_policy": {
+    "owner": "legacy test_problems CTest definitions",
     "mode": "regression",
     "description": "existing CTest regex/Silo tolerances; no retuning"
   },

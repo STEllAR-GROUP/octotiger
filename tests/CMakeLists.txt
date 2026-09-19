@@ -45,6 +45,8 @@ if(Python3_Interpreter_FOUND)
 endif()
 
 if(Python3_Interpreter_FOUND)
+  add_test(NAME radiationSubcycleReference COMMAND "${Python3_EXECUTABLE}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/validateFinalRadiation.py" --cxx "${CMAKE_CXX_COMPILER}")
   add_test(NAME verificationHarness COMMAND "${Python3_EXECUTABLE}" -m unittest discover
     -s "${CMAKE_CURRENT_SOURCE_DIR}/../verification_results/tests")
   set_tests_properties(verificationHarness PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/..")

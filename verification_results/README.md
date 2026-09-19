@@ -183,6 +183,14 @@ See [Step 05 findings and coverage](../doc/radiation-suite-step-05.md).
 
 ## Step 06 hydro and gravity migration
 
+Step 07 audit correction: Step 06 did **not** establish migration equivalence.
+See `../doc/validation-step-07.md`. Hydro/gravity adapters are smoke runs with
+partial checks, not replacements for the full legacy CTest/Silo fixtures. They
+remain conditional even when their subset succeeds. `suite all` now dispatches
+all three families into separate subdirectories and aggregates every failure.
+Its radiation levels apply only to native radiation fixtures; scenario inputs
+retain their fixed levels. `plan all` shows all families without executing them.
+
 Hydro and gravity descriptors are under `tests/hydro/` and `tests/gravity/`.
 They invoke the existing `octotiger --config_file=...` scenarios mechanically.
 The authoritative inputs and expected diagnostics remain in `test_problems/` and
