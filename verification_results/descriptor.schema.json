@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://octotiger.org/verification/test-descriptor-v1.schema.json",
+  "title": "Octo-TIGER verification test descriptor",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "family", "suite", "name", "regime", "dimensionality",
+    "resolution_levels", "build_type", "required_executable", "parameters",
+    "expected_diagnostics", "reference_data", "tolerance_policy",
+    "visualization_products", "adapter"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "family": {"enum": ["hydro", "gravity", "radiation"]},
+    "suite": {"type": "string", "minLength": 1},
+    "name": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+    "regime": {"type": "string", "minLength": 1},
+    "dimensionality": {"enum": [1, 2, 3]},
+    "resolution_levels": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "integer", "minimum": 0}},
+    "build_type": {"enum": ["Debug", "Release", "RelWithDebInfo"]},
+    "required_executable": {"type": "string", "minLength": 1},
+    "parameters": {"type": "object"},
+    "expected_diagnostics": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "reference_data": {
+      "type": "object",
+      "required": ["kind", "owner", "description"],
+      "properties": {"kind": {"enum": ["analytic", "published", "regression", "qualitative"]}, "owner": {"type": "string"}, "description": {"type": "string"}}
+    },
+    "tolerance_policy": {
+      "type": "object",
+      "required": ["mode", "owner", "description"],
+      "properties": {"mode": {"enum": ["absolute_relative", "convergence", "regression", "qualitative"]}, "owner": {"type": "string"}, "description": {"type": "string"}}
+    },
+    "visualization_products": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "adapter": {
+      "type": "object",
+      "required": ["name", "case"],
+      "properties": {"name": {"type": "string"}, "case": {"type": "string"}}
+    }
+  }
+}

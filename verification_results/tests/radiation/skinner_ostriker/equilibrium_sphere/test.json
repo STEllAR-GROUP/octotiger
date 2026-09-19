@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "family": "radiation",
+  "suite": "skinner_ostriker",
+  "name": "equilibrium_sphere",
+  "regime": "steady diffusion-limit emitting sphere",
+  "dimensionality": 3,
+  "resolution_levels": [2, 3, 4],
+  "build_type": "Release",
+  "required_executable": "octotiger",
+  "parameters": {"config": "radiation_results/configs/equilibrium_sphere.ini"},
+  "expected_diagnostics": ["L1", "L2", "Linf", "radiation_conservation", "final_slice"],
+  "reference_data": {
+    "kind": "analytic",
+    "owner": "octotiger/test_problems/radiation/profiles.hpp",
+    "description": "Steady diffusion solution with matching Gaussian bulb and analytic boundaries"
+  },
+  "tolerance_policy": {
+    "mode": "convergence",
+    "owner": "Octo-TIGER radiation CTest definitions",
+    "description": "The harness exposes errors and orders without replacing solver-owned acceptance limits."
+  },
+  "visualization_products": ["field_maps", "line_profiles", "convergence", "conservation", "movie"],
+  "adapter": {"name": "radiation_results", "case": "equilibrium_sphere"}
+}

@@ -8,3 +8,13 @@ spack-build*
 .clangd/*
 .cache
 compile_commands.json
+
+# Unified verification harness: generated artifacts never become source inputs.
+/verification_results/results/
+/verification_results/logs/
+/verification_results/tmp/
+/verification_results/build/
+**/__pycache__/
+/radiation_results/.build/
+/radiation_results/results/
+/radiation_results/visit_sessions/

@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "family": "radiation",
+  "suite": "skinner_ostriker",
+  "name": "streaming_wave",
+  "regime": "free-streaming periodic nonlinear M1 wave",
+  "dimensionality": 3,
+  "resolution_levels": [2, 3, 4],
+  "build_type": "Release",
+  "required_executable": "octotiger",
+  "parameters": {"config": "radiation_results/configs/streaming_wave.ini"},
+  "expected_diagnostics": ["L1", "L2", "Linf", "radiation_conservation", "final_slice"],
+  "reference_data": {
+    "kind": "analytic",
+    "owner": "octotiger/test_problems/radiation/profiles.hpp",
+    "description": "Exact periodic nonlinear M1 wave with matched cell averages"
+  },
+  "tolerance_policy": {
+    "mode": "convergence",
+    "owner": "Octo-TIGER radiation CTest definitions",
+    "description": "The harness reports all norms and orders; pass/fail tolerances remain with the solver test."
+  },
+  "visualization_products": ["field_maps", "line_profiles", "convergence", "conservation", "movie"],
+  "adapter": {"name": "radiation_results", "case": "streaming_wave"}
+}

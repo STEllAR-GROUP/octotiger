@@ -1,5 +1,0 @@
-/home/dmarce1/octotiger/src/octotiger/radiation_results/.build/CMakeFiles/rr_core.dir
-/home/dmarce1/octotiger/src/octotiger/radiation_results/.build/CMakeFiles/radiation-results.dir
-/home/dmarce1/octotiger/src/octotiger/radiation_results/.build/CMakeFiles/gen_radiation_reference.dir
-/home/dmarce1/octotiger/src/octotiger/radiation_results/.build/CMakeFiles/edit_cache.dir
-/home/dmarce1/octotiger/src/octotiger/radiation_results/.build/CMakeFiles/rebuild_cache.dir
