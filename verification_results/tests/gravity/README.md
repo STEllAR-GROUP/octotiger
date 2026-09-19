@@ -1,6 +1,3 @@
-# Gravity adapters
+# Gravity scenarios
 
-Step 03 and later may add descriptors and adapters here.  An adapter owns only
-test selection, metadata, diagnostics, and presentation.  Gravity solver code
-and numerical choices remain outside the harness.
-
+Descriptors invoke the existing self-gravity sphere and rotating-star scenarios. Their input files, AMR settings, and legacy diagnostics remain authoritative. Silo comparisons remain owned by the original CTest definitions; the unified adapter records the command and stdout for side-by-side migration reporting.

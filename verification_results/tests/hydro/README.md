@@ -1,6 +1,3 @@
-# Hydro adapters
+# Hydro scenarios
 
-Step 03 and later may add descriptors and adapters here.  An adapter must invoke
-the existing hydro test executable or configuration and translate its outputs;
-it must not duplicate or modify the hydro numerical algorithm.
-
+Descriptors here invoke the existing `octotiger --config_file=...` scenarios from `test_problems`. Sod, Sedov blast, IPR star, and AMR Sod retain their input files and CTest stdout reference checks. The adapter records the executable, commit, build, threads, configuration, stdout, and check results; it does not contain hydro numerics.

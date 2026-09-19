@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "family": "hydro",
+  "suite": "star",
+  "name": "eos_ipr_star",
+  "regime": "Hydrostatic EOS/IPR star",
+  "dimensionality": 3,
+  "resolution_levels": [
+    0
+  ],
+  "build_type": [
+    "Debug",
+    "Release",
+    "RelWithDebInfo"
+  ],
+  "required_executable": "octotiger",
+  "parameters": {
+    "units": "code units as defined by legacy input",
+    "config": "test_problems/star/star.ini",
+    "arguments": [],
+    "pass_regular_expressions": [
+      "TS 1.:: t: 7.352407e.00, dt: 6.715325e-01",
+      "a: 9.307070e-01",
+      "amr_boundaries: 312"
+    ]
+  },
+  "expected_diagnostics": [
+    "legacy stdout regex checks",
+    "process exit status"
+  ],
+  "reference_data": {
+    "kind": "regression",
+    "source": "test_problems/star/star.ini",
+    "comparison": "preserve existing CTest stdout/Silo reference"
+  },
+  "tolerance_policy": {
+    "mode": "regression",
+    "description": "existing CTest regex/Silo tolerances; no retuning"
+  },
+  "visualization_products": [
+    "stdout.log",
+    "verification.json",
+    "report.html"
+  ],
+  "adapter": {
+    "name": "octotiger_scenario",
+    "case": "eos_ipr_star"
+  }
+}

@@ -180,3 +180,21 @@ A failed movie encoder or plot generator fails its test. Published Ensman
 benchmarks with unverified definitions cannot be reported as passed.
 
 See [Step 05 findings and coverage](../doc/radiation-suite-step-05.md).
+
+## Step 06 hydro and gravity migration
+
+Hydro and gravity descriptors are under `tests/hydro/` and `tests/gravity/`.
+They invoke the existing `octotiger --config_file=...` scenarios mechanically.
+The authoritative inputs and expected diagnostics remain in `test_problems/` and
+its CTest registrations: Sod, Sedov blast, IPR star, AMR Sod, self-gravitating
+sphere, and rotating star. The scenario adapter records commit, build type,
+compiler, thread count, exact command, input path, stdout, and each legacy regex
+check in `verification.json`. It does not duplicate solver logic or silently
+change tolerances. Existing `test_problems/test_sod.sh` and CTest names remain
+unchanged. Silo reference comparisons continue to run in the original CTest
+fixture because they require the project executable and Silo browser.
+
+Use `python3 verification_results/runner.py suite hydro ...`,
+`... suite gravity ...`, or `... suite all ...`; use `plan` to inspect commands
+without running. If the executable or Silo toolchain is absent, results are
+reported conditional rather than fabricated as passes.

@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "family": "hydro",
+  "suite": "amr",
+  "name": "sod_big_amr",
+  "regime": "AMR Sod shock tube",
+  "dimensionality": 1,
+  "resolution_levels": [
+    0
+  ],
+  "build_type": [
+    "Debug",
+    "Release",
+    "RelWithDebInfo"
+  ],
+  "required_executable": "octotiger",
+  "parameters": {
+    "units": "code units as defined by legacy input",
+    "config": "test_problems/sod/sod_big.ini",
+    "arguments": [],
+    "pass_regular_expressions": []
+  },
+  "expected_diagnostics": [
+    "legacy stdout regex checks",
+    "process exit status"
+  ],
+  "reference_data": {
+    "kind": "regression",
+    "source": "test_problems/sod/sod_big.ini",
+    "comparison": "preserve existing CTest stdout/Silo reference"
+  },
+  "tolerance_policy": {
+    "mode": "regression",
+    "description": "existing CTest regex/Silo tolerances; no retuning"
+  },
+  "visualization_products": [
+    "stdout.log",
+    "verification.json",
+    "report.html"
+  ],
+  "adapter": {
+    "name": "octotiger_scenario",
+    "case": "sod_big_amr"
+  }
+}

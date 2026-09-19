@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "family": "gravity",
+  "suite": "rotating_star",
+  "name": "rotating_star",
+  "regime": "Rotating star gravity/AMR",
+  "dimensionality": 3,
+  "resolution_levels": [
+    0
+  ],
+  "build_type": [
+    "Debug",
+    "Release",
+    "RelWithDebInfo"
+  ],
+  "required_executable": "octotiger",
+  "parameters": {
+    "units": "code units as defined by legacy input",
+    "config": "test_problems/rotating_star/rotating_star.ini",
+    "arguments": [
+      "--stop_step=10"
+    ],
+    "pass_regular_expressions": []
+  },
+  "expected_diagnostics": [
+    "legacy stdout regex checks",
+    "process exit status"
+  ],
+  "reference_data": {
+    "kind": "regression",
+    "source": "test_problems/rotating_star/rotating_star.ini",
+    "comparison": "preserve existing CTest stdout/Silo reference"
+  },
+  "tolerance_policy": {
+    "mode": "regression",
+    "description": "existing CTest regex/Silo tolerances; no retuning"
+  },
+  "visualization_products": [
+    "stdout.log",
+    "verification.json",
+    "report.html"
+  ],
+  "adapter": {
+    "name": "octotiger_scenario",
+    "case": "rotating_star"
+  }
+}

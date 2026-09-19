@@ -45,3 +45,25 @@ meta = {'diagnostics': {'L1': 0.0, 'L2': 0.0}, 'parameters': {'levels': [2, 3], 
 
 if __name__ == "__main__":
     unittest.main()
+
+class ScenarioMigrationTests(unittest.TestCase):
+    def test_hydro_gravity_descriptors_preserve_legacy_inputs(self):
+        from verification_results import runner
+        found = runner.descriptors()
+        expected = {
+            'hydro.sod.sod': 'test_problems/sod/sod.ini',
+            'hydro.blast.sedov_blast': 'test_problems/blast/blast.ini',
+            'hydro.star.eos_ipr_star': 'test_problems/star/star.ini',
+            'hydro.amr.sod_big_amr': 'test_problems/sod/sod_big.ini',
+            'gravity.sphere.self_gravitating_sphere': 'test_problems/sphere/sphere.ini',
+            'gravity.rotating_star.rotating_star': 'test_problems/rotating_star/rotating_star.ini',
+        }
+        for key, config in expected.items():
+            self.assertEqual(found[key][1]['parameters']['config'], config)
+            self.assertEqual(found[key][1]['adapter']['name'], 'octotiger_scenario')
+
+    def test_old_sod_launcher_remains_present(self):
+        script = ROOT / 'test_problems' / 'test_sod.sh'
+        text = script.read_text()
+        self.assertIn('--config_file=sod.ini', text)
+        self.assertIn('SILODIFF', text)

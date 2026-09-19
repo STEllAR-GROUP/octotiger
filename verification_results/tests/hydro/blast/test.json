@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "family": "hydro",
+  "suite": "blast",
+  "name": "sedov_blast",
+  "regime": "Sedov blast wave",
+  "dimensionality": 3,
+  "resolution_levels": [
+    0
+  ],
+  "build_type": [
+    "Debug",
+    "Release",
+    "RelWithDebInfo"
+  ],
+  "required_executable": "octotiger",
+  "parameters": {
+    "units": "code units as defined by legacy input",
+    "config": "test_problems/blast/blast.ini",
+    "arguments": [],
+    "pass_regular_expressions": [
+      "rho 1.015611e-03 1.918630e-02",
+      "egas 3.813222e-02 7.135766e-01",
+      "tau 5.179120e-03 1.096847e-01"
+    ]
+  },
+  "expected_diagnostics": [
+    "legacy stdout regex checks",
+    "process exit status"
+  ],
+  "reference_data": {
+    "kind": "regression",
+    "source": "test_problems/blast/blast.ini",
+    "comparison": "preserve existing CTest stdout/Silo reference"
+  },
+  "tolerance_policy": {
+    "mode": "regression",
+    "description": "existing CTest regex/Silo tolerances; no retuning"
+  },
+  "visualization_products": [
+    "stdout.log",
+    "verification.json",
+    "report.html"
+  ],
+  "adapter": {
+    "name": "octotiger_scenario",
+    "case": "sedov_blast"
+  }
+}

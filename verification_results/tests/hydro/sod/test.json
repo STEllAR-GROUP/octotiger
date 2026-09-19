@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "family": "hydro",
+  "suite": "sod",
+  "name": "sod",
+  "regime": "Sod shock tube",
+  "dimensionality": 3,
+  "resolution_levels": [
+    0
+  ],
+  "build_type": [
+    "Debug",
+    "Release",
+    "RelWithDebInfo"
+  ],
+  "required_executable": "octotiger",
+  "parameters": {
+    "units": "code units as defined by legacy input",
+    "config": "test_problems/sod/sod.ini",
+    "arguments": [],
+    "pass_regular_expressions": [
+      "rho 8.616107e-03 1.774427e-02",
+      "egas 2.234463e-02 4.586487e-02",
+      "tau 1.460285e-02 3.493483e-02"
+    ]
+  },
+  "expected_diagnostics": [
+    "legacy stdout regex checks",
+    "process exit status"
+  ],
+  "reference_data": {
+    "kind": "regression",
+    "source": "test_problems/sod/sod.ini",
+    "comparison": "preserve existing CTest stdout/Silo reference"
+  },
+  "tolerance_policy": {
+    "mode": "regression",
+    "description": "existing CTest regex/Silo tolerances; no retuning"
+  },
+  "visualization_products": [
+    "stdout.log",
+    "verification.json",
+    "report.html"
+  ],
+  "adapter": {
+    "name": "octotiger_scenario",
+    "case": "sod"
+  }
+}

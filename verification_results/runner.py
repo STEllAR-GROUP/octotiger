@@ -23,6 +23,7 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from verification_results.adapters import radiation_results
+from verification_results.adapters import scenario
 
 
 SCHEMA_VERSION = 1
@@ -301,13 +302,21 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     # Suite is additive: historical all/radiation run commands retain their behavior.
     exact = available.get(options.selector)
-    if options.command == "suite" or options.selector in {"radiation.diagnostics", "radiation.ensman"} or (exact and exact[1]["adapter"]["name"] in {"native_suite", "conditional"}):
-        from verification_results.adapters import native_suite
+    if options.command == "suite" or options.selector in {"radiation.diagnostics", "radiation.ensman"} or (exact and exact[1]["adapter"]["name"] in {"native_suite", "conditional", "octotiger_scenario"}):
         selected = [(key, value) for key, (_, value) in available.items()
                     if options.selector in {"all", value["family"], value["family"]+"."+value["suite"], key}]
         if not selected:
             raise HarnessError("No suite descriptors match " + options.selector)
-        return native_suite.execute(selected, options.arguments, plan=options.command == "plan")
+        scenario_selected = [(available[key][0], value) for key, value in selected if value["adapter"]["name"] == "octotiger_scenario"]
+        native_selected = [(key, value) for key, value in selected if value["adapter"]["name"] != "octotiger_scenario"]
+        if scenario_selected:
+            rc = scenario.execute(scenario_selected, options.arguments, plan=options.command == "plan")
+            if options.selector != "all" or not native_selected or options.command == "plan":
+                return rc
+        if native_selected:
+            from verification_results.adapters import native_suite
+            return native_suite.execute(native_selected, options.arguments, plan=options.command == "plan")
+        return 0
     legacy_case, path, descriptor = resolve(options.selector)
     mode = "live" if options.command == "live" else "run"
     adapter_arguments = list(options.arguments)

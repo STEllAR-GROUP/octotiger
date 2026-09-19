@@ -23,9 +23,10 @@ class DescriptorTests(unittest.TestCase):
                 "radiation.skinner_ostriker.equilibrium_sphere",
             }
         )
-        self.assertEqual(len(found), 16)
-        for _, descriptor in found.values():
-            self.assertEqual(descriptor["family"], "radiation")
+        self.assertEqual(len(found), 22)
+        self.assertEqual(sum(v[1]["family"] == "hydro" for v in found.values()), 4)
+        self.assertEqual(sum(v[1]["family"] == "gravity" for v in found.values()), 2)
+        self.assertEqual(sum(v[1]["family"] == "radiation" for v in found.values()), 16)
 
     def test_adapter_preserves_legacy_case_and_arguments(self):
         command = radiation_results.command(

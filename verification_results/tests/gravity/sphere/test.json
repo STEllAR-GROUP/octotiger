@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "family": "gravity",
+  "suite": "sphere",
+  "name": "self_gravitating_sphere",
+  "regime": "Self-gravitating sphere",
+  "dimensionality": 3,
+  "resolution_levels": [
+    0
+  ],
+  "build_type": [
+    "Debug",
+    "Release",
+    "RelWithDebInfo"
+  ],
+  "required_executable": "octotiger",
+  "parameters": {
+    "units": "code units as defined by legacy input",
+    "config": "test_problems/sphere/sphere.ini",
+    "arguments": [],
+    "pass_regular_expressions": [
+      "rho 1.048130e-03 1.989298e-02",
+      "pot 4.470774e-01 3.176879e+00"
+    ]
+  },
+  "expected_diagnostics": [
+    "legacy stdout regex checks",
+    "process exit status"
+  ],
+  "reference_data": {
+    "kind": "regression",
+    "source": "test_problems/sphere/sphere.ini",
+    "comparison": "preserve existing CTest stdout/Silo reference"
+  },
+  "tolerance_policy": {
+    "mode": "regression",
+    "description": "existing CTest regex/Silo tolerances; no retuning"
+  },
+  "visualization_products": [
+    "stdout.log",
+    "verification.json",
+    "report.html"
+  ],
+  "adapter": {
+    "name": "octotiger_scenario",
+    "case": "self_gravitating_sphere"
+  }
+}
