@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "family": "radiation",
+  "suite": "ensman",
+  "name": "equilibrium_sphere",
+  "regime": "reference-dependent grey benchmark; conditional",
+  "dimensionality": 3,
+  "resolution_levels": [
+    0,
+    1,
+    2
+  ],
+  "build_type": "Release",
+  "required_executable": "octotiger",
+  "parameters": {
+    "units": "CGS",
+    "availability": "conditional",
+    "reason": "Published Ensman sphere definition and reference were unavailable. Existing Gaussian bulb is a different problem; no substitution is made.",
+    "domain_cm": null,
+    "final_time_s": null,
+    "initial_condition": null,
+    "opacity": null,
+    "boundary": null
+  },
+  "expected_diagnostics": [
+    "reference_agreement",
+    "convergence",
+    "conservation",
+    "positivity"
+  ],
+  "reference_data": {
+    "kind": "published",
+    "owner": "Ensman reference definition requires verification",
+    "description": "Published Ensman sphere definition and reference were unavailable. Existing Gaussian bulb is a different problem; no substitution is made."
+  },
+  "tolerance_policy": {
+    "mode": "qualitative",
+    "owner": "unassigned pending verified reference",
+    "description": "Cannot pass without verified definition/reference; no invented tolerance"
+  },
+  "visualization_products": [
+    "profiles",
+    "movie"
+  ],
+  "adapter": {
+    "name": "conditional",
+    "case": "equilibrium_sphere"
+  }
+}

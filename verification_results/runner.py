@@ -11,6 +11,7 @@ import argparse
 import datetime as dt
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -67,6 +68,36 @@ def validate_descriptor(value: dict[str, Any], path: Path | str = "descriptor") 
     levels = value["resolution_levels"]
     if not isinstance(levels, list) or not levels or any(not isinstance(v, int) or v < 0 for v in levels):
         raise HarnessError(f"{path}: resolution_levels must be nonnegative integers")
+    if value["adapter"].get("name") == "native_suite":
+        p = value["parameters"]
+        supported={"streaming_wave_1d", "streaming_wave_pc", "streaming_front_1d", "thin_gaussian", "damped_wave",
+                   "static_diffusion", "diffusion_thicker", "thermal_relaxation", "moving_scattering", "boundary_subcycles"}
+        if value["name"] not in supported or value["adapter"].get("case") != value["name"]:
+            raise HarnessError(f"{path}: unsupported native test case")
+        fields = {"units", "length_cm", "domain_cm", "final_time_s", "c_cm_s", "chi_cm_inverse", "amplitude",
+                  "width_cm", "velocity_cm_s", "reduced_light_speed_ratio", "rho_g_cm3", "gas_internal_erg_cm3",
+                  "radiation_energy_erg_cm3", "frames", "boundary", "reconstruction", "opacity", "output_cadence_s", "hard_dt"}
+        if fields - p.keys():
+            raise HarnessError(f"{path}: missing physical descriptor fields {sorted(fields-p.keys())}")
+        if p["units"] != "CGS" or p["c_cm_s"] != 2.99792458e10 or p["boundary"] != "periodic":
+            raise HarnessError(f"{path}: native suite requires physical c in CGS and periodic boundaries")
+        length = p["length_cm"]
+        if p["domain_cm"] != [[-length/2, length/2]]*3 or length <= 0 or p["final_time_s"] <= 0:
+            raise HarnessError(f"{path}: unsupported domain or final time")
+        if p["frames"] < 2 or abs(p["output_cadence_s"]*(p["frames"]-1)-p["final_time_s"]) > 1e-12*p["final_time_s"]:
+            raise HarnessError(f"{path}: inconsistent output cadence")
+        for key in ("length_cm", "final_time_s", "chi_cm_inverse", "amplitude", "width_cm", "velocity_cm_s", "rho_g_cm3", "gas_internal_erg_cm3", "radiation_energy_erg_cm3"):
+            if not isinstance(p[key], (int,float)) or not math.isfinite(p[key]):
+                raise HarnessError(f"{path}: nonfinite physical parameter {key}")
+        if p["chi_cm_inverse"] < 0 or p["rho_g_cm3"] <= 0 or not 0 < p["reduced_light_speed_ratio"] <= 1:
+            raise HarnessError(f"{path}: invalid opacity, density, or reduced light speed")
+        chi=p["chi_cm_inverse"];name=value["name"]
+        absorption=chi if name in {"thermal_relaxation", "damped_wave"} else 0
+        scattering=chi if name in {"static_diffusion", "diffusion_thicker", "moving_scattering", "boundary_subcycles"} else 0
+        if p["opacity"] != {"model":"grey", "units":"1/cm", "absorption":absorption, "scattering":scattering, "transport_absorption":-1}:
+            raise HarnessError(f"{path}: opacity declaration differs from implemented source roles")
+        if p["reconstruction"] not in {"production_PLM", "piecewise_constant"}:
+            raise HarnessError(f"{path}: unknown reconstruction diagnostic")
     if value["reference_data"].get("kind") not in {
         "analytic", "published", "regression", "qualitative"
     }:
@@ -136,7 +167,14 @@ def git_value(*arguments: str) -> str:
         ["git", *arguments], cwd=SOURCE_ROOT, text=True, stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL, check=False,
     )
-    return result.stdout.strip() if result.returncode == 0 else "unknown"
+    if result.returncode == 0:
+        return result.stdout.strip()
+    version = HARNESS_ROOT / "SOURCE_VERSION"
+    if arguments == ("rev-parse", "HEAD") and version.exists():
+        exported = version.read_text().strip()
+        if re.fullmatch(r"[0-9a-f]{40}", exported):
+            return exported
+    return "unknown"
 
 
 def positional_settings(
@@ -247,7 +285,7 @@ def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description="Unified Octo-TIGER verification harness")
     commands = result.add_subparsers(dest="command", required=True)
     commands.add_parser("list", help="list available test descriptors")
-    for name in ("plan", "run", "live"):
+    for name in ("plan", "run", "live", "suite"):
         item = commands.add_parser(name, help=f"{name} a test or family through its adapter")
         item.add_argument("selector")
         item.add_argument("arguments", nargs=argparse.REMAINDER, help="adapter options and resolution levels")
@@ -261,6 +299,15 @@ def main(argv: list[str] | None = None) -> int:
         for identifier, (_, descriptor) in available.items():
             print(f"{identifier}\t{descriptor['regime']}")
         return 0
+    # Suite is additive: historical all/radiation run commands retain their behavior.
+    exact = available.get(options.selector)
+    if options.command == "suite" or options.selector in {"radiation.diagnostics", "radiation.ensman"} or (exact and exact[1]["adapter"]["name"] in {"native_suite", "conditional"}):
+        from verification_results.adapters import native_suite
+        selected = [(key, value) for key, (_, value) in available.items()
+                    if options.selector in {"all", value["family"], value["family"]+"."+value["suite"], key}]
+        if not selected:
+            raise HarnessError("No suite descriptors match " + options.selector)
+        return native_suite.execute(selected, options.arguments, plan=options.command == "plan")
     legacy_case, path, descriptor = resolve(options.selector)
     mode = "live" if options.command == "live" else "run"
     adapter_arguments = list(options.arguments)

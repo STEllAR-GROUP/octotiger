@@ -16,7 +16,10 @@
 #define PROFILE()
 #define OCTOTIGER_EXPORT
 using integer=long long;
-constexpr int INX=8, NRF=4, NDIM=3, NCHILD=8, H_BW=3, RAD_BW=3;
+#ifndef TEST_CELLS
+#define TEST_CELLS 8
+#endif
+constexpr int INX=TEST_CELLS, NRF=4, NDIM=3, NCHILD=8, H_BW=3, RAD_BW=3;
 constexpr int RAD_NX=INX+2*RAD_BW, RAD_N3=RAD_NX*RAD_NX*RAD_NX;
 constexpr int H_NX=RAD_NX, H_N3=RAD_N3, HS_NX=INX/2+2*H_BW, HS_N3=HS_NX*HS_NX*HS_NX;
 constexpr int XDIM=0,YDIM=1,ZDIM=2,er_i=0,fx_i=1,fy_i=2,fz_i=3;

@@ -148,3 +148,35 @@ Hydro and gravity adapters follow the same seam: describe an existing test,
 invoke its existing executable/configuration, normalize diagnostic metadata,
 and leave numerical source untouched.  Algorithm changes, new opacity,
 reconstruction, coupling, or subcycling are outside the harness migration.
+
+## Step 05 radiation suite
+
+The existing `run`/`live` application adapters remain unchanged. `suite` adds
+serial production-method sweeps and an explicit inventory of conditional cases:
+
+```bash
+cd ~
+repo="$HOME/octotiger/src/octotiger"
+"$repo/verification_results/run.sh" suite radiation 0 1 2 Release --threads 1
+"$repo/verification_results/run.sh" run radiation.diagnostics.streaming_wave_1d 0 1 2 Release
+"$repo/verification_results/run.sh" plan radiation.diagnostics
+```
+
+For the serial adapter, levels 0/1/2 mean 8/16/32 cells per Cartesian direction;
+these are fixture resolutions, not application AMR levels. Only one CPU thread
+is supported. Requires a C++23 compiler, ffmpeg, and `requirements.txt`.
+`Debug`, `Release`, and `RelWithDebInfo` are case-insensitive. Parameters come
+from descriptors; arbitrary domain/time overrides are deliberately rejected.
+
+Each completed level updates `index.html` automatically. `report.html` is a
+portable report with embedded previews and downloadable raw logs, CSV data,
+metadata and movies. No server or manual copying is needed for local viewing;
+this does not deploy a public website. Results default to ignored `results/`.
+A nonempty output directory is rejected to preserve earlier evidence.
+
+Exit codes: **0** all selected checks passed, **1** numerical/build/visualization
+failure, **3** conditional coverage without failures, **2** invalid invocation.
+A failed movie encoder or plot generator fails its test. Published Ensman
+benchmarks with unverified definitions cannot be reported as passed.
+
+See [Step 05 findings and coverage](../doc/radiation-suite-step-05.md).

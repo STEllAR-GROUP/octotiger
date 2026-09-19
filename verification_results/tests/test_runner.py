@@ -14,15 +14,16 @@ from verification_results.adapters import radiation_results
 class DescriptorTests(unittest.TestCase):
     def test_all_radiation_descriptors_validate(self):
         found = runner.descriptors()
-        self.assertEqual(
-            set(found),
+        self.assertTrue(
+            set(found) >=
             {
                 "radiation.skinner_ostriker.streaming_wave",
                 "radiation.skinner_ostriker.streaming_front",
                 "radiation.skinner_ostriker.gaussian_pulse",
                 "radiation.skinner_ostriker.equilibrium_sphere",
-            },
+            }
         )
+        self.assertEqual(len(found), 16)
         for _, descriptor in found.values():
             self.assertEqual(descriptor["family"], "radiation")
 

@@ -1,0 +1,4 @@
+# Serial suite reference/visualization dependencies; C++23 compiler and ffmpeg also required.
+numpy>=1.26
+scipy>=1.11
+matplotlib>=3.8

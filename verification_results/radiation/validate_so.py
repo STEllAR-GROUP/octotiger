@@ -18,14 +18,7 @@ def method(text, signature):
     return text[start:end]
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--cxx', default='g++')
-    parser.add_argument('--sanitize', action='store_true')
-    parser.add_argument('--release', action='store_true')
-    parser.add_argument('--opacity-checks', action='store_true', help='Also run grey opacity production-source tests')
-    args = parser.parse_args()
-    root = Path(__file__).resolve().parents[2]
+def production_source(root):
     support = root/'verification_results/radiation/tests_so'
     source = (root/'src/radiation/rad_grid.cpp').read_text()
     header = '\n'.join(line for line in (root/'octotiger/radiation/rad_grid.hpp').read_text().splitlines()
@@ -42,15 +35,29 @@ def main():
                   'void rad_grid::prepareSources(', 'void rad_grid::finishSources(',
                   'void rad_grid::set_flux_restrict(', 'std::vector<Real> rad_grid::get_flux_restrict(',
                   'rad_grid::rad_grid(Real _dx)', 'rad_grid::rad_grid()']
+    cpp = (support/'fixture.inc').read_text() + '\n' + header
+    opacity = (root/'octotiger/radiation/opacities.hpp').read_text()
+    cpp += '\n' + method(opacity, 'inline Real radiationAbsorption(')
+    cpp += '\n' + method(opacity, 'inline Real radiationTransport(')
+    cpp += '\n#undef private\n' + '\n'.join(method(source, signature) for signature in signatures)
+    cpp += '\n' + (support/'driver.inc').read_text()
+    cpp += '\n' + method(source, 'void node_server::all_rad_bounds(')
+    cpp += '\n' + method(source, 'void node_server::compute_radiation(')
+    return cpp
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--cxx', default='g++')
+    parser.add_argument('--sanitize', action='store_true')
+    parser.add_argument('--release', action='store_true')
+    parser.add_argument('--opacity-checks', action='store_true', help='Also run grey opacity production-source tests')
+    args = parser.parse_args()
+    root = Path(__file__).resolve().parents[2]
+    support = root/'verification_results/radiation/tests_so'
     with tempfile.TemporaryDirectory(prefix='octotiger-so-') as directory:
         path = Path(directory)
-        cpp = (support/'fixture.inc').read_text() + '\n' + header
-        opacity = (root/'octotiger/radiation/opacities.hpp').read_text()
-        cpp += '\n' + method(opacity, 'inline Real radiationAbsorption(')
-        cpp += '\n' + method(opacity, 'inline Real radiationTransport(')
-        cpp += '\n#undef private\n' + '\n'.join(method(source, signature) for signature in signatures)
-        cpp += '\n' + (support/'driver.inc').read_text()
-        cpp += '\n' + method(source, 'void node_server::compute_radiation(')
+        cpp = production_source(root)
         checks = (support/'checks.inc').read_text()
         if args.opacity_checks:
             checks = checks.replace('int main() {', (support/'opacity_checks.inc').read_text() + '\nint main() {')

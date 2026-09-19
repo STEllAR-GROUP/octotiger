@@ -43,3 +43,9 @@ if(Python3_Interpreter_FOUND)
     "${CMAKE_CURRENT_SOURCE_DIR}/../verification_results/radiation/validate_so.py"
     --cxx "${CMAKE_CXX_COMPILER}" --opacity-checks)
 endif()
+
+if(Python3_Interpreter_FOUND)
+  add_test(NAME verificationHarness COMMAND "${Python3_EXECUTABLE}" -m unittest discover
+    -s "${CMAKE_CURRENT_SOURCE_DIR}/../verification_results/tests")
+  set_tests_properties(verificationHarness PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/..")
+endif()

@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "family": "radiation",
+  "suite": "diagnostics",
+  "name": "thermal_relaxation",
+  "regime": "homogeneous material/radiation thermal relaxation",
+  "dimensionality": 1,
+  "resolution_levels": [
+    0,
+    1,
+    2
+  ],
+  "build_type": "Release",
+  "required_executable": "compiled production-method fixture",
+  "parameters": {
+    "units": "CGS",
+    "length_cm": 60000000000.0,
+    "domain_cm": [
+      [
+        -30000000000.0,
+        30000000000.0
+      ],
+      [
+        -30000000000.0,
+        30000000000.0
+      ],
+      [
+        -30000000000.0,
+        30000000000.0
+      ]
+    ],
+    "final_time_s": 1.0,
+    "c_cm_s": 29979245800.0,
+    "chi_cm_inverse": 1e-10,
+    "amplitude": 0.001,
+    "width_cm": 6000000000.0,
+    "velocity_cm_s": 0,
+    "reduced_light_speed_ratio": 1,
+    "rho_g_cm3": 1e-10,
+    "gas_internal_erg_cm3": 1,
+    "radiation_energy_erg_cm3": 0.4,
+    "frames": 9,
+    "boundary": "periodic",
+    "reconstruction": "production_PLM",
+    "resolution": "N=8*2^level in each direction; effective one-dimensional data",
+    "initial_condition": "exact cell averages; formula in native_suite.reference",
+    "opacity": {
+      "model": "grey",
+      "units": "1/cm",
+      "absorption": 1e-10,
+      "scattering": 0,
+      "transport_absorption": -1
+    },
+    "hard_dt": "thermal: final_time/(8*N); otherwise production CFL; subcycle test gas_dt<=4*rad_limit",
+    "output_cadence_s": 0.125,
+    "energy_mode": "thermal",
+    "radiation_options": {
+      "cfl": 0.4,
+      "source_theta": 1,
+      "subcycling": true,
+      "max_subcycles": 1024,
+      "velocity_terms": false,
+      "reduced_light_speed_ratio": 1
+    },
+    "material_fixture": {
+      "gamma": 1.6666666666666667,
+      "mean_molecular_weight": 1,
+      "hydro_evolution": false,
+      "unit_conversion_factors": [
+        1,
+        1,
+        1
+      ]
+    }
+  },
+  "expected_diagnostics": [
+    "L1",
+    "L2",
+    "Linf",
+    "positivity",
+    "reduced_flux",
+    "conservation",
+    "convergence",
+    "boundary_epochs"
+  ],
+  "reference_data": {
+    "kind": "analytic",
+    "owner": "verification_results/adapters/native_suite.py",
+    "description": "Analytic or independent ODE reference; diagnostic variant, not a substituted published benchmark",
+    "source": "derived moment-equation solution",
+    "publication_equivalence": "No published numerical curve claimed"
+  },
+  "tolerance_policy": {
+    "mode": "convergence",
+    "owner": "Step 05 analytical accuracy policy",
+    "description": "Prespecified regime-dependent bounds; failures retained",
+    "min_order": 0.8,
+    "l1_coefficient": 2,
+    "conservation_relative": 2e-11,
+    "realizability_tolerance": 2e-12,
+    "convergence_required": false
+  },
+  "visualization_products": [
+    "profiles",
+    "signed_error",
+    "convergence",
+    "movie"
+  ],
+  "adapter": {
+    "name": "native_suite",
+    "case": "thermal_relaxation"
+  }
+}

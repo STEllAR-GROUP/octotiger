@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "family": "radiation",
+  "suite": "skinner_ostriker",
+  "name": "damped_wave",
+  "regime": "optically thin absorption, tau per wavelength=0.1",
+  "dimensionality": 1,
+  "resolution_levels": [
+    0,
+    1,
+    2
+  ],
+  "build_type": "Release",
+  "required_executable": "compiled production-method fixture",
+  "parameters": {
+    "units": "CGS",
+    "length_cm": 60000000000.0,
+    "domain_cm": [
+      [
+        -30000000000.0,
+        30000000000.0
+      ],
+      [
+        -30000000000.0,
+        30000000000.0
+      ],
+      [
+        -30000000000.0,
+        30000000000.0
+      ]
+    ],
+    "final_time_s": 2.0013845711889124,
+    "c_cm_s": 29979245800.0,
+    "chi_cm_inverse": 1.6666666666666668e-12,
+    "amplitude": 1e-06,
+    "width_cm": 6000000000.0,
+    "velocity_cm_s": 0,
+    "reduced_light_speed_ratio": 1,
+    "rho_g_cm3": 1e-10,
+    "gas_internal_erg_cm3": 1,
+    "radiation_energy_erg_cm3": 1,
+    "frames": 9,
+    "boundary": "periodic",
+    "reconstruction": "production_PLM",
+    "resolution": "N=8*2^level in each direction; effective one-dimensional data",
+    "initial_condition": "exact cell averages; formula in native_suite.reference",
+    "opacity": {
+      "model": "grey",
+      "units": "1/cm",
+      "absorption": 1.6666666666666668e-12,
+      "scattering": 0,
+      "transport_absorption": -1
+    },
+    "hard_dt": "thermal: final_time/(8*N); otherwise production CFL; subcycle test gas_dt<=4*rad_limit",
+    "output_cadence_s": 0.25017307139861406,
+    "energy_mode": "absorption",
+    "radiation_options": {
+      "cfl": 0.4,
+      "source_theta": 1,
+      "subcycling": true,
+      "max_subcycles": 1024,
+      "velocity_terms": false,
+      "reduced_light_speed_ratio": 1
+    },
+    "material_fixture": {
+      "gamma": 1.6666666666666667,
+      "mean_molecular_weight": 1,
+      "hydro_evolution": false,
+      "unit_conversion_factors": [
+        1,
+        1,
+        1
+      ]
+    }
+  },
+  "expected_diagnostics": [
+    "L1",
+    "L2",
+    "Linf",
+    "positivity",
+    "reduced_flux",
+    "conservation",
+    "convergence",
+    "boundary_epochs"
+  ],
+  "reference_data": {
+    "kind": "analytic",
+    "owner": "verification_results/adapters/native_suite.py",
+    "description": "Analytic or independent ODE reference; diagnostic variant, not a substituted published benchmark",
+    "source": "https://arxiv.org/abs/1306.0010",
+    "publication_equivalence": "Equation (57) variant: full radiation mean also decays; not a reproduction of Figure 4"
+  },
+  "tolerance_policy": {
+    "mode": "convergence",
+    "owner": "Step 05 analytical accuracy policy",
+    "description": "Prespecified regime-dependent bounds; failures retained",
+    "min_order": 1.6,
+    "l1_coefficient": 2,
+    "conservation_relative": 2e-11,
+    "realizability_tolerance": 2e-12,
+    "convergence_required": true
+  },
+  "visualization_products": [
+    "profiles",
+    "signed_error",
+    "convergence",
+    "movie"
+  ],
+  "adapter": {
+    "name": "native_suite",
+    "case": "damped_wave"
+  }
+}

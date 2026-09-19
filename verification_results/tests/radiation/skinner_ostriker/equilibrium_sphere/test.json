@@ -3,23 +3,73 @@
   "family": "radiation",
   "suite": "skinner_ostriker",
   "name": "equilibrium_sphere",
-  "regime": "steady diffusion-limit emitting sphere",
+  "regime": "static Gaussian-source diffusion-limit equilibrium; M1 closure discrepancy possible",
   "dimensionality": 3,
-  "resolution_levels": [2, 3, 4],
+  "resolution_levels": [
+    2,
+    3,
+    4
+  ],
   "build_type": "Release",
   "required_executable": "octotiger",
-  "parameters": {"config": "verification_results/radiation/configs/equilibrium_sphere.ini"},
-  "expected_diagnostics": ["L1", "L2", "Linf", "radiation_conservation", "final_slice"],
+  "parameters": {
+    "config": "verification_results/radiation/configs/equilibrium_sphere.ini",
+    "units": "CGS",
+    "domain_cm": [
+      [
+        -30000000000.0,
+        30000000000.0
+      ],
+      [
+        -30000000000.0,
+        30000000000.0
+      ],
+      [
+        -30000000000.0,
+        30000000000.0
+      ]
+    ],
+    "c_cm_s": 29979245800.0,
+    "final_time_s": 4,
+    "boundary": "analytic sphere faces",
+    "opacity": {
+      "model": "legacy",
+      "prescribed_extinction_cm_inverse": 1.6666666666666666e-10
+    },
+    "initial_condition": "production profile and scaled config; original source hash recorded",
+    "width_cm": 6000000000.0,
+    "background_erg_cm3": 1,
+    "amplitude_erg_cm3": 0.01,
+    "luminosity_erg_s": 2.698132122e+29,
+    "output_cadence_s": 0.06666666666666667,
+    "hard_dt_s": 0.013333333333333332
+  },
+  "expected_diagnostics": [
+    "L1",
+    "L2",
+    "Linf",
+    "radiation_conservation",
+    "final_slice"
+  ],
   "reference_data": {
     "kind": "analytic",
     "owner": "octotiger/test_problems/radiation/profiles.hpp",
-    "description": "Steady diffusion solution with matching Gaussian bulb and analytic boundaries"
+    "description": "Gaussian-source diffusion-limit sphere; NOT a verified published Ensman uniform sphere and NOT an exact nonlinear M1 equilibrium"
   },
   "tolerance_policy": {
     "mode": "convergence",
     "owner": "Octo-TIGER radiation CTest definitions",
     "description": "The harness exposes errors and orders without replacing solver-owned acceptance limits."
   },
-  "visualization_products": ["field_maps", "line_profiles", "convergence", "conservation", "movie"],
-  "adapter": {"name": "radiation_results", "case": "equilibrium_sphere"}
+  "visualization_products": [
+    "field_maps",
+    "line_profiles",
+    "convergence",
+    "conservation",
+    "movie"
+  ],
+  "adapter": {
+    "name": "radiation_results",
+    "case": "equilibrium_sphere"
+  }
 }

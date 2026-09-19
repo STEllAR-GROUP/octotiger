@@ -5,11 +5,52 @@
   "name": "streaming_wave",
   "regime": "free-streaming periodic nonlinear M1 wave",
   "dimensionality": 3,
-  "resolution_levels": [2, 3, 4],
+  "resolution_levels": [
+    2,
+    3,
+    4
+  ],
   "build_type": "Release",
   "required_executable": "octotiger",
-  "parameters": {"config": "verification_results/radiation/configs/streaming_wave.ini"},
-  "expected_diagnostics": ["L1", "L2", "Linf", "radiation_conservation", "final_slice"],
+  "parameters": {
+    "config": "verification_results/radiation/configs/streaming_wave.ini",
+    "units": "CGS",
+    "domain_cm": [
+      [
+        -30000000000.0,
+        30000000000.0
+      ],
+      [
+        -30000000000.0,
+        30000000000.0
+      ],
+      [
+        -30000000000.0,
+        30000000000.0
+      ]
+    ],
+    "c_cm_s": 29979245800.0,
+    "final_time_s": 4,
+    "boundary": "periodic",
+    "opacity": {
+      "model": "legacy",
+      "prescribed_extinction_cm_inverse": 1.6666666666666666e-10
+    },
+    "initial_condition": "production profile and scaled config; original source hash recorded",
+    "width_cm": 6000000000.0,
+    "background_erg_cm3": 1,
+    "amplitude_erg_cm3": 0.01,
+    "luminosity_erg_s": 2.698132122e+29,
+    "output_cadence_s": 0.06666666666666667,
+    "hard_dt_s": 0.013333333333333332
+  },
+  "expected_diagnostics": [
+    "L1",
+    "L2",
+    "Linf",
+    "radiation_conservation",
+    "final_slice"
+  ],
   "reference_data": {
     "kind": "analytic",
     "owner": "octotiger/test_problems/radiation/profiles.hpp",
@@ -20,6 +61,15 @@
     "owner": "Octo-TIGER radiation CTest definitions",
     "description": "The harness reports all norms and orders; pass/fail tolerances remain with the solver test."
   },
-  "visualization_products": ["field_maps", "line_profiles", "convergence", "conservation", "movie"],
-  "adapter": {"name": "radiation_results", "case": "streaming_wave"}
+  "visualization_products": [
+    "field_maps",
+    "line_profiles",
+    "convergence",
+    "conservation",
+    "movie"
+  ],
+  "adapter": {
+    "name": "radiation_results",
+    "case": "streaming_wave"
+  }
 }

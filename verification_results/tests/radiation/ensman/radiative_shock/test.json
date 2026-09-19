@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "family": "radiation",
+  "suite": "ensman",
+  "name": "radiative_shock",
+  "regime": "reference-dependent grey benchmark; conditional",
+  "dimensionality": 1,
+  "resolution_levels": [
+    0,
+    1,
+    2
+  ],
+  "build_type": "Release",
+  "required_executable": "octotiger",
+  "parameters": {
+    "units": "CGS",
+    "availability": "conditional",
+    "reason": "No verified Ensman reference curve, shock initial/boundary definition, or supported full hydro build is available.",
+    "domain_cm": null,
+    "final_time_s": null,
+    "initial_condition": null,
+    "opacity": null,
+    "boundary": null
+  },
+  "expected_diagnostics": [
+    "reference_agreement",
+    "convergence",
+    "conservation",
+    "positivity"
+  ],
+  "reference_data": {
+    "kind": "published",
+    "owner": "Ensman reference definition requires verification",
+    "description": "No verified Ensman reference curve, shock initial/boundary definition, or supported full hydro build is available."
+  },
+  "tolerance_policy": {
+    "mode": "qualitative",
+    "owner": "unassigned pending verified reference",
+    "description": "Cannot pass without verified definition/reference; no invented tolerance"
+  },
+  "visualization_products": [
+    "profiles",
+    "movie"
+  ],
+  "adapter": {
+    "name": "conditional",
+    "case": "radiative_shock"
+  }
+}
