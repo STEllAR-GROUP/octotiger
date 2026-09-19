@@ -25,7 +25,7 @@ def main():
     parser.add_argument('--release', action='store_true')
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
-    support = root/'radiation_results/tests_so'
+    support = root/'verification_results/radiation/tests_so'
     source = (root/'src/radiation/rad_grid.cpp').read_text()
     header = '\n'.join(line for line in (root/'octotiger/radiation/rad_grid.hpp').read_text().splitlines()
                        if not line.startswith('#include'))

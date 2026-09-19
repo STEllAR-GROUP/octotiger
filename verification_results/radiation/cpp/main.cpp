@@ -42,7 +42,7 @@ Run options: --root PATH --build PATH --exe PATH --generator PATH --output DIR
 Movie options: --seconds 20 --fps 30 --hold 1 --field er|fx|fy|fz|fluxmag
  --view slice|3d --axis x|y|z --position 0 --width 1280 --height 960
  --color hot|viridis|gray|diverging --minimum X --maximum X --reuse-frames --allow-sparse
- --session-dir DIR (default: PROJECT/radiation_results/visit_sessions)
+ --session-dir DIR (default: PROJECT/verification_results/movies)
 Tools: --gnuplot PATH --visit PATH --ffmpeg PATH --cxx PATH
 Defaults: live = all 2 3 4 debug, 12 threads, 4 s, 61 snapshots.
          run = all 2 3 release, same CGS units, plots only.

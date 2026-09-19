@@ -235,7 +235,7 @@ fs::path source_root(const fs::path &project)
 }
 fs::path tools_root(const fs::path &project)
 {
-	return source_root(project) / "radiation_results";
+	return source_root(project) / "verification_results/radiation";
 }
 fs::path executable(const std::string &s)
 {

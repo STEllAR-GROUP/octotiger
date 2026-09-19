@@ -24,7 +24,7 @@ int main(int argc, char **argv)
 					"already installed\")\n");
 		execute({argv[5], "-S", source.string(), "-B", build.string()}, tmp);
 		for (const auto &name : cases)
-			atomic_text(source / "radiation_results/configs" / (name + ".ini"),
+			atomic_text(source / "verification_results/radiation/configs" / (name + ".ini"),
 						read_text(fs::path(argv[3]) / "configs" / (name + ".ini")));
 		auto solver = build / "octotiger";
 		fs::copy_file(rr::absolute(argv[2]), solver);

@@ -36,7 +36,7 @@ def command(source_root: Path, mode: str, case: str, arguments: list[str]) -> li
     launcher = Path(
         os.environ.get(
             "OCTOTIGER_VERIFICATION_RADIATION_RUNNER",
-            source_root / "radiation_results" / "results.sh",
+            source_root / "verification_results" / "radiation" / "results.sh",
         )
     )
     has_root = any(value == "--root" or value.startswith("--root=") for value in arguments)

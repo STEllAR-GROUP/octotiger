@@ -8,7 +8,7 @@
   "resolution_levels": [2, 3, 4],
   "build_type": "Release",
   "required_executable": "octotiger",
-  "parameters": {"config": "radiation_results/configs/streaming_front.ini"},
+  "parameters": {"config": "verification_results/radiation/configs/streaming_front.ini"},
   "expected_diagnostics": ["L1", "L2", "Linf", "radiation_conservation", "final_slice"],
   "reference_data": {
     "kind": "analytic",

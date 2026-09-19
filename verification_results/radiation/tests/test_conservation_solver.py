@@ -17,7 +17,7 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "radiation_results"))
+sys.path.insert(0, str(ROOT / "verification_results" / "radiation"))
 from results import CONSERVATION_FILE, read_conservation
 
 

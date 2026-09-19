@@ -8,11 +8,11 @@
   "resolution_levels": [2, 3, 4],
   "build_type": "Release",
   "required_executable": "octotiger",
-  "parameters": {"config": "radiation_results/configs/gaussian_pulse.ini"},
+  "parameters": {"config": "verification_results/radiation/configs/gaussian_pulse.ini"},
   "expected_diagnostics": ["L1", "L2", "Linf", "radiation_conservation", "final_slice"],
   "reference_data": {
     "kind": "analytic",
-    "owner": "radiation_results/cpp/gen_radiation_reference.cpp",
+    "owner": "verification_results/radiation/cpp/gen_radiation_reference.cpp",
     "description": "Generated periodic linearized telegraph solution in OTRAD001 format"
   },
   "tolerance_policy": {

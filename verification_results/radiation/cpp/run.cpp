@@ -146,7 +146,7 @@ int run(Options o)
 	if (!o.generator.empty())
 		o.generator = rr::absolute(o.generator);
 	if (o.output.empty())
-		o.output = o.root / "radiation_results/results" / ((o.command == "live" ? "live-" : "") + stamp());
+		o.output = o.root / "verification_results/results" / ((o.command == "live" ? "live-" : "") + stamp());
 	o.output = rr::absolute(o.output);
 	int inx = 0;
 	std::istringstream cache(read_text(o.build / "CMakeCache.txt"));
@@ -264,7 +264,7 @@ int run(Options o)
 			if (o.generator.empty()) {
 				o.generator = fs::canonical("/proc/self/exe").parent_path() / "gen_radiation_reference";
 				require(fs::is_regular_file(o.generator),
-						"Missing bundled Gaussian reference generator; run radiation_results/build_cpp.sh "
+						"Missing bundled Gaussian reference generator; run verification_results/radiation/build_cpp.sh "
 						"or select an existing generator with --generator PATH");
 			}
 			executable(o.generator.string());

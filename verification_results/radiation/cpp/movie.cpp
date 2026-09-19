@@ -338,7 +338,7 @@ Json make_session(const fs::path &folder, const Options &o)
 				"--" + o.field + "-" + o.view +
 				(o.view == "slice" ? "-" + o.axis + "-at" + safe(number(o.position)) : "") + "--" + digest;
 	auto dir =
-		rr::absolute(o.session_dir.empty() ? o.root / "radiation_results/visit_sessions" : o.session_dir);
+		rr::absolute(o.session_dir.empty() ? o.root / "verification_results/movies" : o.session_dir);
 	auto session = dir / (name + ".session"), database = dir / (name + ".visit");
 	std::string listing;
 	for (auto &f : frames) {

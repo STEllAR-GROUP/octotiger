@@ -22,8 +22,8 @@ Commands start from HOME. Save the archive in `~/Downloads` first.
 ```bash
 cd ~
 sudo apt install build-essential cmake gnuplot-nox ffmpeg libsilo-dev nlohmann-json3-dev libssl-dev libfftw3-dev
-unzip ~/Downloads/radiation_results.zip -d ~/octotiger/src/octotiger
-~/octotiger/src/octotiger/radiation_results/build_cpp.sh release
+unzip ~/Downloads/verification_results/radiation.zip -d ~/octotiger/src/octotiger
+~/octotiger/src/octotiger/verification_results/radiation/build_cpp.sh release
 ```
 
 Build names accept Debug, Release, or RelWithDebInfo with any capitalization.
@@ -52,8 +52,8 @@ inspect and install the hook with:
 
 ```bash
 cd ~
-~/octotiger/src/octotiger/radiation_results/results.sh install --check
-~/octotiger/src/octotiger/radiation_results/results.sh install
+~/octotiger/src/octotiger/verification_results/radiation/results.sh install --check
+~/octotiger/src/octotiger/verification_results/radiation/results.sh install
 ```
 
 The installer backs up `src/grid.cpp` before adding the hook. It keeps an existing
@@ -66,14 +66,14 @@ All four tests, level 2 first, then level 3, then level 4:
 
 ```bash
 cd ~
-~/octotiger/src/octotiger/radiation_results/run_live.sh all 2 3 4 release --threads 12
+~/octotiger/src/octotiger/verification_results/radiation/run_live.sh all 2 3 4 release --threads 12
 ```
 
 Single test and resolution, using the existing executable:
 
 ```bash
 cd ~
-~/octotiger/src/octotiger/radiation_results/run_live.sh wave 2 release --threads 12 --no-build
+~/octotiger/src/octotiger/verification_results/radiation/run_live.sh wave 2 release --threads 12 --no-build
 ```
 
 Aliases: `wave`, `front` / `streaming`, `gaussian` / `diffusion`, and `sphere`.
@@ -86,7 +86,7 @@ c=2.99792458×10¹⁰ cm/s, 12 threads, and 61 requested snapshots. `run_live.sh
 defaults to levels 2,3,4 in Debug; `run.sh` defaults to levels 2,3 in Release.
 The timestep cap accounts for Octo-TIGER's output-check interval.
 
-The runner reads `~/octotiger/src/octotiger/radiation_results/configs/*.ini`, scales those
+The runner reads `~/octotiger/src/octotiger/verification_results/radiation/configs/*.ini`, scales those
 templates to CGS, and writes each run's effective configuration as
 `run.ini`. Do not replace a template with a generated `run.ini`.
 `--rad-reconstruction plm|ppm` passes the choice to a solver that supports that
@@ -110,7 +110,7 @@ already compiled. That failure occurred before simulations started and before
 `batch.json` was written, so `--resume` does not apply to that failed batch.
 
 By default, each batch is written under
-`~/octotiger/radiation_results/results/`. Each batch prints its `index.html`
+`~/octotiger/verification_results/radiation/results/`. Each batch prints its `index.html`
 path and normally opens it. `--no-open`
 suppresses opening the browser. Reports and movies appear after each completed
 simulation. The batch page refreshes every ten seconds, pauses while a video is
@@ -148,8 +148,8 @@ gnuplot, or FFmpeg:
 
 ```bash
 cd ~
-BATCH=~/octotiger/radiation_results/results/live-20260917-084723-426280
-~/octotiger/src/octotiger/radiation_results/results.sh pages "$BATCH"
+BATCH=~/octotiger/verification_results/radiation/results/live-20260917-084723-426280
+~/octotiger/src/octotiger/verification_results/radiation/results.sh pages "$BATCH"
 ```
 
 `plot` and `movies` also refresh the problem pages automatically. The `pages`
@@ -164,8 +164,8 @@ Use the saved batch path, without repeating the case, levels, or build:
 
 ```bash
 cd ~
-~/octotiger/src/octotiger/radiation_results/run_live.sh \
-  --resume ~/octotiger/radiation_results/results/live-YYYYMMDD-HHMMSS-XXXXXX \
+~/octotiger/src/octotiger/verification_results/radiation/run_live.sh \
+  --resume ~/octotiger/verification_results/radiation/results/live-YYYYMMDD-HHMMSS-XXXXXX \
   --threads 12
 ```
 
@@ -205,10 +205,10 @@ may regenerate movie frames; the numerical simulation does not need to repeat.
 
 ```bash
 cd ~
-BATCH=~/octotiger/radiation_results/results/live-YYYYMMDD-HHMMSS-XXXXXX
-~/octotiger/src/octotiger/radiation_results/results.sh check "$BATCH"
-~/octotiger/src/octotiger/radiation_results/results.sh plot "$BATCH"
-~/octotiger/src/octotiger/radiation_results/results.sh movies "$BATCH" --seconds 20 --fps 30
+BATCH=~/octotiger/verification_results/radiation/results/live-YYYYMMDD-HHMMSS-XXXXXX
+~/octotiger/src/octotiger/verification_results/radiation/results.sh check "$BATCH"
+~/octotiger/src/octotiger/verification_results/radiation/results.sh plot "$BATCH"
+~/octotiger/src/octotiger/verification_results/radiation/results.sh movies "$BATCH" --seconds 20 --fps 30
 ```
 
 `plot`, `check`, and `movies` also accept a single completed run directory.
@@ -235,8 +235,8 @@ are recorded in the plot/movie metadata. Other tests retain their prior scales.
 To update existing plots and movies with this style (no solver rerun):
 
 ```bash
-~/octotiger/src/octotiger/radiation_results/results.sh plot "$BATCH"
-~/octotiger/src/octotiger/radiation_results/results.sh movies "$BATCH"
+~/octotiger/src/octotiger/verification_results/radiation/results.sh plot "$BATCH"
+~/octotiger/src/octotiger/verification_results/radiation/results.sh movies "$BATCH"
 ```
 
 Conservation uses physical E, Fx, Fy, Fz and the residual
@@ -291,7 +291,7 @@ this version. This does not rerun the solver.
 All generated sessions live together in one flat directory:
 
 ```
-radiation_results/visit_sessions/
+verification_results/radiation/visit_sessions/
 ```
 
 A typical filename is:
@@ -313,8 +313,8 @@ the sessions, without rendering frames or encoding movies:
 
 ```bash
 cd ~
-BATCH=~/octotiger/radiation_results/results/live-YYYYMMDD-HHMMSS-XXXXXX
-~/octotiger/src/octotiger/radiation_results/results.sh sessions "$BATCH"
+BATCH=~/octotiger/verification_results/radiation/results/live-YYYYMMDD-HHMMSS-XXXXXX
+~/octotiger/src/octotiger/verification_results/radiation/results.sh sessions "$BATCH"
 ```
 
 The same field/view/color options apply to `sessions` and `movies`. To inspect,
@@ -323,7 +323,7 @@ Or pass its exact filename:
 
 ```bash
 cd ~
-SESSION=~/octotiger/radiation_results/visit_sessions/NAME.session
+SESSION=~/octotiger/verification_results/radiation/visit_sessions/NAME.session
 ~/visit3_4_2.linux-x86_64/bin/visit -sessionfile "$SESSION"
 ```
 
@@ -335,7 +335,7 @@ regeneration replaces the tool's generated file for that same name.
 For a 3D inspection session without making a movie:
 
 ```bash
-~/octotiger/src/octotiger/radiation_results/results.sh sessions "$BATCH" --view 3d
+~/octotiger/src/octotiger/verification_results/radiation/results.sh sessions "$BATCH" --view 3d
 ```
 
 The generated 3D view is a Pseudocolor exterior surface. VisIt's GUI lets you
@@ -345,10 +345,10 @@ change operators, slices, views, or plot types interactively.
 
 ```bash
 cd ~
-cmake -S ~/octotiger/src/octotiger/radiation_results \
-  -B ~/octotiger/src/octotiger/radiation_results/.build -DBUILD_TESTING=ON
-cmake --build ~/octotiger/src/octotiger/radiation_results/.build -j 4
-ctest --test-dir ~/octotiger/src/octotiger/radiation_results/.build --output-on-failure
+cmake -S ~/octotiger/src/octotiger/verification_results/radiation \
+  -B ~/octotiger/src/octotiger/verification_results/radiation/.build -DBUILD_TESTING=ON
+cmake --build ~/octotiger/src/octotiger/verification_results/radiation/.build -j 4
+ctest --test-dir ~/octotiger/src/octotiger/verification_results/radiation/.build --output-on-failure
 ```
 
 Verified with GCC 13.3, CMake 3.28, Silo 4.11, and gnuplot 6.0:
@@ -392,7 +392,7 @@ To use the serial launcher with a real matching reference file:
 
 ```bash
 cd ~
-~/octotiger/src/octotiger/radiation_results/results.sh validate-serial \
+~/octotiger/src/octotiger/verification_results/radiation/results.sh validate-serial \
   --reference /absolute/path/reference.bin --output ~/radiation-serial-results \
   --cells 32
 ```
@@ -417,3 +417,9 @@ it does not replace a distributed application test.
 
 `results.sh --help` prints the full command summary. The launcher rebuilds when
 C++ sources or CMakeLists change and otherwise uses the cached executable.
+
+## Legacy path compatibility
+
+Commands formerly run from `radiation_results/` remain available through thin
+wrappers. They forward to `verification_results/radiation/`; generated results
+are owned by the canonical `verification_results` tree.

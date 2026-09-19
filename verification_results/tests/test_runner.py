@@ -33,7 +33,7 @@ class DescriptorTests(unittest.TestCase):
         self.assertEqual(command[1:3], ["live", "streaming_wave"])
         self.assertEqual(command[3:5], ["--root", str(runner.SOURCE_ROOT)])
         self.assertEqual(command[-3:], ["Release", "--threads", "7"])
-        self.assertTrue(command[0].endswith("radiation_results/results.sh"))
+        self.assertTrue(command[0].endswith("verification_results/radiation/results.sh"))
 
     def test_adapter_project_root_matches_legacy_layouts(self):
         flat = Path("/work/checkout")

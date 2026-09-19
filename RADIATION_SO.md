@@ -107,7 +107,7 @@ cd ~
 unzip ~/Downloads/octotiger-so-radiation.zip -d ~/octotiger-so-update
 git -C ~/octotiger/src/octotiger apply --check ~/octotiger-so-update/octotiger-so-radiation.patch
 git -C ~/octotiger/src/octotiger apply ~/octotiger-so-update/octotiger-so-radiation.patch
-python3 ~/octotiger/src/octotiger/radiation_results/validate_so.py
+python3 ~/octotiger/src/octotiger/verification_results/radiation/validate_so.py
 ```
 
 If the check reports conflicts, the live source differs from the supplied archive; review the diff rather than copying over newer files. The archive also contains complete replacement files under `patched-files/`, validation logs, and SHA-256 identities of the base and patched files.
@@ -116,8 +116,8 @@ For local memory checks:
 
 ```bash
 cd ~
-python3 ~/octotiger/src/octotiger/radiation_results/validate_so.py --sanitize
-python3 ~/octotiger/src/octotiger/radiation_results/validate_so.py --release
+python3 ~/octotiger/src/octotiger/verification_results/radiation/validate_so.py --sanitize
+python3 ~/octotiger/src/octotiger/verification_results/radiation/validate_so.py --release
 ```
 
 Rebuild the normal Octo-TIGER target after applying the patch. There is no change to its HPX/Kokkos/CUDA build configuration.
