@@ -3,13 +3,16 @@
   "family": "hydro",
   "suite": "amr",
   "name": "sod_big_amr",
-  "regime": "AMR Sod shock tube",
-  "dimensionality": 1,
+  "regime": "Higher-resolution Sod; historical amr selector, not the separate amr_test problem",
+  "dimensionality": 3,
   "resolution_levels": [
     3
   ],
   "build_type": "Release",
   "required_executable": "octotiger",
+  "ctest": {
+    "include": "^test_problems\\.(cpu|gpu|cpu_gpu)\\.sod_big_"
+  },
   "parameters": {
     "units": "code units as defined by legacy input",
     "config": "test_problems/sod/sod_big.ini",
@@ -22,7 +25,7 @@
   ],
   "reference_data": {
     "owner": "legacy test_problems CTest definitions",
-    "description": "Incomplete Step 06 smoke adapter; legacy CTest remains required for full regression equivalence",
+    "description": "Configured higher-resolution Sod CTests; historical identifier retained for compatibility. test_problems/amr/amr.ini has no CTest registration and is not covered",
     "kind": "regression",
     "source": "test_problems/sod/sod_big.ini",
     "comparison": "preserve existing CTest stdout/Silo reference"

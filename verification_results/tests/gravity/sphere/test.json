@@ -10,6 +10,9 @@
   ],
   "build_type": "Release",
   "required_executable": "octotiger",
+  "ctest": {
+    "include": "^test_problems\\.(cpu|gpu|cpu_gpu)\\.sphere_"
+  },
   "parameters": {
     "units": "code units as defined by legacy input",
     "config": "test_problems/sphere/sphere.ini",
@@ -25,7 +28,7 @@
   ],
   "reference_data": {
     "owner": "legacy test_problems CTest definitions",
-    "description": "Incomplete Step 06 smoke adapter; legacy CTest remains required for full regression equivalence",
+    "description": "Configured CTest owns all enabled kernel variants, field regexes, Silo comparisons and fixtures; explicit --exe-only runs remain conditional smoke",
     "kind": "regression",
     "source": "test_problems/sphere/sphere.ini",
     "comparison": "preserve existing CTest stdout/Silo reference"

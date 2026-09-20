@@ -30,10 +30,14 @@ METHODS = (
     "void rad_grid::set_X(",
     "Real rad_grid::maxTimestep(",
     "void rad_grid::compute_flux(",
+    "void rad_grid::set_physical_boundaries(",
     "void rad_grid::advance(",
     "void rad_grid::sanity_check()",
     "Real radiationGasInternal(",
     "void rad_grid::rad_imp(",
+    "void rad_grid::compute_mmw(",
+    "void rad_grid::prepareSources(",
+    "void rad_grid::finishSources(",
     "radiationConservation::Totals rad_grid::takeConservation()",
     "std::vector<Real> rad_grid::get_restrict()",
     "std::vector<Real> rad_grid::get_flux_restrict(",
@@ -61,12 +65,15 @@ def extractMethod(source, signature):
 FIXTURE = r'''
 #include "octotiger/radiation/m1.hpp"
 #include "octotiger/radiation/conservation.hpp"
+#include "octotiger/radiation/grey_opacity.hpp"
+#include "octotiger/test_problems/radiation/profiles.hpp"
 #include "octotiger/math/Debug.hpp"
 #include <array>
 #include <atomic>
 #include <functional>
 #include <iomanip>
 #include <iostream>
+#include <numbers>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -81,13 +88,22 @@ constexpr int HS_NX=INX/2+2*H_BW, HS_N3=HS_NX*HS_NX*HS_NX;
 constexpr int HS_DNX=HS_NX*HS_NX, HS_DNY=HS_NX, HS_DNZ=1;
 constexpr int XDIM=0, YDIM=1, ZDIM=2;
 constexpr int WD=1, MARSHAK=2;
+constexpr int RADIATION_EQUILIBRIUM_SPHERE=3;
+constexpr int rho_i=0,egas_i=1,tau_i=2,sx_i=3,sy_i=4,sz_i=5,spc_i=6;
 constexpr Real ZERO=0;
 constexpr Real lightSpeed=2.99792458e10;
 using M1=RadiationM1<Real,NDIM>;
 integer rindex(integer i,integer j,integer k) { return k+RAD_NX*(j+RAD_NX*i); }
 integer hindex(integer i,integer j,integer k) { return rindex(i,j,k); }
 integer hSindex(integer i,integer j,integer k) { return k+HS_NX*(j+HS_NX*i); }
-struct OptionsFixture { Real cfl=.25, dual_energy_sw1=.001; int eos=0,problem=0; };
+struct OptionsFixture {
+    radiation::GreyOpacity radiationOpacity;
+    Real rad_cfl=.25,rad_c_ratio=1,rad_theta=1,rad_opacity=-1;
+    Real code_to_g=1,code_to_cm=1,xscale=.5,dual_energy_sw1=.001;
+    int eos=0,problem=0,n_fields=7,n_species=1;
+    bool rad_implicit=false,rad_velocity_terms=true;
+    std::string rad_energy_mode="thermal";
+};
 OptionsFixture& opts() { static OptionsFixture o; return o; }
 struct ConstantsFixture { Real c=lightSpeed,sigma=lightSpeed/4,mh=1,kb=1; };
 ConstantsFixture& physcon() { static ConstantsFixture p; return p; }
@@ -96,9 +112,19 @@ Real ztwd_energy(Real) { throw std::runtime_error("WD EOS is not part of this fi
 Real absorptionOpacity=0,totalOpacity=.8;
 Real kappa_p(Real,Real,Real,Real,Real,Real) { return absorptionOpacity; }
 Real kappa_R(Real,Real,Real,Real,Real,Real) { return totalOpacity; }
+template<class T> using specie_state_t=std::array<T,1>;
+void mean_ion_weight(const specie_state_t<Real>&,Real& mmw,Real& X,Real& Z) {mmw=1;X=1;Z=0;}
+bool radiationFixedMediumProblem() { return false; }
+radiationTests::Parameters radiationTestParameters() {
+    radiationTests::Parameters p;p.c=physcon().c;return p;
+}
+std::vector<Real> marshak_wave_analytic(Real,Real,Real,Real) {
+    throw std::runtime_error("Marshak boundaries are not part of this fixture");
+}
 struct silo_var_t {};
 namespace geo {
-struct direction {}; struct octant {}; struct face {};
+struct direction {}; struct octant {};
+struct face { int index;face(int v):index(v){} operator int() const {return index;} };
 struct dimension {
     int index;
     constexpr dimension(int value=0):index(value) {}
@@ -217,7 +243,7 @@ void periodicTransport(const std::string& name) {
         Real const dt=.71*grid.maxTimestep(0);
         require(std::isfinite(dt)&&dt>0,"positive finite timestep");
         require(dt<=cellWidth/(12*lightSpeed),"multidimensional transport CFL");
-        grid.compute_flux(0);
+        grid.compute_flux(dt,0);
         grid.advance(dt,0);
         checkRealizability(grid,name);
         compareTotals(totals(grid),initial,name+" periodic conservation");
@@ -233,8 +259,9 @@ void uniformStates() {
     for(const auto& state:states) {
         rad_grid grid(cellWidth);
         initialize(grid,[&](Point) { return state; });
-        grid.compute_flux(0);
-        grid.advance(.71*grid.maxTimestep(0),0);
+        Real const dt=.71*grid.maxTimestep(0);
+        grid.compute_flux(dt,0);
+        grid.advance(dt,0);
         checkRealizability(grid,"uniform");
         interior([&](auto r) {
             for(int f=0;f<NRF;++f)
@@ -253,7 +280,7 @@ void rotation() {
     for(int step=0;step<24;++step) {
         // Fill all ghosts with the current spatially constant state.
         periodic(grid);
-        grid.compute_flux(omega);
+        grid.compute_flux(dt,omega);
         grid.advance(dt,omega);
         angle+=omega*dt;
         Real const cs=std::cos(angle),sn=std::sin(angle);
@@ -291,13 +318,13 @@ void adjacentBlocks() {
     initialize(right,smoothPrimitives,domainWidth/2);
     Totals initial=totals(left),other=totals(right);
     for(int f=0;f<NRF;++f) initial[f]+=other[f];
-    left.compute_flux(0); right.compute_flux(0);
+    Real const dt=.71*left.maxTimestep(0);
+    left.compute_flux(dt,0); right.compute_flux(dt,0);
     for(int j=RAD_BW;j<RAD_BW+INX;++j)for(int k=RAD_BW;k<RAD_BW+INX;++k)
         for(int f=0;f<NRF;++f)
             near(left.flux[0][f][rindex(RAD_BW+INX,j,k)],right.flux[0][f][rindex(RAD_BW,j,k)],
                  f?lightSpeed*lightSpeed:lightSpeed,"matching block interface");
     Totals out=outwardFlux(left,1),outRight=outwardFlux(right,0);
-    Real const dt=.71*left.maxTimestep(0);
     left.advance(dt,0); right.advance(dt,0);
     Totals final=totals(left),finalRight=totals(right);
     for(int f=0;f<NRF;++f)
@@ -309,15 +336,21 @@ void physicalStorageUnits() {
     rad_grid grid(cellWidth);
     State const state{2,.6*lightSpeed,-.2*lightSpeed,.3*lightSpeed};
     initialize(grid,[&](Point) { return state; });
-    grid.compute_flux(0);
+    grid.compute_flux(.71*grid.maxTimestep(0),0);
     Point const q{.6,-.2,.3};
     Real const q2=q[0]*q[0]+q[1]*q[1]+q[2]*q[2];
     Real const h=(2*state[0]+std::sqrt(4*state[0]*state[0]-3*q2))/3;
     Point const beta{q[0]/h,q[1]/h,q[2]/h};
     Real const pressure=.25*h*(1-q2/(h*h));
     interior([&](auto r) {
-        near(grid.primitive[0][r],h,h,"physical storage to H");
-        for(int d=0;d<NDIM;++d) near(grid.primitive[d+1][r],beta[d],1,"physical storage to beta");
+        // VL stores E,Q=F/c, not the removed Hanawa primitive arrays. For
+        // uniform data, predictor and reconstructed face states are exact.
+        for(int f=0;f<NRF;++f) {
+            Real const normalized=state[f]/(f?lightSpeed:1);
+            near(grid.Uhalf[f][r],normalized,state[0],"physical storage to predictor E,Q");
+            for(int side=0;side<2;++side)
+                near(grid.faces[side][f][r],normalized,state[0],"physical storage to face E,Q");
+        }
         for(int normal=0;normal<NDIM;++normal) {
             near(grid.flux[normal][0][r],state[normal+1],lightSpeed*state[0],"physical energy flux");
             for(int d=0;d<NDIM;++d) {
@@ -351,17 +384,34 @@ void sourceStorageUnits() {
     for(bool absorption:{false,true}) {
         rad_grid radiation(cellWidth);
         initialize(radiation,[&](Point) { return state; });
-        radiation.mmw.assign(RAD_N3,1);
-        radiation.X_spc.assign(RAD_N3,1);
-        radiation.Z_spc.assign(RAD_N3,0);
         Real const gamma=grid::get_fgamma();
-        std::vector<Real> egas(H_N3,5),tau(H_N3,std::pow(5,1/gamma)),rho(H_N3,1);
-        std::vector<Real> sx(H_N3,0),sy(H_N3,0),sz(H_N3,0);
+        std::vector<std::vector<Real>> gas(7,std::vector<Real>(H_N3));
+        gas[egas_i].assign(H_N3,5);gas[tau_i].assign(H_N3,std::pow(5,1/gamma));
+        gas[rho_i].assign(H_N3,1);gas[spc_i].assign(H_N3,1);
+        auto& egas=gas[egas_i];auto& tau=gas[tau_i];auto& rho=gas[rho_i];
+        auto& sx=gas[sx_i];auto& sy=gas[sy_i];auto& sz=gas[sz_i];
         absorptionOpacity=absorption?.3:0;
         totalOpacity=.8;
         Real const dt=.5/(lightSpeed*totalOpacity);
         auto const initialBudget=radiation.takeConservation();
+        // The production driver splits thermal exchange from subcycled
+        // momentum damping. Exercise both halves in the same order.
+        opts().rad_implicit=true;
+        radiation.compute_mmw(gas);
         radiation.rad_imp(egas,tau,sx,sy,sz,rho,dt);
+        periodic(radiation);
+        // The fixture refreshes the uniform material halo after thermal exchange.
+        auto const sample=rindex(RAD_BW,RAD_BW,RAD_BW);
+        Real const thermalGas=egas[sample],thermalTau=tau[sample];
+        for(int i=0;i<H_NX;++i)for(int j=0;j<H_NX;++j)for(int k=0;k<H_NX;++k)
+            if(i<H_BW||i>=H_BW+INX||j<H_BW||j>=H_BW+INX||k<H_BW||k>=H_BW+INX) {
+                auto const h=hindex(i,j,k);
+                egas[h]=thermalGas;tau[h]=thermalTau;
+            }
+        radiation.prepareSources(gas);
+        radiation.compute_flux(dt,0);
+        radiation.advance(dt,0);
+        radiation.finishSources(gas);
         auto const sourceBudget=radiation.takeConservation();
         auto const drainedBudget=radiation.takeConservation();
         for(int f=0;f<NRF;++f) {
@@ -386,6 +436,7 @@ void sourceStorageUnits() {
         checkRealizability(radiation,"source storage conversion");
     }
     absorptionOpacity=0;
+    opts().rad_implicit=false;
 }
 void coarseFineStorageUnits() {
     // One flagged coarse cell populates eight fine ghost cells. All eight must
@@ -443,7 +494,13 @@ def generatedSource():
         "" if line.lstrip().startswith("#include") else line
         for line in headerPath.read_text().splitlines()
     )
-    pieces = [FIXTURE, f'\n#line 1 "{headerPath}"', header]
+    opacityPath = ROOT / "octotiger/radiation/opacities.hpp"
+    opacity = opacityPath.read_text()
+    pieces = [FIXTURE]
+    for signature in ("inline Real radiationAbsorption(", "inline Real radiationTransport("):
+        line, method = extractMethod(opacity, signature)
+        pieces.extend([f'\n#line {line} "{opacityPath}"', method])
+    pieces.extend([f'\n#line 1 "{headerPath}"', header])
     for signature in METHODS:
         line, method = extractMethod(source, signature)
         pieces.extend([f'\n#line {line} "{sourcePath}"', method])

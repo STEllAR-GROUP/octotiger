@@ -293,6 +293,8 @@ def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description="Unified Octo-TIGER verification harness")
     commands = result.add_subparsers(dest="command", required=True)
     commands.add_parser("list", help="list available test descriptors")
+    site = commands.add_parser("site", help="regenerate a unified website from an existing result directory")
+    site.add_argument("results", type=Path)
     for name in ("plan", "run", "live", "suite"):
         item = commands.add_parser(name, help=f"{name} a test or family through its adapter")
         item.add_argument("selector")
@@ -306,6 +308,16 @@ def main(argv: list[str] | None = None) -> int:
     if options.command == "list":
         for identifier, (_, descriptor) in available.items():
             print(f"{identifier}\t{descriptor['regime']}")
+        return 0
+    if options.command == "site":
+        from verification_results.web import site
+        output = safe_output(options.results)
+        if not output.is_dir():
+            raise HarnessError(f"result directory does not exist: {output}")
+        catalog = site.write(output, available)
+        print(f"{output / 'index.html'} ({catalog['status']})")
+        # Publishing a failed result is successful site generation. The suite
+        # command, not this renderer, owns the physics exit status.
         return 0
     # Suite is additive: historical all/radiation run commands retain their behavior.
     exact = available.get(options.selector)
@@ -347,6 +359,8 @@ def main(argv: list[str] | None = None) -> int:
         (output / "verification.json").write_text(
             json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
         )
+        from verification_results.web import site
+        site.write(output, available, legacy_application=True)
     return result.returncode
 
 

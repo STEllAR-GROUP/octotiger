@@ -47,6 +47,42 @@ class FinalValidationTests(unittest.TestCase):
             self.assertIn('gravity=off', result['config_text'])
             self.assertTrue((Path(tmp)/'hydro.sod.sod/stdout.log').exists())
 
+    def test_equals_syntax_smoke_accepts_shared_ctest_option_without_using_it(self):
+        descriptor = runner.descriptors()['hydro.amr.sod_big_amr']
+        with tempfile.TemporaryDirectory() as tmp:
+            code = scenario.execute([descriptor], ['--exe=/bin/true', '--ctest=/nonexistent/ctest', '--output='+tmp])
+            self.assertEqual(code, 3)
+            result = json.loads((Path(tmp)/'verification.json').read_text())
+            self.assertEqual(result['harness']['adapter'], 'scenario')
+            self.assertFalse(result['execution']['ctest_used'])
+            self.assertEqual(result['tests'][0]['status'], 'conditional')
+
+    def test_equals_build_keeps_configured_route_and_rejects_executable_override(self):
+        from verification_results.adapters import ctest_scenarios
+        for arguments in (['--exe=/bin/true', '--build=/some/build'],
+                          ['--exe', '/bin/true', '--build=/some/build'],
+                          ['--exe=/bin/true', '--build', '/some/build']):
+            with self.subTest(arguments=arguments), patch.object(ctest_scenarios, 'execute', return_value=3) as configured:
+                self.assertEqual(scenario.execute([], arguments, plan=True), 3)
+                configured.assert_called_once_with([], arguments, True)
+        with self.assertRaisesRegex(ValueError, '--exe cannot replace'):
+            scenario.execute([], ['--exe=/bin/true', '--build=/some/build'])
+
+    def test_mixed_suite_explicit_executable_accepts_forwarded_ctest_option(self):
+        available = runner.descriptors()
+        selected = {key: available[key] for key in ('hydro.amr.sod_big_amr',
+                    'gravity.rotating_star.rotating_star', 'radiation.ensman.equilibrium_sphere')}
+        with tempfile.TemporaryDirectory() as tmp, patch.object(native_suite, 'execute', return_value=3):
+            code = unified.execute(selected, ['Release', '--exe=/bin/true',
+                                   '--ctest=/nonexistent/ctest', '--output='+tmp])
+            self.assertEqual(code, 3)
+            result = json.loads((Path(tmp)/'summary.json').read_text())
+            self.assertEqual([r['status'] for r in result['families']], ['conditional']*3)
+            for family in ('hydro', 'gravity'):
+                manifest = json.loads((Path(tmp)/family/'verification.json').read_text())
+                self.assertFalse(manifest['execution']['ctest_used'])
+                self.assertEqual(manifest['harness']['adapter'], 'scenario')
+
     def test_output_reuse_and_source_output_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             (Path(tmp)/'keep').write_text('data')

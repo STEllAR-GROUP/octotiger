@@ -184,12 +184,6 @@ if(OCTOTIGER_WITH_KOKKOS)
   endif()
 endif()
 
-add_test(test_problems.rotating_star.init.fixture_cleanup ${CMAKE_COMMAND} -E remove ${PROJECT_BINARY_DIR}/test_problems/rotating_star/rotating_star.bin)
-set_tests_properties(test_problems.rotating_star.init.fixture_cleanup PROPERTIES
-    FIXTURES_CLEANUP test_problems.rotating_star.init
-)
-
-
 # Rotating star test with different equation of state (eos=wd)
 
 if (OCTOTIGER_WITH_GRIDDIM EQUAL 8)
@@ -251,4 +245,3 @@ add_test(test_problems.rotating_star.init.fixture_cleanup ${CMAKE_COMMAND} -E re
 set_tests_properties(test_problems.rotating_star.init.fixture_cleanup PROPERTIES
     FIXTURES_CLEANUP test_problems.rotating_star.init
 )
-

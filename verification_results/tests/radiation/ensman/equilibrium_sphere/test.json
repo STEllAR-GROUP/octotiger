@@ -15,7 +15,7 @@
   "parameters": {
     "units": "CGS",
     "availability": "conditional",
-    "reason": "Published Ensman sphere definition and reference were unavailable. Existing Gaussian bulb is a different problem; no substitution is made.",
+    "reason": "The identity and physical definition of the requested Ensman equilibrium sphere remain unverified. Published radiating-sphere examples and the existing Gaussian bulb are not substituted; see doc/ensman-reference-followup.md.",
     "domain_cm": null,
     "final_time_s": null,
     "initial_condition": null,
@@ -31,7 +31,11 @@
   "reference_data": {
     "kind": "published",
     "owner": "Ensman reference definition requires verification",
-    "description": "Published Ensman sphere definition and reference were unavailable. Existing Gaussian bulb is a different problem; no substitution is made."
+    "description": "Ensman (1994) bibliographic identity is known, but its full sphere definition/reference was not recovered. The independently located FLASH radiating sphere is a different published setup, not evidence that it is the requested Ensman case.",
+    "documentation": "doc/ensman-reference-followup.md",
+    "original_reference": "https://doi.org/10.1086/173889",
+    "original_full_text_verified": false,
+    "numerical_reference_available": false
   },
   "tolerance_policy": {
     "mode": "qualitative",

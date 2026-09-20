@@ -15,12 +15,74 @@
   "parameters": {
     "units": "CGS",
     "availability": "conditional",
-    "reason": "No verified Ensman reference curve, shock initial/boundary definition, or supported full hydro build is available.",
+    "reason": "Published Ensman-derived FLD and M1 shock definitions are documented, but no execution contract, equation-matched reference data, or supported full hydro run is verified. This case remains unimplemented; see doc/ensman-reference-followup.md.",
     "domain_cm": null,
     "final_time_s": null,
     "initial_condition": null,
     "opacity": null,
-    "boundary": null
+    "boundary": null,
+    "definition_status": "published_reproductions_verified; executable_contract_pending",
+    "published_reproductions": {
+      "common_reported_inputs": {
+        "source_ids": ["kolb2013", "melon_fuksman2021"],
+        "units": "CGS",
+        "length_cm": 70000000000.0,
+        "rho_g_cm3": 7.78e-10,
+        "gas_temperature_K": 10.0,
+        "radiation_temperature_K": 10.0,
+        "gamma": 1.4,
+        "mean_molecular_weight": 1.0,
+        "reported_absorption_extinction_cm_inverse": 3.1e-10,
+        "reported_transport_extinction_cm_inverse": 3.1e-10,
+        "variants": [
+          {
+            "name": "subcritical",
+            "inflow_velocity_cm_s": -600000.0,
+            "comparison_time_s": 38000.0
+          },
+          {
+            "name": "supercritical",
+            "inflow_velocity_cm_s": -2000000.0,
+            "comparison_time_s": 7500.0
+          }
+        ],
+        "comparison_coordinate": "s = x - u*t, where u is the signed negative initial inflow velocity",
+        "initial_flux_contract": "Requires verification in the source convention; equal gas/radiation temperatures alone do not specify lab-frame flux in moving matter",
+        "opacity_evolution_contract": "Record published kappa*rho separately from a chosen executable cm2/g or 1/cm prescription; do not infer its density dependence from its initial value"
+      },
+      "kolb2013": {
+        "label": "Ensman-derived PLUTO FLD reproduction, not an exact M1 reference",
+        "source": "https://arxiv.org/pdf/1309.5231",
+        "section": "4.5, Figure 7, Table 1",
+        "geometry": "quasi-1D Cartesian; the paper labels its longitudinal coordinate z",
+        "transverse_lengths_cm": [34180000.0, 34180000.0],
+        "grid_cells": [2048, 4, 4],
+        "closure": "Minerbo flux-limited diffusion",
+        "initial_radiation_energy": "E = a_R*T^4",
+        "boundaries": {
+          "longitudinal_lower": "reflecting wall",
+          "longitudinal_upper": "zero-gradient",
+          "transverse": "periodic"
+        },
+        "cfl": 0.4,
+        "limitations": "Radiation advection and radiation-pressure work are omitted in the published equations; FLD has no separately evolved radiation flux"
+      },
+      "melon_fuksman2021": {
+        "label": "Ensman-derived PLUTO grey M1 reproduction, not an equation-identical reference for this implementation",
+        "source": "https://arxiv.org/html/2005.01785v2",
+        "section": "II.1-II.2 and IV.1, Figures 1-2",
+        "domain_cm": [[0.0, 70000000000.0]],
+        "closure": "M1",
+        "scattering": 0.0,
+        "reduced_light_speed_ratio": 1.0,
+        "left_boundary": "reflective",
+        "right_boundary": null,
+        "grid_cells_prose": 2048,
+        "grid_cells_figure_captions": 2400,
+        "flux_normalization": "Paper F_r is physical flux divided by c; compare its F_r/E_r to physical F/(c*E)",
+        "limitations": "Right boundary is not specified in section IV.1; grid count is internally inconsistent; equation (8) retains pressure-tensor and selected beta^2 terms not present in the current isotropic source model"
+      }
+    }
   },
   "expected_diagnostics": [
     "reference_agreement",
@@ -30,8 +92,12 @@
   ],
   "reference_data": {
     "kind": "published",
-    "owner": "Ensman reference definition requires verification",
-    "description": "No verified Ensman reference curve, shock initial/boundary definition, or supported full hydro build is available."
+    "owner": "Published reproduction definitions verified; numerical-reference contract pending",
+    "description": "Kolb et al. (2013) section 4.5 and Melon Fuksman et al. (2021) section IV.1 give verified published shock setups. Neither provides an exact reference for the present equations. No machine-readable curve or execution result is claimed.",
+    "documentation": "doc/ensman-reference-followup.md",
+    "original_reference": "https://doi.org/10.1086/173889",
+    "original_full_text_verified": false,
+    "numerical_reference_available": false
   },
   "tolerance_policy": {
     "mode": "qualitative",

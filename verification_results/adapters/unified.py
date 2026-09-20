@@ -1,6 +1,5 @@
 """Dispatch mixed families into disjoint outputs and preserve every status."""
 import argparse
-import html
 import json
 from pathlib import Path
 
@@ -8,6 +7,7 @@ from pathlib import Path
 def execute(selected, arguments, plan=False):
     from verification_results import runner
     from verification_results.adapters import native_suite, scenario
+    from verification_results.web import site
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('settings', nargs='*')
     parser.add_argument('--output', type=Path)
@@ -17,6 +17,7 @@ def execute(selected, arguments, plan=False):
     parser.add_argument('--root', type=Path)
     parser.add_argument('--build', type=Path)
     parser.add_argument('--exe', type=Path)
+    parser.add_argument('--ctest', default='ctest')
     opts = parser.parse_args(arguments)
     levels = [v for v in opts.settings if v.isdigit()]
     builds = [v for v in opts.settings if not v.isdigit()]
@@ -35,6 +36,7 @@ def execute(selected, arguments, plan=False):
             args = [*levels, *args, '--cxx', opts.cxx, '--ffmpeg', opts.ffmpeg]
             callback = native_suite.execute; inputs = [(key, d) for key, _, d in cases]
         else:
+            args += ['--ctest', opts.ctest]
             for flag in ('root', 'build', 'exe'):
                 if getattr(opts, flag): args += ['--'+flag, str(getattr(opts, flag))]
             callback = scenario.execute; inputs = [(path, d) for _, path, d in cases]
@@ -57,9 +59,5 @@ def execute(selected, arguments, plan=False):
                    'status': 'failed' if any(r['status'] == 'failed' for r in results) else 'conditional' if any(r['status'] == 'conditional' for r in results) else 'passed',
                    'coverage': 'All registered descriptors dispatched; conditional application/Ensman cases remain unvalidated'}
         (out/'summary.json').write_text(json.dumps(summary, indent=2)+'\n')
-        body = '<!doctype html><meta charset="utf-8"><h1>Unified verification</h1>'
-        for r in results:
-            body += '<p>'+html.escape(r['family']+': '+r['status'])+' <a href="'+r['family']+'/report.html">Report</a></p>'
-        body += '<pre>'+html.escape(json.dumps(summary, indent=2))+'</pre>'
-        for name in ('index.html', 'report.html'): (out/name).write_text(body)
+        site.write(out, runner.descriptors())
     return 1 if any(r['status'] == 'failed' for r in results) else 3 if any(r['status'] == 'conditional' for r in results) else 0

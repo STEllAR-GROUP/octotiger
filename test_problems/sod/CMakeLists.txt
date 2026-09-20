@@ -47,7 +47,9 @@ else()
   " Your configuration of Octo-Tiger is not verified to work by any tests in this case, so take care!")
 endif()
 
-function(test_sod_scenario test_name test_log_file ini_filename reference_filename kernel_parameters)
+# The legacy OFF/ON argument is retained for call-site compatibility. Angular
+# momentum correction is configured by the input, not by this obsolete flag.
+function(test_sod_scenario test_name test_log_file ini_filename reference_filename legacy_am_flag kernel_parameters)
   add_test(NAME ${test_name}
     COMMAND sh -c "${PROJECT_BINARY_DIR}/octotiger --config_file=${PROJECT_SOURCE_DIR}/test_problems/sod/${ini_filename} ${kernel_parameters} > ${test_log_file}")
   set_tests_properties(${test_name} PROPERTIES
@@ -114,7 +116,7 @@ function(test_sod_scenario test_name test_log_file ini_filename reference_filena
       FAIL_REGULAR_EXPRESSION ${OCTOTIGER_SILODIFF_FAIL_PATTERN})
   endif()
 
-  add_test(${test_name}.fixture_cleanup ${CMAKE_COMMAND} -E remove ${PROJECT_BINARY_DIR}/test_problems/sphere/final.silo ${PROJECT_BINARY_DIR}/test_problems/sphere/final.silo.data/0.silo ${test_log_file})
+  add_test(${test_name}.fixture_cleanup ${CMAKE_COMMAND} -E remove ${PROJECT_BINARY_DIR}/test_problems/sod/final.silo ${PROJECT_BINARY_DIR}/test_problems/sod/final.silo.data/0.silo ${test_log_file})
   set_tests_properties(${test_name}.fixture_cleanup PROPERTIES
       FIXTURES_CLEANUP ${test_name}
   )
@@ -237,4 +239,3 @@ if (OCTOTIGER_WITH_GRIDDIM EQUAL 8)
   endif()
 
 endif()
-

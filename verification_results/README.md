@@ -1,25 +1,34 @@
-# Unified verification harness design (Step 02)
+# Unified verification harness
 
 `verification_results` is the permanent test-description, execution, result,
-and reporting boundary for hydro, gravity, and radiation.  Step 02 introduces
-that boundary and adapts the current radiation workflow; it intentionally does
-not rename or move `radiation_results`, alter a solver, or reinterpret a test.
+and reporting boundary for hydro, gravity, and radiation. The migration retains
+the numerical definitions and compatibility commands; it does not alter a
+solver or reinterpret a test.
+
+The generated site root is descriptor-driven. It lists every registered hydro,
+gravity, Skinner--Ostriker, Ensman, and radiation-diagnostic test, including
+tests that are conditional or were not run in the published batch. Detailed
+family reports remain linked subreports. The historical four-case radiation
+page is retained as `radiation-application.html`; it no longer replaces the
+unified landing page.
 
 ## Compatibility baseline
 
-The existing `radiation_results` C++20 program remains authoritative for its
-four cases.  `run.sh`, `run_live.sh`, and `results.sh` are unchanged, including
-their aliases, positional levels/build, resume rules, CGS conversion, reference
-generation, validation, plots, movies, VisIt sessions, live web pages, and
-output formats.  In particular, existing commands continue to write beneath
-`radiation_results/results` unless the caller chooses `--output`.
+The migrated `verification_results/radiation` C++20 program remains
+authoritative for its four full-application cases. Historical
+`radiation_results/run.sh` and `run_live.sh` commands retain their aliases,
+positional levels/build, resume rules, CGS conversion, reference generation,
+validation, plots, movies, and VisIt sessions. New default batches live beneath
+`verification_results/results` unless the caller chooses `--output`. The only
+intentional presentation change is the descriptor-driven site root; the prior
+application landing page is preserved as `radiation-application.html`.
 
 The current workflow was inventoried as follows:
 
 | Concern | Existing implementation retained by the adapter |
 |---|---|
-| Entry points | `run.sh` selects `results.sh run`; `run_live.sh` selects `results.sh live`; `results.sh` builds and invokes `.build/radiation-results` |
-| Test inputs | Four INI files in `radiation_results/configs`; the runner scales them to CGS and writes effective `run.ini` |
+| Entry points | Common and compatibility launchers enter `verification_results/run.sh`; the adapter invokes `radiation/results.sh`, which builds and runs `.build/radiation-results` |
+| Test inputs | Four INI files in `verification_results/radiation/configs`; the runner scales them to CGS and writes effective `run.ini` |
 | Execution | C++ `run.cpp` selects cases/levels/build, rebuilds `octotiger`, runs HPX threads, validates completion, and supports resume |
 | References | Exact profile cell averages for wave/front/sphere; FFTW telegraph generator and `reference.bin` for Gaussian |
 | Diagnostics | `L1.dat`, `L2.dat`, `Linf.dat`, slice CSVs, conservation CSV, log validation, and optional Silo states |
@@ -58,6 +67,7 @@ The common launcher works from any current directory:
 
 ```sh
 verification_results/run.sh list
+verification_results/run.sh site /path/to/existing/results
 verification_results/run.sh plan radiation.skinner_ostriker.streaming_wave 2 3 --build Release --threads 8
 verification_results/run.sh run radiation.skinner_ostriker.streaming_wave 2 3 Release --threads 8
 verification_results/run.sh live radiation 2 3 4 Debug --threads 12 --no-open
@@ -78,8 +88,8 @@ Debug.  Descriptor levels are the recommended sweep, not an implicit override
 of adapter behavior.
 
 After a successful adapted run, `verification.json` supplements—never replaces
-or rewrites—the legacy `batch.json` and `run.json`.  Direct invocations of all
-old scripts behave exactly as before.
+or rewrites—the legacy `batch.json` and `run.json`. Old commands remain valid;
+their detailed four-case page is linked beneath the unified landing page.
 
 ## Stable metadata
 
@@ -109,7 +119,7 @@ reference checksum provide the reproducibility chain.
 | Numerical data and logs | `results/<run>/`; ignored and never consumed as a descriptor/reference |
 | Rendered plots, movies, pages | Inside the same immutable run artifact root |
 | Temporary builds/logs | `build/`, `tmp/`, and `logs/`; ignored |
-| Legacy outputs | Remain under `radiation_results/results` and retain their existing rules |
+| Compatibility outputs | Use the canonical `verification_results/results` root and retain the detailed legacy products |
 
 The legacy `.build`, `results`, and `visit_sessions` directories are ignored as
 generated products.  They are not included in source archives.

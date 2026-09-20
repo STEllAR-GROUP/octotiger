@@ -1,0 +1,63 @@
+int main(int argc,char** argv) {
+ try {
+    if(argc!=2) throw std::runtime_error("Expected the Gaussian reference filename");
+    auto const ref=radiationTests::ReferenceData::read(argv[1]);
+    if(ref.n!=INX) throw std::runtime_error("fixture/reference size mismatch");
+    auto const& p=ref.p; physcon().c=p.c;
+    opts().radReference=argv[1];opts().stop_time=p.time;opts().xscale=p.length/2;
+    opts().radTestChi=p.chi;opts().radTestWidth=p.width;opts().radTestBackground=p.background;
+    opts().radTestAmplitude=p.amplitude;opts().radTestLuminosity=p.luminosity;
+    double const dx=p.length/INX;
+    std::vector<std::vector<Real>> X(3,std::vector<Real>(H_N3));
+    for(int i=0;i<H_NX;++i)for(int j=0;j<H_NX;++j)for(int k=0;k<H_NX;++k){
+        auto r=hindex(i,j,k);X[0][r]=-p.length/2+(i-H_BW+.5)*dx;
+        X[1][r]=-p.length/2+(j-H_BW+.5)*dx;X[2][r]=-p.length/2+(k-H_BW+.5)*dx;
+    }
+    const char* names[]{"STREAMING_WAVE","STREAMING_FRONT","GAUSSIAN_PULSE","EQUILIBRIUM_SPHERE"};
+    for(int test=0;test<4;++test){
+        opts().problem=test;opts().periodic=test!=3;opts().rad_implicit=test>=2;
+        validateRadiationTest();rad_grid g(dx);g.set_X(X);
+        auto analytic=[&](radiationTests::Point x,double t){
+            auto const full=t==0?radiationRegressionInit(x[0],x[1],x[2],dx):
+                radiationRegressionAnalytic(x[0],x[1],x[2],t);
+            radiationTests::State u;
+            for(int f=0;f<4;++f)u[f]=full[opts().n_fields+f];
+            return u;
+        };
+        for(int i=0;i<RAD_NX;++i)for(int j=0;j<RAD_NX;++j)for(int k=0;k<RAD_NX;++k){
+            auto r=rindex(i,j,k);auto u=analytic({X[0][r],X[1][r],X[2][r]},0);
+            for(int f=0;f<4;++f)g.U[f][r]=u[f];
+        }
+        double t=0;
+        std::array<bool,6> physicalFaces{};
+        physicalFaces.fill(test==3);
+        while(t<p.time){
+            if(test==3){for(int face=0;face<6;++face)g.set_physical_boundaries(face,t);}
+            else {
+                auto wrap=[](int x){return RAD_BW+(x-RAD_BW+INX)%INX;};
+                for(int i=0;i<RAD_NX;++i)for(int j=0;j<RAD_NX;++j)for(int k=0;k<RAD_NX;++k)
+                    for(int f=0;f<4;++f)g.U[f][rindex(i,j,k)]=g.U[f][rindex(wrap(i),wrap(j),wrap(k))];
+            }
+            double const dt=std::min(g.maxTimestep(0),p.time-t);
+            if(!(std::isfinite(dt)&&dt>0&&t+dt>t)) throw std::runtime_error("Invalid regression timestep");
+            // The VL predictor needs the actual step and half-time face policy.
+            g.compute_flux(dt,0,t,physicalFaces);g.advance(dt,0);
+            if(test>=2)g.applyRegressionSource(dt);
+            g.sanity_check();
+            t+=dt;
+        }
+        std::array<double,4> l1{},l2{},linf{};
+        for(int i=RAD_BW;i<RAD_BW+INX;++i)for(int j=RAD_BW;j<RAD_BW+INX;++j)for(int k=RAD_BW;k<RAD_BW+INX;++k){
+            auto r=rindex(i,j,k);auto u=analytic({X[0][r],X[1][r],X[2][r]},t);
+            for(int f=0;f<4;++f){
+                double e=std::abs(u[f]-g.U[f][r]);
+                if(!std::isfinite(e)) throw std::runtime_error("Nonfinite regression error");
+                l1[f]+=e;l2[f]+=e*e;linf[f]=std::max(linf[f],e);
+            }
+        }
+        std::cout<<"RADIATION_TEST_FINISHED RADIATION_"<<names[test]<<" t="<<std::setprecision(17)<<t<<'\n';
+        const char* fields[]{"er","fx","fy","fz"};
+        for(int f=0;f<4;++f)std::cout<<fields[f]<<" "<<std::scientific<<l1[f]/(INX*INX*INX)<<" "<<std::sqrt(l2[f]/(INX*INX*INX))<<" "<<linf[f]<<'\n';
+    }
+ } catch(std::exception const& e){std::cerr<<e.what()<<'\n';return 1;}
+}

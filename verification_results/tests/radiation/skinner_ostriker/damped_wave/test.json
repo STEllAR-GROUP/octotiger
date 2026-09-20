@@ -92,9 +92,9 @@
   },
   "tolerance_policy": {
     "mode": "convergence",
-    "owner": "Step 05 analytical accuracy policy",
-    "description": "Prespecified regime-dependent bounds; failures retained",
-    "min_order": 1.6,
+    "owner": "ULTRA review of theta=1 backward-Euler absorption",
+    "description": "Corrected first-order source expectation: Ebar_n=Ebar_0 product(1+c_hat chi_a dt)^-1. Continuum exponential and original L1 bound retained; additional discrete-mean check at 5e-12, streaming symmetry and phase checks prevent hiding source/transport errors. Step 05/07 order-1.6 failures remain in historical reports.",
+    "min_order": 0.8,
     "l1_coefficient": 2,
     "conservation_relative": 2e-11,
     "realizability_tolerance": 2e-12,

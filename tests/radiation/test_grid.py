@@ -6,7 +6,7 @@ or the full hydro solver. It does not test distributed HPX actions. Both equal
 and unequal ghost widths are checked to catch hydro/radiation index confusion.
 Run: python3 tests/radiation/test_grid.py [--sanitize]
 """
-import os, pathlib, subprocess, tempfile, sys
+import argparse, os, pathlib, shlex, subprocess, tempfile
 root = pathlib.Path(__file__).resolve().parents[2]
 cpp = (root/'src/radiation/rad_grid.cpp').read_text()
 header = (root/'octotiger/radiation/rad_grid.hpp').read_text()
@@ -23,17 +23,22 @@ def method(start):
     return cpp[begin:end]
 
 bodies='\n'.join(method(x) for x in [
-    'Real radiation_gas_internal(', 'void rad_grid::allocate()',
+    'Real radiationGasInternal(', 'void rad_grid::allocate()',
     'void rad_grid::set_dx(', 'void rad_grid::set_X(',
-    'void rad_grid::compute_mmw(', 'Real rad_grid::max_timestep(',
+    'void rad_grid::compute_mmw(', 'Real rad_grid::maxTimestep(',
     'void rad_grid::sanity_check()', 'void rad_grid::compute_flux(',
+    'void rad_grid::set_physical_boundaries(',
     'void rad_grid::advance(', 'void rad_grid::rad_imp(',
+    'void rad_grid::prepareSources(', 'void rad_grid::finishSources(',
     'void rad_grid::complete_rad_amr_boundary()',
     'std::vector<Real> rad_grid::get_subset(',
     'rad_grid::rad_grid(Real _dx)', 'rad_grid::rad_grid()'])
 
 fixture=r'''
 #include "octotiger/radiation/m1.hpp"
+#include "octotiger/radiation/grey_opacity.hpp"
+#include "octotiger/radiation/conservation.hpp"
+#include "octotiger/test_problems/radiation/profiles.hpp"
 #include <atomic>
 #include <functional>
 #include <unordered_map>
@@ -48,13 +53,24 @@ constexpr integer RAD_NX=INX+2*RAD_BW, RAD_N3=RAD_NX*RAD_NX*RAD_NX;
 constexpr integer H_NX=INX+2*H_BW, H_N3=H_NX*H_NX*H_NX;
 constexpr integer HS_NX=INX/2+2*H_BW, HS_N3=HS_NX*HS_NX*HS_NX;
 constexpr integer HS_DNX=HS_NX*HS_NX, HS_DNY=HS_NX, HS_DNZ=1;
-constexpr int XDIM=0,YDIM=1,ZDIM=2,WD=1,MARSHAK=2,spc_i=0;
+constexpr int XDIM=0,YDIM=1,ZDIM=2,WD=1,MARSHAK=2;
+constexpr int rho_i=0,egas_i=1,tau_i=2,sx_i=3,sy_i=4,sz_i=5,spc_i=6;
 constexpr int RADIATION_TEST=3,RADIATION_DIFFUSION=4,RADIATION_COUPLING=5;
+constexpr int RADIATION_EQUILIBRIUM_SPHERE=6;
 constexpr Real MARSHAK_OPAC=100;
+constexpr Real ZERO=0;
+using M1=RadiationM1<Real,NDIM>;
 integer rindex(integer i,integer j,integer k) {return k+RAD_NX*(j+RAD_NX*i);}
 integer hindex(integer i,integer j,integer k) {return k+H_NX*(j+H_NX*i);}
 integer hSindex(integer i,integer j,integer k) {return k+HS_NX*(j+HS_NX*i);}
-struct options_fixture {Real cfl=.4,dual_energy_sw1=.001;int eos=0,problem=RADIATION_COUPLING,n_species=1;};
+struct options_fixture {
+    radiation::GreyOpacity radiationOpacity;
+    Real rad_cfl=.4,rad_c_ratio=1,rad_theta=1,rad_opacity=-1;
+    Real code_to_g=1,code_to_cm=1,xscale=.5,dual_energy_sw1=.001;
+    int eos=0,problem=RADIATION_COUPLING,n_species=1,n_fields=7;
+    bool rad_implicit=false,rad_velocity_terms=true;
+    std::string rad_energy_mode="thermal";
+};
 options_fixture& opts() {static options_fixture o;return o;}
 struct constants_fixture {Real c=17,sigma=17./4,kb=1,mh=1;};
 constants_fixture& physcon() {static constants_fixture p;return p;}
@@ -62,8 +78,18 @@ struct grid {static Real get_fgamma() {return 5./3;}};
 Real ztwd_energy(Real rho) {return .1*rho;}
 template<class T> using specie_state_t=std::array<T,1>;
 void mean_ion_weight(const specie_state_t<Real>&,Real& mmw,Real& X,Real& Z) {mmw=1;X=.7;Z=.02;}
+bool radiationFixedMediumProblem() {return false;}
+radiationTests::Parameters radiationTestParameters() {
+    radiationTests::Parameters p;p.c=physcon().c;return p;
+}
+std::vector<Real> marshak_wave_analytic(Real,Real,Real,Real) {
+    throw std::runtime_error("Marshak boundaries are not part of this fixture");
+}
 struct silo_var_t {};
-namespace geo {struct face{};struct direction{};struct dimension{};struct octant{};}
+namespace geo {
+struct face {int index;face(int v):index(v){} operator int() const {return index;}};
+struct direction{};struct dimension{};struct octant{};
+}
 #define private public
 '''
 checks=r'''
@@ -90,10 +116,10 @@ int main() {
             const auto h=hindex(i,j,k);X[0][h]=(i-H_BW+.5)*dx;X[1][h]=(j-H_BW+.5)*dx;X[2][h]=(k-H_BW+.5)*dx;
         }
         g.set_X(X);
-        const Real dt=g.max_timestep(0);
+        const Real dt=g.maxTimestep(0);
         for(auto& row:g.U)std::fill(row.begin(),row.end(),0);
         std::fill(g.U[0].begin(),g.U[0].end(),2);
-        g.compute_flux(0);g.advance(dt,0);
+        g.compute_flux(dt,0);g.advance(dt,0);
         for(Real E:g.U[0])near(E,2,"constant-state transport");
         // Exercise every face and every direction with a periodic oblique beam.
         const Real n=1/std::sqrt(3.);
@@ -104,11 +130,11 @@ int main() {
             g.U[0][r]=E;sum0+=E;
             for(int d=1;d<4;++d)g.U[d][r]=c*E*n;
         }
-        for(int step=0;step<20;++step) {fill_bounds(g);g.compute_flux(0);g.advance(dt,0);}
+        for(int step=0;step<20;++step) {fill_bounds(g);g.compute_flux(dt,0);g.advance(dt,0);}
         Real sum=0;
         for(integer i=RAD_BW;i<RAD_BW+INX;++i)for(integer j=RAD_BW;j<RAD_BW+INX;++j)for(integer k=RAD_BW;k<RAD_BW+INX;++k) {
             const auto r=rindex(i,j,k);sum+=g.U[0][r];
-            radiation_m1::check_state({g.U[0][r],g.U[1][r],g.U[2][r],g.U[3][r]},c);
+            M1::ConservedState{g.U[0][r],g.U[1][r]/c,g.U[2][r]/c,g.U[3][r]/c}.checkState();
         }
         near(sum,sum0,"3D periodic energy conservation");
         // Stress realizability at discontinuous beam directions and large contrasts.
@@ -118,20 +144,29 @@ int main() {
             for(integer i=RAD_BW;i<RAD_BW+INX;++i)for(integer j=RAD_BW;j<RAD_BW+INX;++j)for(integer k=RAD_BW;k<RAD_BW+INX;++k) {
                 const auto r=rindex(i,j,k);
                 const Real E=std::exp(8*uniform(random));
-                radiation_m1::vector f{uniform(random),uniform(random),uniform(random)};
+                std::array<Real,3> f{uniform(random),uniform(random),uniform(random)};
                 const Real norm=std::hypot(f[0],f[1],f[2]);
                 const Real mag=trial%2==0?1:std::abs(uniform(random));
                 g.U[0][r]=E;
                 for(int d=0;d<3;++d)g.U[d+1][r]=c*E*mag*f[d]/norm;
             }
-            for(int step=0;step<3;++step) {fill_bounds(g);g.compute_flux(0);g.advance(dt,0);}
+            for(int step=0;step<3;++step) {fill_bounds(g);g.compute_flux(dt,0);g.advance(dt,0);}
         }
         // Coupling uses different array strides when H_BW != RAD_BW.
-        std::vector<Real> egas(H_N3,100),tau(H_N3,std::pow(100.,3./5)),sx(H_N3,0),sy=sx,sz=sx,rho(H_N3,10);
-        std::vector<std::vector<Real>> species(1,rho);
-        g.compute_mmw(species);
+        std::vector<std::vector<Real>> gas(7,std::vector<Real>(H_N3));
+        gas[egas_i].assign(H_N3,100);gas[tau_i].assign(H_N3,std::pow(100.,3./5));
+        gas[rho_i].assign(H_N3,10);gas[spc_i].assign(H_N3,10);
+        auto& egas=gas[egas_i];auto& tau=gas[tau_i];auto& rho=gas[rho_i];
+        auto& sx=gas[sx_i];auto& sy=gas[sy_i];auto& sz=gas[sz_i];
+        g.compute_mmw(gas);
         for(integer r=0;r<RAD_N3;++r) {g.U[0][r]=4;g.U[1][r]=2;g.U[2][r]=-1;g.U[3][r]=0;}
         g.rad_imp(egas,tau,sx,sy,sz,rho,dt);
+        // Current production splitting performs thermal exchange before the
+        // transport/source substep and applies accumulated momentum afterwards.
+        opts().rad_implicit=true;
+        g.prepareSources(gas);fill_bounds(g);
+        g.compute_flux(dt,0);g.advance(dt,0);g.finishSources(gas);
+        opts().rad_implicit=false;
         constexpr integer D=H_BW-RAD_BW;
         for(integer i=RAD_BW;i<RAD_BW+INX;++i)for(integer j=RAD_BW;j<RAD_BW+INX;++j)for(integer k=RAD_BW;k<RAD_BW+INX;++k) {
             const auto r=rindex(i,j,k),h=hindex(i+D,j+D,k+D);
@@ -161,19 +196,35 @@ int main() {
         std::array<Real,4> mean{};
         for(int a=0;a<2;++a)for(int b=0;b<2;++b)for(int d=0;d<2;++d) {
             auto r=rindex(RAD_BW+a,RAD_BW+b,RAD_BW+d);
-            radiation_m1::state u;
+            std::array<Real,4> u;
             for(int f=0;f<4;++f) {u[f]=g.U[f][r];mean[f]+=u[f]/8;}
-            radiation_m1::check_state(u,c);
+            M1::ConservedState{u[0],u[1]/c,u[2]/c,u[3]/c}.checkState();
         }
         for(int f=0;f<4;++f)near(mean[f],g.Ushad[f][center],"AMR conservative interpolation");
         std::cout<<"Actual rad_grid kernels passed: H_BW="<<H_BW<<", RAD_BW="<<RAD_BW<<'\n';
     } catch(const std::exception& e) {std::cerr<<e.what()<<'\n';return 1;}
 }
 '''
-with tempfile.TemporaryDirectory(prefix='radiation-grid-') as tmp:
-    path=pathlib.Path(tmp)
+def validate(path, args):
+    path.mkdir(parents=True, exist_ok=True)
     (path/'test.cpp').write_text(fixture+opacities+'\n'+header+'\n'+bodies+checks)
-    for h,r in [(3,3),(4,2)]:
-        flags=['-O1','-g','-fsanitize=address,undefined','-fno-omit-frame-pointer'] if '--sanitize' in sys.argv else (['-O3','-DNDEBUG'] if '--release' in sys.argv else ['-O2'])
-        subprocess.run([os.environ.get('CXX','g++'),'-std=c++23',*flags,'-I'+str(root),f'-DHYDRO_WIDTH={h}',f'-DRAD_WIDTH={r}',str(path/'test.cpp'),'-o',str(path/'test')],check=True)
-        subprocess.run([str(path/'test')],check=True)
+    # VL requires three radiation ghost cells. Keep the distinct-stride test
+    # with a wider hydro halo; the obsolete (4,2) pair is not a supported grid.
+    for h,r in [(3,3),(4,3)]:
+        flags=['-O1','-g','-fsanitize=address,undefined','-fno-omit-frame-pointer'] if args.sanitize else (['-O3','-DNDEBUG'] if args.release else ['-O2'])
+        executable=path/f'test-h{h}-r{r}'
+        subprocess.run([*shlex.split(os.environ.get('CXX','g++')),'-std=c++23',*flags,'-I'+str(root),f'-DHYDRO_WIDTH={h}',f'-DRAD_WIDTH={r}',str(path/'test.cpp'),'-o',str(executable)],check=True)
+        subprocess.run([str(executable)],check=True)
+
+
+if __name__ == '__main__':
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--sanitize',action='store_true')
+    parser.add_argument('--release',action='store_true')
+    parser.add_argument('--build-dir',type=pathlib.Path)
+    args=parser.parse_args()
+    if args.build_dir:
+        validate(args.build_dir.resolve(),args)
+    else:
+        with tempfile.TemporaryDirectory(prefix='radiation-grid-') as tmp:
+            validate(pathlib.Path(tmp),args)

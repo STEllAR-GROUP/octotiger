@@ -290,3 +290,9 @@ python3 tests/validateRadiationGrid.py
 The historical `radiation_results/` launchers remain as compatibility wrappers
 for one migration cycle. They forward to this canonical harness; new scripts,
 configs, and result references should use `verification_results/radiation/`.
+
+Both the compatibility launchers and the canonical `verification_results/run.sh`
+now place a descriptor-driven unified landing page at the batch `index.html`.
+The detailed four-case application page is retained beside it as
+`radiation-application.html`. To rebuild the landing page without rerunning a
+simulation, use `verification_results/run.sh site RESULTS_DIRECTORY`.

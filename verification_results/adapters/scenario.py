@@ -12,12 +12,23 @@ import subprocess
 
 
 def execute(selected, arguments, plan=False):
+    # An explicit executable without a configured build retains the diagnostic
+    # smoke interface. It never certifies the registered regression suite.
+    option_names = {argument.split('=', 1)[0] for argument in arguments}
+    if '--exe' in option_names and '--build' not in option_names:
+        return _execute_smoke(selected, arguments, plan)
+    from verification_results.adapters import ctest_scenarios
+    return ctest_scenarios.execute(selected, arguments, plan)
+
+
+def _execute_smoke(selected, arguments, plan=False):
     from verification_results import runner
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('build_type', nargs='?', default='Release')
     parser.add_argument('--build', type=Path)
     parser.add_argument('--root', type=Path, default=runner.SOURCE_ROOT)
     parser.add_argument('--exe', type=Path)
+    parser.add_argument('--ctest', help='Accepted for shared CLI compatibility; unused by diagnostic smoke runs')
     parser.add_argument('--threads', type=int, default=1)
     parser.add_argument('--output', type=Path)
     opts = parser.parse_args(arguments)
@@ -35,7 +46,8 @@ def execute(selected, arguments, plan=False):
         'source': {'commit': runner.git_value('rev-parse', 'HEAD'), 'dirty': bool(runner.git_value('status', '--porcelain'))},
         'harness': {'name': 'verification_results', 'adapter': 'scenario'},
         'build': runner.compiler_metadata(str(build), root),
-        'execution': {'thread_count': opts.threads, 'arguments': arguments, 'requested_build_type': build_type},
+        'execution': {'thread_count': opts.threads, 'arguments': arguments, 'requested_build_type': build_type,
+                      'ctest_used': False},
         'tests': [],
     }
     manifest['build']['requested_build_type'] = build_type
