@@ -328,7 +328,7 @@ def main(argv: list[str] | None = None) -> int:
             raise HarnessError("No suite descriptors match " + options.selector)
         scenario_selected = [(available[key][0], value) for key, value in selected if value["adapter"]["name"] == "octotiger_scenario"]
         native_selected = [(key, value) for key, value in selected if value["adapter"]["name"] != "octotiger_scenario"]
-        if scenario_selected and native_selected:
+        if options.command == "suite" or (scenario_selected and native_selected):
             from verification_results.adapters import unified
             return unified.execute({key: available[key] for key, _ in selected}, options.arguments, plan=options.command == "plan")
         if scenario_selected:

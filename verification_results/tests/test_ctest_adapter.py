@@ -20,6 +20,45 @@ CTEST = os.environ.get('OCTOTIGER_TEST_CTEST') or shutil.which('ctest')
 
 
 class SelectionTests(unittest.TestCase):
+    def test_requested_hpx_threads_override_environment_without_parallel_ctest(self):
+        with patch.dict(os.environ, {'HPX_COMMANDLINE_OPTIONS': '--hpx:bind=balanced --hpx:threads=2'}):
+            environment = adapter.hpx_environment(12)
+        self.assertIn('--hpx:bind=balanced', environment['HPX_COMMANDLINE_OPTIONS'])
+        self.assertIn('--hpx:threads=12', environment['HPX_COMMANDLINE_OPTIONS'])
+        self.assertNotIn('--hpx:threads=2', environment['HPX_COMMANDLINE_OPTIONS'])
+
+    def test_redirected_solver_log_is_discovered_for_live_following(self):
+        registration = {'name': 'solver', 'command': ['sh', '-c', '/tmp/octotiger > solver.log'],
+                        'properties': [{'name': 'WORKING_DIRECTORY', 'value': '/tmp/build/case'}]}
+        self.assertEqual(adapter.redirected_logs([registration], ['solver'], Path('/tmp/build')),
+                         [Path('/tmp/build/case/solver.log')])
+
+    def test_ctest_and_redirected_solver_output_are_streamed_and_logged(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            build, case, result = root/'build', root/'build/case', root/'result'
+            case.mkdir(parents=True); result.mkdir()
+            program = ('import pathlib,sys,time; '
+                       'p=pathlib.Path("case/solver.log"); '
+                       'p.write_text("octotiger line 1\\n"); time.sleep(.12); '
+                       'p.open("a").write("octotiger line 2\\n"); '
+                       'j=pathlib.Path(sys.argv[sys.argv.index("--output-junit")+1]); '
+                       'j.write_text("<testsuite><testcase name=\\"solver\\"/></testsuite>"); '
+                       'print("ctest progress",flush=True)')
+            registration = {'name': 'solver',
+                            'command': ['sh', '-c', '/tmp/octotiger > solver.log'],
+                            'properties': [{'name': 'WORKING_DIRECTORY', 'value': str(case)}]}
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                record = adapter.run_phase([sys.executable, '-c', program], build,
+                                           ['solver'], result, 'checks', [registration], 12)
+            visible = output.getvalue()
+            self.assertEqual(record['returncode'], 0)
+            self.assertEqual(record['application_threads'], 12)
+            self.assertIn('ctest progress', visible)
+            self.assertIn('octotiger line 1', visible)
+            self.assertIn('octotiger line 2', visible)
+            self.assertIn('ctest progress', (result/'checks.log').read_text())
+
     def test_sod_big_and_sod_do_not_overlap(self):
         descriptors = runner.descriptors()
         import re

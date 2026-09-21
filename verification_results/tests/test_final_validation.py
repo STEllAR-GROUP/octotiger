@@ -99,12 +99,15 @@ class FinalValidationTests(unittest.TestCase):
             outputs.append(runner.option_value(args, '--output'))
             self.assertEqual(args[:3], ['0', '1', '2'])
             return 0
-        with tempfile.TemporaryDirectory() as tmp, patch.object(scenario, 'execute', side_effect=fake_scenario), patch.object(native_suite, 'execute', side_effect=fake_native):
-            self.assertEqual(unified.execute(runner.descriptors(), ['0', '1', '2', 'Release', '--output', tmp]), 1)
+        with tempfile.TemporaryDirectory() as tmp, patch.object(scenario, 'execute', side_effect=fake_scenario), patch.object(native_suite, 'execute', side_effect=fake_native), patch.object(unified, '_run_application', return_value=0) as application:
+            self.assertEqual(unified.execute(runner.descriptors(), ['0', '1', '2', 'Release', '--threads', '12', '--output', tmp]), 1)
             report = json.loads((Path(tmp)/'summary.json').read_text())
             self.assertEqual([r['status'] for r in report['families']], ['failed', 'conditional', 'passed'])
             self.assertEqual(len(set(outputs)), 3)
             self.assertIn('radiation/report.html', (Path(tmp)/'index.html').read_text())
+            command = application.call_args.args[0]
+            self.assertEqual(command[command.index('--threads')+1], '12')
+            self.assertIn('--no-open', command)
 
     def test_plan_all_and_family_are_read_only_and_complete(self):
         with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()) as text:

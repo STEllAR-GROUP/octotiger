@@ -426,10 +426,12 @@ def execute(selected,arguments,plan=False):
     levels=[int(v) for v in opts.settings if v.isdigit()]
     builds=[v for v in opts.settings if not v.isdigit()];build=builds[-1] if builds else 'Release'
     if build.lower() not in {'debug','release','relwithdebinfo'}:raise ValueError('Invalid build type')
-    if opts.threads!=1:raise ValueError('Serial production-method adapter requires --threads 1; use legacy application adapters for HPX threads')
+    if opts.threads<1:raise ValueError('Thread count must be positive')
     if len(builds)>1 or any(x<0 or x>5 for x in levels) or levels!=sorted(set(levels)):raise ValueError('Use distinct increasing resolution levels and one build type')
     out=runner.safe_output(opts.output or runner.default_output('suite'))
-    manifest={'selected':[k for k,_ in selected],'levels':levels or 'descriptor defaults','build_type':build,'output':str(out),'thread_count':1}
+    manifest={'selected':[k for k,_ in selected],'levels':levels or 'descriptor defaults','build_type':build,'output':str(out),
+              'requested_application_threads':opts.threads,'fixture_threads':1,
+              'thread_note':'Native method fixtures are serial; full Octo-TIGER application adapters use the requested HPX thread count.'}
     if plan:print(json.dumps(manifest,indent=2));return 0
     if out.exists() and any(out.iterdir()):raise ValueError('Suite output must be empty; retain prior results and choose a new directory')
     out.mkdir(parents=True,exist_ok=True);identity=source_identity();results=[];audits=[]
@@ -444,7 +446,8 @@ def execute(selected,arguments,plan=False):
                 folder=out/identifier/f'l{level}';folder.mkdir(parents=True)
                 p=d['parameters'];n=8*2**level
                 meta={'schema_version':1,'source':identity,'descriptor':d,'descriptor_sha256':hashlib.sha256(json.dumps(d,sort_keys=True).encode()).hexdigest(),
-                      'level':level,'cells':n,'thread_count':1,'backend':'serial production methods; fixture communication',
+                      'level':level,'cells':n,'requested_application_threads':opts.threads,'fixture_threads':1,
+                      'backend':'serial production methods; fixture communication',
                       'options':p,'status':'running'}
                 dump(folder/'run.json',meta)
                 sealed=None
@@ -454,6 +457,7 @@ def execute(selected,arguments,plan=False):
                     values=[d['name'],p['length_cm'],p['final_time_s'],p['chi_cm_inverse'],p['amplitude'],p['width_cm'],p['velocity_cm_s'],p['reduced_light_speed_ratio'],p['rho_g_cm3'],p['gas_internal_erg_cm3'],p['radiation_energy_erg_cm3'],p['frames']]
                     atomic_write(folder/'input.txt',' '.join(map(str,values))+'\n')
                     staging=folder/'.raw-pending';staging.mkdir()
+                    print(f'{identifier} level={level} cells={n} fixture_threads=1 requested_application_threads={opts.threads}',flush=True)
                     with (staging/'run.log').open('w') as log:
                         subprocess.run([str(exe),str(folder/'input.txt'),str(staging)],stdout=log,stderr=subprocess.STDOUT,check=True)
                         log.flush();os.fsync(log.fileno())

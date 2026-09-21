@@ -12,10 +12,10 @@ python3 verification_results/runner.py run hydro Release --build /path/to/fresh/
 ```
 
 CTest >=3.21, a built application, enabled legacy tests, Silo browser/reference
-data, and all enabled variant dependencies are required. `--threads=1` serializes
-CTest fixtures; application thread settings are unchanged from the configured
-test commands/environment. Request application settings when configuring those
-registrations, not through an ignored override.
+data, and all enabled variant dependencies are required. CTest fixtures always
+run serially to avoid shared-output collisions. `--threads=N` sets the HPX
+worker count for each Octo-TIGER process through `HPX_COMMANDLINE_OPTIONS` while
+leaving CTest parallelism at one.
 
 Each variant executes serially to avoid shared `final.silo`/log collisions. Do not
 run other CTests concurrently in the same build. Raw

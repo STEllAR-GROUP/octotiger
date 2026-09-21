@@ -102,20 +102,24 @@ def _application_results(root: Path, available: bool) -> dict[str, dict[str, Any
     if not available:
         return {}
     answer = {}
-    for case, identifier in APPLICATION_CASES.items():
-        page = root / (case + ".html")
-        if page.is_file():
-            answer[identifier] = _result(
-                "complete", page.name,
-                "Application run completed; use its detailed report for numerical diagnostics.",
-                "full application radiation report")
+    locations = [(root / "radiation" / "application", "radiation/application/"),
+                 (root, "")]
+    for location, prefix in locations:
+        for case, identifier in APPLICATION_CASES.items():
+            page = location / (case + ".html")
+            if page.is_file():
+                answer[identifier] = _result(
+                    "complete", prefix + page.name,
+                    "Application run completed; use its detailed report for numerical diagnostics.",
+                    "full application radiation report")
     return answer
 
 
 def collect(root: Path, descriptors: dict[str, tuple[Path, dict[str, Any]]],
             legacy_application: bool = False) -> dict[str, Any]:
     root = root.resolve()
-    application = _preserve_application_report(root, legacy_application)
+    application = (_preserve_application_report(root, legacy_application) or
+                   (root / "radiation" / "application" / "index.html").is_file())
     observed: dict[str, dict[str, Any]] = {}
     observed.update(_scenario_results(root, "hydro"))
     observed.update(_scenario_results(root, "gravity"))
@@ -158,9 +162,10 @@ def collect(root: Path, descriptors: dict[str, tuple[Path, dict[str, Any]]],
                 }
 
     family_statuses = {item["status"] for item in family_results.values()}
+    summary_status = _status(summary.get("status")) if isinstance(summary, dict) else None
     if counts["failed"] or "failed" in family_statuses:
         overall = "failed"
-    elif counts["running"] or "running" in family_statuses:
+    elif counts["running"] or "running" in family_statuses or summary_status == "running":
         overall = "running"
     elif counts["conditional"] or counts["not_run"] or counts["complete"]:
         overall = "incomplete"
@@ -182,7 +187,10 @@ def collect(root: Path, descriptors: dict[str, tuple[Path, dict[str, Any]]],
         "status": overall,
         "counts": counts,
         "test_count": len(tests),
-        "application_radiation_report": "radiation-application.html" if application else None,
+        "application_radiation_report": (
+            "radiation/application/index.html"
+            if (root / "radiation" / "application" / "index.html").is_file()
+            else "radiation-application.html" if application else None),
         "families": family_results,
         "tests": tests,
     }
@@ -201,11 +209,12 @@ def _family_status(tests: list[dict[str, Any]]) -> str:
 
 def _render(catalog: dict[str, Any]) -> str:
     esc = html.escape
+    refresh = '<meta http-equiv="refresh" content="5">' if catalog["status"] == "running" else ""
     css = """
 :root{color-scheme:light dark;--bg:#0b1020;--panel:#141c31;--line:#2b3857;--text:#edf2ff;--muted:#aebbd6;--pass:#3bc982;--fail:#ff6b72;--cond:#f0b95b;--run:#75b8ff;--none:#8490a8}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,sans-serif}main{max-width:1280px;margin:auto;padding:36px 24px 70px}h1{font-size:2.3rem;margin:.2rem 0}h2{margin-top:2.5rem}h3{margin:.15rem 0}.lede,.meta,.reason{color:var(--muted)}.overview{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:24px 0}.stat,.family,.test{background:var(--panel);border:1px solid var(--line);border-radius:12px}.stat{padding:16px}.stat strong{display:block;font-size:1.7rem}.families{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}.family{padding:18px}.suite{margin-top:22px}.tests{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:12px}.test{padding:16px}.badge{display:inline-block;padding:3px 9px;border-radius:99px;font-weight:700;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em}.passed{color:var(--pass)}.failed{color:var(--fail)}.conditional,.complete,.incomplete{color:var(--cond)}.running{color:var(--run)}.not_run{color:var(--none)}a{color:#8fc5ff}.test a{display:inline-block;margin-top:8px}.identifier{font:12px ui-monospace,monospace;color:var(--muted);overflow-wrap:anywhere}.reference{font-size:.88rem;color:var(--muted)}footer{margin-top:38px;border-top:1px solid var(--line);padding-top:18px;color:var(--muted)}
 """
-    parts = ["<!doctype html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">",
+    parts = ["<!doctype html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">", refresh,
              '<meta name="octotiger-unified-site" content="1">',
              "<title>Octo-TIGER verification</title><style>", css, "</style></head><body><main>",
              "<header><div class=\"meta\">UNIFIED PHYSICS VERIFICATION</div><h1>Octo-TIGER verification</h1>",
@@ -226,9 +235,12 @@ def _render(catalog: dict[str, Any]) -> str:
         if recorded.get("result_link"):
             links.append(recorded["result_link"])
             links = sorted(set(links))
+        if family == "radiation" and catalog.get("application_radiation_report"):
+            links.append(catalog["application_radiation_report"])
+            links = sorted(set(links))
         parts.append(f'<div class="family"><h3>{esc(family.title())}</h3><span class="badge {status}">{status}</span><p>{len(tests)} registered tests</p>')
         for link in links:
-            label = "Application radiation report" if link == "radiation-application.html" else "Detailed report"
+            label = "Application radiation report" if link in {"radiation-application.html", "radiation/application/index.html"} else "Detailed report"
             parts.append(f'<a href="{esc(link, quote=True)}">{label}</a><br>')
         parts.append('</div>')
     parts.append('</div></section>')

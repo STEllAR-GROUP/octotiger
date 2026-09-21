@@ -19,6 +19,9 @@ import re
 import shlex
 import shutil
 import subprocess
+import sys
+import threading
+import time
 import xml.etree.ElementTree as ET
 
 
@@ -218,17 +221,107 @@ def read_junit(path, expected):
     return tests
 
 
-def run_phase(base, build, names, folder, phase):
+def hpx_environment(threads):
+    """Override HPX worker threads without changing CTest fixture parallelism."""
+    environment = os.environ.copy()
+    words = shlex.split(environment.get('HPX_COMMANDLINE_OPTIONS', ''))
+    retained = []
+    skip = False
+    for word in words:
+        if skip:
+            skip = False
+            continue
+        if word == '--hpx:threads':
+            skip = True
+        elif not word.startswith('--hpx:threads='):
+            retained.append(word)
+    retained.append(f'--hpx:threads={threads}')
+    environment['HPX_COMMANDLINE_OPTIONS'] = shlex.join(retained)
+    return environment
+
+
+def redirected_logs(registrations, names, build):
+    """Return files to which legacy shell registrations hide solver stdout."""
+    answer = []
+    selected = set(names)
+    for test in registrations:
+        if test['name'] not in selected:
+            continue
+        command = test.get('command', [])
+        if len(command) < 3 or Path(command[0]).name not in {'sh', 'bash'} or command[1] != '-c':
+            continue
+        words = shlex.split(command[2])
+        targets = []
+        for index, word in enumerate(words):
+            if word in {'>', '1>'} and index + 1 < len(words):
+                targets.append(words[index + 1])
+            elif word.startswith('>') and len(word) > 1:
+                targets.append(word.lstrip('>'))
+        directory = Path(properties(test).get('WORKING_DIRECTORY', build))
+        for target in targets:
+            path = Path(target)
+            resolved = path if path.is_absolute() else directory / path
+            if resolved not in answer:
+                answer.append(resolved)
+    return answer
+
+
+def follow_logs(paths, stop):
+    offsets = {path: 0 for path in paths}
+    while True:
+        for path in paths:
+            try:
+                size = path.stat().st_size
+                if size < offsets[path]:
+                    offsets[path] = 0
+                if size > offsets[path]:
+                    with path.open(errors='replace') as stream:
+                        stream.seek(offsets[path])
+                        text = stream.read()
+                        offsets[path] = stream.tell()
+                    if text:
+                        sys.stdout.write(text)
+                        sys.stdout.flush()
+            except (FileNotFoundError, OSError):
+                pass
+        if stop.is_set():
+            return
+        time.sleep(0.05)
+
+
+def run_phase(base, build, names, folder, phase, registrations, threads):
     junit = folder / (phase + '.xml')
     command = [*base, '-R', exact_pattern(names), '-FA', '.*', '-j', '1',
-               '--no-tests=error', '--verbose', '--output-junit', str(junit)]
-    with (folder / (phase + '.log')).open('w') as stream:
-        result = subprocess.run(command, cwd=build, stdout=stream,
-                                stderr=subprocess.STDOUT, check=False)
+               '--no-tests=error', '--output-on-failure', '--output-junit', str(junit)]
+    environment = hpx_environment(threads)
+    paths = redirected_logs(registrations, names, build)
+    stop = threading.Event()
+    follower = threading.Thread(target=follow_logs, args=(paths, stop), daemon=True)
+    follower.start()
+    try:
+        with (folder / (phase + '.log')).open('w') as stream:
+            process = subprocess.Popen(command, cwd=build, stdout=subprocess.PIPE,
+                                       stderr=subprocess.STDOUT, text=True, bufsize=1,
+                                       env=environment)
+            assert process.stdout is not None
+            try:
+                for line in process.stdout:
+                    sys.stdout.write(line)
+                    sys.stdout.flush()
+                    stream.write(line)
+                    stream.flush()
+            finally:
+                process.stdout.close()
+            returncode = process.wait()
+    finally:
+        stop.set()
+        follower.join()
     last_log = build / 'Testing/Temporary/LastTest.log'
     if last_log.is_file():
         shutil.copy2(last_log, folder / (phase + '-LastTest.log'))
-    record = {'command': command, 'returncode': result.returncode,
+    record = {'command': command, 'returncode': returncode,
+              'ctest_parallelism': 1, 'application_threads': threads,
+              'HPX_COMMANDLINE_OPTIONS': environment['HPX_COMMANDLINE_OPTIONS'],
               'checks': read_junit(junit, names)}
     return record
 
@@ -250,8 +343,8 @@ def execute(selected, arguments, plan=False):
     parser.add_argument('--output', type=Path)
     opts = parser.parse_args(arguments)
     modes = {v.lower(): v for v in ('Debug', 'Release', 'RelWithDebInfo')}
-    if opts.build_type.lower() not in modes or opts.threads != 1:
-        raise ValueError('CTest uses serial fixtures (--threads=1); application threads remain in the authoritative registrations')
+    if opts.build_type.lower() not in modes or opts.threads < 1:
+        raise ValueError('Use a supported build type and a positive HPX thread count')
     if opts.exe:
         raise ValueError('--exe cannot replace commands in a configured CTest build; omit --build for conditional smoke only')
     mode = modes[opts.build_type.lower()]
@@ -271,7 +364,8 @@ def execute(selected, arguments, plan=False):
                 'harness': {'name': 'verification_results', 'adapter': 'configured_ctest'},
                 'build': {'directory': str(build), 'requested_build_type': mode},
                 'execution': {'arguments': arguments, 'ctest_parallelism': 1,
-                              'application_threads': 'unchanged configured CTest command/environment'},
+                              'application_threads': opts.threads,
+                              'hpx_override': f'HPX_COMMANDLINE_OPTIONS=--hpx:threads={opts.threads}'},
                 'coverage': 'All selected configured variants/checks/fixtures; not unconfigured hardware or before/after numerical equivalence',
                 'tests': []}
     unavailable = None
@@ -333,6 +427,8 @@ def execute(selected, arguments, plan=False):
     if existing:
         raise ValueError('Existing scenario output would be overwritten: ' + ', '.join(existing))
     output.mkdir(parents=True, exist_ok=True)
+    print(f'Configured CTest: fixture_parallelism=1 application_hpx_threads={opts.threads}',
+          flush=True)
     (output / 'ctest-inventory.json').write_text(json.dumps(inventory, indent=2) + '\n')
     halted = None
     for item in manifest['tests']:
@@ -350,14 +446,16 @@ def execute(selected, arguments, plan=False):
             location = folder / group['name']
             location.mkdir()
             try:
-                group['execution'] = run_phase(base, build, group['run'], location, 'checks')
+                group['execution'] = run_phase(base, build, group['run'], location, 'checks',
+                                               group['registrations'], opts.threads)
                 # Never run cleanup after an archive failure: raw evidence is
                 # left in place, and the next invocation refuses to overwrite it.
                 group['artifacts'] = archive_raw([group], build, location)
                 if not group['artifacts']:
                     raise ValueError('No raw numerical/log artifacts were retained; refusing cleanup/certification')
                 if group['cleanup']:
-                    group['cleanup_execution'] = run_phase(base, build, group['cleanup'], location, 'cleanup')
+                    group['cleanup_execution'] = run_phase(base, build, group['cleanup'], location, 'cleanup',
+                                                           group['registrations'], opts.threads)
                 phases = [group['execution']] + ([group['cleanup_execution']] if group['cleanup'] else [])
                 group['status'] = aggregate([check for phase in phases for check in phase['checks']])
                 if any(phase['returncode'] != 0 for phase in phases):

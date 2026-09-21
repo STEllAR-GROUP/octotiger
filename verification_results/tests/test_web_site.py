@@ -71,6 +71,25 @@ class UnifiedWebsiteTests(unittest.TestCase):
             site.write(root, runner.descriptors(), legacy_application=True)
             self.assertEqual((root / "radiation-application.html").read_text(), resumed)
 
+    def test_nested_application_results_merge_into_unified_live_site(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            application = root / "radiation" / "application"
+            application.mkdir(parents=True)
+            application.joinpath("index.html").write_text("application")
+            for case in site.APPLICATION_CASES:
+                application.joinpath(case + ".html").write_text(case)
+            root.joinpath("summary.json").write_text(json.dumps({
+                "status": "running", "families": [{"family": "radiation", "status": "running"}]
+            }))
+            catalog = site.write(root, runner.descriptors())
+            by_id = {item["identifier"]: item for item in catalog["tests"]}
+            self.assertTrue(all(by_id[identifier]["status"] == "complete"
+                                for identifier in site.APPLICATION_CASES.values()))
+            document = root.joinpath("index.html").read_text()
+            self.assertIn('http-equiv="refresh"', document)
+            self.assertIn("radiation/application/index.html", document)
+
     def test_legacy_launcher_publishes_unified_landing_page(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

@@ -1,3 +1,5 @@
+import contextlib
+import io
 import json
 from pathlib import Path
 import subprocess
@@ -65,8 +67,10 @@ class SuiteContract(unittest.TestCase):
             bad=events.copy();bad[3][field]=value
             self.assertFalse(all(suite.check_exchange_trace(bad,history).values()),field)
 
-    def test_unsupported_thread_count_and_output_reuse_fail(self):
-        with self.assertRaises(ValueError):suite.execute([],['--threads','2'])
+    def test_shared_application_thread_count_and_output_reuse(self):
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(suite.execute([],['--threads','12'],plan=True),0)
+        with self.assertRaises(ValueError):suite.execute([],['--threads','0'],plan=True)
         with tempfile.TemporaryDirectory() as tmp:
             (Path(tmp)/'raw.log').write_text('preserve')
             with self.assertRaises(ValueError):suite.execute([],['--output',tmp])
