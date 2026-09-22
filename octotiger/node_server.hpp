@@ -19,6 +19,8 @@
 #include "octotiger/node_location.hpp"
 #include "octotiger/profiler.hpp"
 #include "octotiger/io/silo.hpp"
+#include "octotiger/subgrid/hydroExchange.hpp"
+#include "octotiger/subgrid/transportRuntime.hpp"
 //#include "octotiger/struct_eos.hpp"
 
 #include <hpx/futures/future.hpp>
@@ -32,6 +34,10 @@
 #include <iostream>
 #include <map>
 #include <vector>
+
+namespace octotiger {
+class Subgrid;
+}
 
 
 struct node_count_type {
@@ -69,6 +75,13 @@ private:
 	Real rotational_time;
 	std::shared_ptr<grid> grid_ptr; //
 	std::shared_ptr<rad_grid> rad_grid_ptr; //
+	// New modular storage. grid_ptr remains as a compatibility adapter while
+	// legacy initialization, gravity, output, and checkpoint paths migrate.
+	std::shared_ptr<octotiger::Subgrid> subgridPtr_;
+    bool modularNode_ = false;
+    octotiger::mesh::BlockLocation modularLocation_;
+    std::optional<octotiger::HydroFluxPacket> modularFlux_;
+    std::optional<octotiger::RadiationFluxPacket> modularRadiationFlux_;
 	std::atomic<bool> is_refined;
 	std::array<integer, NVERTEX> child_descendant_count;
 	std::array<Real, NDIM> xmin;
@@ -117,6 +130,39 @@ private:
 public:
 	timings timings_;
 
+    explicit node_server(octotiger::HydroSnapshot initial);
+    explicit node_server(octotiger::TransportSnapshot initial);
+    octotiger::TransportSnapshot transportSnapshot() const;
+    octotiger::RadiationSnapshot radiationSnapshot() const;
+    Real modularRadiationStableStep(Real reducedLightSpeed, Real cfl) const;
+    octotiger::RadiationFluxPacket modularRadiationAdvance(
+        std::vector<octotiger::RadiationSnapshot> const& snapshots,
+        octotiger::RadiationDomain const& domain, Real reducedLightSpeed, Real stepSize);
+    void modularRadiationReflux(std::vector<octotiger::RadiationFluxPacket> const& packets,
+        octotiger::RadiationDomain const& domain, Real reducedLightSpeed);
+    void modularRadiationRefresh(std::vector<octotiger::RadiationSnapshot> const& snapshots,
+        octotiger::RadiationDomain const& domain, Real time);
+    HPX_DEFINE_COMPONENT_ACTION(node_server, transportSnapshot, transportSnapshotAction);
+    HPX_DEFINE_COMPONENT_ACTION(node_server, radiationSnapshot, radiationSnapshotAction);
+    HPX_DEFINE_COMPONENT_ACTION(node_server, modularRadiationStableStep, modularRadiationStableStepAction);
+    HPX_DEFINE_COMPONENT_ACTION(node_server, modularRadiationAdvance, modularRadiationAdvanceAction);
+    HPX_DEFINE_COMPONENT_ACTION(node_server, modularRadiationReflux, modularRadiationRefluxAction);
+    HPX_DEFINE_COMPONENT_ACTION(node_server, modularRadiationRefresh, modularRadiationRefreshAction);
+    octotiger::HydroSnapshot hydroSnapshot() const;
+    Real modularStableStep(Real gamma, Real cfl) const;
+    octotiger::HydroFluxPacket modularAdvance(
+        std::vector<octotiger::HydroSnapshot> const& snapshots,
+        octotiger::HydroDomain const& domain, Real gamma, Real stepSize);
+    void modularReflux(std::vector<octotiger::HydroFluxPacket> const& packets,
+        octotiger::HydroDomain const& domain, Real gamma);
+    void modularRefresh(std::vector<octotiger::HydroSnapshot> const& snapshots,
+        octotiger::HydroDomain const& domain, Real time);
+    HPX_DEFINE_COMPONENT_ACTION(node_server, hydroSnapshot, hydroSnapshotAction);
+    HPX_DEFINE_COMPONENT_ACTION(node_server, modularStableStep, modularStableStepAction);
+    HPX_DEFINE_COMPONENT_ACTION(node_server, modularAdvance, modularAdvanceAction);
+    HPX_DEFINE_COMPONENT_ACTION(node_server, modularReflux, modularRefluxAction);
+    HPX_DEFINE_COMPONENT_ACTION(node_server, modularRefresh, modularRefreshAction);
+
 	Real get_time() const {
 		return current_time;
 	}
@@ -125,6 +171,12 @@ public:
 	}
 	grid& get_hydro_grid() {
 		return *grid_ptr;
+	}
+	const octotiger::Subgrid& getSubgrid() const {
+		return *subgridPtr_;
+	}
+	octotiger::Subgrid& getSubgrid() {
+		return *subgridPtr_;
 	}
 	Real get_rotation_count() const;
 	node_server& operator=(node_server&&) = delete;
@@ -352,6 +404,17 @@ public:
 };
 
 HPX_REGISTER_ACTION_DECLARATION(node_server::kill_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::hydroSnapshotAction);
+HPX_REGISTER_ACTION_DECLARATION(node_server::transportSnapshotAction);
+HPX_REGISTER_ACTION_DECLARATION(node_server::radiationSnapshotAction);
+HPX_REGISTER_ACTION_DECLARATION(node_server::modularRadiationStableStepAction);
+HPX_REGISTER_ACTION_DECLARATION(node_server::modularRadiationAdvanceAction);
+HPX_REGISTER_ACTION_DECLARATION(node_server::modularRadiationRefluxAction);
+HPX_REGISTER_ACTION_DECLARATION(node_server::modularRadiationRefreshAction);
+HPX_REGISTER_ACTION_DECLARATION(node_server::modularStableStepAction);
+HPX_REGISTER_ACTION_DECLARATION(node_server::modularAdvanceAction);
+HPX_REGISTER_ACTION_DECLARATION(node_server::modularRefluxAction);
+HPX_REGISTER_ACTION_DECLARATION(node_server::modularRefreshAction);
 HPX_REGISTER_ACTION_DECLARATION(node_server::change_units_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::rho_mult_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::line_of_centers_action);

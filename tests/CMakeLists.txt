@@ -15,6 +15,61 @@ target_include_directories(fpeGuardTests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..
 target_compile_features(fpeGuardTests PRIVATE cxx_std_20)
 add_test(NAME fpeGuard COMMAND fpeGuardTests)
 
+add_executable(modularPhysicsTests modularPhysics.cpp)
+target_include_directories(modularPhysicsTests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
+target_compile_features(modularPhysicsTests PRIVATE cxx_std_20)
+if(NOT TARGET octotigerSubgrid)
+  include(../cmake/modularLibraries.cmake)
+endif()
+target_link_libraries(modularPhysicsTests PRIVATE OctoTiger::Subgrid)
+add_test(NAME modularPhysics COMMAND modularPhysicsTests)
+
+add_executable(hydroExchangeTests hydroExchange.cpp)
+target_link_libraries(hydroExchangeTests PRIVATE OctoTiger::Subgrid)
+add_test(NAME hydroExchange COMMAND hydroExchangeTests)
+
+add_executable(radiationExchangeTests radiationExchange.cpp)
+target_link_libraries(radiationExchangeTests PRIVATE OctoTiger::Subgrid)
+add_test(NAME radiationExchange COMMAND radiationExchangeTests)
+
+if(TARGET OctoTiger::Output)
+  add_executable(modularSiloTests modularSilo.cpp)
+  target_link_libraries(modularSiloTests PRIVATE OctoTiger::Output)
+  add_test(NAME modularSilo COMMAND modularSiloTests)
+  set_tests_properties(modularSilo PROPERTIES LABELS "modular;silo")
+endif()
+
+option(OCTOTIGER_WITH_MODULAR_RUNTIME_TESTS
+  "Run the modular HPX application and Silo emission smoke tests" OFF)
+if(OCTOTIGER_WITH_MODULAR_RUNTIME_TESTS)
+  if(NOT TARGET octotiger)
+    message(FATAL_ERROR "Modular runtime tests require the full application build")
+  endif()
+  foreach(dimensionCount RANGE 1 3)
+    add_test(NAME modularRuntime${dimensionCount}D
+      COMMAND ${CMAKE_COMMAND}
+        -Dapplication=$<TARGET_FILE:octotiger>
+        -DdimensionCount=${dimensionCount}
+        -DtestRoot=${CMAKE_CURRENT_BINARY_DIR}/modularSmoke
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/modularSmoke.cmake)
+    set_tests_properties(modularRuntime${dimensionCount}D PROPERTIES
+      TIMEOUT 180 LABELS "modular;runtime;silo")
+    add_test(NAME modularRadiationRuntime${dimensionCount}D
+      COMMAND ${CMAKE_COMMAND}
+        -Dapplication=$<TARGET_FILE:octotiger>
+        -DdimensionCount=${dimensionCount} -DphysicsMode=radiation
+        -DtestRoot=${CMAKE_CURRENT_BINARY_DIR}/modularSmoke
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/modularSmoke.cmake)
+    set_tests_properties(modularRadiationRuntime${dimensionCount}D PROPERTIES
+      TIMEOUT 180 LABELS "modular;runtime;radiation;silo")
+  endforeach()
+  add_test(NAME modularMixedRuntime2D COMMAND ${CMAKE_COMMAND}
+    -Dapplication=$<TARGET_FILE:octotiger> -DdimensionCount=2 -DphysicsMode=mixed
+    -DtestRoot=${CMAKE_CURRENT_BINARY_DIR}/modularSmoke
+    -P ${CMAKE_CURRENT_SOURCE_DIR}/modularSmoke.cmake)
+  set_tests_properties(modularMixedRuntime2D PROPERTIES TIMEOUT 180 LABELS "modular;runtime;radiation;silo")
+endif()
+
 # This exercises the same compatibility helpers as the application parser.
 # Boost is available when tests are built from the supported top-level build;
 # the dependency-free standalone test project simply skips this target.

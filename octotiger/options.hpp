@@ -108,6 +108,12 @@ public:
 	integer donor_refine;
 	integer min_level;
 	integer max_level;
+	integer dimensionCount;
+    bool modularHydro = false;
+    bool modularTransport = false;
+    bool modularRadiationSourceFree = false;
+    std::string modularRadiationProblem = "streamingGaussian";
+    std::string modularProblem = "sod";
 	integer ngrids;
 	integer stop_step;
 	integer silo_offset_x;
@@ -293,6 +299,7 @@ public:
 	} outputOptions;
 
 	struct MeshGroup {
+		OptionReference<integer> dimensionCount;
 		OptionReference<Real> scale;
 		OptionReference<Real> omegaX;
 		OptionReference<Real> omegaY;
@@ -303,7 +310,7 @@ public:
 		OptionReference<bool> inflow;
 		OptionReference<bool> periodic;
 		OptionReference<bool> reflecting;
-		MeshGroup(options& owner) : scale(owner.xscale), minimumLevel(owner.min_level),
+		MeshGroup(options& owner) : dimensionCount(owner.dimensionCount), scale(owner.xscale), minimumLevel(owner.min_level),
 			omegaX(owner.omegaX), omegaY(owner.omegaY), omegaZ(owner.omega),
 			maximumLevel(owner.max_level), unigrid(owner.unigrid),
 			inflow(owner.inflow_bc), periodic(owner.periodic), reflecting(owner.reflect_bc) {
@@ -472,6 +479,7 @@ public:
 		arc & stop_time;
 		arc & min_level;
 		arc & max_level;
+		arc & dimensionCount;
 		arc & xscale;
 		arc & dt_max;
 		arc & cfl;
@@ -517,6 +525,11 @@ public:
 		arc & radiationOpacity;
 		arc & detailedLogPath;
 		arc & resultsPath;
+        arc & modularHydro;
+        arc & modularProblem;
+        arc & modularTransport;
+        arc & modularRadiationSourceFree;
+        arc & modularRadiationProblem;
 	}
 
 	OCTOTIGER_EXPORT bool process_options(int argc, char *argv[]);

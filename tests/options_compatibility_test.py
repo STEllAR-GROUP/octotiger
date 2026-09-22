@@ -71,6 +71,14 @@ class OptionsCompatibility(unittest.TestCase):
         self.assertEqual(table["gravity"], "gravity.enabled")
         self.assertEqual(table["problem"], "problem.name")
         self.assertEqual(table["eblast0"], "problem.blast.energy")
+        self.assertEqual(table["ndim"], "mesh.ndim")
+
+    def test_mesh_dimension_contract(self):
+        self.assertRegex(processing, r'"ndim"[\s\S]*?default_value\(3\)')
+        self.assertIn("opts().dimensionCount < 1", processing)
+        self.assertIn("opts().dimensionCount > 3", processing)
+        self.assertIn("gravity is only supported with mesh.ndim=3", processing)
+        self.assertNotIn("radiation transport currently requires mesh.ndim=3", processing)
 
     def test_refinement_is_a_top_level_group(self):
         table = mappings()

@@ -112,6 +112,8 @@ using zone_int_type = int;
 template<int, int, class >
 class hydro_computer;
 
+// Deprecated compatibility storage. New transport and mesh work belongs in
+// octotiger::Subgrid and the modular libraries; do not add new algorithms here.
 class grid {
 public:
 	using xpoint = std::array<xpoint_type, NDIM>;

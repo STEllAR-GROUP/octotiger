@@ -15,6 +15,7 @@
 #include <octotiger/grid_scf.hpp>
 #include <octotiger/node_client.hpp>
 #include <octotiger/node_server.hpp>
+#include <octotiger/subgrid/modularDriver.hpp>
 #include <octotiger/options.hpp>
 #include <octotiger/physcon.hpp>
 #include <octotiger/problem.hpp>
@@ -78,6 +79,10 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 
       options::all_localities = localities;
       opts() = _opts;
+      if (opts().modularHydro || opts().modularTransport) {
+          octotiger::validateModularTransportOptions();
+          return;
+      }
 
       init_executors();
       std::cerr << "Finished executor init and read options" << std::endl;
@@ -167,8 +172,14 @@ HPX_REGISTER_BROADCAST_ACTION(initialize_action);
 void start_octotiger(int argc, char* argv[]) {
     try {
         if (opts().process_options(argc, argv)) {
+            if (opts().modularHydro || opts().modularTransport) octotiger::validateModularTransportOptions();
             auto all_locs = hpx::find_all_localities();
             hpx::lcos::broadcast<initialize_action>(all_locs, opts(), all_locs).get();
+
+            if (opts().modularHydro || opts().modularTransport) {
+                octotiger::runModularTransport();
+                return;
+            }
 
             hpx::id_type root_id = hpx::new_<node_server>(hpx::find_here()).get();
             node_client root_client(root_id);

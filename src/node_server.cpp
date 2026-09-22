@@ -9,6 +9,7 @@
 #include "octotiger/node_server.hpp"
 #include "octotiger/options.hpp"
 #include "octotiger/problem.hpp"
+#include "octotiger/subgrid/subgrid.hpp"
 #include "octotiger/taylor.hpp"
 #include "octotiger/util.hpp"
 #include "octotiger/interaction_types.hpp"
@@ -518,6 +519,13 @@ void node_server::initialize(Real t, Real rt) {
 	for (auto &d : geo::dimension::full_set()) {
 		xmin[d] = grid::get_scaling_factor() * my_location.x_location(d);
 	}
+	octotiger::mesh::PhysicalCoordinates subgridLower{};
+	for (int axis = 0; axis < opts().dimensionCount; ++axis) {
+		subgridLower[axis] = xmin[axis];
+	}
+	subgridPtr_ = std::make_shared<octotiger::Subgrid>(
+		octotiger::mesh::MeshLayout(static_cast<int>(opts().dimensionCount), INX, 2),
+		dx, subgridLower);
 	if (current_time == ZERO && opts().restart_filename=="") {
 		const auto p = get_problem();
 		grid_ptr = std::make_shared<grid>(p, dx, xmin);

@@ -206,6 +206,8 @@ set(source_files
     src/node_server_actions_1.cpp
     src/node_server_actions_2.cpp
     src/node_server_actions_3.cpp
+    src/subgrid/nodeHydro.cpp
+    src/subgrid/modularDriver.cpp
     src/physcon.cpp
     src/problem.cpp
     src/options_processing.cpp
@@ -370,6 +372,8 @@ add_hpx_library(
 
 target_link_libraries(debuglib PRIVATE boost_stacktrace_backtrace)
 
+include(cmake/modularLibraries.cmake)
+
 # Octo-Tiger library
 add_hpx_library(
   octolib
@@ -377,6 +381,8 @@ add_hpx_library(
     debuglib
     hydrolib
     optionslib
+    octotigerSubgrid
+    octotigerOutput
     ${octo_dependencies}
   SOURCES
     ${source_files}
@@ -571,6 +577,8 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/node_server_actions_1.cpp
     src/node_server_actions_2.cpp
     src/node_server_actions_3.cpp
+    src/subgrid/nodeHydro.cpp
+    src/subgrid/modularDriver.cpp
     src/runReporter.cpp
     src/physcon.cpp 
     src/io/silo_out.cpp
@@ -636,6 +644,7 @@ add_hpx_executable(
     optionslib
     hydrolib
     octolib
+    octotigerSubgrid
     Boost::boost
     Boost::program_options
   SOURCES

@@ -198,6 +198,18 @@ bool options::process_options(int argc, char* argv[]) {
             "Perform this many additional regrids during startup.")    //
         ("donor_refine", po::value<integer>(&(opts().donor_refine))->default_value(0),
             "Add this many AMR levels around the donor.")    //
+        ("ndim", po::value<integer>(&(opts().dimensionCount))->default_value(3),
+            "Set the mesh dimensionality (1, 2, or 3).")    //
+        ("modular_hydro", po::value<bool>(&(opts().modularHydro))->default_value(false),
+            "Use distributed modular ideal-gas hydro with fixed mesh and independent shadow.")
+        ("modular_problem", po::value<std::string>(&(opts().modularProblem))->default_value("sod"),
+            "Modular initial condition: sod, advection, or kelvinHelmholtz.")
+        ("modular_transport", po::value<bool>(&(opts().modularTransport))->default_value(false),
+            "Use dimension-aware distributed modular hydro/radiation transport.")
+        ("modular_radiation_source_free", po::value<bool>(&(opts().modularRadiationSourceFree))->default_value(false),
+            "Explicitly select source-free radiation; no gas-radiation coupling.")
+        ("modular_radiation_problem", po::value<std::string>(&(opts().modularRadiationProblem))->default_value("streamingGaussian"),
+            "Modular radiation initial condition: streamingGaussian or isotropicPulse.")
         ("ngrids", po::value<integer>(&(opts().ngrids))->default_value(-1),
             "Target this number of grids when adapting the refinement floor; negative disables the target.")    //
         ("refinement_floor", po::value<Real>(&(opts().refinement_floor))->default_value(1.0e-3),
@@ -437,6 +449,12 @@ bool options::process_options(int argc, char* argv[]) {
     canonicalOption("mesh.fixed_grid_count", "ngrids", ngrids);
     canonicalOption("mesh.level.maximum", "max_level", max_level);
     canonicalOption("mesh.level.minimum", "min_level", min_level);
+    canonicalOption("mesh.ndim", "ndim", dimensionCount);
+    canonicalOption("hydro.modular.enabled", "modular_hydro", modularHydro);
+    canonicalOption("hydro.modular.problem", "modular_problem", modularProblem);
+    canonicalOption("runtime.modular.enabled", "modular_transport", modularTransport);
+    canonicalOption("radiation.modular.source_free", "modular_radiation_source_free", modularRadiationSourceFree);
+    canonicalOption("radiation.modular.problem", "modular_radiation_problem", modularRadiationProblem);
     canonicalOption("mesh.omega_x", "omega_x", omegaX);
     canonicalOption("mesh.omega_y", "omega_y", omegaY);
     canonicalOption("mesh.omega_z", "omega", omega);
@@ -631,6 +649,10 @@ bool options::process_options(int argc, char* argv[]) {
         opts().n_species = std::max(int(2), int(opts().n_species));
     }
     n_fields = n_species + 10;
+    if ((opts().modularHydro || opts().modularTransport) && !opts().restart_filename.empty()) {
+        std::cerr << "ERROR: modular transport cannot read legacy restart checkpoints.\n";
+        return false;
+    }
     if (!opts().restart_filename.empty()) {
         // Preserve the already-resolved config/CLI value across checkpoint loading.
         auto const explicitSetting = [&supplied](
@@ -669,6 +691,18 @@ bool options::process_options(int argc, char* argv[]) {
 
         if (explicitSetting("rad_energy_mode", "radiation.energy_mode")) opts().radEnergyMode = explicitRadEnergyMode;
         if (explicitSetting("rad_log_subcycles", "radiation.log_subcycles")) opts().radLogSubcycles = explicitRadLogSubcycles;
+    }
+    if (opts().dimensionCount < 1 || opts().dimensionCount > 3) {
+        std::cerr << "ERROR: mesh.ndim must be 1, 2, or 3.\n";
+        return false;
+    }
+    if (opts().dimensionCount < 3 && opts().gravity) {
+        std::cerr << "ERROR: gravity is only supported with mesh.ndim=3; set gravity.enabled=off.\n";
+        return false;
+    }
+    if (opts().dimensionCount < 3 && !opts().modularHydro && !opts().modularTransport) {
+        std::cerr << "ERROR: mesh.ndim<3 requires runtime.modular.enabled=on; legacy topology is 3D.\n";
+        return false;
     }
     try {
         radiationOpacity.validate(radOpacity);

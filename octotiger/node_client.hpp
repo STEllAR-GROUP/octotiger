@@ -7,6 +7,8 @@
 #define NODE_CLIENT_HPP_
 
 #include "octotiger/timestep.hpp"
+#include "octotiger/subgrid/hydroExchange.hpp"
+#include "octotiger/subgrid/transportRuntime.hpp"
 
 #include "octotiger/config/export_definitions.hpp"
 #include "octotiger/radiation/rad_grid.hpp"
@@ -49,6 +51,25 @@ private:
     bool local;
 
 public:
+    future<octotiger::TransportSnapshot> transportSnapshot() const;
+    future<octotiger::RadiationSnapshot> radiationSnapshot() const;
+    future<Real> modularRadiationStableStep(Real reducedLightSpeed, Real cfl) const;
+    future<octotiger::RadiationFluxPacket> modularRadiationAdvance(
+        std::vector<octotiger::RadiationSnapshot> const& snapshots,
+        octotiger::RadiationDomain const& domain, Real reducedLightSpeed, Real stepSize) const;
+    future<void> modularRadiationReflux(std::vector<octotiger::RadiationFluxPacket> const& packets,
+        octotiger::RadiationDomain const& domain, Real reducedLightSpeed) const;
+    future<void> modularRadiationRefresh(std::vector<octotiger::RadiationSnapshot> const& snapshots,
+        octotiger::RadiationDomain const& domain, Real time) const;
+    future<octotiger::HydroSnapshot> hydroSnapshot() const;
+    future<Real> modularStableStep(Real gamma, Real cfl) const;
+    future<octotiger::HydroFluxPacket> modularAdvance(
+        std::vector<octotiger::HydroSnapshot> const& snapshots,
+        octotiger::HydroDomain const& domain, Real gamma, Real stepSize) const;
+    future<void> modularReflux(std::vector<octotiger::HydroFluxPacket> const& packets,
+        octotiger::HydroDomain const& domain, Real gamma) const;
+    future<void> modularRefresh(std::vector<octotiger::HydroSnapshot> const& snapshots,
+        octotiger::HydroDomain const& domain, Real time) const;
     bool is_local() const;
     template <class Arc>
     void load(Arc& arc, unsigned)
