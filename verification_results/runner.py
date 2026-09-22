@@ -26,12 +26,12 @@ from verification_results.adapters import radiation_results
 from verification_results.adapters import scenario
 
 
-SCHEMA_VERSION = 1
-SOURCE_ROOT = Path(__file__).resolve().parents[1]
-HARNESS_ROOT = SOURCE_ROOT / "verification_results"
-TEST_ROOT = HARNESS_ROOT / "tests"
-RESULT_ROOT = HARNESS_ROOT / "results"
-SELECTOR_PREFIX = "radiation.skinner_ostriker."
+schemaVersion = 1
+sourceRoot = Path(__file__).resolve().parents[1]
+harnessRoot = sourceRoot / "verification_results"
+testRoot = harnessRoot / "tests"
+resultRoot = harnessRoot / "results"
+selectorPrefix = "radiation.skinner_ostriker."
 
 
 class HarnessError(RuntimeError):
@@ -40,9 +40,9 @@ class HarnessError(RuntimeError):
 
 def descriptors() -> dict[str, tuple[Path, dict[str, Any]]]:
     found: dict[str, tuple[Path, dict[str, Any]]] = {}
-    for path in sorted(TEST_ROOT.glob("**/test.json")):
+    for path in sorted(testRoot.glob("**/test.json")):
         value = json.loads(path.read_text(encoding="utf-8"))
-        validate_descriptor(value, path)
+        validateDescriptor(value, path)
         identifier = f"{value['family']}.{value['suite']}.{value['name']}"
         if identifier in found:
             raise HarnessError(f"duplicate test identifier {identifier}")
@@ -50,7 +50,7 @@ def descriptors() -> dict[str, tuple[Path, dict[str, Any]]]:
     return found
 
 
-def validate_descriptor(value: dict[str, Any], path: Path | str = "descriptor") -> None:
+def validateDescriptor(value: dict[str, Any], path: Path | str = "descriptor") -> None:
     required = {
         "schema_version", "family", "suite", "name", "regime", "dimensionality",
         "resolution_levels", "build_type", "required_executable", "parameters",
@@ -60,7 +60,7 @@ def validate_descriptor(value: dict[str, Any], path: Path | str = "descriptor") 
     missing = sorted(required - value.keys())
     if missing:
         raise HarnessError(f"{path}: missing descriptor fields: {', '.join(missing)}")
-    if value["schema_version"] != SCHEMA_VERSION:
+    if value["schema_version"] != schemaVersion:
         raise HarnessError(f"{path}: unsupported schema_version")
     if value["family"] not in {"hydro", "gravity", "radiation"}:
         raise HarnessError(f"{path}: unknown family")
@@ -115,7 +115,7 @@ def validate_descriptor(value: dict[str, Any], path: Path | str = "descriptor") 
 
 
 def resolve(selector: str) -> tuple[str, Path | None, dict[str, Any] | None]:
-    all_descriptors = descriptors()
+    allDescriptors = descriptors()
     if selector in {"all", "radiation", "radiation.skinner_ostriker"}:
         return "all", None, None
     aliases = {
@@ -124,18 +124,18 @@ def resolve(selector: str) -> tuple[str, Path | None, dict[str, Any] | None]:
     }
     selector = aliases.get(selector, selector)
     if "." not in selector:
-        selector = SELECTOR_PREFIX + selector
+        selector = selectorPrefix + selector
     try:
-        path, descriptor = all_descriptors[selector]
+        path, descriptor = allDescriptors[selector]
     except KeyError as error:
-        choices = ", ".join(sorted(all_descriptors))
+        choices = ", ".join(sorted(allDescriptors))
         raise HarnessError(f"unknown test or family {selector!r}; choose one of: {choices}") from error
     if descriptor["adapter"]["name"] != "radiation_results":
         raise HarnessError(f"adapter {descriptor['adapter']['name']!r} is not implemented in Step 02")
-    return radiation_results.legacy_case(descriptor["adapter"]["case"]), path, descriptor
+    return radiation_results.legacyCase(descriptor["adapter"]["case"]), path, descriptor
 
 
-def option_value(arguments: list[str], name: str) -> str | None:
+def optionValue(arguments: list[str], name: str) -> str | None:
     for index, argument in enumerate(arguments):
         if argument == name:
             if index + 1 == len(arguments):
@@ -146,36 +146,36 @@ def option_value(arguments: list[str], name: str) -> str | None:
     return None
 
 
-def has_option(arguments: list[str], name: str) -> bool:
+def hasOption(arguments: list[str], name: str) -> bool:
     return any(argument == name or argument.startswith(name + "=") for argument in arguments)
 
 
-def default_output(mode: str) -> Path:
+def defaultOutput(mode: str) -> Path:
     now = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%d-%H%M%S-%f")
     prefix = "live-" if mode == "live" else "run-"
-    return RESULT_ROOT / f"{prefix}{now}"
+    return resultRoot / f"{prefix}{now}"
 
 
-def safe_output(path: Path) -> Path:
+def safeOutput(path: Path) -> Path:
     resolved = path.expanduser().resolve()
     # Results may live below SOURCE_ROOT only in the explicitly ignored results directory.
-    allowed = RESULT_ROOT.resolve()
+    allowed = resultRoot.resolve()
     if resolved == allowed or allowed in resolved.parents:
         return resolved
-    source = SOURCE_ROOT.resolve()
+    source = sourceRoot.resolve()
     if resolved == source or source in resolved.parents:
         raise HarnessError(f"generated output may not be written under the source tree: {source}")
     return resolved
 
 
-def git_value(*arguments: str) -> str:
+def gitValue(*arguments: str) -> str:
     result = subprocess.run(
-        ["git", *arguments], cwd=SOURCE_ROOT, text=True, stdout=subprocess.PIPE,
+        ["git", *arguments], cwd=sourceRoot, text=True, stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL, check=False,
     )
     if result.returncode == 0:
         return result.stdout.strip()
-    version = HARNESS_ROOT / "SOURCE_VERSION"
+    version = harnessRoot / "SOURCE_VERSION"
     if arguments == ("rev-parse", "HEAD") and version.exists():
         exported = version.read_text().strip()
         if re.fullmatch(r"[0-9a-f]{40}", exported):
@@ -183,12 +183,12 @@ def git_value(*arguments: str) -> str:
     return "unknown"
 
 
-def positional_settings(
+def positionalSettings(
     arguments: list[str], descriptor: dict[str, Any] | None, mode: str
 ) -> tuple[list[int], str]:
     values: list[str] = []
     skip = False
-    options_with_values = {
+    optionsWithValues = {
         "--root", "--build", "--exe", "--generator", "--output", "--resume", "--reference",
         "--threads", "--jobs", "--snapshots", "--fps", "--width", "--height", "--cells", "--time",
         "--seconds", "--hold", "--position", "--odt", "--hard-dt", "--minimum", "--maximum",
@@ -199,12 +199,12 @@ def positional_settings(
         if skip:
             skip = False
             continue
-        if argument in options_with_values:
+        if argument in optionsWithValues:
             skip = True
         elif not argument.startswith("--"):
             values.append(argument)
     levels = [int(value) for value in values if re.fullmatch(r"[0-9]+", value)]
-    build = option_value(arguments, "--build")
+    build = optionValue(arguments, "--build")
     nonnumeric = [value for value in values if not re.fullmatch(r"[0-9]+", value)]
     if build is None and nonnumeric:
         build = nonnumeric[-1]
@@ -215,10 +215,10 @@ def positional_settings(
     return levels, build
 
 
-def compiler_metadata(build: str, project_root: Path) -> dict[str, str]:
+def compilerMetadata(build: str, projectRoot: Path) -> dict[str, str]:
     directory = Path(build)
     if not directory.is_absolute():
-        directory = project_root / "build" / "octotiger" / build.lower()
+        directory = projectRoot / "build" / "octotiger" / build.lower()
     cache = directory / "CMakeCache.txt"
     result = {"build_type": build if build.lower() in {"debug", "release", "relwithdebinfo"} else "unknown", "build_directory": str(directory), "compiler": "unknown"}
     if cache.is_file():
@@ -234,18 +234,18 @@ def compiler_metadata(build: str, project_root: Path) -> dict[str, str]:
 
 def metadata(
     mode: str, selector: str, path: Path | None, descriptor: dict[str, Any] | None,
-    arguments: list[str], output: Path, legacy_command: list[str],
+    arguments: list[str], output: Path, legacyCommand: list[str],
 ) -> dict[str, Any]:
-    levels, build = positional_settings(arguments, descriptor, mode)
-    commit = git_value("rev-parse", "HEAD")
-    dirty = bool(git_value("status", "--porcelain"))
-    descriptor_hash = None
+    levels, build = positionalSettings(arguments, descriptor, mode)
+    commit = gitValue("rev-parse", "HEAD")
+    dirty = bool(gitValue("status", "--porcelain"))
+    descriptorHash = None
     if path:
-        descriptor_hash = hashlib.sha256(path.read_bytes()).hexdigest()
-    root_value = option_value(legacy_command, "--root")
-    project_root = Path(root_value).resolve() if root_value else SOURCE_ROOT
+        descriptorHash = hashlib.sha256(path.read_bytes()).hexdigest()
+    rootValue = optionValue(legacyCommand, "--root")
+    projectRoot = Path(rootValue).resolve() if rootValue else sourceRoot
     return {
-        "schema_version": SCHEMA_VERSION,
+        "schema_version": schemaVersion,
         "created_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
         "source": {"commit": commit, "dirty": dirty},
         "harness": {"name": "verification_results", "adapter": "radiation_results"},
@@ -256,24 +256,24 @@ def metadata(
             "name": descriptor["name"] if descriptor else "all",
             "regime": descriptor["regime"] if descriptor else "mixed",
             "dimensionality": descriptor["dimensionality"] if descriptor else 3,
-            "descriptor": str(path.relative_to(SOURCE_ROOT)) if path else None,
-            "descriptor_sha256": descriptor_hash,
+            "descriptor": str(path.relative_to(sourceRoot)) if path else None,
+            "descriptor_sha256": descriptorHash,
             "parameters": descriptor["parameters"] if descriptor else {},
         },
-        "build": compiler_metadata(build, project_root),
+        "build": compilerMetadata(build, projectRoot),
         "execution": {
             "mode": mode,
             "required_executable": descriptor["required_executable"] if descriptor else "octotiger",
             "resolution_levels": levels,
-            "thread_count": int(option_value(arguments, "--threads") or 12),
+            "thread_count": int(optionValue(arguments, "--threads") or 12),
             "timestep_controls": {
-                "time": option_value(arguments, "--time") or "adapter-default",
-                "odt": option_value(arguments, "--odt") or "adapter-default",
-                "hard_dt": option_value(arguments, "--hard-dt") or "adapter-default",
-                "snapshots": option_value(arguments, "--snapshots") or "adapter-default",
+                "time": optionValue(arguments, "--time") or "adapter-default",
+                "odt": optionValue(arguments, "--odt") or "adapter-default",
+                "hard_dt": optionValue(arguments, "--hard-dt") or "adapter-default",
+                "snapshots": optionValue(arguments, "--snapshots") or "adapter-default",
             },
             "arguments": arguments,
-            "legacy_command": legacy_command,
+            "legacy_command": legacyCommand,
         },
         "policy": {
             "expected_diagnostics": descriptor["expected_diagnostics"] if descriptor else [],
@@ -311,7 +311,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if options.command == "site":
         from verification_results.web import site
-        output = safe_output(options.results)
+        output = safeOutput(options.results)
         if not output.is_dir():
             raise HarnessError(f"result directory does not exist: {output}")
         catalog = site.write(output, available)
@@ -326,41 +326,41 @@ def main(argv: list[str] | None = None) -> int:
                     if options.selector in {"all", value["family"], value["family"]+"."+value["suite"], key}]
         if not selected:
             raise HarnessError("No suite descriptors match " + options.selector)
-        scenario_selected = [(available[key][0], value) for key, value in selected if value["adapter"]["name"] == "octotiger_scenario"]
-        native_selected = [(key, value) for key, value in selected if value["adapter"]["name"] != "octotiger_scenario"]
-        if options.command == "suite" or (scenario_selected and native_selected):
+        scenarioSelected = [(available[key][0], value) for key, value in selected if value["adapter"]["name"] == "octotiger_scenario"]
+        nativeSelected = [(key, value) for key, value in selected if value["adapter"]["name"] != "octotiger_scenario"]
+        if options.command == "suite" or (scenarioSelected and nativeSelected):
             from verification_results.adapters import unified
             return unified.execute({key: available[key] for key, _ in selected}, options.arguments, plan=options.command == "plan")
-        if scenario_selected:
-            rc = scenario.execute(scenario_selected, options.arguments, plan=options.command == "plan")
-            if options.selector != "all" or not native_selected or options.command == "plan":
+        if scenarioSelected:
+            rc = scenario.execute(scenarioSelected, options.arguments, plan=options.command == "plan")
+            if options.selector != "all" or not nativeSelected or options.command == "plan":
                 return rc
-        if native_selected:
+        if nativeSelected:
             from verification_results.adapters import native_suite
-            return native_suite.execute(native_selected, options.arguments, plan=options.command == "plan")
+            return native_suite.execute(nativeSelected, options.arguments, plan=options.command == "plan")
         return 0
-    legacy_case, path, descriptor = resolve(options.selector)
+    legacyCase, path, descriptor = resolve(options.selector)
     mode = "live" if options.command == "live" else "run"
-    adapter_arguments = list(options.arguments)
-    supplied_output = option_value(adapter_arguments, "--output")
-    resume = option_value(adapter_arguments, "--resume")
-    output = safe_output(Path(supplied_output or resume) if supplied_output or resume else default_output(mode))
-    if not supplied_output and not resume:
-        adapter_arguments.extend(["--output", str(output)])
-    legacy = radiation_results.command(SOURCE_ROOT, mode, legacy_case, adapter_arguments)
-    manifest = metadata(mode, options.selector, path, descriptor, adapter_arguments, output, legacy)
+    adapterArguments = list(options.arguments)
+    suppliedOutput = optionValue(adapterArguments, "--output")
+    resume = optionValue(adapterArguments, "--resume")
+    output = safeOutput(Path(suppliedOutput or resume) if suppliedOutput or resume else defaultOutput(mode))
+    if not suppliedOutput and not resume:
+        adapterArguments.extend(["--output", str(output)])
+    legacy = radiation_results.command(sourceRoot, mode, legacyCase, adapterArguments)
+    manifest = metadata(mode, options.selector, path, descriptor, adapterArguments, output, legacy)
     if options.command == "plan":
         print(json.dumps(manifest, indent=2, sort_keys=True))
         return 0
-    result = subprocess.run(legacy, cwd=SOURCE_ROOT, check=False)
-    if result.returncode == 0 and not has_option(adapter_arguments, "--dry-run"):
+    result = subprocess.run(legacy, cwd=sourceRoot, check=False)
+    if result.returncode == 0 and not hasOption(adapterArguments, "--dry-run"):
         output.mkdir(parents=True, exist_ok=True)
         manifest["status"] = "complete"
         (output / "verification.json").write_text(
             json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
         )
         from verification_results.web import site
-        site.write(output, available, legacy_application=True)
+        site.write(output, available, legacyApplication=True)
     return result.returncode
 
 

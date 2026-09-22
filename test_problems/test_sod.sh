@@ -11,5 +11,5 @@ SILODIFF=$2
 if [ ! -f sod.ini ]; then
     cd sod
 fi
-"$OCTOTIGER" --config_file=sod.ini
+"$OCTOTIGER" --runtime.config_file=sod.ini
 "$SILODIFF" -A 1.0e-10 -R 1.0e-10 original.silo final.silo

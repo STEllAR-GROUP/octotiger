@@ -11,7 +11,7 @@ struct GreyOpacity {
     std::string units = "cm2/g";
     double absorption = 0;            // Planck AND radiation-energy absorption mean
     double scattering = 0;            // coherent, isotropic transport scattering
-    double transport_absorption = -1; // -1 follows absorption; otherwise Rosseland absorption
+    double transportAbsorption = -1; // -1 follows absorption; otherwise Rosseland absorption
 
     void validate(double legacyConstant) const {
         if (model != "legacy" && model != "skinner_ostriker" && model != "grey")
@@ -20,19 +20,19 @@ struct GreyOpacity {
             throw std::runtime_error("radiation.opacity.units must be cm2/g|1/cm");
         if (!std::isfinite(absorption) || absorption < 0 ||
             !std::isfinite(scattering) || scattering < 0 ||
-            !std::isfinite(transport_absorption) ||
-            (transport_absorption < 0 && transport_absorption != -1) ||
+            !std::isfinite(transportAbsorption) ||
+            (transportAbsorption < 0 && transportAbsorption != -1) ||
             !std::isfinite(legacyConstant))
             throw std::runtime_error("Invalid radiation.opacity coefficient: require finite nonnegative values (transport_absorption permits -1)");
         if (model == "skinner_ostriker" && legacyConstant < 0)
             throw std::runtime_error("skinner_ostriker requires radiation.opacity.constant >= 0 (legacy code area/mass units)");
         if (model == "grey" && legacyConstant >= 0)
             throw std::runtime_error("grey opacity conflicts with radiation.opacity.constant/rad_opacity; remove the constant setting or set it to -1");
-        if (model != "grey" && (absorption != 0 || scattering != 0 || transport_absorption != -1 || units != "cm2/g"))
+        if (model != "grey" && (absorption != 0 || scattering != 0 || transportAbsorption != -1 || units != "cm2/g"))
             throw std::runtime_error("Separate absorption/scattering/transport units require radiation.opacity.model=grey");
     }
     template<class Archive> void serialize(Archive& arc, unsigned) {
-        arc & model & units & absorption & scattering & transport_absorption;
+        arc & model & units & absorption & scattering & transportAbsorption;
     }
 };
 
@@ -43,7 +43,7 @@ void restoreGreyOpacityOverrides(GreyOpacity& loaded, GreyOpacity const& explici
     if (supplied("radiation.opacity.units")) loaded.units=explicitValues.units;
     if (supplied("radiation.opacity.absorption")) loaded.absorption=explicitValues.absorption;
     if (supplied("radiation.opacity.scattering")) loaded.scattering=explicitValues.scattering;
-    if (supplied("radiation.opacity.transport_absorption")) loaded.transport_absorption=explicitValues.transport_absorption;
+    if (supplied("radiation.opacity.transport_absorption")) loaded.transportAbsorption=explicitValues.transportAbsorption;
 }
 
 struct GreyCoefficients {
@@ -60,8 +60,8 @@ inline GreyCoefficients greyCoefficients(GreyOpacity const& options,
     // rho_cgs = rho_code * codeToG / codeToCm^3; chi_code = chi_cgs * codeToCm.
     double const factor = options.units == "1/cm" ? codeToCm :
         rho * (codeToG / codeToCm) / codeToCm;
-    double const transportAbsorption = options.transport_absorption < 0 ?
-        options.absorption : options.transport_absorption;
+    double const transportAbsorption = options.transportAbsorption < 0 ?
+        options.absorption : options.transportAbsorption;
     GreyCoefficients const result{factor * options.absorption, factor * options.scattering,
         factor * (transportAbsorption + options.scattering)};
     if (!(std::isfinite(result.absorption) && result.absorption >= 0 &&
@@ -80,7 +80,7 @@ void saveGreyOpacity(GreyOpacity const& o, WriteInt wi, WriteReal wr) {
     wi("rad_opacity_units", o.units == "cm2/g" ? 0 : 1);
     wr("rad_opacity_absorption", o.absorption);
     wr("rad_opacity_scattering", o.scattering);
-    wr("rad_opacity_transport_absorption", o.transport_absorption);
+    wr("rad_opacity_transport_absorption", o.transportAbsorption);
 }
 template<class Exists, class ReadInt, class ReadReal>
 GreyOpacity loadGreyOpacity(Exists exists, ReadInt ri, ReadReal rr) {
@@ -98,7 +98,7 @@ GreyOpacity loadGreyOpacity(Exists exists, ReadInt ri, ReadReal rr) {
     o.units = units == 0 ? "cm2/g" : "1/cm";
     o.absorption = rr("rad_opacity_absorption");
     o.scattering = rr("rad_opacity_scattering");
-    o.transport_absorption = rr("rad_opacity_transport_absorption");
+    o.transportAbsorption = rr("rad_opacity_transport_absorption");
     return o; // Validate after explicit CLI/config overrides, alongside other options.
 }
 } // namespace radiation

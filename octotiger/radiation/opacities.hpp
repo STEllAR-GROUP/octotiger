@@ -68,13 +68,13 @@ inline Real radiationAbsorption(Real rho, Real e, Real mmw, Real X, Real Z, Real
     auto const& o = opts();
     if (o.radiationOpacity.model == "grey")
         return radiation::greyCoefficients(o.radiationOpacity, rho, o.code_to_g, o.code_to_cm).absorption;
-    return o.rad_opacity >= 0 ? rho * o.rad_opacity : kappa_p(rho,e,mmw,X,Z,gamma);
+    return o.radOpacity >= 0 ? rho * o.radOpacity : kappa_p(rho,e,mmw,X,Z,gamma);
 }
 inline Real radiationTransport(Real rho, Real e, Real mmw, Real X, Real Z, Real gamma) {
     auto const& o = opts();
     if (o.radiationOpacity.model == "grey")
         return radiation::greyCoefficients(o.radiationOpacity, rho, o.code_to_g, o.code_to_cm).transport;
-    return o.rad_opacity >= 0 ? rho * o.rad_opacity : kappa_R(rho,e,mmw,X,Z,gamma);
+    return o.radOpacity >= 0 ? rho * o.radOpacity : kappa_R(rho,e,mmw,X,Z,gamma);
 }
 
 template<class U>

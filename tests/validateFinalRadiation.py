@@ -9,17 +9,17 @@ import subprocess
 import sys
 import tempfile
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
-from verification_results.radiation.validate_so import production_source
+root = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(root))
+from verification_results.radiation.validate_so import productionSource
 
-CHECK = r'''
+check = r'''
 int main() {
  try {
   for(double ratio:{1.,.03})for(double chi:{0.,.7}) {
     reset();physcon().c=2.99792458e10;
-    opts().rad_c_ratio=ratio;opts().rad_implicit=chi>0;
-    opts().rad_velocity_terms=false;opts().rad_energy_mode="equilibrium";
+    opts().radCRatio=ratio;opts().rad_implicit=chi>0;
+    opts().radVelocityTerms=false;opts().radEnergyMode="equilibrium";
     opts().radiationOpacity.model="grey";opts().radiationOpacity.units="1/cm";
     opts().radiationOpacity.absorption=0;opts().radiationOpacity.scattering=chi;
     node_server subcycled,unsplit;
@@ -30,13 +30,13 @@ int main() {
         node->rad_grid_ptr->U[0][h]=E;node->rad_grid_ptr->U[1][h]=.7*physcon().c*E;
       });
       node->current_time=0;
-      node->dt_.radiation_dt=node->rad_grid_ptr->maxTimestep(0);
+      node->dt_.radiationDt=node->rad_grid_ptr->maxTimestep(0);
     }
-    double const end=3.2*subcycled.dt_.radiation_dt;
-    radiation::SubcyclePlan const plan(end,subcycled.dt_.radiation_dt,true,1024);
+    double const end=3.2*subcycled.dt_.radiationDt;
+    radiation::SubcyclePlan const plan(end,subcycled.dt_.radiationDt,true,1024);
     require(plan.count==4,"four radiation substeps");
     subcycled.compute_radiation(end,0);
-    opts().rad_subcycling=false;
+    opts().radSubcycling=false;
     for(std::size_t step=0;step<plan.count;++step) {
       unsplit.current_time=plan.offset(step);
       unsplit.compute_radiation(plan.dt(step),0);
@@ -59,15 +59,15 @@ int main() {
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--cxx', default='g++')
-    parser.add_argument('--build-type', choices=['Debug', 'Release', 'RelWithDebInfo'], default='Release')
+    parser.add_argument('--build-type', dest='buildType', choices=['Debug', 'Release', 'RelWithDebInfo'], default='Release')
     args = parser.parse_args()
-    flags = {'Debug': ['-O0', '-g'], 'Release': ['-O2', '-DNDEBUG'], 'RelWithDebInfo': ['-O2', '-g', '-DNDEBUG']}[args.build_type]
+    flags = {'Debug': ['-O0', '-g'], 'Release': ['-O2', '-DNDEBUG'], 'RelWithDebInfo': ['-O2', '-g', '-DNDEBUG']}[args.buildType]
     with tempfile.TemporaryDirectory(prefix='final-radiation-') as tmp:
         folder = Path(tmp)
-        checks = (ROOT/'verification_results/radiation/tests_so/checks.inc').read_text().split('int main() {')[0]
-        src = folder/'check.cpp'; src.write_text(production_source(ROOT)+'\n'+checks+'\n'+CHECK)
+        checks = (root/'verification_results/radiation/tests_so/checks.inc').read_text().split('int main() {')[0]
+        src = folder/'check.cpp'; src.write_text(productionSource(root)+'\n'+checks+'\n'+check)
         exe = folder/'check'
-        subprocess.run([args.cxx, '-std=c++23', *flags, '-I'+str(ROOT), str(src), '-o', str(exe)], check=True)
+        subprocess.run([args.cxx, '-std=c++23', *flags, '-I'+str(root), str(src), '-o', str(exe)], check=True)
         subprocess.run([str(exe)], check=True)
 
 

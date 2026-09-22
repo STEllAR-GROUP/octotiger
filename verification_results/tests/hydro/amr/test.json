@@ -20,7 +20,7 @@
     "pass_regular_expressions": []
   },
   "expected_diagnostics": [
-    "legacy stdout regex checks",
+    "structured run-summary checks",
     "process exit status"
   ],
   "reference_data": {
@@ -28,17 +28,19 @@
     "description": "Configured higher-resolution Sod CTests; historical identifier retained for compatibility. test_problems/amr/amr.ini has no CTest registration and is not covered",
     "kind": "regression",
     "source": "test_problems/sod/sod_big.ini",
-    "comparison": "preserve existing CTest stdout/Silo reference"
+    "comparison": "preserve existing CTest structured-result/Silo reference"
   },
   "tolerance_policy": {
     "owner": "legacy test_problems CTest definitions",
     "mode": "regression",
-    "description": "existing CTest regex/Silo tolerances; no retuning"
+    "description": "existing CTest numerical/Silo tolerances; no retuning"
   },
   "visualization_products": [
-    "stdout.log",
-    "verification.json",
-    "report.html"
+    "field_stills",
+    "line_profiles",
+    "error_norms",
+    "time_history",
+    "movie"
   ],
   "adapter": {
     "name": "octotiger_scenario",

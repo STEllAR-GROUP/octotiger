@@ -19,7 +19,7 @@ import shlex
 import subprocess
 import tempfile
 
-ROOT = Path(__file__).resolve().parents[1]
+root = Path(__file__).resolve().parents[1]
 
 
 def extractBlock(source, signature):
@@ -32,7 +32,7 @@ def extractBlock(source, signature):
     return source[start:end]
 
 
-FIXTURE = r'''
+fixture = r'''
 #include "octotiger/radiation/conservation.hpp"
 #include <array>
 #include <cassert>
@@ -80,7 +80,7 @@ future<Totals> node_client::collectRadiationConservation() const {
 }
 '''
 
-CONTEXT = r'''
+context = r'''
 
 struct Options { bool radiation=true; std::string data_dir; };
 Options& opts(){ static Options value; return value; }
@@ -90,7 +90,7 @@ void runSamples(node_server &root, Grid &leaf, const std::string& directory) {
  auto collectRadiationConservation=[&](){requireNoGuard();return root.collectRadiationConservation();};
 '''
 
-CHECKS = r'''
+checks = r'''
 
  // Duplicate time must neither emit a row nor drain pending budgets.
  leaf.totals.boundary[0]=3;
@@ -167,9 +167,9 @@ int main(int argc,char** argv) {
 '''
 
 def productionParts():
-    nodeSource = (ROOT / "src/node_server_actions_2.cpp").read_text()
+    nodeSource = (root / "src/node_server_actions_2.cpp").read_text()
     collector = extractBlock(nodeSource, "radiationConservation::Totals node_server::collectRadiationConservation()")
-    driverSource = (ROOT / "src/node_server_actions_3.cpp").read_text()
+    driverSource = (root / "src/node_server_actions_3.cpp").read_text()
     driver = extractBlock(driverSource, "void node_server::execute_solver(")
     sampleStart = driver.index("radiationConservation::Ledger radiationLedger;")
     loopStart = driver.index("while (current_time", sampleStart)
@@ -196,9 +196,9 @@ def run(buildDir):
     buildDir.mkdir(parents=True, exist_ok=True)
     source = buildDir / "conservationDriver.cpp"
     executable = buildDir / "conservationDriver"
-    source.write_text(FIXTURE + collector + CONTEXT + sampling + CHECKS.replace("@DRAIN@", drain))
+    source.write_text(fixture + collector + context + sampling + checks.replace("@DRAIN@", drain))
     compiler = shlex.split(os.environ.get("CXX", "c++"))
-    subprocess.run(compiler + ["-std=c++20", "-O2", "-I", str(ROOT), str(source), "-o", str(executable)], check=True)
+    subprocess.run(compiler + ["-std=c++20", "-O2", "-I", str(root), str(source), "-o", str(executable)], check=True)
     subprocess.run([str(executable), str(buildDir / "output")], check=True)
 
 

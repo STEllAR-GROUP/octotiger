@@ -35,7 +35,7 @@ class SuiteContract(unittest.TestCase):
 
     def test_build_failure_is_retained_and_nonzero(self):
         d=runner.descriptors()['radiation.diagnostics.streaming_wave_1d'][1]
-        with tempfile.TemporaryDirectory() as tmp, patch.object(suite,'compile_fixture',side_effect=RuntimeError('injected compiler failure')):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(suite,'compileFixture',side_effect=RuntimeError('injected compiler failure')):
             code=suite.execute([('test',d)],['0','--output',tmp])
             self.assertEqual(code,1)
             meta=json.loads((Path(tmp)/'test/l0/run.json').read_text())
@@ -62,10 +62,10 @@ class SuiteContract(unittest.TestCase):
             (0,'radiation',48,14,.5,1,.8,1,1),(0,'flux',49,14,.5,0,0,1,1),
             (0,'radiation',49,14,1,1,.6,1,1)],dtype=dtype)
         history=np.array([(0.,0),(1.,2)],dtype=[('t',float),('subcycles',int)])
-        self.assertTrue(all(suite.check_exchange_trace(events,history).values()))
+        self.assertTrue(all(suite.checkExchangeTrace(events,history).values()))
         for field,value in [('rcycle',99),('hcycle',99),('time',.7),('halo_valid',0),('hydro_unchanged',0)]:
             bad=events.copy();bad[3][field]=value
-            self.assertFalse(all(suite.check_exchange_trace(bad,history).values()),field)
+            self.assertFalse(all(suite.checkExchangeTrace(bad,history).values()),field)
 
     def test_shared_application_thread_count_and_output_reuse(self):
         with contextlib.redirect_stdout(io.StringIO()):

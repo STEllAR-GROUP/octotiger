@@ -240,7 +240,7 @@ int main(int argc, char* argv[]) {
     hpx::program_options::options_description desc_cmdline("Options");
     desc_cmdline.add_options()
         ("polling-threads", hpx::program_options::value<int>()->default_value(0),
-         "Enable dedicated HPX thread pool for cuda/network polling using N threads");
+         "Reserve this many processing units in a dedicated HPX pool for GPU and network polling; 0 uses the default pool.");
     hpx::init_params init_args;
     init_args.desc_cmdline = desc_cmdline;
     init_args.rp_callback = &init_resource_partitioner_handler;
@@ -282,4 +282,3 @@ int main(int argc, char* argv[]) {
 #endif
 }
 #endif
-

@@ -12,17 +12,87 @@ import unittest
 from unittest.mock import patch
 
 from verification_results import runner
-from verification_results.adapters import ctest_scenarios as adapter, scenario
+from verification_results.adapters import ctest_scenarios as adapter, ctest_visuals, scenario
 
-ROOT = runner.SOURCE_ROOT
-CMAKE = os.environ.get('OCTOTIGER_TEST_CMAKE') or shutil.which('cmake')
-CTEST = os.environ.get('OCTOTIGER_TEST_CTEST') or shutil.which('ctest')
+root = runner.sourceRoot
+cmake = os.environ.get('OCTOTIGER_TEST_CMAKE') or shutil.which('cmake')
+ctest = os.environ.get('OCTOTIGER_TEST_CTEST') or shutil.which('ctest')
 
 
 class SelectionTests(unittest.TestCase):
+    def test_stale_build_products_are_quarantined_before_reuse(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary); build = root/'build'; output = root/'results'
+            source = build/'test_problems/sod/final.silo'
+            source.parent.mkdir(parents=True); source.write_bytes(b'valuable old state')
+            output.mkdir()
+            records = adapter.quarantineExisting([source], build, output)
+            retained = output/records[0]['path']
+            self.assertFalse(source.exists())
+            self.assertEqual(retained.read_bytes(), b'valuable old state')
+            self.assertEqual(adapter.hashFile(retained), records[0]['sha256'])
+            self.assertTrue((output/'preexisting-build-output/manifest.json').is_file())
+
+    def test_human_report_contains_plots_and_no_raw_json_dump(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary)
+            folder = output/'gravity.sphere.self_gravitating_sphere'/'legacy'
+            raw = folder/'raw/case'; raw.mkdir(parents=True)
+            (raw/'line.final.dat').write_text('0 1 2 3 4\n1 2 3 4 5\n')
+            descriptor = runner.descriptors()['gravity.sphere.self_gravitating_sphere'][1]
+            visual = ctest_visuals.visualize(folder, descriptor, None, 'ffmpeg')
+            self.assertEqual(visual['status'], 'not_requested')
+            self.assertTrue((folder/'plots/line-profile.png').is_file())
+            manifest = {'execution': {'application_threads': 12}, 'tests': [{
+                'identifier': 'gravity.sphere.self_gravitating_sphere',
+                'descriptor': descriptor, 'status': 'passed', 'groups': [{
+                    'name': 'legacy', 'status': 'passed', 'visualization': visual,
+                    'execution': {'checks': [{'name': 'rho_regex', 'status': 'passed', 'seconds': '.1'}]},
+                    'artifacts': []}]}]}
+            ctest_visuals.writeReport(output, manifest)
+            document = (output/'report.html').read_text()
+            self.assertIn('line-profile.png', document)
+            self.assertIn('rho_regex', document)
+            self.assertNotIn('<pre>', document)
+
+    def test_product_policy_renders_hydro_movie_but_not_gravity_movie(self):
+        from types import SimpleNamespace
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            visit = root/'visit'; visit.write_text('fixture')
+
+            def fakeRun(command, **kwargs):
+                if '-cli' in command:
+                    render = Path(kwargs['cwd'])/'rendered'
+                    records = []
+                    fields = ('pot', 'rho') if 'gravity.' in str(kwargs['cwd']) else ('rho', 'egas')
+                    for field in fields:
+                        for frame in range(2):
+                            image = render/field/f'frame-{frame:04d}.png'
+                            image.parent.mkdir(parents=True, exist_ok=True)
+                            image.write_bytes(b'png fixture')
+                            records.append({'requested': field, 'variable': field, 'frame': frame,
+                                            'database': 'fixture', 'path': str(image)})
+                    (render/'visit-products.json').write_text(json.dumps(records))
+                elif '-c:v' in command:
+                    Path(command[-1]).write_bytes(b'mp4 fixture')
+                return SimpleNamespace(returncode=0, stdout='', stderr='')
+
+            for identifier, expectsMovie in (('hydro.sod.sod', True),
+                                               ('gravity.sphere.self_gravitating_sphere', False)):
+                folder = root/identifier
+                raw = folder/'raw/case'; raw.mkdir(parents=True)
+                for name in ('X.0.silo', 'final.silo'):
+                    (raw/name).write_text('fixture')
+                descriptor = runner.descriptors()[identifier][1]
+                with patch.object(ctest_visuals.subprocess, 'run', side_effect=fakeRun):
+                    products = ctest_visuals.siloProducts(folder, descriptor, visit, 'ffmpeg')
+                movies = [item for item in products if item['kind'] == 'video']
+                self.assertEqual(bool(movies), expectsMovie)
+
     def test_requested_hpx_threads_override_environment_without_parallel_ctest(self):
         with patch.dict(os.environ, {'HPX_COMMANDLINE_OPTIONS': '--hpx:bind=balanced --hpx:threads=2'}):
-            environment = adapter.hpx_environment(12)
+            environment = adapter.hpxEnvironment(12)
         self.assertIn('--hpx:bind=balanced', environment['HPX_COMMANDLINE_OPTIONS'])
         self.assertIn('--hpx:threads=12', environment['HPX_COMMANDLINE_OPTIONS'])
         self.assertNotIn('--hpx:threads=2', environment['HPX_COMMANDLINE_OPTIONS'])
@@ -30,7 +100,7 @@ class SelectionTests(unittest.TestCase):
     def test_redirected_solver_log_is_discovered_for_live_following(self):
         registration = {'name': 'solver', 'command': ['sh', '-c', '/tmp/octotiger > solver.log'],
                         'properties': [{'name': 'WORKING_DIRECTORY', 'value': '/tmp/build/case'}]}
-        self.assertEqual(adapter.redirected_logs([registration], ['solver'], Path('/tmp/build')),
+        self.assertEqual(adapter.redirectedLogs([registration], ['solver'], Path('/tmp/build')),
                          [Path('/tmp/build/case/solver.log')])
 
     def test_ctest_and_redirected_solver_output_are_streamed_and_logged(self):
@@ -49,7 +119,7 @@ class SelectionTests(unittest.TestCase):
                             'command': ['sh', '-c', '/tmp/octotiger > solver.log'],
                             'properties': [{'name': 'WORKING_DIRECTORY', 'value': str(case)}]}
             with contextlib.redirect_stdout(io.StringIO()) as output:
-                record = adapter.run_phase([sys.executable, '-c', program], build,
+                record = adapter.runPhase([sys.executable, '-c', program], build,
                                            ['solver'], result, 'checks', [registration], 12)
             visible = output.getvalue()
             self.assertEqual(record['returncode'], 0)
@@ -85,33 +155,33 @@ class SelectionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             xml = Path(temporary) / 'result.xml'
             xml.write_text('<testsuite><testcase name="a"><skipped/></testcase></testsuite>')
-            self.assertEqual(adapter.read_junit(xml, ['a'])[0]['status'], 'conditional')
+            self.assertEqual(adapter.readJunit(xml, ['a'])[0]['status'], 'conditional')
             with self.assertRaisesRegex(ValueError, 'inventory mismatch'):
-                adapter.read_junit(xml, ['a', 'missing'])
+                adapter.readJunit(xml, ['a', 'missing'])
 
     def test_unresolved_executable_and_silo_reference_are_explicit(self):
         groups = [{'registrations': [
             {'name': 'unresolved'},
-            {'name': 'shell', 'command': ['sh', '-c', '/nonexistent/octotiger --config_file=x']},
+            {'name': 'shell', 'command': ['sh', '-c', '/nonexistent/octotiger --runtime.config_file=x']},
             {'name': 'diff', 'command': ['/bin/true', '/nonexistent/reference.silo']},
         ]}]
-        files, missing = adapter.registration_inputs(groups, Path('/configured/build'))
+        files, missing = adapter.registrationInputs(groups, Path('/configured/build'))
         self.assertEqual(len(missing), 3)
         self.assertTrue(any(value['kind'] == 'executable' for value in files.values()))
 
-    def test_old_wrong_directory_cleanup_is_refused(self):
+    def test_cleanup_outside_configured_build_is_refused(self):
         groups = [{'registrations': [{'name': 'cleanup',
-                    'command': ['/usr/bin/cmake', '-E', 'remove', '/build/test_problems/sphere/final.silo'],
+                    'command': ['/usr/bin/cmake', '-E', 'remove', '/outside-build/final.silo'],
                     'properties': [{'name': 'FIXTURES_CLEANUP', 'value': ['sod']},
                                    {'name': 'WORKING_DIRECTORY', 'value': '/build/test_problems/sod'}]}]}]
         with self.assertRaisesRegex(ValueError, 'Cleanup escapes'):
-            adapter.work_directories(groups, Path('/build'))
+            adapter.workDirectories(groups, Path('/build'))
 
 
-@unittest.skipUnless(CMAKE and CTEST, 'Set OCTOTIGER_TEST_CMAKE and OCTOTIGER_TEST_CTEST for real CTest harness integration')
+@unittest.skipUnless(cmake and ctest, 'Set OCTOTIGER_TEST_CMAKE and OCTOTIGER_TEST_CTEST for real CTest harness integration')
 class CTestIntegrationTests(unittest.TestCase):
     def configure(self, source, build, *extra):
-        result = subprocess.run([CMAKE, '-S', str(source), '-B', str(build),
+        result = subprocess.run([cmake, '-S', str(source), '-B', str(build),
                                  '-DCMAKE_BUILD_TYPE=Release', *extra],
                                 capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -148,16 +218,16 @@ set_tests_properties(test_problems.rotating_star.init.fixture_cleanup PROPERTIES
         self.configure(source, build)
         return build
 
-    def execute_fixture(self, temporary, build, name='results', plan=False):
+    def executeFixture(self, temporary, build, name='results', plan=False):
         output = Path(temporary) / name
         code = scenario.execute([runner.descriptors()['gravity.rotating_star.rotating_star']],
-                                ['--build', str(build), '--ctest', CTEST, '--output', str(output)], plan=plan)
+                                ['--build', str(build), '--ctest', ctest, '--output', str(output)], plan=plan)
         return code, output
 
     def test_real_ctest_all_checks_generator_and_cleanup_with_raw_archive(self):
         with tempfile.TemporaryDirectory() as temporary:
             build = self.fixture(temporary)
-            code, output = self.execute_fixture(temporary, build)
+            code, output = self.executeFixture(temporary, build)
             self.assertEqual(code, 0)
             result = json.loads((output / 'verification.json').read_text())
             groups = result['tests'][0]['groups']
@@ -169,7 +239,7 @@ set_tests_properties(test_problems.rotating_star.init.fixture_cleanup PROPERTIES
                 self.assertEqual(len(group['artifacts']), 4)
                 location = output / result['tests'][0]['identifier'] / group['name']
                 for artifact in group['artifacts']:
-                    self.assertEqual(adapter.hash_file(location / artifact['path']), artifact['sha256'])
+                    self.assertEqual(adapter.hashFile(location / artifact['path']), artifact['sha256'])
                 self.assertIn('synthetic data', (location / 'raw/case/final.silo').read_text())
             self.assertFalse((build / 'case/final.silo').exists())
             self.assertFalse((build / 'case/rotating_star.bin').exists())
@@ -177,7 +247,7 @@ set_tests_properties(test_problems.rotating_star.init.fixture_cleanup PROPERTIES
     def test_real_ctest_silo_regex_failure_preserved(self):
         with tempfile.TemporaryDirectory() as temporary:
             build = self.fixture(temporary, failed=True)
-            code, output = self.execute_fixture(temporary, build)
+            code, output = self.executeFixture(temporary, build)
             self.assertEqual(code, 1)
             result = json.loads((output / 'verification.json').read_text())
             self.assertEqual(result['status'], 'failed')
@@ -188,7 +258,7 @@ set_tests_properties(test_problems.rotating_star.init.fixture_cleanup PROPERTIES
     def test_disabled_registered_check_is_conditional(self):
         with tempfile.TemporaryDirectory() as temporary:
             build = self.fixture(temporary, disabled=True)
-            code, output = self.execute_fixture(temporary, build)
+            code, output = self.executeFixture(temporary, build)
             self.assertEqual(code, 3)
             self.assertEqual(json.loads((output / 'verification.json').read_text())['status'], 'conditional')
 
@@ -198,12 +268,12 @@ set_tests_properties(test_problems.rotating_star.init.fixture_cleanup PROPERTIES
             data = build / 'case/final.silo'
             data.write_text('irreplaceable previous result')
             with contextlib.redirect_stdout(io.StringIO()) as text:
-                code, output = self.execute_fixture(temporary, build, plan=True)
+                code, output = self.executeFixture(temporary, build, plan=True)
             self.assertEqual(code, 0)
             self.assertFalse(output.exists())
             self.assertIn('rho_regex', text.getvalue())
             with self.assertRaisesRegex(ValueError, 'would be overwritten'):
-                self.execute_fixture(temporary, build)
+                self.executeFixture(temporary, build)
             self.assertEqual(data.read_text(), 'irreplaceable previous result')
 
     def test_requested_configuration_mismatch_rejected(self):
@@ -211,14 +281,14 @@ set_tests_properties(test_problems.rotating_star.init.fixture_cleanup PROPERTIES
             build = self.fixture(temporary)
             with self.assertRaisesRegex(ValueError, 'requested Debug'):
                 scenario.execute([runner.descriptors()['gravity.rotating_star.rotating_star']],
-                                 ['Debug', '--build', str(build), '--ctest', CTEST,
+                                 ['Debug', '--build', str(build), '--ctest', ctest,
                                   '--output', str(Path(temporary) / 'results')])
 
     def test_archive_failure_keeps_build_raw_data_and_stops_later_variant(self):
         with tempfile.TemporaryDirectory() as temporary:
             build = self.fixture(temporary)
-            with patch.object(adapter, 'archive_raw', side_effect=OSError('simulated full disk')):
-                code, output = self.execute_fixture(temporary, build)
+            with patch.object(adapter, 'archiveRaw', side_effect=OSError('simulated full disk')):
+                code, output = self.executeFixture(temporary, build)
             self.assertEqual(code, 1)
             result = json.loads((output / 'verification.json').read_text())
             groups = result['tests'][0]['groups']
@@ -240,7 +310,7 @@ set_tests_properties(test_problems.rotating_star.init.fixture_cleanup PROPERTIES
                     cmake = f'''cmake_minimum_required(VERSION 3.21)
 project(LegacyRegistrations NONE)
 enable_testing()
-set(PROJECT_SOURCE_DIR "{ROOT}")
+set(PROJECT_SOURCE_DIR "{root}")
 set(PROJECT_BINARY_DIR "{build}")
 set(OCTOTIGER_WITH_GRIDDIM {grid})
 set(OCTOTIGER_WITH_KOKKOS ON)
@@ -253,22 +323,22 @@ add_executable(gen_rotating_star_init IMPORTED)
 set_target_properties(gen_rotating_star_init PROPERTIES IMPORTED_LOCATION /bin/true)
 '''
                     for problem in ('sod', 'blast', 'star', 'sphere', 'rotating_star'):
-                        cmake += f'add_subdirectory("{ROOT}/test_problems/{problem}" "test_problems/{problem}")\n'
+                        cmake += f'add_subdirectory("{root}/test_problems/{problem}" "test_problems/{problem}")\n'
                     (source / 'CMakeLists.txt').write_text(cmake)
                     self.configure(source, build)
-                    result = subprocess.run([CTEST, '-C', 'Release', '--show-only=json-v1'],
+                    result = subprocess.run([ctest, '-C', 'Release', '--show-only=json-v1'],
                                             cwd=build, capture_output=True, text=True, check=True)
                     inventory = json.loads(result.stdout)
                     covered = set()
                     for _, descriptor in runner.descriptors().values():
                         if descriptor['family'] not in ('hydro', 'gravity'):
                             continue
-                        groups = adapter.selected_groups(inventory, descriptor['ctest'])
+                        groups = adapter.selectedGroups(inventory, descriptor['ctest'])
                         covered.update(t['name'] for group in groups for t in group['registrations'])
                     self.assertEqual(covered, {t['name'] for t in inventory['tests']})
-                    cleanup_names = [t['name'] for t in inventory['tests']
+                    cleanupNames = [t['name'] for t in inventory['tests']
                                      if t['name'] == 'test_problems.rotating_star.init.fixture_cleanup']
-                    self.assertEqual(len(cleanup_names), 1)
+                    self.assertEqual(len(cleanupNames), 1)
                     for test in inventory['tests']:
                         if '.sod_' in test['name'] and adapter.values(test, 'FIXTURES_SETUP'):
                             self.assertIn('--hydro_host_kernel_type=', ' '.join(test['command']))
@@ -297,11 +367,13 @@ class LegacySodShellTests(unittest.TestCase):
                 comparator.write_text('#!/bin/sh\nprintf "%s\\n" "$@" > diff-args.txt\n')
                 executable.chmod(0o755)
                 comparator.chmod(0o755)
-                result = subprocess.run(['sh', str(ROOT / 'test_problems/test_sod.sh'),
+                result = subprocess.run(['sh', str(root / 'test_problems/test_sod.sh'),
                                          str(executable), str(comparator)], cwd=directory,
                                         capture_output=True, text=True)
                 self.assertEqual(result.returncode, 7 if fail else 0, result.stderr)
-                self.assertEqual((case / 'args.txt').read_text(), '--config_file=sod.ini\n')
+                self.assertEqual(
+                    (case / 'args.txt').read_text(), '--runtime.config_file=sod.ini\n'
+                )
                 self.assertEqual((case / 'diff-args.txt').exists(), not fail)
                 if not fail:
                     self.assertEqual((case / 'diff-args.txt').read_text().splitlines(),

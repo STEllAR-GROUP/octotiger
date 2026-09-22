@@ -34,7 +34,7 @@ OCTOTIGER_EXPORT std::vector<Real> sod_shock_tube_init(Real, Real, Real, Real);
 OCTOTIGER_EXPORT std::vector<Real> sod_shock_tube_analytic(
     Real, Real, Real, Real);
 OCTOTIGER_EXPORT std::vector<Real> marshak_wave(Real, Real, Real, Real);
-OCTOTIGER_EXPORT std::vector<Real> marshak_wave_analytic(Real, Real, Real, Real);
+OCTOTIGER_EXPORT std::vector<Real> marshakWaveAnalytic(Real, Real, Real, Real);
 OCTOTIGER_EXPORT std::vector<Real> star(Real, Real, Real, Real);
 OCTOTIGER_EXPORT std::vector<Real> moving_star_analytic(Real, Real, Real, Real);
 OCTOTIGER_EXPORT std::vector<Real> moving_star(Real, Real, Real, Real);

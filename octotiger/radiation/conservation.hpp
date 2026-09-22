@@ -1,8 +1,7 @@
 // Copyright (c) 2026 AUTHORS
 // Distributed under the Boost Software License, Version 1.0.
 
-#ifndef OCTOTIGER_RADIATION_CONSERVATION_HPP
-#define OCTOTIGER_RADIATION_CONSERVATION_HPP
+#pragma once
 
 #include "octotiger/math/Debug.hpp"
 
@@ -77,5 +76,3 @@ inline void writeCsvRow(std::ostream &out, double time, const Totals &sample) {
 }
 
 } // namespace radiationConservation
-
-#endif

@@ -2,10 +2,10 @@
 #include <limits>
 namespace rr
 {
-Json read_config(const fs::path &p)
+Json readConfig(const fs::path &p)
 {
 	Json j = Json::object();
-	std::istringstream in(read_text(p));
+	std::istringstream in(readText(p));
 	std::string s;
 	while (std::getline(in, s)) {
 		s = trim(s.substr(0, s.find('#')));
@@ -19,14 +19,14 @@ Json read_config(const fs::path &p)
 	}
 	return j;
 }
-void write_config(const fs::path &p, const Json &j)
+void writeConfig(const fs::path &p, const Json &j)
 {
 	std::string s;
 	for (auto it = j.begin(); it != j.end(); ++it)
 		s += it.key() + "=" + it.value().get<std::string>() + "\n";
-	atomic_text(p, s);
+	atomicText(p, s);
 }
-void records_csv(const fs::path &p, const Json &rows, std::vector<std::string> keys)
+void recordsCsv(const fs::path &p, const Json &rows, std::vector<std::string> keys)
 {
 	if (keys.empty() && !rows.empty())
 		for (auto it = rows[0].begin(); it != rows[0].end(); ++it)
@@ -55,9 +55,9 @@ void records_csv(const fs::path &p, const Json &rows, std::vector<std::string> k
 		}
 		out << '\n';
 	}
-	atomic_text(p, out.str());
+	atomicText(p, out.str());
 }
-Table read_csv(const fs::path &p, const std::vector<std::string> &columns)
+Table readCsv(const fs::path &p, const std::vector<std::string> &columns)
 {
 	std::ifstream in(p);
 	require(bool(in), "Cannot read " + p.string());
@@ -87,36 +87,25 @@ Table read_csv(const fs::path &p, const std::vector<std::string> &columns)
 	require(!in.bad() && !t.rows.empty(), "Empty or unreadable CSV: " + p.string());
 	return t;
 }
-Json read_norms(const fs::path &folder, const Json &m)
+Json readNorms(const fs::path &folder, const Json &m)
 {
 	Json rows = Json::object();
-	std::istringstream log(read_text(folder / "run.log"));
-	std::string line;
-	int finished = 0;
-	std::regex marker(R"(^RADIATION_TEST_FINISHED\s+(\w+)\s+t=(\S+)\s*$)"),
-		norm(R"(^\s*(er|fx|fy|fz)\s+(\S+)\s+(\S+)\s+(\S+)\s*$)");
-	std::smatch match;
-	while (std::getline(log, line)) {
-		if (std::regex_match(line, match, marker)) {
-			++finished;
-			require(lower(match[1]) == "radiation_" + m.at("case").get<std::string>() &&
-						close(numeric(match[2]), m.at("time")),
-					"Wrong comparison marker/time");
-		}
-		if (std::regex_match(line, match, norm)) {
-			auto f = match[1].str();
-			require(!rows.contains(f), "Duplicate norm: " + f);
-			for (int i = 0; i < 3; ++i) {
-				double x = numeric(match[i + 2]);
-				require(x >= 0, "Negative norm");
-				rows[f][norms[i]] = x;
-			}
+	auto summary = readJson(folder / "runSummary.json");
+	require(summary.value("schemaVersion", 0) == 1 && summary.value("status", "") == "completed",
+		"Missing or incomplete structured run summary in " + folder.string());
+	require(close(summary.at("finalTime"), m.at("time")), "Wrong final comparison time");
+	const auto &analytic = summary.at("analytic");
+	for (const auto &field : fields) {
+		require(analytic.contains(field), "Missing analytic field: " + field);
+		for (const auto &norm : norms) {
+			double value = analytic.at(field).at(lower(norm));
+			require(std::isfinite(value) && value >= 0, "Invalid analytic norm: " + field + " " + norm);
+			rows[field][norm] = value;
 		}
 	}
-	require(finished == 1 && rows.size() == 4,
-			"Missing/duplicate final comparison or norms in " + folder.string());
+	std::string line;
 	for (auto &n : norms) {
-		std::istringstream in(read_text(folder / (n + ".dat")));
+		std::istringstream in(readText(folder / (n + ".dat")));
 		std::vector<double> vals;
 		int count = 0;
 		while (std::getline(in, line)) {
@@ -132,11 +121,12 @@ Json read_norms(const fs::path &folder, const Json &m)
 		require(close(vals[0], m.at("dx"), 2e-6) && vals[1] == m.at("level").get<int>(),
 				"Norm resolution mismatch");
 		for (int f = 0; f < 4; ++f)
-			require(close(vals[vals.size() - 4 + f], rows[fields[f]][n], 2e-6), "Log and norm file disagree");
+			require(close(vals[vals.size() - 4 + f], rows[fields[f]][n], 2e-6),
+				"Structured summary and norm file disagree");
 	}
 	return rows;
 }
-Table read_slice(const fs::path &folder, const Json &m)
+Table readSlice(const fs::path &folder, const Json &m)
 {
 	std::vector<std::string> cols{"t",	"dx", "x",		"y",	  "z",		"er",	 "fx",
 								  "fy", "fz", "er_ref", "fx_ref", "fy_ref", "fz_ref"};
@@ -151,7 +141,7 @@ Table read_slice(const fs::path &folder, const Json &m)
 	std::regex pattern("slice-.*\\.csv");
 	for (auto &e : fs::directory_iterator(dir))
 		if (std::regex_match(e.path().filename().string(), pattern))
-			for (auto &r : read_csv(e.path(), cols).rows) {
+			for (auto &r : readCsv(e.path(), cols).rows) {
 				require(close(r[0], m.at("time")) && close(r[1], dx) && close(r[4], dx / 2),
 						"Slice time/spacing/z mismatch");
 				double a = (r[2] + len / 2) / dx - .5, b = (r[3] + len / 2) / dx - .5;
@@ -168,7 +158,7 @@ Table read_slice(const fs::path &folder, const Json &m)
 	require(count == std::size_t(n) * n, "Missing slice cells");
 	return t;
 }
-std::optional<Budget> read_conservation(const fs::path &folder, const Json &m)
+std::optional<Budget> readConservation(const fs::path &folder, const Json &m)
 {
 	auto p = folder / "radiation-conservation.csv";
 	if (!fs::exists(p))
@@ -181,7 +171,7 @@ std::optional<Budget> read_conservation(const fs::path &folder, const Json &m)
 	for (auto &f : fields)
 		cols.push_back(f + "_source");
 	Budget b;
-	b.history = read_csv(p, cols);
+	b.history = readCsv(p, cols);
 	auto &rows = b.history.rows;
 	double len = m.at("length"), c = m.at("c"), vol = len * len * len;
 	require(len > 0 && c > 0 && std::isfinite(vol) && std::isfinite(c), "Invalid conservation metadata");
@@ -194,20 +184,20 @@ std::optional<Budget> read_conservation(const fs::path &folder, const Json &m)
 	b.normalized.resize(rows.size());
 	// Fix the normalization at t=0: growth of a source or boundary budget must
 	// not reduce the apparent fractional conservation error later in the run.
-	const double initial_energy = std::abs(rows[0][2]);
-	const double initial_flux_scale = c * initial_energy;
-	constexpr double zero_tolerance = 64 * std::numeric_limits<double>::epsilon();
-	require(initial_energy > 0 && std::isfinite(initial_flux_scale) && initial_flux_scale > 0,
+	const double initialEnergy = std::abs(rows[0][2]);
+	const double initialFluxScale = c * initialEnergy;
+	constexpr double zeroTolerance = 64 * std::numeric_limits<double>::epsilon();
+	require(initialEnergy > 0 && std::isfinite(initialFluxScale) && initialFluxScale > 0,
 			"Conservation fractions require a nonzero initial energy and finite c times that energy");
-	std::array<double, 4> initial_scale;
+	std::array<double, 4> initialScale;
 	std::array<std::string, 4> basis;
-	initial_scale[0] = initial_energy;
+	initialScale[0] = initialEnergy;
 	basis[0] = "abs(initial_energy)";
 	for (int f = 1; f < 4; ++f) {
 		const double initial = std::abs(rows[0][2 + f]);
-		const bool zero_net_flux = initial / initial_flux_scale <= zero_tolerance;
-		initial_scale[f] = zero_net_flux ? initial_flux_scale : initial;
-		basis[f] = zero_net_flux ? "c * abs(initial_energy)" : "abs(initial_component)";
+		const bool zeroNetFlux = initial / initialFluxScale <= zeroTolerance;
+		initialScale[f] = zeroNetFlux ? initialFluxScale : initial;
+		basis[f] = zeroNetFlux ? "c * abs(initial_energy)" : "abs(initial_component)";
 	}
 	for (std::size_t i = 0; i < rows.size(); ++i) {
 		auto &r = rows[i];
@@ -215,7 +205,7 @@ std::optional<Budget> read_conservation(const fs::path &folder, const Json &m)
 		require(!i || r[0] > rows[i - 1][0], "Conservation times must increase");
 		for (int f = 0; f < 4; ++f) {
 			double residual = r[2 + f] - rows[0][2 + f] + r[6 + f] - r[10 + f];
-			double scale = initial_scale[f];
+			double scale = initialScale[f];
 			require(std::isfinite(residual) && std::isfinite(residual / scale),
 					"Invalid derived conservation budget");
 			b.residual[i][f] = residual;
@@ -238,11 +228,11 @@ std::optional<Budget> read_conservation(const fs::path &folder, const Json &m)
 							 {"residual", b.residual.back()[f]},
 							 {"normalization_scale", b.scale.back()[f]},
 							 {"normalization_basis", basis[f]},
-							 {"zero_initial_flux_relative_tolerance", zero_tolerance},
-							 {"initial_fraction", rows[0][2 + f] / initial_scale[f]},
-							 {"final_fraction", rows.back()[2 + f] / initial_scale[f]},
-							 {"boundary_fraction", rows.back()[6 + f] / initial_scale[f]},
-							 {"source_fraction", rows.back()[10 + f] / initial_scale[f]},
+							 {"zero_initial_flux_relative_tolerance", zeroTolerance},
+							 {"initial_fraction", rows[0][2 + f] / initialScale[f]},
+							 {"final_fraction", rows.back()[2 + f] / initialScale[f]},
+							 {"boundary_fraction", rows.back()[6 + f] / initialScale[f]},
+							 {"source_fraction", rows.back()[10 + f] / initialScale[f]},
 							 {"normalized_residual", b.normalized.back()[f]},
 							 {"normalized_error", std::abs(b.normalized.back()[f])},
 							 {"max_abs_residual", maxr},
@@ -251,47 +241,15 @@ std::optional<Budget> read_conservation(const fs::path &folder, const Json &m)
 	}
 	return b;
 }
-void CGSCheck::feed(const std::string &line)
+void verifyCgsSummary(const fs::path &p)
 {
-	std::smatch m;
-	if (std::regex_search(line, std::regex(R"(^\s*normalized\s+constants\b)", std::regex::icase))) {
-		require(!pending, "Incomplete normalization block");
-		pending = true;
-		factors = false;
-		return;
-	}
-	if (pending && !factors) {
-		std::istringstream s(line);
-		std::vector<double> v;
-		double d;
-		while (s >> d)
-			v.push_back(d);
-		if (v.size() == 4 && s.eof()) {
-			for (double x : v)
-				require(close(x, 1, 1e-12), "Solver is not using CGS unit factors; rebuild");
-			factors = true;
-		}
-	}
-	if (std::regex_search(line, m, std::regex(R"(\|\s*c\s*=\s*(\S+)\s*\|)"))) {
-		require(close(numeric(m[1]), c_cgs, 5e-7), "Wrong solver light speed; rebuild for CGS");
-		if (pending && factors) {
-			++blocks;
-			pending = false;
-		}
-	}
-}
-void CGSCheck::finish()
-{
-	require(blocks && !pending, "Could not verify the running solver's CGS units and light speed;");
-}
-void verify_cgs_log(const fs::path &p)
-{
-	CGSCheck c;
-	std::istringstream s(read_text(p));
-	std::string line;
-	while (std::getline(s, line))
-		c.feed(line);
-	c.finish();
+	const auto summary = readJson(p);
+	const auto &units = summary.at("units");
+	for (const auto &field : {"grams", "centimeters", "seconds"})
+		require(close(units.at(field), 1, 1e-12),
+			"Solver is not using CGS unit factors; rebuild");
+	require(close(units.at("lightSpeed"), cCgs, 5e-7),
+		"Wrong solver light speed; rebuild for CGS");
 }
 Json cadence(double t, int n, double cfl, std::optional<double> odt)
 {
@@ -305,7 +263,7 @@ Json cadence(double t, int n, double cfl, std::optional<double> odt)
 			{"steps_per_output_check", int(steps)},
 			{"requested_snapshots", int(std::ceil(t / interval - 1e-10)) + 1}};
 }
-std::vector<std::size_t> frame_schedule(const std::vector<double> &t, double seconds, int fps, double hold)
+std::vector<std::size_t> frameSchedule(const std::vector<double> &t, double seconds, int fps, double hold)
 {
 	require(t.size() >= 2 && std::isfinite(seconds) && seconds > 0 && fps > 0 && std::isfinite(hold) &&
 				hold >= 0,
@@ -325,7 +283,7 @@ std::vector<std::size_t> frame_schedule(const std::vector<double> &t, double sec
 	seq.insert(seq.end(), pause, t.size() - 1);
 	return seq;
 }
-std::vector<fs::path> numerical_silos(const fs::path &dir)
+std::vector<fs::path> numericalSilos(const fs::path &dir)
 {
 	std::map<unsigned long long, fs::path> sorted;
 	std::regex re(R"(X\.(\d+)\.silo)");
@@ -348,13 +306,13 @@ std::vector<fs::path> numerical_silos(const fs::path &dir)
 		require(fs::file_size(p) > 0, "Empty Silo file");
 	return v;
 }
-std::vector<std::pair<fs::path, Json>> completed_runs(const fs::path &dir)
+std::vector<std::pair<fs::path, Json>> completedRuns(const fs::path &dir)
 {
 	std::vector<std::pair<fs::path, Json>> out;
 	auto add = [&](const fs::path &p) {
 		if (!fs::is_regular_file(p / "run.json"))
 			return;
-		auto m = read_json(p / "run.json");
+		auto m = readJson(p / "run.json");
 		if (m.value("status", "") != "complete")
 			return;
 		auto name = m.at("case").get<std::string>();

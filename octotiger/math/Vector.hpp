@@ -16,47 +16,47 @@ struct Vector {
 		return N;
 	}
 	constexpr T operator[](int i) const {
-		return data_[i];
+		return components[i];
 	}
 	constexpr T &operator[](int i) {
-		return data_[i];
+		return components[i];
 	}
 	constexpr Vector() = default;
 	constexpr Vector(std::initializer_list<T> const &list) :
-		data_{} {
+		components{} {
 		if (list.size() > std::size_t(N)) {
 			throw std::length_error("Too many elements in Vector initializer");
 		}
 		int i = 0;
 		for (auto const &value : list) {
-			data_[i++] = value;
+			components[i++] = value;
 		}
 	}
 	constexpr Vector(std::array<T, N> const &array) :
-		data_(array) {
+		components(array) {
 	}
 	constexpr Vector(Vector const &) = default;
 	constexpr Vector(Vector &&) = default;
 	constexpr Vector &operator=(Vector const &) = default;
 	constexpr Vector &operator=(Vector &&) = default;
 	constexpr Vector &operator+=(Vector const &B) {
-		forEachComponent([&](int i) { data_[i] += B[i]; });
+		forEachComponent([&](int i) { components[i] += B[i]; });
 		return *this;
 	}
 	constexpr Vector &operator-=(Vector const &B) {
-		forEachComponent([&](int i) { data_[i] -= B[i]; });
+		forEachComponent([&](int i) { components[i] -= B[i]; });
 		return *this;
 	}
 	constexpr Vector &operator*=(T const &B) {
 		// B may refer to one of our components, as in v *= v[0].
 		T const scalar = B;
-		forEachComponent([&](int i) { data_[i] *= scalar; });
+		forEachComponent([&](int i) { components[i] *= scalar; });
 		return *this;
 	}
 	constexpr Vector &operator/=(T const &B) {
 		T const scalar = B;
 		if constexpr (std::is_integral_v<T>) {
-			forEachComponent([&](int i) { data_[i] /= scalar; });
+			forEachComponent([&](int i) { components[i] /= scalar; });
 			return *this;
 		} else {
 			return (*this *= T(1) / scalar);
@@ -68,10 +68,10 @@ struct Vector {
 		Vector<T, K> first;
 		Vector<T, N - K> second;
 		for (int i = 0; i < K; i++) {
-			first[i] = data_[i];
+			first[i] = components[i];
 		}
 		for (int i = K; i < N; i++) {
-			second[i - K] = data_[i];
+			second[i - K] = components[i];
 		}
 		return {first, second};
 	}
@@ -146,7 +146,7 @@ struct Vector {
 		return A;
 	}
 	constexpr operator std::array<T, N>() const {
-		return data_;
+		return components;
 	};
 
 private:
@@ -172,7 +172,7 @@ private:
 			}
 		}
 	}
-	std::array<T, N> data_;
+	std::array<T, N> components;
 };
 
 template <typename T, int N, int M>

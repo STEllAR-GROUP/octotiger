@@ -97,7 +97,7 @@ Real struct_eos::enthalpy_to_density(Real h) const {
 			if (h < HE()) {
 				res = dE() * POWER(h * INVERSE( HE() ), n_E);
 			} else {
-				ASSERT_POSITIVE(h - HE() + HC());
+				assertPositiveCheck(h - HE() + HC());
 				res = dC() * POWER((h - HE() + HC()) * INVERSE( HC() ), n_C);
 			}
 		} else {
@@ -187,8 +187,8 @@ Real struct_eos::pressure(Real d) const {
 		if (d >= dC()) {
 			return P0() * POWER(d * INVERSE( dC() ), 1.0 + 1.0 * INVERSE( n_C));
 		} else if (d <= dE() && d > 0.0) {
-			ASSERT_POSITIVE(d);
-			ASSERT_POSITIVE(dE());
+			assertPositiveCheck(d);
+			assertPositiveCheck(dE());
 			//	printf( "n_E %e %e\n", n_E, P0());
 			if (opts().v1309) {
 				if (d < rho_cut) {

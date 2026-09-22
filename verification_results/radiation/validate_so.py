@@ -18,7 +18,7 @@ def method(text, signature):
     return text[start:end]
 
 
-def production_source(root):
+def productionSource(root):
     support = root/'verification_results/radiation/tests_so'
     source = (root/'src/radiation/rad_grid.cpp').read_text()
     header = '\n'.join(line for line in (root/'octotiger/radiation/rad_grid.hpp').read_text().splitlines()
@@ -57,11 +57,11 @@ def main():
     support = root/'verification_results/radiation/tests_so'
     with tempfile.TemporaryDirectory(prefix='octotiger-so-') as directory:
         path = Path(directory)
-        cpp = production_source(root)
+        cpp = productionSource(root)
         checks = (support/'checks.inc').read_text()
         if args.opacity_checks:
             checks = checks.replace('int main() {', (support/'opacity_checks.inc').read_text() + '\nint main() {')
-            checks = checks.replace('kernel_checks();thermal_checks();', 'opacity_source_checks();kernel_checks();thermal_checks();')
+            checks = checks.replace('kernelChecks();thermalChecks();', 'opacitySourceChecks();kernelChecks();thermalChecks();')
         cpp += '\n' + checks
         (path/'check.cpp').write_text(cpp)
         flags = ['-O1', '-g', '-fsanitize=address,undefined', '-fno-omit-frame-pointer'] if args.sanitize else ['-O2']

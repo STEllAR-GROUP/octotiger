@@ -1,5 +1,4 @@
-#ifndef OCTOTIGER_OPTIONS_COMPATIBILITY_HPP
-#define OCTOTIGER_OPTIONS_COMPATIBILITY_HPP
+#pragma once
 
 #include <boost/program_options.hpp>
 
@@ -9,31 +8,47 @@
 #include <utility>
 #include <vector>
 
-namespace octotiger::options_compatibility {
+namespace octotiger::optionsCompatibility {
 
 using migration = std::pair<std::string, std::string>; // legacy, canonical
 
+inline std::string canonicalOptionDescription(
+    boost::program_options::options_description const& legacyOptions,
+    char const* legacy) {
+    auto const* option = legacyOptions.find_nothrow(legacy, false);
+    std::string description = option == nullptr ? std::string{} : option->description();
+    if (!description.empty()) {
+        description += " ";
+    }
+    description += "(legacy spelling: --";
+    description += legacy;
+    description += ")";
+    return description;
+}
+
 template <class T>
-void add_canonical_option(boost::program_options::options_description& options,
+void addCanonicalOption(boost::program_options::options_description& options,
+    boost::program_options::options_description const& legacyOptions,
     std::vector<migration>& migrations, char const* canonical, char const* legacy,
     T* value) {
-    std::string description = std::string("canonical spelling; legacy: --") + legacy;
+    auto const description = canonicalOptionDescription(legacyOptions, legacy);
     options.add_options()(canonical, boost::program_options::value<T>(value),
         description.c_str());
     migrations.emplace_back(legacy, canonical);
 }
 
 template <class T>
-void add_canonical_multitoken_option(boost::program_options::options_description& options,
+void addCanonicalMultitokenOption(boost::program_options::options_description& options,
+    boost::program_options::options_description const& legacyOptions,
     std::vector<migration>& migrations, char const* canonical, char const* legacy,
     T* value) {
-    std::string description = std::string("canonical spelling; legacy: --") + legacy;
+    auto const description = canonicalOptionDescription(legacyOptions, legacy);
     options.add_options()(canonical,
         boost::program_options::value<T>(value)->multitoken(), description.c_str());
     migrations.emplace_back(legacy, canonical);
 }
 
-inline void remember_supplied(std::set<std::string>& supplied,
+inline void rememberSupplied(std::set<std::string>& supplied,
     boost::program_options::parsed_options const& parsed) {
     for (auto const& option : parsed.options) {
         if (!option.string_key.empty() && !option.unregistered) {
@@ -42,7 +57,7 @@ inline void remember_supplied(std::set<std::string>& supplied,
     }
 }
 
-inline bool check_compatibility_spellings(std::set<std::string> const& supplied,
+inline bool checkCompatibilitySpellings(std::set<std::string> const& supplied,
     std::vector<migration> const& migrations, std::ostream& error = std::cerr) {
     bool valid = true;
     for (auto const& entry : migrations) {
@@ -59,19 +74,27 @@ inline bool check_compatibility_spellings(std::set<std::string> const& supplied,
     return valid;
 }
 
-inline void warn_legacy_spellings(std::set<std::string> const& supplied,
+inline void warnLegacySpellings(std::set<std::string> const& supplied,
     std::vector<migration> const& migrations, std::ostream& warning = std::cerr) {
-    std::set<std::string> warned;
+    std::vector<migration> used;
+    std::set<std::string> seen;
     for (auto const& entry : migrations) {
-        if (supplied.count(entry.first) != 0 && warned.insert(entry.first).second) {
-            warning << "WARNING: option '" << entry.first
-                    << "' is deprecated; use '" << entry.second << "'.\n";
+        if (supplied.count(entry.first) != 0 && seen.insert(entry.first).second) {
+            used.push_back(entry);
         }
+    }
+    if (used.empty()) {
+        return;
+    }
+    warning << "WARNING: legacy options were used. These options have been upgraded "
+               "to hierarchical names:\n";
+    for (auto const& entry : used) {
+        warning << "  --" << entry.first << " -> --" << entry.second << '\n';
     }
 }
 
-inline void reapply_canonical_values(boost::program_options::variables_map const& values,
-    boost::program_options::options_description const& canonical_options,
+inline void reapplyCanonicalValues(boost::program_options::variables_map const& values,
+    boost::program_options::options_description const& canonicalOptions,
     std::vector<migration> const& migrations) {
     // Legacy entries carry the historical default_value declarations. Since
     // Boost notifies a variables_map in key order, a legacy default can
@@ -81,13 +104,11 @@ inline void reapply_canonical_values(boost::program_options::variables_map const
         if (found == values.end() || found->second.defaulted()) {
             continue;
         }
-        auto const* description = canonical_options.find_nothrow(entry.second, false);
+        auto const* description = canonicalOptions.find_nothrow(entry.second, false);
         if (description != nullptr && description->semantic() != nullptr) {
             description->semantic()->notify(found->second.value());
         }
     }
 }
 
-} // namespace octotiger::options_compatibility
-
-#endif
+} // namespace octotiger::optionsCompatibility

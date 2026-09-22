@@ -114,18 +114,18 @@ void load_options_from_silo(std::string fname, DBfile *db) {
                 [&](char const* key) { return ri(db, key); },
                 [&](char const* key) { return rr(db, key); });
 			if (DBInqVarExists(db,"rad_implicit")) opts().rad_implicit=ri(db,"rad_implicit");
-			if (DBInqVarExists(db,"rad_subcycling")) opts().rad_subcycling=ri(db,"rad_subcycling");
-			if (DBInqVarExists(db,"rad_c_ratio")) opts().rad_c_ratio=rr(db,"rad_c_ratio");
-			if (DBInqVarExists(db,"rad_cfl")) opts().rad_cfl=rr(db,"rad_cfl");
-			if (DBInqVarExists(db,"rad_max_subcycles")) opts().rad_max_subcycles=ri(db,"rad_max_subcycles");
-			if (DBInqVarExists(db,"rad_theta")) opts().rad_theta=rr(db,"rad_theta");
-			if (DBInqVarExists(db,"rad_velocity_terms")) opts().rad_velocity_terms=ri(db,"rad_velocity_terms");
-			if (DBInqVarExists(db,"rad_opacity")) opts().rad_opacity=rr(db,"rad_opacity");
+			if (DBInqVarExists(db,"rad_subcycling")) opts().radSubcycling=ri(db,"rad_subcycling");
+			if (DBInqVarExists(db,"rad_c_ratio")) opts().radCRatio=rr(db,"rad_c_ratio");
+			if (DBInqVarExists(db,"rad_cfl")) opts().radCfl=rr(db,"rad_cfl");
+			if (DBInqVarExists(db,"rad_max_subcycles")) opts().radMaxSubcycles=ri(db,"rad_max_subcycles");
+			if (DBInqVarExists(db,"rad_theta")) opts().radTheta=rr(db,"rad_theta");
+			if (DBInqVarExists(db,"rad_velocity_terms")) opts().radVelocityTerms=ri(db,"rad_velocity_terms");
+			if (DBInqVarExists(db,"rad_opacity")) opts().radOpacity=rr(db,"rad_opacity");
 			if (DBInqVarExists(db,"rad_energy_mode")) {
                 auto const mode=ri(db,"rad_energy_mode");
-                opts().rad_energy_mode=mode==0 ? "thermal" : mode==1 ? "absorption" : mode==2 ? "equilibrium" : "invalid";
+                opts().radEnergyMode=mode==0 ? "thermal" : mode==1 ? "absorption" : mode==2 ? "equilibrium" : "invalid";
             }
-			if (DBInqVarExists(db,"rad_log_subcycles")) opts().rad_log_subcycles=ri(db,"rad_log_subcycles");
+			if (DBInqVarExists(db,"rad_log_subcycles")) opts().radLogSubcycles=ri(db,"rad_log_subcycles");
             }
 			opts().refinement_floor = rr(db, "refinement_floor");
 			opts().xscale = rr(db, "xscale");

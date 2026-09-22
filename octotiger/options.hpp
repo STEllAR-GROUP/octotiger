@@ -33,27 +33,27 @@ COMMAND_LINE_ENUM(eos_type, IDEAL, WD, IPR);
 // existing flat data members remain the serialized storage, so checkpoints and
 // HPX wire archives keep their exact historical layout.
 template <class T>
-class option_reference {
+class OptionReference {
 public:
-	explicit option_reference(T& value) : value_(&value) {
+	explicit OptionReference(T& value) : valuePointer(&value) {
 	}
 	operator T&() const {
-		return *value_;
+		return *valuePointer;
 	}
 	T& get() const {
-		return *value_;
+		return *valuePointer;
 	}
-	option_reference& operator=(T const& value) {
-		*value_ = value;
+	OptionReference& operator=(T const& value) {
+		*valuePointer = value;
 		return *this;
 	}
-	option_reference& operator=(option_reference const& other) {
-		*value_ = other.get();
+	OptionReference& operator=(OptionReference const& other) {
+		*valuePointer = other.get();
 		return *this;
 	}
 
 private:
-	T* value_;
+	T* valuePointer;
 };
 
 class options {
@@ -76,16 +76,16 @@ public:
 	bool v1309;
 	bool rad_implicit;
 	// S&O radiation controls; independent of the hydrodynamic RK integrator.
-	bool rad_subcycling = true;
-	Real rad_c_ratio = 1.0;
-	Real rad_cfl = 0.4;
-	integer rad_max_subcycles = 1024;
-	Real rad_theta = 1.0;
-	bool rad_velocity_terms = true;
-	Real rad_opacity = -1.0;
+	bool radSubcycling = true;
+	Real radCRatio = 1.0;
+	Real radCfl = 0.4;
+	integer radMaxSubcycles = 1024;
+	Real radTheta = 1.0;
+	bool radVelocityTerms = true;
+	Real radOpacity = -1.0;
 	radiation::GreyOpacity radiationOpacity;
-	std::string rad_energy_mode = "thermal";
-	bool rad_log_subcycles = false;
+	std::string radEnergyMode = "thermal";
+	bool radLogSubcycles = false;
 
 	// Prescribed-medium regression parameters, all in physical code units.
 	std::string radReference = "gaussian_pulse.bin";
@@ -126,6 +126,8 @@ public:
 	Real driving_time;
 	Real entropy_driving_rate;
 	Real entropy_driving_time;
+	Real omegaX;
+	Real omegaY;
 	Real omega;
 	Real output_dt;
 	Real refinement_floor;
@@ -186,6 +188,8 @@ public:
 	std::string data_dir;
 	std::string output_filename;
 	std::string restart_filename;
+	std::string detailedLogPath;
+	std::string resultsPath;
 	integer n_species;
 	integer n_fields;
 
@@ -209,144 +213,165 @@ public:
 	// Canonical hierarchical C++ views.  Boost.Program_options still sees flat
 	// dotted strings; these structures supply hierarchy to C++ without moving or
 	// duplicating the legacy serialized storage.
-	struct radiation_group {
-		struct opacity_group {
-			option_reference<Real> constant;
-			option_reference<std::string> model, units;
-			option_reference<double> absorption, scattering, transport_absorption;
-			explicit opacity_group(options& o) : constant(o.rad_opacity),
+	struct RadiationGroup {
+		struct OpacityGroup {
+			OptionReference<Real> constant;
+			OptionReference<std::string> model, units;
+			OptionReference<double> absorption, scattering, transportAbsorption;
+			explicit OpacityGroup(options& o) : constant(o.radOpacity),
 				model(o.radiationOpacity.model), units(o.radiationOpacity.units),
 				absorption(o.radiationOpacity.absorption), scattering(o.radiationOpacity.scattering),
-				transport_absorption(o.radiationOpacity.transport_absorption) {
+				transportAbsorption(o.radiationOpacity.transportAbsorption) {
 			}
 		} opacity;
-		option_reference<bool> enabled;
-		option_reference<bool> implicit;
-		option_reference<bool> subcycling;
-		option_reference<Real> reduced_light_speed_ratio;
-		option_reference<Real> cfl;
-		option_reference<integer> max_subcycles;
-		option_reference<Real> source_theta;
-		option_reference<bool> velocity_terms;
-		option_reference<std::string> energy_mode;
-		option_reference<bool> log_subcycles;
-		radiation_group(options& owner) : opacity(owner),
+		OptionReference<bool> enabled;
+		OptionReference<bool> implicit;
+		OptionReference<bool> subcycling;
+		OptionReference<Real> reducedLightSpeedRatio;
+		OptionReference<Real> cfl;
+		OptionReference<integer> maxSubcycles;
+		OptionReference<Real> sourceTheta;
+		OptionReference<bool> velocityTerms;
+		OptionReference<std::string> energyMode;
+		OptionReference<bool> logSubcycles;
+		RadiationGroup(options& owner) : opacity(owner),
 			enabled(owner.radiation), implicit(owner.rad_implicit),
-			subcycling(owner.rad_subcycling), reduced_light_speed_ratio(owner.rad_c_ratio),
-			cfl(owner.rad_cfl), max_subcycles(owner.rad_max_subcycles),
-			source_theta(owner.rad_theta), velocity_terms(owner.rad_velocity_terms),
-			energy_mode(owner.rad_energy_mode), log_subcycles(owner.rad_log_subcycles) {
+			subcycling(owner.radSubcycling), reducedLightSpeedRatio(owner.radCRatio),
+			cfl(owner.radCfl), maxSubcycles(owner.radMaxSubcycles),
+			sourceTheta(owner.radTheta), velocityTerms(owner.radVelocityTerms),
+			energyMode(owner.radEnergyMode), logSubcycles(owner.radLogSubcycles) {
 		}
-	} radiation_options;
+	} radiationOptions;
 
-	struct hydro_group {
-		option_reference<bool> enabled;
-		option_reference<Real> gamma;
-		option_reference<Real> cfl;
-		option_reference<eos_type> eos;
-		option_reference<Real> density_floor;
-		option_reference<Real> entropy_floor;
-		option_reference<bool> periodic;
-		hydro_group(options& owner) : enabled(owner.hydro), gamma(owner.sod_gamma),
-			cfl(owner.cfl), eos(owner.eos), density_floor(owner.rho_floor),
-			entropy_floor(owner.tau_floor), periodic(owner.periodic) {
+	struct HydroGroup {
+		OptionReference<bool> enabled;
+		OptionReference<Real> gamma;
+		OptionReference<Real> cfl;
+		OptionReference<eos_type> eos;
+		OptionReference<Real> densityFloor;
+		OptionReference<Real> entropyFloor;
+		HydroGroup(options& owner) : enabled(owner.hydro), gamma(owner.sod_gamma),
+			cfl(owner.cfl), eos(owner.eos), densityFloor(owner.rho_floor),
+			entropyFloor(owner.tau_floor) {
 		}
-	} hydro_options;
+	} hydroOptions;
 
-	struct gravity_group {
-		option_reference<bool> enabled;
-		option_reference<Real> opening_angle;
-		option_reference<Real> angular_frequency;
-		option_reference<bool> angular_momentum_correction;
-		gravity_group(options& owner) : enabled(owner.gravity), opening_angle(owner.theta),
-			angular_frequency(owner.omega), angular_momentum_correction(owner.correct_am_grav) {
+	struct GravityGroup {
+		OptionReference<bool> enabled;
+		OptionReference<Real> openingAngle;
+		OptionReference<bool> angularMomentumCorrection;
+		GravityGroup(options& owner) : enabled(owner.gravity), openingAngle(owner.theta),
+			angularMomentumCorrection(owner.correct_am_grav) {
 		}
-	} gravity_options;
+	} gravityOptions;
 
-	struct problem_group {
-		struct blast_group {
-			option_reference<Real> energy;
-			explicit blast_group(Real& value) : energy(value) {
+	struct ProblemGroup {
+		struct BlastGroup {
+			OptionReference<Real> energy;
+			explicit BlastGroup(Real& value) : energy(value) {
 			}
 		} blast;
-		option_reference<problem_type> name;
-		option_reference<std::string> input_file;
-		option_reference<int> experiment;
-		problem_group(options& owner) : blast(owner.eblast0), name(owner.problem),
-			input_file(owner.input_file), experiment(owner.experiment) {
+		OptionReference<problem_type> name;
+		OptionReference<std::string> inputFile;
+		OptionReference<int> experiment;
+		ProblemGroup(options& owner) : blast(owner.eblast0), name(owner.problem),
+			inputFile(owner.input_file), experiment(owner.experiment) {
 		}
-	} problem_options;
+	} problemOptions;
 
-	struct output_group {
-		option_reference<std::string> directory;
-		option_reference<std::string> filename;
-		option_reference<Real> interval;
-		option_reference<bool> disabled;
-		output_group(options& owner) : directory(owner.data_dir), filename(owner.output_filename),
-			interval(owner.output_dt), disabled(owner.disable_output) {
+	struct OutputGroup {
+		OptionReference<std::string> directory;
+		OptionReference<std::string> filename;
+		OptionReference<Real> interval;
+		OptionReference<bool> disabled;
+		OptionReference<std::string> detailedLogPath;
+		OptionReference<std::string> resultsPath;
+		OutputGroup(options& owner) : directory(owner.data_dir), filename(owner.output_filename),
+			interval(owner.output_dt), disabled(owner.disable_output),
+			detailedLogPath(owner.detailedLogPath), resultsPath(owner.resultsPath) {
 		}
-	} output_options;
+	} outputOptions;
 
-	struct mesh_group {
-		option_reference<Real> scale;
-		option_reference<integer> minimum_level;
-		option_reference<integer> maximum_level;
-		option_reference<bool> unigrid;
-		mesh_group(options& owner) : scale(owner.xscale), minimum_level(owner.min_level),
-			maximum_level(owner.max_level), unigrid(owner.unigrid) {
+	struct MeshGroup {
+		OptionReference<Real> scale;
+		OptionReference<Real> omegaX;
+		OptionReference<Real> omegaY;
+		OptionReference<Real> omegaZ;
+		OptionReference<integer> minimumLevel;
+		OptionReference<integer> maximumLevel;
+		OptionReference<bool> unigrid;
+		OptionReference<bool> inflow;
+		OptionReference<bool> periodic;
+		OptionReference<bool> reflecting;
+		MeshGroup(options& owner) : scale(owner.xscale), minimumLevel(owner.min_level),
+			omegaX(owner.omegaX), omegaY(owner.omegaY), omegaZ(owner.omega),
+			maximumLevel(owner.max_level), unigrid(owner.unigrid),
+			inflow(owner.inflow_bc), periodic(owner.periodic), reflecting(owner.reflect_bc) {
 		}
-	} mesh_options;
+	} meshOptions;
 
-	struct restart_group {
-		option_reference<std::string> filename;
-		explicit restart_group(options& owner) : filename(owner.restart_filename) {
+	struct RefinementGroup {
+		OptionReference<integer> accretorLevels;
+		OptionReference<bool> core;
+		OptionReference<Real> densityFloor;
+		OptionReference<Real> densityGradient;
+		OptionReference<integer> donorLevels;
+		RefinementGroup(options& owner) : accretorLevels(owner.accretor_refine),
+			core(owner.core_refine), densityFloor(owner.refinement_floor),
+			densityGradient(owner.grad_rho_refine), donorLevels(owner.donor_refine) {
 		}
-	} restart_options;
+	} refinementOptions;
 
-	struct units_group {
-		option_reference<Real> grams;
-		option_reference<Real> centimeters;
-		option_reference<Real> seconds;
-		units_group(options& owner) : grams(owner.code_to_g), centimeters(owner.code_to_cm),
+	struct RestartGroup {
+		OptionReference<std::string> filename;
+		explicit RestartGroup(options& owner) : filename(owner.restart_filename) {
+		}
+	} restartOptions;
+
+	struct UnitsGroup {
+		OptionReference<Real> grams;
+		OptionReference<Real> centimeters;
+		OptionReference<Real> seconds;
+		UnitsGroup(options& owner) : grams(owner.code_to_g), centimeters(owner.code_to_cm),
 			seconds(owner.code_to_s) {
 		}
-	} units_options;
+	} unitsOptions;
 
-	struct blast_group {
-		option_reference<Real> energy;
-		explicit blast_group(options& owner) : energy(owner.eblast0) {
+	struct BlastGroup {
+		OptionReference<Real> energy;
+		explicit BlastGroup(options& owner) : energy(owner.eblast0) {
 		}
-	} blast_options;
+	} blastOptions;
 
-	struct timestep_group {
-		option_reference<Real> maximum_change;
-		option_reference<Real> fixed;
-		timestep_group(options& owner) : maximum_change(owner.dt_max), fixed(owner.hard_dt) {
+	struct TimestepGroup {
+		OptionReference<Real> maximumChange;
+		OptionReference<Real> fixed;
+		TimestepGroup(options& owner) : maximumChange(owner.dt_max), fixed(owner.hard_dt) {
 		}
-	} timestep_options;
+	} timestepOptions;
 
-	struct runtime_group {
-		option_reference<std::string> config_file;
-		option_reference<Real> stop_time;
-		option_reference<integer> stop_step;
-		runtime_group(options& owner) : config_file(owner.config_file),
-			stop_time(owner.stop_time), stop_step(owner.stop_step) {
+	struct RuntimeGroup {
+		OptionReference<std::string> configFile;
+		OptionReference<Real> stopTime;
+		OptionReference<integer> stopStep;
+		RuntimeGroup(options& owner) : configFile(owner.config_file),
+			stopTime(owner.stop_time), stopStep(owner.stop_step) {
 		}
-	} runtime_options;
+	} runtimeOptions;
 
-	struct execution_group {
-		option_reference<size_t> gpu_count;
-		option_reference<size_t> executors_per_gpu;
-		option_reference<int> polling_threads;
-		execution_group(options& owner) : gpu_count(owner.number_gpus),
-			executors_per_gpu(owner.executors_per_gpu), polling_threads(owner.polling_threads) {
+	struct ExecutionGroup {
+		OptionReference<size_t> gpuCount;
+		OptionReference<size_t> executorsPerGpu;
+		OptionReference<int> pollingThreads;
+		ExecutionGroup(options& owner) : gpuCount(owner.number_gpus),
+			executorsPerGpu(owner.executors_per_gpu), pollingThreads(owner.polling_threads) {
 		}
-	} execution_options;
+	} executionOptions;
 
-	options() : radiation_options(*this), hydro_options(*this), gravity_options(*this),
-		problem_options(*this), output_options(*this), mesh_options(*this),
-		restart_options(*this), units_options(*this), blast_options(*this),
-		timestep_options(*this), runtime_options(*this), execution_options(*this) {
+	options() : radiationOptions(*this), hydroOptions(*this), gravityOptions(*this),
+		problemOptions(*this), outputOptions(*this), meshOptions(*this),
+		refinementOptions(*this), restartOptions(*this), unitsOptions(*this), blastOptions(*this),
+		timestepOptions(*this), runtimeOptions(*this), executionOptions(*this) {
 	}
 	options(options const& other) : options() {
 		*this = other;
@@ -410,15 +435,15 @@ public:
 		arc & correct_am_hydro;
 		arc & rewrite_silo;
 		arc & rad_implicit;
-		arc & rad_subcycling;
-		arc & rad_c_ratio;
-		arc & rad_cfl;
-		arc & rad_max_subcycles;
-		arc & rad_theta;
-		arc & rad_velocity_terms;
-		arc & rad_opacity;
-		arc & rad_energy_mode;
-		arc & rad_log_subcycles;
+		arc & radSubcycling;
+		arc & radCRatio;
+		arc & radCfl;
+		arc & radMaxSubcycles;
+		arc & radTheta;
+		arc & radVelocityTerms;
+		arc & radOpacity;
+		arc & radEnergyMode;
+		arc & radLogSubcycles;
 
 		arc & radReference & radTestChi & radTestWidth;
 		arc & radTestBackground & radTestAmplitude & radTestLuminosity;
@@ -490,6 +515,8 @@ public:
 		arc & code_to_cm;
 		// Same-build HPX broadcast extension. Disk checkpoints use versioned Silo fields.
 		arc & radiationOpacity;
+		arc & detailedLogPath;
+		arc & resultsPath;
 	}
 
 	OCTOTIGER_EXPORT bool process_options(int argc, char *argv[]);

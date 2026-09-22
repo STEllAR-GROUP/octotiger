@@ -210,7 +210,7 @@ Its radiation levels apply only to native radiation fixtures; scenario inputs
 retain their fixed levels. `plan all` shows all families without executing them.
 
 Hydro and gravity descriptors are under `tests/hydro/` and `tests/gravity/`.
-They invoke the existing `octotiger --config_file=...` scenarios mechanically.
+They invoke the existing `octotiger --runtime.config_file=...` scenarios mechanically.
 The authoritative inputs and expected diagnostics remain in `test_problems/` and
 its CTest registrations: Sod, Sedov blast, IPR star, AMR Sod, self-gravitating
 sphere, and rotating star. The scenario adapter records commit, build type,

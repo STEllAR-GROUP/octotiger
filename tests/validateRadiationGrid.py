@@ -23,8 +23,8 @@ import subprocess
 import tempfile
 
 
-ROOT = Path(__file__).resolve().parents[1]
-METHODS = (
+root = Path(__file__).resolve().parents[1]
+methods = (
     "void rad_grid::allocate()",
     "void rad_grid::set_dx(",
     "void rad_grid::set_X(",
@@ -62,7 +62,7 @@ def extractMethod(source, signature):
     return source.count("\n", 0, begin) + 1, source[begin:end]
 
 
-FIXTURE = r'''
+fixture = r'''
 #include "octotiger/radiation/m1.hpp"
 #include "octotiger/radiation/conservation.hpp"
 #include "octotiger/radiation/grey_opacity.hpp"
@@ -98,11 +98,11 @@ integer hindex(integer i,integer j,integer k) { return rindex(i,j,k); }
 integer hSindex(integer i,integer j,integer k) { return k+HS_NX*(j+HS_NX*i); }
 struct OptionsFixture {
     radiation::GreyOpacity radiationOpacity;
-    Real rad_cfl=.25,rad_c_ratio=1,rad_theta=1,rad_opacity=-1;
+    Real radCfl=.25,radCRatio=1,radTheta=1,radOpacity=-1;
     Real code_to_g=1,code_to_cm=1,xscale=.5,dual_energy_sw1=.001;
     int eos=0,problem=0,n_fields=7,n_species=1;
-    bool rad_implicit=false,rad_velocity_terms=true;
-    std::string rad_energy_mode="thermal";
+    bool rad_implicit=false,radVelocityTerms=true;
+    std::string radEnergyMode="thermal";
 };
 OptionsFixture& opts() { static OptionsFixture o; return o; }
 struct ConstantsFixture { Real c=lightSpeed,sigma=lightSpeed/4,mh=1,kb=1; };
@@ -118,7 +118,7 @@ bool radiationFixedMediumProblem() { return false; }
 radiationTests::Parameters radiationTestParameters() {
     radiationTests::Parameters p;p.c=physcon().c;return p;
 }
-std::vector<Real> marshak_wave_analytic(Real,Real,Real,Real) {
+std::vector<Real> marshakWaveAnalytic(Real,Real,Real,Real) {
     throw std::runtime_error("Marshak boundaries are not part of this fixture");
 }
 struct silo_var_t {};
@@ -136,7 +136,7 @@ struct dimension {
 '''
 
 
-CHECKS = r'''
+checks = r'''
 #undef private
 // Fixture profiles deliberately use physical grid fields, not normalized M1 states.
 using State=std::array<Real,NRF>;
@@ -486,25 +486,25 @@ int main() {
 
 
 def generatedSource():
-    sourcePath = ROOT / "src/radiation/rad_grid.cpp"
-    headerPath = ROOT / "octotiger/radiation/rad_grid.hpp"
+    sourcePath = root / "src/radiation/rad_grid.cpp"
+    headerPath = root / "octotiger/radiation/rad_grid.hpp"
     source = sourcePath.read_text()
     # Preserve header line numbering for useful compiler diagnostics.
     header = "\n".join(
         "" if line.lstrip().startswith("#include") else line
         for line in headerPath.read_text().splitlines()
     )
-    opacityPath = ROOT / "octotiger/radiation/opacities.hpp"
+    opacityPath = root / "octotiger/radiation/opacities.hpp"
     opacity = opacityPath.read_text()
-    pieces = [FIXTURE]
+    pieces = [fixture]
     for signature in ("inline Real radiationAbsorption(", "inline Real radiationTransport("):
         line, method = extractMethod(opacity, signature)
         pieces.extend([f'\n#line {line} "{opacityPath}"', method])
     pieces.extend([f'\n#line 1 "{headerPath}"', header])
-    for signature in METHODS:
+    for signature in methods:
         line, method = extractMethod(source, signature)
         pieces.extend([f'\n#line {line} "{sourcePath}"', method])
-    pieces.extend(['\n#line 1 "gridChecks.cpp"', CHECKS])
+    pieces.extend(['\n#line 1 "gridChecks.cpp"', checks])
     return "\n".join(pieces)
 
 
@@ -525,7 +525,7 @@ def validate(folder, modes):
             (folder / "vectorization.txt").unlink(missing_ok=True)
         executable = folder / f"radiationGrid-{mode}"
         command = compiler + ["-std=c++23", "-Wall", "-Wextra"] + flags[mode]
-        command += ["-I" + str(ROOT), str(source), "-o", str(executable)]
+        command += ["-I" + str(root), str(source), "-o", str(executable)]
         subprocess.run(command, check=True)
         print(f"{mode}: ", end="", flush=True)
         subprocess.run([str(executable)], check=True)

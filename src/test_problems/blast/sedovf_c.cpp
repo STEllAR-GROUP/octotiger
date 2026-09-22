@@ -29,36 +29,36 @@
 #include <assert.h>
 #if !defined(OCTOTIGER_HAVE_BOOST_MULTIPRECISION)
 #include <quadmath.h>
-using sed_Real = __float128;
+using sedReal = __float128;
 
-sed_Real _exp(sed_Real a) {
+sedReal _exp(sedReal a) {
     return expq(a);
 }
 
-sed_Real pow_dd(sed_Real *a, sed_Real *b) {
+sedReal pow_dd(sedReal *a, sedReal *b) {
     return powq(*a, *b);
 }
 
 
-sed_Real d_sign(sed_Real *a, sed_Real * b) {
+sedReal d_sign(sedReal *a, sedReal * b) {
     return copysignq(*a, *b);
 }
 #else
 #include <boost/multiprecision/cpp_bin_float.hpp>
-using sed_Real = boost::multiprecision::cpp_bin_float_quad;
+using sedReal = boost::multiprecision::cpp_bin_float_quad;
 
-sed_Real _exp(sed_Real a) {
+sedReal _exp(sedReal a) {
     return boost::multiprecision::exp(a);
 }
 
-sed_Real pow_dd(sed_Real *a, sed_Real *b) {
+sedReal pow_dd(sedReal *a, sedReal *b) {
     return boost::multiprecision::pow(*a, *b);
 }
 
 
-sed_Real d_sign(sed_Real *a, sed_Real * b) {
-    if ((*a > static_cast<sed_Real>(0.) && (*b > static_cast<sed_Real>(0.))) ||
-        (*a < static_cast<sed_Real>(0.) && (*b < static_cast<sed_Real>(0.))))
+sedReal d_sign(sedReal *a, sedReal * b) {
+    if ((*a > static_cast<sedReal>(0.) && (*b > static_cast<sedReal>(0.))) ||
+        (*a < static_cast<sedReal>(0.) && (*b < static_cast<sedReal>(0.))))
     {
         return *a;
     }
@@ -66,16 +66,16 @@ sed_Real d_sign(sed_Real *a, sed_Real * b) {
 }
 #endif
 
-/* Subroutine */int sed_1d__(sed_Real *time, int *nstep,
-        sed_Real * xpos, sed_Real *eblast, sed_Real *omega_in__,
-        sed_Real * xgeom_in__, sed_Real *rho0, sed_Real *vel0,
-        sed_Real *ener0, sed_Real *pres0, sed_Real *cs0, sed_Real *gam0,
-        sed_Real *den, sed_Real *ener, sed_Real *pres, sed_Real *vel,
-        sed_Real *cs);
+/* Subroutine */int sed_1d__(sedReal *time, int *nstep,
+        sedReal * xpos, sedReal *eblast, sedReal *omega_in__,
+        sedReal * xgeom_in__, sedReal *rho0, sedReal *vel0,
+        sedReal *ener0, sedReal *pres0, sedReal *cs0, sedReal *gam0,
+        sedReal *den, sedReal *ener, sedReal *pres, sedReal *vel,
+        sedReal *cs);
 /* Common Block Declarations */
 
 struct {
-    sed_Real gamma, gamm1, gamp1, gpogm, xgeom, xg2, rwant, r2, a0, a1, a2, a3,
+    sedReal gamma, gamm1, gamp1, gpogm, xgeom, xg2, rwant, r2, a0, a1, a2, a3,
             a4, a5, a_val__, b_val__, c_val__, d_val__, e_val__, omega, vv,
             xlam_want__, vwant, rvv;
     bool lsingular, lstandard, lvacuum, lomega2, lomega3;
@@ -84,41 +84,41 @@ struct {
 #define slap_1 slap_
 
 struct {
-    sed_Real gam_int__;
+    sedReal gam_int__;
 } cmidp_;
 
 #define cmidp_1 cmidp_
 
 /* Table of constant values */
 
-using D_fp = sed_Real (*)(sed_Real*);
+using D_fp = sedReal (*)(sedReal*);
 using S_fp = int (*)(
-    D_fp, sed_Real*, sed_Real*, sed_Real*, int*);    //Subroutine
+    D_fp, sedReal*, sedReal*, sedReal*, int*);    //Subroutine
 using U_fp = int (*)();                              // Unknown procedure type
 
-static sed_Real c_b52 = 2.;
-static sed_Real c_b53 = 1e-10;
-static sed_Real c_b79 = 0.f;
-static sed_Real c_b80 = 1e-30;
+static sedReal c_b52 = 2.;
+static sedReal c_b53 = 1e-10;
+static sedReal c_b79 = 0.f;
+static sedReal c_b80 = 1e-30;
 static int c__3 = 3;
 static int c__5 = 5;
-static sed_Real efun01_(sed_Real *v);
-static sed_Real efun02_(sed_Real *v);
-static sed_Real sed_v_find__(sed_Real *v);
-static sed_Real sed_r_find__(sed_Real *r__);
-/* Subroutine */int sedov_funcs__(sed_Real *v, sed_Real *l_fun__, sed_Real *dlamdv,
-        sed_Real *f_fun__, sed_Real *g_fun__, sed_Real *h_fun__);
-/* Subroutine */static int midpnt_(D_fp func, sed_Real *a, sed_Real *b, sed_Real *s,
+static sedReal efun01_(sedReal *v);
+static sedReal efun02_(sedReal *v);
+static sedReal sed_v_find__(sedReal *v);
+static sedReal sed_r_find__(sedReal *r__);
+/* Subroutine */int sedov_funcs__(sedReal *v, sedReal *l_fun__, sedReal *dlamdv,
+        sedReal *f_fun__, sedReal *g_fun__, sedReal *h_fun__);
+/* Subroutine */static int midpnt_(D_fp func, sedReal *a, sedReal *b, sedReal *s,
         int *n);
-/* Subroutine */static int midpowl_(D_fp funk, sed_Real *aa, sed_Real *bb,
-        sed_Real *s, int *n);
-/* Subroutine */static int midpowl2_(D_fp funk, sed_Real *aa, sed_Real *bb,
-        sed_Real *s, int *n);
-/* Subroutine */static int qromo_(D_fp func, sed_Real *a, sed_Real *b, sed_Real *eps,
-        sed_Real *ss, S_fp choose);
-/* Subroutine */static int polint_(sed_Real *xa, sed_Real *ya, int *n,
-        sed_Real *x, sed_Real *y, sed_Real *dy);
-static sed_Real zeroin_(sed_Real *ax, sed_Real *bx, D_fp f, sed_Real *tol);
+/* Subroutine */static int midpowl_(D_fp funk, sedReal *aa, sedReal *bb,
+        sedReal *s, int *n);
+/* Subroutine */static int midpowl2_(D_fp funk, sedReal *aa, sedReal *bb,
+        sedReal *s, int *n);
+/* Subroutine */static int qromo_(D_fp func, sedReal *a, sedReal *b, sedReal *eps,
+        sedReal *ss, S_fp choose);
+/* Subroutine */static int polint_(sedReal *xa, sedReal *ya, int *n,
+        sedReal *x, sedReal *y, sedReal *dy);
+static sedReal zeroin_(sedReal *ax, sedReal *bx, D_fp f, sedReal *tol);
 
 
 int pow_ii(int * a, int * b) {
@@ -126,25 +126,25 @@ int pow_ii(int * a, int * b) {
 }
 
 
-/* Subroutine */int sed_1d__(sed_Real *time, int *nstep, sed_Real * xpos,
-        sed_Real *eblast, sed_Real *omega_in__, sed_Real * xgeom_in__, sed_Real *rho0,
-        sed_Real *vel0, sed_Real *ener0, sed_Real *pres0, sed_Real *cs0, sed_Real *gam0,
-        sed_Real *den, sed_Real *ener, sed_Real *pres, sed_Real *vel, sed_Real *cs) {
+/* Subroutine */int sed_1d__(sedReal *time, int *nstep, sedReal * xpos,
+        sedReal *eblast, sedReal *omega_in__, sedReal * xgeom_in__, sedReal *rho0,
+        sedReal *vel0, sedReal *ener0, sedReal *pres0, sedReal *cs0, sedReal *gam0,
+        sedReal *den, sedReal *ener, sedReal *pres, sedReal *vel, sedReal *cs) {
 
     /* System generated locals */
     int i__1;
-    sed_Real d__1, d__2, d__3;
+    sedReal d__1, d__2, d__3;
 
     /* Builtin functions */
 
     /* Local variables */
     static int i__;
-    static sed_Real p2, v0, u2, v2, us;
-    static sed_Real vat, rho1, rho2;
-    static sed_Real vmin, eval1, eval2, alpha, f_fun__;
-    static sed_Real g_fun__, h_fun__, l_fun__;
-    static sed_Real vstar, denom2, denom3, dlamdv;
-    sed_Real zeroin_(sed_Real *ax, sed_Real *bx, D_fp f, sed_Real *tol);
+    static sedReal p2, v0, u2, v2, us;
+    static sedReal vat, rho1, rho2;
+    static sedReal vmin, eval1, eval2, alpha, f_fun__;
+    static sedReal g_fun__, h_fun__, l_fun__;
+    static sedReal vstar, denom2, denom3, dlamdv;
+    sedReal zeroin_(sedReal *ax, sedReal *bx, D_fp f, sedReal *tol);
 
     /* ..this routine produces 1d solutions for a sedov blast wave propagating */
     /* ..through a density gradient rho = rho**(-omega) */
@@ -478,16 +478,16 @@ int pow_ii(int * a, int * b) {
     return 0;
 } /* sed_1d__ */
 
-sed_Real efun01_(sed_Real *v) {
+sedReal efun01_(sedReal *v) {
     /* System generated locals */
-    sed_Real ret_val, d__1, d__2;
+    sedReal ret_val, d__1, d__2;
     ret_val = 0;
 
     /* Builtin functions */
-    sed_Real pow_dd(sed_Real *, sed_Real *);
+    sedReal pow_dd(sedReal *, sedReal *);
 
     /* Local variables */
-    static sed_Real f_fun__, g_fun__, h_fun__, l_fun__, dlamdv;
+    static sedReal f_fun__, g_fun__, h_fun__, l_fun__, dlamdv;
 
     /* ..evaluates the first energy integrand, kamm equations 67 and 10. */
     /* ..the (c_val*v - 1) term might be singular at v=vmin in the standard case. */
@@ -506,17 +506,17 @@ sed_Real efun01_(sed_Real *v) {
     return ret_val;
 } /* efun01_ */
 
-sed_Real efun02_(sed_Real *v) {
+sedReal efun02_(sedReal *v) {
     /* System generated locals */
-    sed_Real ret_val, d__1;
+    sedReal ret_val, d__1;
     ret_val = 0;
 
     /* Builtin functions */
-    sed_Real pow_dd(sed_Real *, sed_Real *);
+    sedReal pow_dd(sedReal *, sedReal *);
 
     /* Local variables */
-    static sed_Real z__;
-    static sed_Real f_fun__, g_fun__, h_fun__, l_fun__, dlamdv;
+    static sedReal z__;
+    static sedReal f_fun__, g_fun__, h_fun__, l_fun__, dlamdv;
 
     /* ..evaluates the second energy integrand, kamm equations 68 and 11. */
     /* ..the (c_val*v - 1) term might be singular at v=vmin in the standard case. */
@@ -535,13 +535,13 @@ sed_Real efun02_(sed_Real *v) {
     return ret_val;
 } /* efun02_ */
 
-sed_Real sed_v_find__(sed_Real *v) {
+sedReal sed_v_find__(sedReal *v) {
     /* System generated locals */
-    sed_Real ret_val;
+    sedReal ret_val;
     ret_val = 0;
 
     /* Local variables */
-    static sed_Real f_fun__, g_fun__, h_fun__, l_fun__, dlamdv;
+    static sedReal f_fun__, g_fun__, h_fun__, l_fun__, dlamdv;
 
     /* ..given corresponding physical distances, find the similarity variable v */
     /* ..kamm equation 38 as a root find */
@@ -553,13 +553,13 @@ sed_Real sed_v_find__(sed_Real *v) {
     return ret_val;
 } /* sed_v_find__ */
 
-sed_Real sed_r_find__(sed_Real *r__) {
+sedReal sed_r_find__(sedReal *r__) {
     /* System generated locals */
-    sed_Real ret_val;
+    sedReal ret_val;
     ret_val = 0;
 
     /* Local variables */
-    static sed_Real f_fun__, g_fun__, h_fun__, l_fun__, dlamdv;
+    static sedReal f_fun__, g_fun__, h_fun__, l_fun__, dlamdv;
 
     /* ..given the similarity variable v, find the corresponding physical distance */
     /* ..kamm equation 38 as a root find */
@@ -572,16 +572,16 @@ sed_Real sed_r_find__(sed_Real *r__) {
     return ret_val;
 } /* sed_r_find__ */
 
-/* Subroutine */int sedov_funcs__(sed_Real *v, sed_Real *l_fun__, sed_Real *dlamdv,
-        sed_Real *f_fun__, sed_Real *g_fun__, sed_Real *h_fun__) {
+/* Subroutine */int sedov_funcs__(sedReal *v, sedReal *l_fun__, sedReal *dlamdv,
+        sedReal *f_fun__, sedReal *g_fun__, sedReal *h_fun__) {
     /* System generated locals */
-    sed_Real d__1, d__2, d__3;
+    sedReal d__1, d__2, d__3;
 
     /* Builtin functions */
 //	sed_Real pow_dd(sed_Real *, sed_Real *), _exp(sed_Real);
 
     /* Local variables */
-    static sed_Real y, z__, c2, c6, x1, x2, x3, x4, pp1, pp2, pp3, pp4, cbag,
+    static sedReal y, z__, c2, c6, x1, x2, x3, x4, pp1, pp2, pp3, pp4, cbag,
             ebag, beta0, dx1dv, dx2dv, dx3dv, dx4dv, dpp2dv;
 
     /* ..given the similarity variable v, returns functions */
@@ -695,20 +695,20 @@ sed_Real sed_r_find__(sed_Real *r__) {
     return 0;
 } /* sedov_funcs__ */
 
-/* Subroutine */int midpnt_(D_fp func, sed_Real *a, sed_Real *b, sed_Real *s,
+/* Subroutine */int midpnt_(D_fp func, sedReal *a, sedReal *b, sedReal *s,
         int *n) {
     /* System generated locals */
     int i__1;
-    sed_Real d__1;
+    sedReal d__1;
 
     /* Builtin functions */
     int pow_ii(int *, int *);
 
     /* Local variables */
     static int j;
-    static sed_Real x;
+    static sedReal x;
     static int it;
-    static sed_Real del, tnm, sum, ddel;
+    static sedReal del, tnm, sum, ddel;
 
     /* ..this routine computes the n'th stage of refinement of an extended midpoint */
     /* ..rule. func is input as the name of the function to be integrated between */
@@ -722,7 +722,7 @@ sed_Real sed_r_find__(sed_Real *r__) {
     } else {
         i__1 = *n - 2;
         it = pow_ii(&c__3, &i__1);
-        tnm = static_cast<sed_Real>(it);
+        tnm = static_cast<sedReal>(it);
         del = (*b - *a) / (tnm * 3.f);
         ddel = del + del;
         x = *a + del * .5f;
@@ -739,22 +739,22 @@ sed_Real sed_r_find__(sed_Real *r__) {
     return 0;
 } /* midpnt_ */
 
-/* Subroutine */int midpowl_(D_fp funk, sed_Real *aa, sed_Real *bb, sed_Real *s,
+/* Subroutine */int midpowl_(D_fp funk, sedReal *aa, sedReal *bb, sedReal *s,
         int *n) {
     /* System generated locals */
     int i__1;
-    sed_Real d__1, d__2, d__3, d__4;
+    sedReal d__1, d__2, d__3, d__4;
 
     /* Builtin functions */
-    sed_Real pow_dd(sed_Real *, sed_Real *);
+    sedReal pow_dd(sedReal *, sedReal *);
     int pow_ii(int *, int *);
 
     /* Local variables */
-    static sed_Real a, b;
+    static sedReal a, b;
     static int j;
-    static sed_Real x;
+    static sedReal x;
     static int it;
-    static sed_Real del, tnm, sum, ddel;
+    static sedReal del, tnm, sum, ddel;
 
     /* ..this routine is an exact replacement for midpnt, except that it allows for */
     /* ..an integrable power-law singularity of the form (x - a)**(-gam_int) */
@@ -778,7 +778,7 @@ sed_Real sed_r_find__(sed_Real *r__) {
     } else {
         i__1 = *n - 2;
         it = pow_ii(&c__3, &i__1);
-        tnm = static_cast<sed_Real>(it);
+        tnm = static_cast<sedReal>(it);
         del = (b - a) / (tnm * 3.f);
         ddel = del + del;
         x = a + del * .5f;
@@ -803,20 +803,20 @@ sed_Real sed_r_find__(sed_Real *r__) {
     return 0;
 } /* midpowl_ */
 
-/* Subroutine */int midpowl2_(D_fp funk, sed_Real *aa, sed_Real *bb, sed_Real *s,
+/* Subroutine */int midpowl2_(D_fp funk, sedReal *aa, sedReal *bb, sedReal *s,
         int *n) {
     /* System generated locals */
     int i__1;
-    sed_Real d__1, d__2, d__3, d__4;
+    sedReal d__1, d__2, d__3, d__4;
 
     /* Builtin functions */
 
     /* Local variables */
-    static sed_Real a, b;
+    static sedReal a, b;
     static int j;
-    static sed_Real x;
+    static sedReal x;
     static int it;
-    static sed_Real del, tnm, sum, ddel;
+    static sedReal del, tnm, sum, ddel;
 
     /* ..this routine is an exact replacement for midpnt, except that it allows for */
     /* ..an integrable power-law singularity of the form (a - x)**(-gam_int) */
@@ -840,7 +840,7 @@ sed_Real sed_r_find__(sed_Real *r__) {
     } else {
         i__1 = *n - 2;
         it = pow_ii(&c__3, &i__1);
-        tnm = static_cast<sed_Real>(it);
+        tnm = static_cast<sedReal>(it);
         del = (b - a) / (tnm * 3.f);
         ddel = del + del;
         x = a + del * .5f;
@@ -865,14 +865,14 @@ sed_Real sed_r_find__(sed_Real *r__) {
     return 0;
 } /* midpowl2_ */
 
-/* Subroutine */int qromo_(D_fp func, sed_Real *a, sed_Real *b, sed_Real *eps,
-        sed_Real *ss, S_fp choose) {
+/* Subroutine */int qromo_(D_fp func, sedReal *a, sedReal *b, sedReal *eps,
+        sedReal *ss, S_fp choose) {
     /* Builtin functions */
 
     /* Local variables */
-    static sed_Real h__[15];
+    static sedReal h__[15];
     static int j;
-    static sed_Real s[15], dss;
+    static sedReal s[15], dss;
 
     /* Fortran I/O blocks */
 
@@ -898,19 +898,19 @@ sed_Real sed_r_find__(sed_Real *r__) {
     return 0;
 } /* qromo_ */
 
-/* Subroutine */int polint_(sed_Real *xa, sed_Real *ya, int *n, sed_Real *x,
-        sed_Real *y, sed_Real *dy) {
+/* Subroutine */int polint_(sedReal *xa, sedReal *ya, int *n, sedReal *x,
+        sedReal *y, sedReal *dy) {
     /* System generated locals */
     int i__1, i__2;
-    sed_Real d__1;
+    sedReal d__1;
 
 
     /* Local variables */
-    static sed_Real c__[20], d__[20];
+    static sedReal c__[20], d__[20];
     static int i__, m;
-    static sed_Real w, ho, hp;
+    static sedReal w, ho, hp;
     static int ns;
-    static sed_Real dif, den, dift;
+    static sedReal dif, den, dift;
 
     /* ..given arrays xa and ya of length n and a value x, this routine returns a */
     /* ..value y and an error estimate dy. if p(x) is the polynomial of degree n-1 */
@@ -968,13 +968,13 @@ sed_Real sed_r_find__(sed_Real *r__) {
     return 0;
 } /* polint_ */
 
-sed_Real zeroin_(sed_Real *ax, sed_Real *bx, D_fp f, sed_Real *tol) {
+sedReal zeroin_(sedReal *ax, sedReal *bx, D_fp f, sedReal *tol) {
     /* System generated locals */
-    sed_Real ret_val, d__1;
+    sedReal ret_val, d__1;
     ret_val = 0;
 
     /* Local variables */
-    static sed_Real a, b, c__, d__, e, p, q, r__, s, fa, fb, fc, xm, eps, tol1;
+    static sedReal a, b, c__, d__, e, p, q, r__, s, fa, fb, fc, xm, eps, tol1;
 
     /* ----------------------------------------------------------------------- */
 
@@ -1153,22 +1153,22 @@ void solution(double time, double r, double rmax, double& d, double& v, double& 
 	static mutex_type mutex;
 
 
-	sed_Real rho0 = 1.0;
-	sed_Real vel0 = 0.0;
-	sed_Real ener0 = 0.0;
-	sed_Real pres0 = 0.0;
-	sed_Real cs0 = 0.0;
-	sed_Real gamma = 7.0/5.0;
-	sed_Real omega = 0.0;
-	sed_Real eblast = 1.0;
-	sed_Real xgeom = sed_Real(ndim);
+	sedReal rho0 = 1.0;
+	sedReal vel0 = 0.0;
+	sedReal ener0 = 0.0;
+	sedReal pres0 = 0.0;
+	sedReal cs0 = 0.0;
+	sedReal gamma = 7.0/5.0;
+	sedReal omega = 0.0;
+	sedReal eblast = 1.0;
+	sedReal xgeom = sedReal(ndim);
 
-	std::vector<sed_Real> xpos(nstep+2*bw);
-	std::vector<sed_Real> den(nstep+2*bw);
-	std::vector<sed_Real> ener(nstep+2*bw);
-	std::vector<sed_Real> pres(nstep+2*bw);
-	std::vector<sed_Real> vel(nstep+2*bw);
-	std::vector<sed_Real> cs(nstep+2*bw);
+	std::vector<sedReal> xpos(nstep+2*bw);
+	std::vector<sedReal> den(nstep+2*bw);
+	std::vector<sedReal> ener(nstep+2*bw);
+	std::vector<sedReal> pres(nstep+2*bw);
+	std::vector<sedReal> vel(nstep+2*bw);
+	std::vector<sedReal> cs(nstep+2*bw);
 
 	std::vector<double> den1(nstep+2*bw);
 	std::vector<double> pres1(nstep+2*bw);
@@ -1184,7 +1184,7 @@ void solution(double time, double r, double rmax, double& d, double& v, double& 
 	std::unique_lock<mutex_type> lock(mutex);
 	auto iter = map.find(time);
 	if (iter == map.end()) {
-		sed_Real sed_time = time;
+		sedReal sed_time = time;
 		printf( "Computing sedov solution\n");
 		sed_1d__(&sed_time, &nstep, xpos.data() + bw, &eblast, &omega, &xgeom, &rho0,
 				&vel0, &ener0, &pres0, &cs0, &gamma, den.data() + bw, ener.data() + bw,
@@ -1206,11 +1206,11 @@ void solution(double time, double r, double rmax, double& d, double& v, double& 
 
 #if defined(OCTOTIGER_HAVE_BOOST_MULTIPRECISION)
 		std::transform(den.begin(), den.end(), den1.begin(),
-			[](sed_Real v) { return v.convert_to<double>(); });
+			[](sedReal v) { return v.convert_to<double>(); });
 		std::transform(vel.begin(), vel.end(), vel1.begin(),
-			[](sed_Real v) { return v.convert_to<double>(); });
+			[](sedReal v) { return v.convert_to<double>(); });
 		std::transform(pres.begin(), pres.end(), pres1.begin(),
-			[](sed_Real v) { return v.convert_to<double>(); });
+			[](sedReal v) { return v.convert_to<double>(); });
 #else
 		std::copy(den.begin(), den.end(), den1.begin());
 		std::copy(vel.begin(), vel.end(), vel1.begin());

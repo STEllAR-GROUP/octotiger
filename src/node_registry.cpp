@@ -15,10 +15,10 @@ static const auto& localities = options::all_localities;
 namespace node_registry {
 
 static table_type table_;
-static hpx::spinlock mtx_;
+static hpx::spinlock mutex;
 
 node_ptr get(const node_location& loc) {
-	std::lock_guard<hpx::spinlock> lock(mtx_);
+	std::lock_guard<hpx::spinlock> lock(mutex);
 	const auto i = table_.find(loc);
 	if (i == table_.end()) {
 		printf("Error in node_registry::get %s\n", loc.to_str().c_str());
@@ -28,12 +28,12 @@ node_ptr get(const node_location& loc) {
 }
 
 void add(const node_location& loc, node_ptr id) {
-	std::lock_guard<hpx::spinlock> lock(mtx_);
+	std::lock_guard<hpx::spinlock> lock(mutex);
 	table_[loc] = id;
 }
 
 void delete_(const node_location& loc) {
-	std::lock_guard<hpx::spinlock> lock(mtx_);
+	std::lock_guard<hpx::spinlock> lock(mutex);
 	if (table_.find(loc) != table_.end()) {
 		table_.erase(loc);
 	}

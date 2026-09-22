@@ -20,16 +20,16 @@
 
 #if !defined(OCTOTIGER_HAVE_BOOST_MULTIPRECISION)
 #include <quadmath.h>
-using sed_Real = __float128;
+using sedReal = __float128;
 #else
 #include <boost/multiprecision/cpp_bin_float.hpp>
-using sed_Real = boost::multiprecision::cpp_bin_float_quad;
+using sedReal = boost::multiprecision::cpp_bin_float_quad;
 #endif
 
 /*extern "C" {*/
-/* Subroutine */int sed_1d__(sed_Real *time, int *nstep, sed_Real *xpos, sed_Real *eblast, sed_Real *omega_in__, sed_Real *xgeom_in__, sed_Real *rho0,
-		sed_Real *vel0, sed_Real *ener0, sed_Real *pres0, sed_Real *cs0, sed_Real *gam0, sed_Real *den, sed_Real *ener, sed_Real *pres, sed_Real *vel,
-		sed_Real *cs);
+/* Subroutine */int sed_1d__(sedReal *time, int *nstep, sedReal *xpos, sedReal *eblast, sedReal *omega_in__, sedReal *xgeom_in__, sedReal *rho0,
+		sedReal *vel0, sedReal *ener0, sedReal *pres0, sedReal *cs0, sedReal *gam0, sedReal *den, sedReal *ener, sedReal *pres, sedReal *vel,
+		sedReal *cs);
 //}
 
 #endif

@@ -10,26 +10,26 @@
 
 namespace
 {
-struct fft_buffer {
+struct FftBuffer {
 	fftw_complex *data;
-	explicit fft_buffer(std::size_t n) : data(fftw_alloc_complex(n))
+	explicit FftBuffer(std::size_t n) : data(fftw_alloc_complex(n))
 	{
 		if (!data)
 			throw std::bad_alloc();
 	}
-	~fft_buffer() { fftw_free(data); }
-	fft_buffer(fft_buffer const &) = delete;
+	~FftBuffer() { fftw_free(data); }
+	FftBuffer(FftBuffer const &) = delete;
 };
-struct fft_plan {
+struct FftPlan {
 	fftw_plan plan;
-	fft_plan(int n, fftw_complex *in, fftw_complex *out, int sign)
+	FftPlan(int n, fftw_complex *in, fftw_complex *out, int sign)
 		: plan(fftw_plan_dft_3d(n, n, n, in, out, sign, FFTW_ESTIMATE))
 	{
 		if (!plan)
 			throw std::runtime_error("FFTW3 plan creation failed");
 	}
-	~fft_plan() { fftw_destroy_plan(plan); }
-	fft_plan(fft_plan const &) = delete;
+	~FftPlan() { fftw_destroy_plan(plan); }
+	FftPlan(FftPlan const &) = delete;
 };
 double number(std::string const &text)
 {
@@ -87,9 +87,9 @@ int main(int argc, char **argv)
 		auto const N3 = ref.cells();
 		auto const &p = ref.p;
 		double const dx = p.length / n;
-		fft_buffer spatial(N3), spectral(N3);
-		fft_plan forward(n, spatial.data, spectral.data, FFTW_FORWARD);
-		fft_plan inverse(n, spectral.data, spatial.data, FFTW_BACKWARD);
+		FftBuffer spatial(N3), spectral(N3);
+		FftPlan forward(n, spatial.data, spectral.data, FFTW_FORWARD);
+		FftPlan inverse(n, spectral.data, spatial.data, FFTW_BACKWARD);
 		// Exact cell averages of a periodized Gaussian. A forward FFT includes
 		// the half-cell sampling phase automatically; no hand-written shift is needed.
 		std::vector<double> gaussian(n);
@@ -120,7 +120,7 @@ int main(int argc, char **argv)
 						initial[r] = {spectral.data[r][0], spectral.data[r][1]};
 				}
 		ref.values.resize(8 * N3);
-		double max_imag = 0;
+		double maxImag = 0;
 		for (int snapshot = 0; snapshot < 2; ++snapshot)
 			for (int field = 0; field < 4; ++field) {
 				double const t = snapshot == 0 ? 0 : p.time;
@@ -149,10 +149,10 @@ int main(int argc, char **argv)
 					// FFTW's backward transform is unnormalized: divide exactly once.
 					ref.values[(snapshot * 4 + field) * N3 + r] =
 						spatial.data[r][0] / N3 + (field == 0 ? p.background : 0);
-					max_imag = std::max(max_imag, std::abs(spatial.data[r][1] / N3));
+					maxImag = std::max(maxImag, std::abs(spatial.data[r][1] / N3));
 				}
 			}
-		if (max_imag > 1e-11 * p.amplitude * std::max(1., p.c))
+		if (maxImag > 1e-11 * p.amplitude * std::max(1., p.c))
 			throw std::runtime_error("Reference lost Hermitian symmetry");
 		// Never hide an invalid reference by clipping energy or reduced flux.
 		for (int s = 0; s < 2; ++s)

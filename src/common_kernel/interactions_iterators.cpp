@@ -11,7 +11,7 @@
 
 namespace octotiger {
 namespace fmm {
-    multiindex<> get_padding_Real_size(const geo::direction& dir) {
+    multiindex<> getPaddingRealSize(const geo::direction& dir) {
         multiindex<> size;
         if (dir[0] == -1 || dir[0] == 1)
             size.x = STENCIL_MAX;

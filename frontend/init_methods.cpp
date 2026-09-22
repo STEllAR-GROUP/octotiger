@@ -415,7 +415,7 @@ void init_problem(void) {
     } else if (opts().problem == MARSHAK) {
         grid::set_fgamma(5.0 / 3.0);
         set_analytic(nullptr);
-        set_analytic(marshak_wave_analytic);
+        set_analytic(marshakWaveAnalytic);
         set_problem(marshak_wave);
         set_refine_test(refine_test_marshak);
     } else if (opts().problem == SOLID_SPHERE) {

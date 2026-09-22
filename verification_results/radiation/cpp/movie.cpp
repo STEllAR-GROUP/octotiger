@@ -8,7 +8,7 @@ using File = std::unique_ptr<DBfile, decltype(&DBClose)>;
 using Var = std::unique_ptr<DBquadvar, decltype(&DBFreeQuadvar)>;
 using Mesh = std::unique_ptr<DBquadmesh, decltype(&DBFreeQuadmesh)>;
 using Multi = std::unique_ptr<DBmultivar, decltype(&DBFreeMultivar)>;
-File open_silo(const fs::path &p)
+File openSilo(const fs::path &p)
 {
 	File f(DBOpen(p.c_str(), DB_UNKNOWN, DB_READ), DBClose);
 	require(bool(f), "Cannot open Silo: " + p.string());
@@ -60,7 +60,7 @@ std::size_t offset(const DBquadvar &v, int i, int j, int k)
 	require(n < std::size_t(v.nels), "Silo index out of bounds");
 	return n;
 }
-Json input_signature(const std::vector<fs::path> &files, const Options &o, const Json &m)
+Json inputSignature(const std::vector<fs::path> &files, const Options &o, const Json &m)
 {
 	Json entries = Json::array();
 	auto add = [&](const fs::path &p) {
@@ -85,7 +85,7 @@ Json input_signature(const std::vector<fs::path> &files, const Options &o, const
 		{"inputs", entries},
 		{"renderer", sha256("/proc/self/exe")},
 		{"backend", "VisIt-session-3.4.2"},
-		{"visit", visit_executable(o).string()},
+		{"visit", visitExecutable(o).string()},
 		{"field", o.field},
 		{"view", o.view},
 		{"axis", o.axis},
@@ -102,48 +102,48 @@ Json input_signature(const std::vector<fs::path> &files, const Options &o, const
 		{"background", m.at("background")},
 		{"time", m.at("time")},
 		{"minimum_snapshots",
-		 o.allow_sparse
+		 o.allowSparse
 			 ? 2
 			 : std::max(2, m.value("movie_capture", Json::object()).value("requested_snapshots", 3) - 1)}};
 }
-std::string frame_name(std::size_t i)
+std::string frameName(std::size_t i)
 {
 	std::ostringstream s;
 	s << "frame_" << std::setfill('0') << std::setw(6) << i;
 	return s.str();
 }
 } // namespace
-Snapshot read_silo(const fs::path &p, const Options &o, const Json &m)
+Snapshot readSilo(const fs::path &p, const Options &o, const Json &m)
 {
-	auto root = open_silo(p);
+	auto root = openSilo(p);
 	auto names = blocks(root.get(), p, o.field == "fluxmag" ? "fx" : o.field);
 	Snapshot out;
-	bool have_time = false;
+	bool haveTime = false;
 	int axis = o.axis == "x" ? 0 : o.axis == "y" ? 1 : 2;
 	double half = m.at("length").get<double>() / 2;
 	std::map<fs::path, File> opened;
 	for (auto &[file, name] : names) {
-		check_interrupt();
+		checkInterrupt();
 		auto it = opened.find(file);
 		if (it == opened.end())
-			it = opened.emplace(file, open_silo(file)).first;
+			it = opened.emplace(file, openSilo(file)).first;
 		auto db = it->second.get();
 		Var v(DBGetQuadvar(db, name.c_str()), DBFreeQuadvar);
 		require(bool(v) && v->ndims == 3 && v->nvals == 1 && v->centering == DB_ZONECENT,
 				"Expected 3D zone-centered scalar Silo variable");
-		if (!have_time) {
+		if (!haveTime) {
 			out.time = v->dtime;
-			have_time = true;
+			haveTime = true;
 		}
 		require(close(v->dtime, out.time) && std::isfinite(out.time) && out.time >= 0,
 				"Inconsistent Silo block times");
-		fs::path var_dir = fs::path(name).parent_path();
-		fs::path mesh_name = v->meshname;
-		require(mesh_name.string().find(':') == std::string::npos,
+		fs::path varDir = fs::path(name).parent_path();
+		fs::path meshName = v->meshname;
+		require(meshName.string().find(':') == std::string::npos,
 				"External mesh references are unsupported");
-		if (!mesh_name.is_absolute())
-			mesh_name = var_dir / mesh_name;
-		Mesh mesh(DBGetQuadmesh(db, mesh_name.c_str()), DBFreeQuadmesh);
+		if (!meshName.is_absolute())
+			meshName = varDir / meshName;
+		Mesh mesh(DBGetQuadmesh(db, meshName.c_str()), DBFreeQuadmesh);
 		require(bool(mesh) && mesh->coordtype == DB_COLLINEAR && mesh->ndims == 3,
 				"Expected a 3D rectilinear Silo mesh");
 		std::array<std::vector<double>, 3> coords;
@@ -173,7 +173,7 @@ Snapshot read_silo(const fs::path &p, const Options &o, const Json &m)
 		std::vector<Var> extra;
 		if (o.field == "fluxmag")
 			for (auto field : {"fy", "fz"}) {
-				auto other = (var_dir / field).string();
+				auto other = (varDir / field).string();
 				Var w(DBGetQuadvar(db, other.c_str()), DBFreeQuadvar);
 				require(bool(w) && w->ndims == 3 && w->nvals == 1 && w->centering == DB_ZONECENT &&
 							close(w->dtime, out.time),
@@ -231,19 +231,19 @@ Snapshot read_silo(const fs::path &p, const Options &o, const Json &m)
 	}
 	return out;
 }
-void check_dependencies(const Options &o, bool movie)
+void checkDependencies(const Options &o, bool movie)
 {
 	if (o.command != "movies")
 		executable(o.gnuplot);
 	if (!movie)
 		return;
-	visit_executable(o);
+	visitExecutable(o);
 	executable(o.ffmpeg);
 	// Check codec support before spending time running the simulation.
 	auto tmp = fs::temp_directory_path() / ("rr-encoders-" + stamp() + ".log");
 	try {
 		execute({o.ffmpeg, "-hide_banner", "-encoders"}, fs::current_path(), tmp, {}, true, false);
-		require(read_text(tmp).find("libx264") != std::string::npos, "FFmpeg needs libx264");
+		require(readText(tmp).find("libx264") != std::string::npos, "FFmpeg needs libx264");
 		fs::remove(tmp);
 	} catch (...) {
 		std::error_code e;
@@ -251,21 +251,21 @@ void check_dependencies(const Options &o, bool movie)
 		throw;
 	}
 }
-Json make_session(const fs::path &folder, const Options &o)
+Json makeSession(const fs::path &folder, const Options &o)
 {
-	auto m = read_json(folder / "run.json");
+	auto m = readJson(folder / "run.json");
 	require(m.at("status") == "complete", "Simulation is incomplete");
-	read_norms(folder, m);
+	readNorms(folder, m);
 	const bool logarithmic = m.at("case") == "gaussian_pulse" && o.field == "er";
 	const double background = logarithmic ? m.at("background").get<double>() : 0;
 	require(o.width >= 128 && o.height >= 128, "Movie dimensions must be at least 128");
 	require(std::set<std::string>{"hot", "viridis", "gray", "grey", "diverging", "RdBu_r"}.contains(o.color),
 			"Unknown color table; choose hot, viridis, gray or diverging");
-	auto files = numerical_silos(folder);
+	auto files = numericalSilos(folder);
 	Json frames = Json::array();
 	double low = INFINITY, high = -INFINITY;
 	for (std::size_t i = 0; i < files.size(); ++i) {
-		auto snapshot = read_silo(files[i], o, m);
+		auto snapshot = readSilo(files[i], o, m);
 		if (!frames.empty()) {
 			double previous = frames.back().at("time");
 			if (files[i].filename() == "final.silo" && close(snapshot.time, previous))
@@ -285,7 +285,7 @@ Json make_session(const fs::path &folder, const Options &o)
 				close(frames.back().at("time"), m.at("time"), 1e-9, 1e-12),
 			"Snapshot initial/final time mismatch");
 	const std::size_t minimum =
-		o.allow_sparse
+		o.allowSparse
 			? 2
 			: std::max(2, m.value("movie_capture", Json::object()).value("requested_snapshots", 3) - 1);
 	require(frames.size() >= minimum, "Too few snapshots; check cadence or use --allow-sparse");
@@ -326,7 +326,7 @@ Json make_session(const fs::path &folder, const Options &o)
 				  {"height", o.height},
 				  {"run", rr::absolute(folder).string()}};
 	// Stable across rerenders; changes of source path, view, or limits cannot collide.
-	auto digest = sha256_text(rendered.dump()).substr(0, 12);
+	auto digest = sha256Text(rendered.dump()).substr(0, 12);
 	auto safe = [](std::string s) {
 		for (auto &c : s)
 			if (!std::isalnum(static_cast<unsigned char>(c)) && c != '-' && c != '_')
@@ -338,7 +338,7 @@ Json make_session(const fs::path &folder, const Options &o)
 				"--" + o.field + "-" + o.view +
 				(o.view == "slice" ? "-" + o.axis + "-at" + safe(number(o.position)) : "") + "--" + digest;
 	auto dir =
-		rr::absolute(o.session_dir.empty() ? o.root / "verification_results/movies" : o.session_dir);
+		rr::absolute(o.sessionDir.empty() ? o.root / "verification_results/movies" : o.sessionDir);
 	auto session = dir / (name + ".session"), database = dir / (name + ".visit");
 	std::string listing;
 	for (auto &f : frames) {
@@ -346,46 +346,46 @@ Json make_session(const fs::path &folder, const Options &o)
 		require(file.find_first_of("\r\n") == std::string::npos, "Silo paths cannot contain newlines");
 		listing += file + "\n";
 	}
-	atomic_text(database, listing);
-	atomic_text(session, visit_session_xml(database, rendered, o));
+	atomicText(database, listing);
+	atomicText(session, visitSessionXml(database, rendered, o));
 	rendered["session_file"] = session.string();
 	rendered["database_file"] = database.string();
-	write_json(dir / (name + ".json"), rendered);
+	writeJson(dir / (name + ".json"), rendered);
 	std::cout << "VisIt session: " << session << std::endl;
 	return rendered;
 }
-Json make_movie(const fs::path &folder, const Options &o)
+Json makeMovie(const fs::path &folder, const Options &o)
 {
-	auto m = read_json(folder / "run.json");
-	frame_schedule({0, 1}, o.seconds, o.fps, o.hold);
-	auto files = numerical_silos(folder);
-	auto signature = input_signature(files, o, m);
+	auto m = readJson(folder / "run.json");
+	frameSchedule({0, 1}, o.seconds, o.fps, o.hold);
+	auto files = numericalSilos(folder);
+	auto signature = inputSignature(files, o, m);
 	auto key = o.field + "-" + o.view + (o.view == "slice" ? "-" + o.axis : "");
 	auto destination = folder / "movies" / key;
 	fs::create_directories(destination);
 	// Also recreate missing sessions when reusing previously rendered frames.
-	auto session = make_session(folder, o);
+	auto session = makeSession(folder, o);
 	Json rendered;
-	fs::path frames_json;
-	if (o.reuse_frames) {
-		auto saved = read_json(destination / "render.json");
+	fs::path framesJson;
+	if (o.reuseFrames) {
+		auto saved = readJson(destination / "render.json");
 		require(saved.at("signature") == signature,
 				"Saved frames have different inputs/style; omit --reuse-frames");
-		frames_json = saved.at("frames_json").get<std::string>();
-		rendered = read_json(frames_json);
+		framesJson = saved.at("frames_json").get<std::string>();
+		rendered = readJson(framesJson);
 	} else {
-		auto frames_dir = rr::absolute(destination / "renders" / stamp());
-		fs::create_directories(frames_dir);
+		auto framesDir = rr::absolute(destination / "renders" / stamp());
+		fs::create_directories(framesDir);
 		const auto count = session.at("frames").size();
-		auto log = frames_dir / "visit.log";
+		auto log = framesDir / "visit.log";
 		std::cout << "VisIt rendering " << count << " snapshots..." << std::endl;
-		int visit_status = execute({visit_executable(o).string(), "-movie", "-nowin", "-ignoresessionengines",
+		int visitStatus = execute({visitExecutable(o).string(), "-movie", "-nowin", "-ignoresessionengines",
 									"-sessionfile", session.at("session_file"), "-format", "png", "-geometry",
 									std::to_string(o.width) + "x" + std::to_string(o.height), "-start", "0",
 									"-end", std::to_string(count - 1), "-framestep", "1", "-output",
-									(frames_dir / "frame_").string()},
-								   frames_dir, log, {}, false);
-		auto messages = read_text(log);
+									(framesDir / "frame_").string()},
+								   framesDir, log, {}, false);
+		auto messages = readText(log);
 		require(messages.find("VisIt: Error") == std::string::npos &&
 					messages.find("VisIt could not") == std::string::npos &&
 					messages.find("Traceback (most recent call last)") == std::string::npos &&
@@ -393,38 +393,38 @@ Json make_movie(const fs::path &folder, const Options &o)
 					messages.find("SetTimeSliderState was called when there was no time slider") ==
 						std::string::npos,
 				"VisIt reported a rendering failure; see " + log.string());
-		require(visit_status == 0 ||
-					(visit_status == 250 &&
+		require(visitStatus == 0 ||
+					(visitStatus == 250 &&
 					 messages.find("VisIt completed generating frames.") != std::string::npos),
-				"VisIt exited with code " + std::to_string(visit_status) + "; see " + log.string());
+				"VisIt exited with code " + std::to_string(visitStatus) + "; see " + log.string());
 		rendered = session;
-		rendered["visit_exit_code"] = visit_status;
+		rendered["visit_exit_code"] = visitStatus;
 		// VisIt's native -movie uses 4 digits, increasing to 5/6/7 for long sequences.
 		int digits = count > 999999 ? 7 : count > 99999 ? 6 : count > 9999 ? 5 : 4;
 		for (std::size_t i = 0; i < count; ++i) {
 			std::ostringstream name;
 			name << "frame_" << std::setfill('0') << std::setw(digits) << i << ".png";
-			auto file = frames_dir / name.str();
+			auto file = framesDir / name.str();
 			require(fs::is_regular_file(file) && fs::file_size(file) > 0,
 					"Missing VisIt frame " + file.string() + "; see " + log.string());
 			rendered["frames"][i]["image"] = file.string();
 		}
-		if (visit_status != 0) {
+		if (visitStatus != 0) {
 			// Some 3.4.2 binaries abort during shutdown after saving every frame.
 			// Never accept partial/error renders: require the native completion marker,
 			// all expected images, and a successful full-image decode before proceeding.
 			execute({o.ffmpeg, "-hide_banner", "-nostdin", "-v", "error", "-xerror", "-start_number", "0",
-					 "-i", (frames_dir / ("frame_%0" + std::to_string(digits) + "d.png")).string(),
+					 "-i", (framesDir / ("frame_%0" + std::to_string(digits) + "d.png")).string(),
 					 "-frames:v", std::to_string(count), "-f", "null", "-"},
-					frames_dir, frames_dir / "verify-frames.log");
-			std::cerr << "VisIt exited with code " << visit_status << " after reporting completion; all "
+					framesDir, framesDir / "verify-frames.log");
+			std::cerr << "VisIt exited with code " << visitStatus << " after reporting completion; all "
 					  << count << " saved frames decoded successfully. See " << log << std::endl;
 		}
 		rendered["status"] = "complete";
-		frames_json = frames_dir / "frames.json";
-		write_json(frames_json, rendered);
-		write_json(destination / "render.json",
-				   {{"signature", signature}, {"frames_json", frames_json.string()}});
+		framesJson = framesDir / "frames.json";
+		writeJson(framesJson, rendered);
+		writeJson(destination / "render.json",
+				   {{"signature", signature}, {"frames_json", framesJson.string()}});
 	}
 
 	require(rendered.at("status") == "complete", "Incomplete frame manifest");
@@ -435,14 +435,14 @@ Json make_movie(const fs::path &folder, const Options &o)
 					fs::file_size(f.at("image").get<std::string>()) > 0,
 				"Missing cached frame");
 	}
-	auto sequence = frame_schedule(times, o.seconds, o.fps, o.hold);
+	auto sequence = frameSchedule(times, o.seconds, o.fps, o.hold);
 	auto temp = destination / ("encode-" + stamp());
 	fs::create_directory(temp);
 	auto output = destination / "movie.mp4";
 	try {
 		for (std::size_t i = 0; i < sequence.size(); ++i) {
 			fs::path src = rendered["frames"][sequence[i]]["image"].get<std::string>();
-			auto dest = temp / (frame_name(i) + ".png");
+			auto dest = temp / (frameName(i) + ".png");
 			std::error_code ec;
 			fs::create_hard_link(src, dest, ec);
 			if (ec)
@@ -531,7 +531,7 @@ Json make_movie(const fs::path &folder, const Options &o)
 				{"field", o.field},
 				{"view", o.view},
 				{"axis", o.axis},
-				{"frames_json", frames_json.string()},
+				{"frames_json", framesJson.string()},
 				{"simulation_directory", folder.string()},
 				{"color_limits", rendered.at("color_limits")},
 				{"time_units", rendered.at("time_units")},
@@ -539,12 +539,12 @@ Json make_movie(const fs::path &folder, const Options &o)
 				{"units", m.value("units", Json::object())}};
     result["opacity"] = m.value("opacity", Json());
     result["run_metadata"] = m;
-	write_json(destination / "movie.json", result);
+	writeJson(destination / "movie.json", result);
 	return result;
 }
-void movie_index(const fs::path &batch)
+void movieIndex(const fs::path &batch)
 {
-	std::string page = page_start("Octo-TIGER radiation movies") +
+	std::string page = pageStart("Octo-TIGER radiation movies") +
 					   "<p>Numerical Silo states; fixed camera and color range. Actual time spacing is "
 					   "retained without interpolating solutions. 3D views show the exterior surface.</p>";
 	std::vector<fs::path> paths;
@@ -553,7 +553,7 @@ void movie_index(const fs::path &batch)
 			paths.push_back(e.path());
 	std::sort(paths.begin(), paths.end());
 	for (auto &p : paths) {
-		auto m = read_json(p);
+		auto m = readJson(p);
 		if (m.value("status", "") != "complete")
 			continue;
 		auto file = p.parent_path() / "movie.mp4";
@@ -570,7 +570,7 @@ void movie_index(const fs::path &batch)
 					" (including nonpositive values) use the floor color.</p>";
 		page += "<video controls preload=\"metadata\" src=\"" + rel + "\"></video></section>";
 	}
-	atomic_text(batch / "movies.html", page + "</body></html>\n");
-	report_pages(batch);
+	atomicText(batch / "movies.html", page + "</body></html>\n");
+	reportPages(batch);
 }
 } // namespace rr

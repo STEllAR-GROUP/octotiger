@@ -9,7 +9,7 @@ This supplements, and does not replace, the continuum exponential reference.
 import numpy as np
 
 
-def discrete_mean(history, parameters):
+def discreteMean(history, parameters):
     rate = parameters['c_cm_s']*parameters['reduced_light_speed_ratio']*parameters['chi_cm_inverse']
     dt = np.asarray(history['rad_dt'][1:])
     if not np.all(np.isfinite(dt)) or np.any(dt <= 0) or rate < 0:
@@ -19,8 +19,8 @@ def discrete_mean(history, parameters):
     return float(history['mean_E'][0])*np.r_[1., np.cumprod(1/(1+rate*dt))]
 
 
-def damping_checks(history, parameters):
-    expected = discrete_mean(history, parameters)
+def dampingChecks(history, parameters):
+    expected = discreteMean(history, parameters)
     scale = max(abs(float(history['mean_E'][0])), 1.)
     return {'backward_euler_mean': bool(np.all(np.isfinite(history['mean_E'])) and
                                         np.max(abs(history['mean_E']-expected)) <= 5e-12*scale)}

@@ -14,7 +14,7 @@ from pathlib import Path
 from verification_results import runner
 from verification_results.adapters import native_suite as suite
 
-EMBEDDED_FILES=['run.json','input.txt','samples.csv','comparison.csv','history.csv','exchanges.csv',
+embeddedFiles=['run.json','input.txt','samples.csv','comparison.csv','history.csv','exchanges.csv',
                 'run.log','movie.log','movie-validation.log','movie-validation.json','products.json',
                 'artifacts.json','comparison.png','movie.mp4']
 
@@ -45,7 +45,7 @@ def audit(root,decode=False):
             details['checks'].append('recorded source hash-map digest is internally consistent')
             details['source_changes_since_run']=[]
             for name,expected in source['files'].items():
-                current=suite.ROOT/name
+                current=suite.root/name
                 actual=hashlib.sha256(current.read_bytes()).hexdigest() if current.is_file() else None
                 if actual!=expected:
                     result['status']='failed'
@@ -56,7 +56,7 @@ def audit(root,decode=False):
             selected={entry['id']:entry for entry in summary if entry['id'] in descriptors}
             require(set(selected)==set(descriptors),'Native case coverage is incomplete')
             for identifier,descriptor in descriptors.items():
-                case=selected[identifier];run_details=[];details['cases'][identifier]=run_details
+                case=selected[identifier];runDetails=[];details['cases'][identifier]=runDetails
                 require(case['status']=='passed',f'{identifier}: aggregate status is {case["status"]}')
                 require([run['level'] for run in case['runs']]==[0,1,2],f'{identifier}: resolution coverage mismatch')
                 for run in case['runs']:
@@ -74,17 +74,17 @@ def audit(root,decode=False):
                     require(meta['level']==run['level'] and meta['cells']==run['cells'],f'{path}: resolution metadata mismatch')
                     for key,value in run.items():
                         require(meta.get(key)==value,f'{path}: summary/run field mismatch: {key}')
-                    suite.verify_artifacts(path)
-                    suite.validate_raw(descriptor['name'],descriptor['parameters'],path,meta['cells'])
+                    suite.verifyArtifacts(path)
+                    suite.validateRaw(descriptor['name'],descriptor['parameters'],path,meta['cells'])
                     movie=json.loads((path/'movie-validation.json').read_text())
                     require(movie['decoded_frames']==descriptor['parameters']['frames'],f'{path}: recorded movie frame mismatch')
                     if decode:
-                        suite.validate_movie(path/'movie.mp4',descriptor['parameters']['frames'],'ffmpeg')
+                        suite.validateMovie(path/'movie.mp4',descriptor['parameters']['frames'],'ffmpeg')
                         result['decoded_movies']+=1
-                    for filename in EMBEDDED_FILES:
+                    for filename in embeddedFiles:
                         label=f'{identifier}-l{run["level"]}-{filename}'
-                        require(embedded.files.get(label)==suite.file_record(path/filename),f'{path}: embedded payload mismatch: {filename}')
-                    run_details.append({'level':run['level'],'status':'passed','artifact_files':meta['artifact_integrity']['file_count'],
+                        require(embedded.files.get(label)==suite.fileRecord(path/filename),f'{path}: embedded payload mismatch: {filename}')
+                    runDetails.append({'level':run['level'],'status':'passed','artifact_files':meta['artifact_integrity']['file_count'],
                                         'movie_frames':movie['decoded_frames'],'L1':run['L1']})
                     result['native_runs']+=1
             details['checks'].extend(['all native summary/run metadata agree','all raw schemas, time/cell coverage and completion records valid',

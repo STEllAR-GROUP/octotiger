@@ -141,7 +141,7 @@ namespace fmm {
                     });
                 auto list = grid_ptr->get_ilist_n_bnd(neighbor_dir);
                 multiindex<> start_index = get_padding_start_indices(neighbor_dir);
-                multiindex<> size = get_padding_Real_size(neighbor_dir);
+                multiindex<> size = getPaddingRealSize(neighbor_dir);
                 size_t counter = 0;
                 for (auto i : list) {
                     const integer iii = i.second;

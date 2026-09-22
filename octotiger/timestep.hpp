@@ -9,14 +9,14 @@ struct timestep_t {
 	double x = 0, y = 0, z = 0;
 	double dt = std::numeric_limits<double>::max();
 	// Reduced independently from dt: its winning leaf can be different.
-	double radiation_dt = std::numeric_limits<double>::max();
+	double radiationDt = std::numeric_limits<double>::max();
 	int dim = -1;
 	std::vector<double> ur;
 	std::vector<double> ul;
     void reduce(timestep_t const& other) {
-        double const limit=std::min(radiation_dt,other.radiation_dt);
+        double const limit=std::min(radiationDt,other.radiationDt);
         if (other.dt<dt) *this=other;
-        radiation_dt=limit;
+        radiationDt=limit;
     }
 	template<class A>
 	void serialize(A &&arc, unsigned) {
@@ -26,7 +26,7 @@ struct timestep_t {
 		arc & z;
 		arc & dim;
 		arc & dt;
-		arc & radiation_dt;
+		arc & radiationDt;
 		arc & ur;
 		arc & ul;
 	}

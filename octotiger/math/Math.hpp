@@ -5,8 +5,7 @@
  *      Author: dmarce1
  */
 
-#ifndef MATH12_HPP_
-#define MATH12_HPP_
+#pragma once
 
 #include "./Debug.hpp"
 #include "./Integer.hpp"
@@ -16,7 +15,7 @@
 
 template <typename T>
 constexpr auto inv(T const &v) {
-	ASSERT_NONZERO(v);
+	assertNonzeroCheck(v);
 	return T(1) / v;
 }
 
@@ -137,10 +136,10 @@ constexpr auto cube(auto v) {
 }
 
 template <std::integral Dividend, std::integral Divisor>
-constexpr auto divEuclidean(Dividend dividend, Divisor _divisor) {
+constexpr auto divEuclidean(Dividend dividend, Divisor divisorInput) {
 	using std::abs;
 	using std::div;
-	auto const divisor = static_cast<Dividend>(_divisor);
+	auto const divisor = static_cast<Dividend>(divisorInput);
 	auto qr = div(dividend, divisor);
 	if (qr.rem < 0) {
 		qr.rem += abs(divisor);
@@ -243,5 +242,3 @@ constexpr auto divEuclidean(Dividend dividend, Divisor _divisor) {
 //		return D(s / static_cast<B const &>(a));
 //	}
 // };
-
-#endif /* MATH_HPP_ */

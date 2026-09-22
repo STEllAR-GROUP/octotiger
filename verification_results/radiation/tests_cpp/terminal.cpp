@@ -18,21 +18,21 @@ int main(int argc, char **argv)
 		execute({argv[2], "--fixtures", tmp.string()}, tmp);
 		auto folder = tmp / "streaming_wave/l0";
 		auto image = tmp / "test.png";
-		Options plot_options;
-		plot_options.gnuplot = argv[3];
-		gnuplot_script(tmp / "test.gnuplot",
-					   "set terminal pngcairo size 256,256\nset output " + gp_quote(image.string()) +
+		Options plotOptions;
+		plotOptions.gnuplot = argv[3];
+		gnuplotScript(tmp / "test.gnuplot",
+					   "set terminal pngcairo size 256,256\nset output " + gpQuote(image.string()) +
 						   "\nplot sin(x)\nunset output\n",
-					   plot_options);
+					   plotOptions);
 		setenv("RR_TEST_FRAME", image.c_str(), 1);
-		auto fake_visit = tmp / "visit";
-		atomic_text(fake_visit, "#!/bin/sh\nexec " + shell_quote(argv[2]) + " --fake-visit \"$@\"\n");
-		fs::permissions(fake_visit, fs::perms::owner_exec, fs::perm_options::add);
+		auto fakeVisit = tmp / "visit";
+		atomicText(fakeVisit, "#!/bin/sh\nexec " + shellQuote(argv[2]) + " --fake-visit \"$@\"\n");
+		fs::permissions(fakeVisit, fs::perms::owner_exec, fs::perm_options::add);
 		std::vector<std::string> command{argv[1],
 										 "movies",
 										 folder.string(),
 										 "--visit",
-										 fake_visit.string(),
+										 fakeVisit.string(),
 										 "--session-dir",
 										 (tmp / "visit_sessions").string(),
 										 "--ffmpeg",
@@ -95,26 +95,26 @@ int main(int argc, char **argv)
 		while ((count = read(master, remaining, sizeof(remaining))) > 0)
 			output.append(remaining, count);
 		::close(master);
-		atomic_text(tmp / "terminal.log", output);
+		atomicText(tmp / "terminal.log", output);
 		require(timely && WIFEXITED(status) && WEXITSTATUS(status) == 0,
 				"Encoding stopped or failed under a controlling terminal; inspect terminal.log");
 		require(output.find("Encoding 12/12 frames (100%)") != std::string::npos,
 				"Missing terminal encoding progress");
 		auto movie = folder / "movies/er-slice-z";
 		require(fs::file_size(movie / "movie.mp4") > 500, "Missing MP4");
-		require(read_text(movie / "encode.log").find("progress=end") != std::string::npos,
+		require(readText(movie / "encode.log").find("progress=end") != std::string::npos,
 				"Missing FFmpeg completion record");
 
 		setenv("RR_TEST_VISIT_MODE", "shutdown", 1);
 		execute(command, tmp, tmp / "shutdown.log", {}, true, false);
-		require(read_json(movie / "movie.json").at("visit_exit_code") == 250,
+		require(readJson(movie / "movie.json").at("visit_exit_code") == 250,
 				"Validated VisIt shutdown exception must be recorded");
-		auto preserved_movie = sha256(movie / "movie.mp4");
+		auto preservedMovie = sha256(movie / "movie.mp4");
 		for (auto mode : {"error", "partial", "corrupt"}) {
 			setenv("RR_TEST_VISIT_MODE", mode, 1);
 			require(execute(command, tmp, tmp / (std::string(mode) + ".log"), {}, false, false) != 0,
 					"Failed VisIt render must be rejected");
-			require(sha256(movie / "movie.mp4") == preserved_movie,
+			require(sha256(movie / "movie.mp4") == preservedMovie,
 					"A failed render must preserve the previous movie");
 		}
 		unsetenv("RR_TEST_VISIT_MODE");
@@ -128,11 +128,11 @@ int main(int argc, char **argv)
 			double flux = t == 0 ? -5.19196e42 : std::nextafter(-5.19196e42, 0.);
 			history << t << ",2.16e32,2.16e32,3.46131e42," << flux << ",0,0,0,0,0,0,0,0,0\n";
 		}
-		atomic_text(folder / "radiation-conservation.csv", history.str());
+		atomicText(folder / "radiation-conservation.csv", history.str());
 		execute({argv[1], "plot", folder.string(), "--gnuplot", argv[3]}, tmp, tmp / "plot.log");
 		auto plot = folder / "plots/streaming_wave/l0/conservation.gnuplot";
 		execute({argv[3], plot.string()}, tmp, tmp / "conservation-plot.log");
-		require(read_text(tmp / "conservation-plot.log").empty(), "Conservation plot emitted warnings");
+		require(readText(tmp / "conservation-plot.log").empty(), "Conservation plot emitted warnings");
 		fs::remove_all(tmp);
 		std::cout << "Terminal encoding, progress, and conservation-axis regression passed\n";
 		return 0;

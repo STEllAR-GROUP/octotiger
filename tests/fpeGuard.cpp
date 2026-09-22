@@ -6,7 +6,7 @@
 #include <stdexcept>
 #include <type_traits>
 
-#if HAS_FEENABLEEXCEPT
+#if hasFpeEnableExcept
 #include <sys/resource.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -17,8 +17,8 @@ static_assert(!std::is_move_constructible_v<FpeGuard>);
 static_assert(!std::is_copy_assignable_v<FpeGuard>);
 static_assert(!std::is_move_assignable_v<FpeGuard>);
 static_assert(toMask({Fpe::invalid, Fpe::divByZero}) == (FE_INVALID | FE_DIVBYZERO));
-static_assert(__expectPositive(2.0, __FILE__, __LINE__) == 2.0);
-static_assert(__expectRange(1.0, 2.0, 3.0, __FILE__, __LINE__) == 2.0);
+static_assert(expectPositiveImpl(2.0, __FILE__, __LINE__) == 2.0);
+static_assert(expectRangeImpl(1.0, 2.0, 3.0, __FILE__, __LINE__) == 2.0);
 
 #ifdef expectFinite
 #error "expectFinite must not be defined"
@@ -32,7 +32,7 @@ void require(bool condition, char const* message) {
     }
 }
 
-#if HAS_FEENABLEEXCEPT
+#if hasFpeEnableExcept
 constexpr int guardedExceptions = FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW;
 
 void resetEnvironment() {
@@ -153,7 +153,7 @@ void testContracts() {
 } // namespace
 
 int main() {
-#if HAS_FEENABLEEXCEPT
+#if hasFpeEnableExcept
     std::fenv_t originalEnvironment;
     std::fegetenv(&originalEnvironment);
     try {

@@ -11,7 +11,7 @@
 #include <vector>
 
 namespace po = boost::program_options;
-using namespace octotiger::options_compatibility;
+using namespace octotiger::optionsCompatibility;
 
 namespace {
 
@@ -33,20 +33,25 @@ struct fixture {
 
     fixture() {
         legacy.add_options()
-            ("radiation", po::value<bool>(&value.radiation)->default_value(false))
-            ("rad_opacity", po::value<double>(&value.opacity)->default_value(-1.0))
-            ("sod_gamma", po::value<double>(&value.gamma)->default_value(1.4))
-            ("gravity", po::value<bool>(&value.gravity)->default_value(true))
-            ("problem", po::value<std::string>(&value.problem)->default_value("NONE"));
-        add_canonical_option(canonical, migrations,
+            ("radiation", po::value<bool>(&value.radiation)->default_value(false),
+                "Enable radiation transport.")
+            ("rad_opacity", po::value<double>(&value.opacity)->default_value(-1.0),
+                "Set the constant grey opacity in code area per mass.")
+            ("sod_gamma", po::value<double>(&value.gamma)->default_value(1.4),
+                "Set the gas adiabatic index.")
+            ("gravity", po::value<bool>(&value.gravity)->default_value(true),
+                "Enable self-gravity.")
+            ("problem", po::value<std::string>(&value.problem)->default_value("NONE"),
+                "Select the initial-value problem.");
+        addCanonicalOption(canonical, legacy, migrations,
             "radiation.enabled", "radiation", &value.radiation);
-        add_canonical_option(canonical, migrations,
+        addCanonicalOption(canonical, legacy, migrations,
             "radiation.opacity.constant", "rad_opacity", &value.opacity);
-        add_canonical_option(canonical, migrations,
+        addCanonicalOption(canonical, legacy, migrations,
             "hydro.gamma", "sod_gamma", &value.gamma);
-        add_canonical_option(canonical, migrations,
+        addCanonicalOption(canonical, legacy, migrations,
             "gravity.enabled", "gravity", &value.gravity);
-        add_canonical_option(canonical, migrations,
+        addCanonicalOption(canonical, legacy, migrations,
             "problem.name", "problem", &value.problem);
         radiation::addGreyOpacityOptions(canonical, opacity);
         all.add(canonical).add(legacy);
@@ -56,27 +61,27 @@ struct fixture {
         std::string* diagnostics = nullptr) {
         po::variables_map map;
         std::set<std::string> supplied;
-        auto const command_line = po::command_line_parser(cli).options(all).run();
-        remember_supplied(supplied, command_line);
-        po::store(command_line, map);
+        auto const commandLine = po::command_line_parser(cli).options(all).run();
+        rememberSupplied(supplied, commandLine);
+        po::store(commandLine, map);
         po::notify(map);
-        reapply_canonical_values(map, canonical, migrations);
+        reapplyCanonicalValues(map, canonical, migrations);
         if (!config.empty()) {
             std::istringstream input(config);
             auto const file = po::parse_config_file(input, all);
-            remember_supplied(supplied, file);
+            rememberSupplied(supplied, file);
             po::store(file, map);
         }
         std::ostringstream messages;
-        if (!check_compatibility_spellings(supplied, migrations, messages)) {
+        warnLegacySpellings(supplied, migrations, messages);
+        if (!checkCompatibilitySpellings(supplied, migrations, messages)) {
             if (diagnostics != nullptr) {
                 *diagnostics = messages.str();
             }
             return false;
         }
         po::notify(map);
-        reapply_canonical_values(map, canonical, migrations);
-        warn_legacy_spellings(supplied, migrations, messages);
+        reapplyCanonicalValues(map, canonical, migrations);
         if (diagnostics != nullptr) {
             *diagnostics = messages.str();
         }
@@ -117,10 +122,23 @@ int main() {
         check(test.parse({"--radiation=true", "--sod_gamma=1.5"}, {}, &diagnostics),
             "legacy parse");
         check(test.value.radiation && test.value.gamma == 1.5, "legacy values");
-        check(diagnostics.find("option 'radiation' is deprecated") != std::string::npos,
+        check(diagnostics.find("WARNING: legacy options were used") != std::string::npos,
+            "single legacy warning heading");
+        check(diagnostics.find("--radiation -> --radiation.enabled") != std::string::npos,
             "legacy radiation warning");
-        check(diagnostics.find("option 'sod_gamma' is deprecated") != std::string::npos,
+        check(diagnostics.find("--sod_gamma -> --hydro.gamma") != std::string::npos,
             "legacy hydro warning");
+        check(diagnostics.find("WARNING:", diagnostics.find("WARNING:") + 1) ==
+                std::string::npos,
+            "legacy options share one warning");
+    }
+    {
+        fixture test;
+        auto const* option = test.canonical.find_nothrow("radiation.enabled", false);
+        check(option != nullptr &&
+                option->description().find("Enable radiation transport.") != std::string::npos &&
+                option->description().find("legacy spelling: --radiation") != std::string::npos,
+            "canonical help uses the descriptive legacy text");
     }
     {
         fixture test;
@@ -135,6 +153,8 @@ int main() {
         std::string diagnostics;
         check(!test.parse({"--radiation.enabled=true"}, "radiation=false\n", &diagnostics),
             "mixed-spelling conflict");
+        check(diagnostics.find("--radiation -> --radiation.enabled") != std::string::npos,
+            "conflicting legacy spelling is included in migration warning");
         check(diagnostics.find("both legacy option 'radiation'") != std::string::npos,
             "conflict explains spellings");
     }

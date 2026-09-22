@@ -25,12 +25,12 @@ def method(source, signature):
     return source[begin:end]
 
 
-def without_includes(path):
+def withoutIncludes(path):
     return '\n'.join(line for line in path.read_text().splitlines()
                      if not line.startswith(('#include', '#pragma once')))
 
 
-def production_source(root):
+def productionSource(root):
     source = (root / 'src/radiation/rad_grid.cpp').read_text()
     signatures = [
         'void rad_grid::allocate(', 'void rad_grid::set_dx(',
@@ -44,10 +44,10 @@ def production_source(root):
     return '\n'.join([
         (support / 'regression_fixture.inc').read_text(),
         # octotiger/test_problems/radiation.hpp is now only a forwarding header.
-        without_includes(root / 'test_problems/radiation.hpp'),
-        without_includes(root / 'src/test_problems/radiation/radiation.cpp'),
+        withoutIncludes(root / 'test_problems/radiation.hpp'),
+        withoutIncludes(root / 'src/test_problems/radiation/radiation.cpp'),
         '#define private public',
-        without_includes(root / 'octotiger/radiation/rad_grid.hpp'),
+        withoutIncludes(root / 'octotiger/radiation/rad_grid.hpp'),
         '#undef private',
         *(method(source, signature) for signature in signatures),
         (support / 'regression_checks.inc').read_text(),
@@ -75,7 +75,7 @@ def main():
         folder = pathlib.Path(tmp)
         folder.mkdir(parents=True, exist_ok=True)
         source, executable = folder / 'test.cpp', folder / 'test'
-        source.write_text(production_source(root))
+        source.write_text(productionSource(root))
         flags = (['-O1', '-g', '-fsanitize=address,undefined', '-fno-omit-frame-pointer']
                  if args.sanitize else ['-O3'])
         subprocess.run([args.cxx, '-std=c++23', *flags, '-I' + str(root),

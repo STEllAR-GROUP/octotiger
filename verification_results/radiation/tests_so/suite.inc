@@ -10,7 +10,7 @@ int main(int argc,char** argv) {
     config>>test>>L>>end>>chi>>A>>width>>velocity>>ratio>>rho>>e>>E>>frames;
     reset();physcon().c=2.99792458e10;physcon().sigma=5.670374419e-5;
     physcon().mh=1.6735575e-24;physcon().kb=1.380649e-16;
-    opts().rad_c_ratio=ratio;opts().xscale=L/2;
+    opts().radCRatio=ratio;opts().xscale=L/2;
     bool const diffusion=test=="static_diffusion" || test=="diffusion_thicker";
     bool const thermal=test=="thermal_relaxation";
     bool const moving=test=="moving_scattering";
@@ -18,11 +18,11 @@ int main(int argc,char** argv) {
     bool const counters=test=="boundary_subcycles";
     opts().rad_implicit=coupled||thermal||counters;
     opts().radiationOpacity.model="grey";opts().radiationOpacity.units="1/cm";
-    opts().rad_opacity=-1;
+    opts().radOpacity=-1;
     opts().radiationOpacity.absorption=(thermal||test=="damped_wave")?chi:0;
     opts().radiationOpacity.scattering=(diffusion||moving||counters)?chi:0;
-    opts().rad_energy_mode=test=="damped_wave"?"absorption":thermal?"thermal":"equilibrium";
-    opts().rad_velocity_terms=moving||counters;
+    opts().radEnergyMode=test=="damped_wave"?"absorption":thermal?"thermal":"equilibrium";
+    opts().radVelocityTerms=moving||counters;
     node_server node;auto& r=*node.rad_grid_ptr;auto& g=*node.grid_ptr;
     double const dx=L/INX,c=physcon().c,chat=c*ratio;
     g.dx=dx;initialize(r,g,E,0,e,0);
@@ -64,6 +64,7 @@ int main(int argc,char** argv) {
             slices<<frame<<','<<t<<','<<g.X[0][h]<<','<<r.U[0][h]<<','<<r.U[1][h]<<','<<g.U[egas_i][h]<<','<<g.U[sx_i][h]<<'\n';}
     };
     double t=0;int step=0;sample(0,0,0,0,0,true);
+    std::cout<<"progress "<<test<<" N="<<INX<<" frame=1/"<<frames<<" t=0"<<std::endl;
     for(int frame=1;frame<frames;++frame) {
         double target=end*frame/(frames-1);
         while(t<target) {
@@ -73,7 +74,7 @@ int main(int argc,char** argv) {
             auto gasBefore=g.U;
             if(thermal)r.rad_imp(g.U[egas_i],g.U[tau_i],g.U[sx_i],g.U[sy_i],g.U[sz_i],g.U[rho_i],dt);
             else if(counters) {
-                node.dt_.radiation_dt=limit;node.dt_.dt=dt;node.current_time=t;
+                node.dt_.radiationDt=limit;node.dt_.dt=dt;node.current_time=t;
                 node.compute_radiation(dt,0);
                 for(auto const& event:node.audit)
                     exchange<<step<<','<<event.kind<<','<<event.r<<','<<event.h<<','<<event.time<<','<<event.E<<','<<event.F<<','<<event.halo<<','<<event.gas<<'\n';
@@ -93,6 +94,8 @@ int main(int argc,char** argv) {
             int sub=counters?int(radiation::SubcyclePlan(dt,limit,true,1024).count):thermal?0:1;
             sample(t==target?frame:-1,t,dt,thermal?0:dt/std::max(sub,1),sub,ghostOK);
         }
+        std::cout<<"progress "<<test<<" N="<<INX<<" frame="<<(frame+1)<<'/'<<frames
+                 <<" t="<<t<<std::endl;
     }
     std::cout<<"completed "<<test<<" N="<<INX<<" t="<<t<<" steps="<<step<<" c="<<c<<"\n";
  }catch(std::exception const& e){std::cerr<<"FAIL: "<<e.what()<<'\n';return 1;}

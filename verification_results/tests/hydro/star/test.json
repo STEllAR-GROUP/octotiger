@@ -18,31 +18,33 @@
     "config": "test_problems/star/star.ini",
     "arguments": [],
     "pass_regular_expressions": [
-      "TS 1.:: t: 7.352407e.00, dt: 6.715325e-01",
+      "lastStep.time=7.352407e+00, lastStep.dt=6.715325e-01",
       "a: 9.307070e-01",
       "amr_boundaries: 312"
     ]
   },
   "expected_diagnostics": [
-    "legacy stdout regex checks",
+    "structured run-summary checks",
     "process exit status"
   ],
   "reference_data": {
     "owner": "legacy test_problems CTest definitions",
-    "description": "Configured CTest owns all enabled kernel variants, field regexes, Silo comparisons and fixtures; explicit --exe-only runs remain conditional smoke",
+    "description": "Configured CTest owns all enabled kernel variants, structured field checks, Silo comparisons and fixtures; explicit --exe-only runs remain conditional smoke",
     "kind": "regression",
     "source": "test_problems/star/star.ini",
-    "comparison": "preserve existing CTest stdout/Silo reference"
+    "comparison": "preserve existing CTest structured-result/Silo reference"
   },
   "tolerance_policy": {
     "owner": "legacy test_problems CTest definitions",
     "mode": "regression",
-    "description": "existing CTest regex/Silo tolerances; no retuning"
+    "description": "existing CTest numerical/Silo tolerances; no retuning"
   },
   "visualization_products": [
-    "stdout.log",
-    "verification.json",
-    "report.html"
+    "field_stills",
+    "line_profiles",
+    "error_norms",
+    "time_history",
+    "movie"
   ],
   "adapter": {
     "name": "octotiger_scenario",

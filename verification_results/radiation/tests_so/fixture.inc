@@ -29,20 +29,20 @@ constexpr Real ZERO=0;
 using M1=RadiationM1<Real,NDIM>;
 integer rindex(integer i,integer j,integer k) { return k+RAD_NX*(j+RAD_NX*i); }
 integer hindex(integer i,integer j,integer k) { return rindex(i,j,k); }
-struct options_fixture {
+struct OptionsFixture {
     radiation::GreyOpacity radiationOpacity;
     Real code_to_g=1, code_to_cm=1;
-    Real rad_c_ratio=1,rad_cfl=.4,rad_theta=1,rad_opacity=.7,xscale=.5;
-    bool rad_subcycling=true,rad_velocity_terms=true,rad_log_subcycles=false;
+    Real radCRatio=1,radCfl=.4,radTheta=1,radOpacity=.7,xscale=.5;
+    bool radSubcycling=true,radVelocityTerms=true,radLogSubcycles=false;
     bool hydro=true,rad_implicit=false,periodic=true,gravity=false,optimize_local_communication=false;
-    integer rad_max_subcycles=1024;
+    integer radMaxSubcycles=1024;
     int problem=0,n_fields=7,n_species=1,eos=0;
     Real dual_energy_sw1=.001;
-    std::string rad_energy_mode="thermal";
+    std::string radEnergyMode="thermal";
 };
-options_fixture& opts() { static options_fixture o; return o; }
-struct constants_fixture { Real c=7,sigma=7./4,mh=1,kb=2./3; };
-constants_fixture& physcon() { static constants_fixture p; return p; }
+OptionsFixture& opts() { static OptionsFixture o; return o; }
+struct ConstantsFixture { Real c=7,sigma=7./4,mh=1,kb=2./3; };
+ConstantsFixture& physcon() { static ConstantsFixture p; return p; }
 Real ztwd_energy(Real) { return 0; }
 struct grid {
     std::vector<std::vector<Real>> U=std::vector<std::vector<Real>>(7,std::vector<Real>(H_N3));
@@ -56,13 +56,13 @@ struct grid {
 };
 template<class T> using specie_state_t=std::array<T,5>;
 void mean_ion_weight(specie_state_t<Real> const&,Real& mmw,Real& X,Real& Z) { mmw=1;X=.7;Z=.02; }
-Real kappa_p(Real rho,Real,Real,Real,Real,Real) { return rho*opts().rad_opacity; }
-Real kappa_R(Real rho,Real,Real,Real,Real,Real) { return rho*opts().rad_opacity; }
+Real kappa_p(Real rho,Real,Real,Real,Real,Real) { return rho*opts().radOpacity; }
+Real kappa_R(Real rho,Real,Real,Real,Real,Real) { return rho*opts().radOpacity; }
 bool radiationFixedMediumProblem() { return opts().problem==3; }
 radiationTests::Parameters radiationTestParameters() {
     radiationTests::Parameters p;p.c=physcon().c;p.length=2*opts().xscale;return p;
 }
-std::vector<Real> marshak_wave_analytic(Real,Real,Real,Real time) {
+std::vector<Real> marshakWaveAnalytic(Real,Real,Real,Real time) {
     std::vector<Real> u(11);u[7]=1+time;u[8]=physcon().c*(.2+.1*time);return u;
 }
 struct silo_var_t {};

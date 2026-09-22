@@ -2,19 +2,19 @@
 #include <sys/wait.h>
 namespace rr
 {
-void gnuplot_script(const fs::path &script, const std::string &body, const Options &o)
+void gnuplotScript(const fs::path &script, const std::string &body, const Options &o)
 {
-	atomic_text(script, body);
+	atomicText(script, body);
 	auto gp = executable(o.gnuplot);
 	// All paths are quoted for the shell; plot text lives in a separate file.
-	std::string cmd = shell_quote(gp.string()) + " " + shell_quote(rr::absolute(script).string());
-	check_interrupt();
+	std::string cmd = shellQuote(gp.string()) + " " + shellQuote(rr::absolute(script).string());
+	checkInterrupt();
 	int status = std::system(cmd.c_str());
-	check_interrupt();
+	checkInterrupt();
 	require(status != -1 && WIFEXITED(status) && WEXITSTATUS(status) == 0,
 			"gnuplot failed; inspect " + script.string());
 }
-void plot_pair(const fs::path &stem, const std::string &body, int w, int h, const Options &o)
+void plotPair(const fs::path &stem, const std::string &body, int w, int h, const Options &o)
 {
 	std::string script = "set encoding utf8\nset datafile separator whitespace\nset border lc rgb "
 						 "'#738092'\nset grid lc rgb "
@@ -30,11 +30,11 @@ void plot_pair(const fs::path &stem, const std::string &body, int w, int h, cons
 												   std::to_string(h) + " font 'Sans,11' noenhanced\n"
 											 : "set terminal pdfcairo size " + number(w / 110.) + "," +
 												   number(h / 110.) + " font 'Sans,11' noenhanced\n");
-		script += "set output " + gp_quote(tmp.string()) + "\n" + body + "\nunset output\n";
+		script += "set output " + gpQuote(tmp.string()) + "\n" + body + "\nunset output\n";
 	}
 	auto p = stem;
 	p += ".gnuplot";
-	gnuplot_script(p, script, o);
+	gnuplotScript(p, script, o);
 	for (auto ext : {"png", "pdf"}) {
 		auto target = stem;
 		target += '.' + std::string(ext);
@@ -56,18 +56,18 @@ std::string sci(double x)
 	o << std::scientific << std::setprecision(6) << x;
 	return o.str();
 }
-std::string image_tag(std::string s, std::string alt)
+std::string imageTag(std::string s, std::string alt)
 {
 	return "<img loading=\"lazy\" src=\"" + url(s) + "\" alt=\"" + html(alt) + "\">";
 }
-std::string data_path(const fs::path &p)
+std::string dataPath(const fs::path &p)
 {
-	return gp_quote(p.string());
+	return gpQuote(p.string());
 }
-void render_run(const fs::path &folder, const Json &m, const fs::path &target,
+void renderRun(const fs::path &folder, const Json &m, const fs::path &target,
 				const std::optional<Budget> &budget, const Options &o)
 {
-	auto data = read_slice(folder, m);
+	auto data = readSlice(folder, m);
 	int n = m.at("cells");
 	double dx = m.at("dx"), length = m.at("length");
 	fs::create_directories(target);
@@ -103,19 +103,19 @@ void render_run(const fs::path &folder, const Json &m, const fs::path &target,
 	auto cols = data.columns;
 	for (auto &f : fields)
 		cols.push_back(f + "_error");
-	records_csv(target / "slice.csv", records, cols);
-	atomic_text(target / "slice.dat", grid.str());
-	atomic_text(target / "profiles.dat", row.str());
+	recordsCsv(target / "slice.csv", records, cols);
+	atomicText(target / "slice.dat", grid.str());
+	atomicText(target / "profiles.dat", row.str());
 	Json units{{"t", cgs(m) ? "s" : "code time"}};
 	for (auto s : {"dx", "x", "y", "z"})
 		units[s] = cgs(m) ? "cm" : "code length";
 	for (int f = 0; f < 4; ++f)
 		for (auto suffix : {"", "_ref", "_error"})
 			units[fields[f] + suffix] = cgs(m) ? (f == 0 ? "erg/cm^3" : "erg/(cm^2 s)") : "code units";
-	write_json(target / "slice.units.json", units);
+	writeJson(target / "slice.units.json", units);
 	std::string profiles = "set multiplot layout 4,2 rowsfirst title " +
-						   gp_quote(title + " | y=z=dx/2=" + sci(dx / 2)) +
-						   "\nset key top right\nset xlabel " + gp_quote(cgs(m) ? "x (cm)" : "x") +
+						   gpQuote(title + " | y=z=dx/2=" + sci(dx / 2)) +
+						   "\nset key top right\nset xlabel " + gpQuote(cgs(m) ? "x (cm)" : "x") +
 						   "\nset autoscale\nset xrange [" + number(-length / 2) + ":" + number(length / 2) +
 						   "]\nset xtics " + number(length / 4) + "\n";
 	for (int f = 0; f < 4; ++f) {
@@ -124,47 +124,47 @@ void render_run(const fs::path &folder, const Json &m, const fs::path &target,
 		double peak = 0;
 		for (auto &r : data.rows)
 			peak = std::max({peak, r[5 + f] - bg, r[9 + f] - bg});
-		double log_high = peak > 0 ? peak : std::max(std::abs(bg), 1.) * 1e-12;
-		double floor = log_high * 1e-6;
+		double logHigh = peak > 0 ? peak : std::max(std::abs(bg), 1.) * 1e-12;
+		double floor = logHigh * 1e-6;
 		auto value = [&](int column) {
 			std::string v = "(" + col(column) + "-" + number(bg) + ")";
 			return logarithmic ? "(" + v + ">" + number(floor) + "?" + v + ":" + number(floor) + ")" : v;
 		};
-		auto label = field_label(m, f) + (bg ? " minus background" : "") +
+		auto label = fieldLabel(m, f) + (bg ? " minus background" : "") +
 					 (logarithmic ? " | log; floor=" + sci(floor) : "");
 		if (logarithmic)
-			write_json(target / "display.json",
+			writeJson(target / "display.json",
 					   {{"energy_scale", "log"},
 						{"energy_background", bg},
 						{"energy_floor", floor},
-						{"energy_maximum", log_high},
+						{"energy_maximum", logHigh},
 						{"below_floor", "Values at or below the floor, including nonpositive excesses, use "
 										"the lowest color; raw data unchanged"}});
-		double profile_error = 0;
+		double profileError = 0;
 		for (int i = 0; i < n; ++i) {
 			const auto &r = data.rows[std::size_t(i) * n + n / 2];
-			profile_error = std::max(profile_error, std::abs(r[5 + f] - r[9 + f]));
+			profileError = std::max(profileError, std::abs(r[5 + f] - r[9 + f]));
 		}
-		double error_limit = profile_error > 0 ? 1.1 * profile_error : 1e-30;
+		double errorLimit = profileError > 0 ? 1.1 * profileError : 1e-30;
 		profiles +=
 			"set autoscale y\n" +
 			(logarithmic
-				 ? "set logscale y\nset yrange [" + number(floor) + ":" + number(log_high * 1.1) + "]\n"
+				 ? "set logscale y\nset yrange [" + number(floor) + ":" + number(logHigh * 1.1) + "]\n"
 				 : "") +
 			"set ylabel " +
-			gp_quote(logarithmic ? "E - Ebg (" + std::string(cgs(m) ? "erg/cm^3" : "code units") + "), log"
+			gpQuote(logarithmic ? "E - Ebg (" + std::string(cgs(m) ? "erg/cm^3" : "code units") + "), log"
 								 : label) +
 			"\n" +
-			(logarithmic ? "set label 1 " + gp_quote("Display floor: " + sci(floor)) +
+			(logarithmic ? "set label 1 " + gpQuote("Display floor: " + sci(floor)) +
 							   " at graph 0.03,0.07 left font ',9'\n"
 						 : "") +
-			"plot " + data_path(target / "profiles.dat") + " using 3:" + value(10 + f) +
+			"plot " + dataPath(target / "profiles.dat") + " using 3:" + value(10 + f) +
 			" with lines dt 2 lc rgb '#111111' title 'Reference', '' using 3:" + value(6 + f) +
 			" with linespoints pt 7 ps 0.4 lc rgb '#2873b9' title 'Numerical'\nunset label 1\nunset logscale "
 			"y\nset "
 			"ylabel " +
-			gp_quote(field_label(m, f) + " numerical - reference") + "\nset yrange [" + number(-error_limit) +
-			":" + number(error_limit) + "]\nplot " + data_path(target / "profiles.dat") +
+			gpQuote(fieldLabel(m, f) + " numerical - reference") + "\nset yrange [" + number(-errorLimit) +
+			":" + number(errorLimit) + "]\nplot " + dataPath(target / "profiles.dat") +
 			" using 3:" + std::to_string(14 + f) + " with lines lc rgb '#b4422e' notitle\n";
 		double lo = INFINITY, hi = -INFINITY, err = 0;
 		for (auto &r : data.rows) {
@@ -179,16 +179,16 @@ void render_run(const fs::path &folder, const Json &m, const fs::path &target,
 		}
 		if (logarithmic) {
 			lo = floor;
-			hi = log_high;
+			hi = logHigh;
 		}
 		err = std::max(err, 1e-30);
 		std::string maps =
-			"set multiplot layout 1,3 title " + gp_quote(title + " | " + label + " | z=dx/2=" + sci(dx / 2)) +
+			"set multiplot layout 1,3 title " + gpQuote(title + " | " + label + " | z=dx/2=" + sci(dx / 2)) +
 			"\nunset key\nunset grid\nset lmargin 12\nset rmargin 13\nset bmargin "
 			"5\nset tmargin 4\nset size ratio -1\nset xrange [" +
 			number(-length / 2) + ":" + number(length / 2) + "]\nset yrange [" + number(-length / 2) + ":" +
-			number(length / 2) + "]\nset xlabel " + gp_quote(cgs(m) ? "x (cm)" : "x") + "\nset ylabel " +
-			gp_quote(cgs(m) ? "y (cm)" : "y") + "\nset xtics " + number(length / 2) + "\nset ytics " +
+			number(length / 2) + "]\nset xlabel " + gpQuote(cgs(m) ? "x (cm)" : "x") + "\nset ylabel " +
+			gpQuote(cgs(m) ? "y (cm)" : "y") + "\nset xtics " + number(length / 2) + "\nset ytics " +
 			number(length / 2) + "\n";
 		for (int k = 0; k < 3; ++k) {
 			maps += logarithmic && k != 2 ? "set logscale cb\n" : "unset logscale cb\n";
@@ -198,17 +198,17 @@ void render_run(const fs::path &folder, const Json &m, const fs::path &target,
 			maps +=
 				"set cbrange [" + number(k == 2 ? -err : lo) + ":" + number(k == 2 ? err : hi) +
 				"]\nset title " +
-				gp_quote(std::array<std::string, 3>{"Numerical", "Reference", "Numerical - reference"}[k]) +
-				"\nplot " + data_path(target / "slice.dat") +
+				gpQuote(std::array<std::string, 3>{"Numerical", "Reference", "Numerical - reference"}[k]) +
+				"\nplot " + dataPath(target / "slice.dat") +
 				" using 3:4:" + (k == 2 ? "(" + col(14 + f) + ")" : value(k == 0 ? 6 + f : 10 + f)) +
 				" with image\n";
 		}
 		maps += "unset multiplot\nset lmargin\nset rmargin\nset bmargin\nset tmargin\nset size "
 				"noratio\nset autoscale\nset grid\n";
-		plot_pair(target / ("slice_" + fields[f]), maps, 1800, 650, o);
+		plotPair(target / ("slice_" + fields[f]), maps, 1800, 650, o);
 	}
 	profiles += "unset multiplot\n";
-	plot_pair(target / "profiles", profiles, 1400, 1500, o);
+	plotPair(target / "profiles", profiles, 1400, 1500, o);
 	if (!budget) {
 		for (auto name : {"conservation.png", "conservation.pdf", "conservation.csv",
 						  "conservation-summary.csv", "conservation-summary.json", "conservation.units.json",
@@ -218,11 +218,11 @@ void render_run(const fs::path &folder, const Json &m, const fs::path &target,
 	}
 	auto &b = *budget;
 	Json fractions = Json::array();
-	std::vector<std::string> fraction_columns{"t"};
+	std::vector<std::string> fractionColumns{"t"};
 	for (auto suffix :
 		 {"_fraction", "_expected_fraction", "_residual_fraction", "_boundary_fraction", "_source_fraction"})
 		for (auto &f : fields)
-			fraction_columns.push_back(f + suffix);
+			fractionColumns.push_back(f + suffix);
 	std::ostringstream history;
 	history << std::scientific << std::setprecision(17);
 	for (std::size_t i = 0; i < b.history.rows.size(); ++i) {
@@ -237,7 +237,7 @@ void render_run(const fs::path &folder, const Json &m, const fs::path &target,
 			record[fields[f] + "_boundary_fraction"] = r[6 + f] / scale;
 			record[fields[f] + "_source_fraction"] = r[10 + f] / scale;
 		}
-		for (auto &column : fraction_columns) {
+		for (auto &column : fractionColumns) {
 			double value = record.at(column);
 			require(std::isfinite(value), "Nonfinite conservation fraction: " + column);
 			history << value << ' ';
@@ -245,73 +245,73 @@ void render_run(const fs::path &folder, const Json &m, const fs::path &target,
 		history << '\n';
 		fractions.push_back(std::move(record));
 	}
-	atomic_text(target / "conservation.dat", history.str());
-	records_csv(target / "conservation-fractions.csv", fractions, fraction_columns);
-	Json fraction_units{{"t", cgs(m) ? "s" : "code time"}};
-	for (std::size_t i = 1; i < fraction_columns.size(); ++i)
-		fraction_units[fraction_columns[i]] = "dimensionless";
-	write_json(target / "conservation-fractions.units.json", fraction_units);
+	atomicText(target / "conservation.dat", history.str());
+	recordsCsv(target / "conservation-fractions.csv", fractions, fractionColumns);
+	Json fractionUnits{{"t", cgs(m) ? "s" : "code time"}};
+	for (std::size_t i = 1; i < fractionColumns.size(); ++i)
+		fractionUnits[fractionColumns[i]] = "dimensionless";
+	writeJson(target / "conservation-fractions.units.json", fractionUnits);
 	std::string plots = "set multiplot layout 4,2 rowsfirst title " +
-						gp_quote(title + " | fractions of fixed initial totals") +
+						gpQuote(title + " | fractions of fixed initial totals") +
 						"\nset autoscale\nset grid\nset key top right\nset xlabel " +
-						gp_quote(cgs(m) ? "Time (s)" : "Time") + "\n";
+						gpQuote(cgs(m) ? "Time (s)" : "Time") + "\n";
 	for (int f = 0; f < 4; ++f) {
-		auto q = data_path(target / "conservation.dat");
+		auto q = dataPath(target / "conservation.dat");
 		const bool fallback = b.summary[f].at("normalization_basis") == "c * abs(initial_energy)";
 		auto denominator = fallback ? "(c |er(0)|)" : "|" + fields[f] + "(0)|";
-		double lo = INFINITY, hi = -INFINITY, residual_max = 0;
+		double lo = INFINITY, hi = -INFINITY, residualMax = 0;
 		for (std::size_t i = 0; i < b.history.rows.size(); ++i) {
 			double measured = fractions[i].at(fields[f] + "_fraction");
 			double expected = fractions[i].at(fields[f] + "_expected_fraction");
 			lo = std::min({lo, measured, expected});
 			hi = std::max({hi, measured, expected});
-			residual_max = std::max(residual_max, std::abs(b.normalized[i][f]));
+			residualMax = std::max(residualMax, std::abs(b.normalized[i][f]));
 		}
 		// Roundoff-level drift about a large conserved total defeats gnuplot autoscaling.
 		// Show totals with finite headroom; retain small errors in the residual panel.
 		double magnitude = std::max(std::abs(lo), std::abs(hi));
 		double pad = magnitude > 0 ? std::max(.05 * (hi - lo), .05 * magnitude) : 1;
-		double residual_limit = residual_max > 0 ? 1.1 * residual_max : 1e-16;
+		double residualLimit = residualMax > 0 ? 1.1 * residualMax : 1e-16;
 		plots +=
 			"set title " +
-			gp_quote(fallback ? "Zero/negligible initial flux: fixed c E0 scale"
+			gpQuote(fallback ? "Zero/negligible initial flux: fixed c E0 scale"
 							  : "Fixed scale = " + denominator) +
 			"\nset yrange [" + number(lo - pad) + ":" + number(hi + pad) + "]\nset ylabel " +
-			gp_quote(fields[f] + " / " + denominator) + "\nplot " + q + " using 1:" + std::to_string(2 + f) +
+			gpQuote(fields[f] + " / " + denominator) + "\nplot " + q + " using 1:" + std::to_string(2 + f) +
 			" with lines title 'Measured / scale', '' using 1:" + std::to_string(6 + f) +
 			" with lines dt 2 title '(Initial - boundary + source) / scale'\nset yrange [" +
-			number(-residual_limit) + ":" + number(residual_limit) + "]\nset ylabel " +
-			gp_quote("R_" + fields[f] + " / " + denominator) + "\n" +
-			(residual_max == 0 ? "set label 1 'All recorded residuals are zero' at graph 0.5,0.8 center\n"
+			number(-residualLimit) + ":" + number(residualLimit) + "]\nset ylabel " +
+			gpQuote("R_" + fields[f] + " / " + denominator) + "\n" +
+			(residualMax == 0 ? "set label 1 'All recorded residuals are zero' at graph 0.5,0.8 center\n"
 							   : "") +
 			"plot " + q + " using 1:" + std::to_string(10 + f) +
 			" with lines lc rgb '#b4422e' notitle\nunset label 1\n";
 	}
 	plots += "unset multiplot\nunset title\n";
-	plot_pair(target / "conservation", plots, 1400, 1500, o);
-	atomic_text(target / "conservation.csv", read_text(folder / "radiation-conservation.csv"));
-	records_csv(target / "conservation-summary.csv", b.summary);
-	write_json(target / "conservation-summary.json", b.summary);
+	plotPair(target / "conservation", plots, 1400, 1500, o);
+	atomicText(target / "conservation.csv", readText(folder / "radiation-conservation.csv"));
+	recordsCsv(target / "conservation-summary.csv", b.summary);
+	writeJson(target / "conservation-summary.json", b.summary);
 	Json u{{"t", cgs(m) ? "s" : "code time"}, {"volume", cgs(m) ? "cm^3" : "code volume"}};
 	for (int f = 0; f < 4; ++f)
 		for (auto s : {"", "_boundary", "_source"})
 			u[fields[f] + s] = cgs(m) ? (f == 0 ? "erg" : "erg cm/s") : "code units";
-	write_json(target / "conservation.units.json", u);
+	writeJson(target / "conservation.units.json", u);
 }
 } // namespace
 fs::path render(const fs::path &batch, const Options &o)
 {
-	auto runs = completed_runs(batch);
+	auto runs = completedRuns(batch);
 	require(!runs.empty(), "No completed runs in " + batch.string());
 	auto output = batch / "plots";
 	fs::create_directories(output);
 	std::map<std::string, std::vector<std::pair<fs::path, Json>>> groups;
 	for (auto &[p, m] : runs) {
-		m["norms"] = read_norms(p, m);
+		m["norms"] = readNorms(p, m);
 		groups[m.at("case")].emplace_back(p, m);
 	}
 	Json errors = Json::array(), budgets = Json::array();
-	std::string page = page_start("Octo-TIGER radiation results") +
+	std::string page = pageStart("Octo-TIGER radiation results") +
 					   "<p><a href=\"errors.csv\">All norms/orders CSV</a> · <a "
 					   "href=\"conservation.csv\">Conservation "
 					   "CSV</a> · <a href=\"../movies.html\">Movies</a></p><p>Norms use the full "
@@ -325,8 +325,8 @@ fs::path render(const fs::path &batch, const Options &o)
 		});
 		auto &first = series.front().second;
 		std::set<double> seen;
-		auto case_dir = output / name;
-		fs::create_directories(case_dir);
+		auto caseDir = output / name;
+		fs::create_directories(caseDir);
 		page +=
 			"<section><h2>" + html(name) + "</h2><p>" +
 			(name.starts_with("streaming")
@@ -348,7 +348,7 @@ fs::path render(const fs::path &batch, const Options &o)
 		}
 		if (series.size() < 2) {
 			for (auto ext : {"png", "pdf"})
-				fs::remove(case_dir / ("convergence." + std::string(ext)));
+				fs::remove(caseDir / ("convergence." + std::string(ext)));
 			page += "<p>Convergence becomes available after two resolutions are complete.</p>";
 		} else {
 			std::ostringstream dat;
@@ -360,20 +360,20 @@ fs::path render(const fs::path &batch, const Options &o)
 						dat << ' ' << m["norms"][f][n].get<double>();
 				dat << '\n';
 			}
-			atomic_text(case_dir / "convergence.dat", dat.str());
+			atomicText(caseDir / "convergence.dat", dat.str());
 			std::string s = "set multiplot layout 2,2 title " +
-							gp_quote(name + " | full-volume norms | t=" + number(first.at("time")) +
+							gpQuote(name + " | full-volume norms | t=" + number(first.at("time")) +
 									 (cgs(first) ? " s" : "")) +
 							"\nset logscale xy\nset xrange [" + number(first.at("dx")) + ":" +
 							number(series.back().second.at("dx")) + "]\nset xlabel " +
-							gp_quote(cgs(first) ? "dx (cm; finer ->)" : "dx (finer ->)") +
+							gpQuote(cgs(first) ? "dx (cm; finer ->)" : "dx (finer ->)") +
 							"\nset key top left\n";
 			for (int f = 0; f < 4; ++f) {
 				bool any = false;
 				for (auto &[p, m] : series)
 					for (auto &n : norms)
 						any |= m["norms"][fields[f]][n].get<double>() > 0;
-				s += "set title " + gp_quote(field_label(first, f)) +
+				s += "set title " + gpQuote(fieldLabel(first, f)) +
 					 "\nset ylabel 'Volume-normalized error'\n";
 				if (!any) {
 					s += "unset logscale y\nset yrange [-1:1]\nset label 1 'All norms are zero' at "
@@ -388,9 +388,9 @@ fs::path render(const fs::path &batch, const Options &o)
 					if (k)
 						s += ", ";
 					int c = 2 + 3 * f + k;
-					s += data_path(case_dir / "convergence.dat") + " using 1:(" + col(c) + ">0?" + col(c) +
+					s += dataPath(caseDir / "convergence.dat") + " using 1:(" + col(c) + ">0?" + col(c) +
 						 ":1/0) with linespoints pt " + std::to_string(5 + k) + " title " +
-						 gp_quote(norms[k]);
+						 gpQuote(norms[k]);
 				}
 				double base = first["norms"][fields[f]]["L1"];
 				if (base > 0)
@@ -401,16 +401,16 @@ fs::path render(const fs::path &batch, const Options &o)
 				s += '\n';
 			}
 			s += "unset multiplot\nunset logscale\nset autoscale\n";
-			plot_pair(case_dir / "convergence", s, 1320, 1000, o);
-			page += image_tag(name + "/convergence.png", "Convergence");
+			plotPair(caseDir / "convergence", s, 1320, 1000, o);
+			page += imageTag(name + "/convergence.png", "Convergence");
 		}
 		Json previous;
 		page += "<div class=\"scroll\"><table><tr><th>N</th><th>E L1</th><th>E L2</th><th>E "
 				"L∞</th><th>p(L1)</th><th>p(L2)</th><th>p(L∞)</th></tr>";
 		std::string details;
 		for (auto &[folder, m] : series) {
-			auto target = case_dir / ("l" + std::to_string(m.at("level").get<int>()));
-			auto b = read_conservation(folder, m);
+			auto target = caseDir / ("l" + std::to_string(m.at("level").get<int>()));
+			auto b = readConservation(folder, m);
 			Json signature{{"meta", m},
 						   {"renderer_sha256", sha256("/proc/self/exe")},
 						   {"gnuplot", executable(o.gnuplot).string()},
@@ -421,7 +421,7 @@ fs::path render(const fs::path &batch, const Options &o)
 					signature["slices"][e.path().filename().string()] = sha256(e.path());
 			bool reuse = false;
 			try {
-				reuse = read_json(target / "plot-inputs.json") == signature;
+				reuse = readJson(target / "plot-inputs.json") == signature;
 			} catch (const std::exception &) {
 			}
 			for (auto stem : {"profiles", "slice_er", "slice_fx", "slice_fy", "slice_fz"})
@@ -433,8 +433,8 @@ fs::path render(const fs::path &batch, const Options &o)
 								 "-fractions.csv", "-fractions.units.json"})
 					reuse &= fs::is_regular_file(target / ("conservation" + std::string(ext)));
 			if (!reuse) {
-				render_run(folder, m, target, b, o);
-				write_json(target / "plot-inputs.json", signature);
+				renderRun(folder, m, target, b, o);
+				writeJson(target / "plot-inputs.json", signature);
 			} else if (!b)
 				for (auto ext : {".png", ".pdf", ".csv", "-summary.csv", "-summary.json", ".units.json",
 								 "-fractions.csv", "-fractions.units.json"})
@@ -476,11 +476,11 @@ fs::path render(const fs::path &batch, const Options &o)
 					   "³ cells</summary><p>Central cell layer at z=dx/2. <a href=\"" + rel +
 					   "/slice.csv\">Paired values CSV</a> · <a href=\"" + rel +
 					   "/profiles.pdf\">Profiles PDF</a></p>" +
-					   image_tag(rel + "/slice_er.png", "Energy slice") +
-					   image_tag(rel + "/profiles.png", "Profiles and errors");
+					   imageTag(rel + "/slice_er.png", "Energy slice") +
+					   imageTag(rel + "/profiles.png", "Profiles and errors");
 			details += "<details><summary>Flux maps</summary>";
 			for (int f = 1; f < 4; ++f)
-				details += image_tag(rel + "/slice_" + fields[f] + ".png", fields[f]);
+				details += imageTag(rel + "/slice_" + fields[f] + ".png", fields[f]);
 			details += "</details><h3>Radiation conservation</h3>";
 			if (b) {
 				details +=
@@ -508,7 +508,7 @@ fs::path render(const fs::path &batch, const Options &o)
 						   "/conservation-summary.csv\">Budget summary CSV</a> · <a href=\"" + rel +
 						   "/conservation.csv\">Raw history CSV</a> · <a href=\"" + rel +
 						   "/conservation-fractions.csv\">Fraction history CSV</a></p>" +
-						   image_tag(rel + "/conservation.png", "Conservation budgets");
+						   imageTag(rel + "/conservation.png", "Conservation budgets");
 			} else
 				details += "<p>Conservation diagnostics unavailable for this run.</p>";
 			details += "</details>";
@@ -516,9 +516,9 @@ fs::path render(const fs::path &batch, const Options &o)
 		}
 		page += "</table></div>" + details + "</section>";
 	}
-	records_csv(output / "errors.csv", errors);
-	write_json(output / "errors.json", errors);
-	records_csv(output / "conservation.csv", budgets,
+	recordsCsv(output / "errors.csv", errors);
+	writeJson(output / "errors.json", errors);
+	recordsCsv(output / "conservation.csv", budgets,
 				{"case",
 				 "level",
 				 "cells_per_side",
@@ -542,15 +542,15 @@ fs::path render(const fs::path &batch, const Options &o)
 				 "max_abs_residual",
 				 "max_normalized_error",
 				 "integral_units"});
-	write_json(output / "conservation.json", budgets);
-	atomic_text(output / "index.html", page + "</body></html>\n");
-	report_pages(batch);
+	writeJson(output / "conservation.json", budgets);
+	atomicText(output / "index.html", page + "</body></html>\n");
+	reportPages(batch);
 	return output / "index.html";
 }
 void publish(const fs::path &output, Json &state)
 {
 	state["updated_utc"] = stamp();
-	write_json(output / "live.json", state);
-	report_pages(output, true);
+	writeJson(output / "live.json", state);
+	reportPages(output, true);
 }
 } // namespace rr

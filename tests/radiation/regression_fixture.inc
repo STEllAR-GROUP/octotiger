@@ -20,18 +20,18 @@ constexpr int rho_i=0,egas_i=1,tau_i=2,spc_i=3;
 using M1=RadiationM1<Real,NDIM>;
 integer rindex(integer i,integer j,integer k){return k+RAD_NX*(j+RAD_NX*i);}
 integer hindex(integer i,integer j,integer k){return rindex(i,j,k);}
-struct options_fixture {
-    Real rad_cfl=.4,rad_c_ratio=1,rad_theta=1,xscale=1,stop_time=.2,omega=0;
+struct OptionsFixture {
+    Real radCfl=.4,radCRatio=1,radTheta=1,xscale=1,stop_time=.2,omega=0;
     Real radTestChi=5,radTestWidth=.2,radTestBackground=1,radTestAmplitude=.01,radTestLuminosity=.01;
     int problem=0,n_fields=15,max_level=0;
     bool radiation=true,hydro=false,gravity=false,unigrid=true,periodic=true,rad_implicit=false;
-    bool rad_velocity_terms=false;
-    std::string radReference,rad_energy_mode="thermal";
+    bool radVelocityTerms=false;
+    std::string radReference,radEnergyMode="thermal";
 };
-options_fixture& opts(){static options_fixture o;return o;}
-struct constants_fixture {Real c=1;};
-constants_fixture& physcon(){static constants_fixture p;return p;}
-std::vector<Real> marshak_wave_analytic(Real,Real,Real,Real){throw std::runtime_error("Unused Marshak fixture");}
+OptionsFixture& opts(){static OptionsFixture o;return o;}
+struct ConstantsFixture {Real c=1;};
+ConstantsFixture& physcon(){static ConstantsFixture p;return p;}
+std::vector<Real> marshakWaveAnalytic(Real,Real,Real,Real){throw std::runtime_error("Unused Marshak fixture");}
 struct silo_var_t{};
 namespace geo {
 struct face {

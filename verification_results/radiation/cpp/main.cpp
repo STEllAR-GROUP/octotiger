@@ -56,7 +56,7 @@ Resume uses saved simulation settings; specify only playback/thread options.
 		}
 		auto eq = arg.find('=');
 		std::string key = arg.substr(0, eq);
-		o.explicit_options.insert(key);
+		o.explicitOptions.insert(key);
 		auto value = [&]() {
 			if (eq != arg.npos)
 				return arg.substr(eq + 1);
@@ -128,19 +128,19 @@ Resume uses saved simulation settings; specify only playback/thread options.
 		else if (key == "--rad-reconstruction")
 			o.reconstruction = lower(value());
 		else if (key == "--no-build")
-			flag(o.no_build);
+			flag(o.noBuild);
 		else if (key == "--no-open")
-			flag(o.no_open);
+			flag(o.noOpen);
 		else if (key == "--dry-run")
-			flag(o.dry_run);
+			flag(o.dryRun);
 		else if (key == "--no-silo")
-			flag(o.no_silo);
+			flag(o.noSilo);
 		else if (key == "--no-movies")
-			flag(o.no_movies);
+			flag(o.noMovies);
 		else if (key == "--reuse-frames")
-			flag(o.reuse_frames);
+			flag(o.reuseFrames);
 		else if (key == "--allow-sparse")
-			flag(o.allow_sparse);
+			flag(o.allowSparse);
 		else if (key == "--check")
 			flag(o.check);
 		else if (key == "--sanitize")
@@ -148,7 +148,7 @@ Resume uses saved simulation settings; specify only playback/thread options.
 		else if (key == "--visit")
 			o.visit = value();
 		else if (key == "--session-dir")
-			o.session_dir = value();
+			o.sessionDir = value();
 		else
 			throw std::runtime_error("Unknown option: " + key);
 	}
@@ -157,9 +157,9 @@ Resume uses saved simulation settings; specify only playback/thread options.
 				o.height >= 128,
 			"Invalid time, thread count, capture count or movie dimensions");
 	require(o.odt >= 0 && o.hard_dt >= 0, "Negative timestep/interval");
-	require(!o.explicit_options.contains("--odt") || o.odt > 0, "--odt must be positive");
-	require(!o.explicit_options.contains("--hard-dt") || o.hard_dt > 0, "--hard-dt must be positive");
-	frame_schedule({0, 1}, o.seconds, o.fps, o.hold);
+	require(!o.explicitOptions.contains("--odt") || o.odt > 0, "--odt must be positive");
+	require(!o.explicitOptions.contains("--hard-dt") || o.hard_dt > 0, "--hard-dt must be positive");
+	frameSchedule({0, 1}, o.seconds, o.fps, o.hold);
 	require(std::set<std::string>{"er", "fx", "fy", "fz", "fluxmag"}.contains(o.field),
 			"Unknown movie field");
 	require(o.view == "slice" || o.view == "3d", "Unknown movie view");
@@ -168,7 +168,7 @@ Resume uses saved simulation settings; specify only playback/thread options.
 			"Unknown radiation reconstruction");
 	if (o.command == "live" || o.command == "run") {
 		if (!positional.empty())
-			o.explicit_options.insert("positionals");
+			o.explicitOptions.insert("positionals");
 		std::string name = "all";
 		if (!positional.empty()) {
 			name = lower(positional.front());
@@ -181,10 +181,10 @@ Resume uses saved simulation settings; specify only playback/thread options.
 		if (aliases.contains(name))
 			name = aliases[name];
 		if (name == "all")
-			o.selected_cases.assign(cases.begin(), cases.end());
+			o.selectedCases.assign(cases.begin(), cases.end());
 		else {
 			require(std::find(cases.begin(), cases.end(), name) != cases.end(), "Unknown case: " + name);
-			o.selected_cases = {name};
+			o.selectedCases = {name};
 		}
 		if (!positional.empty() && !std::all_of(positional.back().begin(), positional.back().end(),
 												[](unsigned char c) { return std::isdigit(c); })) {
@@ -194,22 +194,22 @@ Resume uses saved simulation settings; specify only playback/thread options.
 		}
 		if (o.build.empty())
 			o.build = o.command == "live" ? "debug" : "release";
-		auto build_name = lower(o.build.string());
-		if (std::set<std::string>{"debug", "release", "relwithdebinfo"}.contains(build_name)) {
-			std::string canonical = build_name == "debug"	  ? "Debug"
-									: build_name == "release" ? "Release"
+		auto buildName = lower(o.build.string());
+		if (std::set<std::string>{"debug", "release", "relwithdebinfo"}.contains(buildName)) {
+			std::string canonical = buildName == "debug"	  ? "Debug"
+									: buildName == "release" ? "Release"
 															  : "RelWithDebInfo";
 			auto base = fs::path("build") / "octotiger";
-			if (fs::is_directory(o.root / base / build_name))
-				o.build = base / build_name;
+			if (fs::is_directory(o.root / base / buildName))
+				o.build = base / buildName;
 			else if (fs::is_directory(o.root / base / canonical))
 				o.build = base / canonical;
-			else if (fs::is_directory(o.root / build_name))
-				o.build = build_name;
+			else if (fs::is_directory(o.root / buildName))
+				o.build = buildName;
 			else if (fs::is_directory(o.root / canonical))
 				o.build = canonical;
 			else
-				o.build = base / build_name;
+				o.build = base / buildName;
 		}
 		for (auto &s : positional) {
 			int level = integer(s);
@@ -221,7 +221,7 @@ Resume uses saved simulation settings; specify only playback/thread options.
 		std::sort(o.levels.begin(), o.levels.end());
 		o.levels.erase(std::unique(o.levels.begin(), o.levels.end()), o.levels.end());
 		if (o.command == "run")
-			o.no_movies = true;
+			o.noMovies = true;
 	} else if (o.command == "plot" || o.command == "pages" || o.command == "movies" ||
 			   o.command == "sessions" || o.command == "check") {
 		require(positional.size() == 1, "Provide one batch/run directory");
@@ -234,11 +234,11 @@ Resume uses saved simulation settings; specify only playback/thread options.
 	return o;
 }
 } // namespace rr
-#ifndef RR_NO_MAIN
+#ifndef rrNoMain
 int main(int argc, char **argv)
 {
 	try {
-		rr::install_signals();
+		rr::installSignals();
 		auto o = rr::arguments(argc, argv);
 		if (o.command == "run" || o.command == "live")
 			return rr::run(o);
@@ -247,33 +247,33 @@ int main(int argc, char **argv)
 			return 0;
 		}
 		if (o.command == "pages") {
-			std::cout << rr::report_pages(o.input) << '\n';
+			std::cout << rr::reportPages(o.input) << '\n';
 			return 0;
 		}
 		if (o.command == "movies" || o.command == "sessions") {
 			if (o.command == "movies")
-				rr::check_dependencies(o, true);
-			auto runs = rr::completed_runs(o.input);
+				rr::checkDependencies(o, true);
+			auto runs = rr::completedRuns(o.input);
 			rr::require(!runs.empty(), "No completed runs");
 			for (auto &[p, m] : runs) {
 				if (o.command == "sessions")
-					rr::make_session(p, o);
+					rr::makeSession(p, o);
 				else {
-					rr::make_movie(p, o);
-					rr::movie_index(o.input);
+					rr::makeMovie(p, o);
+					rr::movieIndex(o.input);
 				}
 			}
 			return 0;
 		}
 		if (o.command == "check") {
-			auto runs = rr::completed_runs(o.input);
+			auto runs = rr::completedRuns(o.input);
 			rr::require(!runs.empty(), "No completed runs");
 			for (auto &[p, m] : runs) {
-				rr::read_norms(p, m);
-				rr::read_slice(p, m);
-				rr::read_conservation(p, m);
+				rr::readNorms(p, m);
+				rr::readSlice(p, m);
+				rr::readConservation(p, m);
 				if (rr::cgs(m))
-					rr::verify_cgs_log(p / "run.log");
+				rr::verifyCgsSummary(p / "runSummary.json");
 				std::cout << "Verified " << p << '\n';
 			}
 			return 0;

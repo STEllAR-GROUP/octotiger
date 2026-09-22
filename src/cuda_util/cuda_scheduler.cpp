@@ -29,7 +29,7 @@ namespace fmm {
     }
 #endif
     void init_fmm_constants() {
-        std::size_t gpu_count = opts().number_gpus;
+        std::size_t gpuCount = opts().number_gpus;
         // Create necessary data and add padding
         two_phase_stencil const stencil = multipole_interactions::calculate_stencil();
         auto p2p_stencil_pair = monopole_interactions::calculate_stencil();
@@ -46,7 +46,7 @@ namespace fmm {
         auto multipole_inner_stencil = multipole_stencil_pair.second;
 
         // Move data to constant memory, once per gpu
-        for (std::size_t gpu_id = 0; gpu_id < gpu_count; ++gpu_id) {
+        for (std::size_t gpu_id = 0; gpu_id < gpuCount; ++gpu_id) {
             std::cout << "Init FMM GPU constants on device " << gpu_id << " ..." << std::endl;
             // Stuff to move to constant memory
             std::unique_ptr<bool[]> stencil_masks = std::make_unique<bool[]>(FULL_STENCIL_SIZE);

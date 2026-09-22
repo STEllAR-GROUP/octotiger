@@ -63,17 +63,17 @@ using M1=RadiationM1<Real,NDIM>;
 integer rindex(integer i,integer j,integer k) {return k+RAD_NX*(j+RAD_NX*i);}
 integer hindex(integer i,integer j,integer k) {return k+H_NX*(j+H_NX*i);}
 integer hSindex(integer i,integer j,integer k) {return k+HS_NX*(j+HS_NX*i);}
-struct options_fixture {
+struct OptionsFixture {
     radiation::GreyOpacity radiationOpacity;
-    Real rad_cfl=.4,rad_c_ratio=1,rad_theta=1,rad_opacity=-1;
+    Real radCfl=.4,radCRatio=1,radTheta=1,radOpacity=-1;
     Real code_to_g=1,code_to_cm=1,xscale=.5,dual_energy_sw1=.001;
     int eos=0,problem=RADIATION_COUPLING,n_species=1,n_fields=7;
-    bool rad_implicit=false,rad_velocity_terms=true;
-    std::string rad_energy_mode="thermal";
+    bool rad_implicit=false,radVelocityTerms=true;
+    std::string radEnergyMode="thermal";
 };
-options_fixture& opts() {static options_fixture o;return o;}
-struct constants_fixture {Real c=17,sigma=17./4,kb=1,mh=1;};
-constants_fixture& physcon() {static constants_fixture p;return p;}
+OptionsFixture& opts() {static OptionsFixture o;return o;}
+struct ConstantsFixture {Real c=17,sigma=17./4,kb=1,mh=1;};
+ConstantsFixture& physcon() {static ConstantsFixture p;return p;}
 struct grid {static Real get_fgamma() {return 5./3;}};
 Real ztwd_energy(Real rho) {return .1*rho;}
 template<class T> using specie_state_t=std::array<T,1>;
@@ -82,7 +82,7 @@ bool radiationFixedMediumProblem() {return false;}
 radiationTests::Parameters radiationTestParameters() {
     radiationTests::Parameters p;p.c=physcon().c;return p;
 }
-std::vector<Real> marshak_wave_analytic(Real,Real,Real,Real) {
+std::vector<Real> marshakWaveAnalytic(Real,Real,Real,Real) {
     throw std::runtime_error("Marshak boundaries are not part of this fixture");
 }
 struct silo_var_t {};
@@ -108,7 +108,7 @@ int main() {
         near(temperature(2.,6.,1.,1.4),1.2,"opacity temperature uses gamma");
         near(dB_p_de(2.,6.,1.,1.4),4*B_p(2.,6.,1.,1.4)/6,"emission derivative");
         opts().problem=MARSHAK;
-        near(dB_p_de(2.,6.,1.),c/(4*pi_R),"Marshak emission derivative");
+        near(dB_p_de(2.,6.,1.),c/(4*piR),"Marshak emission derivative");
         opts().problem=RADIATION_COUPLING;
         rad_grid g(dx);
         std::vector<std::vector<Real>> X(3,std::vector<Real>(H_N3));
@@ -126,7 +126,7 @@ int main() {
         Real sum0=0;
         for(integer i=RAD_BW;i<RAD_BW+INX;++i)for(integer j=RAD_BW;j<RAD_BW+INX;++j)for(integer k=RAD_BW;k<RAD_BW+INX;++k) {
             const auto r=rindex(i,j,k);
-            const Real E=2+.2*std::sin(2*pi_R*(i+j+k-3*RAD_BW)/INX);
+            const Real E=2+.2*std::sin(2*piR*(i+j+k-3*RAD_BW)/INX);
             g.U[0][r]=E;sum0+=E;
             for(int d=1;d<4;++d)g.U[d][r]=c*E*n;
         }

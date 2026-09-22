@@ -16,12 +16,12 @@ import tempfile
 import unittest
 
 
-ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "verification_results" / "radiation"))
+root = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(root / "verification_results" / "radiation"))
 from results import CONSERVATION_FILE, read_conservation
 
 
-def extract_method(source, signature):
+def extractMethod(source, signature):
     begin = source.index(signature)
     end = source.index("{", begin) + 1
     depth = 1
@@ -34,7 +34,7 @@ def extract_method(source, signature):
     return source[begin:end]
 
 
-FIXTURE = r'''
+fixture = r'''
 #include "octotiger/math/Debug.hpp"
 #include "octotiger/radiation/m1.hpp"
 #include "octotiger/radiation/conservation.hpp"
@@ -57,10 +57,10 @@ constexpr int HS_NX=INX/2+2*H_BW, HS_N3=HS_NX*HS_NX*HS_NX;
 constexpr int XDIM=0, YDIM=1, ZDIM=2, RADIATION_EQUILIBRIUM_SPHERE=3;
 integer rindex(integer i,integer j,integer k) { return k+RAD_NX*(j+RAD_NX*i); }
 integer hindex(integer i,integer j,integer k) { return rindex(i,j,k); }
-struct options_fixture { Real cfl=.25; int problem=0; };
-options_fixture& opts() { static options_fixture o; return o; }
-struct constants_fixture { Real c=1; };
-constants_fixture& physcon() { static constants_fixture p; return p; }
+struct OptionsFixture { Real cfl=.25; int problem=0; };
+OptionsFixture& opts() { static OptionsFixture o; return o; }
+struct ConstantsFixture { Real c=1; };
+ConstantsFixture& physcon() { static ConstantsFixture p; return p; }
 radiationTests::Parameters parameters;
 radiationTests::Parameters radiationTestParameters() { return parameters; }
 struct silo_var_t {};
@@ -79,7 +79,7 @@ struct face {
 '''
 
 
-CHECKS = r'''
+checks = r'''
 #undef private
 using radiationConservation::Totals;
 using radiationConservation::Ledger;
@@ -375,9 +375,9 @@ class ConservationSolverTests(unittest.TestCase):
         cls.folder = tempfile.TemporaryDirectory(prefix="radiation-conservation-")
         cls.addClassCleanup(cls.folder.cleanup)
         cls.executable = Path(cls.folder.name) / "conservation"
-        cpp = (ROOT / "src/radiation/rad_grid.cpp").read_text()
+        cpp = (root / "src/radiation/rad_grid.cpp").read_text()
         header = "\n".join(
-            line for line in (ROOT / "octotiger/radiation/rad_grid.hpp").read_text().splitlines()
+            line for line in (root / "octotiger/radiation/rad_grid.hpp").read_text().splitlines()
             if not line.startswith("#include")
         )
         methods = [
@@ -390,15 +390,15 @@ class ConservationSolverTests(unittest.TestCase):
             "void rad_grid::accountBoundaryFlux(",
         ]
         source = Path(cls.folder.name) / "conservation.cpp"
-        source.write_text(FIXTURE + header + "\n" + "\n".join(
-            extract_method(cpp, signature) for signature in methods
-        ) + CHECKS)
-        command = compiler + ["-std=c++23", "-O2", "-I" + str(ROOT), str(source), "-o", str(cls.executable)]
+        source.write_text(fixture + header + "\n" + "\n".join(
+            extractMethod(cpp, signature) for signature in methods
+        ) + checks)
+        command = compiler + ["-std=c++23", "-O2", "-I" + str(root), str(source), "-o", str(cls.executable)]
         result = subprocess.run(command, text=True, capture_output=True)
         if result.returncode:
             raise AssertionError("Production conservation harness failed to compile:\n" + result.stderr)
 
-    def run_case(self, name):
+    def runCase(self, name):
         result = subprocess.run([str(self.executable), name], text=True, capture_output=True)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
@@ -418,28 +418,28 @@ class ConservationSolverTests(unittest.TestCase):
         self.assertEqual(flux["boundary"], 0)
 
     def test_interior_totals_and_all_six_face_signs(self):
-        self.run_case("faces")
+        self.runCase("faces")
 
     def test_periodic_streaming_zero_components_and_injected_drift(self):
-        self.run_case("streaming")
+        self.runCase("streaming")
 
     def test_periodic_oblique_streaming_and_injected_drift(self):
-        self.run_case("oblique")
+        self.runCase("oblique")
 
     def test_damping_and_gaussian_source_units(self):
-        self.run_case("sources")
+        self.runCase("sources")
 
     def test_open_sphere_boundary_and_source_balance(self):
-        self.run_case("sphere")
+        self.runCase("sphere")
 
     def test_open_sphere_in_cgs_units(self):
-        self.run_case("cgs")
+        self.runCase("cgs")
 
     def test_rotating_basis_source_balance(self):
-        self.run_case("rotation")
+        self.runCase("rotation")
 
     def test_two_block_internal_interface_cancellation(self):
-        self.run_case("blocks")
+        self.runCase("blocks")
 
 
 if __name__ == "__main__":

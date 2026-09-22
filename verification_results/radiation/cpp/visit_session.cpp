@@ -65,7 +65,7 @@ std::string axis(const std::string &name, const std::string &title, bool physica
 															  str("units", physical ? "cm" : "") + font)) +
 						 object("label", object("AxisLabels", font))));
 }
-std::string text_label(const std::string &name, const std::string &text, double y, double height)
+std::string textLabel(const std::string &name, const std::string &text, double y, double height)
 {
 	return object("AnnotationObject",
 				  str("objectName", name) + str("objectType", "Text2D") + flag("visible", true) +
@@ -75,9 +75,9 @@ std::string text_label(const std::string &name, const std::string &text, double 
 					  field("text", "stringVector", Json(text).dump()) + str("fontFamily", "Arial"));
 }
 } // namespace
-fs::path visit_executable(const Options &o)
+fs::path visitExecutable(const Options &o)
 {
-	if (o.visit != "visit" || o.explicit_options.contains("--visit"))
+	if (o.visit != "visit" || o.explicitOptions.contains("--visit"))
 		return executable(o.visit);
 	if (const char *value = std::getenv("VISIT"))
 		if (*value)
@@ -93,7 +93,7 @@ fs::path visit_executable(const Options &o)
 	}
 	throw std::runtime_error("VisIt is required for movies; pass --visit /path/to/bin/visit or set VISIT");
 }
-std::string visit_session_xml(const fs::path &database, const Json &m, const Options &o)
+std::string visitSessionXml(const fs::path &database, const Json &m, const Options &o)
 {
 	const bool logarithmic = m.at("color_scale") == "log";
 	const double low = m.at("color_limits")[0], high = m.at("color_limits")[1];
@@ -159,8 +159,8 @@ std::string visit_session_xml(const fs::path &database, const Json &m, const Opt
 				 "^3 | " + o.field + " | t=$time" + (physical ? " s" : "") +
 				 (o.view == "slice" ? " | " + o.axis + "=" + number(o.position) : " | exterior surface");
 	auto labels =
-		text_label("RadiationTitle", title, 0.96, 0.024) +
-		text_label(
+		textLabel("RadiationTitle", title, 0.96, 0.024) +
+		textLabel(
 			"RadiationUnits",
 			(logarithmic ? "E - background; log scale" : o.field) + std::string(" (") +
 				m.at("field_units").get<std::string>() + ")" +
@@ -170,7 +170,7 @@ std::string visit_session_xml(const fs::path &database, const Json &m, const Opt
 		std::ostringstream floor;
 		floor << "E - background <= " << std::scientific << std::setprecision(3) << low
 			  << " (including <= 0) uses the floor color";
-		labels += text_label("RadiationFloor", floor.str(), 0.023, 0.016);
+		labels += textLabel("RadiationFloor", floor.str(), 0.023, 0.016);
 	}
 	auto view =
 		object("View2DAttributes", array("windowCoords", {-half, half, -half, half}) +

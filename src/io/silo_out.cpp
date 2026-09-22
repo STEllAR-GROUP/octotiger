@@ -91,7 +91,6 @@ static int steps_elapsed;
 static const int HOST_NAME_LEN = 100;
 
 void output_stage1(std::string fname, int cycle) {
-	printf("Opening output stage 1 on locality %i\n", hpx::get_locality_id());
   if (opts().idle_rates == 1) {
     grid::set_idle_rate();
   }
@@ -116,11 +115,9 @@ void output_stage1(std::string fname, int cycle) {
 			}, i->first, i->second));
 		}
 	}
-	printf("Closing output stage 1 on locality %i\n", hpx::get_locality_id());
 }
 
 node_list_t output_stage2(std::string fname, int cycle) {
-	printf("Opening output stage 2 on locality %i\n", hpx::get_locality_id());
 	const int this_id = hpx::get_locality_id();
 	const int nfields = grid::get_field_names().size();
 	std::string this_fname = fname + std::string(".") + std::to_string(INX) + std::string(".silo");
@@ -157,12 +154,10 @@ node_list_t output_stage2(std::string fname, int cycle) {
 	nl.silo_leaves = std::move(ids);
 	nl.all = std::move(all);
 	nl.positions = std::move(positions);
-	printf("Closing output stage 2 on locality %i\n", hpx::get_locality_id());
 	return std::move(nl);
 }
 
 void output_stage3(std::string fname, int cycle, int gn, int gb, int ge) {
-	printf("Opening output stage 3 on locality %i\n", hpx::get_locality_id());
 	const int this_id = hpx::get_locality_id();
 	const int nfields = grid::get_field_names().size();
 	const auto dir = opts().data_dir;
@@ -250,11 +245,9 @@ void output_stage3(std::string fname, int cycle, int gn, int gb, int ge) {
 
 		GET(f);
 	}
-	printf("Closing output stage 3 on locality %i\n", hpx::get_locality_id());
 }
 
 void output_stage4(std::string fname, int cycle) {
-	printf("Opening output stage 4 on locality %i\n", hpx::get_locality_id());
 	const int nfields = grid::get_field_names().size();
 	std::string this_fname = opts().data_dir + "/" + fname + std::string(".silo");
 	double dtime = opts().problem == DWD ? silo_output_rotation_time() : silo_output_time();
@@ -367,18 +360,18 @@ void output_stage4(std::string fname, int cycle) {
 		fi(db, "problem", integer(opts().problem));
 		fi(db, "radiation", integer(opts().radiation));
 		fi(db, "rad_implicit", integer(opts().rad_implicit));
-		fi(db, "rad_subcycling", integer(opts().rad_subcycling));
-		fr(db, "rad_c_ratio", opts().rad_c_ratio);
-		fr(db, "rad_cfl", opts().rad_cfl);
-		fi(db, "rad_max_subcycles", integer(opts().rad_max_subcycles));
-		fr(db, "rad_theta", opts().rad_theta);
-		fi(db, "rad_velocity_terms", integer(opts().rad_velocity_terms));
-		fr(db, "rad_opacity", opts().rad_opacity);
+		fi(db, "rad_subcycling", integer(opts().radSubcycling));
+		fr(db, "rad_c_ratio", opts().radCRatio);
+		fr(db, "rad_cfl", opts().radCfl);
+		fi(db, "rad_max_subcycles", integer(opts().radMaxSubcycles));
+		fr(db, "rad_theta", opts().radTheta);
+		fi(db, "rad_velocity_terms", integer(opts().radVelocityTerms));
+		fr(db, "rad_opacity", opts().radOpacity);
         radiation::saveGreyOpacity(opts().radiationOpacity,
             [&](char const* key, int value) { fi(db, key, integer(value)); },
             [&](char const* key, double value) { fr(db, key, value); });
-		fi(db, "rad_energy_mode", integer(opts().rad_energy_mode=="thermal" ? 0 : opts().rad_energy_mode=="absorption" ? 1 : 2));
-		fi(db, "rad_log_subcycles", integer(opts().rad_log_subcycles));
+		fi(db, "rad_energy_mode", integer(opts().radEnergyMode=="thermal" ? 0 : opts().radEnergyMode=="absorption" ? 1 : 2));
+		fi(db, "rad_log_subcycles", integer(opts().radLogSubcycles));
 		fr(db, "refinement_floor", opts().refinement_floor);
 		fr(db, "cgs_time", dtime);
 		fr(db, "rotational_time", rtime);
@@ -516,7 +509,6 @@ void output_stage4(std::string fname, int cycle) {
 			}
 		}
 	}, cycle).get();
-	printf("Closing output stage 4 on locality %i\n", hpx::get_locality_id());
 }
 
 void output_all(node_server *root_ptr, std::string fname, int cycle, bool block) {

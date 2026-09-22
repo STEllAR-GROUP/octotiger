@@ -35,7 +35,7 @@ namespace fmm {
 
             multiindex<> start_index = get_padding_start_indices(dir);
             multiindex<> end_index = get_padding_end_indices(dir);
-            multiindex<> size = get_padding_Real_size(dir);
+            multiindex<> size = getPaddingRealSize(dir);
             for (size_t x = start_index.x; x < end_index.x; x++) {
                 for (size_t y = start_index.y; y < end_index.y; y++) {
                     for (size_t z = start_index.z; z < end_index.z; z++) {
@@ -211,7 +211,7 @@ namespace fmm {
                         size == STENCIL_MAX * STENCIL_MAX * STENCIL_MAX);
                     multiindex<> start_index = get_padding_start_indices(dir);
                     multiindex<> end_index = get_padding_end_indices(dir);
-                    multiindex<> neighbor_size = get_padding_Real_size(dir);
+                    multiindex<> neighbor_size = getPaddingRealSize(dir);
                     if (size == INX * INX * STENCIL_MAX) {
                         constexpr size_t buffer_size = INX * INX * STENCIL_MAX;
                         struct_of_array_data<expansion, Real, 20, buffer_size, SOA_PADDING,

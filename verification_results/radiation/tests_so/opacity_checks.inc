@@ -1,7 +1,7 @@
 // Tests the production rad_grid methods and opacity selectors, not a second solver.
-void opacity_source_checks() {
+void opacitySourceChecks() {
     // Unit conversion, including constant extinction (Ensman-style cm^-1 inputs).
-    radiation::GreyOpacity o;o.model="grey";o.absorption=2;o.scattering=3;o.transport_absorption=.5;
+    radiation::GreyOpacity o;o.model="grey";o.absorption=2;o.scattering=3;o.transportAbsorption=.5;
     o.validate(-1);
     auto k=radiation::greyCoefficients(o,4,5,2);
     near(k.absorption,10,10,"cgs mass absorption conversion");
@@ -16,11 +16,11 @@ void opacity_source_checks() {
     // using the whole production driver (thermal exchange and momentum feedback).
     auto solve=[](std::string model) {
         reset();opts().rad_implicit=true;opts().radiationOpacity.model=model;
-        if(model=="grey") {opts().rad_opacity=-1;opts().radiationOpacity.absorption=.7;}
-        opts().radiationOpacity.validate(opts().rad_opacity);
+        if(model=="grey") {opts().radOpacity=-1;opts().radiationOpacity.absorption=.7;}
+        opts().radiationOpacity.validate(opts().radOpacity);
         node_server node;initialize(*node.rad_grid_ptr,*node.grid_ptr,1,0,.7,.002);
-        node.dt_.radiation_dt=node.rad_grid_ptr->maxTimestep(0);
-        node.dt_.dt=.7*node.dt_.radiation_dt;
+        node.dt_.radiationDt=node.rad_grid_ptr->maxTimestep(0);
+        node.dt_.dt=.7*node.dt_.radiationDt;
         node.compute_radiation(node.dt_.dt,0);
         auto const r=rindex(3,3,3);
         std::vector<Real> values;
@@ -33,7 +33,7 @@ void opacity_source_checks() {
     require(legacy==solve("grey"),"equal-opacity grey bitwise source compatibility");
 
     for(Real ratio:{1.,.03})for(Real sigma:{0.,1e-9,2.,1e6})for(Real v:{0.,.002}) {
-        reset();opts().rad_implicit=true;opts().rad_c_ratio=ratio;opts().rad_opacity=-1;
+        reset();opts().rad_implicit=true;opts().radCRatio=ratio;opts().radOpacity=-1;
         opts().radiationOpacity.model="grey";opts().radiationOpacity.scattering=sigma;
         // Static stiff scattering is implicit; moving stiff beta*tau is explicitly
         // outside this solver's regime. Test moving gas only in its resolved regime.
@@ -59,7 +59,7 @@ void opacity_source_checks() {
         require(r.U[0][h]>=0 && g.U[tau_i][h]>=0,"source positivity");
     }
     for(Real absorption:{0.,1e-9,2.,1e6})for(Real ratio:{1.,.03}) {
-        reset();opts().rad_implicit=true;opts().rad_opacity=-1;opts().rad_c_ratio=ratio;
+        reset();opts().rad_implicit=true;opts().radOpacity=-1;opts().radCRatio=ratio;
         opts().radiationOpacity.model="grey";opts().radiationOpacity.units="1/cm";
         opts().radiationOpacity.absorption=absorption;
         rad_grid r(1./INX);grid g;initialize(r,g,.4,0,.7,0);r.compute_mmw(g.U);
@@ -72,9 +72,9 @@ void opacity_source_checks() {
         require(g.U[egas_i][h]>=0 && r.U[0][h]>=0,"pure absorption positivity");
     }
     // Absorption and scattering have independent roles in production caches.
-    reset();opts().rad_implicit=true;opts().rad_opacity=-1;
+    reset();opts().rad_implicit=true;opts().radOpacity=-1;
     opts().radiationOpacity.model="grey";opts().radiationOpacity.absorption=2;
-    opts().radiationOpacity.transport_absorption=.5;opts().radiationOpacity.scattering=3;
+    opts().radiationOpacity.transportAbsorption=.5;opts().radiationOpacity.scattering=3;
     rad_grid r(1./INX);grid g;initialize(r,g,1,0,.7,0);r.prepareSources(g.U);
     near(r.chiAbsorption[rindex(3,3,3)],2,2,"Planck/energy cache excludes scattering");
     near(r.chiTotal[rindex(3,3,3)],3.5,3.5,"Rosseland/transport cache includes scattering");

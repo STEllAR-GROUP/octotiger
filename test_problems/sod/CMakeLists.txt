@@ -49,62 +49,16 @@ endif()
 
 # The legacy OFF/ON argument is retained for call-site compatibility. Angular
 # momentum correction is configured by the input, not by this obsolete flag.
-function(test_sod_scenario test_name test_log_file ini_filename reference_filename legacy_am_flag kernel_parameters)
+function(test_sod_scenario test_name test_log_file ini_filename reference_filename legacyAmFlag kernel_parameters)
   add_test(NAME ${test_name}
-    COMMAND sh -c "${PROJECT_BINARY_DIR}/octotiger --config_file=${PROJECT_SOURCE_DIR}/test_problems/sod/${ini_filename} ${kernel_parameters} > ${test_log_file}")
+    COMMAND sh -c "${PROJECT_BINARY_DIR}/octotiger --runtime.config_file=${PROJECT_SOURCE_DIR}/test_problems/sod/${ini_filename} --output.results_file=${test_log_file}.json ${kernel_parameters} > ${test_log_file}")
   set_tests_properties(${test_name} PROPERTIES
     FIXTURES_SETUP ${test_name})
 
-  add_test(NAME ${test_name}.rho_regex COMMAND cat ${test_log_file})
-  add_test(NAME ${test_name}.egas_regex COMMAND cat ${test_log_file})
-  add_test(NAME ${test_name}.tau_regex COMMAND cat ${test_log_file})
-  add_test(NAME ${test_name}.pot_regex COMMAND cat ${test_log_file})
-  add_test(NAME ${test_name}.sx_regex COMMAND cat ${test_log_file})
-  add_test(NAME ${test_name}.sy_regex COMMAND cat ${test_log_file})
-  # Those two tests will only succeed (be EXACTLY 0.0 instead of 1e-20) with the correct build flags being enforced
-  # Considering the other cases are still within machine precision this should not be an issue
-  # Still for builds with the correct flags it's prudent to check that it is exactly 0.0
-  add_test(NAME ${test_name}.spc1_regex COMMAND cat ${test_log_file})
-  add_test(NAME ${test_name}.spc2_regex COMMAND cat ${test_log_file})
-  add_test(NAME ${test_name}.spc3_regex COMMAND cat ${test_log_file})
-  add_test(NAME ${test_name}.spc4_regex COMMAND cat ${test_log_file})
-  add_test(NAME ${test_name}.spc5_regex COMMAND cat ${test_log_file})
-  set_tests_properties(${test_name}.rho_regex PROPERTIES
-    FIXTURES_REQUIRED ${test_name}
-    PASS_REGULAR_EXPRESSION ${rho_regex})
-  set_tests_properties(${test_name}.egas_regex PROPERTIES
-    FIXTURES_REQUIRED ${test_name}
-    PASS_REGULAR_EXPRESSION ${egas_regex})
-  set_tests_properties(${test_name}.tau_regex PROPERTIES
-    FIXTURES_REQUIRED ${test_name}
-    PASS_REGULAR_EXPRESSION ${tau_regex})
-  set_tests_properties(${test_name}.pot_regex PROPERTIES
-    FIXTURES_REQUIRED ${test_name}
-    PASS_REGULAR_EXPRESSION ${pot_regex})
-  set_tests_properties(${test_name}.sx_regex PROPERTIES
-    FIXTURES_REQUIRED ${test_name}
-    PASS_REGULAR_EXPRESSION ${sx_regex})
-  set_tests_properties(${test_name}.sy_regex PROPERTIES
-    FIXTURES_REQUIRED ${test_name}
-    PASS_REGULAR_EXPRESSION ${sy_regex})
-  # Those two tests will only succeed (be EXACTLY 0.0 instead of 1e-20) with the correct build flags being enforced
-  # Considering the other cases are still within machine precision this should not be an issue
-  # Still for builds with the correct flags it's prudent to check that it is exactly 0.0
-  set_tests_properties(${test_name}.spc1_regex PROPERTIES
-    FIXTURES_REQUIRED ${test_name}
-    PASS_REGULAR_EXPRESSION ${spc1_regex})
-  set_tests_properties(${test_name}.spc2_regex PROPERTIES
-    FIXTURES_REQUIRED ${test_name}
-    PASS_REGULAR_EXPRESSION ${spc2_regex})
-  set_tests_properties(${test_name}.spc3_regex PROPERTIES
-    FIXTURES_REQUIRED ${test_name}
-    PASS_REGULAR_EXPRESSION ${spc3_regex})
-  set_tests_properties(${test_name}.spc4_regex PROPERTIES
-    FIXTURES_REQUIRED ${test_name}
-    PASS_REGULAR_EXPRESSION ${spc4_regex})
-  set_tests_properties(${test_name}.spc5_regex PROPERTIES
-    FIXTURES_REQUIRED ${test_name}
-    PASS_REGULAR_EXPRESSION ${spc5_regex})
+  addOctotigerAnalyticCheck(${test_name}.numerical ${test_name} ${test_log_file}.json
+    "${rho_regex}" "${egas_regex}" "${tau_regex}" "${pot_regex}"
+    "${sx_regex}" "${spc1_regex}" "${spc2_regex}"
+    "${spc3_regex}" "${spc4_regex}" "${spc5_regex}")
 
   if (NOT ${reference_filename} STREQUAL "none" )
     add_test(NAME ${test_name}.diff
@@ -116,7 +70,7 @@ function(test_sod_scenario test_name test_log_file ini_filename reference_filena
       FAIL_REGULAR_EXPRESSION ${OCTOTIGER_SILODIFF_FAIL_PATTERN})
   endif()
 
-  add_test(${test_name}.fixture_cleanup ${CMAKE_COMMAND} -E remove ${PROJECT_BINARY_DIR}/test_problems/sod/final.silo ${PROJECT_BINARY_DIR}/test_problems/sod/final.silo.data/0.silo ${test_log_file})
+  add_test(${test_name}.fixture_cleanup ${CMAKE_COMMAND} -E remove ${PROJECT_BINARY_DIR}/test_problems/sod/final.silo ${PROJECT_BINARY_DIR}/test_problems/sod/final.silo.data/0.silo ${test_log_file} ${test_log_file}.json)
   set_tests_properties(${test_name}.fixture_cleanup PROPERTIES
       FIXTURES_CLEANUP ${test_name}
   )

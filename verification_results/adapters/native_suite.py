@@ -20,24 +20,24 @@ import time
 import numpy as np
 from scipy.integrate import solve_ivp
 from scipy.special import erf
-from verification_results.radiation.damping_reference import damping_checks
-from verification_results.radiation.validate_so import production_source
+from verification_results.radiation.damping_reference import dampingChecks
+from verification_results.radiation.validate_so import productionSource
 
-ROOT=Path(__file__).resolve().parents[2]
+root=Path(__file__).resolve().parents[2]
 C=2.99792458e10
 
-RAW_SCHEMAS={
+rawSchemas={
     'samples.csv':'frame,t,x,E,Fx,gas_energy,momentum'.split(','),
     'history.csv':'t,mean_E,mean_gas,mean_momentum,mean_Fx,min_E,max_reduced_flux,gas_dt,rad_dt,subcycles,rcycle,hcycle,hydro_ghost_unchanged'.split(','),
     'exchanges.csv':'gas_step,event,rcycle,hcycle,time,interior_E,interior_Fx,halo_valid,hydro_unchanged'.split(','),
 }
 
-def sync_directory(path):
+def syncDirectory(path):
     descriptor=os.open(path,os.O_RDONLY|getattr(os,'O_DIRECTORY',0))
     try:os.fsync(descriptor)
     finally:os.close(descriptor)
 
-def atomic_write(path,payload):
+def atomicWrite(path,payload):
     """Publish closed, synced bytes, then verify what the published path returns.
 
     This detects failed/changed writes at the check, not arbitrary corruption
@@ -48,31 +48,60 @@ def atomic_write(path,payload):
     with tempfile.NamedTemporaryFile(dir=path.parent,prefix='.'+path.name+'.',suffix='.pending',delete=False) as stream:
         temporary=Path(stream.name)
         stream.write(payload);stream.flush();os.fsync(stream.fileno())
-    temporary.replace(path);sync_directory(path.parent)
+    temporary.replace(path);syncDirectory(path.parent)
     if path.read_bytes()!=payload:raise RuntimeError(f'Artifact readback mismatch: {path}')
 
 def dump(path,value):
-    atomic_write(path,json.dumps(value,indent=2,allow_nan=False)+'\n')
+    atomicWrite(path,json.dumps(value,indent=2,allow_nan=False)+'\n')
 
-def file_record(path):
+def fileRecord(path):
     payload=Path(path).read_bytes()
     return {'bytes':len(payload),'sha256':hashlib.sha256(payload).hexdigest()}
 
-def check_file_records(folder,records):
+def checkFileRecords(folder,records):
     for name,expected in records.items():
         path=folder/name
-        if not path.is_file() or file_record(path)!=expected:
+        if not path.is_file() or fileRecord(path)!=expected:
             raise RuntimeError(f'Artifact integrity mismatch: {path}')
 
-def read_csv_strict(path,columns,allow_empty=False):
+
+def runVisible(command, cwd, logPath):
+    """Mirror a native fixture's output to its durable log and the terminal."""
+    with Path(logPath).open('w') as log:
+        process = subprocess.Popen(command, cwd=cwd, stdout=subprocess.PIPE,
+                                   stderr=subprocess.STDOUT, text=True, bufsize=1)
+        assert process.stdout is not None
+        try:
+            for line in process.stdout:
+                sys.stdout.write(line)
+                sys.stdout.flush()
+                log.write(line)
+                log.flush()
+            returncode = process.wait()
+        except BaseException:
+            process.terminate()
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait()
+            raise
+        finally:
+            process.stdout.close()
+        log.flush()
+        os.fsync(log.fileno())
+    if returncode:
+        raise subprocess.CalledProcessError(returncode, command)
+
+def readCsvStrict(path,columns,allowEmpty=False):
     """Reject malformed, partial, nonfinite, or unexpected native CSV data."""
     raw=Path(path).read_bytes()
     if not raw or not raw.endswith(b'\n'):
         raise ValueError(f'{path}: empty or unterminated CSV')
     rows=list(csv.reader(io.StringIO(raw.decode('utf8')),strict=True))
     if not rows or rows[0]!=columns:raise ValueError(f'{path}: incorrect CSV schema')
-    if not allow_empty and len(rows)==1:raise ValueError(f'{path}: no data rows')
-    integer_fields={'frame','gas_step','subcycles','rcycle','hcycle','hydro_ghost_unchanged','halo_valid','hydro_unchanged'}
+    if not allowEmpty and len(rows)==1:raise ValueError(f'{path}: no data rows')
+    integerFields={'frame','gas_step','subcycles','rcycle','hcycle','hydro_ghost_unchanged','halo_valid','hydro_unchanged'}
     values=[]
     for number,row in enumerate(rows[1:],2):
         if len(row)!=len(columns) or any(not value.strip() for value in row):
@@ -84,31 +113,31 @@ def read_csv_strict(path,columns,allow_empty=False):
                 converted.append(value);continue
             value=float(value)
             if not math.isfinite(value):raise ValueError(f'{path}:{number}: nonfinite {column}')
-            if column in integer_fields and value!=int(value):raise ValueError(f'{path}:{number}: noninteger {column}')
+            if column in integerFields and value!=int(value):raise ValueError(f'{path}:{number}: noninteger {column}')
             converted.append(value)
         values.append(tuple(converted))
     return np.array(values,dtype=[(column,'U16' if column=='event' else float) for column in columns])
 
-def validate_raw(name,p,folder,n):
-    data={filename:read_csv_strict(folder/filename,columns,allow_empty=filename=='exchanges.csv' and name!='boundary_subcycles')
-          for filename,columns in RAW_SCHEMAS.items()}
+def validateRaw(name,p,folder,n):
+    data={filename:readCsvStrict(folder/filename,columns,allowEmpty=filename=='exchanges.csv' and name!='boundary_subcycles')
+          for filename,columns in rawSchemas.items()}
     s=data['samples.csv'];h=data['history.csv'];events=data['exchanges.csv']
     frames=p['frames'];end=p['final_time_s']
     # These are serialization/time-grid checks, not physics acceptance bounds.
-    time_atol=32*np.finfo(float).eps*abs(end)
+    timeAtol=32*np.finfo(float).eps*abs(end)
     if len(s)!=frames*n or not np.array_equal(s['frame'],np.repeat(np.arange(frames),n)):
         raise ValueError(f'{folder}/samples.csv: incomplete or unordered frame/cell coverage')
     targets=np.linspace(0,end,frames)
-    if not np.allclose(s['t'],np.repeat(targets,n),rtol=32*np.finfo(float).eps,atol=time_atol):
+    if not np.allclose(s['t'],np.repeat(targets,n),rtol=32*np.finfo(float).eps,atol=timeAtol):
         raise ValueError(f'{folder}/samples.csv: incorrect frame times or missing final time')
     x=-p['length_cm']/2+(np.arange(n)+.5)*p['length_cm']/n
     if not np.allclose(s['x'],np.tile(x,frames),rtol=32*np.finfo(float).eps,atol=32*np.finfo(float).eps*p['length_cm']):
         raise ValueError(f'{folder}/samples.csv: incorrect cell coordinates')
-    if len(h)<frames or h['t'][0]!=0 or not np.isclose(h['t'][-1],end,rtol=32*np.finfo(float).eps,atol=time_atol) or np.any(np.diff(h['t'])<=0):
+    if len(h)<frames or h['t'][0]!=0 or not np.isclose(h['t'][-1],end,rtol=32*np.finfo(float).eps,atol=timeAtol) or np.any(np.diff(h['t'])<=0):
         raise ValueError(f'{folder}/history.csv: incomplete/nonmonotone time history')
-    if np.any(h['gas_dt'][1:]<=0) or not np.allclose(np.diff(h['t']),h['gas_dt'][1:],rtol=32*np.finfo(float).eps,atol=time_atol):
+    if np.any(h['gas_dt'][1:]<=0) or not np.allclose(np.diff(h['t']),h['gas_dt'][1:],rtol=32*np.finfo(float).eps,atol=timeAtol):
         raise ValueError(f'{folder}/history.csv: missing/inconsistent timesteps')
-    if not all(np.any(np.isclose(h['t'],target,rtol=32*np.finfo(float).eps,atol=time_atol)) for target in targets):
+    if not all(np.any(np.isclose(h['t'],target,rtol=32*np.finfo(float).eps,atol=timeAtol)) for target in targets):
         raise ValueError(f'{folder}/history.csv: missing frame history')
     if name=='boundary_subcycles':
         if not np.array_equal(np.unique(events['gas_step']),np.arange(len(h)-1)):
@@ -120,49 +149,49 @@ def validate_raw(name,p,folder,n):
         raise ValueError(f'{folder}/run.log: missing or inconsistent completion record')
     return data
 
-def publish_raw(staging,folder):
+def publishRaw(staging,folder):
     """Keep incomplete fixture outputs staged; publish validated snapshots only."""
     records={}
-    for filename in [*RAW_SCHEMAS,'run.log']:
+    for filename in [*rawSchemas,'run.log']:
         payload=(staging/filename).read_bytes()
-        atomic_write(folder/filename,payload)
+        atomicWrite(folder/filename,payload)
         records[filename]={'bytes':len(payload),'sha256':hashlib.sha256(payload).hexdigest()}
-    check_file_records(folder,records)
+    checkFileRecords(folder,records)
     return records
 
-def validate_movie(path,expected_frames,ffmpeg,log_path=None):
+def validateMovie(path,expectedFrames,ffmpeg,logPath=None):
     # Decode every frame; a nonempty container or metadata-only probe is not enough.
-    before=file_record(path)
+    before=fileRecord(path)
     command=[ffmpeg,'-v','error','-xerror','-err_detect','explode','-i',str(path),
              '-map','0:v:0','-vsync','0','-f','framehash','-hash','sha256','-']
     process=subprocess.run(command,text=True,capture_output=True)
-    if log_path is not None:atomic_write(log_path,process.stdout+process.stderr)
+    if logPath is not None:atomicWrite(logPath,process.stdout+process.stderr)
     if process.returncode:
         raise RuntimeError(f'Movie decode failed for {path}: {process.stderr.strip()}')
     frames=[line for line in process.stdout.splitlines() if line.strip() and not line.startswith('#')]
-    if len(frames)!=expected_frames or any(len(line.split(','))!=6 for line in frames):
-        raise RuntimeError(f'Movie frame count mismatch for {path}: decoded {len(frames)}, expected {expected_frames}')
-    if file_record(path)!=before:raise RuntimeError(f'Movie changed during validation: {path}')
+    if len(frames)!=expectedFrames or any(len(line.split(','))!=6 for line in frames):
+        raise RuntimeError(f'Movie frame count mismatch for {path}: decoded {len(frames)}, expected {expectedFrames}')
+    if fileRecord(path)!=before:raise RuntimeError(f'Movie changed during validation: {path}')
     return {'decoded_frames':len(frames),'decoder':'ffmpeg full framehash decode','artifact':before}
 
-def seal_artifacts(folder,raw_records):
-    check_file_records(folder,raw_records)
+def sealArtifacts(folder,rawRecords):
+    checkFileRecords(folder,rawRecords)
     validation=json.loads((folder/'movie-validation.json').read_text())
-    check_file_records(folder,{'movie.mp4':validation['artifact']})
-    names=[*RAW_SCHEMAS,'run.log','input.txt','comparison.csv','comparison.png','movie.mp4','movie.log','movie-validation.log','movie-validation.json','products.json']
+    checkFileRecords(folder,{'movie.mp4':validation['artifact']})
+    names=[*rawSchemas,'run.log','input.txt','comparison.csv','comparison.png','movie.mp4','movie.log','movie-validation.log','movie-validation.json','products.json']
     names += [path.relative_to(folder).as_posix() for path in sorted((folder/'frames').glob('*.png'))]
-    records={name:file_record(folder/name) for name in names}
+    records={name:fileRecord(folder/name) for name in names}
     manifest={'schema_version':1,'algorithm':'sha256','files':records}
     dump(folder/'artifacts.json',manifest)
-    check_file_records(folder,records)
-    return {'manifest':'artifacts.json','manifest_sha256':file_record(folder/'artifacts.json')['sha256'],
+    checkFileRecords(folder,records)
+    return {'manifest':'artifacts.json','manifest_sha256':fileRecord(folder/'artifacts.json')['sha256'],
             'status':'passed','file_count':len(records)},records
 
-def verify_artifacts(folder,expected=None):
+def verifyArtifacts(folder,expected=None):
     """Recheck retained results, optionally against the in-process sealed snapshot."""
     metadata=json.loads((folder/'run.json').read_text())
     integrity=metadata.get('artifact_integrity',{})
-    if integrity.get('status')!='passed' or integrity.get('manifest')!='artifacts.json' or integrity.get('manifest_sha256')!=file_record(folder/'artifacts.json')['sha256']:
+    if integrity.get('status')!='passed' or integrity.get('manifest')!='artifacts.json' or integrity.get('manifest_sha256')!=fileRecord(folder/'artifacts.json')['sha256']:
         raise ValueError(f'{folder}/artifacts.json: manifest does not match run metadata')
     manifest=json.loads((folder/'artifacts.json').read_text())
     if manifest.get('schema_version')!=1 or manifest.get('algorithm')!='sha256' or not manifest.get('files'):
@@ -170,32 +199,32 @@ def verify_artifacts(folder,expected=None):
     records=manifest['files']
     for name in records:
         if Path(name).is_absolute() or '..' in Path(name).parts:raise ValueError('Invalid artifact path')
-    if expected is not None:check_file_records(folder,expected)
-    check_file_records(folder,records)
+    if expected is not None:checkFileRecords(folder,expected)
+    checkFileRecords(folder,records)
     return True
 
-def source_identity():
+def sourceIdentity():
     def git(*args):
-        p=subprocess.run(['git',*args],cwd=ROOT,text=True,capture_output=True)
+        p=subprocess.run(['git',*args],cwd=root,text=True,capture_output=True)
         return p.stdout.strip() if p.returncode==0 else 'unknown'
-    files=[ROOT/'src/radiation/rad_grid.cpp',ROOT/'verification_results/runner.py',
-           ROOT/'verification_results/radiation/validate_so.py',ROOT/'verification_results/radiation/damping_reference.py']
-    files+=list((ROOT/'octotiger').rglob('*.hpp'))+list((ROOT/'test_problems/radiation').glob('*.hpp'))
-    files+=list((ROOT/'verification_results/radiation/tests_so').glob('*.inc'))
-    files+=list((ROOT/'verification_results/adapters').glob('*.py'))
-    hashes={str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(files)}
+    files=[root/'src/radiation/rad_grid.cpp',root/'verification_results/runner.py',
+           root/'verification_results/radiation/validate_so.py',root/'verification_results/radiation/damping_reference.py']
+    files+=list((root/'octotiger').rglob('*.hpp'))+list((root/'test_problems/radiation').glob('*.hpp'))
+    files+=list((root/'verification_results/radiation/tests_so').glob('*.inc'))
+    files+=list((root/'verification_results/adapters').glob('*.py'))
+    hashes={str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(files)}
     commit=git('rev-parse','HEAD');state=git('status','--porcelain')
     if commit=='unknown':
-        exported=(ROOT/'verification_results/SOURCE_VERSION').read_text().strip()
+        exported=(root/'verification_results/SOURCE_VERSION').read_text().strip()
         if len(exported)==40 and all(c in '0123456789abcdef' for c in exported):commit=exported
     import scipy,matplotlib
     return {'commit':commit,'dirty':None if state=='unknown' else bool(state),
             'python':sys.version,'numpy':np.__version__,'scipy':scipy.__version__,'matplotlib':matplotlib.__version__,
             'files':hashes,'sha256':hashlib.sha256(json.dumps(hashes,sort_keys=True).encode()).hexdigest()}
 
-def compile_fixture(out,n,pc,build,cxx,identity):
-    generated=production_source(ROOT)
-    checks=(ROOT/'verification_results/radiation/tests_so/checks.inc').read_text().split('int main() {')[0]
+def compileFixture(out,n,pc,build,cxx,identity):
+    generated=productionSource(root)
+    checks=(root/'verification_results/radiation/tests_so/checks.inc').read_text().split('int main() {')[0]
     if pc:
         needle='using M1=RadiationM1<Real,NDIM>;'
         assert generated.count(needle)==1
@@ -206,7 +235,7 @@ struct M1:BaseM1 {
    center.checkState("piecewise constant test center");return {center,center};
  }
 };''')
-    fixture=(ROOT/'verification_results/radiation/tests_so/suite.inc').read_text()
+    fixture=(root/'verification_results/radiation/tests_so/suite.inc').read_text()
     marker='    std::cout<<"completed "'
     if fixture.count(marker)!=1:raise RuntimeError('Fixture completion marker changed')
     # Destructors cannot report buffered close failures. Close the verification
@@ -218,9 +247,9 @@ struct M1:BaseM1 {
     key=hashlib.sha256((generated+identity['sha256']+version+str(n)+str(flags)).encode()).hexdigest()
     directory=out/'.build'/key;directory.mkdir(parents=True,exist_ok=True)
     src=directory/'suite.cpp';exe=directory/'suite'
-    command=[cxx,'-std=c++23',*flags,f'-DTEST_CELLS={n}','-I'+str(ROOT),str(src),'-o',str(exe)]
+    command=[cxx,'-std=c++23',*flags,f'-DTEST_CELLS={n}','-I'+str(root),str(src),'-o',str(exe)]
     if not exe.exists():
-        atomic_write(src,generated)
+        atomicWrite(src,generated)
         with (directory/'build.log').open('w') as log:
             subprocess.run(command,stdout=log,stderr=subprocess.STDOUT,check=True)
     return exe,{'compiler':version.splitlines()[0],'build_type':build,'command':command,
@@ -229,14 +258,14 @@ struct M1:BaseM1 {
 
 def reference(name,p,t,x,n):
     L=p['length_cm'];dx=L/n;c=p['c_cm_s'];v=c*p['reduced_light_speed_ratio'];chi=p['chi_cm_inverse']
-    E0=p['radiation_energy_erg_cm3'];A=p['amplitude'];width=p['width_cm']
+    e0=p['radiation_energy_erg_cm3'];A=p['amplitude'];width=p['width_cm']
     if name=='streaming_front_1d':
         def primitive(y):
             cycles=np.floor((y+L/2)/L);rem=y+L/2-cycles*L
             return cycles*L/2+np.minimum(rem,L/2)
         return 1e-10+(1-1e-10)*(primitive(x-v*t+dx/2)-primitive(x-v*t-dx/2))/dx
     if name=='thin_gaussian':
-        E=np.full_like(x,E0)
+        E=np.full_like(x,e0)
         for image in range(-4,5):
             E+=A*.5*np.sqrt(np.pi)*width/dx*(erf((x-v*t+dx/2+image*L)/width)-erf((x-v*t-dx/2+image*L)/width))
         return E
@@ -244,16 +273,16 @@ def reference(name,p,t,x,n):
         rho=p['rho_g_cm3'];gas=p['gas_internal_erg_cm3'];velocity=p['velocity_cm_s'];ratio=p['reduced_light_speed_ratio']
         if name=='thermal_relaxation':
             alpha=4*5.670374419e-5/c*((2/3)*1.6735575e-24/(rho*1.380649e-16))**4
-            total=gas+E0/ratio
+            total=gas+e0/ratio
             def rhs(_,u):return [v*chi*(alpha*(total-u[0]/ratio)**4-u[0])]
-            sol=solve_ivp(rhs,[0,p['final_time_s']],[E0],rtol=2e-12,atol=2e-14,dense_output=True)
+            sol=solve_ivp(rhs,[0,p['final_time_s']],[e0],rtol=2e-12,atol=2e-14,dense_output=True)
             if not sol.success:raise RuntimeError(sol.message)
             return np.full_like(x,sol.sol(t)[0])
-        Q0=.1*E0;mom=rho*velocity+Q0/(c*ratio)
+        q0=.1*e0;mom=rho*velocity+q0/(c*ratio)
         def rhs(_,u):
             E,Q=u;vel=(mom-Q/(c*ratio))/rho
             return [-ratio*chi*vel*Q,-v*chi*Q+ratio*chi*(4/3)*E*vel]
-        sol=solve_ivp(rhs,[0,p['final_time_s']],[E0,Q0],rtol=2e-12,atol=2e-14,dense_output=True)
+        sol=solve_ivp(rhs,[0,p['final_time_s']],[e0,q0],rtol=2e-12,atol=2e-14,dense_output=True)
         if not sol.success:raise RuntimeError(sol.message)
         return np.full_like(x,sol.sol(t)[0])
     amplitude=A*np.sinc(1/n)
@@ -264,11 +293,11 @@ def reference(name,p,t,x,n):
         k=2*np.pi/L
         matrix=np.array([[0,-v*k],[v*k/3,-v*chi]])
         factor=expm(matrix*t)[0,0]
-        return E0+amplitude*factor*np.cos(k*x)
-    value=E0+amplitude*np.cos(2*np.pi*(x-v*t)/L)
+        return e0+amplitude*factor*np.cos(k*x)
+    value=e0+amplitude*np.cos(2*np.pi*(x-v*t)/L)
     return value*np.exp(-v*chi*t) if name=='damped_wave' else value
 
-def check_exchange_trace(events,h):
+def checkExchangeTrace(events,h):
     checks={}
     for step in np.unique(events['gas_step']):
         a=events[events['gas_step']==step];bounds=a[a['event']=='radiation'];hydro=a[a['event']=='hydro'];flux=a[a['event']=='flux']
@@ -278,9 +307,9 @@ def check_exchange_trace(events,h):
         checks['flux_interval_time']=checks.get('flux_interval_time',True) and bool(np.array_equal(flux['time'],bounds['time'][:-1]))
         checks['state_and_hydro']=checks.get('state_and_hydro',True) and bool(np.all(bounds['halo_valid']==1) and np.all(bounds['hydro_unchanged']==1))
         index=int(step)
-        expected_times=np.linspace(h['t'][index],h['t'][index+1],int(h['subcycles'][index+1])+1)
-        valid_times=len(bounds)==len(expected_times) and np.allclose(bounds['time'],expected_times,rtol=2e-14,atol=2e-15)
-        checks['subcycle_times']=checks.get('subcycle_times',True) and bool(valid_times)
+        expectedTimes=np.linspace(h['t'][index],h['t'][index+1],int(h['subcycles'][index+1])+1)
+        validTimes=len(bounds)==len(expectedTimes) and np.allclose(bounds['time'],expectedTimes,rtol=2e-14,atol=2e-15)
+        checks['subcycle_times']=checks.get('subcycle_times',True) and bool(validTimes)
         if len(bounds)>2:checks['fresh_radiation_state']=checks.get('fresh_radiation_state',True) and bool(np.any(np.diff(bounds['interior_Fx'])!=0))
     checks['radiation_exchanges_exceed_hydro']=int(np.sum(events['event']=='radiation'))>int(np.sum(events['event']=='hydro'))
     # Exact absolute start/end checks against the production interval records.
@@ -289,7 +318,7 @@ def check_exchange_trace(events,h):
 
 def evaluate(name,d,folder,n):
     p=d['parameters'];tol=d['tolerance_policy']
-    data=validate_raw(name,p,folder,n);h=data['history.csv'];s=data['samples.csv']
+    data=validateRaw(name,p,folder,n);h=data['history.csv'];s=data['samples.csv']
     final=s[s['frame']==s['frame'].max()];ref=reference(name,p,float(final['t'][0]),final['x'],n)
     error=final['E']-ref
     norm=max(p['amplitude'],1e-30) if name not in {'thermal_relaxation','moving_scattering','boundary_subcycles','damped_wave','streaming_front_1d'} else p['radiation_energy_erg_cm3']
@@ -316,7 +345,7 @@ def evaluate(name,d,folder,n):
     else:
         expected=h['mean_E'][0]*np.exp(-C*p['chi_cm_inverse']*h['t'])
         checks['absorption_decay']=bool(np.max(abs(h['mean_E']-expected))<=2/n)
-        checks.update(damping_checks(h,p))
+        checks.update(dampingChecks(h,p))
     budget=h['mean_momentum']+h['mean_Fx']/(C*C*ratio)
     # Only conserved in periodic source-free transport or when feedback is enabled.
     if name!='thermal_relaxation':
@@ -324,61 +353,61 @@ def evaluate(name,d,folder,n):
     if name.startswith('streaming_') or name in {'thin_gaussian','damped_wave'}:
         phase0=np.sum(s[s['frame']==0]['E']*np.exp(-2j*np.pi*final['x']/p['length_cm']))
         phase1=np.sum(final['E']*np.exp(-2j*np.pi*final['x']/p['length_cm']))
-        phase_error=float(abs(np.angle(phase1/phase0*np.exp(2j*np.pi*C*p['final_time_s']/p['length_cm']))))
-        checks['propagation_speed']=phase_error<=2*np.pi/n
+        phaseError=float(abs(np.angle(phase1/phase0*np.exp(2j*np.pi*C*p['final_time_s']/p['length_cm']))))
+        checks['propagation_speed']=phaseError<=2*np.pi/n
         checks['symmetric_streaming_limit']=bool(np.max(abs(final['Fx']/C-final['E']))<=2e-12)
-    else:phase_error=None
+    else:phaseError=None
     if name=='thermal_relaxation':
         checks['relaxation_toward_equilibrium']=bool(h['mean_E'][-1]<h['mean_E'][0] and h['mean_gas'][-1]>h['mean_gas'][0])
     if name=='moving_scattering':checks['mechanical_work']=bool(h['mean_E'][-1]<h['mean_E'][0])
     if name=='boundary_subcycles':
         events=data['exchanges.csv']
-        checks.update(check_exchange_trace(events,h))
+        checks.update(checkExchangeTrace(events,h))
     if name in {'static_diffusion','diffusion_thicker'}:
         k=2*np.pi/p['length_cm'];factor=float(np.dot(final['E']-1,np.cos(k*final['x']))/np.dot(np.cos(k*final['x']),np.cos(k*final['x'])))/(p['amplitude']*np.sinc(1/n))
-        expected_diff=math.exp(-C*k*k*p['final_time_s']/(3*p['chi_cm_inverse']))
-        checks['diffusion_scaling']=abs(factor-expected_diff)<=2/n+2*(k/p['chi_cm_inverse'])**2
-    else:factor=expected_diff=None
+        expectedDiff=math.exp(-C*k*k*p['final_time_s']/(3*p['chi_cm_inverse']))
+        checks['diffusion_scaling']=abs(factor-expectedDiff)<=2/n+2*(k/p['chi_cm_inverse'])**2
+    else:factor=expectedDiff=None
     comparison=io.StringIO()
     np.savetxt(comparison,np.column_stack([final['x'],final['E'],ref,error]),delimiter=',',header='x,E,reference,signed_error',comments='')
-    atomic_write(folder/'comparison.csv',comparison.getvalue())
+    atomicWrite(folder/'comparison.csv',comparison.getvalue())
     checks={key:bool(value) for key,value in checks.items()}
     return {'status':'passed' if all(checks.values()) else 'failed','cells':n,'L1':l1,
             'L2':float(np.sqrt(np.mean(error**2)))/norm,'Linf':float(np.max(abs(error)))/norm,
-            'norm_scale':norm,'checks':checks,'phase_error_radians':phase_error,
-            'diffusion_amplitude':factor,'diffusion_limit_amplitude':expected_diff,
+            'norm_scale':norm,'checks':checks,'phase_error_radians':phaseError,
+            'diffusion_amplitude':factor,'diffusion_limit_amplitude':expectedDiff,
             'timesteps':{k:[float(np.min(h[k][1:])),float(np.max(h[k][1:]))] for k in ['gas_dt','rad_dt','subcycles']}}
 
 def visualize(d,folder,n,ffmpeg):
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
-    s=read_csv_strict(folder/'samples.csv',RAW_SCHEMAS['samples.csv'])
-    comparison_data=read_csv_strict(folder/'comparison.csv',['x','E','reference','signed_error'])
-    if len(comparison_data)!=n:raise ValueError('Incomplete comparison cell coverage')
-    comparison=np.column_stack([comparison_data[column] for column in comparison_data.dtype.names])
+    s=readCsvStrict(folder/'samples.csv',rawSchemas['samples.csv'])
+    comparisonData=readCsvStrict(folder/'comparison.csv',['x','E','reference','signed_error'])
+    if len(comparisonData)!=n:raise ValueError('Incomplete comparison cell coverage')
+    comparison=np.column_stack([comparisonData[column] for column in comparisonData.dtype.names])
     fig,axes=plt.subplots(2,1,figsize=(8,6),sharex=True)
     axes[0].plot(comparison[:,0],comparison[:,1],'.-',label='Numerical')
     axes[0].plot(comparison[:,0],comparison[:,2],label='Reference');axes[0].legend();axes[0].set_ylabel('E [erg cm⁻³]')
     axes[1].plot(comparison[:,0],comparison[:,3]);axes[1].axhline(0,color='gray',lw=.5)
     axes[1].set(xlabel='x [cm]',ylabel='Signed error [erg cm⁻³]');fig.suptitle(d['name']+f' | N={n}')
-    fig.tight_layout();buffer=io.BytesIO();fig.savefig(buffer,format='png',dpi=120);atomic_write(folder/'comparison.png',buffer.getvalue());plt.close(fig)
+    fig.tight_layout();buffer=io.BytesIO();fig.savefig(buffer,format='png',dpi=120);atomicWrite(folder/'comparison.png',buffer.getvalue());plt.close(fig)
     frames=folder/'frames';frames.mkdir()
     lo=float(np.min(s['E']));hi=float(np.max(s['E']));pad=max((hi-lo)*.1,1e-12)
     for frame in np.unique(s['frame']).astype(int):
         a=s[s['frame']==frame];ref=reference(d['name'],d['parameters'],float(a['t'][0]),a['x'],n)
         fig,ax=plt.subplots(figsize=(8,4.5));ax.plot(a['x'],a['E'],'.-',label='Numerical');ax.plot(a['x'],ref,label='Reference')
         ax.set(xlabel='x [cm]',ylabel='E [erg cm⁻³]',ylim=(lo-pad,hi+pad),title=f"{d['name']} | t={a['t'][0]:.6g} s");ax.legend();fig.tight_layout()
-        buffer=io.BytesIO();fig.savefig(buffer,format='png',dpi=100);atomic_write(frames/f'{frame:04d}.png',buffer.getvalue());plt.close(fig)
+        buffer=io.BytesIO();fig.savefig(buffer,format='png',dpi=100);atomicWrite(frames/f'{frame:04d}.png',buffer.getvalue());plt.close(fig)
     pending=folder/'movie.pending.mp4'
     with (folder/'movie.log').open('w') as log:
         subprocess.run([ffmpeg,'-y','-framerate','4','-i',str(frames/'%04d.png'),'-c:v','libx264','-pix_fmt','yuv420p',str(pending)],stdout=log,stderr=subprocess.STDOUT,check=True)
         log.flush();os.fsync(log.fileno())
-    validation=validate_movie(pending,len(np.unique(s['frame'])),ffmpeg,folder/'movie-validation.log')
+    validation=validateMovie(pending,len(np.unique(s['frame'])),ffmpeg,folder/'movie-validation.log')
     payload=pending.read_bytes()
     if {'bytes':len(payload),'sha256':hashlib.sha256(payload).hexdigest()}!=validation['artifact']:
         raise RuntimeError('Movie changed after decode validation')
-    atomic_write(folder/'movie.mp4',payload)
+    atomicWrite(folder/'movie.mp4',payload)
     dump(folder/'movie-validation.json',validation)
     return ['comparison.png','movie.mp4']
 
@@ -415,7 +444,12 @@ def web(out,results,embedded=False):
                         parts.append('<li><a download="'+html.escape(label)+'" href="'+url+'">'+html.escape(label)+'</a></li>')
             parts.append('</ul></details>')
         parts.append('</article>')
-    atomic_write(out/('report.html' if embedded else 'index.html'),''.join(parts))
+    document=''.join(parts)
+    # The unified site always links ``radiation/report.html``.  Publish that
+    # path from the first live update instead of creating it only after every
+    # radiation test has finished.
+    atomicWrite(out/'index.html',document)
+    atomicWrite(out/'report.html',document)
 
 def execute(selected,arguments,plan=False):
     from verification_results import runner
@@ -428,13 +462,13 @@ def execute(selected,arguments,plan=False):
     if build.lower() not in {'debug','release','relwithdebinfo'}:raise ValueError('Invalid build type')
     if opts.threads<1:raise ValueError('Thread count must be positive')
     if len(builds)>1 or any(x<0 or x>5 for x in levels) or levels!=sorted(set(levels)):raise ValueError('Use distinct increasing resolution levels and one build type')
-    out=runner.safe_output(opts.output or runner.default_output('suite'))
+    out=runner.safeOutput(opts.output or runner.defaultOutput('suite'))
     manifest={'selected':[k for k,_ in selected],'levels':levels or 'descriptor defaults','build_type':build,'output':str(out),
               'requested_application_threads':opts.threads,'fixture_threads':1,
               'thread_note':'Native method fixtures are serial; full Octo-TIGER application adapters use the requested HPX thread count.'}
     if plan:print(json.dumps(manifest,indent=2));return 0
     if out.exists() and any(out.iterdir()):raise ValueError('Suite output must be empty; retain prior results and choose a new directory')
-    out.mkdir(parents=True,exist_ok=True);identity=source_identity();results=[];audits=[]
+    out.mkdir(parents=True,exist_ok=True);identity=sourceIdentity();results=[];audits=[]
     dump(out/'source.json',identity)
     for identifier,d in selected:
         result={'id':identifier,'regime':d['regime'],'status':'running','runs':[],'reference':d['reference_data']}
@@ -452,28 +486,27 @@ def execute(selected,arguments,plan=False):
                 dump(folder/'run.json',meta)
                 sealed=None
                 try:
-                    exe,build_meta=compile_fixture(out,n,p['reconstruction']=='piecewise_constant',build,opts.cxx,identity)
-                    meta['build']=build_meta
+                    exe,buildMeta=compileFixture(out,n,p['reconstruction']=='piecewise_constant',build,opts.cxx,identity)
+                    meta['build']=buildMeta
                     values=[d['name'],p['length_cm'],p['final_time_s'],p['chi_cm_inverse'],p['amplitude'],p['width_cm'],p['velocity_cm_s'],p['reduced_light_speed_ratio'],p['rho_g_cm3'],p['gas_internal_erg_cm3'],p['radiation_energy_erg_cm3'],p['frames']]
-                    atomic_write(folder/'input.txt',' '.join(map(str,values))+'\n')
+                    atomicWrite(folder/'input.txt',' '.join(map(str,values))+'\n')
                     staging=folder/'.raw-pending';staging.mkdir()
                     print(f'{identifier} level={level} cells={n} fixture_threads=1 requested_application_threads={opts.threads}',flush=True)
-                    with (staging/'run.log').open('w') as log:
-                        subprocess.run([str(exe),str(folder/'input.txt'),str(staging)],stdout=log,stderr=subprocess.STDOUT,check=True)
-                        log.flush();os.fsync(log.fileno())
-                    validate_raw(d['name'],p,staging,n)
-                    raw_records=publish_raw(staging,folder)
+                    runVisible([str(exe),str(folder/'input.txt'),str(staging)], folder,
+                                staging/'run.log')
+                    validateRaw(d['name'],p,staging,n)
+                    rawRecords=publishRaw(staging,folder)
                     status=evaluate(d['name'],d,folder,n);status['level']=level
                     meta.update(status);meta['products']=visualize(d,folder,n,opts.ffmpeg)
                     dump(folder/'products.json',{'run_metadata':'run.json','options':p,'source_commit':identity['commit'],'products':meta['products']})
-                    meta['artifact_integrity'],sealed=seal_artifacts(folder,raw_records)
+                    meta['artifact_integrity'],sealed=sealArtifacts(folder,rawRecords)
                     status['artifact_integrity']=meta['artifact_integrity']
                 except Exception as error:
                     status={'status':'failed','level':level,'cells':n,'error':str(error)};meta.update(status)
                     with (folder/'run.log').open('a') as log:log.write('\nHARNESS FAILURE: '+repr(error)+'\n')
                 dump(folder/'run.json',meta)
                 if sealed is not None:
-                    sealed.update({name:file_record(folder/name) for name in ['run.json','artifacts.json']})
+                    sealed.update({name:fileRecord(folder/name) for name in ['run.json','artifacts.json']})
                     audits.append((folder,result,status,meta,sealed))
                 result['runs'].append(status);dump(out/'summary.json',results);web(out,results)
             good=[r for r in result['runs'] if 'L1' in r]
@@ -486,15 +519,15 @@ def execute(selected,arguments,plan=False):
             if len(good)>1 and orders:
                 try:
                     import matplotlib.pyplot as plt
-                    fig,ax=plt.subplots();ax.loglog([r['cells'] for r in good],[r['L1'] for r in good],'o-');ax.set(xlabel='Cells per dimension',ylabel='Normalized L1',title=d['name']);fig.tight_layout();buffer=io.BytesIO();fig.savefig(buffer,format='png');atomic_write(out/identifier/'convergence.png',buffer.getvalue());plt.close(fig)
+                    fig,ax=plt.subplots();ax.loglog([r['cells'] for r in good],[r['L1'] for r in good],'o-');ax.set(xlabel='Cells per dimension',ylabel='Normalized L1',title=d['name']);fig.tight_layout();buffer=io.BytesIO();fig.savefig(buffer,format='png');atomicWrite(out/identifier/'convergence.png',buffer.getvalue());plt.close(fig)
                 except Exception as error:result.update(status='failed',reason='Convergence plot failed: '+str(error))
         dump(out/'summary.json',results);web(out,results)
         print(identifier,result['status'],result.get('orders',[]),flush=True)
-    def audit_completed():
+    def auditCompleted():
         changed=False
         for folder,result,status,meta,sealed in audits:
             if status.get('artifact_integrity',{}).get('status')=='failed':continue
-            try:verify_artifacts(folder,sealed)
+            try:verifyArtifacts(folder,sealed)
             except Exception as error:
                 changed=True;failure='Final artifact audit failed: '+str(error)
                 status.update(status='failed',error=failure,artifact_integrity={'status':'failed'})
@@ -503,10 +536,10 @@ def execute(selected,arguments,plan=False):
                 with (folder/'run.log').open('a') as log:log.write('\nHARNESS FAILURE: '+failure+'\n')
         if changed:dump(out/'summary.json',results);web(out,results)
         return changed
-    audit_completed()
+    auditCompleted()
     web(out,results,embedded=True)
     # Embedding reads the persisted products again. Recheck after that read so
     # a late mutation cannot retain an earlier passing summary/exit status.
-    if audit_completed():web(out,results,embedded=True)
+    if auditCompleted():web(out,results,embedded=True)
     failed=any(r['status']=='failed' for r in results);conditional=any(r['status']=='conditional' for r in results)
     return 1 if failed else 3 if conditional else 0

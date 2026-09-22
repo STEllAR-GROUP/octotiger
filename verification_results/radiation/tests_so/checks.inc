@@ -5,7 +5,7 @@ void near(long double a,long double b,long double scale,std::string const& label
         throw std::runtime_error(label);
     }
 }
-void reset() {opts()=options_fixture{};physcon()=constants_fixture{};}
+void reset() {opts()=OptionsFixture{};physcon()=ConstantsFixture{};}
 template<class Fn>void interiors(Fn fn) {
     for(int i=RAD_BW;i<RAD_BW+INX;++i)for(int j=RAD_BW;j<RAD_BW+INX;++j)
       for(int k=RAD_BW;k<RAD_BW+INX;++k) fn(rindex(i,j,k));
@@ -20,7 +20,7 @@ void initialize(rad_grid& r,grid& g,Real E=1,Real q=.1,Real e=100,Real v=.02) {
     }
     r.set_dx(g.dx);r.set_X(g.X);
 }
-void kernel_checks() {
+void kernelChecks() {
     reset();
     for(Real chat:{.07,7.}) {
         auto iso=M1::ConservedState{1,0,0,0}.physicalFlux(0,chat);
@@ -52,7 +52,7 @@ void kernel_checks() {
     near(M1::plmSlope(1,-1),0,1,"PLM extremum");
     std::cout<<"PASS closure, Eq. 41 wave speeds, vacuum and PLM realizability\n";
 }
-void thermal_checks() {
+void thermalChecks() {
     for(Real ratio:{1.,.1,.001})for(Real eta:{1e-9,.03,2.,1e6})for(Real theta:{.5,.51,1.}) {
         auto e=M1::thermalExchange(.7,.4,eta,std::log(.3),false,ratio,theta);
         near(e.gas+e.radiation/ratio,.7+.4/ratio,.7+.4/ratio,"RSLA thermal conservation");
@@ -75,13 +75,13 @@ void thermal_checks() {
     near(M1::damp(1,0,1e8,.51),1/(1+1e8),1,"stiff flux fallback");
     std::cout<<"PASS thermal quartic, RSLA invariant, theta convergence and stiff fallback\n";
 }
-void driver_checks() {
-    reset();opts().rad_log_subcycles=true;
+void driverChecks() {
+    reset();opts().radLogSubcycles=true;
     timestep_t gas,rad,combined;
-    gas.dt=.004;gas.radiation_dt=.003;gas.x=1;
-    rad.dt=.008;rad.radiation_dt=.001;rad.x=2;
+    gas.dt=.004;gas.radiationDt=.003;gas.x=1;
+    rad.dt=.008;rad.radiationDt=.001;rad.x=2;
     combined.reduce(gas);combined.reduce(rad);
-    near(combined.dt,.004,1,"gas reduction");near(combined.radiation_dt,.001,1,"radiation reduction");
+    near(combined.dt,.004,1,"gas reduction");near(combined.radiationDt,.001,1,"radiation reduction");
     near(combined.x,1,1,"winning diagnostic");
     radiation::SubcyclePlan nearInteger(.1*7,.1,true,7);
     require(nearInteger.count==7,"roundoff at subcycle budget");
@@ -105,28 +105,28 @@ void driver_checks() {
     require(migrated.fluxKeys.front()>leaf.fluxKeys.back(),"epochs after migration");
     std::cout<<"PASS production subcycle driver, independent minima and boundary epochs\n";
 }
-void source_checks() {
+void sourceChecks() {
     for(Real ratio:{1.,.03}) {
-        reset();opts().rad_c_ratio=ratio;opts().rad_implicit=true;
-        opts().rad_energy_mode="equilibrium";opts().rad_theta=.51;
+        reset();opts().radCRatio=ratio;opts().rad_implicit=true;
+        opts().radEnergyMode="equilibrium";opts().radTheta=.51;
         node_server node;initialize(*node.rad_grid_ptr,*node.grid_ptr);
         auto const h=hindex(RAD_BW,RAD_BW,RAD_BW),r=rindex(RAD_BW,RAD_BW,RAD_BW);
         Real const E0=node.grid_ptr->U[egas_i][h]+node.rad_grid_ptr->U[0][r]/ratio;
         Real const m0=node.grid_ptr->U[sx_i][h]+node.rad_grid_ptr->U[1][r]/(physcon().c*physcon().c*ratio);
-        node.dt_.radiation_dt=node.rad_grid_ptr->maxTimestep(0);
-        node.dt_.dt=3.2*node.dt_.radiation_dt;
+        node.dt_.radiationDt=node.rad_grid_ptr->maxTimestep(0);
+        node.dt_.dt=3.2*node.dt_.radiationDt;
         node.compute_radiation(node.dt_.dt,0);
         near(node.grid_ptr->U[egas_i][h]+node.rad_grid_ptr->U[0][r]/ratio,E0,E0,"coupled energy");
         near(node.grid_ptr->U[sx_i][h]+node.rad_grid_ptr->U[1][r]/(physcon().c*physcon().c*ratio),m0,1,"coupled momentum");
         require(node.hcycle==14,"one gas cache exchange, independent of subcycle count");
     }
-    reset();opts().rad_implicit=true;opts().rad_c_ratio=.1;
+    reset();opts().rad_implicit=true;opts().radCRatio=.1;
     rad_grid r(1./INX);grid g;initialize(r,g,.4,0,.7,0);
     Real const e0=g.U[egas_i][rindex(3,3,3)]+r.U[0][rindex(3,3,3)]/.1;
     r.compute_mmw(g.U);r.rad_imp(g.U[egas_i],g.U[tau_i],g.U[sx_i],g.U[sy_i],g.U[sz_i],g.U[rho_i],.3);
     near(g.U[egas_i][rindex(3,3,3)]+r.U[0][rindex(3,3,3)]/.1,e0,e0,"production thermal invariant");
     // Radiation-only absorption reduces E and Q at the same rate, preserving a beam.
-    opts().rad_energy_mode="absorption";opts().rad_theta=1;opts().rad_velocity_terms=false;
+    opts().radEnergyMode="absorption";opts().radTheta=1;opts().radVelocityTerms=false;
     initialize(r,g,1,1,1e5,0);r.prepareSources(g.U);
     Real const dt=r.maxTimestep(0);r.compute_flux(dt,0);r.advance(dt,0);
     near(r.U[0][rindex(3,3,3)],1/(1+dt*.7*.7),1,"absorption rate with c_hat");
@@ -137,7 +137,7 @@ void source_checks() {
 // A set of physical 3D blocks holding a wave along x. Fill just ONE t^n halo
 // from the common old solution, then run every block's real transport methods.
 std::vector<Real> wave(int blocks,Real ratio,bool discontinuity=false) {
-    reset();opts().rad_c_ratio=ratio;
+    reset();opts().radCRatio=ratio;
     Real const c=physcon().c,chat=c*ratio,dx=1./(blocks*INX),end=.15/chat;
     std::vector<std::unique_ptr<rad_grid>> grids;
     for(int b=0;b<blocks;++b) {
@@ -167,7 +167,7 @@ std::vector<Real> wave(int blocks,Real ratio,bool discontinuity=false) {
     for(auto& g:grids)for(int i=RAD_BW;i<RAD_BW+INX;++i)out.push_back(g->U[0][rindex(i,RAD_BW,RAD_BW)]);
     return out;
 }
-void transport_checks() {
+void transportChecks() {
     std::array<Real,3> errors{};
     for(int level=0;level<3;++level) {
         int const blocks=1<<level,N=INX*blocks;
@@ -189,7 +189,7 @@ void transport_checks() {
     for(auto e:front)require(e>=0 && e<=1+1e-12,"front positivity/maximum principle");
     std::cout<<"PASS 3D production transport: smooth convergence, block halos, RSLA, front/vacuum\n";
 }
-void boundary_and_reflux_checks() {
+void boundaryAndRefluxChecks() {
     reset();opts().problem=MARSHAK;opts().periodic=false;
     rad_grid r(1./INX);grid g;initialize(r,g);
     std::array<bool,6> physical{};physical[0]=true;
@@ -211,7 +211,7 @@ void boundary_and_reflux_checks() {
 }
 int main() {
     try {
-        kernel_checks();thermal_checks();driver_checks();source_checks();transport_checks();boundary_and_reflux_checks();
+        kernelChecks();thermalChecks();driverChecks();sourceChecks();transportChecks();boundaryAndRefluxChecks();
         std::cout<<"All S&O serial production-method checks passed. HPX/MPI runtime is not exercised.\n";
     }catch(std::exception const& e){std::cerr<<"FAIL: "<<e.what()<<'\n';return 1;}
 }

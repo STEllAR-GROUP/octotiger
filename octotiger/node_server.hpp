@@ -320,9 +320,9 @@ public:
 	radiationConservation::Totals collectRadiationConservation();
 	HPX_DEFINE_COMPONENT_ACTION(node_server, collectRadiationConservation, collectRadiationConservationAction);
 	hpx::future<void> exchange_interlevel_rad_data();
-	void all_rad_bounds(Real boundary_time);
+	void all_rad_bounds(Real boundaryTime);
 
-	void collect_radiation_bounds(Real boundary_time);
+	void collect_radiation_bounds(Real boundaryTime);
 	void send_rad_amr_bounds();
 
 	void recv_rad_flux_correct(std::vector<Real>&&, const geo::face& face, const geo::octant& ci, std::size_t cycle);/**/

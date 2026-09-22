@@ -21,13 +21,13 @@ namespace rr
 {
 namespace fs = std::filesystem;
 using Json = nlohmann::json;
-Json opacity_metadata(const Json &config);
-inline constexpr double c_cgs = 2.99792458e10, half_width = 3e10;
+Json opacityMetadata(const Json &config);
+inline constexpr double cCgs = 2.99792458e10, halfWidth = 3e10;
 inline const std::array<std::string, 4> fields{"er", "fx", "fy", "fz"};
 inline const std::array<std::string, 3> norms{"L1", "L2", "Linf"};
 inline const std::array<std::string, 4> cases{"streaming_wave", "streaming_front", "gaussian_pulse",
 											  "equilibrium_sphere"};
-inline const Json cgs_units{{"system", "CGS"},
+inline const Json cgsUnits{{"system", "CGS"},
 							{"length", "cm"},
 							{"time", "s"},
 							{"mass", "g"},
@@ -37,86 +37,80 @@ inline const Json cgs_units{{"system", "CGS"},
 							{"luminosity", "erg/s"},
 							{"source", "erg/(cm^3 s)"}};
 void require(bool, const std::string &);
-std::string read_text(const fs::path &);
-void atomic_text(const fs::path &, const std::string &);
-Json read_json(const fs::path &);
-void write_json(const fs::path &, const Json &);
+std::string readText(const fs::path &);
+void atomicText(const fs::path &, const std::string &);
+Json readJson(const fs::path &);
+void writeJson(const fs::path &, const Json &);
 std::string sha256(const fs::path &);
-std::string sha256_text(const std::string &);
+std::string sha256Text(const std::string &);
 std::string trim(std::string);
 std::string lower(std::string);
 std::string number(double);
 double numeric(const std::string &);
 bool close(double, double, double = 1e-11, double = 0);
 std::string stamp();
-std::string shell_quote(const std::string &);
-std::string gp_quote(const std::string &);
+std::string shellQuote(const std::string &);
+std::string gpQuote(const std::string &);
 std::string html(const std::string &);
 std::string url(const std::string &);
-std::string page_start(const std::string &);
+std::string pageStart(const std::string &);
 fs::path absolute(fs::path);
-fs::path source_root(const fs::path &);
-fs::path tools_root(const fs::path &);
+fs::path sourceRoot(const fs::path &);
+fs::path toolsRoot(const fs::path &);
 fs::path executable(const std::string &);
-void install_signals();
-void check_interrupt();
+void installSignals();
+void checkInterrupt();
 int execute(const std::vector<std::string> &, const fs::path &, const fs::path & = {},
 			const std::function<void(const std::string &)> & = {}, bool = true, bool = true);
-void execute_detached(const std::vector<std::string> &, const fs::path &);
-Json read_config(const fs::path &);
-void write_config(const fs::path &, const Json &);
-void records_csv(const fs::path &, const Json &, std::vector<std::string> = {});
+void executeDetached(const std::vector<std::string> &, const fs::path &);
+Json readConfig(const fs::path &);
+void writeConfig(const fs::path &, const Json &);
+void recordsCsv(const fs::path &, const Json &, std::vector<std::string> = {});
 struct Table {
 	std::vector<std::string> columns;
 	std::vector<std::vector<double>> rows;
 };
-Table read_csv(const fs::path &, const std::vector<std::string> &);
-Json read_norms(const fs::path &, const Json &);
-Table read_slice(const fs::path &, const Json &);
+Table readCsv(const fs::path &, const std::vector<std::string> &);
+Json readNorms(const fs::path &, const Json &);
+Table readSlice(const fs::path &, const Json &);
 struct Budget {
 	Table history;
 	Json summary = Json::array();
 	std::vector<std::array<double, 4>> residual, scale, normalized;
 };
-std::optional<Budget> read_conservation(const fs::path &, const Json &);
-void verify_cgs_log(const fs::path &);
-struct CGSCheck {
-	bool pending = false, factors = false;
-	int blocks = 0;
-	void feed(const std::string &);
-	void finish();
-};
+std::optional<Budget> readConservation(const fs::path &, const Json &);
+void verifyCgsSummary(const fs::path &);
 Json cadence(double, int, double, std::optional<double> = {});
-std::vector<std::size_t> frame_schedule(const std::vector<double> &, double, int, double);
-std::vector<fs::path> numerical_silos(const fs::path &);
+std::vector<std::size_t> frameSchedule(const std::vector<double> &, double, int, double);
+std::vector<fs::path> numericalSilos(const fs::path &);
 struct Options {
 	std::string command = "live", gnuplot = "gnuplot", ffmpeg = "ffmpeg", field = "er", view = "slice",
 				axis = "z", color = "hot", cxx = "g++", visit = "visit";
-	fs::path root, build, exe, generator, output, resume, input, reference, session_dir;
-	std::vector<std::string> selected_cases;
+	fs::path root, build, exe, generator, output, resume, input, reference, sessionDir;
+	std::vector<std::string> selectedCases;
 	std::vector<int> levels;
 	double time = 4, seconds = 20, hold = 1, position = 0, odt = 0, hard_dt = 0;
 	int threads = 12, jobs = 8, snapshots = 61, fps = 30, width = 1280, height = 960, cells = 32;
-	bool no_build = false, no_open = false, dry_run = false, no_silo = false, no_movies = false,
-		 reuse_frames = false, allow_sparse = false, check = false, sanitize = false;
+	bool noBuild = false, noOpen = false, dryRun = false, noSilo = false, noMovies = false,
+		 reuseFrames = false, allowSparse = false, check = false, sanitize = false;
 	std::optional<double> minimum, maximum;
 	std::string reconstruction;
-	std::set<std::string> explicit_options;
+	std::set<std::string> explicitOptions;
 };
 bool cgs(const Json &);
-std::string field_label(const Json &, int);
-std::vector<std::pair<fs::path, Json>> completed_runs(const fs::path &);
-void gnuplot_script(const fs::path &, const std::string &, const Options &);
-void plot_pair(const fs::path &, const std::string &, int, int, const Options &);
+std::string fieldLabel(const Json &, int);
+std::vector<std::pair<fs::path, Json>> completedRuns(const fs::path &);
+void gnuplotScript(const fs::path &, const std::string &, const Options &);
+void plotPair(const fs::path &, const std::string &, int, int, const Options &);
 fs::path render(const fs::path &, const Options &);
 void publish(const fs::path &, Json &);
-fs::path report_pages(const fs::path &, bool = false);
-void movie_index(const fs::path &);
-Json make_movie(const fs::path &, const Options &);
-Json make_session(const fs::path &, const Options &);
-fs::path visit_executable(const Options &);
-std::string visit_session_xml(const fs::path &, const Json &, const Options &);
-void check_dependencies(const Options &, bool);
+fs::path reportPages(const fs::path &, bool = false);
+void movieIndex(const fs::path &);
+Json makeMovie(const fs::path &, const Options &);
+Json makeSession(const fs::path &, const Options &);
+fs::path visitExecutable(const Options &);
+std::string visitSessionXml(const fs::path &, const Json &, const Options &);
+void checkDependencies(const Options &, bool);
 int run(Options);
 int maintenance(const Options &);
 Options arguments(int, char **);

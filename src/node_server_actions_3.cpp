@@ -8,7 +8,9 @@
 #include "octotiger/node_client.hpp"
 #include "octotiger/node_server.hpp"
 #include "octotiger/options.hpp"
+#include "octotiger/physcon.hpp"
 #include "octotiger/problem.hpp"
+#include "octotiger/runReporter.hpp"
 #include "octotiger/math/Debug.hpp"
 #include "octotiger/math/Real.hpp"
 #include "octotiger/util.hpp"
@@ -271,6 +273,7 @@ void line_of_centers_analyze(const line_of_centers_t &loc, Real omega, std::pair
 }
 
 void node_server::execute_solver(bool scf, node_count_type ngrids) {
+	auto& runReporter = octotiger::RunReporter::instance();
 	timings_.times_[timings::time_regrid] = 0.0;
 	timings_.times_[timings::time_fmm] = 0.0;
 	timings_.times_[timings::time_total] = 0.0;
@@ -319,10 +322,10 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 	if (scf) {
 		run_scf(opts().data_dir);
 		if (opts().eos == IPR) {
-			printf("Adjusting energy by SCF pressure:\n");
+			runReporter.reportAction("SCF pressure energy adjustment");
 			this->energy_adj();
 		}
-		printf("Adjusting velocities:\n");
+		runReporter.reportAction("SCF velocity adjustment");
 		auto diag = diagnostics();
 		space_vector dv;
 		dv[XDIM] = -diag.grid_sum[sx_i] / diag.grid_sum[rho_i];
@@ -332,15 +335,17 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 	}
 	if (opts().radiation) {
 		if (opts().eos == WD && opts().problem == STAR) {
-			printf("Initialized radiation and cgs\n");
+			runReporter.reportAction("radiation CGS initialization");
 			set_cgs();
 			erad_init();
 		}
 	}
-	printf("Starting run...\n");
+	runReporter.reportUnits(opts().code_to_g, opts().code_to_cm, opts().code_to_s, physcon().c);
+	runReporter.reportAction("evolution started");
 	auto fut_ptr = me.get_ptr();
 	auto root_ptr = GET(fut_ptr);
 	if (!opts().output_filename.empty()) {
+		runReporter.reportAction("single output", opts().output_filename);
 		diagnostics();
 		solve_gravity(false, false);
 		output_all(this, opts().output_filename, output_cnt, false);
@@ -348,19 +353,19 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 	}
 
 	if (opts().stop_step != 0) {
-		printf("Solving gravity\n");
+		runReporter.reportAction("initial gravity solve");
 		solve_gravity(false, false);
 		ngrids = regrid(me.get_gid(), grid::get_omega(), -1, false);
 	}
 
 	Real output_dt = opts().output_dt;
 
-	printf("OMEGA = %e, output_dt = %e\n", grid::get_omega(), output_dt);
+	runReporter.reportAction("run parameters", "omega=" + std::to_string(double(grid::get_omega()))
+		+ " outputInterval=" + std::to_string(double(output_dt)));
 	Real &t = current_time;
 	integer step_num = 0;
 
 	output_cnt = root_ptr->get_rotation_count() / output_dt;
-	printf("%e %e\n", root_ptr->get_rotation_count(), output_dt);
 
 	Real bench_start, bench_stop;
 	// Keep radiation diagnostics available with hydro diagnostics or SILO disabled.
@@ -428,11 +433,11 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 		if (!opts().disable_output && root_ptr->get_rotation_count() / output_dt >= output_cnt) {
 			static bool first_call = true;
 			if (opts().rewrite_silo || !first_call || (opts().restart_filename == "")) {
-				printf("doing silo out...\n");
+				runReporter.reportAction("Silo output", "sequence=" + std::to_string(int(output_cnt)));
 				std::string fname = "X." + std::to_string(int(output_cnt));
 				output_all(this, fname, output_cnt, first_call);
 				if (opts().rewrite_silo) {
-					printf("Exiting after rewriting SILO\n");
+					runReporter.reportAction("Silo rewrite completed");
 					return;
 				}
 			}
@@ -449,10 +454,10 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 		Real omega_dot = 0.0, omega = 0.0, theta = 0.0, theta_dot = 0.0;
 
 		if ((opts().problem == DWD) && (step_num % refinement_freq() == 0)) {
-			printf("dwd step...\n");
+			runReporter.reportAction("binary evolution interval");
 			auto dt = GET(step(next_step - step_num));
 			if (!opts().disable_diagnostics) {
-				printf("diagnostics...\n");
+				runReporter.reportAction("binary diagnostics");
 			}
 			omega = grid::get_omega();
 
@@ -469,9 +474,9 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 //				omega_dot = theta_dot_dot;
 //				omega += omega_dot * dt;
 //			}
-			printf("New Omega = %e\n", omega);
+			runReporter.reportAction("binary angular velocity", std::to_string(double(omega)));
 		} else {
-			printf("normal step...\n");
+			runReporter.reportAction("evolution interval");
 			dt = GET(step(next_step - step_num));
 			omega = grid::get_omega();
 		}
@@ -494,28 +499,37 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 			});     // do not wait for it to finish
 		}
 
-		/* hpx::threads::run_as_os_thread( */
-		/* 		[=]() { */
-    {
+		{
 					const auto vr = sqrt(sqr(dt_.ur[sx_i]) + sqr(dt_.ur[sy_i]) + sqr(dt_.ur[sz_i])) / dt_.ur[0];
 					const auto vl = sqrt(sqr(dt_.ul[sx_i]) + sqr(dt_.ul[sy_i]) + sqr(dt_.ul[sz_i])) / dt_.ul[0];
-					printf("TS %i:: t: %e, dt: %e, time_elapsed: %e, rotational_time: %e, x: %e, y: %e, z: %e, ",
-						int(next_step), double(t), double(dt_.dt), time_elapsed, rotational_time,
-						dt_.x, dt_.y, dt_.z);
-					printf("a: %e, ur: %e, ul: %e, vr: %e, vl: %e, dim: %i, ngrids: %i, leafs: %i, amr_boundaries: %i\n", 
-						dt_.a, dt_.ur[0], dt_.ul[0], vr, vl, dt_.dim, int(ngrids.total),
-						int(ngrids.leaf), int(ngrids.amr_bnd));
-    }
-				/* });     // do not wait for output to finish */
+			octotiger::IntervalReport intervalReport;
+			intervalReport.lastStep = int(next_step);
+			intervalReport.wallSeconds = time_elapsed;
+			intervalReport.x = dt_.x;
+			intervalReport.y = dt_.y;
+			intervalReport.z = dt_.z;
+			intervalReport.speed = dt_.a;
+			intervalReport.rightDensity = dt_.ur[0];
+			intervalReport.leftDensity = dt_.ul[0];
+			intervalReport.rightVelocity = vr;
+			intervalReport.leftVelocity = vl;
+			intervalReport.dimension = dt_.dim;
+			intervalReport.grids = int(ngrids.total);
+			intervalReport.leaves = int(ngrids.leaf);
+			intervalReport.amrBoundaries = int(ngrids.amr_bnd);
+			runReporter.reportInterval(intervalReport);
+		}
 
 		step_num = next_step;
 
 		if (step_num % refinement_freq() == 0) {
+			runReporter.reportAction("mesh refinement", "afterStep=" + std::to_string(int(step_num)));
 			Real new_floor = opts().refinement_floor;
 			if (opts().ngrids > 0) {
 				new_floor *= std::pow(Real(ngrids.total) / Real(opts().ngrids), 2);
-				printf("Old refinement floor = %e\n", opts().refinement_floor);
-				printf("New refinement floor = %e\n", new_floor);
+				runReporter.reportAction("refinement floor adjusted",
+					"old=" + std::to_string(double(opts().refinement_floor))
+					+ " new=" + std::to_string(double(new_floor)));
 			}
 
 			if (opts().radiation) {
@@ -576,7 +590,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 		timings::scope ts(timings_, timings::time_compare_analytic);
 
 		if (!opts().disable_output) {
-			printf("doing silo out...\n");
+			runReporter.reportAction("final Silo output");
 			output_all(this, "final", output_cnt, true);
 		}
 
@@ -600,7 +614,6 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 			fclose(fp);
 		}).get();
 	}
-
 }
 
 using step_action_type = node_server::step_action;
@@ -704,7 +717,7 @@ future<void> node_server::nonrefined_step() {
                             if (opts().radiation) {
                                 rad_grid_ptr->set_dx(dx);
                                 rad_grid_ptr->set_X(grid_ptr->get_X());
-                                dt_.radiation_dt=rad_grid_ptr->maxTimestep(grid_ptr->get_omega());
+                                dt_.radiationDt=rad_grid_ptr->maxTimestep(grid_ptr->get_omega());
                                 if (opts().hydro && opts().rad_implicit) {
                                     rad_grid_ptr->compute_mmw(grid_ptr->U);
                                     Real const radSpeed=rad_grid_ptr->hydroSignalSpeed(
@@ -715,9 +728,9 @@ future<void> node_server::nonrefined_step() {
                                     // speed (S&O 29); hydro kernels and RK stages are unchanged.
                                     if (a.a+radSpeed>0) dt_.dt=std::min(dt_.dt,cfl0*dx/(a.a+radSpeed));
                                 }
-                                Real const budget=(opts().rad_subcycling && opts().hydro) ?
-                                    Real(opts().rad_max_subcycles) : Real(1);
-                                dt_.dt=std::min(dt_.dt,dt_.radiation_dt*budget);
+                                Real const budget=(opts().radSubcycling && opts().hydro) ?
+                                    Real(opts().radMaxSubcycles) : Real(1);
+                                dt_.dt=std::min(dt_.dt,dt_.radiationDt*budget);
                             }
 							// hard_dt is an upper bound even when stop_time is disabled.
 							if (opts().hard_dt > 0) dt_.dt = std::min(dt_.dt, opts().hard_dt);
@@ -812,9 +825,13 @@ future<Real> node_server::local_step(integer steps) {
           if (opts().print_times_per_timestep)
             timestep_util::add_time_per_timestep(time_elapsed);
 
-          hpx::threads::run_as_os_thread([=, this]() {
-            printf("%i %e %e %e %e\n", local_step_num, double(current_time), double(dt_.dt), time_elapsed, rotational_time);
-          });  // do not wait for output to finish
+		  octotiger::StepReport stepReport;
+		  stepReport.step = local_step_num;
+		  stepReport.time = current_time;
+		  stepReport.timeStep = dt_.dt;
+		  stepReport.wallSeconds = time_elapsed;
+		  stepReport.rotationalTime = rotational_time;
+		  octotiger::RunReporter::instance().reportStep(stepReport);
         }
         ++step_num;
         GET(next_dt);

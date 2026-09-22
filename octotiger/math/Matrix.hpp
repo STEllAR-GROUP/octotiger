@@ -32,7 +32,7 @@ struct Matrix {
 	template <int L>
 	constexpr Matrix(Vector<T, L> const &v) {
 		if constexpr ((N == 1) && (L == M)) {
-			data_[0] = v;
+			entries[0] = v;
 		} else if constexpr ((L == N) && (M == 1)) {
 			*this = transpose(Matrix<T, 1, L>(v));
 		} else {
@@ -44,23 +44,23 @@ struct Matrix {
 		for (auto const &n : list) {
 			int j = 0;
 			for (auto const &nm : n) {
-				data_[i][j++] = nm;
+				entries[i][j++] = nm;
 			}
 			i++;
 		}
 	}
 	constexpr Matrix(Vector<Vector<T, M>, N> const &array) :
-		data_(array) {
+		entries(array) {
 	}
 	constexpr Matrix(Matrix const &) = default;
 	constexpr Matrix(Matrix &&) = default;
 	constexpr Matrix &operator=(Matrix const &) = default;
 	constexpr Matrix &operator=(Matrix &&) = default;
 	constexpr T operator()(int n, int m) const {
-		return data_[n][m];
+		return entries[n][m];
 	}
 	constexpr T &operator()(int n, int m) {
-		return data_[n][m];
+		return entries[n][m];
 	}
 	constexpr Matrix &operator+=(Matrix const &B) {
 		*this = *this + B;
@@ -150,7 +150,7 @@ struct Matrix {
 		int count = 0;
 		for (int n = 0; n < N; n++) {
 			for (int m = 0; m < M; m++) {
-				if (!isZero(data_[n][m])) {
+				if (!isZero(entries[n][m])) {
 					count++;
 				}
 			}
@@ -162,7 +162,7 @@ struct Matrix {
 		;
 		Matrix I;
 		for (int n = 0; n < N; n++) {
-			I.data_[n] = Vector<T, N>::unit(n);
+			I.entries[n] = Vector<T, N>::unit(n);
 		}
 		return I;
 	}
@@ -170,13 +170,13 @@ struct Matrix {
 		return A;
 	}
 	friend constexpr Matrix operator-(Matrix const &A) {
-		return Matrix(-A.data_);
+		return Matrix(-A.entries);
 	}
 	friend constexpr Matrix operator+(Matrix const &A, Matrix const &B) {
-		return Matrix(A.data_ + B.data_);
+		return Matrix(A.entries + B.entries);
 	}
 	friend constexpr Matrix operator-(Matrix A, Matrix const &B) {
-		return Matrix(A.data_ - B.data_);
+		return Matrix(A.entries - B.entries);
 	}
 	template <int L>
 	constexpr Matrix<T, N, L> operator*(Matrix<T, M, L> B) const {
@@ -194,14 +194,14 @@ struct Matrix {
 	friend constexpr Vector<T, N> operator*(Matrix const &A, Vector<T, M> const &B) {
 		Vector<T, N> C;
 		for (int n = 0; n < N; n++) {
-			C[n] = A.data_[n].dot(B);
+			C[n] = A.entries[n].dot(B);
 		}
 		return C;
 	}
 	friend constexpr Vector<T, N> operator*(Vector<T, N> const &A, Matrix const &B) {
 		Vector<T, N> C;
 		for (int n = 0; n < N; n++) {
-			C[n] = B.data_[n].dot(A);
+			C[n] = B.entries[n].dot(A);
 		}
 		return transpose(C);
 	}
@@ -210,7 +210,7 @@ struct Matrix {
 	}
 	friend constexpr Matrix operator*(Matrix A, T const &B) {
 		for (int i = 0; i < N; i++) {
-			A.data_[i] *= B;
+			A.entries[i] *= B;
 		}
 		return A;
 	}
@@ -244,7 +244,7 @@ struct Matrix {
 		using std::sqrt;
 		T sum = zero;
 		for (int n = 0; n < N; n++) {
-			sum += A.data_[n].dot(A.data_[n]);
+			sum += A.entries[n].dot(A.entries[n]);
 		}
 		return sqrt(sum);
 	}
@@ -259,28 +259,28 @@ struct Matrix {
 	friend constexpr T trace(Matrix const &A) {
 		T tr = zero;
 		for (int n = 0; n < N; n++) {
-			tr += A.data_[n][n];
+			tr += A.entries[n][n];
 		}
 		return tr;
 	}
 	constexpr auto &rowSwp(int i, int j) {
-		std::swap(data_[i], data_[j]);
+		std::swap(entries[i], entries[j]);
 		return *this;
 	}
 	constexpr auto &rowMul(int i, T const &value) {
-		data_[i] *= value;
+		entries[i] *= value;
 		return *this;
 	}
 	constexpr auto &rowSub(int i, int j) {
-		data_[i] -= data_[j];
+		entries[i] -= entries[j];
 		return *this;
 	}
 	constexpr auto &rowMulSub(int i, int j, T c) {
-		data_[i] -= c * data_[j];
+		entries[i] -= c * entries[j];
 		return *this;
 	}
 	constexpr auto &rowAdd(int i, int j) {
-		data_[i] += data_[j];
+		entries[i] += entries[j];
 		return *this;
 	}
 	friend std::ostream &operator<<(std::ostream &os, Matrix<T, N, M> const &A) {
@@ -345,7 +345,7 @@ struct Matrix {
 	}
 	constexpr Matrix(LiteralType const &lit) {
 		for (int n = 0; n < N; n++) {
-			data_[n] = lit[n];
+			entries[n] = lit[n];
 		}
 	}
 	constexpr explicit operator LiteralType() const {
@@ -354,7 +354,7 @@ struct Matrix {
 	constexpr auto literal() const {
 		LiteralType lit;
 		for (int n = 0; n < N; n++) {
-			lit[n] = data_[n];
+			lit[n] = entries[n];
 		}
 		return lit;
 	}
@@ -368,8 +368,8 @@ struct Matrix {
 		}
 	}
 private:
-	NUMERICAL_CONSTANTS(T);
-	Vector<Vector<T, M>, N> data_;
+	numericConstants(T);
+	Vector<Vector<T, M>, N> entries;
 };
 
 template <typename T, int N, int M>
@@ -401,7 +401,7 @@ template <typename T, int N, int M>
 constexpr Matrix<T, N, M> operator*(Vector<T, N> const &A, Vector<T, M> const &B) {
 	Matrix<T, N, M> C;
 	for (int n = 0; n < N; n++) {
-		C.data_[n] = A[n] * B;
+		C.entries[n] = A[n] * B;
 	}
 	return C;
 }
@@ -410,7 +410,7 @@ enum class GEType : int { full, half };
 
 template <GEType geType, typename T, int N, int M, int... Ms>
 constexpr auto gaussianElimination(Matrix<T, N, M> A, Matrix<T, N, Ms>... Bs) {
-	NUMERICAL_CONSTANTS(T);
+	numericConstants(T);
 	static_assert(M >= N);
 	using std::abs;
 	using std::numeric_limits;
@@ -554,7 +554,7 @@ constexpr auto gaussianElimination(Matrix<T, N, M> A, Matrix<T, N, Ms>... Bs) {
 
 template <typename T, int N, int M>
 constexpr auto rankReduce(Matrix<T, N, M> A) {
-	NUMERICAL_CONSTANTS(T);
+	numericConstants(T);
 	static_assert(M >= N);
 	auto const swapRows = [&A](int r0, int r1, int startCol) {
 		for (int m = startCol; m < M; m++) {

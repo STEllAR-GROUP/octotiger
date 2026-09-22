@@ -43,11 +43,11 @@ class UnifiedWebsiteTests(unittest.TestCase):
                 {"id": "radiation.diagnostics.streaming_wave_1d", "status": "failed", "reason": "gate"},
             ]))
             catalog = site.write(root, runner.descriptors())
-            by_id = {item["identifier"]: item for item in catalog["tests"]}
-            self.assertEqual(by_id["hydro.sod.sod"]["status"], "passed")
-            self.assertEqual(by_id["gravity.sphere.self_gravitating_sphere"]["status"], "conditional")
-            self.assertEqual(by_id["radiation.diagnostics.streaming_wave_1d"]["status"], "failed")
-            self.assertEqual(by_id["radiation.ensman.radiative_shock"]["status"], "not_run")
+            byId = {item["identifier"]: item for item in catalog["tests"]}
+            self.assertEqual(byId["hydro.sod.sod"]["status"], "passed")
+            self.assertEqual(byId["gravity.sphere.self_gravitating_sphere"]["status"], "conditional")
+            self.assertEqual(byId["radiation.diagnostics.streaming_wave_1d"]["status"], "failed")
+            self.assertEqual(byId["radiation.ensman.radiative_shock"]["status"], "not_run")
             self.assertEqual(catalog["status"], "failed")
             self.assertIn('href="radiation/report.html"', (root / "index.html").read_text())
 
@@ -56,19 +56,19 @@ class UnifiedWebsiteTests(unittest.TestCase):
             root = Path(tmp)
             old = "<!doctype html><title>Four application tests</title>"
             (root / "index.html").write_text(old)
-            for case in site.APPLICATION_CASES:
+            for case in site.applicationCases:
                 (root / (case + ".html")).write_text(case)
-            first = site.write(root, runner.descriptors(), legacy_application=True)
+            first = site.write(root, runner.descriptors(), legacyApplication=True)
             self.assertEqual((root / "radiation-application.html").read_text(), old)
             self.assertIn("octotiger-unified-site", (root / "index.html").read_text())
-            by_id = {item["identifier"]: item for item in first["tests"]}
-            self.assertTrue(all(by_id[identifier]["status"] == "complete"
-                                for identifier in site.APPLICATION_CASES.values()))
-            site.write(root, runner.descriptors(), legacy_application=True)
+            byId = {item["identifier"]: item for item in first["tests"]}
+            self.assertTrue(all(byId[identifier]["status"] == "complete"
+                                for identifier in site.applicationCases.values()))
+            site.write(root, runner.descriptors(), legacyApplication=True)
             self.assertEqual((root / "radiation-application.html").read_text(), old)
             resumed = "<!doctype html><title>Updated application tests</title>"
             (root / "index.html").write_text(resumed)
-            site.write(root, runner.descriptors(), legacy_application=True)
+            site.write(root, runner.descriptors(), legacyApplication=True)
             self.assertEqual((root / "radiation-application.html").read_text(), resumed)
 
     def test_nested_application_results_merge_into_unified_live_site(self):
@@ -77,15 +77,15 @@ class UnifiedWebsiteTests(unittest.TestCase):
             application = root / "radiation" / "application"
             application.mkdir(parents=True)
             application.joinpath("index.html").write_text("application")
-            for case in site.APPLICATION_CASES:
+            for case in site.applicationCases:
                 application.joinpath(case + ".html").write_text(case)
             root.joinpath("summary.json").write_text(json.dumps({
                 "status": "running", "families": [{"family": "radiation", "status": "running"}]
             }))
             catalog = site.write(root, runner.descriptors())
-            by_id = {item["identifier"]: item for item in catalog["tests"]}
-            self.assertTrue(all(by_id[identifier]["status"] == "complete"
-                                for identifier in site.APPLICATION_CASES.values()))
+            byId = {item["identifier"]: item for item in catalog["tests"]}
+            self.assertTrue(all(byId[identifier]["status"] == "complete"
+                                for identifier in site.applicationCases.values()))
             document = root.joinpath("index.html").read_text()
             self.assertIn('http-equiv="refresh"', document)
             self.assertIn("radiation/application/index.html", document)

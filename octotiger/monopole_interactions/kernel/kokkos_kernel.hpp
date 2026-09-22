@@ -1105,7 +1105,7 @@ namespace fmm {
                     // Indices to address the interaction and stencil data
                     multiindex<> start_index = get_padding_start_indices(dir);
                     multiindex<> end_index = get_padding_end_indices(dir);
-                    multiindex<> neighbor_size = get_padding_Real_size(dir);
+                    multiindex<> neighbor_size = getPaddingRealSize(dir);
                     multiindex<> dir_index;
                     dir_index.x = dir[0];
                     dir_index.y = dir[1];
@@ -1217,7 +1217,7 @@ namespace fmm {
                     // Indices to address the interaction and stencil data
                     multiindex<> start_index = get_padding_start_indices(dir);
                     multiindex<> end_index = get_padding_end_indices(dir);
-                    multiindex<> neighbor_size = get_padding_Real_size(dir);
+                    multiindex<> neighbor_size = getPaddingRealSize(dir);
                     multiindex<> dir_index;
                     dir_index.x = dir[0];
                     dir_index.y = dir[1];

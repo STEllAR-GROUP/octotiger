@@ -28,14 +28,14 @@ bodies='\n'.join(method(s) for s in ['void rad_grid::allocate()', 'void rad_grid
  'void rad_grid::sanity_check()', 'void rad_grid::applyRegressionSource(',
  'radiationConservation::Totals rad_grid::takeConservation(', 'void rad_grid::accountBoundaryFlux(',
  'void rad_grid::set_physical_boundaries(', 'rad_grid::rad_grid(Real _dx)', 'rad_grid::rad_grid()'])
-app_header='\n'.join(l for l in (root/'test_problems/radiation.hpp').read_text().splitlines() if not l.startswith(('#include','#pragma once')))
-app_cpp='\n'.join(l for l in (root/'src/test_problems/radiation/radiation.cpp').read_text().splitlines() if not l.startswith('#include'))
+appHeader='\n'.join(l for l in (root/'test_problems/radiation.hpp').read_text().splitlines() if not l.startswith(('#include','#pragma once')))
+appCpp='\n'.join(l for l in (root/'src/test_problems/radiation/radiation.cpp').read_text().splitlines() if not l.startswith('#include'))
 support=pathlib.Path(__file__).resolve().parent/'support'
 fixture='#include "'+str(support/'plot_output.hpp')+'"\n'+(support/'serial_fixture.inc').read_text()
 checks=(support/'serial_checks.inc').read_text()
 with tempfile.TemporaryDirectory(prefix='radiation-regression-') as tmp:
     folder=pathlib.Path(tmp);src=folder/'test.cpp';exe=folder/'test'
-    src.write_text(fixture+app_header+'\n'+app_cpp+'\n'+header+'\n'+bodies+'\n'+checks)
+    src.write_text(fixture+appHeader+'\n'+appCpp+'\n'+header+'\n'+bodies+'\n'+checks)
     flags=['-O1','-g','-fsanitize=address,undefined','-fno-omit-frame-pointer'] if a.sanitize else ['-O3']
     subprocess.run([a.cxx,'-std=c++23',*flags,'-I'+str(root),'-DTEST_CELLS='+str(a.cells),str(src),'-o',str(exe)],check=True)
     if a.compile_only:

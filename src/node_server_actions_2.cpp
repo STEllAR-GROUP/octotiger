@@ -14,6 +14,7 @@
 #include "octotiger/node_server.hpp"
 #include "octotiger/options.hpp"
 #include "octotiger/profiler.hpp"
+#include "octotiger/runReporter.hpp"
 #include "octotiger/taylor.hpp"
 #include "octotiger/test_problems/radiation.hpp"
 
@@ -197,10 +198,6 @@ analytic_t node_server::compare_analytic() {
 	}
 	if (my_location.level() == 0) {
 		FpeGuard fpeGuard{};
-		if (radiationRegressionProblem()) {
-			// The comparator rejects runs that stop before the requested final time.
-			printf("RADIATION_TEST_FINISHED %s t=%.17e\n", to_string(opts().problem).c_str(), double(current_time));
-		}
 		printf("L1, L2\n");
 		Real vol = 1.0;
 		for (int d = 0; d < NDIM; d++) {
@@ -212,13 +209,22 @@ analytic_t node_server::compare_analytic() {
 			nfields += NRF;
 		}
 		for (integer field = 0; field != opts().n_fields; ++field) {
-			printf("%16s %e %e %e\n", physics<3>::field_names3[field], a.l1[field] / vol, std::sqrt(a.l2[field] / vol), a.linf[field]);
+			const auto l1 = a.l1[field] / vol;
+			const auto l2 = std::sqrt(a.l2[field] / vol);
+			printf("%16s %e %e %e\n", physics<3>::field_names3[field], l1, l2, a.linf[field]);
+			octotiger::RunReporter::instance().reportAnalytic(
+				physics<3>::field_names3[field], l1, l2, a.linf[field]);
 		}
 		if( opts().radiation) {
-			printf("%16s %e %e %e\n", "er", a.l1[top+0] / vol, std::sqrt(a.l2[top+0] / vol), a.linf[top+0]);
-			printf("%16s %e %e %e\n", "fx", a.l1[top+1] / vol, std::sqrt(a.l2[top+1] / vol), a.linf[top+1]);
-			printf("%16s %e %e %e\n", "fy", a.l1[top+2] / vol, std::sqrt(a.l2[top+2] / vol), a.linf[top+2]);
-			printf("%16s %e %e %e\n", "fz", a.l1[top+3] / vol, std::sqrt(a.l2[top+3] / vol), a.linf[top+3]);
+			const std::array<const char*, NRF> radiationFields {"er", "fx", "fy", "fz"};
+			for (int radiationField = 0; radiationField < NRF; ++radiationField) {
+				const auto l1 = a.l1[top + radiationField] / vol;
+				const auto l2 = std::sqrt(a.l2[top + radiationField] / vol);
+				printf("%16s %e %e %e\n", radiationFields[radiationField], l1, l2,
+					a.linf[top + radiationField]);
+				octotiger::RunReporter::instance().reportAnalytic(radiationFields[radiationField],
+					l1, l2, a.linf[top + radiationField]);
+			}
 		}
 		const auto ml = opts().max_level;
 		const auto dxmin = 2.0 * opts().xscale / INX / double(1 << ml);

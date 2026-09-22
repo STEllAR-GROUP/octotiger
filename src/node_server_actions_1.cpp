@@ -14,6 +14,7 @@
 #include "octotiger/node_server.hpp"
 #include "octotiger/options.hpp"
 #include "octotiger/profiler.hpp"
+#include "octotiger/runReporter.hpp"
 #include "octotiger/taylor.hpp"
 
 #include <hpx/include/lcos.hpp>
@@ -245,34 +246,31 @@ node_count_type node_server::regrid(const hpx::id_type &root_gid, Real omega, Re
 	timings::scope ts(timings_, timings::time_regrid);
 	hpx::chrono::high_resolution_timer timer;
 	assert(grid_ptr != nullptr);
-	printf("-----------------------------------------------\n");
+	auto& runReporter = octotiger::RunReporter::instance();
+	runReporter.reportAction("regrid started");
 	if (!rb) {
-		printf("checking for refinement\n");
+		runReporter.reportAction("refinement check");
 		check_for_refinement(omega, new_floor);
 	} else {
 		node_registry::clear();
 	}
-	printf("regridding\n");
 	Real tstart = timer.elapsed();
 	auto a = regrid_gather(rb);
 	Real tstop = timer.elapsed();
-	printf("Regridded tree in %f seconds\n", Real(tstop - tstart));
-	printf("rebalancing %i nodes with %i leaves\n", int(a.total), int(a.leaf));
+	runReporter.reportAction("tree gathered", "seconds=" + std::to_string(double(tstop - tstart)));
 	tstart = timer.elapsed();
 	regrid_scatter(0, a.total);
 	tstop = timer.elapsed();
-	printf("Rebalanced tree in %f seconds\n", Real(tstop - tstart));
+	runReporter.reportAction("tree rebalanced", "seconds=" + std::to_string(double(tstop - tstart)));
 	assert(grid_ptr != nullptr);
 	tstart = timer.elapsed();
-	printf("forming tree connections\n");
 	a.amr_bnd = form_tree(hpx::unmanaged(root_gid));
-	printf("%lu amr boundaries\n", a.amr_bnd);
 	tstop = timer.elapsed();
-	printf("Formed tree in %f seconds\n", Real(tstop - tstart));
-	printf("solving gravity\n");
+	runReporter.reportAction("tree connections formed",
+		"amrBoundaries=" + std::to_string(a.amr_bnd));
 	solve_gravity(grav_energy_comp, false);
 	double elapsed = timer.elapsed();
-	printf("regrid done in %f seconds\n---------------------------------------\n", elapsed);
+	runReporter.reportAction("regrid completed", "seconds=" + std::to_string(elapsed));
 	return a;
 }
 

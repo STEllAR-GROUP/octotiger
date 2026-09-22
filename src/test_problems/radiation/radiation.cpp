@@ -8,7 +8,7 @@
 radiationTests::Parameters radiationTestParameters() {
 	FpeGuard fpeGuard{};
 	radiationTests::Parameters p;
-	p.length=2*opts().xscale; p.c=physcon().c; p.time=opts().stop_time*opts().rad_c_ratio;
+	p.length=2*opts().xscale; p.c=physcon().c; p.time=opts().stop_time*opts().radCRatio;
 	p.chi=opts().radTestChi; p.width=opts().radTestWidth;
 	p.background=opts().radTestBackground; p.amplitude=opts().radTestAmplitude;
 	p.luminosity=opts().radTestLuminosity;
@@ -25,7 +25,7 @@ std::vector<Real> sample(Real x,Real y,Real z,Real dx,Real t) {
 	FpeGuard fpeGuard{};
 	auto const p=radiationTestParameters();
 	radiationTests::Point const pos{x,y,z};
-	t*=opts().rad_c_ratio; // RSLA rescales time, not the physical normalization of F.
+	t*=opts().radCRatio; // RSLA rescales time, not the physical normalization of F.
 	radiationTests::State r;
 	switch (opts().problem) {
 	case RADIATION_STREAMING_WAVE: r=radiationTests::streamingWave(pos,t,dx,p); break;

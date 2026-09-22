@@ -118,8 +118,8 @@ Replot an existing batch without rerunning the solver:
 python3 verification_results/radiation/plot.py verification_results/radiation/results/check1
 ```
 
-Replotting checks the actual log, norm files, and CSV cells. A nonzero executable
-exit fails the run. Missing or duplicate completion markers, incorrect final time,
+Replotting checks the structured run summary, norm files, and CSV cells. A nonzero executable
+exit fails the run. Missing or incomplete result metadata, incorrect final time,
 nonfinite values, mixed resolutions, duplicated/missing slice cells, and appended
 norm records are rejected. Incomplete runs are marked failed and omitted from
 plots; completed runs from that batch can still be replotted.

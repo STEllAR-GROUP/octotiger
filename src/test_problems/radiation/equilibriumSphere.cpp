@@ -46,8 +46,8 @@
 // ᴬ ᴮ ᴰ ᴱ ᴳ ᴴ ᴵ ᴶ ᴷ ᴸ ᴹ ᴺ ᴼ ᴾ ᴿ ᵀ ᵁ ⱽ ᵂ
 // ᵅ ᵝ ᵞ ᵟ ᵋ ᶿ ᶥ ᶲ ᵡ
 // ∞ ∂ ∇ ∆ ∑ ∏ ∫ √ ≈ ≠ ≤ ≥ ± × · → ← ↔ ħ ℏ Å °	⁰ ¹ ² ³ ⁴ ⁵ ⁶ ⁷ ⁸ ⁹
-static auto const L_cgs = 1e38_R;
-static auto const R_cgs = 1e13_R;
+static auto const luminosityCgs = 1e38_R;
+static auto const radiusCgs = 1e13_R;
 static auto const massDensity = 1.0e-9_R;
 static auto const bulbCellRadius = 1_R;
 // static auto const bulbCellVolume = []() {
@@ -66,31 +66,31 @@ static auto const bulbCellRadius = 1_R;
 // }();
 
 
-std::vector<Real> radiationSourceEquilibriumSphere(Real x_, Real y_, Real z_, Real) {
+std::vector<Real> radiationSourceEquilibriumSphere(Real xPosition, Real yPosition, Real zPosition, Real) {
 	using std::exp;
 	using std::max;
 	using std::sqrt;
 	FpeGuard fpeGuard{};
 	auto const convert = CgsToCode{};
 	auto const rb = bulbCellRadius * minimumCellWidth();
-	auto const c0 = 1_R / cube(rb * sqrt(pi_R));
-	auto const L = convert.power(L_cgs);
-	auto const R = convert.length(R_cgs);
+	auto const c0 = 1_R / cube(rb * sqrt(piR));
+	auto const L = convert.power(luminosityCgs);
+	auto const R = convert.length(radiusCgs);
 	std::vector<Real> S(NDIM + 1, 0_R);
-	auto const r = Vector<Real, NDIM>({x_, y_, z_});
+	auto const r = Vector<Real, NDIM>({xPosition, yPosition, zPosition});
 	auto const x = r / rb;
 	auto const x2 = x.dot(x);
 	S[er_i] = c0 * L * exp(-x2);
 	return S;
 }
 
-std::vector<Real> analyticEquilibriumSphere(Real x_, Real y_, Real z_, Real) {
+std::vector<Real> analyticEquilibriumSphere(Real xPosition, Real yPosition, Real zPosition, Real) {
 	using std::max;
 	using std::pow;
 	FpeGuard fpeGuard{};
 	auto const convert = CgsToCode{};
-	auto const L = convert.power(L_cgs);
-	auto const R = convert.length(R_cgs);
+	auto const L = convert.power(luminosityCgs);
+	auto const R = convert.length(radiusCgs);
 	auto const rb = bulbCellRadius * minimumCellWidth();
 	auto const R2 = R * R;
 	auto const rb2 = rb * rb;
@@ -101,24 +101,24 @@ std::vector<Real> analyticEquilibriumSphere(Real x_, Real y_, Real z_, Real) {
 	auto const Z = opts().atomic_number[0];
 	auto const A = opts().atomic_mass[0];
 	auto const μ = A / (1_R + Z);
-	auto const r = Vector<Real, NDIM>({x_, y_, z_});
+	auto const r = Vector<Real, NDIM>({xPosition, yPosition, zPosition});
 	auto const r2 = r.dot(r);
 	auto const r1 = sqrt(r2);
 	auto const rHat = normalize(r);
 	Vector<Real, NDIM> F;
 	Real E;
 	auto const ρ = convert.massDensity(r1 < R ? massDensity : 1e-20_R * massDensity);
-	auto const EatR = L / (4_R * pi_R * c * R2);
+	auto const EatR = L / (4_R * piR * c * R2);
 	auto const χ = ρ * convert.opacity(opts().sigma0 + opts().kappa0);
-	auto const Ehat = EatR + (3_R * χ * L) / (4_R * pi_R * c) * (1_R / rb - 1_R / R);
+	auto const Ehat = EatR + (3_R * χ * L) / (4_R * piR * c) * (1_R / rb - 1_R / R);
 	if (r1 < rb) {
-		E = Ehat + (3_R * χ * L) / (8_R * pi_R * c * rb) * (1_R - r2 / rb2);
-		F = L * r1 / (4_R * pi_R * c * rb * rb * rb) * rHat;
+		E = Ehat + (3_R * χ * L) / (8_R * piR * c * rb) * (1_R - r2 / rb2);
+		F = L * r1 / (4_R * piR * c * rb * rb * rb) * rHat;
 	} else if (r1 < R) {
-		E = EatR + (3_R * χ * L) / (4_R * pi_R * c) * (1_R / r1 - 1_R / R);
-		F = L / (4_R * pi_R * c * r2) * rHat;
+		E = EatR + (3_R * χ * L) / (4_R * piR * c) * (1_R / r1 - 1_R / R);
+		F = L / (4_R * piR * c * r2) * rHat;
 	} else {
-		E = L / (4_R * pi_R * c * r2);
+		E = L / (4_R * piR * c * r2);
 		F = E * almostOne * rHat;
 	}
 	auto const F1 = abs(F);

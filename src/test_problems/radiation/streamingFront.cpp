@@ -14,7 +14,7 @@
 #include "octotiger/physcon.hpp"
 #include "octotiger/radiation/opacities.hpp"
 
-std::vector<Real> analyticStreamingFront(Real x_, Real y_, Real z_, Real t) {
+std::vector<Real> analyticStreamingFront(Real xPosition, Real yPosition, Real zPosition, Real t) {
 	FpeGuard fpeGuard{};
 	CgsToCode const convert;
 	auto const gamma = opts().gas_gamma;
@@ -37,7 +37,7 @@ std::vector<Real> analyticStreamingFront(Real x_, Real y_, Real z_, Real t) {
 		G[spc_i] = G[rho_i];
 	}
 
-	auto xfront = x_ - c * t;
+	auto xfront = xPosition - c * t;
 	while (xfront < -xScale) {
 		xfront += 2_R * xScale;
 	}
@@ -46,7 +46,7 @@ std::vector<Real> analyticStreamingFront(Real x_, Real y_, Real z_, Real t) {
 	}
 
 	if (xfront < 0_R) {
-		R[0] = 1_R - eps_R;
+		R[0] = 1_R - epsilonR;
 	} else {
 		R[0] = 1e-10_R;
 	}

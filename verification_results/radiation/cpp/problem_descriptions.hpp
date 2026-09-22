@@ -7,7 +7,7 @@ struct ProblemDescription {
 };
 inline const std::
 	array<ProblemDescription, 4>
-		problem_descriptions{
+		problemDescriptions{
 			{{"streaming_wave", "Streaming wave", "Exact transport",
 			  "A smooth, periodic radiation wave travels at the speed of light. Its phase and amplitude test "
 			  "transport accuracy.",

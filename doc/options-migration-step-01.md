@@ -8,10 +8,10 @@ This document records the compatibility contract introduced by Step 01. Boost.Pr
 - The configuration file is applied next.
 - Command-line values win over configuration values because they are stored first in the Boost variables map; Boost does not replace an existing explicit value with a later store.
 - Supplying both spellings of one setting anywhere across the command line and configuration file is an error.
-- Each supplied legacy spelling emits one deprecation warning per process.
+- All supplied legacy spellings are reported together in one deprecation warning per process. The warning lists every legacy name used and its hierarchical replacement.
 - Help lists canonical options before the clearly labeled legacy section.
 
-`help` and `runtime.help` are flags. All other spellings accept the same value syntax on the command line and in configuration files. Multitoken vector behavior is retained for `atomic_mass`, `atomic_number`, `X`, and `Z`.
+`help` is a canonical flag and retains the conventional spelling. All other supported spellings accept the same value syntax on the command line and in configuration files. Multitoken vector behavior is retained for `atomic_mass` and `atomic_number`; the obsolete `X` and `Z` inputs are rejected with guidance to use those composition options.
 
 ## Complete migration and implementation inventory
 
@@ -20,10 +20,10 @@ This document records the compatibility contract introduced by Step 01. Boost.Pr
 | `xscale` | `mesh.scale` | `Real` / `xscale` | `1.0` | HPX archive; Silo metadata | `frontend/init_methods.cpp:354`<br>`src/eos.cpp:285`<br>`src/node_server_actions_2.cpp:207,224`<br>`src/grid_scf.cpp:179`<br>`src/grid_amr.cpp:216,219,222`<br>`src/problem.cpp:238`<br>`src/grid.cpp:1766`<br>`src/radiation/rad_grid.cpp:755`<br>`src/io/silo_out.cpp:66,70,307,382`<br>`src/io/silo_in.cpp:127`<br>`src/test_problems/blast/sedov.cpp:41,45`<br>`src/test_problems/radiation/streamingFront.cpp:21`<br>`src/test_problems/radiation/streamingWave.cpp:21`<br>`src/test_problems/radiation/radiation.cpp:11,73`<br>`src/test_problems/radiation/gaussianPulse.cpp:44,96,182`<br>`src/test_problems/marshak/marshak.cpp:139`<br>`radiation_results/cpp/maintenance.cpp:63` |
 | `dt_max` | `timestep.max_change` | `Real` / `dt_max` | `0.333333` | HPX archive | `src/grid.cpp:2014` |
 | `cfl` | `hydro.cfl` | `Real` / `cfl` | `0.4` | HPX archive | `octotiger/util.hpp:37`<br>`src/node_server_actions_3.cpp:622,660` |
-| `omega` | `gravity.angular_frequency` | `Real` / `omega` | `0.0` | HPX archive; Silo metadata | `frontend/init_methods.cpp:346`<br>`src/io/silo_in.cpp:107,149`<br>`src/test_problems/radiation/radiation.cpp:47` |
+| `omega` | `mesh.omega_z` | `Real` / `omega` | `0.0` | HPX archive; Silo metadata | `frontend/init_methods.cpp:346`<br>`src/io/silo_in.cpp:107,149`<br>`src/test_problems/radiation/radiation.cpp:47` |
 | `v1309` | `problem.dwd.v1309` | `bool` / `v1309` | `false` | HPX archive | `src/eos.cpp:96,193`<br>`src/grid_scf.cpp:289,408,539,565,620` |
 | `idle_rates` | `output.idle_rates` | `bool` / `idle_rates` | `false` | HPX archive; Silo metadata | `src/grid.cpp:126,321`<br>`src/io/silo_out.cpp:95` |
-| `eblast0` | `blast.energy` | `Real` / `eblast0` | `1.0` | HPX archive | `src/test_problems/blast/sedov.cpp:67` |
+| `eblast0` | `problem.blast.energy` | `Real` / `eblast0` | `1.0` | HPX archive | `src/test_problems/blast/sedov.cpp:67` |
 | `rho_floor` | `hydro.density_floor` | `Real` / `rho_floor` | `0.0` | HPX archive | `src/grid.cpp:2453,2468,2469,2470` |
 | `tau_floor` | `hydro.entropy_floor` | `Real` / `tau_floor` | `0.0` | HPX archive | `src/grid.cpp:2445,2446,2475,2476` |
 | `sod_rhol` | `problem.sod.density_left` | `Real` / `sod_rhol` | `1.0` | HPX archive | `src/test_problems/sod/sod.cpp:79` |
@@ -64,13 +64,13 @@ This document records the compatibility contract introduced by Step 01. Boost.Pr
 | `scf_output_frequency` | `problem.scf.output_frequency` | `integer` / `scf_output_frequency` | `25` | HPX archive | `src/grid_scf.cpp:469` |
 | `scf_rho_floor` | `problem.scf.density_floor` | `Real` / `scf_rho_floor` | `1.0e-12` | HPX archive | `src/grid_scf.cpp:315,720`<br>`src/grid.cpp:669,1596` |
 | `silo_num_groups` | `output.silo.groups` | `integer` / `silo_num_groups` | `-1` | HPX archive; Silo metadata | `src/io/silo_out.cpp:565,582` |
-| `core_refine` | `mesh.refinement.core` | `bool` / `core_refine` | `false` | HPX archive | `src/problem.cpp:246` |
-| `grad_rho_refine` | `mesh.refinement.density_gradient` | `Real` / `grad_rho_refine` | `-1.0` | HPX archive | `src/problem.cpp:257` |
-| `accretor_refine` | `mesh.refinement.accretor_levels` | `integer` / `accretor_refine` | `0` | HPX archive | `src/problem.cpp:255` |
+| `core_refine` | `refinement.core` | `bool` / `core_refine` | `false` | HPX archive | `src/problem.cpp:246` |
+| `grad_rho_refine` | `refinement.density_gradient` | `Real` / `grad_rho_refine` | `-1.0` | HPX archive | `src/problem.cpp:257` |
+| `accretor_refine` | `refinement.accretor_levels` | `integer` / `accretor_refine` | `0` | HPX archive | `src/problem.cpp:255` |
 | `extra_regrid` | `mesh.extra_initial_regrids` | `integer` / `extra_regrid` | `0` | HPX archive | `frontend/frontend-helper.cpp:206` |
-| `donor_refine` | `mesh.refinement.donor_levels` | `integer` / `donor_refine` | `0` | HPX archive | `src/problem.cpp:252` |
+| `donor_refine` | `refinement.donor_levels` | `integer` / `donor_refine` | `0` | HPX archive | `src/problem.cpp:252` |
 | `ngrids` | `mesh.fixed_grid_count` | `integer` / `ngrids` | `-1` | HPX archive | `src/node_server_actions_3.cpp:515,516` |
-| `refinement_floor` | `mesh.refinement.density_floor` | `Real` / `refinement_floor` | `1.0e-3` | HPX archive; Silo metadata | `src/node_server_actions_2.cpp:44`<br>`src/node_server_actions_3.cpp:514,517`<br>`src/problem.cpp:261,286`<br>`src/io/silo_out.cpp:379`<br>`src/io/silo_in.cpp:126` |
+| `refinement_floor` | `refinement.density_floor` | `Real` / `refinement_floor` | `1.0e-3` | HPX archive; Silo metadata | `src/node_server_actions_2.cpp:44`<br>`src/node_server_actions_3.cpp:514,517`<br>`src/problem.cpp:261,286`<br>`src/io/silo_out.cpp:379`<br>`src/io/silo_in.cpp:126` |
 | `theta` | `gravity.opening_angle` | `Real` / `theta` | `0.5` | HPX archive | `src/grid_fmm.cpp:1116`<br>`src/monopole_interactions/monopole_kernel_interface.cpp:129,134,184`<br>`src/multipole_interactions/multipole_kernel_interface.cpp:100,151`<br>`src/monopole_interactions/legacy/p2m_cpu_kernel.cpp:34,692`<br>`src/monopole_interactions/legacy/p2p_cpu_kernel.cpp:27`<br>`src/monopole_interactions/legacy/cuda_monopole_interaction_interface.cpp:88`<br>`src/monopole_interactions/util/calculate_stencil.cpp:23`<br>`src/multipole_interactions/legacy/cuda_multipole_interaction_interface.cpp:54`<br>`src/multipole_interactions/legacy/multipole_cpu_kernel.cpp:27`<br>`src/multipole_interactions/util/calculate_stencil.cpp:27` |
 | `eos` | `hydro.eos` | `eos_type` / `eos` | `IDEAL` | runtime only; Silo metadata | `src/eos.cpp:58,146,175,213,356,475,483,491,510,524`<br>`src/grid_scf.cpp:278,383,396,422,427,433,527,581,659,670,721,728,744`<br>`src/node_server_actions_3.cpp:321,334`<br>`src/problem.cpp:462,507`<br>`src/grid.cpp:197,245,432,439,453,644,650,711,718,732,1244,1716,1726,1730,1963,1966,2005,2248,2255,2445,2471,2537,2544,2558`<br>`src/physcon.cpp:67`<br>`src/roe.cpp:68,78,94,104`<br>`octotiger/radiation/cpu_kernel.hpp:183,228`<br>`octotiger/radiation/kernel_interface.hpp:167`<br>`src/radiation/rad_grid.cpp:220`<br>`src/io/silo_out.cpp:362`<br>`src/io/silo_in.cpp:104` |
 | `ipr_nr_tol` | `hydro.ipr.newton_tolerance` | `Real` / `ipr_nr_tol` | `1.48e-08` | HPX archive | `src/grid.cpp:1967`<br>`src/physcon.cpp:40` |
@@ -78,9 +78,9 @@ This document records the compatibility contract introduced by Step 01. Boost.Pr
 | `ipr_test` | `hydro.ipr.test` | `bool` / `ipr_test` | `false` | HPX archive | `src/grid.cpp:1967` |
 | `ipr_eint_floor` | `hydro.ipr.internal_energy_floor` | `Real` / `ipr_eint_floor` | `0.0` | HPX archive | `src/grid.cpp:440,651,719,1065,1729,1967,2256,2472,2545` |
 | `hydro` | `hydro.enabled` | `bool` / `hydro` | `true` | HPX archive; Silo metadata | `frontend/init_methods.cpp:422`<br>`src/node_server_actions_2.cpp:59`<br>`src/node_server_actions_3.cpp:280,708,718`<br>`src/grid.cpp:136,266,1757,2354`<br>`src/radiation/rad_grid.cpp:396`<br>`src/io/silo_out.cpp:364`<br>`src/io/silo_in.cpp:106`<br>`src/test_problems/radiation/radiation.cpp:47` |
-| `periodic` | `hydro.boundary.periodic` | `bool` / `periodic` | `false` | HPX archive | `src/node_server_actions_2.cpp:68,436,457,507,540`<br>`src/node_server.cpp:417`<br>`src/radiation/rad_grid.cpp:418,969`<br>`src/test_problems/radiation/radiation.cpp:50` |
+| `periodic` | `mesh.boundary.periodic` | `bool` / `periodic` | `false` | HPX archive | `src/node_server_actions_2.cpp:68,436,457,507,540`<br>`src/node_server.cpp:417`<br>`src/radiation/rad_grid.cpp:418,969`<br>`src/test_problems/radiation/radiation.cpp:50` |
 | `radiation` | `radiation.enabled` | `bool` / `radiation` | `false` | HPX archive; Silo metadata | `frontend/init_methods.cpp:363`<br>`octotiger/grid.hpp:48,74,88`<br>`src/node_server_actions_2.cpp:211,217`<br>`src/grid_scf.cpp:449,669`<br>`src/node_server_actions_3.cpp:280,333,371,379,521,643,704,752`<br>`src/node_server.cpp:527,541`<br>`src/grid.cpp:108,120,166,314,402,1267,1815,1841,1900,1914`<br>`src/physcon.cpp:67,87,92`<br>`src/node_server_actions_1.cpp:154`<br>`src/io/silo_out.cpp:368`<br>`src/io/silo_in.cpp:110`<br>`src/test_problems/radiation/radiation.cpp:47` |
-| `correct_am_hydro` | `hydro.angular_momentum_correction` | `bool` / `correct_am_hydro` | `false` | HPX archive | `src/grid.cpp:1976` |
+| `correct_am_hydro` | legacy-only; execution rejected when enabled | `bool` / `correct_am_hydro` | `false` | HPX archive | `src/grid.cpp:1976` |
 | `correct_am_grav` | `gravity.angular_momentum_correction` | `bool` / `correct_am_grav` | `true` | HPX archive | `src/grid_fmm.cpp:1624` |
 | `rewrite_silo` | `output.rewrite_silo` | `bool` / `rewrite_silo` | `false` | HPX archive | `src/node_server_actions_3.cpp:430,434` |
 | `rad_implicit` | `radiation.implicit` | `bool` / `rad_implicit` | `true` | HPX archive; Silo metadata | `src/node_server_actions_3.cpp:708`<br>`src/radiation/rad_grid.cpp:267,401`<br>`src/io/silo_out.cpp:369`<br>`src/io/silo_in.cpp:112`<br>`src/test_problems/radiation/radiation.cpp:50` |
@@ -103,8 +103,8 @@ This document records the compatibility contract introduced by Step 01. Boost.Pr
 | `hard_dt` | `timestep.fixed` | `Real` / `hard_dt` | `-1` | HPX archive | `src/node_server_actions_3.cpp:723` |
 | `experiment` | `problem.experiment` | `int` / `experiment` | `0` | HPX archive | `src/grid.cpp:1975` |
 | `unigrid` | `mesh.unigrid` | `bool` / `unigrid` | `false` | HPX archive | `src/problem.cpp:325`<br>`src/test_problems/radiation/radiation.cpp:47` |
-| `inflow_bc` | `hydro.boundary.inflow` | `bool` / `inflow_bc` | `false` | HPX archive | `src/grid.cpp:2144` |
-| `reflect_bc` | `hydro.boundary.reflecting` | `bool` / `reflect_bc` | `false` | HPX archive | `src/grid.cpp:2118,2142` |
+| `inflow_bc` | `mesh.boundary.inflow` | `bool` / `inflow_bc` | `false` | HPX archive | `src/grid.cpp:2144` |
+| `reflect_bc` | `mesh.boundary.reflecting` | `bool` / `reflect_bc` | `false` | HPX archive | `src/grid.cpp:2118,2142` |
 | `cdisc_detect` | `hydro.contact_discontinuity_detection` | `bool` / `cdisc_detect` | `true` | HPX archive | `src/grid.cpp:1979` |
 | `disable_output` | `output.disabled` | `bool` / `disable_output` | `false` | HPX archive; Silo metadata | `octotiger/util.hpp:47`<br>`src/grid_scf.cpp:470`<br>`src/node_server_actions_3.cpp:282,313,428,483,535,578,588,594`<br>`src/io/silo_out.cpp:525` |
 | `rad_reference` | `radiation.test.reference` | `std::string` / `radReference` | `"gaussian_pulse.bin"` | HPX archive | `src/test_problems/radiation/radiation.cpp:21` |
@@ -141,22 +141,21 @@ This document records the compatibility contract introduced by Step 01. Boost.Pr
 | `n_species` | `hydro.species.count` | `integer` / `n_species` | `5` | HPX archive; Silo metadata | `frontend/init_methods.cpp:343,368`<br>`octotiger/physcon.hpp:20`<br>`src/grid_scf.cpp:398`<br>`src/grid.cpp:74,89,175,188,238,443,722,748,1069,1240,1336,1342,1570,1587,1593,1667,1683,1981,2456,2462,2466,2483,2512,2548`<br>`src/physcon.cpp:276`<br>`octotiger/unitiger/hydro_impl/hydro_kokkos_kernel.hpp:1402`<br>`src/radiation/rad_grid.cpp:380`<br>`src/io/silo_out.cpp:361,389`<br>`src/io/silo_in.cpp:103,128,129,130,131`<br>`src/test_problems/radiation/streamingFront.cpp:36`<br>`src/test_problems/radiation/streamingWave.cpp:37`<br>`src/test_problems/rotating_star/rotating_star.cpp:123`<br>`src/unitiger/hydro_impl/hydro_kernel_interface.cpp:119,181,214`<br>`src/unitiger/hydro_impl/hydro_cuda_interface.cpp:148,249,265` |
 | `atomic_mass` | `hydro.species.atomic_mass` | `std::vector<Real>` / `atomic_mass` | `none` | HPX archive; Silo metadata | `frontend/init_methods.cpp:345`<br>`src/grid_scf.cpp:399,400,528,529`<br>`src/problem.cpp:509`<br>`src/grid.cpp:1684`<br>`src/physcon.cpp:278`<br>`src/io/silo_out.cpp:392`<br>`src/io/silo_in.cpp:129,133`<br>`src/test_problems/radiation/equilibriumSphere.cpp:102` |
 | `atomic_number` | `hydro.species.atomic_number` | `std::vector<Real>` / `atomic_number` | `none` | HPX archive; Silo metadata | `frontend/init_methods.cpp:345`<br>`src/grid_scf.cpp:400,528,529`<br>`src/problem.cpp:509`<br>`src/grid.cpp:1684`<br>`src/physcon.cpp:278`<br>`src/io/silo_out.cpp:393`<br>`src/io/silo_in.cpp:128,132`<br>`src/test_problems/radiation/equilibriumSphere.cpp:101` |
-| `X` | `hydro.species.hydrogen_fraction` | `std::vector<Real>` / `X` | `none` | HPX archive; Silo metadata | `src/grid.cpp:1686`<br>`src/physcon.cpp:279`<br>`src/io/silo_out.cpp:390`<br>`src/io/silo_in.cpp:130,134` |
-| `Z` | `hydro.species.metallicity` | `std::vector<Real>` / `Z` | `none` | HPX archive; Silo metadata | `src/grid.cpp:1687`<br>`src/physcon.cpp:280`<br>`src/io/silo_out.cpp:391`<br>`src/io/silo_in.cpp:131,135` |
+| `X` | obsolete; no canonical alias (use `hydro.species.atomic_mass` and `hydro.species.atomic_number`) | `std::vector<Real>` / `X` | `none` | HPX archive; Silo metadata | `src/grid.cpp:1686`<br>`src/physcon.cpp:279`<br>`src/io/silo_out.cpp:390`<br>`src/io/silo_in.cpp:130,134` |
+| `Z` | obsolete; no canonical alias (use `hydro.species.atomic_mass` and `hydro.species.atomic_number`) | `std::vector<Real>` / `Z` | `none` | HPX archive; Silo metadata | `src/grid.cpp:1687`<br>`src/physcon.cpp:280`<br>`src/io/silo_out.cpp:391`<br>`src/io/silo_in.cpp:131,135` |
 | `code_to_g` | `units.grams` | `Real` / `code_to_g` | `1` | HPX archive; Silo metadata | `src/grid.cpp:187,212,1685,1710,1715,1728,1729`<br>`src/physcon.cpp:88,93,99,107,112,136,140`<br>`src/radiation/rad_grid.cpp:102,125`<br>`src/io/silo_out.cpp:358,503`<br>`src/io/silo_in.cpp:100,150` |
 | `code_to_cm` | `units.centimeters` | `Real` / `code_to_cm` | `1` | HPX archive; Silo metadata | `src/grid.cpp:184,210,1710,1715,1728,1729`<br>`src/physcon.cpp:89,94,100,109,111,138,142`<br>`src/radiation/rad_grid.cpp:102,103,125,126`<br>`src/io/silo_out.cpp:72,307,360`<br>`src/io/silo_in.cpp:102,150` |
 | `code_to_s` | `units.seconds` | `Real` / `code_to_s` | `1` | HPX archive; Silo metadata | `src/grid.cpp:155,186,211,1710,1728,1729`<br>`src/physcon.cpp:90,95,108,113,137,141`<br>`src/radiation/rad_grid.cpp:102,103,125,126`<br>`src/io/silo_out.cpp:101,359,365`<br>`src/io/silo_in.cpp:101,107,150,163`<br>`radiation_results/cpp/run.cpp:102` |
 | `rotating_star_amr` | `problem.rotating_star.amr` | `bool` / `rotating_star_amr` | `false` | HPX archive | `src/problem.cpp:288` |
 | `rotating_star_x` | `problem.rotating_star.center_x` | `Real` / `rotating_star_x` | `0.0` | HPX archive | `src/test_problems/rotating_star/rotating_star.cpp:98` |
-| `help` | `runtime.help` | `flag` / `—` | `false` | not serialized | parser control only |
 
 ## Compatibility note
 
-Existing command lines and configuration files remain accepted with unchanged values and defaults. Legacy names are deprecated but are not rejected. Checkpoint/restart compatibility is retained by keeping the historical flat fields and archive order; dotted names are parser aliases and hierarchical views only. Explicit radiation controls from either spelling continue to override checkpoint metadata.
+Existing command lines and configuration files remain accepted with unchanged values and defaults, except for the explicitly unsupported `correct_am_hydro=true`, `X`, and `Z` inputs. Other legacy names remain accepted and produce one consolidated migration warning. Checkpoint/restart compatibility is retained by keeping the historical flat fields and archive order; dotted names are parser aliases and hierarchical views only. Explicit radiation controls from either spelling continue to override checkpoint metadata.
 
 ## Review status
 
-Every existing parser spelling has a migration entry. No option was split into a new physical setting. In particular, the single existing `rad_opacity` remains one constant-gray-opacity control named `radiation.opacity.constant`; absorption/scattering controls were not invented because the snapshot does not yet define those separate semantics. `sod_gamma` maps to `hydro.gamma` because its parser description and sole initialization consumer establish it as the gas ratio of specific heats.
+Every supported parser spelling has one migration entry; `correct_am_hydro`, `X`, and `Z` are documented as unsupported instead. No option was split into a new physical setting. In particular, the single existing `rad_opacity` remains one constant-gray-opacity control named `radiation.opacity.constant`; absorption/scattering controls were not invented because the snapshot does not yet define those separate semantics. `sod_gamma` maps to `hydro.gamma` because its parser description and sole initialization consumer establish it as the gas ratio of specific heats.
 
 
 

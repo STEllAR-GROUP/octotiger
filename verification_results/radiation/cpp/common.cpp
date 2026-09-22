@@ -13,7 +13,7 @@ namespace rr
 namespace
 {
 volatile sig_atomic_t interrupted = 0;
-void signal_handler(int s)
+void signalHandler(int s)
 {
 	interrupted = s;
 }
@@ -23,20 +23,20 @@ void require(bool ok, const std::string &s)
 	if (!ok)
 		throw std::runtime_error(s);
 }
-void install_signals()
+void installSignals()
 {
 	struct sigaction a {
 	};
-	a.sa_handler = signal_handler;
+	a.sa_handler = signalHandler;
 	sigemptyset(&a.sa_mask);
 	sigaction(SIGINT, &a, nullptr);
 	sigaction(SIGTERM, &a, nullptr);
 }
-void check_interrupt()
+void checkInterrupt()
 {
 	require(!interrupted, "Interrupted; completed results are retained");
 }
-std::string read_text(const fs::path &p)
+std::string readText(const fs::path &p)
 {
 	std::ifstream f(p, std::ios::binary);
 	require(bool(f), "Cannot read " + p.string());
@@ -45,7 +45,7 @@ std::string read_text(const fs::path &p)
 	require(!f.bad(), "Read failed: " + p.string());
 	return s.str();
 }
-void atomic_text(const fs::path &p, const std::string &s)
+void atomicText(const fs::path &p, const std::string &s)
 {
 	fs::create_directories(p.parent_path());
 	auto tmp = p;
@@ -62,13 +62,13 @@ void atomic_text(const fs::path &p, const std::string &s)
 		throw;
 	}
 }
-Json read_json(const fs::path &p)
+Json readJson(const fs::path &p)
 {
-	return Json::parse(read_text(p));
+	return Json::parse(readText(p));
 }
-void write_json(const fs::path &p, const Json &j)
+void writeJson(const fs::path &p, const Json &j)
 {
-	atomic_text(p, j.dump(2) + "\n");
+	atomicText(p, j.dump(2) + "\n");
 }
 std::string sha256(const fs::path &p)
 {
@@ -91,7 +91,7 @@ std::string sha256(const fs::path &p)
 		s << std::setw(2) << unsigned(hash[i]);
 	return s.str();
 }
-std::string sha256_text(const std::string &text)
+std::string sha256Text(const std::string &text)
 {
 	unsigned char hash[EVP_MAX_MD_SIZE];
 	unsigned int n = 0;
@@ -144,7 +144,7 @@ std::string stamp()
 	  << std::chrono::duration_cast<std::chrono::microseconds>(t.time_since_epoch()).count() % 1000000;
 	return s.str();
 }
-std::string shell_quote(const std::string &s)
+std::string shellQuote(const std::string &s)
 {
 	require(s.find('\0') == s.npos, "NUL in command argument");
 	std::string o = "'";
@@ -152,7 +152,7 @@ std::string shell_quote(const std::string &s)
 		o += c == '\'' ? "'\\''" : std::string(1, c);
 	return o + "'";
 }
-std::string gp_quote(const std::string &s)
+std::string gpQuote(const std::string &s)
 {
 	std::string o = "\"";
 	for (char c : s) {
@@ -199,7 +199,7 @@ std::string url(const std::string &s)
 			o << '%' << std::setw(2) << std::setfill('0') << unsigned(c);
 	return o.str();
 }
-std::string page_start(const std::string &title)
+std::string pageStart(const std::string &title)
 {
 	return "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" "
 		   "content=\"width=device-width,initial-scale=1\"><title>" +
@@ -222,7 +222,7 @@ fs::path absolute(fs::path p)
 	}
 	return fs::absolute(p).lexically_normal();
 }
-fs::path source_root(const fs::path &project)
+fs::path sourceRoot(const fs::path &project)
 {
 	auto root = rr::absolute(project);
 	auto nested = root / "src/octotiger";
@@ -233,9 +233,9 @@ fs::path source_root(const fs::path &project)
 		return root;
 	return nested;
 }
-fs::path tools_root(const fs::path &project)
+fs::path toolsRoot(const fs::path &project)
 {
-	return source_root(project) / "verification_results/radiation";
+	return sourceRoot(project) / "verification_results/radiation";
 }
 fs::path executable(const std::string &s)
 {
@@ -255,14 +255,14 @@ fs::path executable(const std::string &s)
 	throw std::runtime_error("Executable not found: " + s);
 }
 int execute(const std::vector<std::string> &args, const fs::path &cwd, const fs::path &log,
-			const std::function<void(const std::string &)> &feed, bool checked, bool echo_output)
+			const std::function<void(const std::string &)> &feed, bool checked, bool echoOutput)
 {
-	check_interrupt();
+	checkInterrupt();
 	require(!args.empty(), "Empty command");
 	auto program = executable(args[0]);
 	std::cout << '+';
 	for (auto &a : args)
-		std::cout << ' ' << shell_quote(a);
+		std::cout << ' ' << shellQuote(a);
 	std::cout << std::endl;
 	std::ofstream out;
 	if (!log.empty()) {
@@ -307,7 +307,7 @@ int execute(const std::vector<std::string> &args, const fs::path &cwd, const fs:
 	bool done = false, eof = false;
 	std::string pending;
 	auto emit = [&](const std::string &line) {
-		if (echo_output)
+		if (echoOutput)
 			std::cout << line << std::flush;
 		if (out.is_open()) {
 			out << line;
@@ -319,7 +319,7 @@ int execute(const std::vector<std::string> &args, const fs::path &cwd, const fs:
 	};
 	try {
 		while (!done || !eof) {
-			check_interrupt();
+			checkInterrupt();
 			pollfd pfd{fd[0], POLLIN | POLLHUP, 0};
 			poll(&pfd, 1, 100);
 			char b[8192];
@@ -362,13 +362,13 @@ int execute(const std::vector<std::string> &args, const fs::path &cwd, const fs:
 	require(!checked || code == 0, "Exit code " + std::to_string(code) + "; see " + log.string());
 	return code;
 }
-void execute_detached(const std::vector<std::string> &args, const fs::path &cwd)
+void executeDetached(const std::vector<std::string> &args, const fs::path &cwd)
 {
 	require(!args.empty(), "Empty command");
 	auto program = executable(args[0]);
 	std::cout << '+';
 	for (auto &a : args)
-		std::cout << ' ' << shell_quote(a);
+		std::cout << ' ' << shellQuote(a);
 	std::cout << " &" << std::endl;
 	std::vector<char *> argv;
 	for (auto &a : args)
@@ -407,14 +407,14 @@ bool cgs(const Json &m)
 {
 	return m.value("units", Json::object()).value("system", "") == "CGS";
 }
-std::string field_label(const Json &m, int f)
+std::string fieldLabel(const Json &m, int f)
 {
 	return std::array<std::string, 4>{"E", "Fx", "Fy", "Fz"}[f] +
 		   (cgs(m) ? (f == 0 ? " (erg/cm^3)" : " (erg/(cm^2 s))") : " (code units)");
 }
 // Record configured material settings separately from prescribed-medium test chi.
 // Values are strings, like run.ini/config; the source/executable hashes identify defaults.
-Json opacity_metadata(const Json &config)
+Json opacityMetadata(const Json &config)
 {
     Json result{{"schema_version", 1}, {"material_model", "legacy"},
         {"units", "cm2/g"}, {"absorption", "0"}, {"scattering", "0"},

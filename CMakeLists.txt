@@ -211,6 +211,7 @@ set(source_files
     src/options_processing.cpp
     src/profiler.cpp
     src/roe.cpp
+    src/runReporter.cpp
     src/scf_data.cpp
     src/scf_data.cpp
     src/io/silo.cpp
@@ -278,6 +279,7 @@ set(header_files
     octotiger/problem.hpp
     octotiger/profiler.hpp
     octotiger/roe.hpp
+    octotiger/runReporter.hpp
     octotiger/scf_data.hpp
     octotiger/io/silo.hpp
     octotiger/simd_legacy.hpp
@@ -569,6 +571,7 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/node_server_actions_1.cpp
     src/node_server_actions_2.cpp
     src/node_server_actions_3.cpp
+    src/runReporter.cpp
     src/physcon.cpp 
     src/io/silo_out.cpp
     src/io/silo_in.cpp

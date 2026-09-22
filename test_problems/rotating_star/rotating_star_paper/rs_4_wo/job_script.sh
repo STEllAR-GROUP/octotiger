@@ -17,9 +17,8 @@ export HPX_NODEFILE=node.list
 unset PBS_NODEFILE
 export NPROCS=`wc -l $HPX_NODEFILE |gawk '//{print $1}'`
 
-mpirun -np $NPROCS --machinefile $HPX_NODEFILE  /home/dmarce1/local/$BUILD_TYPE/octotiger/bin/octotiger --hpx:threads 20 --config_file=config.ini
+mpirun -np $NPROCS --machinefile $HPX_NODEFILE  /home/dmarce1/local/$BUILD_TYPE/octotiger/bin/octotiger --hpx:threads 20 --runtime.config_file=config.ini
  
-
 
 
 

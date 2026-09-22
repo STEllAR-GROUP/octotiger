@@ -40,42 +40,13 @@ endif()
   
 function(test_blast_scenario test_name test_log_file reference_filename kernel_parameters)
   add_test(NAME ${test_name}
-    COMMAND sh -c "${PROJECT_BINARY_DIR}/octotiger --config_file=${PROJECT_SOURCE_DIR}/test_problems/blast/blast.ini ${kernel_parameters} > ${test_log_file}")
+    COMMAND sh -c "${PROJECT_BINARY_DIR}/octotiger --runtime.config_file=${PROJECT_SOURCE_DIR}/test_problems/blast/blast.ini --output.results_file=${test_log_file}.json ${kernel_parameters} > ${test_log_file}")
   set_tests_properties(${test_name} PROPERTIES
     FIXTURES_SETUP ${test_name})
 
-  add_test(NAME ${test_name}.rho_regex COMMAND cat ${test_log_file})
-  add_test(NAME ${test_name}.egas_regex COMMAND cat ${test_log_file})
-  add_test(NAME ${test_name}.tau_regex COMMAND cat ${test_log_file})
-  add_test(NAME ${test_name}.pot_regex COMMAND cat ${test_log_file})
-  add_test(NAME ${test_name}.sx_regex COMMAND cat ${test_log_file})
-  add_test(NAME ${test_name}.sy_regex COMMAND cat ${test_log_file})
-  add_test(NAME ${test_name}.sz_regex COMMAND cat ${test_log_file})
-  add_test(NAME ${test_name}.spc1_regex COMMAND cat ${test_log_file})
-  set_tests_properties(${test_name}.rho_regex PROPERTIES
-    FIXTURES_REQUIRED ${test_name}
-    PASS_REGULAR_EXPRESSION ${rho_regex})
-  set_tests_properties(${test_name}.egas_regex PROPERTIES
-    FIXTURES_REQUIRED ${test_name}
-    PASS_REGULAR_EXPRESSION ${egas_regex})
-  set_tests_properties(${test_name}.tau_regex PROPERTIES
-    FIXTURES_REQUIRED ${test_name}
-    PASS_REGULAR_EXPRESSION ${tau_regex})
-  set_tests_properties(${test_name}.pot_regex PROPERTIES
-    FIXTURES_REQUIRED ${test_name}
-    PASS_REGULAR_EXPRESSION ${pot_regex})
-  set_tests_properties(${test_name}.sx_regex PROPERTIES
-    FIXTURES_REQUIRED ${test_name}
-    PASS_REGULAR_EXPRESSION ${sx_regex})
-  set_tests_properties(${test_name}.sy_regex PROPERTIES
-    FIXTURES_REQUIRED ${test_name}
-    PASS_REGULAR_EXPRESSION ${sy_regex})
-  set_tests_properties(${test_name}.sz_regex PROPERTIES
-    FIXTURES_REQUIRED ${test_name}
-    PASS_REGULAR_EXPRESSION ${sz_regex})
-  set_tests_properties(${test_name}.spc1_regex PROPERTIES
-    FIXTURES_REQUIRED ${test_name}
-    PASS_REGULAR_EXPRESSION ${spc1_regex})
+  addOctotigerAnalyticCheck(${test_name}.numerical ${test_name} ${test_log_file}.json
+    "${rho_regex}" "${egas_regex}" "${tau_regex}" "${pot_regex}"
+    "${sx_regex}" "${sy_regex}" "${sz_regex}" "${spc1_regex}")
 
 
   
@@ -88,7 +59,7 @@ function(test_blast_scenario test_name test_log_file reference_filename kernel_p
       FAIL_REGULAR_EXPRESSION ${OCTOTIGER_SILODIFF_FAIL_PATTERN})
   endif()
 
-  add_test(${test_name}.fixture_cleanup ${CMAKE_COMMAND} -E remove ${PROJECT_BINARY_DIR}/test_problems/blast/final.silo ${PROJECT_BINARY_DIR}/test_problems/blast/final.silo.data/0.silo ${test_log_file})
+  add_test(${test_name}.fixture_cleanup ${CMAKE_COMMAND} -E remove ${PROJECT_BINARY_DIR}/test_problems/blast/final.silo ${PROJECT_BINARY_DIR}/test_problems/blast/final.silo.data/0.silo ${test_log_file} ${test_log_file}.json)
   set_tests_properties(${test_name}.fixture_cleanup PROPERTIES
       FIXTURES_CLEANUP ${test_name}
   )

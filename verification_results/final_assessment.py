@@ -16,8 +16,8 @@ import sys
 import numpy as np
 from PIL import Image
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
+root = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(root))
 from verification_results import runner
 
 
@@ -30,10 +30,10 @@ def main():
     parser.add_argument('--baseline', type=Path)
     parser.add_argument('--output', required=True, type=Path, help='New output prefix, outside source')
     args = parser.parse_args()
-    prefix = runner.safe_output(args.output)
+    prefix = runner.safeOutput(args.output)
     prefix.parent.mkdir(parents=True, exist_ok=True)
-    summary = {'decision': 'NO-GO', 'commit': runner.git_value('rev-parse', 'HEAD'),
-               'dirty': bool(runner.git_value('status', '--porcelain')), 'matrix': {}, 'audit_failures': [],
+    summary = {'decision': 'NO-GO', 'commit': runner.gitValue('rev-parse', 'HEAD'),
+               'dirty': bool(runner.gitValue('status', '--porcelain')), 'matrix': {}, 'audit_failures': [],
                'baseline_samples': {'identical': [], 'different': [], 'unavailable': []},
                'products': collections.Counter(), 'damping': [], 'source_hashes_match': True,
                'coverage': 'Serial production-method validation plus conditional application descriptors; not complete physics acceptance'}
@@ -56,7 +56,7 @@ def main():
                 assert meta['thread_count'] == 1 and meta['build']['build_type'].lower() == mode.lower()
                 assert meta['descriptor'] == descriptions[r['id']][1], 'Descriptor changed after run'
                 for filename, expected in meta['source']['files'].items():
-                    if digest(ROOT/filename) != expected: summary['source_hashes_match'] = False
+                    if digest(root/filename) != expected: summary['source_hashes_match'] = False
                 summary['products']['movies_generated'] += 1; summary['products']['comparison_plots'] += 1
                 try:
                     with Image.open(case/'comparison.png') as picture: picture.verify()
@@ -69,8 +69,8 @@ def main():
                     summary['audit_failures'].append(f'{mode}/{r["id"]}/l{run["level"]}: invalid visual product: {error}')
                 try:
                     samples = np.genfromtxt(case/'samples.csv', delimiter=',', names=True)
-                    recorded_history = np.genfromtxt(case/'history.csv', delimiter=',', names=True)
-                    assert len(samples) and len(recorded_history)
+                    recordedHistory = np.genfromtxt(case/'history.csv', delimiter=',', names=True)
+                    assert len(samples) and len(recordedHistory)
                     assert (case/'run.log').stat().st_size > 0
                 except (OSError, ValueError, IndexError, AssertionError) as error:
                     summary['audit_failures'].append(f'{mode}/{r["id"]}/l{run["level"]}: incomplete raw artifacts: {error}')
@@ -109,8 +109,8 @@ def main():
         folder = args.results/name
         results = json.loads((folder/'summary.json').read_text())
         assert all(r['status'] == 'passed' for r in results)
-        for meta_path in folder.glob('*/l*/run.json'):
-            meta = json.loads(meta_path.read_text()); case = meta_path.parent
+        for metaPath in folder.glob('*/l*/run.json'):
+            meta = json.loads(metaPath.read_text()); case = metaPath.parent
             data = np.genfromtxt(case/'samples.csv', delimiter=',', names=True)
             history = np.genfromtxt(case/'history.csv', delimiter=',', names=True)
             assert len(data) == 9*meta['cells'] and len(history) == 8*meta['cells']+1
@@ -143,7 +143,7 @@ def main():
         summary['gates'][name] = {'status': 'failed', 'reason': 'Stale legacy driver; see retained traceback'}
     summary['gates']['options-parser-build.log'] = {'status': 'conditional', 'reason': 'Missing Boost headers; actual parser not run'}
     summary['gates']['so-opacity-sanitize.log'] = {'status': 'conditional', 'reason': 'LeakSanitizer unsupported under tracing; address/UB rerun disables leak detection explicitly'}
-    report = (ROOT/'doc/validation-step-07.md').read_text()
+    report = (root/'doc/validation-step-07.md').read_text()
     content = '<!doctype html><meta charset="utf-8"><title>Step 07 physics validation: NO-GO</title>'
     content += '<style>body{max-width:1100px;margin:30px auto;font:16px system-ui}pre{white-space:pre-wrap}iframe{width:100%;height:850px;border:1px solid #aaa}</style>'
     content += '<h1>Step 07 — NO-GO</h1><p>Handoff commit: <code>'+html.escape(summary['commit'])+'</code></p>'

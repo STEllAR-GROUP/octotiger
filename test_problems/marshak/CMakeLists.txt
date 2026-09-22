@@ -12,7 +12,7 @@
 if (false)
   add_test(NAME test_problems.cpu.marshak
     COMMAND octotiger
-      --config_file=${PROJECT_SOURCE_DIR}/test_problems/marshak/marshak.ini)
+      --runtime.config_file=${PROJECT_SOURCE_DIR}/test_problems/marshak/marshak.ini)
   add_test(NAME test_problems.cpu.marshak.diff
     COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
        ${PROJECT_SOURCE_DIR}/octotiger-testdata/marshak.silo ${PROJECT_BINARY_DIR}/test_problems/marshak/final.silo.data/0.silo)

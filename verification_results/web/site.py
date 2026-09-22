@@ -15,37 +15,37 @@ from pathlib import Path
 from typing import Any
 
 
-APPLICATION_CASES = {
+applicationCases = {
     "streaming_wave": "radiation.skinner_ostriker.streaming_wave",
     "streaming_front": "radiation.skinner_ostriker.streaming_front",
     "gaussian_pulse": "radiation.skinner_ostriker.gaussian_pulse",
     "equilibrium_sphere": "radiation.skinner_ostriker.equilibrium_sphere",
 }
-KNOWN_STATUSES = {"passed", "failed", "conditional", "running", "complete", "not_run"}
-DISPLAY_STATUS = {"complete": "completed", "not_run": "not run"}
-SOURCE_ROOT = Path(__file__).resolve().parents[2]
+knownStatuses = {"passed", "failed", "conditional", "running", "complete", "not_run"}
+displayStatus = {"complete": "completed", "not_run": "not run"}
+sourceRoot = Path(__file__).resolve().parents[2]
 
 
-def _read_json(path: Path) -> Any | None:
+def readJson(path: Path) -> Any | None:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return None
 
 
-def _status(value: Any) -> str:
-    return value if value in KNOWN_STATUSES else "conditional"
+def resolveStatus(value: Any) -> str:
+    return value if value in knownStatuses else "conditional"
 
 
-def _result(status: str, link: str | None = None, reason: str | None = None,
+def makeResult(status: str, link: str | None = None, reason: str | None = None,
             source: str | None = None) -> dict[str, Any]:
-    return {"status": _status(status), "link": link, "reason": reason, "source": source}
+    return {"status": resolveStatus(status), "link": link, "reason": reason, "source": source}
 
 
-def _native_results(root: Path) -> dict[str, dict[str, Any]]:
+def nativeResults(root: Path) -> dict[str, dict[str, Any]]:
     candidates = [root / "radiation" / "summary.json", root / "summary.json"]
     for path in candidates:
-        value = _read_json(path)
+        value = readJson(path)
         if not isinstance(value, list):
             continue
         prefix = "radiation/" if path.parent.name == "radiation" else ""
@@ -53,18 +53,18 @@ def _native_results(root: Path) -> dict[str, dict[str, Any]]:
         for item in value:
             if not isinstance(item, dict) or not isinstance(item.get("id"), str):
                 continue
-            answer[item["id"]] = _result(
+            answer[item["id"]] = makeResult(
                 item.get("status", "conditional"), prefix + "report.html",
                 item.get("reason"), "native radiation suite")
         return answer
     return {}
 
 
-def _scenario_results(root: Path, family: str) -> dict[str, dict[str, Any]]:
-    value = _read_json(root / family / "verification.json")
+def scenarioResults(root: Path, family: str) -> dict[str, dict[str, Any]]:
+    value = readJson(root / family / "verification.json")
     prefix = family + "/"
     if value is None:
-        value = _read_json(root / "verification.json")
+        value = readJson(root / "verification.json")
         prefix = ""
     if not isinstance(value, dict):
         return {}
@@ -74,23 +74,23 @@ def _scenario_results(root: Path, family: str) -> dict[str, dict[str, Any]]:
             continue
         identifier = item.get("identifier")
         if isinstance(identifier, str) and identifier.startswith(family + "."):
-            answer[identifier] = _result(
-                item.get("status", "conditional"), prefix + "report.html",
+            answer[identifier] = makeResult(
+                item.get("status", "conditional"), prefix + "report.html#" + identifier,
                 item.get("reason"), value.get("harness", {}).get("adapter", "scenario"))
     return answer
 
 
-def _preserve_application_report(root: Path, requested: bool) -> bool:
+def preserveApplicationReport(root: Path, requested: bool) -> bool:
     """Move the old four-case landing page aside once, leaving assets in place."""
     index = root / "index.html"
     saved = root / "radiation-application.html"
-    case_pages = any((root / (name + ".html")).is_file() for name in APPLICATION_CASES)
+    casePages = any((root / (name + ".html")).is_file() for name in applicationCases)
     if not index.is_file():
         return saved.is_file()
     text = index.read_text(encoding="utf-8", errors="replace")
     if 'name="octotiger-unified-site"' in text:
         return saved.is_file()
-    if not (requested or case_pages):
+    if not (requested or casePages):
         return saved.is_file()
     # A resumed application run regenerates index.html. Refresh the preserved
     # subreport from that new page before restoring the unified landing page.
@@ -98,17 +98,17 @@ def _preserve_application_report(root: Path, requested: bool) -> bool:
     return True
 
 
-def _application_results(root: Path, available: bool) -> dict[str, dict[str, Any]]:
+def applicationResults(root: Path, available: bool) -> dict[str, dict[str, Any]]:
     if not available:
         return {}
     answer = {}
     locations = [(root / "radiation" / "application", "radiation/application/"),
                  (root, "")]
     for location, prefix in locations:
-        for case, identifier in APPLICATION_CASES.items():
+        for case, identifier in applicationCases.items():
             page = location / (case + ".html")
             if page.is_file():
-                answer[identifier] = _result(
+                answer[identifier] = makeResult(
                     "complete", prefix + page.name,
                     "Application run completed; use its detailed report for numerical diagnostics.",
                     "full application radiation report")
@@ -116,19 +116,19 @@ def _application_results(root: Path, available: bool) -> dict[str, dict[str, Any
 
 
 def collect(root: Path, descriptors: dict[str, tuple[Path, dict[str, Any]]],
-            legacy_application: bool = False) -> dict[str, Any]:
+            legacyApplication: bool = False) -> dict[str, Any]:
     root = root.resolve()
-    application = (_preserve_application_report(root, legacy_application) or
+    application = (preserveApplicationReport(root, legacyApplication) or
                    (root / "radiation" / "application" / "index.html").is_file())
     observed: dict[str, dict[str, Any]] = {}
-    observed.update(_scenario_results(root, "hydro"))
-    observed.update(_scenario_results(root, "gravity"))
-    observed.update(_native_results(root))
-    observed.update(_application_results(root, application))
+    observed.update(scenarioResults(root, "hydro"))
+    observed.update(scenarioResults(root, "gravity"))
+    observed.update(nativeResults(root))
+    observed.update(applicationResults(root, application))
 
     tests = []
     for identifier, (path, descriptor) in sorted(descriptors.items()):
-        result = observed.get(identifier, _result("not_run", reason="No result in this published batch."))
+        result = observed.get(identifier, makeResult("not_run", reason="No result in this published batch."))
         tests.append({
             "identifier": identifier,
             "family": descriptor["family"],
@@ -139,8 +139,8 @@ def collect(root: Path, descriptors: dict[str, tuple[Path, dict[str, Any]]],
             "result_link": result.get("link"),
             "reason": result.get("reason"),
             "result_source": result.get("source"),
-            "descriptor": path.relative_to(SOURCE_ROOT).as_posix()
-                if path.is_relative_to(SOURCE_ROOT) else path.as_posix(),
+            "descriptor": path.relative_to(sourceRoot).as_posix()
+                if path.is_relative_to(sourceRoot) else path.as_posix(),
             "reference_kind": descriptor.get("reference_data", {}).get("kind"),
             "reference": descriptor.get("reference_data", {}).get("description"),
             "build_type": descriptor.get("build_type"),
@@ -149,41 +149,41 @@ def collect(root: Path, descriptors: dict[str, tuple[Path, dict[str, Any]]],
 
     counts = {status: sum(test["status"] == status for test in tests)
               for status in ("passed", "failed", "conditional", "complete", "running", "not_run")}
-    summary = _read_json(root / "summary.json")
-    family_results: dict[str, dict[str, Any]] = {}
+    summary = readJson(root / "summary.json")
+    familyResults: dict[str, dict[str, Any]] = {}
     if isinstance(summary, dict):
         for item in summary.get("families", []):
             if isinstance(item, dict) and item.get("family") in {"hydro", "gravity", "radiation"}:
                 family = item["family"]
-                family_results[family] = {
-                    "status": _status(item.get("status", "conditional")),
+                familyResults[family] = {
+                    "status": resolveStatus(item.get("status", "conditional")),
                     "result_link": family + "/report.html",
                     "reason": item.get("reason"),
                 }
 
-    family_statuses = {item["status"] for item in family_results.values()}
-    summary_status = _status(summary.get("status")) if isinstance(summary, dict) else None
-    if counts["failed"] or "failed" in family_statuses:
+    familyStatuses = {item["status"] for item in familyResults.values()}
+    summaryStatus = resolveStatus(summary.get("status")) if isinstance(summary, dict) else None
+    if counts["failed"] or "failed" in familyStatuses:
         overall = "failed"
-    elif counts["running"] or "running" in family_statuses or summary_status == "running":
+    elif counts["running"] or "running" in familyStatuses or summaryStatus == "running":
         overall = "running"
     elif counts["conditional"] or counts["not_run"] or counts["complete"]:
         overall = "incomplete"
     else:
         overall = "passed"
 
-    source_commit = summary.get("source_commit") if isinstance(summary, dict) else None
-    source = _read_json(root / "source.json")
-    if source_commit is None and isinstance(source, dict):
-        source_commit = source.get("commit")
-    verification = _read_json(root / "verification.json")
-    if source_commit is None and isinstance(verification, dict):
-        source_commit = verification.get("source", {}).get("commit")
+    sourceCommit = summary.get("source_commit") if isinstance(summary, dict) else None
+    source = readJson(root / "source.json")
+    if sourceCommit is None and isinstance(source, dict):
+        sourceCommit = source.get("commit")
+    verification = readJson(root / "verification.json")
+    if sourceCommit is None and isinstance(verification, dict):
+        sourceCommit = verification.get("source", {}).get("commit")
 
     return {
         "schema_version": 1,
         "generated_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
-        "source_commit": source_commit or "unknown",
+        "source_commit": sourceCommit or "unknown",
         "status": overall,
         "counts": counts,
         "test_count": len(tests),
@@ -191,12 +191,12 @@ def collect(root: Path, descriptors: dict[str, tuple[Path, dict[str, Any]]],
             "radiation/application/index.html"
             if (root / "radiation" / "application" / "index.html").is_file()
             else "radiation-application.html" if application else None),
-        "families": family_results,
+        "families": familyResults,
         "tests": tests,
     }
 
 
-def _family_status(tests: list[dict[str, Any]]) -> str:
+def familyStatus(tests: list[dict[str, Any]]) -> str:
     statuses = {test["status"] for test in tests}
     if "failed" in statuses:
         return "failed"
@@ -207,7 +207,7 @@ def _family_status(tests: list[dict[str, Any]]) -> str:
     return "incomplete"
 
 
-def _render(catalog: dict[str, Any]) -> str:
+def render(catalog: dict[str, Any]) -> str:
     esc = html.escape
     refresh = '<meta http-equiv="refresh" content="5">' if catalog["status"] == "running" else ""
     css = """
@@ -230,7 +230,7 @@ def _render(catalog: dict[str, Any]) -> str:
     for family in ("hydro", "gravity", "radiation"):
         tests = [test for test in catalog["tests"] if test["family"] == family]
         recorded = catalog.get("families", {}).get(family, {})
-        status = recorded.get("status", _family_status(tests))
+        status = recorded.get("status", familyStatus(tests))
         links = sorted({test["result_link"] for test in tests if test.get("result_link")})
         if recorded.get("result_link"):
             links.append(recorded["result_link"])
@@ -246,14 +246,14 @@ def _render(catalog: dict[str, Any]) -> str:
     parts.append('</div></section>')
 
     for family in ("hydro", "gravity", "radiation"):
-        family_tests = [test for test in catalog["tests"] if test["family"] == family]
+        familyTests = [test for test in catalog["tests"] if test["family"] == family]
         parts.append(f'<section><h2>{esc(family.title())}</h2>')
-        for suite in sorted({test["suite"] for test in family_tests}):
+        for suite in sorted({test["suite"] for test in familyTests}):
             parts.append(f'<div class="suite"><h3>{esc(suite.replace("_", " ").title())}</h3><div class="tests">')
-            for test in (test for test in family_tests if test["suite"] == suite):
+            for test in (test for test in familyTests if test["suite"] == suite):
                 status = test["status"]
                 parts.append('<article class="test">')
-                parts.append(f'<span class="badge {status}">{esc(DISPLAY_STATUS.get(status, status))}</span>')
+                parts.append(f'<span class="badge {status}">{esc(displayStatus.get(status, status))}</span>')
                 parts.append(f'<h3>{esc(test["name"].replace("_", " ").title())}</h3>')
                 parts.append(f'<div class="identifier">{esc(test["identifier"])}</div><p>{esc(test["regime"])}</p>')
                 if test.get("reason"):
@@ -269,12 +269,12 @@ def _render(catalog: dict[str, Any]) -> str:
 
 
 def write(root: Path, descriptors: dict[str, tuple[Path, dict[str, Any]]],
-          legacy_application: bool = False) -> dict[str, Any]:
+          legacyApplication: bool = False) -> dict[str, Any]:
     root = root.resolve()
     root.mkdir(parents=True, exist_ok=True)
-    catalog = collect(root, descriptors, legacy_application)
+    catalog = collect(root, descriptors, legacyApplication)
     payload = json.dumps(catalog, indent=2, sort_keys=True) + "\n"
-    document = _render(catalog)
+    document = render(catalog)
     (root / "site.json").write_text(payload, encoding="utf-8")
     (root / "index.html").write_text(document, encoding="utf-8")
     (root / "report.html").write_text(document, encoding="utf-8")

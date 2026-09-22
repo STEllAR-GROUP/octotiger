@@ -68,7 +68,7 @@ bool comparable(const std::vector<Run> &runs)
 	}
 	return true;
 }
-std::string plans_table(const Json &state, const std::string &name)
+std::string plansTable(const Json &state, const std::string &name)
 {
 	std::string rows;
 	for (auto &r : state.value("runs", Json::array()))
@@ -97,34 +97,39 @@ std::string settings(const Json &m)
 	s += row("Final comparison time", show(m.at("time")) + tu);
 	s += row("Light speed", show(m.at("c")) + (cgs(m) ? " cm/s" : " (code speed)"));
 	for (const auto &[key, title] :
-		 std::vector<std::pair<std::string, std::string>>{{"periodic", "Periodic boundaries"},
-														  {"hydro", "Hydrodynamics"},
-														  {"gravity", "Gravity"},
-														  {"rad_implicit", "Implicit radiation source"},
-														  {"unigrid", "Uniform grid"},
-														  {"cfl", "CFL"},
-														  {"hard_dt", "Timestep cap"},
-														  {"odt", "Output interval"},
-														  {"rad_reconstruction", "Reconstruction"}})
-		if (cfg.contains(key))
-			s += row(title, show(cfg.at(key)) + ((key == "hard_dt" || key == "odt") ? tu : ""));
+		 std::vector<std::pair<std::string, std::string>>{{"mesh.boundary.periodic", "Periodic boundaries"},
+														  {"hydro.enabled", "Hydrodynamics"},
+														  {"gravity.enabled", "Gravity"},
+														  {"radiation.implicit", "Implicit radiation source"},
+														  {"mesh.unigrid", "Uniform grid"},
+														  {"hydro.cfl", "CFL"},
+														  {"timestep.fixed", "Timestep cap"},
+														  {"output.interval", "Output interval"},
+														  {"rad_reconstruction", "Reconstruction"}}) {
+		if (cfg.contains(key)) {
+			s += row(title, show(cfg.at(key)) +
+							((key == "timestep.fixed" || key == "output.interval") ? tu : ""));
+		}
+	}
 	if (!m.at("case").get<std::string>().starts_with("streaming")) {
 		for (const auto &[key, title, unit] : std::vector<std::tuple<std::string, std::string, std::string>>{
-				 {"rad_test_background", "Background energy density", "erg/cm³"},
-				 {"rad_test_chi", "Scattering coefficient χ", "cm⁻¹"},
-				 {"rad_test_width", "Gaussian width w", "cm"},
-				 {m.at("case") == "gaussian_pulse" ? "rad_test_amplitude" : "rad_test_luminosity",
+				 {"radiation.test.background", "Background energy density", "erg/cm³"},
+				 {"radiation.test.extinction", "Scattering coefficient χ", "cm⁻¹"},
+				 {"radiation.test.width", "Gaussian width w", "cm"},
+				 {m.at("case") == "gaussian_pulse" ? "radiation.test.amplitude" :
+																	 "radiation.test.luminosity",
 				  m.at("case") == "gaussian_pulse" ? "Pulse amplitude A" : "All-space luminosity ℒ",
-				  m.at("case") == "gaussian_pulse" ? "erg/cm³" : "erg/s"}})
+				  m.at("case") == "gaussian_pulse" ? "erg/cm³" : "erg/s"}}) {
 			s += row(title, cfg.contains(key) ? show(cfg.at(key)) + " " + (cgs(m) ? unit : "(code units)")
 											  : "Not recorded");
+		}
 	}
     s += row("Opacity model and coefficients", m.contains("opacity") ? html(m.at("opacity").dump()) : "Not recorded (older run)");
 	if (cfg.empty())
 		s += row("Effective configuration", "Not recorded in this run's metadata");
 	return s + "</tbody></table></div>";
 }
-std::string norms_table(const std::vector<Run> &runs, bool compare, Json &errors)
+std::string normsTable(const std::vector<Run> &runs, bool compare, Json &errors)
 {
 	std::string s = "<div "
 					"class=\"scroll\"><table><thead><tr><th>Grid</th><th>Field</th><th>Norm</th><th>Error</"
@@ -170,7 +175,7 @@ std::string movies(const fs::path &batch, const fs::path &folder)
 	std::sort(manifests.begin(), manifests.end());
 	std::string s;
 	for (auto &p : manifests) {
-		auto m = read_json(p);
+		auto m = readJson(p);
 		auto file = p.parent_path() / "movie.mp4";
 		if (m.value("status", "") != "complete" || !fs::is_regular_file(file))
 			continue;
@@ -192,7 +197,7 @@ std::string movies(const fs::path &batch, const fs::path &folder)
 	}
 	return s.empty() ? "<p class=\"muted\">No completed movie is available for this resolution.</p>" : s;
 }
-std::string budget_table(const Budget &b)
+std::string budgetTable(const Budget &b)
 {
 	std::string s = "<p>All values below are dimensionless fractions of the fixed initial scale.</p>"
 					"<div "
@@ -213,7 +218,7 @@ std::string budget_table(const Budget &b)
 	}
 	return s + "</tbody></table></div>";
 }
-std::string method_notes()
+std::string methodNotes()
 {
 	return R"(<section class="section" id="diagnostics"><span class="tag">Reading the results</span><h2>Errors, budgets, and movies</h2>
 <p>Every norm uses the full three-dimensional domain, with cell-volume weighting. Here <var>e</var> = numerical − reference and <var>V</var> is the domain volume:</p>
@@ -227,25 +232,25 @@ std::string method_notes()
 <p>Movies show the numerical Silo states with a fixed color range for each movie. Recorded states are held for their actual simulation-time gaps; intermediate solutions are not interpolated. The 3D option shows the domain's exterior surface. Movies and plots retain their recorded physical units.</p></section>)";
 }
 } // namespace
-fs::path report_pages(const fs::path &batch, bool live_update)
+fs::path reportPages(const fs::path &batch, bool liveUpdate)
 {
 	require(fs::is_directory(batch), "Missing batch/run directory: " + batch.string());
-	Json state = fs::is_regular_file(batch / "live.json") ? read_json(batch / "live.json") : Json::object();
-	auto all = completed_runs(batch);
+	Json state = fs::is_regular_file(batch / "live.json") ? readJson(batch / "live.json") : Json::object();
+	auto all = completedRuns(batch);
 	require(!all.empty() || fs::is_regular_file(batch / "live.json"),
 			"No completed runs or live batch in " + batch.string());
 	std::map<std::string, std::vector<Run>> groups;
 	std::map<std::string, std::string> unreadable;
 	for (auto &[p, m] : all) {
 		try {
-			m["norms"] = read_norms(p, m);
-			if (live_update)
-				read_conservation(p, m);
+			m["norms"] = readNorms(p, m);
+			if (liveUpdate)
+				readConservation(p, m);
 			groups[m.at("case")].emplace_back(p, m);
 		} catch (const std::exception &e) {
 			// Publication precedes resume validation. Do not present invalid results;
 			// let the runner's validation report the failure and clear the live state.
-			if (!live_update)
+			if (!liveUpdate)
 				throw;
 			unreadable[m.at("case").get<std::string>()] +=
 				"<p class=\"error\">Result unavailable: " + html(p.filename().string()) + ": " +
@@ -255,7 +260,7 @@ fs::path report_pages(const fs::path &batch, bool live_update)
 	bool synthetic = false;
 	for (auto &[p, m] : all)
 		synthetic |= m.value("origin", "").find("fixture") != std::string::npos;
-	const std::string fixture_note =
+	const std::string fixtureNote =
 		synthetic ? "<p class=\"note\"><strong>Synthetic validation data.</strong> These files exercise the "
 					"report generator; they are not a solver accuracy result.</p>"
 				  : "";
@@ -272,17 +277,17 @@ fs::path report_pages(const fs::path &batch, bool live_update)
 	if (!unreadable.empty())
 		index += "<p class=\"error\">Some saved results could not be validated. Their problem pages identify "
 				 "the affected runs.</p>";
-	index += fixture_note + "</header><main><div class=\"cards\">";
-	for (auto &d : problem_descriptions) {
+	index += fixtureNote + "</header><main><div class=\"cards\">";
+	for (auto &d : problemDescriptions) {
 		auto &runs = groups[d.name];
 		std::sort(runs.begin(), runs.end(), [](auto &a, auto &b) {
 			return a.second.at("dx").template get<double>() > b.second.at("dx").template get<double>();
 		});
-		const auto case_dir = batch / "plots" / d.name;
+		const auto caseDir = batch / "plots" / d.name;
 		std::string preview;
 		for (auto it = runs.rbegin(); it != runs.rend(); ++it) {
 			const auto img =
-				case_dir / ("l" + std::to_string(it->second.at("level").get<int>())) / "slice_er.png";
+				caseDir / ("l" + std::to_string(it->second.at("level").get<int>())) / "slice_er.png";
 			if (!fs::is_regular_file(img))
 				continue;
 			preview = "<figure class=\"preview\"><a href=\"" + d.name +
@@ -305,11 +310,11 @@ fs::path report_pages(const fs::path &batch, bool live_update)
 				 d.name + ".html\">Setup &amp; all results →</a></div></article>";
 		std::string page = start(d.title) + "<header><a class=\"brand\" href=\"index.html\">← Octo-TIGER / "
 											"All test problems</a><nav aria-label=\"Test problems\">";
-		for (auto &other : problem_descriptions)
+		for (auto &other : problemDescriptions)
 			page += "<a href=\"" + other.name + ".html\"" +
 					(d.name == other.name ? " aria-current=\"page\"" : "") + ">" + other.title + "</a>";
 		page += "</nav><span class=\"tag\">" + d.regime + "</span><h1>" + d.title +
-				"</h1><p class=\"lead\">" + d.summary + "</p>" + fixture_note +
+				"</h1><p class=\"lead\">" + d.summary + "</p>" + fixtureNote +
 				"</header><main><nav class=\"contents\" aria-label=\"On this page\"><a "
 				"href=\"#setup\">Setup</a><a href=\"#reference\">Reference solution</a><a "
 				"href=\"#results\">Results</a><a href=\"#diagnostics\">Diagnostics</a><a "
@@ -327,14 +332,14 @@ fs::path report_pages(const fs::path &batch, bool live_update)
 				d.reference + "<h3>What this test measures</h3>" + d.interpretation + "</section>";
 		page += "<section class=\"section\" id=\"results\"><span class=\"tag\">Measured "
 				"results</span><h2>All resolutions</h2>" +
-				unreadable[d.name] + plans_table(state, d.name);
+				unreadable[d.name] + plansTable(state, d.name);
 		if (runs.empty()) {
 			page += "<p>No completed run is available for this problem in this batch. Its description is "
 					"available above; results will appear here as runs finish.</p>";
 		} else {
 			const bool compare = comparable(runs);
 			if (compare) {
-				auto chart = figure(batch, case_dir / "convergence",
+				auto chart = figure(batch, caseDir / "convergence",
 									"Full-volume convergence for energy and all three flux components");
 				page += chart.empty() ? "<p>Comparable runs are available. The norm table is current; use "
 										"the plot command to render the convergence figure.</p>"
@@ -348,26 +353,26 @@ fs::path report_pages(const fs::path &batch, bool live_update)
 									  "resolutions; convergence orders are not computed.") +
 					"</p>";
 			Json errors = Json::array(), budgets = Json::array();
-			page += "<h3>Full-volume norms and orders</h3>" + norms_table(runs, compare, errors);
-			fs::create_directories(case_dir);
-			records_csv(case_dir / "errors.csv", errors);
-			write_json(case_dir / "errors.json", errors);
+			page += "<h3>Full-volume norms and orders</h3>" + normsTable(runs, compare, errors);
+			fs::create_directories(caseDir);
+			recordsCsv(caseDir / "errors.csv", errors);
+			writeJson(caseDir / "errors.json", errors);
 			page += "<div class=\"downloads\">" +
-					link(batch, case_dir / "errors.csv", "This problem: norms/orders CSV") +
-					link(batch, case_dir / "errors.json", "JSON") + "</div>";
+					link(batch, caseDir / "errors.csv", "This problem: norms/orders CSV") +
+					link(batch, caseDir / "errors.json", "JSON") + "</div>";
 			for (auto &[folder, m] : runs) {
 				const std::string level = std::to_string(m.at("level").get<int>());
-				const auto target = case_dir / ("l" + level);
+				const auto target = caseDir / ("l" + level);
 				page += "<article class=\"run\" id=\"level-" + level + "\"><h3>" + show(m.at("cells")) +
 						"³ cells <span class=\"muted\">/ level " + level +
 						"</span></h3><details><summary>Recorded setup and run provenance</summary>" +
 						settings(m) + "<pre>" + html(m.dump(2)) + "</pre></details>";
 				page += "<h4>Final fields and profiles</h4>";
 				if (d.name == "gaussian_pulse") {
-					auto style_file = target / "display.json";
-					if (fs::is_regular_file(style_file) &&
-						read_json(style_file).value("energy_scale", "") == "log") {
-						auto style = read_json(style_file);
+					auto styleFile = target / "display.json";
+					if (fs::is_regular_file(styleFile) &&
+						readJson(styleFile).value("energy_scale", "") == "log") {
+						auto style = readJson(styleFile);
 						page += "<p class=\"muted\">Gaussian energy is shown as E − Ebg on a logarithmic "
 								"scale. Values at or below " +
 								show(style.at("energy_floor")) +
@@ -390,9 +395,9 @@ fs::path report_pages(const fs::path &batch, bool live_update)
 					page += figure(batch, target / ("slice_" + fields[f]),
 								   fields[f] + ": numerical, reference, and signed-error slice");
 				page += "</details><h4>Movies</h4>" + movies(batch, folder) + "<h4>Conservation</h4>";
-				if (auto b = read_conservation(folder, m)) {
+				if (auto b = readConservation(folder, m)) {
 					page +=
-						budget_table(*b) +
+						budgetTable(*b) +
 						figure(batch, target / "conservation",
 							   "Integrated radiation budgets and their transport/source-corrected residuals");
 					for (auto r : b->summary) {
@@ -426,7 +431,7 @@ fs::path report_pages(const fs::path &batch, bool live_update)
 					page += link(batch, file, title);
 				page += "</div></article>";
 			}
-			records_csv(case_dir / "conservation.csv", budgets,
+			recordsCsv(caseDir / "conservation.csv", budgets,
 						{"case",
 						 "level",
 						 "cells_per_side",
@@ -447,14 +452,14 @@ fs::path report_pages(const fs::path &batch, bool live_update)
 						 "normalized_error",
 						 "max_normalized_error",
 						 "integral_units"});
-			write_json(case_dir / "conservation.json", budgets);
+			writeJson(caseDir / "conservation.json", budgets);
 			if (!budgets.empty())
 				page += "<div class=\"downloads\">" +
-						link(batch, case_dir / "conservation.csv",
+						link(batch, caseDir / "conservation.csv",
 							 "This problem: all conservation summaries CSV") +
-						link(batch, case_dir / "conservation.json", "JSON") + "</div>";
+						link(batch, caseDir / "conservation.json", "JSON") + "</div>";
 		}
-		page += "</section>" + method_notes();
+		page += "</section>" + methodNotes();
 		page += "<section class=\"section\" id=\"sources\"><span class=\"tag\">Sources &amp; "
 				"provenance</span><h2>Where this problem comes from</h2>" +
 				d.source;
@@ -465,14 +470,14 @@ fs::path report_pages(const fs::path &batch, bool live_update)
 		page += "<div class=\"downloads\">" +
 				link(batch, batch / "batch.json", "Batch settings and source hashes") +
 				link(batch, batch / "live.json", "Batch status") + "</div></section>" + finish(state);
-		atomic_text(batch / (d.name + ".html"), page);
+		atomicText(batch / (d.name + ".html"), page);
 	}
 	index += "</div><div class=\"downloads\">" +
 			 link(batch, batch / "plots/index.html", "Combined plot report") +
 			 link(batch, batch / "movies.html", "Movie gallery") +
 			 link(batch, batch / "plots/errors.csv", "All norms CSV") +
 			 link(batch, batch / "batch.json", "Batch metadata") + "</div>" + finish(state);
-	atomic_text(batch / "index.html", index);
+	atomicText(batch / "index.html", index);
 	return batch / "index.html";
 }
 } // namespace rr

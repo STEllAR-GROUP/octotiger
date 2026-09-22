@@ -3,14 +3,14 @@ namespace rr
 {
 namespace
 {
-void replace_once(std::string &s, const std::string &old, const std::string &value)
+void replaceOnce(std::string &s, const std::string &old, const std::string &value)
 {
 	auto pos = s.find(old);
 	require(pos != s.npos && s.find(old, pos + old.size()) == s.npos,
 			"Source differs from expected context: " + old);
 	s.replace(pos, old.size(), value);
 }
-std::string strip_includes(const std::string &source)
+std::string stripIncludes(const std::string &source)
 {
 	std::istringstream s(source);
 	std::string line, out;
@@ -39,13 +39,13 @@ std::string method(const std::string &source, const std::string &marker)
 int maintenance(const Options &o)
 {
 	auto root = o.root;
-	auto source = source_root(root);
-	auto support = tools_root(root) / "support";
+	auto source = sourceRoot(root);
+	auto support = toolsRoot(root) / "support";
 	if (o.command == "install") {
 		require(fs::is_regular_file(source / "octotiger/test_problems/radiation/reference.hpp"),
 				"Install radiation reference update first");
 		auto file = source / "src/grid.cpp";
-		auto old = read_text(file), changed = old;
+		auto old = readText(file), changed = old;
 		if (old.find("RADIATION_PLOT_EXPORT_BEGIN") != old.npos)
 			require(old.find("radiationSlice.capture(") != old.npos &&
 						old.find("radiationSlice.finish();") != old.npos,
@@ -57,19 +57,19 @@ int maintenance(const Options &o)
 			require(end != old.npos, "Missing grid::allocate anchor");
 			auto part = old.substr(begin, end - begin);
 			std::string anchor = "\tconst Real dv = dx * dx * dx;";
-			replace_once(part, anchor, anchor + R"(
+			replaceOnce(part, anchor, anchor + R"(
 	// RADIATION_PLOT_EXPORT_BEGIN: opt in by creating datadir/radiation-slices.
 	radiationTests::SliceOutput radiationSlice(radiationRegressionProblem(),
 		opts().data_dir, double(t), double(dx), 2 * double(opts().xscale));)");
 			std::string loop = "\t\t\t\tfor (integer field = 0; field != opts().n_fields; ++field) {";
-			replace_once(part, loop,
+			replaceOnce(part, loop,
 						 R"(				radiationSlice.capture(double(X[XDIM][iii]), double(X[YDIM][iii]),
 					double(X[ZDIM][iii]), A, opts().n_fields, [&](int f) {
 						return double(rad_grid_ptr->get_field(f, i - H_BW + R_BW,
 							j - H_BW + R_BW, k - H_BW + R_BW));
 					});
 )" + loop);
-			replace_once(part, "\treturn a;", "\tradiationSlice.finish();\n\treturn a;");
+			replaceOnce(part, "\treturn a;", "\tradiationSlice.finish();\n\treturn a;");
 			changed = "#include \"octotiger/test_problems/radiation.hpp\"\n#include "
 					  "\"octotiger/test_problems/radiation/plot_output.hpp\"\n" +
 					  old.substr(0, begin) + part + old.substr(end);
@@ -80,7 +80,7 @@ int maintenance(const Options &o)
 				return 0;
 			}
 			auto tmp = fs::temp_directory_path() / ("rr-grid-" + stamp() + ".cpp");
-			atomic_text(tmp, changed);
+			atomicText(tmp, changed);
 			int code = execute({"diff", "-u", "--label", "a/src/grid.cpp", "--label", "b/src/grid.cpp",
 								file.string(), tmp.string()},
 							   source, {}, {}, false);
@@ -94,23 +94,23 @@ int maintenance(const Options &o)
 			std::cout << "Radiation slice export already installed\n";
 			return 0;
 		}
-		auto supplied = read_text(support / "plot_output.hpp");
-		require(!fs::exists(header) || read_text(header) == supplied,
+		auto supplied = readText(support / "plot_output.hpp");
+		require(!fs::exists(header) || readText(header) == supplied,
 				"Existing plot_output.hpp differs; no files changed");
 		if (old != changed) {
 			auto backup = fs::path(file.string() + ".before-radiation-plots");
 			require(!fs::exists(backup), "Backup already exists; no files changed");
 			fs::copy_file(file, backup);
-			atomic_text(header, supplied);
-			atomic_text(file, changed);
+			atomicText(header, supplied);
+			atomicText(file, changed);
 		} else if (!fs::exists(header))
-			atomic_text(header, supplied);
+			atomicText(header, supplied);
 		std::cout << "Radiation slice export installed; rebuild octotiger\n";
 		return 0;
 	}
 	require(!o.reference.empty() && !o.output.empty(), "validate-serial requires --reference and --output");
 	require(o.cells >= 4 && o.cells <= 512 && o.cells % 2 == 0, "Invalid serial mesh size");
-	auto radiation_source = read_text(source / "src/radiation/rad_grid.cpp");
+	auto radiationSource = readText(source / "src/radiation/rad_grid.cpp");
 	std::string bodies;
 	for (auto marker :
 		 {"void rad_grid::allocate()", "void rad_grid::set_dx(", "void rad_grid::set_X(",
@@ -118,17 +118,17 @@ int maintenance(const Options &o)
 		  "void rad_grid::sanity_check()", "void rad_grid::applyRegressionSource(",
 		  "radiationConservation::Totals rad_grid::takeConservation(", "void rad_grid::accountBoundaryFlux(",
 		  "void rad_grid::set_physical_boundaries(", "rad_grid::rad_grid(Real _dx)", "rad_grid::rad_grid()"})
-		bodies += method(radiation_source, marker) + "\n";
+		bodies += method(radiationSource, marker) + "\n";
 	auto temp = fs::temp_directory_path() / ("radiation-regression-" + stamp());
 	fs::create_directory(temp);
 	try {
-		auto fixture = "#include " + gp_quote((support / "plot_output.hpp").string()) + "\n" +
-					   read_text(support / "serial_fixture.inc") +
-					   strip_includes(read_text(source / "test_problems/radiation.hpp")) +
-					   strip_includes(read_text(source / "src/test_problems/radiation/radiation.cpp")) +
-					   strip_includes(read_text(source / "octotiger/radiation/rad_grid.hpp")) + bodies +
-					   read_text(support / "serial_checks.inc");
-		atomic_text(temp / "test.cpp", fixture);
+		auto fixture = "#include " + gpQuote((support / "plot_output.hpp").string()) + "\n" +
+					   readText(support / "serial_fixture.inc") +
+					   stripIncludes(readText(source / "test_problems/radiation.hpp")) +
+					   stripIncludes(readText(source / "src/test_problems/radiation/radiation.cpp")) +
+					   stripIncludes(readText(source / "octotiger/radiation/rad_grid.hpp")) + bodies +
+					   readText(support / "serial_checks.inc");
+		atomicText(temp / "test.cpp", fixture);
 		std::vector<std::string> cmd{o.cxx, "-std=c++23"};
 		if (o.sanitize)
 			cmd.insert(cmd.end(), {"-O1", "-g", "-fsanitize=address,undefined", "-fno-omit-frame-pointer"});

@@ -11,7 +11,6 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import hashlib
-import html
 import json
 import os
 from pathlib import Path
@@ -34,17 +33,17 @@ def values(test, key):
     return [value] if isinstance(value, str) else value
 
 
-def exact_pattern(names):
+def exactPattern(names):
     if not names:
         raise ValueError('Refusing an empty CTest selection')
     return '^(' + '|'.join(re.escape(name) for name in sorted(names)) + ')$'
 
 
-def selected_groups(inventory, selector):
+def selectedGroups(inventory, selector):
     """Partition variant checks, then close transitive fixture/dependency edges."""
     tests = inventory['tests']
-    by_name = {t['name']: t for t in tests}
-    if len(by_name) != len(tests):
+    byName = {t['name']: t for t in tests}
+    if len(byName) != len(tests):
         raise ValueError('Duplicate registered CTest names')
     include = re.compile(selector['include'])
     exclude = re.compile(selector['exclude']) if selector.get('exclude') else None
@@ -62,7 +61,7 @@ def selected_groups(inventory, selector):
             before = set(names)
             fixtures = set()
             for name in list(names):
-                test = by_name[name]
+                test = byName[name]
                 fixtures.update(values(test, 'FIXTURES_REQUIRED'))
                 fixtures.update(values(test, 'FIXTURES_SETUP'))
                 # CTest expands cleanup DEPENDS to every consumer of a shared
@@ -70,7 +69,7 @@ def selected_groups(inventory, selector):
                 # rerun all other scenario variants before cleanup.
                 dependencies = [] if values(test, 'FIXTURES_CLEANUP') else values(test, 'DEPENDS')
                 for dependency in dependencies:
-                    if dependency not in by_name:
+                    if dependency not in byName:
                         raise ValueError(f'Missing registered dependency {dependency}')
                     names.add(dependency)
             for test in tests:
@@ -82,7 +81,8 @@ def selected_groups(inventory, selector):
         cleanup = [t['name'] for t in entries if values(t, 'FIXTURES_CLEANUP')]
         run = [t['name'] for t in entries if t['name'] not in cleanup]
         checks = [t for t in entries if values(t, 'PASS_REGULAR_EXPRESSION') or
-                  values(t, 'FAIL_REGULAR_EXPRESSION')]
+                  values(t, 'FAIL_REGULAR_EXPRESSION') or
+                  'numerical' in values(t, 'LABELS')]
         if not checks:
             raise ValueError(f'{root["name"]}: registered scenario has no numerical checks')
         covered.update(names)
@@ -94,7 +94,7 @@ def selected_groups(inventory, selector):
     return groups
 
 
-def hash_file(path):
+def hashFile(path):
     digest = hashlib.sha256()
     with path.open('rb') as stream:
         for chunk in iter(lambda: stream.read(1024 * 1024), b''):
@@ -102,7 +102,7 @@ def hash_file(path):
     return digest.hexdigest()
 
 
-def registration_inputs(groups, build):
+def registrationInputs(groups, build):
     """Record resolved executable/reference provenance and missing prerequisites."""
     files, missing = {}, set()
     for group in groups:
@@ -122,7 +122,7 @@ def registration_inputs(groups, build):
             else:
                 path = Path(resolved).resolve()
                 if str(path) not in files:
-                    files[str(path)] = {'kind': 'executable', 'sha256': hash_file(path)}
+                    files[str(path)] = {'kind': 'executable', 'sha256': hashFile(path)}
             for argument in command[1:]:
                 path = Path(argument)
                 # Silo references outside the build are immutable inputs, not
@@ -132,11 +132,11 @@ def registration_inputs(groups, build):
                         missing.add(f'{test["name"]}: Silo reference unavailable: {path}')
                     else:
                         if str(path) not in files:
-                            files[str(path)] = {'kind': 'silo_reference', 'sha256': hash_file(path)}
+                            files[str(path)] = {'kind': 'silo_reference', 'sha256': hashFile(path)}
     return files, sorted(missing)
 
 
-def raw_files(directory):
+def rawFiles(directory):
     """Retain numerical data/logs, not compiler objects or generated build rules."""
     if not directory.is_dir():
         return []
@@ -158,13 +158,23 @@ def raw_files(directory):
     return sorted(result)
 
 
-def work_directories(groups, build):
+def workDirectories(groups, build):
+    """Return only the directories that own a selected scenario's products.
+
+    Legacy Octo-TIGER CTests normally execute from the build root and put their
+    products below ``test_problems/<case>``.  Treating the build root itself as
+    a scenario directory rejected every such registration before CTest could
+    run.  Cleanup registrations already name the product paths authoritatively,
+    so use those paths to identify the isolated product directories.
+    """
     directories = set()
     for group in groups:
         for test in group['registrations']:
             directory = Path(properties(test).get('WORKING_DIRECTORY', build)).resolve()
-            if not directory.is_relative_to(build) or directory == build:
+            if not directory.is_relative_to(build):
                 raise ValueError(f'Expected isolated scenario working directory inside build: {directory}')
+            if directory != build:
+                directories.add(directory)
             command = test.get('command', [])
             if (values(test, 'FIXTURES_CLEANUP') and len(command) >= 4 and
                     Path(command[0]).name == 'cmake' and command[1] == '-E' and
@@ -173,22 +183,30 @@ def work_directories(groups, build):
                     if argument.startswith('-'):
                         continue
                     target = (directory / argument).resolve()
-                    if target == directory or not target.is_relative_to(directory):
+                    # Legacy CTests may execute from a nested CMake binary
+                    # directory while their cleanup command names the shared
+                    # test_problems/<case> product directory absolutely.
+                    # It must remain within this configured build, but need
+                    # not be a child of CTest's reported working directory.
+                    if target == build or not target.is_relative_to(build):
                         raise ValueError(f'Cleanup escapes scenario directory; reconfigure fixed registrations: {target}')
-            directories.add(directory)
+                    # CMake's legacy registrations run in the build root but
+                    # clean files in test_problems/<case>.  Archive/preflight
+                    # that case directory, not the entire build tree.
+                    directories.add(target if command[2] == 'remove_directory' else target.parent)
     return sorted(directories)
 
 
-def archive_raw(groups, build, folder):
+def archiveRaw(groups, build, folder):
     artifacts = []
     directories = {folder, folder.parent, folder.parent.parent}
-    for directory in work_directories(groups, build):
-        for path in raw_files(directory):
+    for directory in workDirectories(groups, build):
+        for path in rawFiles(directory):
             target = folder / 'raw' / path.relative_to(build)
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(path, target)
-            digest = hash_file(path)
-            if digest != hash_file(target):
+            digest = hashFile(path)
+            if digest != hashFile(target):
                 raise ValueError(f'Raw artifact changed while archiving: {path}')
             with target.open('rb') as stream:
                 os.fsync(stream.fileno())
@@ -206,7 +224,44 @@ def archive_raw(groups, build, folder):
     return artifacts
 
 
-def read_junit(path, expected):
+def quarantineExisting(paths, build, output):
+    """Preserve stale build-tree products before a new configured run.
+
+    Interrupted legacy CTests can leave valuable Silo states and diagnostics in
+    the configured build tree.  A fresh verification output directory should
+    not require the user to delete those files by hand.  Copy, hash, sync, and
+    only then unlink each source so the next CTest cannot overwrite evidence.
+    """
+    destination = output / 'preexisting-build-output'
+    records = []
+    for source in sorted(set(paths)):
+        source = source.resolve()
+        if not source.is_file() or not source.is_relative_to(build):
+            raise ValueError(f'Refusing to quarantine unsafe build output: {source}')
+        target = destination / source.relative_to(build)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if target.exists():
+            raise ValueError(f'Quarantine target already exists: {target}')
+        digest = hashFile(source)
+        shutil.copy2(source, target)
+        if hashFile(target) != digest:
+            raise ValueError(f'Quarantined artifact changed while copying: {source}')
+        with target.open('rb') as stream:
+            os.fsync(stream.fileno())
+        descriptor = os.open(target.parent, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+        source.unlink()
+        records.append({'source': str(source),
+                        'path': str(target.relative_to(output)),
+                        'bytes': target.stat().st_size, 'sha256': digest})
+    (destination / 'manifest.json').write_text(json.dumps(records, indent=2) + '\n')
+    return records
+
+
+def readJunit(path, expected):
     root = ET.parse(path).getroot()
     tests = []
     for case in root.iter('testcase'):
@@ -221,7 +276,7 @@ def read_junit(path, expected):
     return tests
 
 
-def hpx_environment(threads):
+def hpxEnvironment(threads):
     """Override HPX worker threads without changing CTest fixture parallelism."""
     environment = os.environ.copy()
     words = shlex.split(environment.get('HPX_COMMANDLINE_OPTIONS', ''))
@@ -240,7 +295,7 @@ def hpx_environment(threads):
     return environment
 
 
-def redirected_logs(registrations, names, build):
+def redirectedLogs(registrations, names, build):
     """Return files to which legacy shell registrations hide solver stdout."""
     answer = []
     selected = set(names)
@@ -266,7 +321,7 @@ def redirected_logs(registrations, names, build):
     return answer
 
 
-def follow_logs(paths, stop):
+def followLogs(paths, stop):
     offsets = {path: 0 for path in paths}
     while True:
         for path in paths:
@@ -289,14 +344,14 @@ def follow_logs(paths, stop):
         time.sleep(0.05)
 
 
-def run_phase(base, build, names, folder, phase, registrations, threads):
+def runPhase(base, build, names, folder, phase, registrations, threads):
     junit = folder / (phase + '.xml')
-    command = [*base, '-R', exact_pattern(names), '-FA', '.*', '-j', '1',
+    command = [*base, '-R', exactPattern(names), '-FA', '.*', '-j', '1',
                '--no-tests=error', '--output-on-failure', '--output-junit', str(junit)]
-    environment = hpx_environment(threads)
-    paths = redirected_logs(registrations, names, build)
+    environment = hpxEnvironment(threads)
+    paths = redirectedLogs(registrations, names, build)
     stop = threading.Event()
-    follower = threading.Thread(target=follow_logs, args=(paths, stop), daemon=True)
+    follower = threading.Thread(target=followLogs, args=(paths, stop), daemon=True)
     follower.start()
     try:
         with (folder / (phase + '.log')).open('w') as stream:
@@ -316,13 +371,13 @@ def run_phase(base, build, names, folder, phase, registrations, threads):
     finally:
         stop.set()
         follower.join()
-    last_log = build / 'Testing/Temporary/LastTest.log'
-    if last_log.is_file():
-        shutil.copy2(last_log, folder / (phase + '-LastTest.log'))
+    lastLog = build / 'Testing/Temporary/LastTest.log'
+    if lastLog.is_file():
+        shutil.copy2(lastLog, folder / (phase + '-LastTest.log'))
     record = {'command': command, 'returncode': returncode,
               'ctest_parallelism': 1, 'application_threads': threads,
               'HPX_COMMANDLINE_OPTIONS': environment['HPX_COMMANDLINE_OPTIONS'],
-              'checks': read_junit(junit, names)}
+              'checks': readJunit(junit, names)}
     return record
 
 
@@ -333,33 +388,36 @@ def aggregate(records):
 
 def execute(selected, arguments, plan=False):
     from verification_results import runner
+    from verification_results.adapters import ctest_visuals
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('build_type', nargs='?', default='Release')
+    parser.add_argument('buildType', nargs='?', default='Release')
     parser.add_argument('--build', type=Path)
-    parser.add_argument('--root', type=Path, default=runner.SOURCE_ROOT)
+    parser.add_argument('--root', type=Path, default=runner.sourceRoot)
     parser.add_argument('--exe', type=Path)
     parser.add_argument('--ctest', default='ctest')
     parser.add_argument('--threads', type=int, default=1)
+    parser.add_argument('--visit', type=Path)
+    parser.add_argument('--ffmpeg', default='ffmpeg')
     parser.add_argument('--output', type=Path)
     opts = parser.parse_args(arguments)
     modes = {v.lower(): v for v in ('Debug', 'Release', 'RelWithDebInfo')}
-    if opts.build_type.lower() not in modes or opts.threads < 1:
+    if opts.buildType.lower() not in modes or opts.threads < 1:
         raise ValueError('Use a supported build type and a positive HPX thread count')
     if opts.exe:
         raise ValueError('--exe cannot replace commands in a configured CTest build; omit --build for conditional smoke only')
-    mode = modes[opts.build_type.lower()]
+    mode = modes[opts.buildType.lower()]
     root = opts.root.expanduser().resolve()
     source = root / 'src/octotiger' if (root / 'src/octotiger/test_problems').is_dir() else root
     build = (opts.build or root / 'build/octotiger' / mode.lower()).expanduser().resolve()
-    output = runner.safe_output(opts.output or runner.default_output('ctest'))
+    output = runner.safeOutput(opts.output or runner.defaultOutput('ctest'))
     if output.is_relative_to(build):
         raise ValueError('CTest reports must be outside the configured build tree')
     if not plan and output.exists() and any(output.iterdir()):
         raise ValueError('CTest output must be empty; choose a fresh directory')
     base = [opts.ctest, '-C', mode]
     manifest = {'schema_version': 1, 'created_utc': dt.datetime.now(dt.timezone.utc).isoformat(),
-                'source': {'commit': runner.git_value('rev-parse', 'HEAD'),
-                           'dirty': bool(runner.git_value('status', '--porcelain')),
+                'source': {'commit': runner.gitValue('rev-parse', 'HEAD'),
+                           'dirty': bool(runner.gitValue('status', '--porcelain')),
                            'scope': 'harness checkout; actual executable/reference hashes recorded per descriptor'},
                 'harness': {'name': 'verification_results', 'adapter': 'configured_ctest'},
                 'build': {'directory': str(build), 'requested_build_type': mode},
@@ -382,11 +440,11 @@ def execute(selected, arguments, plan=False):
                                capture_output=True, text=True, check=True)
         inventory = json.loads(query.stdout)
         manifest['build']['registration_sources'] = [
-            {'path': str(path), 'sha256': hash_file(path) if path.is_file() else None}
+            {'path': str(path), 'sha256': hashFile(path) if path.is_file() else None}
             for path in map(Path, inventory.get('backtraceGraph', {}).get('files', []))]
         cache = build / 'CMakeCache.txt'
         if cache.is_file():
-            manifest['build']['cache_sha256'] = hash_file(cache)
+            manifest['build']['cache_sha256'] = hashFile(cache)
             home = re.search(r'^CMAKE_HOME_DIRECTORY:[^=]+=(.*)$', cache.read_text(), re.M)
             manifest['build']['configured_source_directory'] = home[1] if home else None
             configured = re.search(r'^CMAKE_BUILD_TYPE:[^=]+=(.*)$', cache.read_text(), re.M)
@@ -397,44 +455,48 @@ def execute(selected, arguments, plan=False):
         unavailable = str(error)
     except (OSError, subprocess.CalledProcessError, json.JSONDecodeError) as error:
         unavailable = f'CTest inventory unavailable: {error}'
-    all_groups = []
+    allGroups = []
     for path, descriptor in selected:
         identifier = '.'.join(descriptor[k] for k in ('family', 'suite', 'name'))
         config = source / descriptor['parameters']['config']
         item = {'identifier': identifier, 'descriptor': descriptor,
-                'descriptor_sha256': hash_file(path), 'status': 'planned',
+                'descriptor_sha256': hashFile(path), 'status': 'planned',
                 'config_text': config.read_text() if config.is_file() else None,
-                'config_sha256': hash_file(config) if config.is_file() else None,
+                'config_sha256': hashFile(config) if config.is_file() else None,
                 'groups': []}
         if unavailable:
             item.update(status='conditional', reason=unavailable)
         elif not descriptor.get('ctest'):
             item.update(status='conditional', reason='No authoritative CTest selector registered')
         else:
-            item['groups'] = selected_groups(inventory, descriptor['ctest'])
+            item['groups'] = selectedGroups(inventory, descriptor['ctest'])
             if not item['groups']:
                 item.update(status='conditional', reason='No matching scenarios enabled in this configured build')
-            all_groups.extend(item['groups'])
+            allGroups.extend(item['groups'])
         manifest['tests'].append(item)
     if plan:
         manifest['inventory'] = inventory
         print(json.dumps(manifest, indent=2))
         return 0
-    # Existing solver files may be irreplaceable. Refuse to let legacy commands
-    # overwrite them; use a fresh build/test tree instead.
-    existing = [str(path) for directory in work_directories(all_groups, build)
-                for path in raw_files(directory)]
-    if existing:
-        raise ValueError('Existing scenario output would be overwritten: ' + ', '.join(existing))
+    # Preserve products left by an interrupted/older run.  The new result
+    # directory is fresh, so it is a safe per-run quarantine and no evidence is
+    # discarded merely to let CTest start again.
+    existing = [path for directory in workDirectories(allGroups, build)
+                for path in rawFiles(directory)]
     output.mkdir(parents=True, exist_ok=True)
+    if existing:
+        manifest['preexisting_build_output'] = quarantineExisting(existing, build, output)
+        print(f'Quarantined {len(existing)} pre-existing build artifacts in '
+              f'{output / "preexisting-build-output"}', flush=True)
     print(f'Configured CTest: fixture_parallelism=1 application_hpx_threads={opts.threads}',
           flush=True)
     (output / 'ctest-inventory.json').write_text(json.dumps(inventory, indent=2) + '\n')
+    ctest_visuals.writeReport(output, manifest)
     halted = None
     for item in manifest['tests']:
         folder = output / item['identifier']
         folder.mkdir()
-        item['registered_inputs'], missing = registration_inputs(item['groups'], build)
+        item['registered_inputs'], missing = registrationInputs(item['groups'], build)
         if missing:
             item.update(status='conditional', reason='Missing configured prerequisites', missing_prerequisites=missing)
         if halted:
@@ -445,30 +507,39 @@ def execute(selected, arguments, plan=False):
                 continue
             location = folder / group['name']
             location.mkdir()
+            group['status'] = 'running'
+            item['status'] = 'running'
+            ctest_visuals.writeReport(output, manifest)
             try:
-                group['execution'] = run_phase(base, build, group['run'], location, 'checks',
+                group['execution'] = runPhase(base, build, group['run'], location, 'checks',
                                                group['registrations'], opts.threads)
                 # Never run cleanup after an archive failure: raw evidence is
                 # left in place, and the next invocation refuses to overwrite it.
-                group['artifacts'] = archive_raw([group], build, location)
+                group['artifacts'] = archiveRaw([group], build, location)
                 if not group['artifacts']:
                     raise ValueError('No raw numerical/log artifacts were retained; refusing cleanup/certification')
+                group['visualization'] = ctest_visuals.visualize(
+                    location, item['descriptor'], opts.visit, opts.ffmpeg)
                 if group['cleanup']:
-                    group['cleanup_execution'] = run_phase(base, build, group['cleanup'], location, 'cleanup',
+                    group['cleanup_execution'] = runPhase(base, build, group['cleanup'], location, 'cleanup',
                                                            group['registrations'], opts.threads)
                 phases = [group['execution']] + ([group['cleanup_execution']] if group['cleanup'] else [])
                 group['status'] = aggregate([check for phase in phases for check in phase['checks']])
                 if any(phase['returncode'] != 0 for phase in phases):
                     group['status'] = 'failed'
+                if opts.visit and group['visualization']['status'] == 'failed':
+                    group['status'] = 'failed'
+                    group['reason'] = 'Required visual products failed: ' + group['visualization']['reason']
             except (OSError, ValueError, ET.ParseError) as error:
                 group.update(status='failed', reason=str(error))
                 # Preserve logs/data even when CTest produced malformed results.
                 try:
                     if not (location / 'raw').exists():
-                        group['artifacts'] = archive_raw([group], build, location)
+                        group['artifacts'] = archiveRaw([group], build, location)
                 except (OSError, ValueError) as archive_error:
                     group['archive_error'] = str(archive_error)
             (location / 'run.json').write_text(json.dumps(group, indent=2) + '\n')
+            ctest_visuals.writeReport(output, manifest)
             if group['status'] == 'failed' and ('cleanup_execution' not in group or
                     group['cleanup_execution']['returncode'] != 0):
                 # Do not start a later variant over unarchived or uncleaned data.
@@ -478,9 +549,7 @@ def execute(selected, arguments, plan=False):
                 group.setdefault('status', 'conditional')
             item['status'] = aggregate(item['groups'])
         (folder / 'run.json').write_text(json.dumps(item, indent=2) + '\n')
+        ctest_visuals.writeReport(output, manifest)
     manifest['status'] = aggregate(manifest['tests'])
-    (output / 'verification.json').write_text(json.dumps(manifest, indent=2) + '\n')
-    document = '<!doctype html><meta charset="utf-8"><h1>Configured CTest validation</h1><pre>' + html.escape(json.dumps(manifest, indent=2)) + '</pre>'
-    for name in ('index.html', 'report.html'):
-        (output / name).write_text(document)
+    ctest_visuals.writeReport(output, manifest)
     return {'passed': 0, 'failed': 1, 'conditional': 3}[manifest['status']]

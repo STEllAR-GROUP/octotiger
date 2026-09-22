@@ -31,12 +31,12 @@ int main() {
         for(double bad:{-2.,std::numeric_limits<double>::infinity(),std::numeric_limits<double>::quiet_NaN()}) {
             auto b=o;b.absorption=bad;rejects([&]{b.validate(-1);});
             b=o;b.scattering=bad;rejects([&]{b.validate(-1);});
-            b=o;b.transport_absorption=bad;rejects([&]{b.validate(-1);});
+            b=o;b.transportAbsorption=bad;rejects([&]{b.validate(-1);});
         }
-        o.transport_absorption=-.5;rejects([&]{o.validate(-1);});o.transport_absorption=-1;
+        o.transportAbsorption=-.5;rejects([&]{o.validate(-1);});o.transportAbsorption=-1;
         o.units="code";rejects([&]{o.validate(-1);});o.units="cm2/g";
         o.model="ensman";rejects([&]{o.validate(-1);});o.model="grey";
-        o.absorption=2;o.scattering=3;o.transport_absorption=.5;
+        o.absorption=2;o.scattering=3;o.transportAbsorption=.5;
         rejects([&]{radiation::greyCoefficients(o,-1,1,1);});
         rejects([&]{radiation::greyCoefficients(o,1,1,0);});
         auto z=radiation::greyCoefficients(o,0,1,1);
@@ -45,7 +45,7 @@ int main() {
         Archive arc;o.serialize(arc,0);arc.reading=true;
         GreyOpacity restored;restored.serialize(arc,0);
         check(restored.model==o.model && restored.units==o.units && restored.absorption==2 &&
-              restored.scattering==3 && restored.transport_absorption==.5,"HPX field round trip");
+              restored.scattering==3 && restored.transportAbsorption==.5,"HPX field round trip");
         // Exact production checkpoint codec, including pre-Step-04 and corrupt files.
         std::map<std::string,double> fields;
         auto wi=[&](char const* k,int v){fields[k]=v;};
@@ -59,7 +59,7 @@ int main() {
             o.model=model;o.units=units;radiation::saveGreyOpacity(o,wi,wr);
             auto r=load();
             check(r.model==model && r.units==units && r.absorption==2 && r.scattering==3 &&
-                  r.transport_absorption==.5,"checkpoint opacity round trip");
+                  r.transportAbsorption==.5,"checkpoint opacity round trip");
         }
         auto loaded=load();auto explicitValues=GreyOpacity{};explicitValues.scattering=9;
         radiation::restoreGreyOpacityOverrides(loaded,explicitValues,

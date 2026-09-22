@@ -14,7 +14,7 @@
 #include "octotiger/physcon.hpp"
 #include "octotiger/radiation/opacities.hpp"
 
-std::vector<Real> analyticStreamingWave(Real x_, Real y_, Real z_, Real t) {
+std::vector<Real> analyticStreamingWave(Real xPosition, Real yPosition, Real zPosition, Real t) {
 	FpeGuard fpeGuard{};
 	CgsToCode const convert;
 	auto const gamma = opts().gas_gamma;
@@ -38,9 +38,9 @@ std::vector<Real> analyticStreamingWave(Real x_, Real y_, Real z_, Real t) {
 		G[spc_i] = G[rho_i];
 	}
 	auto const n = normalize(Vector<Real, NDIM>({2_R, -3_R, 1_R}));
-	Vector<Real, NDIM> x({x_, y_, z_});
+	Vector<Real, NDIM> x({xPosition, yPosition, zPosition});
 	auto const omega = (n.dot(x) - c * t) / (2_R * xScale);
-	R[0] = eps_R + 0.5_R + 0.5_R * cos(2_R * M_PI * omega);
+	R[0] = epsilonR + 0.5_R + 0.5_R * cos(2_R * M_PI * omega);
 //	std::cout << "almostOne = " << almostOne << "n = " << n << std::endl;
 	R[1] = n[0] * R[0] * almostOne;
 	R[2] = n[1] * R[0] * almostOne;

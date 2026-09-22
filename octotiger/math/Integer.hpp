@@ -5,8 +5,7 @@
  *      Author: dmarce1
  */
 
-#ifndef INCLUDE_INTEGER_HPP_
-#define INCLUDE_INTEGER_HPP_
+#pragma once
 
 #include <cstdlib>
 #include <type_traits>
@@ -34,5 +33,3 @@ inline constexpr Integer pow(Integer x, Integer n) {
 inline constexpr Integer round(Integer x, Integer n) {
 	return n * (1 + (x - 1) / n);
 }
-
-#endif /* INCLUDE_INTEGER_HPP_ */

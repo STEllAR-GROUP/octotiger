@@ -18,10 +18,12 @@
 #include <octotiger/options.hpp>
 #include <octotiger/physcon.hpp>
 #include <octotiger/problem.hpp>
+#include <octotiger/runReporter.hpp>
 #include <octotiger/test_problems/blast.hpp>
 #include <octotiger/test_problems/rotating_star.hpp>
 #include <octotiger/unitiger/physics.hpp>
 #include <octotiger/unitiger/physics_impl.hpp>
+#include <octotiger/util.hpp>
 
 #include <octotiger/test_problems/amr/amr.hpp>
 
@@ -163,63 +165,53 @@ HPX_REGISTER_BROADCAST_ACTION_DECLARATION(initialize_action);
 HPX_REGISTER_BROADCAST_ACTION(initialize_action);
 
 void start_octotiger(int argc, char* argv[]) {
-    std::cerr << "Start octotiger" << std::endl;
     try {
-        std::cerr << "Start processing options" << std::endl;
         if (opts().process_options(argc, argv)) {
-            std::cerr << "Finished processing options" << std::endl;
-
             auto all_locs = hpx::find_all_localities();
             hpx::lcos::broadcast<initialize_action>(all_locs, opts(), all_locs).get();
-            std::cerr << "Finished init" << std::endl;
 
             hpx::id_type root_id = hpx::new_<node_server>(hpx::find_here()).get();
             node_client root_client(root_id);
             auto root = root_client.get_ptr().get();
-            std::cerr << "Found root" << std::endl;
+			auto& runReporter = octotiger::RunReporter::instance();
+			runReporter.initialize(to_string(opts().problem), opts().detailedLogPath,
+				opts().resultsPath, int(refinement_freq()), 0.0, 0.0);
+			runReporter.reportAction("runtime initialized");
 
             node_count_type ngrids;
             //		printf("1\n");
             if (!opts().restart_filename.empty()) {
-                std::cerr << "Loading from " << opts().restart_filename << " ...\n";
+				runReporter.reportAction("load restart", opts().restart_filename);
                 load_data_from_silo(opts().restart_filename, root, root_client.get_unmanaged_gid());
-                std::cerr << "Re-grid" << std::endl;
                 ngrids = root->regrid(root_client.get_unmanaged_gid(), ZERO, -1, true, false);
-                std::cerr << "Done!" << std::endl;
 
                 set_AB(physcon().A, physcon().B);
 
             } else {
-                std::cerr << "Starting refinement" << std::endl;
+				runReporter.reportAction("initial mesh refinement");
                 for (integer l = 0; l < opts().max_level; ++l) {
                     ngrids =
                         root->regrid(root_client.get_gid(), grid::get_omega(), -1, false, false);
-                    std::cerr << "---------------Created Level " << int(l + 1)
-                              << "---------------\n"
-                              << std::endl;
+					runReporter.reportAction("created refinement level", std::to_string(int(l + 1)));
                 }
                 ngrids = root->regrid(root_client.get_gid(), grid::get_omega(), -1, false, false);
-                std::cerr << "---------------Re-gridded Level " << int(opts().max_level)
-                          << "---------------\n"
-                          << std::endl;
+				runReporter.reportAction("completed initial refinement",
+					"level=" + std::to_string(int(opts().max_level)));
             }
             for (integer l = 0; l < opts().extra_regrid; ++l) {
-                std::cerr << "Starting extra regridding step..." << std::endl;
+				runReporter.reportAction("extra mesh refinement", std::to_string(int(l + 1)));
                 ngrids = root->regrid(root_client.get_gid(), grid::get_omega(), -1, false, false);
-                std::cerr << "Finished extra regridding step..." << std::endl;
             }
 
             if (opts().gravity && opts().stop_step != 0) {
-                std::cerr << "solving gravity------------" << std::endl;
+				runReporter.reportAction("pre-solver gravity solve");
                 root->solve_gravity(false, false);
-                std::cerr << "...done" << std::endl;
             }
             if (opts().problem != AMR_TEST) {
-                std::cerr << "Start executing the solver..." << std::endl;
+				runReporter.reportAction("solver started");
                 hpx::async(&node_server::execute_solver, root,
                     opts().problem == DWD && opts().restart_filename.empty(), ngrids)
                     .get();
-                std::cerr << "Finished solver exeuction - Scenario done!" << std::endl;
             } else {
                 std::cerr << "Start AMR test..." << std::endl;
                 root->enforce_bc();
@@ -228,12 +220,11 @@ void start_octotiger(int argc, char* argv[]) {
                 printf("AMR Error: %e %e %e\n", e.first, e.second, e.first / e.second);
                 output_all(root.get(), "X", 0, true);
             }
-            std::cerr << "Start timings report..." << std::endl;
+			runReporter.reportAction("timings report");
             root->report_timing();
-            std::cerr << "Finished timings report!" << std::endl;
-            std::cerr << "Start cleanup..." << std::endl;
+			runReporter.reportAction("cleanup");
             cleanup();    // cleanup buffer and executor pools
-            std::cerr << "Finished cleanup..." << std::endl;
+			runReporter.finish(root->get_time());
         }
     } catch (hpx::exception const& e) {
         std::cerr << "ERROR: Caught HPX exception during hpx main!\n";

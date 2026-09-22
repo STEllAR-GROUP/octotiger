@@ -55,7 +55,6 @@ int main(int argc,char** argv) {
                 l1[f]+=e;l2[f]+=e*e;linf[f]=std::max(linf[f],e);
             }
         }
-        std::cout<<"RADIATION_TEST_FINISHED RADIATION_"<<names[test]<<" t="<<std::setprecision(17)<<t<<'\n';
         const char* fields[]{"er","fx","fy","fz"};
         for(int f=0;f<4;++f)std::cout<<fields[f]<<" "<<std::scientific<<l1[f]/(INX*INX*INX)<<" "<<std::sqrt(l2[f]/(INX*INX*INX))<<" "<<linf[f]<<'\n';
     }

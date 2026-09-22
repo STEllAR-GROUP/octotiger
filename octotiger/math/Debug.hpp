@@ -5,8 +5,7 @@
  *      Author: dmarce1
  */
 
-#ifndef INCLUDE_DEBUG123_HPP_
-#define INCLUDE_DEBUG123_HPP_
+#pragma once
 
 #include "./IO.hpp"
 #include "./Real.hpp"
@@ -21,7 +20,7 @@
 // The full application build supplies Boost and retains stack traces.
 #if __has_include(<boost/stacktrace.hpp>)
 #include <boost/stacktrace.hpp>
-#define OCTOTIGER_DEBUG_HAS_STACKTRACE 1
+#define hasOctotigerStacktrace 1
 #endif
 
 #if defined(__GLIBC__) || defined(__linux__)
@@ -30,9 +29,9 @@ int fegetexcept();
 int feenableexcept(int);
 int fedisableexcept(int);
 }
-#define HAS_FEENABLEEXCEPT 1
+#define hasFpeEnableExcept 1
 #else
-#define HAS_FEENABLEEXCEPT 0
+#define hasFpeEnableExcept 0
 #endif
 
 enum class Fpe : int
@@ -56,7 +55,7 @@ class FpeGuard
 {
 public:
     explicit FpeGuard(int mask = (FE_DIVBYZERO | FE_OVERFLOW | FE_INVALID)) noexcept {
-#if HAS_FEENABLEEXCEPT
+#if hasFpeEnableExcept
         previousEnabled = fegetexcept();
         if (previousEnabled < 0) {
             return;
@@ -80,7 +79,7 @@ public:
     FpeGuard& operator=(FpeGuard&&) = delete;
 
     ~FpeGuard() noexcept {
-#if HAS_FEENABLEEXCEPT
+#if hasFpeEnableExcept
         if (previousEnabled < 0) {
             return;
         }
@@ -109,33 +108,33 @@ private:
 };
 
 #ifdef NDEBUG
-#define ASSERT_RANGE(l, v, u)
+#define assertRangeCheck(l, v, u)
 #else
-#define ASSERT_RANGE(l, v, u)          \
+#define assertRangeCheck(l, v, u)          \
     if (!std::is_constant_evaluated()) \
     assertRange(l, v, u, #v, __FILE__, __LINE__)
 #endif
 
 #ifdef NDEBUG
-#define ASSERT_NONZERO(v)
+#define assertNonzeroCheck(v)
 #else
-#define ASSERT_NONZERO(v)              \
+#define assertNonzeroCheck(v)              \
     if (!std::is_constant_evaluated()) \
     assertNonzero(v, #v, __FILE__, __LINE__)
 #endif
 
 #ifdef NDEBUG
-#define ASSERT_POSITIVE(v)
+#define assertPositiveCheck(v)
 #else
-#define ASSERT_POSITIVE(v)             \
+#define assertPositiveCheck(v)             \
     if (!std::is_constant_evaluated()) \
     assertPositive(v, #v, __FILE__, __LINE__)
 #endif
 
 #ifdef NDEBUG
-#define ASSERT_NONNEGATIVE(v)
+#define assertNonnegativeCheck(v)
 #else
-#define ASSERT_NONNEGATIVE(v)          \
+#define assertNonnegativeCheck(v)          \
     if (!std::is_constant_evaluated()) \
     assertNonNegative(v, #v, __FILE__, __LINE__)
 #endif
@@ -164,7 +163,7 @@ void assertNonzero(auto const& var, char const* expr, char const* filename, Inte
         os << "Zero when non-zero expected: " << expr << " = " << var;
         os << "  File: " << filename;
         os << "  Line: " << line;
-#ifdef OCTOTIGER_DEBUG_HAS_STACKTRACE
+#ifdef hasOctotigerStacktrace
         std::cout << boost::stacktrace::stacktrace();
 #endif
         throw std::runtime_error(os.str());
@@ -194,42 +193,42 @@ void assertNonNegative(auto const& var, char const* expr, char const* filename, 
 }
 
 // These contracts assume finite arguments and check only sign or range.
-inline constexpr auto __expectPositive(auto&& value, char const* file, int line) {
+inline constexpr auto expectPositiveImpl(auto&& value, char const* file, int line) {
     if (!(value > 0_R))
         throw std::runtime_error(
             print2string("Expected v > 0, got v = %e. %s:%i\n", value, file, line));
     return value;
 }
 
-inline constexpr auto __expectNegative(auto&& value, char const* file, int line) {
+inline constexpr auto expectNegativeImpl(auto&& value, char const* file, int line) {
     if (!(value < 0_R))
         throw std::runtime_error(
             print2string("Expected v < 0, got v = %e. %s:%i\n", value, file, line));
     return value;
 }
 
-inline constexpr auto __expectNonPositive(auto&& value, char const* file, int line) {
+inline constexpr auto expectNonPositiveImpl(auto&& value, char const* file, int line) {
     if (!(value <= 0_R))
         throw std::runtime_error(
             print2string("Expected v <= 0, got v = %e. %s:%i\n", value, file, line));
     return value;
 }
 
-inline constexpr auto __expectNonNegative(auto&& value, char const* file, int line) {
+inline constexpr auto expectNonNegativeImpl(auto&& value, char const* file, int line) {
     if (!(value >= 0_R))
         throw std::runtime_error(
             print2string("Expected v >= 0, got v = %e. %s:%i\n", value, file, line));
     return value;
 }
 
-inline constexpr auto __expectNonZero(auto&& value, char const* file, int line) {
+inline constexpr auto expectNonZeroImpl(auto&& value, char const* file, int line) {
     if (value == 0_R)
         throw std::runtime_error(
             print2string("Expected v != 0, got v = %e. %s:%i\n", value, file, line));
     return value;
 }
 
-inline constexpr auto __expectRange(auto a, auto&& value, auto b, char const* file, int line) {
+inline constexpr auto expectRangeImpl(auto a, auto&& value, auto b, char const* file, int line) {
     if (!(value >= a))
         throw std::runtime_error(
             print2string("Expected %e <= v got v = %e, %e too little.   %s:%i\n", a, value,
@@ -242,12 +241,12 @@ inline constexpr auto __expectRange(auto a, auto&& value, auto b, char const* fi
 }
 
 #ifndef NDEBUG
-#define expectPositive(v) __expectPositive((v), __FILE__, __LINE__)
-#define expectNegative(v) __expectNegative((v), __FILE__, __LINE__)
-#define expectNonPositive(v) __expectNonPositive((v), __FILE__, __LINE__)
-#define expectNonNegative(v) __expectNonNegative((v), __FILE__, __LINE__)
-#define expectNonZero(v) __expectNonZero((v), __FILE__, __LINE__)
-#define expectRange(a, v, b) __expectRange((a), (v), (b), __FILE__, __LINE__)
+#define expectPositive(v) expectPositiveImpl((v), __FILE__, __LINE__)
+#define expectNegative(v) expectNegativeImpl((v), __FILE__, __LINE__)
+#define expectNonPositive(v) expectNonPositiveImpl((v), __FILE__, __LINE__)
+#define expectNonNegative(v) expectNonNegativeImpl((v), __FILE__, __LINE__)
+#define expectNonZero(v) expectNonZeroImpl((v), __FILE__, __LINE__)
+#define expectRange(a, v, b) expectRangeImpl((a), (v), (b), __FILE__, __LINE__)
 #else
 #define expectPositive(v) (v)
 #define expectNegative(v) (v)
@@ -260,5 +259,3 @@ inline constexpr auto __expectRange(auto a, auto&& value, auto b, char const* fi
 #define INVERSE(x) (1_R / expectNonZero((x)))
 #define SQRT(x) (std::sqrt(expectNonNegative((x))))
 #define POWER(x, y) (std::pow((x), expectNonNegative((y))))
-
-#endif /* INCLUDE_DEBUG_HPP_ */
