@@ -1,6 +1,7 @@
 // Copyright (c) 2026 AUTHORS
 // Distributed under the Boost Software License, Version 1.0.
 #include "octotiger/node_server.hpp"
+#include "octotiger/subgrid/subgrid.hpp"
 #include <hpx/include/lcos.hpp>
 
 #if !defined(HPX_COMPUTE_DEVICE_CODE)

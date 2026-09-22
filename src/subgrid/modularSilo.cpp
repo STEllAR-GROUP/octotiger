@@ -36,7 +36,7 @@ void writeModularSilo(std::vector<TransportSnapshot> const& patches, std::string
     std::filesystem::path const path(filename);
     if (std::filesystem::exists(path)) throw std::runtime_error("Refusing to overwrite " + path.string());
     std::unique_ptr<DBfile, decltype(&DBClose)> fileOwner(
-        DBCreate(path.string().c_str(), DB_NOCLOBBER, DB_LOCAL, "Modular transport", DB_HDF5), &DBClose);
+        DBCreate(path.string().c_str(), DB_CLOBBER, DB_LOCAL, "Modular transport", DB_HDF5), &DBClose);
     DBfile* file = fileOwner.get();
     if (!file) throw std::runtime_error("Unable to create modular Silo output");
     std::unique_ptr<DBoptlist, decltype(&DBFreeOptlist)> optionsOwner(DBMakeOptlist(2), &DBFreeOptlist);
