@@ -4,7 +4,7 @@
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 #include "octotiger/grid.hpp"
 
-#include <hpx/runtime/threads/run_as_os_thread.hpp>
+#include <hpx/modules/runtime_local.hpp>
 
 #include "octotiger/test_problems/blast.hpp"
 

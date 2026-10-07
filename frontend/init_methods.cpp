@@ -78,6 +78,9 @@
 #endif
 
 void cleanup_puddle_on_this_locality(void) {
+#ifdef OCTOTIGER_HAVE_KOKKOS
+    Kokkos::fence();
+#endif
     // Shutdown stream manager
     if (opts().executors_per_gpu > 0) {
 #if defined(OCTOTIGER_HAVE_CUDA) 
@@ -113,11 +116,14 @@ void cleanup_puddle_on_this_locality(void) {
       hpx::sycl::experimental::detail::unregister_polling(hpx::resource::get_thread_pool(0));
     }
 #endif
-    // Use finalize functionality. Cleans up all buffers and prevents further use
-  //  recycler::finalize();
 #ifdef OCTOTIGER_HAVE_KOKKOS
     stream_pool::cleanup<hpx::kokkos::hpx_executor, round_robin_pool<hpx::kokkos::hpx_executor>>();
     stream_pool::cleanup<hpx::kokkos::serial_executor, round_robin_pool<hpx::kokkos::serial_executor>>();
+#endif
+    // Static stencil views outlive the runtimes. Release their buffers now and
+    // finalize the recycler so their later destructors cannot access dead pools.
+    recycler::finalize();
+#ifdef OCTOTIGER_HAVE_KOKKOS
     std::cerr << "Starting KOKKOS finalize ..." << std::endl;
     Kokkos::finalize();
 #endif
@@ -180,7 +186,7 @@ void init_executors(void) {
 #else
     std::cout << "Using Kokkos serial executors for monopole FMM kernels..." << std::endl;
 #endif
-#ifdef OCTOTIGER_WITH_HYDRO_HOST_HPX_EXECUTOR
+#ifdef OCTOTIGER_HYDRO_HOST_HPX_EXECUTOR
     std::cout << "Using Kokkos HPX executors for hydro kernels..." << std::endl;
     std::cout << "Number of tasks per KOKKOS hydro kernel: " << OCTOTIGER_KOKKOS_HYDRO_TASKS << std::endl;
 #else
@@ -353,12 +359,7 @@ void init_problem(void) {
     grid::set_scaling_factor(opts().xscale);
     grid::set_min_level(opts().min_level);
     grid::set_max_level(opts().max_level);
-    if (opts().problem == RADIATION_TEST) {
-        assert(opts().radiation);
-        //		opts().gravity = false;
-        set_problem(radiation_test_problem);
-        set_refine_test(radiation_test_refine);
-    } else if (opts().problem == DWD) {
+    if (opts().problem == DWD) {
         opts().n_species = 5;
         set_problem(scf_binary);
         set_refine_test(refine_test);
@@ -406,12 +407,6 @@ void init_problem(void) {
         set_problem(amr_test);
         set_refine_test(refine_test_moving_star);
         set_refine_test(refine_test_amr);
-    } else if (opts().problem == MARSHAK) {
-        grid::set_fgamma(5.0 / 3.0);
-        set_analytic(nullptr);
-        set_analytic(marshak_wave_analytic);
-        set_problem(marshak_wave);
-        set_refine_test(refine_test_marshak);
     } else if (opts().problem == SOLID_SPHERE) {
         //	opts().hydro = false;
         set_analytic(

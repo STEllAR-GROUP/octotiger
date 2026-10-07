@@ -57,12 +57,7 @@ sed_real pow_dd(sed_real *a, sed_real *b) {
 
 
 sed_real d_sign(sed_real *a, sed_real * b) {
-    if ((*a > static_cast<sed_real>(0.) && (*b > static_cast<sed_real>(0.))) ||
-        (*a < static_cast<sed_real>(0.) && (*b < static_cast<sed_real>(0.))))
-    {
-        return *a;
-    }
-    return *b;
+    return boost::multiprecision::copysign(*a, *b);
 }
 #endif
 

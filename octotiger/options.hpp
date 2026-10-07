@@ -16,15 +16,54 @@
 
 #include <cstddef>
 #include <string>
+#include <stdexcept>
+#include <utility>
 #include <vector>
 
-/* Must look like this - no spaces
- COMMAND_LINE_ENUM(problem_type,DWD,SOD,BLAST,NONE,SOLID_SPHERE,STAR,MOVING_STAR,RADIATION_TEST,ROTATING_STAR,MARSHAK,AMR_TEST);
+// These values are stored in Silo restart files. Keep the gaps left by the
+// removed radiation transport problems so existing hydro restarts retain meaning.
+enum problem_type : integer {
+    DWD = 0,
+    SOD = 1,
+    BLAST = 2,
+    NONE = 3,
+    SOLID_SPHERE = 4,
+    STAR = 5,
+    MOVING_STAR = 6,
+    ROTATING_STAR = 8,
+    AMR_TEST = 10,
+    ADVECTION = 11
+};
 
- COMMAND_LINE_ENUM(eos_type,IDEAL,WD);
- */
+inline constexpr std::pair<problem_type, const char*> problem_names[] = {
+    {DWD, "DWD"}, {SOD, "SOD"}, {BLAST, "BLAST"}, {NONE, "NONE"},
+    {SOLID_SPHERE, "SOLID_SPHERE"}, {STAR, "STAR"},
+    {MOVING_STAR, "MOVING_STAR"}, {ROTATING_STAR, "ROTATING_STAR"},
+    {AMR_TEST, "AMR_TEST"}, {ADVECTION, "ADVECTION"}
+};
 
-COMMAND_LINE_ENUM(problem_type, DWD, SOD, BLAST, NONE, SOLID_SPHERE, STAR, MOVING_STAR, RADIATION_TEST, ROTATING_STAR, MARSHAK, AMR_TEST, ADVECTION, RADIATION_DIFFUSION, RADIATION_COUPLING);
+inline std::istream& operator>>(std::istream& in, problem_type& problem) {
+    std::string token;
+    if (in >> token) {
+        for (const auto& entry : problem_names) {
+            if (boost::iequals(entry.second, token)) {
+                problem = entry.first;
+                return in;
+            }
+        }
+        in.setstate(std::ios_base::failbit);
+    }
+    return in;
+}
+
+inline std::string to_string(problem_type problem) {
+    for (const auto& entry : problem_names) {
+        if (entry.first == problem) {
+            return entry.second;
+        }
+    }
+    throw std::invalid_argument("Unsupported problem type in this branch");
+}
 
 COMMAND_LINE_ENUM(eos_type, IDEAL, WD, IPR);
 
@@ -42,11 +81,8 @@ public:
 	bool core_refine;
 	bool gravity;
 	bool hydro;
-	bool radiation;
 	real grad_rho_refine;
-	real clight_retard;
 	bool v1309;
-	bool rad_implicit;
 	bool rewrite_silo;
 	bool correct_am_grav;
 	bool correct_am_hydro;
@@ -132,7 +168,7 @@ public:
 	size_t executors_per_gpu;
 	size_t max_gpu_executor_queue_length;
 	size_t max_kernels_fused;
-  
+
 	bool root_node_on_device;
 	bool optimize_local_communication;
   int polling_threads;
@@ -218,7 +254,6 @@ public:
 		arc & correct_am_grav;
 		arc & correct_am_hydro;
 		arc & rewrite_silo;
-		arc & rad_implicit;
 		arc & n_fields;
 		arc & n_species;
 		arc & input_file;
@@ -226,7 +261,6 @@ public:
 		arc & hydro;
 		arc & gravity;
 		arc & bench;
-		arc & radiation;
 		arc & multipole_host_kernel_type;
 		arc & multipole_device_kernel_type;
 		arc & monopole_host_kernel_type;
@@ -240,7 +274,6 @@ public:
 		arc & refinement_floor;
 		arc & ngrids;
 		arc & v1309;
-		arc & clight_retard;
 		arc & stop_time;
 		arc & min_level;
 		arc & max_level;

@@ -18,7 +18,7 @@ if (OCTOTIGER_WITH_GRIDDIM EQUAL 8)
   set(sy_regex "sy .*")
   set(sz_regex "sz .*")
   set(spc1_regex "spc_1 8.616107e-03 1.774427e-02")
-  set(spc2_regex "spc_3 0.000000e.00 0.000000e.00")
+  set(spc2_regex "spc_2 0.000000e.00 0.000000e.00")
   set(spc3_regex "spc_3 0.000000e.00 0.000000e.00")
   set(spc4_regex "spc_4 0.000000e.00 0.000000e.00")
   set(spc5_regex "spc_5 0.000000e.00 0.000000e.00")
@@ -35,7 +35,7 @@ elseif (OCTOTIGER_WITH_GRIDDIM EQUAL 16)
   set(sy_regex "sy .*")
   set(sz_regex "sz .*")
   set(spc1_regex "spc_1 4.603921e-03 1.217094e-02")
-  set(spc2_regex "spc_3 0.000000e.00 0.000000e.00")
+  set(spc2_regex "spc_2 0.000000e.00 0.000000e.00")
   set(spc3_regex "spc_3 0.000000e.00 0.000000e.00")
   set(spc4_regex "spc_4 0.000000e.00 0.000000e.00")
   set(spc5_regex "spc_5 0.000000e.00 0.000000e.00")
@@ -108,26 +108,26 @@ function(test_sod_scenario test_name test_log_file ini_filename reference_filena
     add_test(NAME ${test_name}.diff
 #      COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
        COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12 -E "lx, ly, lz, idle_rate, locality, _hdf5libinfo, _silolibinfo"
-      ${PROJECT_SOURCE_DIR}/octotiger-testdata/${reference_filename} ${PROJECT_BINARY_DIR}/test_problems/sod/final.silo.data/0.silo)
+      ${OCTOTIGER_TESTDATA_DIR}/${reference_filename} ${PROJECT_BINARY_DIR}/test_problems/sod/final.silo.data/0.silo)
     set_tests_properties(${test_name}.diff PROPERTIES
       FIXTURES_REQUIRED ${test_name}
       FAIL_REGULAR_EXPRESSION ${OCTOTIGER_SILODIFF_FAIL_PATTERN})
   endif()
 
-  add_test(${test_name}.fixture_cleanup ${CMAKE_COMMAND} -E remove ${PROJECT_BINARY_DIR}/test_problems/sphere/final.silo ${PROJECT_BINARY_DIR}/test_problems/sphere/final.silo.data/0.silo ${test_log_file})
+  add_test(${test_name}.fixture_cleanup ${CMAKE_COMMAND} -E remove ${PROJECT_BINARY_DIR}/test_problems/sod/final.silo ${PROJECT_BINARY_DIR}/test_problems/sod/final.silo.data/0.silo ${test_log_file})
   set_tests_properties(${test_name}.fixture_cleanup PROPERTIES
       FIXTURES_CLEANUP ${test_name}
   )
 endfunction()
 
 if(OCTOTIGER_WITH_HIP)
-	test_sod_scenario(test_problems.gpu.sod_hip sod_hip_log.txt ${ini_scenario_filename} ${silo_reference_filename} OFF
+	test_sod_scenario(test_problems.gpu.sod_hip sod_hip_log.txt ${ini_scenario_filename} ${silo_reference_filename}
     "--number_gpus=1 --executors_per_gpu=8 --max_gpu_executor_queue_length=1024 --hydro_device_kernel_type=HIP --hydro_host_kernel_type=DEVICE_ONLY")
 endif()
 
 if(OCTOTIGER_WITH_KOKKOS)
   if(OCTOTIGER_WITH_HIP)
-	  test_sod_scenario(test_problems.gpu.sod_kokkos sod_kokkos_cuda_log.txt ${ini_scenario_filename} ${silo_reference_filename} OFF
+	  test_sod_scenario(test_problems.gpu.sod_kokkos sod_kokkos_cuda_log.txt ${ini_scenario_filename} ${silo_reference_filename}
       "--number_gpus=1 --executors_per_gpu=8 --max_gpu_executor_queue_length=1024 --hydro_device_kernel_type=KOKKOS_HIP --hydro_host_kernel_type=DEVICE_ONLY")
   endif()
 endif()
@@ -142,7 +142,7 @@ if (OCTOTIGER_WITH_GRIDDIM EQUAL 8)
   set(sy_regex "sy 0.000000e.00 0.000000e.00")
   set(sz_regex "sz 0.000000e.00 0.000000e.00")
   set(spc1_regex "spc_1 8.616107e-03 1.774427e-02")
-  set(spc2_regex "spc_3 0.000000e.00 0.000000e.00")
+  set(spc2_regex "spc_2 0.000000e.00 0.000000e.00")
   set(spc3_regex "spc_3 0.000000e.00 0.000000e.00")
   set(spc4_regex "spc_4 0.000000e.00 0.000000e.00")
   set(spc5_regex "spc_5 0.000000e.00 0.000000e.00")
@@ -157,7 +157,7 @@ elseif (OCTOTIGER_WITH_GRIDDIM EQUAL 16)
   set(sy_regex "sy 0.000000e.00 0.000000e.00")
   set(sz_regex "sz 0.000000e.00 0.000000e.00")
   set(spc1_regex "spc_1 4.603921e-03 1.217094e-02")
-  set(spc2_regex "spc_3 0.000000e.00 0.000000e.00")
+  set(spc2_regex "spc_2 0.000000e.00 0.000000e.00")
   set(spc3_regex "spc_3 0.000000e.00 0.000000e.00")
   set(spc4_regex "spc_4 0.000000e.00 0.000000e.00")
   set(spc5_regex "spc_5 0.000000e.00 0.000000e.00")
@@ -170,22 +170,22 @@ else()
 endif()
 
 
-test_sod_scenario(test_problems.cpu.sod_legacy sod_old_log.txt ${ini_scenario_filename} ${silo_reference_filename} OFF
+test_sod_scenario(test_problems.cpu.sod_legacy sod_old_log.txt ${ini_scenario_filename} ${silo_reference_filename}
 " --hydro_device_kernel_type=OFF --hydro_host_kernel_type=LEGACY")
 if(OCTOTIGER_WITH_CUDA)
-  test_sod_scenario(test_problems.gpu.sod_cuda sod_cuda_log.txt ${ini_scenario_filename} ${silo_reference_filename} ON
+  test_sod_scenario(test_problems.gpu.sod_cuda sod_cuda_log.txt ${ini_scenario_filename} ${silo_reference_filename}
   " --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=DEVICE_ONLY")
 endif()
 
 if(OCTOTIGER_WITH_KOKKOS)
-  test_sod_scenario(test_problems.cpu.sod_kokkos sod_kokkos_log.txt  ${ini_scenario_filename} ${silo_reference_filename} ON
+  test_sod_scenario(test_problems.cpu.sod_kokkos sod_kokkos_log.txt  ${ini_scenario_filename} ${silo_reference_filename}
   " --hydro_device_kernel_type=OFF --hydro_host_kernel_type=KOKKOS")
   if(OCTOTIGER_WITH_CUDA)
-    test_sod_scenario(test_problems.gpu.sod_kokkos_cuda sod_kokkos_cuda_log.txt ${ini_scenario_filename} ${silo_reference_filename} ON
+    test_sod_scenario(test_problems.gpu.sod_kokkos_cuda sod_kokkos_cuda_log.txt ${ini_scenario_filename} ${silo_reference_filename}
     " --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --hydro_device_kernel_type=KOKKOS_CUDA --hydro_host_kernel_type=DEVICE_ONLY")
   endif()
   if(Kokkos_ENABLE_SYCL)
-    test_sod_scenario(test_problems.gpu.sod_kokkos_sycl sod_kokkos_sycl_log.txt ${ini_scenario_filename} ${silo_reference_filename} ON
+    test_sod_scenario(test_problems.gpu.sod_kokkos_sycl sod_kokkos_sycl_log.txt ${ini_scenario_filename} ${silo_reference_filename}
       " --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --hydro_device_kernel_type=KOKKOS_SYCL --hydro_host_kernel_type=DEVICE_ONLY")
   endif()
 endif()
@@ -199,42 +199,41 @@ if (OCTOTIGER_WITH_GRIDDIM EQUAL 8)
   set(sy_regex "sy 0.000000e.00 0.000000e.00")
   set(sz_regex "sz 0.000000e.00 0.000000e.00")
   set(spc1_regex "spc_1 2.683250e-03 1.009641e-02")
-  set(spc2_regex "spc_3 0.000000e.00 0.000000e.00")
+  set(spc2_regex "spc_2 0.000000e.00 0.000000e.00")
   set(spc3_regex "spc_3 0.000000e.00 0.000000e.00")
   set(spc4_regex "spc_4 0.000000e.00 0.000000e.00")
   set(spc5_regex "spc_5 0.000000e.00 0.000000e.00")
   set(ini_scenario_filename "sod_big.ini")
-  set(silo_reference_filename "sod_without_am.silo")
+  set(silo_reference_filename "sod_big_without_am.silo")
 
-  test_sod_scenario(test_problems.cpu.sod_big_legacy sod_old_log.txt ${ini_scenario_filename} ${silo_reference_filename} OFF
+  test_sod_scenario(test_problems.cpu.sod_big_legacy sod_old_log.txt ${ini_scenario_filename} ${silo_reference_filename}
   " --hydro_device_kernel_type=OFF --hydro_host_kernel_type=LEGACY")
   if(OCTOTIGER_WITH_CUDA)
-    test_sod_scenario(test_problems.gpu.sod_big_cuda sod_cuda_log.txt ${ini_scenario_filename} ${silo_reference_filename} ON
+    test_sod_scenario(test_problems.gpu.sod_big_cuda sod_cuda_log.txt ${ini_scenario_filename} ${silo_reference_filename}
     " --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=DEVICE_ONLY")
       # Test combined cpu + gpu execution: Only makes sense when kernels use the same FP_Contract (otherwise there'll be an ~ 1e-20 error due to interactions between kernels executed on different devices)
     # if(NOT OCTOTIGER_WITH_FAST_FP_CONTRACT)
-    #   test_sod_scenario(test_problems.cpu_gpu.sod_big_cuda sod_cuda_log.txt ${ini_scenario_filename} ${silo_reference_filename} ON
+    #   test_sod_scenario(test_problems.cpu_gpu.sod_big_cuda sod_cuda_log.txt ${ini_scenario_filename} ${silo_reference_filename}
     #   " --number_gpus=1 --executors_per_gpu=4 --max_gpu_executor_queue_length=1 --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=LEGACY")
     # endif()
   endif()
 
   if(OCTOTIGER_WITH_KOKKOS)
-    test_sod_scenario(test_problems.cpu.sod_big_kokkos sod_kokkos_log.txt  ${ini_scenario_filename} ${silo_reference_filename} ON
+    test_sod_scenario(test_problems.cpu.sod_big_kokkos sod_kokkos_log.txt  ${ini_scenario_filename} ${silo_reference_filename}
     " --hydro_device_kernel_type=OFF --hydro_host_kernel_type=KOKKOS")
     if(OCTOTIGER_WITH_CUDA)
-      test_sod_scenario(test_problems.gpu.sod_big_kokkos_cuda sod_kokkos_cuda_log.txt ${ini_scenario_filename} ${silo_reference_filename} ON
+      test_sod_scenario(test_problems.gpu.sod_big_kokkos_cuda sod_kokkos_cuda_log.txt ${ini_scenario_filename} ${silo_reference_filename}
       " --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --hydro_device_kernel_type=KOKKOS_CUDA --hydro_host_kernel_type=DEVICE_ONLY")
       # Test combined cpu + gpu execution: Only makes sense when kernels use the same FP_Contract (otherwise there'll be an ~ 1e-20 error due to interactions between kernels executed on different devices)
       # if(NOT OCTOTIGER_WITH_FAST_FP_CONTRACT)
-      #   test_sod_scenario(test_problems.cpu_gpu.sod_big_kokkos sod_kokkos_cuda_log.txt ${ini_scenario_filename} ${silo_reference_filename} ON
+      #   test_sod_scenario(test_problems.cpu_gpu.sod_big_kokkos sod_kokkos_cuda_log.txt ${ini_scenario_filename} ${silo_reference_filename}
       #   " --number_gpus=1 --executors_per_gpu=4 --max_gpu_executor_queue_length=1 --hydro_device_kernel_type=KOKKOS_CUDA --hydro_host_kernel_type=KOKKOS")
       # endif()
     endif()
     if(Kokkos_ENABLE_SYCL)
-      test_sod_scenario(test_problems.gpu.sod_big_kokkos_sycl sod_kokkos_sycl_log.txt ${ini_scenario_filename} ${silo_reference_filename} ON
+      test_sod_scenario(test_problems.gpu.sod_big_kokkos_sycl sod_kokkos_sycl_log.txt ${ini_scenario_filename} ${silo_reference_filename}
         " --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --hydro_device_kernel_type=KOKKOS_SYCL --hydro_host_kernel_type=DEVICE_ONLY")
     endif()
   endif()
 
 endif()
-

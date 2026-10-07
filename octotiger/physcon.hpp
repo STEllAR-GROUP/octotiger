@@ -64,6 +64,5 @@ OCTOTIGER_EXPORT void normalize_constants();
 
 void these_units(real& m, real& l, real& t, real& k);
 
-void rad_coupling_vars(real rho, real e, real mmw, real& bp, real& kp, real& dkpde, real& dbde);
 
 #endif /* SRC_PHYSCON_HPP_ */

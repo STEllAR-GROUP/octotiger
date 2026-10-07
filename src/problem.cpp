@@ -33,167 +33,6 @@ init_func_type problem = nullptr;
 analytic_func_type analytic = nullptr;
 refine_test_type refine_test_function = refine_test;
 
-bool radiation_test_refine(integer level, integer max_level, real x, real y, real z, std::vector<real> U,
-		std::array<std::vector<real>, NDIM> const &dudx) {
-	return level < max_level;
-	// return refine_blast(level, max_level, x, y, z, U, dudx);
-	//
-	// bool rc = false;
-	// real den_floor = 1.0e-1;
-	// integer test_level = max_level;
-	// for (integer this_test_level = test_level; this_test_level >= 1; --this_test_level) {
-	// 	if (U[rho_i] > den_floor) {
-	// 		rc = rc || (level < this_test_level);
-	// 	}
-	// 	if (rc) {
-	// 		break;
-	// 	}
-	// 	den_floor /= 8.0;
-	// }
-	// return rc;
-
-}
-
-std::vector<real> radiation_test_problem(real x, real y, real z, real dx) {
-//	return blast_wave(x,y,z,dx);
-
-	std::vector<real> u(opts().n_fields + NRF, real(0));
-	x -= 0.0e11;
-	y -= 0.0e11;
-	z -= 0.0e11;
-	real r = std::max(2.0 * dx, 0.50);
-	real eint;
-	if (x < 0) {
-		u[rho_i] = 1.0;
-		eint = 1;
-		u[opts().n_fields] = 1;
-		u[opts().n_fields + 1] = 0.999999;
-	} else {
-		u[opts().n_fields] = 1e-10;
-		u[opts().n_fields + 1] = 0.999999e-10;
-		u[rho_i] = 1.0;
-		eint = 1;
-	}
-	u[tau_i] = POWER(eint * u[rho_i], 1.0 / grid::get_fgamma());
-//	u[sx_i] = 0.0; //u[rho_i] / 10.0;
-	const real fgamma = grid::get_fgamma();
-	u[egas_i] = POWER(u[tau_i], fgamma);
-	const real rhoinv = INVERSE(u[rho_i]);
-	u[egas_i] += u[sx_i] * u[sx_i] * rhoinv / 2.0;
-	u[egas_i] += u[sy_i] * u[sy_i] * rhoinv / 2.0;
-	u[egas_i] += u[sz_i] * u[sz_i] * rhoinv / 2.0;
-	u[spc_ac_i] = u[rho_i];
-	return u;
-}
-
-std::vector<real> radiation_diffusion_test_problem(real x, real y, real z, real dx) {
-	return radiation_diffusion_analytic(x, y, z, 0);
-}
-
-std::vector<real> radiation_coupling_test_problem(real x, real y, real z, real dx) {
-	std::vector<real> u(opts().n_fields + NRF, real(0));
-	real eint;
-	u[rho_i] = 1.0;
-	u[spc_i] = u[rho_i];
-
-	specie_state_t<> species;
-	species[0] = u[rho_i];
-	real mmw;
-	real X;
-	real Z;
-	mean_ion_weight(species, mmw, X, Z);
-
-	const double er = (1.0e-10);
-	double T = pow(er / (4.0 * physcon().sigma / physcon().c), 0.25);
-	T *= 10.0;
-	double Pgas = u[rho_i] * T * physcon().kb / (physcon().mh * mmw);
-	const real fgamma = grid::get_fgamma();
-	double ei = (1.0 / (fgamma - 1.0)) * Pgas;
-	u[tau_i] = POWER(ei, 1.0 / grid::get_fgamma());
-	u[egas_i] = POWER(u[tau_i], fgamma);
-	double fx, fy, fz;
-	fx = fy = fz = 0.0;
-	u[opts().n_fields + 0] = er;
-	u[opts().n_fields + 1] = fx;
-	u[opts().n_fields + 2] = fy;
-	u[opts().n_fields + 3] = fz;
-//	if( er!= 0.0)
-	//printf( "--->%e\n",er);
-	return u;
-
-}
-
-std::vector<real> radiation_diffusion_analytic(real x, real y, real z, real t) {
-//	printf( "%e\n", t);
-	//t += 100;
-	std::vector<real> u(opts().n_fields + NRF, real(0));
-	x -= 0.0e11;
-	y -= 0.0e11;
-	z -= 0.0e11;
-	real eint;
-	u[rho_i] = 1.0;
-	u[spc_i] = u[rho_i];
-
-	x /= 1e5;
-	y /= 1e5;
-	z /= 1e5;
-
-	specie_state_t<> species;
-	species[0] = u[rho_i];
-	real mmw;
-	real X;
-	real Z;
-	mean_ion_weight(species, mmw, X, Z);
-
-	//const double r0 = 0.1;
-	const double r2 = x * x + y * y + z * z;
-	const double r = sqrt(r2);
-	const double D0 = 1.0 / 3.0 * physcon().c / (1e2);
-	const double er = 1.0e-6 * std::max(pow(t + 1.0, -1.5) * exp(-r2 / (4.0 * D0 * (t + 1.0))), 1e-10);
-
-//	const real A = 4.0 * dt * kap_p * sigma * pow(mmw[iiih] * mh * (fgamma - 1.) / (kb * rho[iiih]), 4.0);
-//	const real B = (1.0 + clight * dt * kap_p);
-//	const real C = -(1.0 + clight * dt * kap_p) * e0 - U[er_i][iiir] * dt * clight * kap_p;
-
-
-	double T = pow(er / (4.0 * physcon().sigma / physcon().c), 0.25);
-	double Pgas = u[rho_i] * T * physcon().kb / (physcon().mh * mmw);
-	const real fgamma = grid::get_fgamma();
-	double ei = (1.0 / (fgamma - 1.0)) * Pgas;
-//printf( "1. %e\n", 4.0 * physcon().sigma * pow(physcon().mh * mmw * (fgamma - 1.) / (physcon().kb * u[rho_i]), 4.0) );
-	u[tau_i] = POWER(ei, 1.0 / grid::get_fgamma());
-	u[egas_i] = POWER(u[tau_i], fgamma);
-	const double derdr = -0.5 * (r) / (1 + t) * er / D0;
-	double fx, fy, fz;
-	double vx = 1e-3 * physcon().c;
-	if (r == 0.0) {
-		fx = fy = fz = 0.0;
-	} else {
-		fx = -derdr * x / r * D0;// + vx * er;
-		fy = -derdr * y / r * D0;
-		fz = -derdr * z / r * D0;
-	}
-	//u[egas_i] += 0.5 * vx * vx * u[rho_i];
-	//u[sx_i] = u[rho_i] * vx;
-	double nx = fx;
-	double ny = fy;
-	double nz = fz;
-	double ninv = 1.0 / sqrt(nx * nx + ny * ny + nz * nz);
-	nx *= ninv;
-	ny *= ninv;
-	nz *= ninv;
-//	fx = copysign(std::min(fabs(fx),fabs(0.999*nx*er*physcon().c)), nx);
-//	fy = copysign(std::min(fabs(fy),fabs(0.999*ny*er*physcon().c)), ny);
-//	fz = copysign(std::min(fabs(fz),fabs(0.999*nz*er*physcon().c)), nz);
-//	printf( "%e\n", sqrt(fx*fx+fy*fy+fz*fz)/er);
-	u[opts().n_fields + 0] = er;
-	u[opts().n_fields + 1] = fx;
-	u[opts().n_fields + 2] = fy;
-	u[opts().n_fields + 3] = fz;
-//	if( er!= 0.0)
-	//printf( "--->%e\n",er);
-	return u;
-}
 
 bool refine_sod(integer level, integer max_level, real x, real y, real z, std::vector<real> const &U,
 		std::array<std::vector<real>, NDIM> const &dudx) {
@@ -271,7 +110,7 @@ bool refine_test(integer level, integer max_level, real x, real y, real z, std::
 	if(!rc && grad_rho > 0.0 && level < max_level) {
 		for( int dim = 0; dim < NDIM; dim++) {
 			if( std::abs(dudx[dim][rho_i])/U[rho_i] > grad_rho && U[rho_i] > 1000*den_floor) {
-				
+
 				rc = true;
 			}
 		}
@@ -301,15 +140,6 @@ bool refine_test_moving_star(integer level, integer max_level, real x, real y, r
 
 }
 
-bool refine_test_marshak(integer level, integer max_level, real x, real y, real z, std::vector<real> const &U,
-		std::array<std::vector<real>, NDIM> const &dudx) {
-	if (level >= max_level) {
-		return false;
-	} else {
-		return true;
-	}
-
-}
 
 bool refine_test_unigrid(integer level, integer max_level, real x, real y, real z, std::vector<real> const &U,
 		std::array<std::vector<real>, NDIM> const &dudx) {

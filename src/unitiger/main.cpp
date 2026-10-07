@@ -12,8 +12,6 @@
 #include "octotiger/unitiger/hydro.hpp"
 #include "octotiger/unitiger/physics.hpp"
 #include "octotiger/unitiger/physics_impl.hpp"
-#include "octotiger/unitiger/radiation/radiation_physics.hpp"
-#include "octotiger/unitiger/radiation/radiation_physics_impl.hpp"
 #include "octotiger/unitiger/safe_real.hpp"
 #include "octotiger/unitiger/hydro_impl/reconstruct.hpp"
 #include "octotiger/unitiger/hydro_impl/flux.hpp"
@@ -188,7 +186,5 @@ int main(int argc, char *argv[]) {
 //	run_test<2, 100, physics<2>>(physics<2>::KEPLER, true, createTests);
 //        run_test<3, 8, physics<3>>(physics<3>::SOD, false, createTests);
 //        run_test<2, 50, physics<2>>(physics<2>::BLAST, true, createTests);
-//        run_test<2, 50, radiation_physics<2>>(radiation_physics<2>::CONTACT, true, createTests);
-
 	return 0;
 }

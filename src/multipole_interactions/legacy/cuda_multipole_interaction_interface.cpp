@@ -104,14 +104,14 @@ namespace fmm {
                     local_expansions_SoA, center_of_masses_SoA, grid_ptr, use_root_stencil);
 
                 if (!use_root_stencil) {
-                    hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
+                    hpx::post(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                         cudaMemcpyAsync, device_local_monopoles.device_side_buffer,
                         local_monopoles.data(), local_monopoles_size, cudaMemcpyHostToDevice);
                 }
-                hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
+                hpx::post(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                     cudaMemcpyAsync, device_local_expansions.device_side_buffer,
                     local_expansions_SoA.get_pod(), local_expansions_size, cudaMemcpyHostToDevice);
-                hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
+                hpx::post(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                     cudaMemcpyAsync, device_centers.device_side_buffer,
                     center_of_masses_SoA.get_pod(), center_of_masses_size, cudaMemcpyHostToDevice);
                 int block_numbers = NUMBER_MULTIPOLE_BLOCKS * NUMBER_MULTIPOLE_BLOCKS;
@@ -159,7 +159,7 @@ namespace fmm {
                             device_tmp_erg_corrs.device_side_buffer, 
                             device_erg_corrs.device_side_buffer);
 #endif
-                        hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
+                        hpx::post(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                             cudaMemcpyAsync, angular_corrections_SoA.get_pod(),
                             device_erg_corrs.device_side_buffer, angular_corrections_size,
                             cudaMemcpyDeviceToHost);
@@ -231,7 +231,7 @@ namespace fmm {
                             device_tmp_erg_corrs.device_side_buffer, 
                             device_erg_corrs.device_side_buffer);
 #endif
-                        hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
+                        hpx::post(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                             cudaMemcpyAsync, angular_corrections_SoA.get_pod(),
                             device_erg_corrs.device_side_buffer, angular_corrections_size,
                             cudaMemcpyDeviceToHost);

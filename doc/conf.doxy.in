@@ -838,7 +838,6 @@ INPUT                  = ../../src \
              ,,/../src/mesa \
              ../../src/monopole_interactions \
              ../../src/multipole_interactions \
-             ../../src/radiation \
              ../../src/test_problems  \
              ../../src/unitiger \
              ../../src/unitiger/hydro_impl/hydro_cuda \

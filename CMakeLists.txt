@@ -39,7 +39,6 @@ set(CMAKE_CXX_STANDARD ${OCTOTIGER_CXX_STANDARD})
 option(OCTOTIGER_DISABLE_ILIST "Disables the interaction list to allow larger sub-grids for hydro-only scenarios!" OFF)
 option(OCTOTIGER_WITH_UNBUFFERED_STDOUT "Disable stdout buffering on all localities for debugging" OFF)
 option(OCTOTIGER_WITH_GRAV_PAR "Enable parallelism in gravitational solver" OFF)
-option(OCTOTIGER_WITH_RADIATION "Enable radiation transport solver" OFF)
 option(OCTOTIGER_WITH_CUDA "Enable CUDA kernels" OFF)
 option(OCTOTIGER_WITH_HIP "Enable HIP kernels" OFF)
 option(OCTOTIGER_WITH_KOKKOS "Enable the build with Kokkos" OFF)
@@ -234,8 +233,6 @@ set(source_files
     src/multipole_interactions/legacy/multipole_cuda_kernel.cpp
     src/multipole_interactions/util/calculate_stencil.cpp
     src/multipole_interactions/legacy/multipole_cpu_kernel.cpp
-    src/radiation/rad_grid.cpp
-    src/test_problems/marshak/marshak.cpp
     src/test_problems/rotating_star/rotating_star.cpp
     src/test_problems/sod/sod.cpp
     src/test_problems/sod/exact_sod.cpp
@@ -314,14 +311,8 @@ set(header_files
     octotiger/multipole_interactions/legacy/multipole_cpu_kernel.hpp
     octotiger/multipole_interactions/legacy/multipole_cuda_kernel.hpp
     octotiger/multipole_interactions/legacy/multipole_interaction_interface.hpp
-    octotiger/radiation/cpu_kernel.hpp
-    octotiger/radiation/cuda_kernel.hpp
-    octotiger/radiation/implicit.hpp
-    octotiger/radiation/kernel_interface.hpp
-    octotiger/radiation/opacities.hpp
-    octotiger/radiation/rad_grid.hpp
     octotiger/test_problems/rotating_star.hpp
-    
+
 )
 
 list(APPEND octo_dependencies Silo::silo Vc::Vc Boost::boost Boost::program_options CPPuddle::buffer_manager CPPuddle::stream_manager)
@@ -385,8 +376,6 @@ set(hydro_header_files
     octotiger/unitiger/hydro_impl/reconstruct.hpp
     octotiger/unitiger/hydro_impl/flux.hpp
     octotiger/unitiger/hydro_impl/hydro_performance_counters.hpp
-    octotiger/unitiger/radiation/radiation_physics.hpp
-    octotiger/unitiger/radiation/radiation_physics_impl.hpp
     octotiger/test_problems/exact_sod.hpp
     octotiger/unitiger/hydro_impl/hydro_kernel_interface.hpp)
 
@@ -563,12 +552,11 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/physcon.cpp 
     src/io/silo_out.cpp
     src/io/silo_in.cpp
-    src/radiation/rad_grid.cpp
     frontend/frontend-helper.cpp
 
     src/eos.cpp
     src/util.cpp
-    
+
 
     #misc
     src/cuda_util/cuda_scheduler.cpp
@@ -656,6 +644,16 @@ add_hpx_executable(
 )
 set_property(TARGET octotiger PROPERTY FOLDER "Octo-Tiger")
 target_link_options(unitiger PRIVATE -rdynamic)
+
+if(OCTOTIGER_WITH_KOKKOS)
+  # Kokkos SIMD discovery also runs in host-only translation units. Keep their
+  # host architecture consistent with the CUDA kernels compiled above.
+  separate_arguments(octotiger_host_arch_options NATIVE_COMMAND "${OCTOTIGER_ARCH_FLAG}")
+  foreach(target debuglib optionslib octolib hydrolib octotiger unitiger)
+    target_compile_options(${target} PRIVATE
+      "$<$<COMPILE_LANGUAGE:CXX>:${octotiger_host_arch_options}>")
+  endforeach()
+endif()
 
 if(MSVC)
   # Enable solution folders for MSVC
@@ -883,10 +881,6 @@ if(OCTOTIGER_WITH_GRAV_PAR)
   target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_GRAV_PAR)
 endif()
 
-if(OCTOTIGER_WITH_RADIATION)
-  target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_RADIATION)
-endif()
-
 
 # Grid size
 message(STATUS "Octo-Tiger grid size: ${OCTOTIGER_WITH_GRIDDIM}")
@@ -959,7 +953,6 @@ else()
 endif()
 
 
-
 # Maximum allowed nf (for kernel optimizations)
 message(STATUS "Octo-Tiger max nf: ${OCTOTIGER_WITH_MAX_NUMBER_FIELDS}")
 target_compile_definitions(optionslib PUBLIC OCTOTIGER_MAX_NUMBER_FIELDS=${OCTOTIGER_WITH_MAX_NUMBER_FIELDS})
@@ -974,11 +967,10 @@ target_compile_definitions(hydrolib PUBLIC OCTOTIGER_THETA_MINIMUM=${OCTOTIGER_T
 
 # Blast test problem quad-precision float support
 if(OCTOTIGER_WITH_BLAST_TEST)
-  if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-    message(FATAL_ERROR "Trying to build BLAST test with clang. The test requires quadmath which is not "
-    "bundled with clang. If you really need the blast test scenario compile "
-    "with a different compiler (gcc). If do not need this test (or aren't sure about it) "
-    " try the cmake variable OCTOTIGER_WITH_BLAST_TEST=OFF")
+  if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" AND NOT OCTOTIGER_WITH_BOOST_MULTIPRECISION)
+    message(FATAL_ERROR "The BLAST test with Clang requires "
+      "OCTOTIGER_WITH_BOOST_MULTIPRECISION=ON because quadmath is not bundled "
+      "with Clang. Alternatively, set OCTOTIGER_WITH_BLAST_TEST=OFF.")
   endif()
   target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_BLAST_TEST)
   set(blast_sources

@@ -248,7 +248,7 @@ int main(int argc, char* argv[]) {
         "hpx.commandline.allow_unknown=1"    // HPX should not complain about unknown command line
     };
     std::cerr << "Starting hpx init ..." << std::endl;
-    hpx::init(argc, argv, init_args);
+    const int result = hpx::init(argc, argv, init_args);
     std::cerr << "After HPX finalize ..." << std::endl;
 #ifdef OCTOTIGER_HAVE_HIP
     std::cout << std::endl << "WARNING: Experimental HIP Build! Do not (yet) use for production runs!\n" << std::endl;
@@ -280,6 +280,6 @@ int main(int argc, char* argv[]) {
     std::cout << "         Consider recompiling CPPuddle (and Octo-Tiger) with "
               << "CPPUDDLE_WITH_AGGRESSIVE_CONTENT_RECYCLING=ON !\n";
 #endif
+    return result;
 }
 #endif
-

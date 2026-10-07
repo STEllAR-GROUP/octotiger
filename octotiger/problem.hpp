@@ -33,8 +33,6 @@ OCTOTIGER_EXPORT std::vector<real> advection_test_analytic(real,real,real,real);
 OCTOTIGER_EXPORT std::vector<real> sod_shock_tube_init(real, real, real, real);
 OCTOTIGER_EXPORT std::vector<real> sod_shock_tube_analytic(
     real, real, real, real);
-OCTOTIGER_EXPORT std::vector<real> marshak_wave(real, real, real, real);
-OCTOTIGER_EXPORT std::vector<real> marshak_wave_analytic(real, real, real, real);
 OCTOTIGER_EXPORT std::vector<real> star(real, real, real, real);
 OCTOTIGER_EXPORT std::vector<real> moving_star_analytic(real, real, real, real);
 OCTOTIGER_EXPORT std::vector<real> moving_star(real, real, real, real);
@@ -54,9 +52,6 @@ OCTOTIGER_EXPORT bool refine_test_center(integer level, integer maxl, real, real
 OCTOTIGER_EXPORT bool refine_test(integer level, integer maxl, real, real, real,
     std::vector<real> const& U,
     std::array<std::vector<real>, NDIM> const& dudx);
-OCTOTIGER_EXPORT bool refine_test_marshak(integer level, integer maxl, real, real,
-    real, std::vector<real> const& U,
-    std::array<std::vector<real>, NDIM> const& dudx);
 OCTOTIGER_EXPORT bool refine_test_moving_star(integer level, integer maxl, real,
     real, real, std::vector<real> const& U,
     std::array<std::vector<real>, NDIM> const& dudx);
@@ -74,11 +69,4 @@ OCTOTIGER_EXPORT void set_analytic(const analytic_func_type&);
 OCTOTIGER_EXPORT init_func_type get_problem();
 OCTOTIGER_EXPORT analytic_func_type get_analytic();
 
-OCTOTIGER_EXPORT bool radiation_test_refine(integer level, integer max_level,
-    real x, real y, real z, std::vector<real> U,
-    std::array<std::vector<real>, NDIM> const& dudx);
-OCTOTIGER_EXPORT std::vector<real> radiation_test_problem(real, real, real, real);
-std::vector<real> radiation_diffusion_test_problem(real x, real y, real z, real dx);
-std::vector<real> radiation_coupling_test_problem(real x, real y, real z, real dx);
-std::vector<real> radiation_diffusion_analytic(real x, real y, real z, real t);
 #endif /* PROBLEM_HPP_ */

@@ -503,7 +503,7 @@ void node_server::initialize(real t, real rt) {
 	for (auto const &dir : geo::direction::full_set()) {
 		neighbor_signals[dir].signal();
 	}
-	gcycle = hcycle = rcycle = 0;
+	gcycle = hcycle = 0;
 	step_num = 0;
 	refinement_flag = 0;
 	static_initialize();
@@ -522,10 +522,6 @@ void node_server::initialize(real t, real rt) {
 	} else {
 		grid_ptr = std::make_shared<grid>(dx, xmin);
 	}
-	if (opts().radiation) {
-		rad_grid_ptr = grid_ptr->get_rad_grid();
-		rad_grid_ptr->set_dx(dx);
-	}
 	if (my_location.level() == 0) {
 		grid_ptr->set_root();
 	}
@@ -534,7 +530,7 @@ void node_server::initialize(real t, real rt) {
 
   number_hydro_exchange_promises = 0;
   if (opts().optimize_local_communication) {
-    number_hydro_exchange_promises = (refinement_freq() + 1) * (NRK + 1 + static_cast<int>(opts().radiation)) + 1;
+    number_hydro_exchange_promises = (refinement_freq() + 1) * (NRK + 1) + 1;
     ready_for_hydro_exchange.clear();
     for (int i = 0; i < number_hydro_exchange_promises; i++)
       ready_for_hydro_exchange.emplace_back();
@@ -556,24 +552,22 @@ node_server::~node_server() {
 }
 
 node_server::node_server(const node_location &loc, const node_client &parent_id, real t, real rt, std::size_t _step_num, std::size_t _hcycle,
-		std::size_t _rcycle, std::size_t _gcycle) :
+		std::size_t _gcycle) :
 		my_location(loc), parent(parent_id) {
 	initialize(t, rt);
 	step_num = _step_num;
 	gcycle = _gcycle;
 	hcycle = _hcycle;
-	rcycle = _rcycle;
 }
 
 node_server::node_server(const node_location &_my_location, integer _step_num, bool _is_refined, real _current_time, real _rotational_time,
-		const std::array<integer, NCHILD> &_child_d, grid _grid, const std::vector<hpx::id_type> &_c, std::size_t _hcycle, std::size_t _rcycle,
+		const std::array<integer, NCHILD> &_child_d, grid _grid, const std::vector<hpx::id_type> &_c, std::size_t _hcycle,
 		std::size_t _gcycle, integer position_) {
 	my_location = _my_location;
 	initialize(_current_time, _rotational_time);
 	position = position_;
 	hcycle = _hcycle;
 	gcycle = _gcycle;
-	rcycle = _rcycle;
 	is_refined = _is_refined;
 	step_num = _step_num;
 	current_time = _current_time;
