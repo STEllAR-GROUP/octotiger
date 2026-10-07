@@ -136,7 +136,13 @@ def patch_octotiger_recipe(recipe):
     launcher = (indent + 'if self.spec.satisfies("+cuda +kokkos %gcc"):\n'
                 + indent + '    args.append(self.define("CMAKE_CXX_COMPILER_LAUNCHER",\n'
                 + indent + '        "python3;" + join_path(self.stage.source_path, ".jenkins", "lsu",\n'
-                + indent + '                              "nvccHostDefinitions.py")))\n')
+                + indent + '                              "nvccHostDefinitions.py")))\n'
+                + indent + 'if self.spec.satisfies("%clang"):\n'
+                + indent + '    args = [arg for arg in args if arg.split("=", 1)[0].split(":", 1)[0]\n'
+                + indent + '            not in ("-DOCTOTIGER_WITH_BOOST_MULTIPRECISION",\n'
+                + indent + '                    "-DOCTOTIGER_WITH_BLAST_TEST")]\n'
+                + indent + '    args.append(self.define("OCTOTIGER_WITH_BOOST_MULTIPRECISION", True))\n'
+                + indent + '    args.append(self.define("OCTOTIGER_WITH_BLAST_TEST", self.run_tests))\n')
     edits.append((offsets[insertion], offsets[insertion], launcher))
     for start, end, replacement in sorted(edits, reverse=True):
         recipe = recipe[:start] + replacement + recipe[end:]
@@ -146,37 +152,55 @@ def patch_octotiger_recipe(recipe):
 
 def patch_kokkos_recipe(recipe, package_dir):
     cls = package_class(recipe, "Kokkos")
-    patch_name = "adapt-kokkos-for-nix.patch"
-    matches = [node for node in cls.body if isinstance(node, ast.Expr)
-               and isinstance(node.value, ast.Call)
-               and isinstance(node.value.func, ast.Name) and node.value.func.id == "patch"
-               and node.value.args and literal_string(node.value.args[0]) == patch_name]
-    references = [node for node in ast.walk(cls) if literal_string(node) == patch_name]
-    if not matches and not references:
-        return recipe
-    if len(matches) != 1 or len(references) != 1:
-        raise ValueError("Unsupported Nix shebang patch directive")
-    call = matches[0].value
-    keywords = {keyword.arg: keyword.value for keyword in call.keywords}
-    if len(call.args) != 1 or set(keywords) != {"when"} or literal_string(keywords["when"]) != "@:4.1.00":
-        raise ValueError("Unexpected Nix shebang patch condition")
-    patch_bytes = (package_dir / patch_name).read_bytes()
-    # Verify both hunks are only the known shell-interpreter changes.
-    changes = [line for line in patch_bytes.decode().splitlines()
-               if line.startswith(("+", "-")) and not line.startswith(("+++", "---"))]
-    files = [line for line in patch_bytes.decode().splitlines() if line.startswith("diff --git ")]
-    if changes != ["-#!/bin/bash -e", "+#!/usr/bin/env bash",
-                   "-#!/bin/bash", "+#!/usr/bin/env bash"] or files != [
-                       "diff --git a/bin/kokkos_launch_compiler b/bin/kokkos_launch_compiler",
-                       "diff --git a/bin/nvcc_wrapper b/bin/nvcc_wrapper"]:
-        raise ValueError("The site's Nix patch is not the recognized shebang-only patch")
     lines = recipe.splitlines(keepends=True)
-    # The known directive occupies one source line; reject other layouts.
-    line = lines[matches[0].lineno - 1]
-    parsed = ast.parse(line.strip())
-    if len(parsed.body) != 1 or ast.dump(parsed.body[0]) != ast.dump(matches[0]):
-        raise ValueError("Unsupported Nix patch source layout")
-    del lines[matches[0].lineno - 1]
+    remove_lines = []
+    for patch_name in ("adapt-kokkos-for-nix.patch", "adapt-kokkos-for-hpx.patch"):
+        matches = [node for node in cls.body if isinstance(node, ast.Expr)
+                   and isinstance(node.value, ast.Call)
+                   and isinstance(node.value.func, ast.Name) and node.value.func.id == "patch"
+                   and node.value.args and literal_string(node.value.args[0]) == patch_name]
+        references = [node for node in ast.walk(cls) if literal_string(node) == patch_name]
+        if not matches and not references:
+            continue
+        if len(matches) != 1 or len(references) != 1:
+            raise ValueError("Unsupported wrapper patch directive: " + patch_name)
+        call = matches[0].value
+        keywords = {keyword.arg: keyword.value for keyword in call.keywords}
+        allowed_conditions = (None, "@:4.1.00") if patch_name == "adapt-kokkos-for-nix.patch" else (None,)
+        if (len(call.args) != 1 or set(keywords) - {"when"}
+                or ("when" in keywords and literal_string(keywords["when"]) is None)
+                or literal_string(keywords.get("when")) not in allowed_conditions):
+            raise ValueError("Unexpected wrapper patch condition: " + patch_name)
+        patch_lines = (package_dir / patch_name).read_text().splitlines()
+        changes = [line for line in patch_lines
+                   if line.startswith(("+", "-")) and not line.startswith(("+++", "---"))]
+        files = [line for line in patch_lines if line.startswith("diff --git ")]
+        if patch_name == "adapt-kokkos-for-nix.patch":
+            shebangs = ["-#!/bin/bash -e", "+#!/usr/bin/env bash",
+                        "-#!/bin/bash", "+#!/usr/bin/env bash"]
+            old_cuda_root = ['-if [ ! -z $CUDA_ROOT ]; then',
+                             '-  nvcc_compiler="$CUDA_ROOT/bin/nvcc"', '-fi']
+            valid = changes in (shebangs, shebangs + old_cuda_root) and files == [
+                "diff --git a/bin/kokkos_launch_compiler b/bin/kokkos_launch_compiler",
+                "diff --git a/bin/nvcc_wrapper b/bin/nvcc_wrapper"]
+        else:
+            valid = changes == [
+                '-  $host_command', '+  eval $host_command',
+                '-    echo "TMPDIR=${temp_dir} $nvcc_command"',
+                '+    echo "TMPDIR=${temp_dir} eval $nvcc_command"',
+                '-  TMPDIR=${temp_dir} $nvcc_command',
+                '+  TMPDIR=${temp_dir} eval $nvcc_command'] and files == [
+                    "diff --git a/bin/nvcc_wrapper b/bin/nvcc_wrapper"]
+        if not valid:
+            raise ValueError("Unrecognized wrapper compatibility patch contents: " + patch_name)
+        # Known directives occupy one source line; reject other layouts.
+        line = lines[matches[0].lineno - 1]
+        parsed = ast.parse(line.strip())
+        if len(parsed.body) != 1 or ast.dump(parsed.body[0]) != ast.dump(matches[0]):
+            raise ValueError("Unsupported wrapper patch source layout: " + patch_name)
+        remove_lines.append(matches[0].lineno - 1)
+    for index in sorted(remove_lines, reverse=True):
+        del lines[index]
     result = "".join(lines)
     ast.parse(result)
     return result
@@ -220,7 +244,13 @@ def prepare(hpx_package_dir, octotiger_package_dir, kokkos_package_dir,
             "original_recipe_sha256": hashlib.sha256(original).hexdigest(),
             "overlay_recipe_sha256": hashlib.sha256(recipe.encode()).hexdigest(),
             "removed_patch_references": sorted(value for value in before_refs - after_refs
-                                               if value and value.endswith(".patch"))})
+                                               if value and value.endswith(".patch")),
+            "remaining_self_patch_directives": [
+                {"patch": literal_string(node.args[0]),
+                 "when": next((literal_string(keyword.value) for keyword in node.keywords
+                                if keyword.arg == "when"), "always")}
+                for node in ast.walk(ast.parse(recipe)) if isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name) and node.func.id == "patch" and node.args]})
         if name == "hpx" and hpx_package_dir is not None:
             patch_name = "hpx-1.9.1-clang-restricted-executor.patch"
             shutil.copyfile(Path(__file__).parent / "patches" / patch_name,

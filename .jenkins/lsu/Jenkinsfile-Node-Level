@@ -53,12 +53,12 @@ pipeline {
                                ' ~cuda +kokkos  %gcc@11 ^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %gcc@11 ^cppuddle %gcc@11 ^hpx-kokkos %gcc@11 ^kokkos@4.0.01~cuda %gcc@11 ^silo~mpi ;with-CC-without-cuda-with-kokkos;gcc/11 cuda/12;cuda-V100 --exclusive;--fresh',\
                                ' +cuda ~kokkos cuda_arch=70 ^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %gcc@11 ^cppuddle %gcc@11 ^silo~mpi %gcc@11 ;with-CC-with-cuda-without-kokkos;gcc/11 cuda/12;cuda-V100 --exclusive;--fresh',\
                                ' ~cuda ~kokkos  %gcc@11 ^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %gcc@11 ^cppuddle %gcc@11 ^silo~mpi ;with-CC-without-cuda-without-kokkos;gcc/11 cuda/12;cuda-V100 --exclusive;--fresh',\
-                               ' +cuda +kokkos cuda_arch=70  +boost_multiprecision %clang@20 ^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %clang@20 ^cppuddle %clang@20 ^hpx-kokkos %clang@20 ^kokkos %clang@20 ^silo~mpi ;with-CC-clang-with-cuda-with-kokkos;llvm/20 cuda/12;cuda-V100 --exclusive;--fresh',\
-                               ' +cuda +kokkos cuda_arch=70 griddim=16  +boost_multiprecision %clang@20 ^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %clang@20 ^cppuddle %clang@20 ^hpx-kokkos %clang@20 ^kokkos %clang@20^silo~mpi ;with-CC-clang-with-cuda-with-kokkos-griddim16;llvm/20 cuda/12;cuda-V100 --exclusive;--fresh',\
-                               ' ~cuda +kokkos  +boost_multiprecision %clang@20^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %clang@20 ^cppuddle %clang@20 ^hpx-kokkos %clang@20 ^kokkos %clang@20 ^silo~mpi ;with-CC-clang-without-cuda-with-kokkos;llvm/20 cuda/12;cuda-V100 --exclusive;--fresh',\
-                               ' +cuda ~kokkos cuda_arch=70  +boost_multiprecision %clang@20 ^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %clang@20 ^cppuddle %clang@20 ^silo~mpi ;with-CC-clang-with-cuda-without-kokkos;llvm/20 cuda/12;cuda-V100 --exclusive;--fresh',\
-                               ' ~cuda ~kokkos  +boost_multiprecision %clang@20 ^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %clang@20 ^cppuddle %clang@20 ^silo~mpi ;with-CC-clang-without-cuda-without-kokkos;llvm/20 cuda/12;cuda-V100 --exclusive;--fresh',\
-                               ' +rocm+kokkos amdgpu_target=gfx908 %rocmcc@6.4.1 ^asio@1.16.0^hpx@1.9.1 max_cpu_count=128 amdgpu_target=gfx908 %rocmcc@6.4.1 ^kokkos@4.1.00 amdgpu_target=gfx908 %rocmcc@6.4.1 ^hip@6.4.1 ^hsa-rocr-dev@6.4.1 ^llvm-amdgpu@6.4.1 ^cppuddle %rocmcc@6.4.1 ^hpx-kokkos %rocmcc@6.4.1 ^silo~mpi %gcc@11 ;with-CC-clang-with-hip-with-kokkos;gcc/11 rocm/6.4.1;jenkins-amdgpu --exclusive -c 16 --threads-per-core=1;--fresh --dirty',\
+                               ' +cuda +kokkos cuda_arch=70  %clang@20 ^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %clang@20 ^cppuddle %clang@20 ^hpx-kokkos %clang@20 ^kokkos %clang@20 ^silo~mpi ;with-CC-clang-with-cuda-with-kokkos;llvm/20 cuda/12;cuda-V100 --exclusive;--fresh',\
+                               ' +cuda +kokkos cuda_arch=70 griddim=16  %clang@20 ^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %clang@20 ^cppuddle %clang@20 ^hpx-kokkos %clang@20 ^kokkos %clang@20^silo~mpi ;with-CC-clang-with-cuda-with-kokkos-griddim16;llvm/20 cuda/12;cuda-V100 --exclusive;--fresh',\
+                               ' ~cuda +kokkos  %clang@20^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %clang@20 ^cppuddle %clang@20 ^hpx-kokkos %clang@20 ^kokkos %clang@20 ^silo~mpi ;with-CC-clang-without-cuda-with-kokkos;llvm/20 cuda/12;cuda-V100 --exclusive;--fresh',\
+                               ' +cuda ~kokkos cuda_arch=70  %clang@20 ^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %clang@20 ^cppuddle %clang@20 ^silo~mpi ;with-CC-clang-with-cuda-without-kokkos;llvm/20 cuda/12;cuda-V100 --exclusive;--fresh',\
+                               ' ~cuda ~kokkos  %clang@20 ^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %clang@20 ^cppuddle %clang@20 ^silo~mpi ;with-CC-clang-without-cuda-without-kokkos;llvm/20 cuda/12;cuda-V100 --exclusive;--fresh',\
+                               ' +rocm+kokkos amdgpu_target=gfx908 %rocmcc@6.4.1 ^asio@1.16.0^hpx@1.9.1 max_cpu_count=128 amdgpu_target=gfx908 %rocmcc@6.4.1 ^kokkos@4.1.00 amdgpu_target=gfx908 %rocmcc@6.4.1 ^hip@6.4.1 ^hsa-rocr-dev@6.4.1 ^llvm-amdgpu@6.4.1 ^cppuddle %rocmcc@6.4.1 ^hpx-kokkos %rocmcc@6.4.1 ^silo~mpi %gcc@11 ;with-CC-clang-with-hip-with-kokkos;rocm/6.4.1;jenkins-amdgpu --exclusive -c 16 --threads-per-core=1;--fresh --dirty',\
                                ' +kokkos simd_extension=SCALAR simd_library=STD  %gcc@11^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %gcc@11 ^kokkos %gcc@11 ^hpx-kokkos %gcc@11 ^cppuddle %gcc@11 ^silo~mpi ;with-CC-with-std-with-scalar;gcc/11;medusa --exclusive;--fresh',\
                                ' +kokkos simd_extension=AVX512 simd_library=STD  %gcc@11^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %gcc@11 ^kokkos %gcc@11 ^hpx-kokkos %gcc@11 ^cppuddle %gcc@11 ^silo~mpi ;with-CC-with-std-with-avx512;gcc/11;medusa --exclusive;--fresh',\
                                ' +kokkos +kokkos_hpx_kernels multipole_host_tasks=16 monopole_host_tasks=4 hydro_host_tasks=4 simd_extension=AVX512 simd_library=STD  %gcc@11^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %gcc@11 ^kokkos %gcc@11 ^hpx-kokkos %gcc@11 ^cppuddle %gcc@11 ^silo~mpi ;with-CC-with-std-with-avx512-with-hpx-kokkos-kernels;gcc/11;medusa --exclusive;--fresh',\
@@ -141,10 +141,11 @@ spack_scope=()
 overlay_args=()
 if [[ "${spack_spec}" == *"%clang@"* || "${spack_spec}" == *"%rocmcc@"* || "${spack_spec}" == *"+sycl"* ]]; then
     overlay_args+=(--hpx-package-dir "$(spack location -p hpx)")
-    if [[ "${spack_spec}" == *"+kokkos"* || "${spack_spec}" == *"+sycl"* ]]; then
-        overlay_args+=(--kokkos-package-dir "$(spack location -p kokkos)")
-    fi
-    if [[ "${spack_spec}" == *"%rocmcc@"* || "${spack_spec}" == *"+sycl"* ]]; then
+    overlay_args+=(--kokkos-package-dir "$(spack location -p kokkos)")
+    if [[ "${spack_spec}" == *"%clang@"* ]]; then
+        # Older site recipes lack a Boost variant and disable Clang blast tests.
+        overlay_args+=(--octotiger-package-dir "$(spack location -p octotiger)")
+    else
         # Retain dependency-patch ownership in the same repository namespace.
         overlay_args+=(--copy-package-dir "$(spack location -p octotiger)")
     fi
