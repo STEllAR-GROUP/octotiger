@@ -1,0 +1,250 @@
+#!/usr/bin/env python3
+"""Copy site recipes into a job-local repository for Octotiger compatibility.
+
+The HPX 1.9.1 backport for Clang, ROCm, and SYCL frontends comes from:
+https://github.com/TheHPXProject/hpx/commit/ca5e2d0bb4e0546007dd2d21acbe302fd5d6a2cd
+"""
+
+import argparse
+import ast
+import hashlib
+import io
+import json
+from pathlib import Path
+import shutil
+import tokenize
+
+
+def literal_string(node):
+    try:
+        value = ast.literal_eval(node)
+    except (ValueError, TypeError, SyntaxError):
+        return None
+    return value if isinstance(value, str) else None
+
+
+def package_class(recipe, name):
+    classes = [node for node in ast.parse(recipe).body
+               if isinstance(node, ast.ClassDef) and node.name == name]
+    if len(classes) != 1:
+        raise ValueError("Expected exactly one top-level " + name + " class in the site recipe")
+    return classes[0]
+
+
+def patch_hpx_recipe(recipe):
+    cls = package_class(recipe, "Hpx")
+    body = cls.body
+    if ast.get_docstring(cls, clean=False) is not None:
+        body = body[1:]
+    if not body:
+        raise ValueError("The site Hpx recipe has no package directives")
+    patch_name = "hpx-1.9.1-clang-restricted-executor.patch"
+    if patch_name in recipe:
+        raise ValueError("The source HPX recipe already contains this overlay patch")
+    lines = recipe.splitlines(keepends=True)
+    insertion = body[0].lineno - 1
+    indent = lines[insertion][:len(lines[insertion]) - len(lines[insertion].lstrip())]
+    # The pipeline selects this modified recipe only for Clang-based frontends,
+    # including ROCm and SYCL builds whose Spack compiler name can differ.
+    lines.insert(insertion, indent + 'patch("' + patch_name + '", when="@1.9.1")\n')
+    patched_recipe = "".join(lines)
+    ast.parse(patched_recipe)
+    return patched_recipe
+
+
+def patch_octotiger_recipe(recipe):
+    cls = package_class(recipe, "Octotiger")
+    patch_name = "adapt-kokkos-for-hpx.patch"
+    # Token edits retain the site's formatting and every unrelated directive.
+    tokens = list(tokenize.generate_tokens(io.StringIO(recipe).readline))
+    lines = recipe.splitlines(keepends=True)
+    offsets = [0]
+    for line in lines:
+        offsets.append(offsets[-1] + len(line))
+
+    def offset(position):
+        return offsets[position[0] - 1] + position[1]
+
+    edits = []
+    references = [node for node in ast.walk(cls)
+                  if literal_string(node) == patch_name]
+    for call in ast.walk(cls):
+        if not (isinstance(call, ast.Call) and isinstance(call.func, ast.Name)
+                and call.func.id == "depends_on"):
+            continue
+        keywords = {keyword.arg: keyword.value for keyword in call.keywords}
+        patches = keywords.get("patches")
+        if not isinstance(patches, ast.List):
+            continue
+        matches = [node for node in patches.elts
+                   if literal_string(node) == patch_name]
+        if not matches:
+            continue
+        if len(matches) != 1 or not call.args:
+            raise ValueError("Unsupported legacy Kokkos patch directive")
+        # Recognize the public recipe's Kokkos string variable or a literal spec.
+        dependency = call.args[0]
+        if isinstance(dependency, ast.BinOp) and isinstance(dependency.op, ast.Add):
+            dependency = dependency.left
+        if isinstance(dependency, ast.Name) and dependency.id == "kokkos_string":
+            definitions = [node.value for node in cls.body if isinstance(node, ast.Assign)
+                           and any(isinstance(target, ast.Name) and target.id == "kokkos_string"
+                                   for target in node.targets)]
+            if len(definitions) != 1:
+                raise ValueError("Expected one literal kokkos_string definition")
+            dependency = definitions[0]
+        dependency_string = literal_string(dependency)
+        is_kokkos = dependency_string and dependency_string.split()[0] == "kokkos"
+        when = literal_string(keywords.get("when"))
+        if not is_kokkos or not when or not all(part in when.split() for part in ("+kokkos", "+cuda", "%gcc")):
+            raise ValueError("Legacy wrapper patch is not confined to GCC CUDA Kokkos")
+        node = matches[0]
+        indices = [i for i, token in enumerate(tokens)
+                   if token.start == (node.lineno, node.col_offset)]
+        if len(indices) != 1:
+            raise ValueError("Cannot locate the legacy Kokkos patch token")
+        index = indices[0]
+        token = tokens[index]
+        if token.type != tokenize.STRING or ast.literal_eval(token.string) != patch_name:
+            raise ValueError("Unsupported legacy Kokkos patch string layout")
+        start, end = offset(token.start), offset(token.end)
+        if len(patches.elts) > 1:
+            if patches.elts[-1] is node:
+                comma = next(item for item in reversed(tokens[:index])
+                             if item.type not in (tokenize.NL, tokenize.COMMENT))
+                start = offset(comma.start)
+            else:
+                comma = next(item for item in tokens[index + 1:]
+                             if item.type not in (tokenize.NL, tokenize.COMMENT))
+                end = offset(comma.end)
+            if comma.string != ",":
+                raise ValueError("Unsupported legacy Kokkos patch list layout")
+        edits.append((start, end, ""))
+    if len(edits) != len(references):
+        raise ValueError("Found an unsupported reference to the legacy Kokkos wrapper patch")
+
+    methods = [node for node in cls.body if isinstance(node, ast.FunctionDef)
+               and node.name == "cmake_args"]
+    if len(methods) != 1:
+        raise ValueError("Expected one Octotiger.cmake_args method")
+    returns = [node for node in ast.walk(methods[0]) if isinstance(node, ast.Return)]
+    if (len(returns) != 1 or returns[0] is not methods[0].body[-1]
+            or not isinstance(returns[0].value, ast.Name) or returns[0].value.id != "args"):
+        raise ValueError("Expected Octotiger.cmake_args to end with a single return args")
+    insertion = returns[0].lineno - 1
+    indent = lines[insertion][:len(lines[insertion]) - len(lines[insertion].lstrip())]
+    launcher = (indent + 'if self.spec.satisfies("+cuda +kokkos %gcc"):\n'
+                + indent + '    args.append(self.define("CMAKE_CXX_COMPILER_LAUNCHER",\n'
+                + indent + '        "python3;" + join_path(self.stage.source_path, ".jenkins", "lsu",\n'
+                + indent + '                              "nvccHostDefinitions.py")))\n')
+    edits.append((offsets[insertion], offsets[insertion], launcher))
+    for start, end, replacement in sorted(edits, reverse=True):
+        recipe = recipe[:start] + replacement + recipe[end:]
+    ast.parse(recipe)
+    return recipe
+
+
+def patch_kokkos_recipe(recipe, package_dir):
+    cls = package_class(recipe, "Kokkos")
+    patch_name = "adapt-kokkos-for-nix.patch"
+    matches = [node for node in cls.body if isinstance(node, ast.Expr)
+               and isinstance(node.value, ast.Call)
+               and isinstance(node.value.func, ast.Name) and node.value.func.id == "patch"
+               and node.value.args and literal_string(node.value.args[0]) == patch_name]
+    references = [node for node in ast.walk(cls) if literal_string(node) == patch_name]
+    if not matches and not references:
+        return recipe
+    if len(matches) != 1 or len(references) != 1:
+        raise ValueError("Unsupported Nix shebang patch directive")
+    call = matches[0].value
+    keywords = {keyword.arg: keyword.value for keyword in call.keywords}
+    if len(call.args) != 1 or set(keywords) != {"when"} or literal_string(keywords["when"]) != "@:4.1.00":
+        raise ValueError("Unexpected Nix shebang patch condition")
+    patch_bytes = (package_dir / patch_name).read_bytes()
+    # Verify both hunks are only the known shell-interpreter changes.
+    changes = [line for line in patch_bytes.decode().splitlines()
+               if line.startswith(("+", "-")) and not line.startswith(("+++", "---"))]
+    files = [line for line in patch_bytes.decode().splitlines() if line.startswith("diff --git ")]
+    if changes != ["-#!/bin/bash -e", "+#!/usr/bin/env bash",
+                   "-#!/bin/bash", "+#!/usr/bin/env bash"] or files != [
+                       "diff --git a/bin/kokkos_launch_compiler b/bin/kokkos_launch_compiler",
+                       "diff --git a/bin/nvcc_wrapper b/bin/nvcc_wrapper"]:
+        raise ValueError("The site's Nix patch is not the recognized shebang-only patch")
+    lines = recipe.splitlines(keepends=True)
+    # The known directive occupies one source line; reject other layouts.
+    line = lines[matches[0].lineno - 1]
+    parsed = ast.parse(line.strip())
+    if len(parsed.body) != 1 or ast.dump(parsed.body[0]) != ast.dump(matches[0]):
+        raise ValueError("Unsupported Nix patch source layout")
+    del lines[matches[0].lineno - 1]
+    result = "".join(lines)
+    ast.parse(result)
+    return result
+
+
+def prepare(hpx_package_dir, octotiger_package_dir, kokkos_package_dir,
+            copy_package_dirs, output_dir):
+    output_dir = output_dir.resolve()
+    packages = []
+    inputs = [("hpx", hpx_package_dir, patch_hpx_recipe),
+              ("octotiger", octotiger_package_dir, patch_octotiger_recipe),
+              ("kokkos", kokkos_package_dir,
+               lambda recipe: patch_kokkos_recipe(recipe, kokkos_package_dir))]
+    inputs += [(directory.name, directory, lambda recipe: recipe)
+               for directory in copy_package_dirs]
+    for name, package_dir, transform in inputs:
+        if package_dir is None:
+            continue
+        if any(existing_name == name for existing_name, _, _ in packages):
+            raise ValueError("Duplicate package requested: " + name)
+        package_dir = package_dir.resolve()
+        if output_dir == package_dir or package_dir in output_dir.parents:
+            raise ValueError("The overlay must be outside the original package directory")
+        packages.append((name, package_dir, transform((package_dir / "package.py").read_text())))
+    if not packages:
+        raise ValueError("At least one source package directory is required")
+
+    # Refuse to overwrite an existing scope. Never edit the original recipes.
+    output_dir.mkdir(parents=True, exist_ok=False)
+    repo = output_dir / "repo"
+    manifest = {"packages": [], "misc_cache": str(output_dir / "cache")}
+    for name, package_dir, recipe in packages:
+        target_package = repo / "packages" / name
+        shutil.copytree(package_dir, target_package)
+        (target_package / "package.py").write_text(recipe)
+        original = (package_dir / "package.py").read_bytes()
+        before_refs = {literal_string(node) for node in ast.walk(ast.parse(original))}
+        after_refs = {literal_string(node) for node in ast.walk(ast.parse(recipe))}
+        manifest["packages"].append({
+            "name": name, "source": str(package_dir),
+            "original_recipe_sha256": hashlib.sha256(original).hexdigest(),
+            "overlay_recipe_sha256": hashlib.sha256(recipe.encode()).hexdigest(),
+            "removed_patch_references": sorted(value for value in before_refs - after_refs
+                                               if value and value.endswith(".patch"))})
+        if name == "hpx" and hpx_package_dir is not None:
+            patch_name = "hpx-1.9.1-clang-restricted-executor.patch"
+            shutil.copyfile(Path(__file__).parent / "patches" / patch_name,
+                            target_package / patch_name)
+    (repo / "repo.yaml").write_text("repo:\n  namespace: octotiger_hpx191\n")
+    config = output_dir / "config"
+    config.mkdir()
+    # A normal repos list prepends this repository while retaining lower scopes.
+    (config / "repos.yaml").write_text("repos:\n- " + json.dumps(str(repo)) + "\n")
+    # Spack keys package indexes by namespace, so parallel job overlays must not
+    # share the user's index cache even when they share source/install caches.
+    (config / "config.yaml").write_text("config:\n  misc_cache: "
+                                        + json.dumps(str(output_dir / "cache")) + "\n")
+    (output_dir / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+    print(config)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--hpx-package-dir", type=Path)
+    parser.add_argument("--octotiger-package-dir", type=Path)
+    parser.add_argument("--kokkos-package-dir", type=Path)
+    parser.add_argument("--copy-package-dir", type=Path, action="append", default=[])
+    parser.add_argument("--output-dir", type=Path, required=True)
+    args = parser.parse_args()
+    prepare(args.hpx_package_dir, args.octotiger_package_dir, args.kokkos_package_dir,
+            args.copy_package_dir, args.output_dir)

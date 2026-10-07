@@ -44,8 +44,13 @@ option(OCTOTIGER_WITH_HIP "Enable HIP kernels" OFF)
 option(OCTOTIGER_WITH_KOKKOS "Enable the build with Kokkos" OFF)
 option(OCTOTIGER_SPACK_BUILD "Project is build with the spack package" OFF)
 option(OCTOTIGER_WITH_BLAST_TEST "Enable the Blast test" ON)
+set(OCTOTIGER_BOOST_MULTIPRECISION_DEFAULT OFF)
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  set(OCTOTIGER_BOOST_MULTIPRECISION_DEFAULT ON)
+endif()
 option(OCTOTIGER_WITH_BOOST_MULTIPRECISION
-  "Use Boost.Multiprecision Instead of GCC Quad-Precision Math Library" OFF)
+  "Use Boost.Multiprecision Instead of GCC Quad-Precision Math Library"
+  ${OCTOTIGER_BOOST_MULTIPRECISION_DEFAULT})
 option(OCTOTIGER_WITH_QUADMATH "Enable sections using GCC Quad-Precision Math Library" ON)
 option(OCTOTIGER_WITH_Vc "" ON)
 # Re-enables Vc datatypes in the octotiger parts - use with caution
@@ -127,8 +132,6 @@ find_package(Boost COMPONENTS system filesystem program_options REQUIRED)
 if(NOT MSVC)
   find_package(Threads REQUIRED)  # Required by target gen_rotating_star_init
 endif()
-
-target_link_libraries(HPX::wrap_main INTERFACE tbb)
 
 if(OCTOTIGER_WITH_CUDA)
   if (NOT ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang"))
@@ -347,7 +350,8 @@ add_hpx_library(
     octotiger/debug.hpp
 )
 
-target_link_libraries(debuglib PRIVATE boost_stacktrace_backtrace)
+# debug.cpp uses the header-only addr2line stacktrace backend, which needs dladdr.
+target_link_libraries(debuglib PRIVATE Boost::boost ${CMAKE_DL_LIBS})
 
 # Octo-Tiger library
 add_hpx_library(
@@ -620,7 +624,6 @@ add_hpx_executable(
 )
 set_property(TARGET octotiger PROPERTY FOLDER "Octo-Tiger")
 target_link_options(octotiger PRIVATE -rdynamic)
-target_link_libraries(octotiger PRIVATE tbb)
 if(OCTOTIGER_WITH_CUDA)
   target_compile_definitions(octotiger PUBLIC OCTOTIGER_HAVE_CUDA)
 endif()

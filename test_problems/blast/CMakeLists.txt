@@ -88,7 +88,7 @@ function(test_blast_scenario test_name test_log_file reference_filename kernel_p
       FAIL_REGULAR_EXPRESSION ${OCTOTIGER_SILODIFF_FAIL_PATTERN})
   endif()
 
-  add_test(${test_name}.fixture_cleanup ${CMAKE_COMMAND} -E remove ${PROJECT_BINARY_DIR}/test_problems/sphere/final.silo ${PROJECT_BINARY_DIR}/test_problems/sphere/final.silo.data/0.silo ${test_log_file})
+  add_test(${test_name}.fixture_cleanup ${CMAKE_COMMAND} -E remove ${PROJECT_BINARY_DIR}/test_problems/blast/final.silo ${PROJECT_BINARY_DIR}/test_problems/blast/final.silo.data/0.silo ${test_log_file})
   set_tests_properties(${test_name}.fixture_cleanup PROPERTIES
       FIXTURES_CLEANUP ${test_name}
   )
@@ -125,10 +125,10 @@ else()
 endif()
 
 test_blast_scenario(test_problems.cpu.blast_legacy blast_without_am_hydro_old_log.txt ${silo_scenario_filename}
-"--n_species=1 --hydro_device_kernel_type=OFF --hydro_host_kernel_type=LEGACY")
+"--n_species=5 --hydro_device_kernel_type=OFF --hydro_host_kernel_type=LEGACY")
 if(OCTOTIGER_WITH_CUDA)
   test_blast_scenario(test_problems.gpu.blast_cuda blast_without_am_hydro_cuda_log.txt ${silo_scenario_filename}
-  "--n_species=1  --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=DEVICE_ONLY")
+  "--n_species=5  --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=DEVICE_ONLY")
 #if(NOT OCTOTIGER_WITH_FAST_FP_CONTRACT)
 #   test_blast_scenario(test_problems.cpu_gpu.blast_cuda blast_without_am_hydro_cuda_log.txt ${silo_scenario_filename}
 #   " --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1 --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=LEGACY")
@@ -136,22 +136,22 @@ if(OCTOTIGER_WITH_CUDA)
 endif()
 if(OCTOTIGER_WITH_HIP)
   test_blast_scenario(test_problems.gpu.blast_hip blast_without_am_hydro_hip_log.txt ${silo_scenario_filename}
-  "--n_species=1  --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --hydro_device_kernel_type=HIP --hydro_host_kernel_type=DEVICE_ONLY")
+  "--n_species=5  --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --hydro_device_kernel_type=HIP --hydro_host_kernel_type=DEVICE_ONLY")
 endif()
 
 if(OCTOTIGER_WITH_KOKKOS)
   test_blast_scenario(test_problems.cpu.blast_kokkos blast_without_am_hydro_kokkos_log.txt ${silo_scenario_filename}
-  "--n_species=1  --hydro_device_kernel_type=OFF --hydro_host_kernel_type=KOKKOS")
+  "--n_species=5  --hydro_device_kernel_type=OFF --hydro_host_kernel_type=KOKKOS")
   if(OCTOTIGER_WITH_CUDA)
     #   if(NOT OCTOTIGER_WITH_FAST_FP_CONTRACT)
     # test_blast_scenario(test_problems.cpu_gpu.blast_kokkos blast_without_am_hydro_kokkos_cuda_log.txt ${silo_scenario_filename}
     # " --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1 --hydro_device_kernel_type=KOKKOS_CUDA --hydro_host_kernel_type=KOKKOS")
     #endif()
     test_blast_scenario(test_problems.gpu.blast_kokkos blast_without_am_hydro_kokkos_cuda_log.txt ${silo_scenario_filename}
-    "--n_species=1  --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --hydro_device_kernel_type=KOKKOS_CUDA --hydro_host_kernel_type=DEVICE_ONLY")
+    "--n_species=5  --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --hydro_device_kernel_type=KOKKOS_CUDA --hydro_host_kernel_type=DEVICE_ONLY")
   endif()
   if(OCTOTIGER_WITH_HIP)
     test_blast_scenario(test_problems.gpu.blast_kokkos blast_without_am_hydro_kokkos_hip_log.txt ${silo_scenario_filename}
-   "--n_species=1  --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --hydro_device_kernel_type=KOKKOS_HIP --hydro_host_kernel_type=DEVICE_ONLY")
+   "--n_species=5  --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --hydro_device_kernel_type=KOKKOS_HIP --hydro_host_kernel_type=DEVICE_ONLY")
   endif()
 endif()

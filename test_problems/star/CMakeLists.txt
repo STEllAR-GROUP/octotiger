@@ -61,7 +61,7 @@ function(test_star_scenario test_name test_log_file kernel_parameters)
      ${OCTOTIGER_TESTDATA_DIR}/star_with_eos_ipr.silo ${PROJECT_BINARY_DIR}/test_problems/star/final.silo.data/0.silo)
   set_tests_properties(${test_name}.diff PROPERTIES
     FIXTURES_REQUIRED ${test_name}
-    FAIL_REGULAR_EXPRESSION "(egas|gx|gy|gz|pot|rho_1|sx|sy|sy|tau).vals")
+    FAIL_REGULAR_EXPRESSION "(egas|gx|gy|gz|pot|rho_1|sx|sy|sz|tau)[.]vals|appears only in file")
 
   # Cleanup
   add_test(${test_name}.fixture_cleanup ${CMAKE_COMMAND} -E remove ${PROJECT_BINARY_DIR}/test_problems/star/final.silo ${PROJECT_BINARY_DIR}/test_problems/star/final.silo.data/0.silo ${test_log_file})
