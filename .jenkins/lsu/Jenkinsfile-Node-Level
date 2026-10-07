@@ -103,13 +103,19 @@ pipeline {
                                 required_modules=$(echo "${build_spec}" | cut -d ";" -f 3)
                                 slurm_partition=$(echo "${build_spec}" | cut -d ";" -f 4)
                                 extra_spack_flags=$(echo "${build_spec}" | cut -d ";" -f 5)
+                                # Exercise multiple HPX workers while preserving HIP/SYCL requests.
+                                cpu_options=()
+                                case " ${slurm_partition} " in
+                                    *" -c "*|*" --cpus-per-task="*|*" --cpus-per-task "*) ;;
+                                    *) cpu_options=(--cpus-per-task=4) ;;
+                                esac
                                 export spack_spec required_modules extra_spack_flags
                                 # Setup src to test; each matrix entry needs its own output files.
                                 cd ..
                                 rm -rf "octotiger-${build_description}"
                                 cp -r octotiger "octotiger-${build_description}"
                                 cd "octotiger-${build_description}"
-                                srun -p ${slurm_partition} -N 1 -n 1 --time=900 bash -ls <<'BUILD_SCRIPT'
+                                srun -p ${slurm_partition} "${cpu_options[@]}" -N 1 -n 1 --time=900 bash -ls <<'BUILD_SCRIPT'
 set -e -o pipefail
 trap 'build_status=$?; if [[ -f install-time-test-log.txt ]]; then cat install-time-test-log.txt; fi; exit "$build_status"' EXIT
 module load ${required_modules}
