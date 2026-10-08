@@ -191,6 +191,24 @@ export OMP_NUM_THREADS=1
 export OPENBLAS_NUM_THREADS=1
 # Cases write shared diagnostic filenames within a matrix entry.
 export CTEST_PARALLEL_LEVEL=1
+# Record allocation visibility without overriding scheduler or runtime filters.
+for octotiger_gpu_variable in SLURM_JOB_GPUS SLURM_STEP_GPUS CUDA_VISIBLE_DEVICES HIP_VISIBLE_DEVICES ROCR_VISIBLE_DEVICES KOKKOS_VISIBLE_DEVICES SYCL_DEVICE_FILTER ONEAPI_DEVICE_SELECTOR; do
+    if [[ -v "${octotiger_gpu_variable}" ]]; then
+        echo "GPU environment: ${octotiger_gpu_variable}=${!octotiger_gpu_variable}"
+    else
+        echo "GPU environment: ${octotiger_gpu_variable}=<unset>"
+    fi
+done
+if [[ "${spack_spec}" == *"+sycl"* ]]; then
+    if command -v nvidia-smi >/dev/null 2>&1; then
+        echo "SYCL GPU inventory (15-second limit, 5-second termination grace):"
+        if ! timeout --kill-after=5s 15s nvidia-smi -L; then
+            echo "GPU inventory failed or timed out; continuing to the tests."
+        fi
+    else
+        echo "GPU inventory unavailable: nvidia-smi is not installed; continuing to the tests."
+    fi
+fi
 spack -v "${spack_scope[@]}" dev-build -j${build_jobs} ${extra_spack_flags} --until build --test=root octotiger@develop ${spack_spec}
 BUILD_SCRIPT
                                 '''

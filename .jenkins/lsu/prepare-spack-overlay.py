@@ -230,7 +230,31 @@ def patch_ctest_timeout(recipe, seconds):
             or ast.dump(parsed.body[0].value) != ast.dump(calls[0])):
         raise ValueError("Unsupported Octotiger ctest source layout")
     indent = line[:len(line) - len(line.lstrip())]
-    lines[index] = indent + 'ctest("--output-on-failure", "--timeout", "' + str(seconds) + '")\n'
+    # DPCPP 2023-03 installs sycl-ls; PI trace level 1 reports basic plugin loading.
+    # Keep its environment and failures separate from the tests being diagnosed.
+    diagnostic = '''if "+sycl ^dpcpp" in self.spec:
+    import os
+    import subprocess
+    for name in ("CUDA_VISIBLE_DEVICES", "KOKKOS_VISIBLE_DEVICES",
+                 "SYCL_DEVICE_FILTER", "ONEAPI_DEVICE_SELECTOR",
+                 "SYCL_DEVICE_ALLOWLIST", "SYCL_PI_TRACE"):
+        value = repr(os.environ[name]) if name in os.environ else "<unset>"
+        print("SYCL test environment: " + name + "=" + value, flush=True)
+    sycl_ls = os.path.join(str(self.spec["dpcpp"].prefix), "bin", "sycl-ls")
+    if os.path.isfile(sycl_ls) and os.access(sycl_ls, os.X_OK):
+        environment = os.environ.copy()
+        environment["SYCL_PI_TRACE"] = "1"
+        print("SYCL device diagnostic: " + sycl_ls + " (SYCL_PI_TRACE=1)", flush=True)
+        try:
+            result = subprocess.run([sycl_ls], env=environment, timeout=30, check=False)
+            print("SYCL device diagnostic exit status: " + str(result.returncode), flush=True)
+        except (OSError, subprocess.TimeoutExpired) as error:
+            print("SYCL device diagnostic unavailable: " + str(error), flush=True)
+    else:
+        print("SYCL device diagnostic executable unavailable: " + sycl_ls, flush=True)
+'''
+    lines[index] = "".join(indent + part + "\n" for part in diagnostic.splitlines())
+    lines[index] += indent + 'ctest("--output-on-failure", "--timeout", "' + str(seconds) + '")\n'
     result = "".join(lines)
     ast.parse(result)
     return result
