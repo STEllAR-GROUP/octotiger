@@ -45,6 +45,9 @@ class Dpcpp(Package):
             "-DSYCL_ENABLE_PLUGINS=cuda",
         ]
         if spec.satisfies("%gcc"):
+            # The pinned Intel LLVM v6.0.1 release requires this opt-in to
+            # retain the selected GCC's headers and runtime as its default.
+            options.append("-DUSE_DEPRECATED_GCC_INSTALL_PREFIX=ON")
             options.append("-DGCC_INSTALL_PREFIX=" + str(dirname(dirname(self.compiler.cxx))))
         python(join_path(self.stage.source_path, "buildbot", "configure.py"),
                "--src-dir", self.stage.source_path,

@@ -29,6 +29,8 @@ uses native Clang and static Kokkos, as in local validation. The SYCL row builds
 Intel LLVM v6.0.1 (oneAPI 2025.0 series, exposed as dpcpp@2025.0.1) from pinned
 source with its CUDA adapter. This release supports the row's Volta target;
 the old site's SYCL compiler is below Kokkos 5.2's supported compiler version.
+Its GCC host configuration enables the pinned release's compatibility option
+for GCC_INSTALL_PREFIX, preserving the selected GCC's headers and runtime.
 The official build instructions are at:
 https://github.com/intel/llvm/blob/v6.0.1/sycl/doc/GetStartedGuide.md
 
