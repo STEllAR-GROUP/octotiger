@@ -34,6 +34,12 @@ source with its CUDA adapter. This release supports the row's Volta target;
 the old site's SYCL compiler is below Kokkos 5.2's supported compiler version.
 Its GCC host configuration enables the pinned release's compatibility option
 for GCC_INSTALL_PREFIX, preserving the selected GCC's headers and runtime.
+HPX's bundled stdexec also gains an atomic-header opt-out for this SYCL stack:
+CUDA's CCCL assertion declaration conflicts with the pinned SYCL headers.
+HPX exports STDEXEC_NO_CUDA_STD_ATOMIC through its Stdexec interface target
+for SYCL builds, so host-only, SYCL and downstream translation units all use
+the same standard atomic types. Other builds retain stdexec's CUDA atomics
+selection. This is carried inside the HPX patch; Kokkos remains pristine.
 The official build instructions are at:
 https://github.com/intel/llvm/blob/v6.0.1/sycl/doc/GetStartedGuide.md
 
@@ -50,5 +56,8 @@ CTest results and redirected per-problem logs, including on failure.
 Validation scope: the dependency patches reproduce the previously passing
 GCC13/Clang21 CUDA12.8 local stack. Jenkins uses GCC13.2/Clang20/CUDA12.9 and
 separate HIP/SYCL configurations; those require actual Jenkins results.
+The SYCL atomic correction has a host compile/run reproducer and CMake
+build/install export checks. Full DPCPP device compilation and execution
+remain Jenkins validation; the local header reproducer uses CUDA 13.2.
 Octotiger's HPX 1.9.1 source compatibility is retained, but this pipeline
 intentionally tests HPX 2.0.0-rc1.

@@ -1,5 +1,5 @@
 diff --git a/cmake/HPX_SetupStdexec.cmake b/cmake/HPX_SetupStdexec.cmake
-index a5e5a3fcd5..a0f8b8aaf3 100644
+index a5e5a3fcd5..9e226ac784 100644
 --- a/cmake/HPX_SetupStdexec.cmake
 +++ b/cmake/HPX_SetupStdexec.cmake
 @@ -32,6 +32,9 @@ if(HPX_WITH_FETCH_STDEXEC)
@@ -12,18 +12,23 @@ index a5e5a3fcd5..a0f8b8aaf3 100644
  
    include(FetchContent)
    # We only consume stdexec's headers; HPX wraps them with its own `Stdexec`
-@@ -55,6 +58,10 @@ if(HPX_WITH_FETCH_STDEXEC)
+@@ -55,7 +58,14 @@ if(HPX_WITH_FETCH_STDEXEC)
        ${CMAKE_COMMAND} "-DHPX_STDEXEC_SOURCE_DIR=<SOURCE_DIR>"
        "-DHPX_STDEXEC_NVCC_PATCH_FILE=${_hpx_stdexec_inline_nvcc_patch}"
        "-DHPX_STDEXEC_NVCC_PATCH_REQUIRED=${_hpx_stdexec_nvcc_patch_required}"
+-      -P ${CMAKE_CURRENT_LIST_DIR}/HPX_PatchStdexecNvcc.cmake
 +      -P ${CMAKE_CURRENT_LIST_DIR}/HPX_PatchStdexecNvcc.cmake COMMAND
 +      ${CMAKE_COMMAND} "-DHPX_STDEXEC_SOURCE_DIR=<SOURCE_DIR>"
 +      "-DHPX_STDEXEC_NVCC_PATCH_FILE=${_hpx_stdexec_gcc13_nvcc_patch}"
 +      "-DHPX_STDEXEC_NVCC_PATCH_REQUIRED=${_hpx_stdexec_nvcc_patch_required}"
-       -P ${CMAKE_CURRENT_LIST_DIR}/HPX_PatchStdexecNvcc.cmake
++      -P ${CMAKE_CURRENT_LIST_DIR}/HPX_PatchStdexecNvcc.cmake COMMAND
++      ${CMAKE_COMMAND}
++      "-DHPX_STDEXEC_ATOMIC_FILE=<SOURCE_DIR>/include/stdexec/__detail/__atomic.hpp"
++      -P ${CMAKE_CURRENT_LIST_DIR}/HPX_PatchStdexecSyclAtomic.cmake
    )
  
-@@ -66,6 +73,11 @@ if(HPX_WITH_FETCH_STDEXEC)
+   fetchcontent_makeavailable(Stdexec)
+@@ -66,6 +76,16 @@ if(HPX_WITH_FETCH_STDEXEC)
      Stdexec SYSTEM INTERFACE $<BUILD_INTERFACE:${stdexec_SOURCE_DIR}/include>
                               $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
    )
@@ -31,6 +36,11 @@ index a5e5a3fcd5..a0f8b8aaf3 100644
 +    # This changes the sender representation, not just diagnostic names. Export
 +    # it to all C++ and CUDA consumers to keep their definitions consistent.
 +    target_compile_definitions(Stdexec INTERFACE STDEXEC_DEMANGLE_SENDER_NAMES)
++  endif()
++  if(HPX_WITH_SYCL)
++    # CUDA's atomic headers conflict with SYCL's __assert_fail declaration.
++    # Keep atomic types consistent across host-only, SYCL and consumer TUs.
++    target_compile_definitions(Stdexec INTERFACE STDEXEC_NO_CUDA_STD_ATOMIC)
 +  endif()
  
    install(
@@ -101,6 +111,52 @@ index 1a2123f97d..c54ae52a6e 100644
  
          void start() & noexcept
          {
+diff --git a/cmake/HPX_PatchStdexecSyclAtomic.cmake b/cmake/HPX_PatchStdexecSyclAtomic.cmake
+new file mode 100644
+index 0000000000..b1862ee71e
+--- /dev/null
++++ b/cmake/HPX_PatchStdexecSyclAtomic.cmake
+@@ -0,0 +1,40 @@
++#  Copyright (c) 2026 Dominic Marcello
++#
++#  SPDX-License-Identifier: BSL-1.0
++#  Distributed under the Boost Software License, Version 1.0. (See accompanying
++#  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
++
++# The pinned stdexec selects CUDA atomics based only on header availability.
++# CUDA 12.9 and Intel LLVM v6.0.1 have incompatible __assert_fail declarations.
++# Add an opt-out that HPX exports for every translation unit in a SYCL build.
++# Other builds retain stdexec's original header-selection behavior.
++
++if(NOT DEFINED HPX_STDEXEC_ATOMIC_FILE)
++  message(FATAL_ERROR "HPX_STDEXEC_ATOMIC_FILE must be defined")
++endif()
++
++file(READ "${HPX_STDEXEC_ATOMIC_FILE}" _hpx_stdexec_atomic_contents)
++set(_hpx_stdexec_atomic_original "#    if __has_include(<cuda/std/atomic>)")
++set(_hpx_stdexec_atomic_patched
++    "#    if !defined(STDEXEC_NO_CUDA_STD_ATOMIC) && __has_include(<cuda/std/atomic>)"
++)
++
++string(FIND "${_hpx_stdexec_atomic_contents}"
++       "${_hpx_stdexec_atomic_patched}" _hpx_stdexec_atomic_applied
++)
++if(NOT _hpx_stdexec_atomic_applied EQUAL -1)
++  return()
++endif()
++
++string(FIND "${_hpx_stdexec_atomic_contents}"
++       "${_hpx_stdexec_atomic_original}" _hpx_stdexec_atomic_position
++)
++if(_hpx_stdexec_atomic_position EQUAL -1)
++  message(FATAL_ERROR "Cannot patch stdexec CUDA atomic selection for SYCL")
++endif()
++
++string(REPLACE "${_hpx_stdexec_atomic_original}"
++               "${_hpx_stdexec_atomic_patched}" _hpx_stdexec_atomic_contents
++               "${_hpx_stdexec_atomic_contents}"
++)
++file(WRITE "${HPX_STDEXEC_ATOMIC_FILE}" "${_hpx_stdexec_atomic_contents}")
 diff --git a/cmake/HPX_StdexecNvccGcc13.patch b/cmake/HPX_StdexecNvccGcc13.patch
 new file mode 100644
 index 0000000000..44f49f25c7

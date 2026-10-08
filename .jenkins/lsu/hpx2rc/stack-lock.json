@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "description": "Exact local HPX 2.0.0-rc1 stack used by the recorded Octotiger GCC and Clang tests. Patch paths are relative to this lock file.",
+  "description": "Pinned HPX 2.0.0-rc1 stack based on recorded Octotiger GCC/Clang tests, with Jenkins compatibility corrections documented in README.txt. Patch paths are relative to this lock file.",
   "sources": {
     "hpx": {
       "url": "https://github.com/TheHPXProject/hpx.git",
@@ -9,13 +9,13 @@
       "patches": [
         {
           "file": "hpx.patch",
-          "sha256": "84e55e019bb254ed2646df88bbff8d22bc24d0005c8f6d1288e90c0d8f190c24"
+          "sha256": "e3a6bfa949d29d46e4a7a4a5423651d23c4fb3e07270fda02ead1333df428300"
         }
       ],
       "changed_files": [
         {
           "path": "cmake/HPX_SetupStdexec.cmake",
-          "patched_sha256": "339978be881320225249d4414daf30a146d8a629d62a3b51af923710c7a341a8",
+          "patched_sha256": "c9073d7f322bc4818e08a47182df989a8d04d0057ebe4456f770befb9f0f9ef5",
           "base_sha256": "37a06d6b16171336204282863c90e25ce7cc38435d143a757c9caf5b5c0e4bcf"
         },
         {
@@ -47,6 +47,11 @@
           "path": "libs/core/execution_base/tests/unit/stdexec_cuda.cu",
           "patched_sha256": "395f5c03cfaa2f352a2f6c20f791f16dffcdd3f646548bc83dca018d9aba7a98",
           "base_sha256": null
+        },
+        {
+          "path": "cmake/HPX_PatchStdexecSyclAtomic.cmake",
+          "base_sha256": null,
+          "patched_sha256": "f975197c6b6c1ec8226af03595ed531e74ca7cca8f780e296cc6351ab4c59b97"
         }
       ]
     },
@@ -129,6 +134,11 @@
           "hpx_path": "cmake/HPX_StdexecNvccGcc13.patch",
           "sha256": "3c751321746cadfd88d27436a7d7a51bbebb0d277a33e821f039c4e1f0222eef",
           "origin": "local change included in hpx.patch"
+        },
+        {
+          "hpx_path": "cmake/HPX_PatchStdexecSyclAtomic.cmake",
+          "sha256": "f975197c6b6c1ec8226af03595ed531e74ca7cca8f780e296cc6351ab4c59b97",
+          "origin": "local opt-out for SYCL included in hpx.patch"
         }
       ],
       "patch_driver": {
@@ -136,7 +146,7 @@
         "sha256": "e4e5c6dc3cdff5198680e1174337e1c55c2675e04737986f3b0fb5bbee5e51d4"
       },
       "spin_loop_step_changes_this_pin": false,
-      "combined_git_diff_sha256": "0c9c308cf9cc294746adbd5581f7059d7a234924981ac6fb9c945b653f1b6af5",
+      "combined_git_diff_sha256": "1e05566ecadbaae9938728b86a58d3b51fd804bce0b1a0a481ae817643598939",
       "changed_files": [
         {
           "path": "include/stdexec/__detail/__basic_sender.hpp",
@@ -222,10 +232,15 @@
           "path": "include/stdexec/__detail/__utility.hpp",
           "patched_sha256": "e66e814d298400edd93d4690ea92cef550a9d57f39f834fd14a8451ee86611d1",
           "base_sha256": "6a7b39a7784a8ce47ae30459d277adcf23e53889043f9afbc31009961408a116"
+        },
+        {
+          "path": "include/stdexec/__detail/__atomic.hpp",
+          "patched_sha256": "e13ec4641a3b0f0485af9eba7645fe12f76ec7e9829c1d5d7f460889cd7a48ea",
+          "base_sha256": "bfad78fbf23dcd01ca62aff9ff51a541a543e8f40fbe3dd604cf3db5d1a53199"
         }
       ],
-      "consumer_definition": "HPX exports STDEXEC_DEMANGLE_SENDER_NAMES to all C++ and CUDA consumers when CMAKE_CUDA_COMPILER_ID is NVIDIA; it affects sender representation and must remain consistent across translation units.",
-      "validated_scope": "Host-side sender machinery parsed in CUDA translation units; this does not establish arbitrary GPU sender execution."
+      "consumer_definition": "HPX exports STDEXEC_DEMANGLE_SENDER_NAMES to all C++ and CUDA consumers when CMAKE_CUDA_COMPILER_ID is NVIDIA; it affects sender representation and must remain consistent across translation units. HPX exports STDEXEC_NO_CUDA_STD_ATOMIC to all consumers when HPX_WITH_SYCL, selecting std::atomic consistently in host-only and SYCL translation units.",
+      "validated_scope": "Host-side sender machinery parsed in CUDA translation units; this does not establish arbitrary GPU sender execution. The SYCL opt-out has focused host compilation and exported-target validation; full SYCL compilation and runtime require Jenkins."
     },
     "asio": {
       "url": "https://github.com/chriskohlhoff/asio.git",
