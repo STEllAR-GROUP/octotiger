@@ -1,0 +1,44 @@
+HPX 1.9.1: retain observable 128-bit operations in the atomic link probe.
+
+Optimized Clang can eliminate all operations on the unused local atomic in the
+original probe. The test then succeeds without libatomic, although HPX's deque
+requires __atomic_load_16 and __atomic_compare_exchange_16. Use an externally
+visible atomic and test compare-exchange as well as load/store so HPX's existing
+CMake fallback detects and propagates libatomic only when it is needed. Match
+the 16-byte alignment of HPX's tagged pointer pairs.
+
+This is a local compatibility fix for the observed ROCm 6.4.1 HPX link failure;
+it changes detection only, not HPX's runtime algorithms or Kokkos sources.
+
+diff --git a/cmake/tests/cxx11_std_atomic_128bit.cpp b/cmake/tests/cxx11_std_atomic_128bit.cpp
+--- a/cmake/tests/cxx11_std_atomic_128bit.cpp
++++ b/cmake/tests/cxx11_std_atomic_128bit.cpp
+@@ -10,21 +10,23 @@
+ #include <cstdint>
+ 
+ template <typename T>
+-void test_atomic()
++void test_atomic(std::atomic<T>& a)
+ {
+-    std::atomic<T> a;
+     a.store(T{});
+     T i = a.load();
+-    (void)i;
++    (void) a.compare_exchange_strong(i, T{});
+ }
+ 
+-struct uint128_type
++struct alignas(16) uint128_type
+ {
+     std::uint64_t left;
+     std::uint64_t right;
+ };
+ 
++// Keep the atomic operations observable even with compiler optimization.
++std::atomic<uint128_type> a;
++
+ int main()
+ {
+-    test_atomic<uint128_type>();
++    test_atomic(a);
+ }

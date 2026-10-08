@@ -39,14 +39,16 @@ def patch_hpx_recipe(recipe):
     if not body:
         raise ValueError("The site Hpx recipe has no package directives")
     patch_name = "hpx-1.9.1-clang-restricted-executor.patch"
-    if patch_name in recipe:
+    atomic_patch_name = "hpx-1.9.1-rocm-atomic-probe.patch"
+    if patch_name in recipe or atomic_patch_name in recipe:
         raise ValueError("The source HPX recipe already contains this overlay patch")
     lines = recipe.splitlines(keepends=True)
     insertion = body[0].lineno - 1
     indent = lines[insertion][:len(lines[insertion]) - len(lines[insertion].lstrip())]
     # The pipeline selects this modified recipe only for Clang-based frontends,
     # including ROCm and SYCL builds whose Spack compiler name can differ.
-    lines.insert(insertion, indent + 'patch("' + patch_name + '", when="@1.9.1")\n')
+    lines.insert(insertion, indent + 'patch("' + patch_name + '", when="@1.9.1")\n'
+                 + indent + 'patch("' + atomic_patch_name + '", when="@1.9.1 +rocm")\n')
     patched_recipe = "".join(lines)
     ast.parse(patched_recipe)
     return patched_recipe
@@ -206,8 +208,38 @@ def patch_kokkos_recipe(recipe, package_dir):
     return result
 
 
+def patch_ctest_timeout(recipe, seconds):
+    cls = package_class(recipe, "Octotiger")
+    methods = [node for node in cls.body
+               if isinstance(node, ast.FunctionDef) and node.name == "check"]
+    if len(methods) != 1:
+        raise ValueError("Expected exactly one Octotiger check method")
+    calls = [node for node in ast.walk(methods[0]) if isinstance(node, ast.Call)
+             and isinstance(node.func, ast.Name) and node.func.id == "ctest"]
+    if (len(calls) != 1 or len(calls[0].args) != 1 or calls[0].keywords
+            or literal_string(calls[0].args[0]) != "--output-on-failure"):
+        raise ValueError("Expected one ctest('--output-on-failure') call in Octotiger.check")
+    lines = recipe.splitlines(keepends=True)
+    index = calls[0].lineno - 1
+    line = lines[index]
+    try:
+        parsed = ast.parse(line.strip())
+    except SyntaxError as error:
+        raise ValueError("Unsupported Octotiger ctest source layout") from error
+    if (len(parsed.body) != 1 or not isinstance(parsed.body[0], ast.Expr)
+            or ast.dump(parsed.body[0].value) != ast.dump(calls[0])):
+        raise ValueError("Unsupported Octotiger ctest source layout")
+    indent = line[:len(line) - len(line.lstrip())]
+    lines[index] = indent + 'ctest("--output-on-failure", "--timeout", "' + str(seconds) + '")\n'
+    result = "".join(lines)
+    ast.parse(result)
+    return result
+
+
 def prepare(hpx_package_dir, octotiger_package_dir, kokkos_package_dir,
-            copy_package_dirs, output_dir):
+            copy_package_dirs, output_dir, ctest_timeout=None):
+    if ctest_timeout is not None and ctest_timeout <= 0:
+        raise ValueError("The CTest timeout must be a positive number of seconds")
     output_dir = output_dir.resolve()
     packages = []
     inputs = [("hpx", hpx_package_dir, patch_hpx_recipe),
@@ -224,14 +256,20 @@ def prepare(hpx_package_dir, octotiger_package_dir, kokkos_package_dir,
         package_dir = package_dir.resolve()
         if output_dir == package_dir or package_dir in output_dir.parents:
             raise ValueError("The overlay must be outside the original package directory")
-        packages.append((name, package_dir, transform((package_dir / "package.py").read_text())))
+        recipe = transform((package_dir / "package.py").read_text())
+        if name == "octotiger" and ctest_timeout is not None:
+            recipe = patch_ctest_timeout(recipe, ctest_timeout)
+        packages.append((name, package_dir, recipe))
     if not packages:
         raise ValueError("At least one source package directory is required")
+    if ctest_timeout is not None and not any(name == "octotiger" for name, _, _ in packages):
+        raise ValueError("A CTest timeout requires an Octotiger recipe")
 
     # Refuse to overwrite an existing scope. Never edit the original recipes.
     output_dir.mkdir(parents=True, exist_ok=False)
     repo = output_dir / "repo"
-    manifest = {"packages": [], "misc_cache": str(output_dir / "cache")}
+    manifest = {"packages": [], "misc_cache": str(output_dir / "cache"),
+                "ctest_timeout_seconds": ctest_timeout}
     for name, package_dir, recipe in packages:
         target_package = repo / "packages" / name
         shutil.copytree(package_dir, target_package)
@@ -252,9 +290,10 @@ def prepare(hpx_package_dir, octotiger_package_dir, kokkos_package_dir,
                 for node in ast.walk(ast.parse(recipe)) if isinstance(node, ast.Call)
                 and isinstance(node.func, ast.Name) and node.func.id == "patch" and node.args]})
         if name == "hpx" and hpx_package_dir is not None:
-            patch_name = "hpx-1.9.1-clang-restricted-executor.patch"
-            shutil.copyfile(Path(__file__).parent / "patches" / patch_name,
-                            target_package / patch_name)
+            for patch_name in ("hpx-1.9.1-clang-restricted-executor.patch",
+                               "hpx-1.9.1-rocm-atomic-probe.patch"):
+                shutil.copyfile(Path(__file__).parent / "patches" / patch_name,
+                                target_package / patch_name)
     (repo / "repo.yaml").write_text("repo:\n  namespace: octotiger_hpx191\n")
     config = output_dir / "config"
     config.mkdir()
@@ -274,7 +313,8 @@ if __name__ == "__main__":
     parser.add_argument("--octotiger-package-dir", type=Path)
     parser.add_argument("--kokkos-package-dir", type=Path)
     parser.add_argument("--copy-package-dir", type=Path, action="append", default=[])
+    parser.add_argument("--ctest-timeout", type=int)
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
     prepare(args.hpx_package_dir, args.octotiger_package_dir, args.kokkos_package_dir,
-            args.copy_package_dir, args.output_dir)
+            args.copy_package_dir, args.output_dir, args.ctest_timeout)

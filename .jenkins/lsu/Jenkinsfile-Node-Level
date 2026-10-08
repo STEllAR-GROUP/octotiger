@@ -118,6 +118,7 @@ pipeline {
                                 srun -p ${slurm_partition} "${cpu_options[@]}" -N 1 -n 1 --time=900 bash -ls <<'BUILD_SCRIPT'
 set -e -o pipefail
 trap 'build_status=$?; if [[ -f install-time-test-log.txt ]]; then cat install-time-test-log.txt; fi; exit "$build_status"' EXIT
+echo "Slurm allocation: job=${SLURM_JOB_ID:-unknown} step=${SLURM_STEP_ID:-unknown} host=$(hostname)"
 module load ${required_modules}
 module list
 # Initialized by the separate, manual Spack setup pipeline.
@@ -163,11 +164,16 @@ if [[ "${spack_spec}" == *"%gcc@"* && "${spack_spec}" == *"+cuda"* && "${spack_s
     overlay_args+=(--kokkos-package-dir "$(spack location -p kokkos)")
     overlay_args+=(--copy-package-dir "$(spack location -p hpx)")
 fi
-if (( ${#overlay_args[@]} > 0 )); then
-    overlay_config=$(python3 .jenkins/lsu/prepare-spack-overlay.py "${overlay_args[@]}" --output-dir "${PWD}/.jenkins-spack-overlay")
-    cat "${overlay_config}/../manifest.json"
-    spack_scope=(-C "${overlay_config}")
+if (( ${#overlay_args[@]} == 0 )); then
+    # Keep these site recipes unchanged apart from the Octotiger test timeout.
+    for package in octotiger hpx kokkos; do
+        overlay_args+=(--copy-package-dir "$(spack location -p "${package}")")
+    done
 fi
+overlay_args+=(--ctest-timeout 3600)
+overlay_config=$(python3 .jenkins/lsu/prepare-spack-overlay.py "${overlay_args[@]}" --output-dir "${PWD}/.jenkins-spack-overlay")
+cat "${overlay_config}/../manifest.json"
+spack_scope=(-C "${overlay_config}")
 spack "${spack_scope[@]}" spec --fresh octotiger@develop ${spack_spec}
 # Respect the allocation, including the 16-CPU HIP and 10-CPU SYCL entries.
 build_jobs=${SLURM_CPUS_PER_TASK:-${SLURM_CPUS_ON_NODE:-1}}
@@ -185,7 +191,7 @@ export OMP_NUM_THREADS=1
 export OPENBLAS_NUM_THREADS=1
 # Cases write shared diagnostic filenames within a matrix entry.
 export CTEST_PARALLEL_LEVEL=1
-spack "${spack_scope[@]}" dev-build -j${build_jobs} ${extra_spack_flags} --until build --test=root octotiger@develop ${spack_spec}
+spack -v "${spack_scope[@]}" dev-build -j${build_jobs} ${extra_spack_flags} --until build --test=root octotiger@develop ${spack_spec}
 BUILD_SCRIPT
                                 '''
                             }
@@ -250,7 +256,7 @@ BUILD_SCRIPT
     }
     post {
         always {
-            archiveArtifacts artifacts: 'octotiger-*/install-time-test-log.txt,octotiger-*/spack-build-out.txt,octotiger-*/spack-build/Testing/Temporary/*.log,octotiger-*/spack-build-*/Testing/Temporary/*.log,octotiger-*/.jenkins-site-recipes/**/*,octotiger-*/.jenkins-spack-overlay/manifest.json,octotiger-*/.jenkins-spack-overlay/repo/packages/**/*.py,octotiger-*/.jenkins-spack-overlay/repo/packages/**/*.patch', allowEmptyArchive: true
+            archiveArtifacts artifacts: 'octotiger-*/install-time-test-log.txt,octotiger-*/spack-build-out.txt,octotiger-*/spack-build/Testing/Temporary/*.log,octotiger-*/spack-build-*/Testing/Temporary/*.log,octotiger-*/spack-build/Testing/Temporary/*.log.tmp,octotiger-*/spack-build-*/Testing/Temporary/*.log.tmp,octotiger-*/spack-build/Testing/Temporary/CTestCheckpoint.txt,octotiger-*/spack-build-*/Testing/Temporary/CTestCheckpoint.txt,octotiger-*/.jenkins-site-recipes/**/*,octotiger-*/.jenkins-spack-overlay/manifest.json,octotiger-*/.jenkins-spack-overlay/repo/packages/**/*.py,octotiger-*/.jenkins-spack-overlay/repo/packages/**/*.patch', allowEmptyArchive: true
         }
         success {
             script {
