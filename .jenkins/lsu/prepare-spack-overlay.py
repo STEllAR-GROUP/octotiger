@@ -42,6 +42,9 @@ def patch_hpx_recipe(recipe):
     atomic_patch_name = "hpx-1.9.1-rocm-atomic-probe.patch"
     if patch_name in recipe or atomic_patch_name in recipe:
         raise ValueError("The source HPX recipe already contains this overlay patch")
+    hooks = ("setup_build_environment", "setup_dependent_build_environment")
+    if any(isinstance(node, ast.FunctionDef) and node.name in hooks for node in cls.body):
+        raise ValueError("Unsupported existing HPX build-environment hook")
     lines = recipe.splitlines(keepends=True)
     insertion = body[0].lineno - 1
     indent = lines[insertion][:len(lines[insertion]) - len(lines[insertion].lstrip())]
@@ -49,6 +52,21 @@ def patch_hpx_recipe(recipe):
     # including ROCm and SYCL builds whose Spack compiler name can differ.
     lines.insert(insertion, indent + 'patch("' + patch_name + '", when="@1.9.1")\n'
                  + indent + 'patch("' + atomic_patch_name + '", when="@1.9.1 +rocm")\n')
+    # HPXConfig also enables CUDA in consumers. Select native Clang there and
+    # when building HPX, instead of letting CMake default to NVCC with Clang as host.
+    environment_hooks = '''def setup_build_environment(self, env):
+    super().setup_build_environment(env)
+    if self.spec.satisfies("+cuda %clang"):
+        env.set("CUDACXX", self.compiler.cxx)
+
+def setup_dependent_build_environment(self, env, dependent_spec):
+    super().setup_dependent_build_environment(env, dependent_spec)
+    if self.spec.satisfies("+cuda %clang") and dependent_spec.satisfies("%clang"):
+        env.set("CUDACXX", self.compiler.cxx)
+
+'''
+    lines.insert(insertion + 1, "".join(indent + line + "\n" if line else "\n"
+                                      for line in environment_hooks.splitlines()))
     patched_recipe = "".join(lines)
     ast.parse(patched_recipe)
     return patched_recipe
@@ -138,7 +156,9 @@ def patch_octotiger_recipe(recipe):
     launcher = (indent + 'if self.spec.satisfies("+cuda +kokkos %gcc"):\n'
                 + indent + '    args.append(self.define("CMAKE_CXX_COMPILER_LAUNCHER",\n'
                 + indent + '        "python3;" + join_path(self.stage.source_path, ".jenkins", "lsu",\n'
-                + indent + '                              "nvccHostDefinitions.py")))\n'
+                + indent + '                              "nvccHostDefinitions.py")\n'
+                + indent + '        + ";--kokkos-compiler;" + join_path(self.spec["kokkos"].prefix,\n'
+                + indent + '                                             "bin", "nvcc_wrapper")))\n'
                 + indent + 'if self.spec.satisfies("%clang"):\n'
                 + indent + '    args = [arg for arg in args if arg.split("=", 1)[0].split(":", 1)[0]\n'
                 + indent + '            not in ("-DOCTOTIGER_WITH_BOOST_MULTIPRECISION",\n'
