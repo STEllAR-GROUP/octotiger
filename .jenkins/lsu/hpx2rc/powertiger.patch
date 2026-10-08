@@ -22,7 +22,7 @@ new file mode 100644
 +import time
 +
 +GCC_VERSION = "13.2.0"
-+CORE_PACKAGES = ("hpx", "kokkos", "hpx-kokkos", "cppuddle")
++CORE_PACKAGES = ("hpx", "kokkos", "hpx-kokkos", "cppuddle", "silo")
 +COMPILER_QUERY = """
 +import json, spack.compilers, spack.platforms
 +host = spack.platforms.host()
@@ -349,7 +349,7 @@ new file mode 100644
 +`SOURCE/.jenkins-spack-overlay/repo`. A private configuration directory contains
 +repository precedence, compiler registrations, the job count, and an isolated
 +Spack metadata cache. It preserves site configuration for supporting packages,
-+but disallows external HPX, Kokkos, HPXKokkos, and CPPuddle. The manifest records
++but disallows external HPX, Kokkos, HPXKokkos, CPPuddle, and Silo. The manifest records
 +exact recipe hashes, source pins, selected compiler, and requested spec.
 +Nothing is written to the site's compiler configuration. Kokkos has no source
 +patches in this stack. HPX applies its locked stdexec patches internally.

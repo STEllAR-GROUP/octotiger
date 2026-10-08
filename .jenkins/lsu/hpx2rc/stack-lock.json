@@ -91,6 +91,13 @@
           "base_sha256": "023b4f31ec4b4409d3b2bf69473408ff660ffb26b9f3a6c49f55f83fb1554bbe"
         }
       ]
+    },
+    "silo": {
+      "url": "https://github.com/LLNL/Silo.git",
+      "commit": "f05c5a8e6c22b784b7f5eb958d50218cae873d07",
+      "tag": "4.12.1",
+      "patches": [],
+      "changed_files": []
     }
   },
   "subdependencies": {

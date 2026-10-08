@@ -124,7 +124,21 @@ endif()
 ################################################################################
 # Find required packages
 ################################################################################
+# Vc probes the host compiler with -dumpversion and -print-prog-name=as,
+# which nvcc_wrapper forwards to NVCC. Run only Vc discovery through the
+# selected CUDA host compiler, then restore the CUDA wrapper for the build.
+get_filename_component(OCTOTIGER_CXX_DRIVER "${CMAKE_CXX_COMPILER}" NAME)
+if(OCTOTIGER_WITH_CUDA AND OCTOTIGER_CXX_DRIVER STREQUAL "nvcc_wrapper"
+   AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CUDA_HOST_COMPILER)
+  set(OCTOTIGER_VC_SAVED_CXX_COMPILER "${CMAKE_CXX_COMPILER}")
+  set(CMAKE_CXX_COMPILER "${CMAKE_CUDA_HOST_COMPILER}")
+endif()
 find_package(Vc REQUIRED)
+if(DEFINED OCTOTIGER_VC_SAVED_CXX_COMPILER)
+  set(CMAKE_CXX_COMPILER "${OCTOTIGER_VC_SAVED_CXX_COMPILER}")
+  unset(OCTOTIGER_VC_SAVED_CXX_COMPILER)
+endif()
+unset(OCTOTIGER_CXX_DRIVER)
 find_package(HPX REQUIRED NO_CMAKE_PACKAGE_REGISTRY 1.8.1)
 find_package(CPPuddle REQUIRED)
 find_package(Silo REQUIRED)

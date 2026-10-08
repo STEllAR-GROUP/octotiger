@@ -7,9 +7,15 @@ the reviewed local update is applied after checking its SHA256. No moving
 PowerTiger branch or separate upstream pull request is required.
 
 stack-lock.json records the locally validated HPX 2.0.0-rc1, pristine Kokkos
-5.2.2, HPXKokkos and CPPuddle commits. Adjacent patches reproduce the local
+5.2.2, HPXKokkos, CPPuddle and Silo 4.12.1 commits. Adjacent patches reproduce the local
 source trees. HPX applies the nested stdexec patches during configuration.
 Kokkos has no source patch. C++20 is used throughout this stack.
+
+Silo 4.12.1 includes the upstream HDF5 1.14 driver-table and curve-name fixes
+needed by modern Clang. It builds from pristine source with CMake and without
+the unused Fortran interface. The ROCm HPX configuration disables discovery
+of optional hipBLAS, which Octotiger does not use, while keeping HIP compute
+enabled. Neither correction changes the numerical tests.
 
 The driver stages recipes, patches, compiler configuration and package-index
 cache per matrix row. GCC rows request GCC 13.2.0: a working existing compiler
@@ -25,6 +31,11 @@ source with its CUDA adapter. This release supports the row's Volta target;
 the old site's SYCL compiler is below Kokkos 5.2's supported compiler version.
 The official build instructions are at:
 https://github.com/intel/llvm/blob/v6.0.1/sycl/doc/GetStartedGuide.md
+
+NVIDIA CUDA and SYCL rows explicitly request one GPU with --gres=gpu:1.
+Rostam requires this even for exclusive node allocations; an exclusive CPU
+allocation alone does not grant NVIDIA device access. Scheduler visibility
+settings are preserved. See https://wiki.rostam.cct.lsu.edu/en/slurm/gpu.
 
 CTest remains serial within a row, streams results, and limits individual
 tests to one hour. All existing tests and numerical tolerances are retained.

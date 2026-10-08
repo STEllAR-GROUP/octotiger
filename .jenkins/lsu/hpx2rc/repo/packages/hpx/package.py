@@ -92,6 +92,11 @@ class Hpx(CMakePackage, CudaPackage, ROCmPackage):
                 self.define("HPX_WITH_STDEXEC_TAG", "04de75de5807e73a229acf047c6976575e313359"),
                 self.define("BOOST_ROOT", self.spec["boost"].prefix),
                 self.define("HWLOC_ROOT", self.spec["hwloc"].prefix)]
+        if "+rocm" in self.spec:
+            # Octotiger uses HIP execution, not HPX's optional BLAS executor.
+            # Site hipBLAS discovery enables that executor despite its missing
+            # legacy hipblas.h header under ROCm 6.4.1.
+            args.append(self.define("CMAKE_DISABLE_FIND_PACKAGE_hipblas", True))
         if "+sycl" in self.spec:
             args.append(self.define("HPX_WITH_SYCL_FLAGS", "-fsycl-targets=nvptx64-nvidia-cuda -Xsycl-target-backend --cuda-gpu-arch=sm_70"))
         return args + compiler_args(self)

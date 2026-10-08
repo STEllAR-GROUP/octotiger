@@ -65,7 +65,7 @@ pipeline {
                                ' +kokkos simd_extension=SCALAR simd_library=KOKKOS  %gcc@13.2.0 ^hpx@2.0.0rc1 cxxstd=20 max_cpu_count=128 malloc=system %gcc@13.2.0 ^kokkos@5.2.2 std=20 %gcc@13.2.0 ^hpx-kokkos %gcc@13.2.0 ^cppuddle %gcc@13.2.0 ^silo~mpi~fortran ;with-CC-with-kokkos-with-scalar;gcc/11;medusa --exclusive;--fresh',\
                                ' +kokkos simd_extension=AVX512 simd_library=KOKKOS  %gcc@13.2.0 ^hpx@2.0.0rc1 cxxstd=20 max_cpu_count=128 malloc=system %gcc@13.2.0 ^kokkos@5.2.2 std=20 %gcc@13.2.0 ^hpx-kokkos %gcc@13.2.0 ^cppuddle %gcc@13.2.0 ^silo~mpi~fortran ;with-CC-with-kokkos-with-avx512;gcc/11;medusa --exclusive;--fresh',\
                                ' +kokkos +kokkos_hpx_kernels multipole_host_tasks=16 monopole_host_tasks=4 hydro_host_tasks=4 simd_extension=AVX512 simd_library=KOKKOS  %gcc@13.2.0 ^hpx@2.0.0rc1 cxxstd=20 max_cpu_count=128 malloc=system %gcc@13.2.0 ^kokkos@5.2.2 std=20 %gcc@13.2.0 ^hpx-kokkos %gcc@13.2.0 ^cppuddle %gcc@13.2.0 ^silo~mpi~fortran ;with-CC-with-kokkos-with-avx512-with-hpx-kokkos-kernels;gcc/11;medusa --exclusive;--fresh',\
-                               ' ~cuda ~rocm +kokkos +sycl  %gcc@13.2.0 ^kokkos@5.2.2 std=20 use_unsupported_sycl_arch=70 ^hpx@2.0.0rc1 cxxstd=20 sycl_target_arch=70;with-CC-with-kokkos-with-sycl;gcc/11 cuda/12;cuda-V100 -w diablo -c 10 --exclusive;--fresh'
+                               ' ~cuda ~rocm +kokkos +sycl  %gcc@13.2.0 ^kokkos@5.2.2 std=20 use_unsupported_sycl_arch=70 ^hpx@2.0.0rc1 cxxstd=20 sycl_target_arch=70 ^silo~mpi~fortran;with-CC-with-kokkos-with-sycl;gcc/11 cuda/12;cuda-V100 -w diablo -c 10 --exclusive;--fresh'
                     }
                 }
                 stages {
@@ -109,13 +109,19 @@ pipeline {
                                     *" -c "*|*" --cpus-per-task="*|*" --cpus-per-task "*) ;;
                                     *) cpu_options=(--cpus-per-task=4) ;;
                                 esac
+                                # Rostam requires an explicit GPU request even with --exclusive.
+                                # https://wiki.rostam.cct.lsu.edu/en/slurm/gpu
+                                gpu_options=()
+                                case " ${spack_spec} " in
+                                    *" +cuda "*|*" +sycl "*) gpu_options=(--gres=gpu:1) ;;
+                                esac
                                 export spack_spec required_modules extra_spack_flags
                                 # Setup src to test; each matrix entry needs its own output files.
                                 cd ..
                                 rm -rf "octotiger-${build_description}"
                                 cp -r octotiger "octotiger-${build_description}"
                                 cd "octotiger-${build_description}"
-                                srun -p ${slurm_partition} "${cpu_options[@]}" -N 1 -n 1 --time=900 bash -ls <<'BUILD_SCRIPT'
+                                srun -p ${slurm_partition} "${cpu_options[@]}" "${gpu_options[@]}" -N 1 -n 1 --time=900 bash -ls <<'BUILD_SCRIPT'
 set -e -o pipefail
 trap 'build_status=$?; if [[ -f install-time-test-log.txt ]]; then cat install-time-test-log.txt; fi; exit "$build_status"' EXIT
 echo "Slurm allocation: job=${SLURM_JOB_ID:-unknown} step=${SLURM_STEP_ID:-unknown} host=$(hostname)"
@@ -157,9 +163,9 @@ for octotiger_gpu_variable in SLURM_JOB_GPUS SLURM_STEP_GPUS CUDA_VISIBLE_DEVICE
         echo "GPU environment: ${octotiger_gpu_variable}=<unset>"
     fi
 done
-if [[ "${spack_spec}" == *"+sycl"* ]]; then
+if [[ " ${spack_spec} " == *" +cuda "* || " ${spack_spec} " == *" +sycl "* ]]; then
     if command -v nvidia-smi >/dev/null 2>&1; then
-        echo "SYCL GPU inventory (15-second limit, 5-second termination grace):"
+        echo "NVIDIA GPU inventory (15-second limit, 5-second termination grace):"
         if ! timeout --kill-after=5s 15s nvidia-smi -L; then
             echo "GPU inventory failed or timed out; continuing to the tests."
         fi
