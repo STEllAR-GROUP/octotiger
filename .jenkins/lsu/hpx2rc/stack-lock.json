@@ -1,0 +1,356 @@
+{
+  "schema_version": 1,
+  "description": "Exact local HPX 2.0.0-rc1 stack used by the recorded Octotiger GCC and Clang tests. Patch paths are relative to this lock file.",
+  "sources": {
+    "hpx": {
+      "url": "https://github.com/TheHPXProject/hpx.git",
+      "commit": "2b2018189ab8ffd190c7ad04fd4da5534286726b",
+      "tag": "v2.0.0-rc1",
+      "patches": [
+        {
+          "file": "hpx.patch",
+          "sha256": "84e55e019bb254ed2646df88bbff8d22bc24d0005c8f6d1288e90c0d8f190c24"
+        }
+      ],
+      "changed_files": [
+        {
+          "path": "cmake/HPX_SetupStdexec.cmake",
+          "patched_sha256": "339978be881320225249d4414daf30a146d8a629d62a3b51af923710c7a341a8",
+          "base_sha256": "37a06d6b16171336204282863c90e25ce7cc38435d143a757c9caf5b5c0e4bcf"
+        },
+        {
+          "path": "libs/core/execution/tests/unit/CMakeLists.txt",
+          "patched_sha256": "4b2bad393bbfbdace227944f2df241cd81a90437fff22ca69c53d652724b04e6",
+          "base_sha256": "bc32a952e64c6b6c9b41dc5d02686c3cb5ce8a3546b4522c3ff78b7ecad4d270"
+        },
+        {
+          "path": "libs/core/execution_base/tests/unit/CMakeLists.txt",
+          "patched_sha256": "8bc7ccde4c34e209b9544d61a8e317e0ba49b8fbf76403d8d86498941a1c98b7",
+          "base_sha256": "f25d1596e9c716d42dddcb7718e794cb52d71b9741c46d838406d819e099af0b"
+        },
+        {
+          "path": "libs/core/executors/include/hpx/executors/thread_pool_continues_on_sender.hpp",
+          "patched_sha256": "80136adef178d4a18f4f9d03a13e7cbc4820eed0ed9d3bdb6cb7968e78564fce",
+          "base_sha256": "fc289a78720ed2e94623cb1557f22543afdc3302c035f3fc2723db7469a9c3f0"
+        },
+        {
+          "path": "cmake/HPX_StdexecNvccGcc13.patch",
+          "patched_sha256": "3c751321746cadfd88d27436a7d7a51bbebb0d277a33e821f039c4e1f0222eef",
+          "base_sha256": null
+        },
+        {
+          "path": "libs/core/execution/tests/unit/algorithm_sender_cuda.cu",
+          "patched_sha256": "2efcd0741873f52407d1407e84f8129c640fc2b1d9d3131820f37be245f7d77a",
+          "base_sha256": null
+        },
+        {
+          "path": "libs/core/execution_base/tests/unit/stdexec_cuda.cu",
+          "patched_sha256": "395f5c03cfaa2f352a2f6c20f791f16dffcdd3f646548bc83dca018d9aba7a98",
+          "base_sha256": null
+        }
+      ]
+    },
+    "kokkos": {
+      "url": "https://github.com/kokkos/kokkos.git",
+      "commit": "8e15454876298832f013ebcaf08d53825b5bda40",
+      "tag": "5.2.2",
+      "patches": [],
+      "changed_files": []
+    },
+    "hpx-kokkos": {
+      "url": "https://github.com/STEllAR-GROUP/hpx-kokkos.git",
+      "commit": "5b794d0b9ca10fb1eecc950d49992abfa7fb609c",
+      "patches": [
+        {
+          "file": "hpx-kokkos.patch",
+          "sha256": "1514a7e3d3e37a38c4c39e033cf57b90eff34c917d1562dfade818004da926a9"
+        }
+      ],
+      "changed_files": [
+        {
+          "path": "src/hpx/kokkos/hpx_algorithms_for_each.hpp",
+          "patched_sha256": "4dd17e96bc3f8cdd2ead065982eccb68eab2769da9c26f612ac25d6a4c4669b7",
+          "base_sha256": "932c76ca03201faeb4446c775d460888a8f734a4ff6e3afaec8c148e17197b5e"
+        }
+      ]
+    },
+    "cppuddle": {
+      "url": "https://github.com/SC-SGS/CPPuddle.git",
+      "commit": "5d189e5b910d03901b358ffa5c2539e2e71edb06",
+      "tag": "v0.4.0",
+      "patches": [
+        {
+          "file": "cppuddle.patch",
+          "sha256": "ef75ccefa632a96c590023a7592b4e4a5611196013839dcaeef79373b52ae8fa"
+        }
+      ],
+      "changed_files": [
+        {
+          "path": "include/cppuddle/kernel_aggregation/detail/aggregation_executors_and_allocators.hpp",
+          "patched_sha256": "6beb2ce27bda07885cb4319a429b1feb69a965eef4dc485098772973868aba2a",
+          "base_sha256": "023b4f31ec4b4409d3b2bf69473408ff660ffb26b9f3a6c49f55f83fb1554bbe"
+        }
+      ]
+    }
+  },
+  "subdependencies": {
+    "stdexec": {
+      "url": "https://github.com/NVIDIA/stdexec.git",
+      "commit": "04de75de5807e73a229acf047c6976575e313359",
+      "managed_by": "HPX FetchContent in cmake/HPX_SetupStdexec.cmake; do not separately reapply these nested patches.",
+      "cmake_cache": {
+        "HPX_WITH_FETCH_STDEXEC": "ON",
+        "HPX_WITH_STDEXEC_TAG": "04de75de5807e73a229acf047c6976575e313359"
+      },
+      "ordered_patch_steps": [
+        {
+          "hpx_path": "cmake/HPX_PatchStdexecSpinLoopPause.cmake",
+          "sha256": "9ed47dfe0c55b6ac58030e6dd133f45fef527167b301cd7b5e93b7ad4d86f54e",
+          "origin": "HPX v2.0.0-rc1 tracked source"
+        },
+        {
+          "hpx_path": "cmake/HPX_StdexecNvccWorkarounds.patch",
+          "sha256": "a407edc5f07f7ddf2511e25334e2b287f0206ce5500342d6ac15515677a137c2",
+          "origin": "HPX v2.0.0-rc1 tracked source"
+        },
+        {
+          "hpx_path": "cmake/HPX_StdexecInlineSchedulerNvcc.patch",
+          "sha256": "1fad9dee55f2cc678950614fb9a9ead7966d2c0fa9950683d5f011bb5b17b35c",
+          "origin": "HPX v2.0.0-rc1 tracked source"
+        },
+        {
+          "hpx_path": "cmake/HPX_StdexecNvccGcc13.patch",
+          "sha256": "3c751321746cadfd88d27436a7d7a51bbebb0d277a33e821f039c4e1f0222eef",
+          "origin": "local change included in hpx.patch"
+        }
+      ],
+      "patch_driver": {
+        "hpx_path": "cmake/HPX_PatchStdexecNvcc.cmake",
+        "sha256": "e4e5c6dc3cdff5198680e1174337e1c55c2675e04737986f3b0fb5bbee5e51d4"
+      },
+      "spin_loop_step_changes_this_pin": false,
+      "combined_git_diff_sha256": "0c9c308cf9cc294746adbd5581f7059d7a234924981ac6fb9c945b653f1b6af5",
+      "changed_files": [
+        {
+          "path": "include/stdexec/__detail/__basic_sender.hpp",
+          "patched_sha256": "8926887582d103f74ff7e08753c9f65cc32197c4a8ca4b1599faeba1018cd7e2",
+          "base_sha256": "e883b03e7b9faf1b8d4c47f007c4b39afbf88aeba953961554e737779937dbd2"
+        },
+        {
+          "path": "include/stdexec/__detail/__config.hpp",
+          "patched_sha256": "e61757869e6c9b25a541b571685c2356cbd59906e9639a2445c9e277aa0a6e90",
+          "base_sha256": "8d5ab1f99f2750046020c8a71ce4f2f32c38a7651844f27c5d90371bda1462ce"
+        },
+        {
+          "path": "include/stdexec/__detail/__connect.hpp",
+          "patched_sha256": "86e3a342afa0a6bbb78d45b3e1e8888ed56bc6160cb8a627c622a9c2eb0fa673",
+          "base_sha256": "75a7f27c4be0d0ca21b4efa4bde8bfbff0733378cc1104ae86d2e45184453390"
+        },
+        {
+          "path": "include/stdexec/__detail/__counting_scopes.hpp",
+          "patched_sha256": "d6318f25c80bd62194b105fc339189948585a990ba094705fc9dc94248545b4c",
+          "base_sha256": "bf9028a88778f500c628943b2f0c731442e29b14c8acd06e7819204aaabefbc4"
+        },
+        {
+          "path": "include/stdexec/__detail/__diagnostics.hpp",
+          "patched_sha256": "ae8dbd510c5ae70402c2cea0124c5fd3de0c2762e9844f7623bb9adbdb888fdb",
+          "base_sha256": "398d1c78085a1b1148c99a4ab08c08338d0c1f721dd35208b2c1be2d2bffd52e"
+        },
+        {
+          "path": "include/stdexec/__detail/__env.hpp",
+          "patched_sha256": "29ef97bc64fce7c91ce9a58a58990f7e277d3975240e461d31ad3b4119d926bc",
+          "base_sha256": "230c7d2f22422b703edf022821a26a5f5493c7e55907ba81691a870090c77d6f"
+        },
+        {
+          "path": "include/stdexec/__detail/__inline_scheduler.hpp",
+          "patched_sha256": "547d0133d250fe5190b7179f2e929fd03647e738982882476562c4785412404f",
+          "base_sha256": "9b6abb81b95eff2ba716fdb4f8cc4dc83b446cc9bdeab15cdd492a716dbead2c"
+        },
+        {
+          "path": "include/stdexec/__detail/__just.hpp",
+          "patched_sha256": "e42cbc9575f008f062e1ed88e3af8f39dca2f00a7677f509cfbb6e4f36256d8c",
+          "base_sha256": "96b040e499f3c5c47f2b259ce087f4d1d2b2f29c571b0b810e604a3e836cceb2"
+        },
+        {
+          "path": "include/stdexec/__detail/__meta.hpp",
+          "patched_sha256": "3282b9dc3f3edf8cf1d901fbe9cf095cf5e4ac05922d67e4df6f97021037e29d",
+          "base_sha256": "39130dc1bb1a0db679e77182563cccb9f7bd40f3755b634a45152aeef01a5405"
+        },
+        {
+          "path": "include/stdexec/__detail/__receiver_adaptor.hpp",
+          "patched_sha256": "bdea6dbb7be1844e0b19bdef62a762e8aa19323d2b2cb05278df806168a8a44a",
+          "base_sha256": "897b811179a9ed9b2ac8ca8542ac48e850f8dbe6eb97526427bd7aa0d6504f08"
+        },
+        {
+          "path": "include/stdexec/__detail/__receivers.hpp",
+          "patched_sha256": "f6d13832a7f75b46c2f45f74494c819ffb1cad5e9c9a5d7f2170b0496c025880",
+          "base_sha256": "abe8eea09330cb868de545742ebca7177228446443babc6fa5b35aa5d5ea294e"
+        },
+        {
+          "path": "include/stdexec/__detail/__sender_adaptor_closure.hpp",
+          "patched_sha256": "0836153c2d96629811db573efff5a1a9b79ea5d89c640c6170c095f6e28cc483",
+          "base_sha256": "292f349d7c4ee5ce18d5c1fd0b983e7e6bcf24b03d17cfb56e2d5593d35b5cf8"
+        },
+        {
+          "path": "include/stdexec/__detail/__sender_concepts.hpp",
+          "patched_sha256": "5743e05b5be4f9a7edb6353a26541618e98541b45f0bb9af338202350e1637dd",
+          "base_sha256": "464feeae27d42a1ba07f790835fe889563af4b9b828888d7f3be52084d0f43d4"
+        },
+        {
+          "path": "include/stdexec/__detail/__sync_wait.hpp",
+          "patched_sha256": "06dac7b54228e072d93a49333ea0126096751a037d0a90483e6980ae14a88fd1",
+          "base_sha256": "a9d6fa669afc1162245d1f42d151e386777c4a1e8d383f7f89b52069899eef32"
+        },
+        {
+          "path": "include/stdexec/__detail/__transform_completion_signatures.hpp",
+          "patched_sha256": "de9e4238d0922aba107da6ba735a72ee3921b5dc9afe972ce7bb94678a3a286f",
+          "base_sha256": "f8a732677271b8cb05f724a9c0e8d92933fb0dc4f513fb658de13e29bb446030"
+        },
+        {
+          "path": "include/stdexec/__detail/__typeinfo.hpp",
+          "patched_sha256": "3550579655a9207e3c8c955344a2dcb80b6a00df9a4b1a1d6b9ec53acc2438c2",
+          "base_sha256": "4f85906495b4208953b7df5e94b1d144cb12b7ede3798279c82e771ecb212891"
+        },
+        {
+          "path": "include/stdexec/__detail/__utility.hpp",
+          "patched_sha256": "e66e814d298400edd93d4690ea92cef550a9d57f39f834fd14a8451ee86611d1",
+          "base_sha256": "6a7b39a7784a8ce47ae30459d277adcf23e53889043f9afbc31009961408a116"
+        }
+      ],
+      "consumer_definition": "HPX exports STDEXEC_DEMANGLE_SENDER_NAMES to all C++ and CUDA consumers when CMAKE_CUDA_COMPILER_ID is NVIDIA; it affects sender representation and must remain consistent across translation units.",
+      "validated_scope": "Host-side sender machinery parsed in CUDA translation units; this does not establish arbitrary GPU sender execution."
+    },
+    "asio": {
+      "url": "https://github.com/chriskohlhoff/asio.git",
+      "commit": "12e0ce9e0500bf0f247dbd1ae894272656456079",
+      "tag": "asio-1-30-2",
+      "patches": [],
+      "cmake_cache": {
+        "HPX_WITH_FETCH_ASIO": "ON",
+        "HPX_WITH_ASIO_TAG": "12e0ce9e0500bf0f247dbd1ae894272656456079"
+      },
+      "local_configuration_note": "Local caches requested asio-1-30-2, which resolved to the locked commit in both toolchain builds."
+    }
+  },
+  "configuration": {
+    "common": {
+      "CMAKE_BUILD_TYPE": "Release",
+      "CMAKE_CXX_STANDARD": "20",
+      "CMAKE_POSITION_INDEPENDENT_CODE": "ON"
+    },
+    "hpx": {
+      "HPX_WITH_CXX_STANDARD": "20",
+      "HPX_WITH_MALLOC": "system",
+      "HPX_WITH_DISTRIBUTED_RUNTIME": "ON",
+      "HPX_WITH_NETWORKING": "ON",
+      "HPX_WITH_PARCELPORT_TCP": "ON",
+      "HPX_WITH_PARCELPORT_MPI": "OFF",
+      "HPX_WITH_EXAMPLES": "OFF",
+      "HPX_WITH_TESTS": "OFF"
+    },
+    "validated_cuda": {
+      "hpx": {
+        "HPX_WITH_CUDA": "ON"
+      },
+      "kokkos": {
+        "Kokkos_ENABLE_SERIAL": "ON",
+        "Kokkos_ENABLE_HPX": "ON",
+        "Kokkos_ENABLE_CUDA": "ON",
+        "Kokkos_ENABLE_IMPL_HPX_ASYNC_DISPATCH": "ON",
+        "Kokkos_ENABLE_TESTS": "OFF",
+        "Kokkos_ENABLE_EXAMPLES": "OFF"
+      },
+      "cppuddle": {
+        "CPPUDDLE_WITH_HPX": "ON",
+        "CPPUDDLE_WITH_KOKKOS": "ON",
+        "CPPUDDLE_WITH_TESTS": "OFF"
+      }
+    },
+    "gcc": {
+      "host_compiler": "GCC 13.3.0",
+      "cuda_compiler": "NVCC 12.8",
+      "hpx_cxx_compiler": "g++-13",
+      "hpx_cuda_host_compiler": "g++-13",
+      "kokkos_and_consumers_cxx_compiler": "Unmodified Kokkos bin/nvcc_wrapper with NVCC_WRAPPER_DEFAULT_COMPILER=g++-13",
+      "kokkos_BUILD_SHARED_LIBS": "ON",
+      "octotiger_cxx_launcher": "External nvccHostDefinitions.py handles host-only compiler definitions; no nvcc_wrapper source changes."
+    },
+    "clang": {
+      "host_and_cuda_compiler": "Clang 21.1.8 (direct CUDA compilation)",
+      "kokkos_BUILD_SHARED_LIBS": "OFF",
+      "octotiger": {
+        "OCTOTIGER_WITH_BOOST_MULTIPRECISION": "ON",
+        "OCTOTIGER_WITH_BLAST_TEST": "ON"
+      }
+    },
+    "local_cuda_architecture": {
+      "CMAKE_CUDA_ARCHITECTURES": "86",
+      "Kokkos_ARCH_AMPERE86": "ON",
+      "note": "This describes local validation. Jenkins must select its allocated GPU architecture; do not force Ampere86 onto V100 or A100 jobs."
+    },
+    "local_test_resources": {
+      "HPX_NUM_WORKER_THREADS": 2,
+      "ctest_parallelism": 1,
+      "OMP_NUM_THREADS": 1,
+      "OPENBLAS_NUM_THREADS": 1
+    },
+    "build_script_provenance": {
+      "path": "hpx2rcDependencies/scripts/buildStack.py",
+      "sha256": "59486fe9c30fc99c10708a247ab080c0fbee6c478c9c54929f102c1dad68e53d"
+    },
+    "hpx-kokkos": {
+      "HPX_KOKKOS_ENABLE_TESTS": "OFF",
+      "HPX_KOKKOS_ENABLE_BENCHMARKS": "OFF"
+    }
+  },
+  "validation": {
+    "patch_application": {
+      "method": "Export each pinned Git tree, check forward and reverse application, and compare every source file byte-for-byte with the validated local working tree. Recreate stdexec using HPX FetchContent patch scripts and compare both build trees and installed stdexec headers.",
+      "source_file_counts": {
+        "hpx": 5850,
+        "hpx-kokkos": 42,
+        "cppuddle": 63
+      },
+      "stdexec_files": 516,
+      "kokkos_pristine": true,
+      "report": "hpx2rcDependencies/results/jenkins-local/hpx2rc-bundle-validation/validation.json"
+    },
+    "gcc": {
+      "unique_tests_passed": 463,
+      "method": "463-test full run plus rerun of all 44 affected blast tests after correcting the five-species reference; same executable in both runs.",
+      "summary": "hpx2rcDependencies/results/jenkins-local/gcc-combined-summary.json",
+      "summary_sha256": "c6b3016e3ff8d8ac69cbea501405dfdb6086343d8e782a99bf1afa4df891f26d",
+      "build_provenance": {
+        "recordedAt": "2026-10-07T20:46:58.519688+00:00",
+        "sourceCommit": "390f46ae8f239b0176a553068855da2ca01dc60a",
+        "sourceDiffSha256": "5a47977f277d98ed444cc4f87ade6976bf54f0a125f8029a2206c0945ab72f4c",
+        "executableSha256": "db7fd5f4eebe27e55a4e5c6df8ca5e3cfcd7e0a2165bb1753de1b693a39146f8",
+        "tests": 463,
+        "testdataCommit": "e75c1498bbc9eb886b4c5129982155209d420a57",
+        "threads": 2,
+        "ctestParallel": 1
+      }
+    },
+    "clang": {
+      "tests_passed": 463,
+      "method": "One full 463-test run with corrected reference, zero failures or skipped tests.",
+      "summary": "hpx2rcDependencies/results/jenkins-local/clang-full-summary.json",
+      "summary_sha256": "576c93c6d438ae893a0dc16eba9ee88b34910b27bcbda6d7ea81b2dc48f240e0",
+      "build_provenance": {
+        "recordedAt": "2026-10-07T21:07:27.363012+00:00",
+        "sourceCommit": "390f46ae8f239b0176a553068855da2ca01dc60a",
+        "sourceDiffSha256": "73b59ba1e12e0b4a6ab2ab1f31045f3f9d330d8a3143d8bf195531cf5e054201",
+        "executableSha256": "249d39e89d35483c89230c4288a833cd403ded01c50afe92fec8d9918cdb8e6f",
+        "tests": 463,
+        "testdataCommit": "e75c1498bbc9eb886b4c5129982155209d420a57",
+        "threads": 2,
+        "ctestParallel": 1
+      }
+    },
+    "limits": [
+      "No new build or runtime test was performed while packaging this bundle.",
+      "Local GCC13/Clang21/CUDA12.8 results do not establish Jenkins GCC11.5/Clang20/CUDA12.9, HIP, or SYCL runtime success.",
+      "The included HPX regression test sources are part of the exact patch export; the recorded Octotiger stack configured HPX_WITH_TESTS=OFF."
+    ]
+  }
+}

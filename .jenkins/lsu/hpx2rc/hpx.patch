@@ -1,0 +1,484 @@
+diff --git a/cmake/HPX_SetupStdexec.cmake b/cmake/HPX_SetupStdexec.cmake
+index a5e5a3fcd5..a0f8b8aaf3 100644
+--- a/cmake/HPX_SetupStdexec.cmake
++++ b/cmake/HPX_SetupStdexec.cmake
+@@ -32,6 +32,9 @@ if(HPX_WITH_FETCH_STDEXEC)
+   set(_hpx_stdexec_inline_nvcc_patch
+       "${CMAKE_CURRENT_LIST_DIR}/HPX_StdexecInlineSchedulerNvcc.patch"
+   )
++  set(_hpx_stdexec_gcc13_nvcc_patch
++      "${CMAKE_CURRENT_LIST_DIR}/HPX_StdexecNvccGcc13.patch"
++  )
+ 
+   include(FetchContent)
+   # We only consume stdexec's headers; HPX wraps them with its own `Stdexec`
+@@ -55,6 +58,10 @@ if(HPX_WITH_FETCH_STDEXEC)
+       ${CMAKE_COMMAND} "-DHPX_STDEXEC_SOURCE_DIR=<SOURCE_DIR>"
+       "-DHPX_STDEXEC_NVCC_PATCH_FILE=${_hpx_stdexec_inline_nvcc_patch}"
+       "-DHPX_STDEXEC_NVCC_PATCH_REQUIRED=${_hpx_stdexec_nvcc_patch_required}"
++      -P ${CMAKE_CURRENT_LIST_DIR}/HPX_PatchStdexecNvcc.cmake COMMAND
++      ${CMAKE_COMMAND} "-DHPX_STDEXEC_SOURCE_DIR=<SOURCE_DIR>"
++      "-DHPX_STDEXEC_NVCC_PATCH_FILE=${_hpx_stdexec_gcc13_nvcc_patch}"
++      "-DHPX_STDEXEC_NVCC_PATCH_REQUIRED=${_hpx_stdexec_nvcc_patch_required}"
+       -P ${CMAKE_CURRENT_LIST_DIR}/HPX_PatchStdexecNvcc.cmake
+   )
+ 
+@@ -66,6 +73,11 @@ if(HPX_WITH_FETCH_STDEXEC)
+     Stdexec SYSTEM INTERFACE $<BUILD_INTERFACE:${stdexec_SOURCE_DIR}/include>
+                              $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+   )
++  if(_hpx_stdexec_nvcc_patch_required)
++    # This changes the sender representation, not just diagnostic names. Export
++    # it to all C++ and CUDA consumers to keep their definitions consistent.
++    target_compile_definitions(Stdexec INTERFACE STDEXEC_DEMANGLE_SENDER_NAMES)
++  endif()
+ 
+   install(
+     TARGETS Stdexec
+diff --git a/libs/core/execution/tests/unit/CMakeLists.txt b/libs/core/execution/tests/unit/CMakeLists.txt
+index 53f8f24f5c..a2279a57e0 100644
+--- a/libs/core/execution/tests/unit/CMakeLists.txt
++++ b/libs/core/execution/tests/unit/CMakeLists.txt
+@@ -48,10 +48,18 @@ set(tests
+ 
+ set(future_then_executor_PARAMETERS THREADS_PER_LOCALITY 4)
+ 
+-foreach(test ${tests})
+-  set(sources ${test}.cpp)
++if(HPX_WITH_CUDA)
++  list(APPEND tests algorithm_sender_cuda)
++endif()
+ 
+-  set(${test}_PARAMETERS THREADS_PER_LOCALITY 4)
++foreach(test ${tests})
++  if(test STREQUAL "algorithm_sender_cuda")
++    set(sources ${test}.cu)
++    set(${test}_PARAMETERS THREADS_PER_LOCALITY 2)
++  else()
++    set(sources ${test}.cpp)
++    set(${test}_PARAMETERS THREADS_PER_LOCALITY 4)
++  endif()
+ 
+   source_group("Source Files" FILES ${sources})
+ 
+diff --git a/libs/core/execution_base/tests/unit/CMakeLists.txt b/libs/core/execution_base/tests/unit/CMakeLists.txt
+index 10d0bfbfba..5ac906fa86 100644
+--- a/libs/core/execution_base/tests/unit/CMakeLists.txt
++++ b/libs/core/execution_base/tests/unit/CMakeLists.txt
+@@ -22,8 +22,16 @@ if(HPX_WITH_CXX20_COROUTINES)
+   set(tests ${tests} coroutine_traits coroutine_utils)
+ endif()
+ 
++if(HPX_WITH_CUDA)
++  set(tests ${tests} stdexec_cuda)
++endif()
++
+ foreach(test ${tests})
+-  set(sources ${test}.cpp)
++  if(test STREQUAL "stdexec_cuda")
++    set(sources ${test}.cu)
++  else()
++    set(sources ${test}.cpp)
++  endif()
+ 
+   source_group("Source Files" FILES ${sources})
+ 
+diff --git a/libs/core/executors/include/hpx/executors/thread_pool_continues_on_sender.hpp b/libs/core/executors/include/hpx/executors/thread_pool_continues_on_sender.hpp
+index 1a2123f97d..c54ae52a6e 100644
+--- a/libs/core/executors/include/hpx/executors/thread_pool_continues_on_sender.hpp
++++ b/libs/core/executors/include/hpx/executors/thread_pool_continues_on_sender.hpp
+@@ -214,7 +214,13 @@ namespace hpx::execution::experimental::detail {
+         continues_on_operation_state& operator=(
+             continues_on_operation_state const&) = delete;
+ 
++#if defined(__NVCC__)
++        // NVCC can diagnose a defaulted destructor as undefined when Receiver
++        // contains a local lambda type.
++        ~continues_on_operation_state() {}
++#else
+         ~continues_on_operation_state() = default;
++#endif
+ 
+         void start() & noexcept
+         {
+diff --git a/cmake/HPX_StdexecNvccGcc13.patch b/cmake/HPX_StdexecNvccGcc13.patch
+new file mode 100644
+index 0000000000..44f49f25c7
+--- /dev/null
++++ b/cmake/HPX_StdexecNvccGcc13.patch
+@@ -0,0 +1,195 @@
++Additional workarounds for stdexec with nvcc 12.8 and a GCC 13 host compiler.
++
++The original nvcc workarounds allow parsing HPX's execution headers, but sender
++instantiations still fail in nvcc's generated host code. This incremental patch
++addresses callable non-type template parameters, unintended cv/ref qualifiers,
++virtual diagnostic types, GCC copy elision, and references to constexpr global
++function objects from host/device functions. A dependent sync_wait alias is
++spelled through a helper to preserve its result type in generated host code.
++
++Use STDEXEC_DEMANGLE_SENDER_NAMES consistently in HPX and its consumers; it
++selects a different sender representation. HPX's Stdexec interface target
++exports this definition for nvcc builds. These workarounds enable host-side
++sender machinery in CUDA translation units, not arbitrary GPU sender execution.
++
++Keep this patch separate so existing FetchContent checkouts with the earlier
++nvcc patches can acquire it. It applies to stdexec commit
++04de75de5807e73a229acf047c6976575e313359, pinned by HPX 2.0.0-rc1.
++
++Copyright (c) 2026 Dominic Marcello
++
++SPDX-License-Identifier: BSL-1.0
++Distributed under the Boost Software License, Version 1.0. (See accompanying
++file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
++
++--- a/include/stdexec/__detail/__basic_sender.hpp
+++++ b/include/stdexec/__detail/__basic_sender.hpp
++@@ -142,7 +142,7 @@
++           -> __tuple<connect_result_t<_Child, __rcvr<_Tag, _State, _Idx>>...>
++       {
++         return __tuple{
++-          STDEXEC::connect(static_cast<_Child&&>(__child), __rcvr<_Tag, _State, _Idx>{__state})...};
+++          STDEXEC::connect_t{}(static_cast<_Child&&>(__child), __rcvr<_Tag, _State, _Idx>{__state})...};
++       }
++     };
++ 
++--- a/include/stdexec/__detail/__config.hpp
+++++ b/include/stdexec/__detail/__config.hpp
++@@ -581,7 +581,7 @@
++ #  define STDEXEC_IMMOVABLE(_XP) _XP(_XP&&) = delete
++ #endif
++ 
++-#if STDEXEC_GCC()
+++#if STDEXEC_GCC() || (STDEXEC_NVCC() && defined(__GNUC__) && !defined(__clang__))
++ // BUG (gcc#98995): copy elision fails when initializing a [[no_unique_address]] field
++ // from a function returning an object of class type by value.
++ // See: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=98995
++--- a/include/stdexec/__detail/__diagnostics.hpp
+++++ b/include/stdexec/__detail/__diagnostics.hpp
++@@ -182,7 +182,7 @@
++   // constexpr stdlib exception types, https://wg21.link/p3378
++   using __exception = ::std::exception;
++ 
++-#  elif __cpp_constexpr >= 201907L && !STDEXEC_MSVC() && !STDEXEC_NVHPC()
+++#  elif __cpp_constexpr >= 201907L && !STDEXEC_MSVC() && !STDEXEC_NVHPC() && !STDEXEC_NVCC()
++ 
++   // constexpr virtual functions
++   struct __exception
++--- a/include/stdexec/__detail/__just.hpp
+++++ b/include/stdexec/__detail/__just.hpp
++@@ -171,7 +171,11 @@
++     STDEXEC_ATTRIBUTE(host, device)
++     constexpr auto operator()(_Ts&&... __ts) const noexcept(__nothrow_decay_copyable<_Ts...>)
++     {
+++#  if STDEXEC_NVCC()
+++      return __detail::__make_sexpr_t<just_t>{}(__tuple{static_cast<_Ts&&>(__ts)...});
+++#  else
++       return __make_sexpr<just_t>(__tuple{static_cast<_Ts&&>(__ts)...});
+++#  endif
++     }
++   };
++ 
++--- a/include/stdexec/__detail/__meta.hpp
+++++ b/include/stdexec/__detail/__meta.hpp
++@@ -57,6 +57,9 @@
++ #  if STDEXEC_GCC() && STDEXEC_GCC_VERSION < 1300
++   template <auto _Value>
++   using __mtypeof = std::remove_const_t<decltype(_Value)>;
+++#  elif STDEXEC_NVCC()
+++  template <auto _Value>
+++  using __mtypeof = std::remove_cvref_t<decltype(_Value)>;
++ #  else
++   template <auto _Value>
++   using __mtypeof = decltype(_Value);
++--- a/include/stdexec/__detail/__receivers.hpp
+++++ b/include/stdexec/__detail/__receivers.hpp
++@@ -448,13 +448,13 @@
++     {
++       if constexpr (__std::same_as<void, __invoke_result_t<_Fun, _As...>>)
++       {
++-        __invoke(static_cast<_Fun &&>(__fun), static_cast<_As &&>(__as)...);
++-        STDEXEC::set_value(static_cast<_Receiver &&>(__rcvr));
+++        decltype(__invoke){}(static_cast<_Fun &&>(__fun), static_cast<_As &&>(__as)...);
+++        STDEXEC::set_value_t{}(static_cast<_Receiver &&>(__rcvr));
++       }
++       else
++       {
++-        STDEXEC::set_value(static_cast<_Receiver &&>(__rcvr),
++-                           __invoke(static_cast<_Fun &&>(__fun), static_cast<_As &&>(__as)...));
+++        STDEXEC::set_value_t{}(static_cast<_Receiver &&>(__rcvr),
+++                           decltype(__invoke){}(static_cast<_Fun &&>(__fun), static_cast<_As &&>(__as)...));
++       }
++     }
++     STDEXEC_CATCH_ALL
++--- a/include/stdexec/__detail/__sender_adaptor_closure.hpp
+++++ b/include/stdexec/__detail/__sender_adaptor_closure.hpp
++@@ -114,7 +114,7 @@
++     constexpr auto
++     operator()(_Sender&& __sndr) && noexcept(__nothrow_callable<_Fn, _Sender, _As...>)
++     {
++-      return STDEXEC::__apply(static_cast<_Fn&&>(__fn_),
+++      return STDEXEC::__tup::__apply_t{}(static_cast<_Fn&&>(__fn_),
++                               static_cast<__tuple<_As...>&&>(__args_),
++                               static_cast<_Sender&&>(__sndr));
++     }
++@@ -125,7 +125,7 @@
++     constexpr auto operator()(_Sender&& __sndr) const & noexcept(
++       __nothrow_callable<_Fn const &, _Sender, _As const &...>)
++     {
++-      return STDEXEC::__apply(__fn_, __args_, static_cast<_Sender&&>(__sndr));
+++      return STDEXEC::__tup::__apply_t{}(__fn_, __args_, static_cast<_Sender&&>(__sndr));
++     }
++ 
++    private:
++--- a/include/stdexec/__detail/__sender_concepts.hpp
+++++ b/include/stdexec/__detail/__sender_concepts.hpp
++@@ -138,6 +138,10 @@
++   template <auto _Completions>
++   inline constexpr bool __constant_completion_signatures_v =
++     __valid_completion_signatures<std::remove_const_t<decltype(_Completions)>>;
+++#  elif STDEXEC_NVCC()
+++  template <auto _Completions>
+++  inline constexpr bool __constant_completion_signatures_v =
+++    __valid_completion_signatures<std::remove_cvref_t<decltype(_Completions)>>;
++ #  else
++   template <auto _Completions>
++   inline constexpr bool __constant_completion_signatures_v =
++--- a/include/stdexec/__detail/__sync_wait.hpp
+++++ b/include/stdexec/__detail/__sync_wait.hpp
++@@ -53,6 +53,13 @@
++ 
++ namespace STDEXEC::__sync_wait
++ {
+++#  if STDEXEC_NVCC()
+++  template <class _Result>
+++  struct __value_type_of
+++  {
+++    using __t = typename _Result::value_type;
+++  };
+++#  endif
++   /////////////////////////////////////////////////////////////////////////////
++   // [exec.sync.wait]
++   // [exec.sync.wait.var]
++@@ -488,7 +495,11 @@
++                                  sync_wait_with_variant_t,
++                                  _CvSender>;
++       static_assert(STDEXEC::__is_instance_of<__result_t, std::optional>);
+++#  if STDEXEC_NVCC()
+++      using __variant_t = typename __sync_wait::__value_type_of<__result_t>::__t;
+++#  else
++       using __variant_t = __result_t::value_type;
+++#  endif
++       static_assert(STDEXEC::__is_instance_of<__variant_t, std::variant>);
++ 
++       using _Domain = STDEXEC::__completion_domain_of_t<STDEXEC::set_value_t,
++--- a/include/stdexec/__detail/__utility.hpp
+++++ b/include/stdexec/__detail/__utility.hpp
++@@ -97,7 +97,11 @@
++   using __call_result_or_t = __minvoke_or_q<__call_result_t, _Default, _Fun, _As...>;
++ 
++ // BUGBUG TODO file this bug with nvc++
++-#  if STDEXEC_EDG()
+++#  if STDEXEC_NVCC()
+++  STDEXEC_MODULE_EXPORT_META
+++  template <auto _Fun, class... _As>
+++  using __result_of = __call_result_t<decltype(_Fun) const&, _As...>;
+++#  elif STDEXEC_EDG()
++   STDEXEC_MODULE_EXPORT_META
++   template <auto const & _Fun, class... _As>
++   using __result_of = __call_result_t<decltype(_Fun), _As...>;
++@@ -107,9 +111,15 @@
++   using __result_of = decltype(_Fun(__declval<_As>()...));
++ #  endif
++ 
+++#  if STDEXEC_NVCC()
+++  STDEXEC_MODULE_EXPORT_AUTHORING
+++  template <auto _Fun, class... _As>
+++  inline constexpr bool __noexcept_of = __nothrow_callable<decltype(_Fun) const&, _As...>;
+++#  else
++   STDEXEC_MODULE_EXPORT_AUTHORING
++   template <auto const & _Fun, class... _As>
++   inline constexpr bool __noexcept_of = noexcept(_Fun(__declval<_As>()...));
+++#  endif
++ 
++   // For emplacing non-movable types into optionals:
++   template <__nothrow_move_constructible _Fn>
+diff --git a/libs/core/execution/tests/unit/algorithm_sender_cuda.cu b/libs/core/execution/tests/unit/algorithm_sender_cuda.cu
+new file mode 100644
+index 0000000000..050bb8b578
+--- /dev/null
++++ b/libs/core/execution/tests/unit/algorithm_sender_cuda.cu
+@@ -0,0 +1,73 @@
++//  Copyright (c) 2026 Dominic Marcello
++//
++//  SPDX-License-Identifier: BSL-1.0
++//  Distributed under the Boost Software License, Version 1.0. (See accompanying
++//  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
++
++#include <hpx/init.hpp>
++#include <hpx/modules/execution.hpp>
++#include <hpx/modules/testing.hpp>
++
++#include <array>
++#include <atomic>
++#include <stdexcept>
++#include <string>
++#include <utility>
++
++namespace ex = hpx::execution::experimental;
++
++// Exercise host-side HPX senders in a CUDA translation unit. The test needs
++// an HPX thread pool, but does not require a GPU.
++void test_sender_chain()
++{
++    constexpr int count = 37;
++    std::array<std::atomic<int>, count> visits{};
++    std::atomic<int> completions{0};
++
++    ex::unique_any_sender<> sender{ex::just()};
++    sender = std::move(sender) | ex::transfer(ex::thread_pool_scheduler{}) |
++        ex::bulk(count, [&visits](int index) { ++visits[index]; }) |
++        ex::then([&completions]() { ++completions; }) | ex::ensure_started();
++
++    auto result = hpx::this_thread::experimental::sync_wait(std::move(sender));
++    HPX_TEST(result.has_value());
++    HPX_TEST_EQ(completions.load(), 1);
++    for (auto const& visit : visits)
++    {
++        HPX_TEST_EQ(visit.load(), 1);
++    }
++}
++
++void test_sender_error()
++{
++    bool caught = false;
++    try
++    {
++        ex::unique_any_sender<> sender{ex::just()};
++        sender = std::move(sender) | ex::transfer(ex::thread_pool_scheduler{}) |
++            ex::then(
++                []() { throw std::runtime_error("expected sender error"); }) |
++            ex::ensure_started();
++        hpx::this_thread::experimental::sync_wait(std::move(sender));
++    }
++    catch (std::runtime_error const& error)
++    {
++        caught = true;
++        HPX_TEST_EQ(std::string(error.what()), "expected sender error");
++    }
++    HPX_TEST(caught);
++}
++
++int hpx_main()
++{
++    test_sender_chain();
++    test_sender_error();
++
++    return hpx::local::finalize();
++}
++
++int main(int argc, char* argv[])
++{
++    HPX_TEST_EQ(hpx::local::init(hpx_main, argc, argv), 0);
++    return hpx::util::report_errors();
++}
+diff --git a/libs/core/execution_base/tests/unit/stdexec_cuda.cu b/libs/core/execution_base/tests/unit/stdexec_cuda.cu
+new file mode 100644
+index 0000000000..6045dbee20
+--- /dev/null
++++ b/libs/core/execution_base/tests/unit/stdexec_cuda.cu
+@@ -0,0 +1,95 @@
++//  Copyright (c) 2026 Dominic Marcello
++//
++//  SPDX-License-Identifier: BSL-1.0
++//  Distributed under the Boost Software License, Version 1.0. (See accompanying
++//  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
++
++#include <hpx/modules/testing.hpp>
++
++#include <stdexec/execution.hpp>
++
++#include <memory>
++#include <stdexcept>
++#include <tuple>
++#include <utility>
++#include <variant>
++
++struct stopped_receiver
++{
++    using receiver_concept = stdexec::receiver_t;
++    bool& stopped;
++
++    void set_stopped() noexcept
++    {
++        stopped = true;
++    }
++};
++
++// Exercise host-side senders in a CUDA translation unit. No GPU is needed to
++// run this test; nvcc must parse and instantiate the sender machinery correctly.
++int main()
++{
++    int calls = 0;
++    auto value = stdexec::sync_wait(
++        stdexec::just(41) | stdexec::then([&calls](int input) {
++            ++calls;
++            return input + 1;
++        }));
++    HPX_TEST(value.has_value());
++    if (value)
++    {
++        HPX_TEST_EQ(std::get<0>(*value), 42);
++    }
++    HPX_TEST_EQ(calls, 1);
++
++    auto moved = stdexec::sync_wait(stdexec::just(std::make_unique<int>(17)) |
++        stdexec::then([](std::unique_ptr<int> input) { return *input; }));
++    HPX_TEST(moved.has_value());
++    if (moved)
++    {
++        HPX_TEST_EQ(std::get<0>(*moved), 17);
++    }
++
++    auto multiple = stdexec::sync_wait(stdexec::just(3, 4) |
++        stdexec::then([](int left, int right) { return left + right; }));
++    HPX_TEST(multiple.has_value());
++    if (multiple)
++    {
++        HPX_TEST_EQ(std::get<0>(*multiple), 7);
++    }
++
++    auto variant = stdexec::sync_wait_with_variant(stdexec::just(9));
++    HPX_TEST(variant.has_value());
++    if (variant)
++    {
++        HPX_TEST_EQ(std::get<0>(std::get<0>(*variant)), 9);
++    }
++
++    bool stopped = false;
++    auto stopped_operation =
++        stdexec::connect(stdexec::just_stopped(), stopped_receiver{stopped});
++    stdexec::start(stopped_operation);
++    HPX_TEST(stopped);
++    auto recovered = stdexec::sync_wait(
++        stdexec::just_stopped() | stdexec::upon_stopped([] { return 23; }));
++    HPX_TEST(recovered.has_value());
++    if (recovered)
++    {
++        HPX_TEST_EQ(std::get<0>(*recovered), 23);
++    }
++
++    bool caught = false;
++    try
++    {
++        stdexec::sync_wait(stdexec::just() | stdexec::then([]() -> int {
++            throw std::runtime_error("expected sender error");
++        }));
++    }
++    catch (std::runtime_error const&)
++    {
++        caught = true;
++    }
++    HPX_TEST(caught);
++
++    return hpx::util::report_errors();
++}

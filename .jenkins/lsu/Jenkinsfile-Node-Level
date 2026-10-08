@@ -48,24 +48,24 @@ pipeline {
                         // List of "tuples" containing the test run infomation
                         // Format: 
                         // spack octotiger spec ; run name ; required modules ; SLURM partition for this test ; additional flags for spack dev-build
-                        values ' +cuda +kokkos cuda_arch=70  %gcc@11 ^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc  %gcc@11 ^cppuddle %gcc@11 ^hpx-kokkos %gcc@11 ^kokkos@4.0.01 %gcc@11 ^silo~mpi ;with-CC-with-cuda-with-kokkos;gcc/11 cuda/12;cuda-V100 --exclusive;--fresh',\
-                               ' +cuda +kokkos cuda_arch=70 griddim=16  %gcc@11 ^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %gcc@11 ^cppuddle %gcc@11 ^hpx-kokkos %gcc@11^kokkos@4.0.01 %gcc@11 ^silo~mpi ;with-CC-with-cuda-with-kokkos-griddim16;gcc/11 cuda/12;cuda-V100 --exclusive;--fresh',\
-                               ' ~cuda +kokkos  %gcc@11 ^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %gcc@11 ^cppuddle %gcc@11 ^hpx-kokkos %gcc@11 ^kokkos@4.0.01~cuda %gcc@11 ^silo~mpi ;with-CC-without-cuda-with-kokkos;gcc/11 cuda/12;cuda-V100 --exclusive;--fresh',\
-                               ' +cuda ~kokkos cuda_arch=70 ^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %gcc@11 ^cppuddle %gcc@11 ^silo~mpi %gcc@11 ;with-CC-with-cuda-without-kokkos;gcc/11 cuda/12;cuda-V100 --exclusive;--fresh',\
-                               ' ~cuda ~kokkos  %gcc@11 ^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %gcc@11 ^cppuddle %gcc@11 ^silo~mpi ;with-CC-without-cuda-without-kokkos;gcc/11 cuda/12;cuda-V100 --exclusive;--fresh',\
-                               ' +cuda +kokkos cuda_arch=70  %clang@20 ^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %clang@20 ^cppuddle %clang@20 ^hpx-kokkos %clang@20 ^kokkos %clang@20 ^silo~mpi~fortran ;with-CC-clang-with-cuda-with-kokkos;llvm/20 cuda/12;cuda-V100 --exclusive;--fresh',\
-                               ' +cuda +kokkos cuda_arch=70 griddim=16  %clang@20 ^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %clang@20 ^cppuddle %clang@20 ^hpx-kokkos %clang@20 ^kokkos %clang@20^silo~mpi~fortran ;with-CC-clang-with-cuda-with-kokkos-griddim16;llvm/20 cuda/12;cuda-V100 --exclusive;--fresh',\
-                               ' ~cuda +kokkos  %clang@20^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %clang@20 ^cppuddle %clang@20 ^hpx-kokkos %clang@20 ^kokkos %clang@20 ^silo~mpi~fortran ;with-CC-clang-without-cuda-with-kokkos;llvm/20 cuda/12;cuda-V100 --exclusive;--fresh',\
-                               ' +cuda ~kokkos cuda_arch=70  %clang@20 ^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %clang@20 ^cppuddle %clang@20 ^silo~mpi~fortran ;with-CC-clang-with-cuda-without-kokkos;llvm/20 cuda/12;cuda-V100 --exclusive;--fresh',\
-                               ' ~cuda ~kokkos  %clang@20 ^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %clang@20 ^cppuddle %clang@20 ^silo~mpi~fortran ;with-CC-clang-without-cuda-without-kokkos;llvm/20 cuda/12;cuda-V100 --exclusive;--fresh',\
-                               ' +rocm+kokkos amdgpu_target=gfx908 %rocmcc@6.4.1 ^asio@1.16.0^hpx@1.9.1 max_cpu_count=128 amdgpu_target=gfx908 %rocmcc@6.4.1 ^kokkos@4.1.00 amdgpu_target=gfx908 %rocmcc@6.4.1 ^hip@6.4.1 ^hsa-rocr-dev@6.4.1 ^llvm-amdgpu@6.4.1 ^cppuddle %rocmcc@6.4.1 ^hpx-kokkos %rocmcc@6.4.1 ^silo~mpi %gcc@11 ;with-CC-clang-with-hip-with-kokkos;rocm/6.4.1;jenkins-amdgpu --exclusive -c 16 --threads-per-core=1;--fresh --dirty',\
-                               ' +kokkos simd_extension=SCALAR simd_library=STD  %gcc@11^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %gcc@11 ^kokkos %gcc@11 ^hpx-kokkos %gcc@11 ^cppuddle %gcc@11 ^silo~mpi ;with-CC-with-std-with-scalar;gcc/11;medusa --exclusive;--fresh',\
-                               ' +kokkos simd_extension=AVX512 simd_library=STD  %gcc@11^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %gcc@11 ^kokkos %gcc@11 ^hpx-kokkos %gcc@11 ^cppuddle %gcc@11 ^silo~mpi ;with-CC-with-std-with-avx512;gcc/11;medusa --exclusive;--fresh',\
-                               ' +kokkos +kokkos_hpx_kernels multipole_host_tasks=16 monopole_host_tasks=4 hydro_host_tasks=4 simd_extension=AVX512 simd_library=STD  %gcc@11^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %gcc@11 ^kokkos %gcc@11 ^hpx-kokkos %gcc@11 ^cppuddle %gcc@11 ^silo~mpi ;with-CC-with-std-with-avx512-with-hpx-kokkos-kernels;gcc/11;medusa --exclusive;--fresh',\
-                               ' +kokkos simd_extension=SCALAR simd_library=KOKKOS  %gcc@11^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %gcc@11 ^kokkos %gcc@11 ^hpx-kokkos %gcc@11 ^cppuddle %gcc@11 ^silo~mpi ;with-CC-with-kokkos-with-scalar;gcc/11;medusa --exclusive;--fresh',\
-                               ' +kokkos simd_extension=AVX512 simd_library=KOKKOS  %gcc@11^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %gcc@11 ^kokkos %gcc@11 ^hpx-kokkos %gcc@11 ^cppuddle %gcc@11 ^silo~mpi ;with-CC-with-kokkos-with-avx512;gcc/11;medusa --exclusive;--fresh',\
-                               ' +kokkos +kokkos_hpx_kernels multipole_host_tasks=16 monopole_host_tasks=4 hydro_host_tasks=4 simd_extension=AVX512 simd_library=KOKKOS  %gcc@11^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %gcc@11 ^kokkos %gcc@11 ^hpx-kokkos %gcc@11 ^cppuddle %gcc@11 ^silo~mpi ;with-CC-with-kokkos-with-avx512-with-hpx-kokkos-kernels;gcc/11;medusa --exclusive;--fresh',\
-                               ' -cuda -rocm +sycl  %gcc@11 ^kokkos@4.0.01 use_unsupported_sycl_arch=70 ^hpx@1.9.1 sycl_target_arch=70;with-CC-with-kokkos-with-sycl;gcc/11 cuda/12;cuda-V100 -w diablo -c 10 --exclusive;--fresh'
+                        values ' +cuda +kokkos cuda_arch=70  %gcc@13.2.0 ^hpx@2.0.0rc1 cxxstd=20 max_cpu_count=128 malloc=system  %gcc@13.2.0 ^cppuddle %gcc@13.2.0 ^hpx-kokkos %gcc@13.2.0 ^kokkos@5.2.2 std=20 %gcc@13.2.0 ^silo~mpi~fortran ;with-CC-with-cuda-with-kokkos;gcc/11 cuda/12;cuda-V100 --exclusive;--fresh',\
+                               ' +cuda +kokkos cuda_arch=70 griddim=16  %gcc@13.2.0 ^hpx@2.0.0rc1 cxxstd=20 max_cpu_count=128 malloc=system %gcc@13.2.0 ^cppuddle %gcc@13.2.0 ^hpx-kokkos %gcc@13.2.0 ^kokkos@5.2.2 std=20 %gcc@13.2.0 ^silo~mpi~fortran ;with-CC-with-cuda-with-kokkos-griddim16;gcc/11 cuda/12;cuda-V100 --exclusive;--fresh',\
+                               ' ~cuda +kokkos  %gcc@13.2.0 ^hpx@2.0.0rc1 cxxstd=20 max_cpu_count=128 malloc=system %gcc@13.2.0 ^cppuddle %gcc@13.2.0 ^hpx-kokkos %gcc@13.2.0 ^kokkos@5.2.2 std=20 ~cuda %gcc@13.2.0 ^silo~mpi~fortran ;with-CC-without-cuda-with-kokkos;gcc/11 cuda/12;cuda-V100 --exclusive;--fresh',\
+                               ' +cuda ~kokkos cuda_arch=70 %gcc@13.2.0 ^hpx@2.0.0rc1 cxxstd=20 max_cpu_count=128 malloc=system %gcc@13.2.0 ^cppuddle %gcc@13.2.0 ^silo~mpi~fortran %gcc@13.2.0 ;with-CC-with-cuda-without-kokkos;gcc/11 cuda/12;cuda-V100 --exclusive;--fresh',\
+                               ' ~cuda ~kokkos  %gcc@13.2.0 ^hpx@2.0.0rc1 cxxstd=20 max_cpu_count=128 malloc=system %gcc@13.2.0 ^cppuddle %gcc@13.2.0 ^silo~mpi~fortran ;with-CC-without-cuda-without-kokkos;gcc/11 cuda/12;cuda-V100 --exclusive;--fresh',\
+                               ' +cuda +kokkos cuda_arch=70  %clang@20 ^hpx@2.0.0rc1 cxxstd=20 max_cpu_count=128 malloc=system %clang@20 ^cppuddle %clang@20 ^hpx-kokkos %clang@20 ^kokkos@5.2.2 std=20 ~shared %clang@20 ^silo~mpi~fortran ;with-CC-clang-with-cuda-with-kokkos;llvm/20 cuda/12;cuda-V100 --exclusive;--fresh',\
+                               ' +cuda +kokkos cuda_arch=70 griddim=16  %clang@20 ^hpx@2.0.0rc1 cxxstd=20 max_cpu_count=128 malloc=system %clang@20 ^cppuddle %clang@20 ^hpx-kokkos %clang@20 ^kokkos@5.2.2 std=20 ~shared %clang@20 ^silo~mpi~fortran ;with-CC-clang-with-cuda-with-kokkos-griddim16;llvm/20 cuda/12;cuda-V100 --exclusive;--fresh',\
+                               ' ~cuda +kokkos  %clang@20 ^hpx@2.0.0rc1 cxxstd=20 max_cpu_count=128 malloc=system %clang@20 ^cppuddle %clang@20 ^hpx-kokkos %clang@20 ^kokkos@5.2.2 std=20 %clang@20 ^silo~mpi~fortran ;with-CC-clang-without-cuda-with-kokkos;llvm/20 cuda/12;cuda-V100 --exclusive;--fresh',\
+                               ' +cuda ~kokkos cuda_arch=70  %clang@20 ^hpx@2.0.0rc1 cxxstd=20 max_cpu_count=128 malloc=system %clang@20 ^cppuddle %clang@20 ^silo~mpi~fortran ;with-CC-clang-with-cuda-without-kokkos;llvm/20 cuda/12;cuda-V100 --exclusive;--fresh',\
+                               ' ~cuda ~kokkos  %clang@20 ^hpx@2.0.0rc1 cxxstd=20 max_cpu_count=128 malloc=system %clang@20 ^cppuddle %clang@20 ^silo~mpi~fortran ;with-CC-clang-without-cuda-without-kokkos;llvm/20 cuda/12;cuda-V100 --exclusive;--fresh',\
+                               ' +rocm +kokkos amdgpu_target=gfx908 %rocmcc@6.4.1 ^hpx@2.0.0rc1 cxxstd=20 max_cpu_count=128 amdgpu_target=gfx908 %rocmcc@6.4.1 ^kokkos@5.2.2 std=20 amdgpu_target=gfx908 %rocmcc@6.4.1 ^hip@6.4.1 ^hsa-rocr-dev@6.4.1 ^llvm-amdgpu@6.4.1 ^cppuddle %rocmcc@6.4.1 ^hpx-kokkos %rocmcc@6.4.1 ^silo~mpi~fortran %gcc@13.2.0 ;with-CC-clang-with-hip-with-kokkos;rocm/6.4.1;jenkins-amdgpu --exclusive -c 16 --threads-per-core=1;--fresh --dirty',\
+                               ' +kokkos simd_extension=SCALAR simd_library=STD  %gcc@13.2.0 ^hpx@2.0.0rc1 cxxstd=20 max_cpu_count=128 malloc=system %gcc@13.2.0 ^kokkos@5.2.2 std=20 %gcc@13.2.0 ^hpx-kokkos %gcc@13.2.0 ^cppuddle %gcc@13.2.0 ^silo~mpi~fortran ;with-CC-with-std-with-scalar;gcc/11;medusa --exclusive;--fresh',\
+                               ' +kokkos simd_extension=AVX512 simd_library=STD  %gcc@13.2.0 ^hpx@2.0.0rc1 cxxstd=20 max_cpu_count=128 malloc=system %gcc@13.2.0 ^kokkos@5.2.2 std=20 %gcc@13.2.0 ^hpx-kokkos %gcc@13.2.0 ^cppuddle %gcc@13.2.0 ^silo~mpi~fortran ;with-CC-with-std-with-avx512;gcc/11;medusa --exclusive;--fresh',\
+                               ' +kokkos +kokkos_hpx_kernels multipole_host_tasks=16 monopole_host_tasks=4 hydro_host_tasks=4 simd_extension=AVX512 simd_library=STD  %gcc@13.2.0 ^hpx@2.0.0rc1 cxxstd=20 max_cpu_count=128 malloc=system %gcc@13.2.0 ^kokkos@5.2.2 std=20 %gcc@13.2.0 ^hpx-kokkos %gcc@13.2.0 ^cppuddle %gcc@13.2.0 ^silo~mpi~fortran ;with-CC-with-std-with-avx512-with-hpx-kokkos-kernels;gcc/11;medusa --exclusive;--fresh',\
+                               ' +kokkos simd_extension=SCALAR simd_library=KOKKOS  %gcc@13.2.0 ^hpx@2.0.0rc1 cxxstd=20 max_cpu_count=128 malloc=system %gcc@13.2.0 ^kokkos@5.2.2 std=20 %gcc@13.2.0 ^hpx-kokkos %gcc@13.2.0 ^cppuddle %gcc@13.2.0 ^silo~mpi~fortran ;with-CC-with-kokkos-with-scalar;gcc/11;medusa --exclusive;--fresh',\
+                               ' +kokkos simd_extension=AVX512 simd_library=KOKKOS  %gcc@13.2.0 ^hpx@2.0.0rc1 cxxstd=20 max_cpu_count=128 malloc=system %gcc@13.2.0 ^kokkos@5.2.2 std=20 %gcc@13.2.0 ^hpx-kokkos %gcc@13.2.0 ^cppuddle %gcc@13.2.0 ^silo~mpi~fortran ;with-CC-with-kokkos-with-avx512;gcc/11;medusa --exclusive;--fresh',\
+                               ' +kokkos +kokkos_hpx_kernels multipole_host_tasks=16 monopole_host_tasks=4 hydro_host_tasks=4 simd_extension=AVX512 simd_library=KOKKOS  %gcc@13.2.0 ^hpx@2.0.0rc1 cxxstd=20 max_cpu_count=128 malloc=system %gcc@13.2.0 ^kokkos@5.2.2 std=20 %gcc@13.2.0 ^hpx-kokkos %gcc@13.2.0 ^cppuddle %gcc@13.2.0 ^silo~mpi~fortran ;with-CC-with-kokkos-with-avx512-with-hpx-kokkos-kernels;gcc/11;medusa --exclusive;--fresh',\
+                               ' ~cuda ~rocm +kokkos +sycl  %gcc@13.2.0 ^kokkos@5.2.2 std=20 use_unsupported_sycl_arch=70 ^hpx@2.0.0rc1 cxxstd=20 sycl_target_arch=70;with-CC-with-kokkos-with-sycl;gcc/11 cuda/12;cuda-V100 -w diablo -c 10 --exclusive;--fresh'
                     }
                 }
                 stages {
@@ -133,48 +133,6 @@ flock --verbose -x -w 600 /work/jenkins/jenkins-spack-config.lock spack external
 flock --verbose -x -w 600 /work/jenkins/jenkins-spack-config.lock spack external find cuda hip llvm-amdgpu hsa-rocr-dev
 flock --verbose -x -w 600 /work/jenkins/jenkins-spack-config.lock spack compiler find
 spack compiler list
-# Preserve the actual site recipes and local patches before making an overlay.
-for package in octotiger hpx kokkos; do
-    package_dir=$(spack location -p "${package}")
-    recipe_snapshot=".jenkins-site-recipes/${package}"
-    mkdir -p "${recipe_snapshot}"
-    cp "${package_dir}/package.py" "${recipe_snapshot}/package.py"
-    for patch_file in "${package_dir}"/*.patch; do
-        if [[ -f "${patch_file}" ]]; then cp "${patch_file}" "${recipe_snapshot}/"; fi
-    done
-    sha256sum "${recipe_snapshot}/package.py"
-done
-spack_scope=()
-overlay_args=()
-if [[ "${spack_spec}" == *"%clang@"* || "${spack_spec}" == *"%rocmcc@"* || "${spack_spec}" == *"+sycl"* ]]; then
-    overlay_args+=(--hpx-package-dir "$(spack location -p hpx)")
-    overlay_args+=(--kokkos-package-dir "$(spack location -p kokkos)")
-    if [[ "${spack_spec}" == *"%clang@"* ]]; then
-        # Older site recipes lack a Boost variant and disable Clang blast tests.
-        overlay_args+=(--octotiger-package-dir "$(spack location -p octotiger)")
-    else
-        # Retain dependency-patch ownership in the same repository namespace.
-        overlay_args+=(--copy-package-dir "$(spack location -p octotiger)")
-    fi
-fi
-if [[ "${spack_spec}" == *"%gcc@"* && "${spack_spec}" == *"+cuda"* && "${spack_spec}" == *"+kokkos"* ]]; then
-    overlay_args+=(--octotiger-package-dir "$(spack location -p octotiger)")
-    # Spack's patch index requires these dependency recipes in the same repo.
-    # Kokkos drops only the checked shebang patch; HPX is copied unchanged.
-    overlay_args+=(--kokkos-package-dir "$(spack location -p kokkos)")
-    overlay_args+=(--copy-package-dir "$(spack location -p hpx)")
-fi
-if (( ${#overlay_args[@]} == 0 )); then
-    # Keep these site recipes unchanged apart from the Octotiger test timeout.
-    for package in octotiger hpx kokkos; do
-        overlay_args+=(--copy-package-dir "$(spack location -p "${package}")")
-    done
-fi
-overlay_args+=(--ctest-timeout 3600)
-overlay_config=$(python3 .jenkins/lsu/prepare-spack-overlay.py "${overlay_args[@]}" --output-dir "${PWD}/.jenkins-spack-overlay")
-cat "${overlay_config}/../manifest.json"
-spack_scope=(-C "${overlay_config}")
-spack "${spack_scope[@]}" spec --fresh octotiger@develop ${spack_spec}
 # Respect the allocation, including the 16-CPU HIP and 10-CPU SYCL entries.
 build_jobs=${SLURM_CPUS_PER_TASK:-${SLURM_CPUS_ON_NODE:-1}}
 case "${build_jobs}" in
@@ -209,7 +167,13 @@ if [[ "${spack_spec}" == *"+sycl"* ]]; then
         echo "GPU inventory unavailable: nvidia-smi is not installed; continuing to the tests."
     fi
 fi
-spack -v "${spack_scope[@]}" dev-build -j${build_jobs} ${extra_spack_flags} --until build --test=root octotiger@develop ${spack_spec}
+# PowerTiger supplies the pinned, patched source stack and a GCC bootstrap.
+powertiger_flags=()
+if [[ " ${extra_spack_flags} " == *" --dirty "* ]]; then
+    powertiger_flags+=(--dirty)
+fi
+python3 .jenkins/lsu/hpx2rc/run-powertiger.py \
+    --source "${PWD}" --spec "${spack_spec}" --jobs "${build_jobs}" "${powertiger_flags[@]}"
 BUILD_SCRIPT
                                 '''
                             }
@@ -274,7 +238,7 @@ BUILD_SCRIPT
     }
     post {
         always {
-            archiveArtifacts artifacts: 'octotiger-*/install-time-test-log.txt,octotiger-*/spack-build-out.txt,octotiger-*/spack-build/Testing/Temporary/*.log,octotiger-*/spack-build-*/Testing/Temporary/*.log,octotiger-*/spack-build/Testing/Temporary/*.log.tmp,octotiger-*/spack-build-*/Testing/Temporary/*.log.tmp,octotiger-*/spack-build/Testing/Temporary/CTestCheckpoint.txt,octotiger-*/spack-build-*/Testing/Temporary/CTestCheckpoint.txt,octotiger-*/.jenkins-site-recipes/**/*,octotiger-*/.jenkins-spack-overlay/manifest.json,octotiger-*/.jenkins-spack-overlay/repo/packages/**/*.py,octotiger-*/.jenkins-spack-overlay/repo/packages/**/*.patch', allowEmptyArchive: true
+            archiveArtifacts artifacts: 'octotiger-*/install-time-test-log.txt,octotiger-*/spack-build-out.txt,octotiger-*/spack-build/Testing/Temporary/*.log,octotiger-*/spack-build-*/Testing/Temporary/*.log,octotiger-*/spack-build/Testing/Temporary/*.log.tmp,octotiger-*/spack-build-*/Testing/Temporary/*.log.tmp,octotiger-*/spack-build/Testing/Temporary/CTestCheckpoint.txt,octotiger-*/spack-build-*/Testing/Temporary/CTestCheckpoint.txt,octotiger-*/.jenkins-spack-overlay/manifest.json,octotiger-*/.jenkins-powertiger-provenance.json,octotiger-*/.jenkins-spack-overlay/config/*.yaml,octotiger-*/spack-build/test_problems/**/*_log.txt,octotiger-*/.jenkins-spack-overlay/repo/packages/**/*.py,octotiger-*/.jenkins-spack-overlay/repo/packages/**/*.patch', allowEmptyArchive: true
         }
         success {
             script {
