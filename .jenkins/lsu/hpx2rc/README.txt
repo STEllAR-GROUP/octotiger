@@ -18,7 +18,10 @@ of optional hipBLAS, which Octotiger does not use, while keeping HIP compute
 enabled. Neither correction changes the numerical tests.
 
 The driver stages recipes, patches, compiler configuration and package-index
-cache per matrix row. GCC rows request GCC 13.2.0: a working existing compiler
+cache per matrix row. Dependency source and build directories are also private
+to each row's fresh checkout, so interrupted shared stages cannot be reused.
+Installed packages and downloaded source archives remain shared through Spack.
+GCC rows request GCC 13.2.0: a working existing compiler
 is detected on the current operating system, or GCC is built from source with
 the available GCC 11 compiler. Compiler bootstrapping is serialized and stays
 within the row's Slurm allocation. Installation reuse is handled by Spack's

@@ -3,6 +3,6 @@
   "commit": "b80f2c9e0bfe84f1c811898129c034188400aaa1",
   "patch": {
     "file": "powertiger.patch",
-    "sha256": "41fed352c76a1a8604282c36b7c20afd307b86b937476250090a6f10a2e7b1f7"
+    "sha256": "5e6b3a9468ebc2a47c8a99faf6b59060879c8e0d87a90af0ed10c219e28f314e"
   }
 }

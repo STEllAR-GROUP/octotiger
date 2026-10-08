@@ -1,8 +1,9 @@
 diff --git a/build-stack.py b/build-stack.py
 new file mode 100644
+index 0000000..3ddcc27
 --- /dev/null
 +++ b/build-stack.py
-@@ -0,0 +1,309 @@
+@@ -0,0 +1,312 @@
 +#!/usr/bin/env python3
 +"""Build the locked Octotiger stack using a job-private Spack repository."""
 +import argparse
@@ -114,7 +115,10 @@ new file mode 100644
 +        raise ValueError("Refusing symlink configuration directory")
 +    config.mkdir(exist_ok=True)
 +    write_json(config / "repos.yaml", {"repos": [str(repo)]})
++    # Jenkins recreates each row's checkout. Override the site's shared stages,
++    # where interrupted builds can leave sources marked as already extracted.
 +    write_json(config / "config.yaml", {"config": {"misc_cache": str(output / "cache"),
++                                                   "build_stage:": [str(output / "stage")],
 +                                                   "build_jobs": jobs}})
 +    write_json(config / "concretizer.yaml", {"concretizer": {"reuse": False}})
 +    # Keep site settings for supporting packages, but never use external core libraries.
@@ -314,9 +318,10 @@ new file mode 100644
 +        sys.exit(1)
 diff --git a/README.md b/README.md
 new file mode 100644
+index 0000000..62f449b
 --- /dev/null
 +++ b/README.md
-@@ -0,0 +1,64 @@
+@@ -0,0 +1,67 @@
 +# PowerTiger
 +
 +`build-stack.py` builds the pinned Octotiger dependency stack using the Spack
@@ -348,7 +353,10 @@ new file mode 100644
 +then stages recipes and adjacent patches in
 +`SOURCE/.jenkins-spack-overlay/repo`. A private configuration directory contains
 +repository precedence, compiler registrations, the job count, and an isolated
-+Spack metadata cache. It preserves site configuration for supporting packages,
++Spack metadata cache. Dependency source and build stages are isolated under
++`SOURCE/.jenkins-spack-overlay/stage`; Jenkins recreates each row's checkout
++before a run. Installed packages and downloaded source archives still use the
++site's shared caches. It preserves site configuration for supporting packages,
 +but disallows external HPX, Kokkos, HPXKokkos, CPPuddle, and Silo. The manifest records
 +exact recipe hashes, source pins, selected compiler, and requested spec.
 +Nothing is written to the site's compiler configuration. Kokkos has no source
@@ -383,6 +391,7 @@ new file mode 100644
 +runtime success.
 diff --git a/tests/check-spack-compiler-query.py b/tests/check-spack-compiler-query.py
 new file mode 100644
+index 0000000..94dfd7f
 --- /dev/null
 +++ b/tests/check-spack-compiler-query.py
 @@ -0,0 +1,67 @@
