@@ -2,7 +2,7 @@ diff --git a/build-stack.py b/build-stack.py
 new file mode 100644
 --- /dev/null
 +++ b/build-stack.py
-@@ -0,0 +1,302 @@
+@@ -0,0 +1,309 @@
 +#!/usr/bin/env python3
 +"""Build the locked Octotiger stack using a job-private Spack repository."""
 +import argparse
@@ -222,8 +222,15 @@ new file mode 100644
 +            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 +
 +
++def query_compilers(spack):
++    # Spack's -c uses InteractiveConsole's single-statement mode, unlike
++    # python -c. exec() keeps this multiline program one complete statement.
++    return json.loads(spack.run("python", "-c", "exec(" + repr(COMPILER_QUERY) + ")",
++                                capture=True))
++
++
 +def ensure_gcc(spack, jobs, bootstrap):
-+    data = json.loads(spack.run("python", "-c", COMPILER_QUERY, capture=True))
++    data = query_compilers(spack)
 +    records, os_name = data["compilers"], data["os"]
 +    selected = find_gcc(records, GCC_VERSION, os_name, spack.env)
 +    private = spack.config / "compilers.yaml"
@@ -374,3 +381,75 @@ new file mode 100644
 +Other compilers, architectures, and HIP/SYCL configurations require their own
 +Jenkins validation. Staging and mocked-driver checks do not establish build or
 +runtime success.
+diff --git a/tests/check-spack-compiler-query.py b/tests/check-spack-compiler-query.py
+new file mode 100644
+--- /dev/null
++++ b/tests/check-spack-compiler-query.py
+@@ -0,0 +1,67 @@
++#!/usr/bin/env python3
++"""Exercise the production compiler query against an actual Spack CLI.
++
++No compiler probes, concretization, downloads, or builds are performed.
++"""
++import argparse
++import contextlib
++import importlib.util
++import io
++import json
++import os
++from pathlib import Path
++import subprocess
++import tempfile
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--spack", type=Path, required=True)
++    parser.add_argument("--output", type=Path)
++    args = parser.parse_args()
++    path = Path(__file__).resolve().parent.parent / "build-stack.py"
++    module_spec = importlib.util.spec_from_file_location("powertiger_driver", str(path))
++    driver = importlib.util.module_from_spec(module_spec)
++    module_spec.loader.exec_module(driver)
++    with tempfile.TemporaryDirectory(prefix="powertiger-query-") as directory:
++        root = Path(directory)
++        config = root / "config"
++        config.mkdir()
++        driver.write_json(config / "config.yaml", {"config": {"misc_cache": str(root / "cache"),
++                                                               "build_jobs": 1}})
++        # A private fixture record ensures the query actually reads this scope.
++        fixture = driver.compiler_record("/powertiger-fixture/gcc", "/powertiger-fixture/g++",
++                                         "13.2.0", "powertiger-test-os")
++        driver.write_json(config / "compilers.yaml", {"compilers": [fixture]})
++        env = driver.build_environment(dict(os.environ, PYTHONDONTWRITEBYTECODE="1"), 1)
++        spack = driver.Spack(str(args.spack.resolve()), config, root, env)
++        failed = subprocess.run([spack.executable, "-C", str(config), "python", "-c",
++                                 driver.COMPILER_QUERY], cwd=str(root), env=env,
++                                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
++                                universal_newlines=True, timeout=60)
++        assert failed.returncode != 0, "Old multiline invocation unexpectedly succeeded"
++        assert "multiple statements found while compiling a single statement" in failed.stderr
++        log = io.StringIO()
++        with contextlib.redirect_stdout(log):
++            actual = driver.query_compilers(spack)
++        assert actual["os"] and isinstance(actual["os"], str)
++        assert fixture in actual["compilers"], "Private compiler scope was not read"
++        expression = "exec(" + repr(driver.COMPILER_QUERY) + ")"
++        compile(expression, "<production-spack-query>", "single")
++        result = {"checks_passed": 4,
++                  "checks": ["Original production query reproduces real Spack SyntaxError",
++                             "Corrected production query succeeds through real Spack CLI",
++                             "Corrected query reads job-private compiler configuration",
++                             "Corrected expression is one InteractiveConsole statement"],
++                  "spack_version": spack.run("--version", capture=True),
++                  "detected_os": actual["os"],
++                  "old_query_exit_code": failed.returncode,
++                  "production_command": log.getvalue().strip(),
++                  "driver_sha256": driver.digest(path)}
++        if args.output:
++            driver.write_json(args.output, result)
++        print(json.dumps(result, indent=2))
++
++
++if __name__ == "__main__":
++    main()
