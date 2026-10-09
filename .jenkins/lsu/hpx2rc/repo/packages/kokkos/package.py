@@ -27,6 +27,7 @@ class Kokkos(CMakePackage, CudaPackage, ROCmPackage):
     depends_on("cuda@12.2:", when="+cuda")
     depends_on("hip@6.2:", when="+rocm")
     depends_on("dpcpp@2024.2.1: +cuda", when="+sycl")
+    depends_on("onedpl@2022.7.1", when="+sycl", type=("build", "link"))
     conflicts("%gcc@:11", when="~sycl")
     conflicts("%clang@:15")
     conflicts("+cuda", when="+rocm")
@@ -62,6 +63,7 @@ class Kokkos(CMakePackage, CudaPackage, ROCmPackage):
             args.append(self.define("Kokkos_ARCH_VOLTA70", True))
         if "+sycl" in self.spec:
             args.append(self.define("Kokkos_ENABLE_UNSUPPORTED_ARCHS", True))
+            args.append(self.define("oneDPL_DIR", self.spec["onedpl"].prefix.lib.cmake.oneDPL))
         if "+rocm" in self.spec:
             if not self.spec.satisfies("amdgpu_target=gfx908"):
                 raise InstallError("This Jenkins matrix requires AMD architecture gfx908")

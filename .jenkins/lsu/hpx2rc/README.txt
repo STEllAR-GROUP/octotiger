@@ -34,6 +34,10 @@ source with its CUDA adapter. This release supports the row's Volta target;
 the old site's SYCL compiler is below Kokkos 5.2's supported compiler version.
 Its GCC host configuration enables the pinned release's compatibility option
 for GCC_INSTALL_PREFIX, preserving the selected GCC's headers and runtime.
+Kokkos's SYCL dependency oneDPL 2022.7.1 is installed from pinned source with
+its upstream CMake package generator. The source-built compiler does not ship
+these headers. Kokkos records the oneDPL package path in its exported config
+so HPXKokkos and Octotiger can find the same headers downstream.
 HPX's bundled stdexec also gains an atomic-header opt-out for this SYCL stack:
 CUDA's CCCL assertion declaration conflicts with the pinned SYCL headers.
 HPX exports STDEXEC_NO_CUDA_STD_ATOMIC through its Stdexec interface target

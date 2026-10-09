@@ -106,6 +106,13 @@
     }
   },
   "subdependencies": {
+    "onedpl": {
+      "url": "https://github.com/uxlfoundation/oneDPL.git",
+      "commit": "4d9921f2203ea452a020bf2e52947a7e576c35e1",
+      "tag": "oneDPL-2022.7.1-release",
+      "managed_by": "Private onedpl recipe; Kokkos SYCL build/link dependency with exported oneDPL_DIR.",
+      "patches": []
+    },
     "stdexec": {
       "url": "https://github.com/NVIDIA/stdexec.git",
       "commit": "04de75de5807e73a229acf047c6976575e313359",
