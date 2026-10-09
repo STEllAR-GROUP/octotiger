@@ -24,3 +24,15 @@ index 68f3d8a..ae76757 100644
          int>::type = 0>
  hpx::shared_future<void> for_each_range_helper(char const *label,
                                                 ExecutionSpace &&instance,
+diff --git a/src/hpx/kokkos/deep_copy.hpp b/src/hpx/kokkos/deep_copy.hpp
+--- a/src/hpx/kokkos/deep_copy.hpp
++++ b/src/hpx/kokkos/deep_copy.hpp
+@@ -87,7 +87,7 @@
+     throw std::runtime_error(
+         "deep_copy_async: Error, SYCL views are overlapping");
+   }
+-  auto& q = *instance.impl_internal_space_instance()->m_queue;
++  auto& q = instance.sycl_queue();
+   if (!(q.is_in_order())) {
+     throw std::runtime_error(
+         "deep_copy_async: Error, underlying SYCL queue is not in-order");

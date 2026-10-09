@@ -68,7 +68,7 @@
       "patches": [
         {
           "file": "hpx-kokkos.patch",
-          "sha256": "1514a7e3d3e37a38c4c39e033cf57b90eff34c917d1562dfade818004da926a9"
+          "sha256": "67543f2f478da6f3628ccfa9b0f52e87a8aa2eebea2e9c1cb4787ad8dd117213"
         }
       ],
       "changed_files": [
@@ -76,6 +76,11 @@
           "path": "src/hpx/kokkos/hpx_algorithms_for_each.hpp",
           "patched_sha256": "4dd17e96bc3f8cdd2ead065982eccb68eab2769da9c26f612ac25d6a4c4669b7",
           "base_sha256": "932c76ca03201faeb4446c775d460888a8f734a4ff6e3afaec8c148e17197b5e"
+        },
+        {
+          "path": "src/hpx/kokkos/deep_copy.hpp",
+          "base_sha256": "3791317967b87e76dcf5dd8eddfeeb429023435528974c392b42a422d9631c40",
+          "patched_sha256": "b7e04f60ef80404af2250b931b4a8de3d5477d44a9493d026a4220fdbc0fc745"
         }
       ]
     },

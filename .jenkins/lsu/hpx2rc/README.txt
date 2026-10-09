@@ -11,6 +11,10 @@ stack-lock.json records the locally validated HPX 2.0.0-rc1, pristine Kokkos
 source trees. HPX applies the nested stdexec patches during configuration.
 Kokkos has no source patch. C++20 is used throughout this stack.
 
+HPXKokkos uses Kokkos's public sycl_queue() accessor for asynchronous deep
+copies. This preserves the execution instance's queue across Kokkos versions
+that store it as a pointer or a value, without depending on internal storage.
+
 Silo 4.12.1 includes the upstream HDF5 1.14 driver-table and curve-name fixes
 needed by modern Clang. It builds from pristine source with CMake and without
 the unused Fortran interface. The ROCm HPX configuration disables discovery
