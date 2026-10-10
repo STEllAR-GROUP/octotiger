@@ -370,6 +370,7 @@ public:
 	real compute_positivity_speed_limit() const;
 	void compute_sources(real t, real);
 	void set_physical_boundaries(const geo::face&, real t);
+	void export_radiation_hydro(real t) const;
 	void next_u(integer rk, real t, real dt);
 	template<class Archive>
 	void load(Archive &arc, const unsigned);

@@ -1,4 +1,6 @@
 /build
+/build-qb4-radiation/
+/profile.txt
 .ptp-sync*
 newgit
 cmake-build-*
@@ -11,5 +13,6 @@ compile_commands.json
 
 # Radiation harness build products and Python caches.
 /radiation_results/.build/
+/radiation_results/results/
 __pycache__/
 *.pyc

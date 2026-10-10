@@ -394,7 +394,12 @@ void init_problem(void) {
     grid::set_scaling_factor(opts().xscale);
     grid::set_min_level(opts().min_level);
     grid::set_max_level(opts().max_level);
-    if (radiationRegressionProblem()) {
+    if (radiationHydroProblem()) {
+        grid::set_fgamma(radiationHydroTests::gamma);
+        set_problem(radiationHydroInit);
+        set_analytic(nullptr);
+        set_refine_test(radiation_test_refine);
+    } else if (radiationRegressionProblem()) {
         grid::set_fgamma(5.0 / 3.0);
         set_problem(radiationRegressionInit);
         set_analytic(radiationRegressionAnalytic);

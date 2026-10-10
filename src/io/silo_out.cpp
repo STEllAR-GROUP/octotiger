@@ -369,7 +369,8 @@ void output_stage4(std::string fname, int cycle) {
 		fi(db, "periodic", integer(opts().periodic));
 		if (opts().radiation) {
 			// Preserve the transport/source model together with the evolved fields.
-			fi(db, "radiation_options_version", integer(1));
+			fi(db, "radiation_options_version", integer(2));
+			fr(db, "radiation_reduced_c_factor", opts().radiation_reduced_c_factor);
 			fi(db, "rad_implicit", integer(opts().rad_implicit));
 			fr(db, "rad_test_chi", opts().radTestChi);
 			fr(db, "rad_test_width", opts().radTestWidth);
@@ -380,6 +381,17 @@ void output_stage4(std::string fname, int cycle) {
 			DBWrite(db, "rad_reference", opts().radReference.c_str(), &reference_length, 1, DB_CHAR);
 		}
 		fr(db, "refinement_floor", opts().refinement_floor);
+		if (opts().gradient_refine_field != "none") {
+			fi(db, "gradient_amr_options_version", integer(1));
+			fi(db, "gradient_refine_field", integer(opts().gradient_refine_field == "density" ? 1 : 2));
+			fi(db, "gradient_refine_mode", integer(opts().gradient_refine_mode == "absolute" ? 0 : 1));
+			fr(db, "gradient_refine_threshold", opts().gradient_refine_threshold);
+			fr(db, "gradient_refine_floor", opts().gradient_refine_floor);
+			fr(db, "gradient_refine_coarsen_factor", opts().gradient_refine_coarsen_factor);
+			fi(db, "gradient_refine_buffer", opts().gradient_refine_buffer);
+			fi(db, "gradient_min_level", opts().min_level);
+			fi(db, "gradient_max_level", opts().max_level);
+		}
 		fr(db, "cgs_time", dtime);
 		fr(db, "rotational_time", rtime);
 		fr(db, "xscale", opts().xscale);

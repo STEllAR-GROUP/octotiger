@@ -20,7 +20,8 @@
 // https://doi.org/10.1088/0067-0049/206/2/21; https://arxiv.org/abs/1306.0010.
 // S&O write radiation energy as ℰ and use physical F. Here E = ℰ and
 // Q = F/c, so every ConservedState component has energy-density units.
-// We use the full light speed (their ĉ = c); subgrid storage still holds F.
+// Subgrid storage holds physical F. Transport accepts ĉ, while coupling keeps
+// physical c and a separate constant ĉ/c (one by default).
 //
 // dimensionCount counts transported flux components. The closure retains the
 // physical three-dimensional angular moments (P = E I / 3 at isotropy), also
@@ -66,7 +67,8 @@ public:
 		Primitives toPrimitives() const;
 		Closure closure() const;
 		CoupledState couple(SpatialVector const &momentum, Type gasEnergy, Type internalEnergy,
-			Type rho, Type chiA, Type chiT, Type dt, Type c, Type logAlpha, bool marshak = false) const;
+			Type rho, Type chiA, Type chiT, Type dt, Type c, Type logAlpha, bool marshak = false,
+			Type reducedCFactor = Type(1)) const;
 		FluxState physicalFlux(int normal, Type c, Type gridVelocity = 0) const;
 		void checkState() const {
 #ifndef NDEBUG
@@ -136,8 +138,8 @@ public:
 	};
 
 	// Hanawa & Audit (41)--(43): ∂ₜU + c ∂ₙF = 0, U = (E, Hβ).
-	// Our ConservedFlux includes c: ℱₙ(U) = c F = (c Qₙ, c Pₙⱼ).
-	// This also follows from S&O (20)--(21), ĉ = c, after rescaling Fphysical/c.
+	// ConservedFlux includes the supplied propagation speed: ℱₙ=(ĉ Qₙ,ĉ Pₙⱼ).
+	// This follows from S&O (20)--(21), after rescaling Fphysical/physical-c.
 	// physicalFlux means the PDE flux of U; it does not convert Q back to F.
 	class ConservedFlux : public StateVector {
 	public:
@@ -213,7 +215,7 @@ public:
 		return {minus.toConserved(), plus.toConserved()};
 	}
 
-	// S&O (2013), (38)--(39), with ĉ = c; formula in hllFromFluxes below.
+	// S&O (2013), (38)--(39), using the supplied propagation speed ĉ.
 	// Use the extreme Hanawa-Audit characteristics from both reconstructed states.
 	static ConservedFlux hll(ConservedState const &left, ConservedState const &right,
 		int normal, Type c, Type gridVelocity = 0) {
@@ -247,29 +249,31 @@ public:
 		return std::min(cfl, Type(0.25)) * dx / (Type(dimensionCount) * (c + gridSpeed));
 	}
 
-	// S&O (44a,b), with ĉ = c and χₐ = ρ κ₀:
-	//   ∂ₜe = -c χₐ(αe⁴ - ℰ),  ∂ₜℰ = c χₐ(αe⁴ - ℰ),
+	// S&O (44a,b), with χₐ = ρ κ₀ and ε = ĉ/c:
+	//   ∂ₜe = -c χₐ(αe⁴ - ℰ),  ∂ₜℰ = ĉ χₐ(αe⁴ - ℰ).
+	// Thus e + ℰ/ε is conserved; the physical LTE relation is unchanged.
 	//   α = aᵣ[(γ - 1)μ/(ρ k_B)]⁴,  ℰ_eq = αe⁴ = aᵣT⁴.
 	// Here logAlpha = ln(α); μ is the mean particle mass. Freeze opacities
 	// for the step and use θ = 1 in (47)--(49) (backward Euler).
 	// The Marshak test substitutes ℰ_eq = e for this ideal-gas relation.
 	static Energies thermalExchange(Type e, Type E, Type eta, Type logAlpha,
-		bool marshak = false) {
+		bool marshak = false, Type reducedCFactor = Type(1)) {
 		FpeGuard fpeGuard{};
 		(void) nonNegative(E);
 		(void) nonNegative(eta);
+		(void) positive(reducedCFactor);
 		if (eta == 0) {
       return {nonNegative(e), E};
     }
     // Rearrangement of S&O (49): x + w αx⁴ = r, with x = eⁿ⁺¹,
-		// η = c χₐ Δt, w = η/(1 + η), r = eⁿ + w ℰⁿ.
-		// From (47)--(48), ℰⁿ⁺¹ = ℰⁿ/(1 + η) + w αx⁴.
-		auto const inverse = Type(1) / (Type(1) + eta);
+		// η = c χₐ Δt, w = η/(1 + εη), r = eⁿ + w ℰⁿ.
+		// From (47)--(48), ℰⁿ⁺¹ = ℰⁿ/(1 + εη) + εw αx⁴.
+		auto const inverse = Type(1) / (Type(1) + reducedCFactor * eta);
 		auto const weight = eta * inverse;
 		auto const rhs = nonNegative(e + weight * E);
 		if (marshak) {
 			auto const gas = rhs / (Type(1) + weight);
-			return {gas, inverse * E + weight * gas};
+			return {gas, inverse * E + reducedCFactor * weight * gas};
 		}
 		if (rhs == 0) {
       return {0, inverse * E};
@@ -290,7 +294,7 @@ public:
 			auto const y2 = y * y;
 			auto const residual = linear * y + quartic * y2 * y2 - Type(1);
 			if (std::abs(residual) <= Type(16) * std::numeric_limits<Type>::epsilon()) {
-				return {scale * y, inverse * E + rhs * quartic * y2 * y2};
+				return {scale * y, inverse * E + reducedCFactor * rhs * quartic * y2 * y2};
 			}
 			if (residual > 0) {
         hi = y;
@@ -487,14 +491,17 @@ auto RadiationM1<Type, dimensionCount>::Primitives::closure() const -> Closure {
 // pressure tensor rather than the isotropic substitution (18).
 // Gas v/c here is distinct from the radiation primitive β. The velocity
 // terms must be non-stiff; a light-crossing CFL alone does not guarantee this.
+// Under RSLA both radiation right-hand sides above are multiplied by ĉ/c;
+// gas sources retain physical rates and the combined invariants are weighted.
 template <typename Type, int dimensionCount>
 auto RadiationM1<Type, dimensionCount>::ConservedState::couple(SpatialVector const &momentum,
 	Type gasEnergy, Type internalEnergy, Type rho, Type chiA, Type chiT, Type dt,
-	Type c, Type logAlpha, bool marshak) const -> CoupledState {
+	Type c, Type logAlpha, bool marshak, Type reducedCFactor) const -> CoupledState {
 	FpeGuard fpeGuard{};
 	auto const &u = *this;
 	checkState();
 	(void) positive(c);
+	Type const transportC = positive(reducedCFactor) * c;
 	(void) positive(rho);
 	(void) nonNegative(internalEnergy);
 	(void) nonNegative(chiA);
@@ -506,32 +513,33 @@ auto RadiationM1<Type, dimensionCount>::ConservedState::couple(SpatialVector con
 	auto const velocity = momentum / rho;
 	auto const Q = u.normalizedFlux();
 	auto const m = closure();
-	auto const eta = nonNegative(dt * c * chiT);
+	auto const eta = nonNegative(dt * transportC * chiT);
 	auto const inverse = Type(1) / (Type(1) + eta);
 	auto const weight = eta * inverse;
 	auto const betaV = m.beta.dot(velocity);
 	CoupledState result;
 	Type kineticChange = 0;
 	// Backward-Euler damping (S&O 43, θ = 1), with the (8e) velocity source
-	// evaluated at the old state: Qⁿ⁺¹ = [Qⁿ + Δt χₜ(ℰ I + P)·v]/(1 + c χₜ Δt).
-	// Opposite gas increments conserve m + Q/c (S&O 8b,e with ĉ = c).
+	// evaluated at the old state: Qⁿ⁺¹ = [Qⁿ + ε Δt χₜ(ℰ I + P)·v]/(1 + ĉ χₜ Δt).
+	// RSLA scales the whole radiation source, retaining physical c in Q_eq.
+	// Opposite gas increments conserve m + Q/ĉ (S&O 8b,e).
 	for (int d = 0; d < dimensionCount; ++d) {
 		auto const advectiveFlux = ((u[0] + m.pressure) * velocity[d] + m.H * m.beta[d] * betaV) / c;
 		result.radiation[d + 1] = inverse * Q[d] + weight * advectiveFlux;
-		auto const dm = (Q[d] - result.radiation[d + 1]) / c;
+		auto const dm = (Q[d] - result.radiation[d + 1]) / transportC;
 		result.momentum[d] = momentum[d] + dm;
 		kineticChange += dm * (velocity[d] + Type(0.5) * dm / rho);
 	}
 	auto const explicitWork = dt * (Type(2) * chiA - chiT) * velocity.dot(Q);
-	auto const eRadiationStar = u[0] + explicitWork;
+	auto const eRadiationStar = u[0] + reducedCFactor * explicitWork;
 	auto const eGasStar = internalEnergy - explicitWork - kineticChange;
 	// No clipping of a failed explicit update: that would destroy conservation.
-	if (!(eRadiationStar >= 0) || !(eGasStar + (dt * c * chiA / (Type(1) + dt * c * chiA)) * eRadiationStar >= 0)) {
+	if (!(eRadiationStar >= 0) || !(eGasStar + (dt * c * chiA / (Type(1) + dt * transportC * chiA)) * eRadiationStar >= 0)) {
 		throw std::runtime_error("Radiation explicit source step exhausted the available energy; decrease the shared timestep");
 	}
-	auto const energy = thermalExchange(eGasStar, eRadiationStar, dt * c * chiA, logAlpha, marshak);
+	auto const energy = thermalExchange(eGasStar, eRadiationStar, dt * c * chiA, logAlpha, marshak, reducedCFactor);
 	result.radiation[0] = energy.radiation;
-	result.gasEnergy = gasEnergy + (u[0] - energy.radiation);
+	result.gasEnergy = gasEnergy + (u[0] - energy.radiation) / reducedCFactor;
 	result.internalEnergy = energy.gas;
 	result.radiation.checkState();
 	(void) nonNegative(result.internalEnergy);

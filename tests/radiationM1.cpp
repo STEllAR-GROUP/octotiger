@@ -464,11 +464,12 @@ void physicalSourceReference(Type c) {
 	// Levermore's E/f tensor, then apply physical flux damping and recoil.
 	auto const chi = (3 + 4 * reducedSquared) / (5 + 2 * std::sqrt(4 - 3 * reducedSquared));
 	Type const chiT = Type(0.7);
+	for (Type const factor : {Type(1), Type(0.1), Type(0.01)}) {
 	for (Type const dt : {Type(0.025) / c, Type(0.25) / c, Type(0.1)}) {
 		for (Type const chiA : {Type(0), Type(0.4)}) {
 			auto const result = u.couple(momentum, gasEnergy, internalEnergy,
-				rho, chiA, chiT, dt, c, Type(0), true);
-			auto const etaT = static_cast<long double>(dt) * c * chiT;
+				rho, chiA, chiT, dt, c, Type(0), true, factor);
+			auto const etaT = static_cast<long double>(dt) * c * chiT * factor;
 			long double velocityFlux = 0, kineticChange = 0;
 			for (int d = 0; d < dimensionCount; ++d) {
 				long double advectiveFlux = u[0] * velocity[d];
@@ -478,25 +479,101 @@ void physicalSourceReference(Type c) {
 					advectiveFlux += pressure * velocity[k];
 				}
 				auto const updatedFlux = (physicalFlux[d] + etaT * advectiveFlux) / (1 + etaT);
-				auto const recoil = (physicalFlux[d] - updatedFlux) / c / c;
+				auto const recoil = (physicalFlux[d] - updatedFlux) / c / c / factor;
 				kineticChange += recoil * (velocity[d] + recoil / (2 * rho));
 				velocityFlux += velocity[d] * physicalFlux[d];
 				near(result.radiation[d + 1], updatedFlux / c, updatedFlux / c, "physical-F damping reference converted to Q", 512);
 				near(result.momentum[d], momentum[d] + recoil, momentum[d], "physical-F recoil reference", 512);
 			}
 			auto const work = dt * (2.L * chiA - chiT) * velocityFlux / c;
-			auto const radiationStar = u[0] + work;
+			auto const radiationStar = u[0] + factor * work;
 			auto const gasStar = internalEnergy - work - kineticChange;
 			auto const etaA = static_cast<long double>(dt) * c * chiA;
 			// Marshak equilibrium radiation energy Eeq=e makes the exchange a 2x2 linear
 			// system. Solve it directly, without using the implementation's solver.
-			auto const expectedGas = ((1 + etaA) * gasStar + etaA * radiationStar) / (1 + 2 * etaA);
-			auto const expectedRadiation = gasStar + radiationStar - expectedGas;
+			auto const expectedGas = ((1 + factor * etaA) * gasStar + etaA * radiationStar) / (1 + (1 + factor) * etaA);
+			auto const expectedRadiation = (radiationStar + factor * etaA * expectedGas) / (1 + factor * etaA);
 			near(result.internalEnergy, expectedGas, internalEnergy, "physical-F source reference gas internal energy", 512);
 			near(result.radiation[0], expectedRadiation, u[0], "physical-F source reference radiation energy", 512);
-			near(result.gasEnergy, gasEnergy + (u[0] - expectedRadiation), gasEnergy, "physical-F source reference gas total energy", 512);
+			near(result.gasEnergy, gasEnergy + (u[0] - expectedRadiation) / factor, gasEnergy, "physical-F source reference gas total energy", 512);
 		}
 	}
+}
+}
+
+// Independent RSLA checks: backward-Euler equations, weighted invariants,
+// unchanged LTE, and propagation/CFL at c-hat with physical F/c normalization.
+template <class Type, int dimensionCount>
+void reducedLightSpeed(Type c) {
+    using M1 = Method<Type, dimensionCount>;
+    for (Type const factor : {Type(1), Type(0.1), Type(0.01)}) {
+        for (Type const eta : {Type(1e-4), Type(1), Type(1e6)}) {
+            for (bool const marshak : {false, true}) {
+                Type const e = Type(2), E = Type(0.3), alpha = Type(0.07);
+                auto const next = M1::thermalExchange(e, E, eta, std::log(alpha), marshak, factor);
+                long double const equilibrium = marshak ? static_cast<long double>(next.gas)
+                    : static_cast<long double>(alpha) * std::pow(static_cast<long double>(next.gas), 4);
+                long double const expectedE = (E + static_cast<long double>(factor) * eta * equilibrium)
+                    / (1 + static_cast<long double>(factor) * eta);
+                near(next.radiation, expectedE, E, "RSLA implicit radiation equation", 1024);
+                near(next.gas + next.radiation / factor, e + static_cast<long double>(E) / factor,
+                    e + E / factor, "RSLA weighted thermal conservation", 1024);
+                require(next.gas >= 0 && next.radiation >= 0, "RSLA thermal positivity");
+                if (factor == Type(1)) {
+                    auto const legacy = M1::thermalExchange(e, E, eta, std::log(alpha), marshak);
+                    require(next.gas == legacy.gas && next.radiation == legacy.radiation,
+                        "factor-one thermal path equals default");
+                }
+            }
+            auto const lte = M1::thermalExchange(Type(2), Type(1), eta, std::log(Type(1)/16), false, factor);
+            near(lte.gas, 2, 2, "RSLA preserves physical LTE gas");
+            near(lte.radiation, 1, 1, "RSLA preserves physical LTE radiation");
+        }
+        typename M1::ConservedState beam{};
+        beam[0] = beam[1] = Type(2);
+        auto const transported = beam.physicalFlux(0, factor*c);
+        near(transported.flux[0], static_cast<long double>(factor)*c*beam[0], c*beam[0],
+            "RSLA streaming speed");
+        near(M1::transportTimestep(Type(1), factor*c, Type(0.25))*factor,
+            M1::transportTimestep(Type(1), c, Type(0.25)), Type(1)/c, "RSLA enlarged CFL");
+
+        typename M1::ConservedState u{};
+        typename M1::SpatialVector momentum{};
+        u[0] = Type(4);
+        Type const rho = Type(2), e = Type(3);
+        Type kinetic = 0;
+        for (int d=0; d<dimensionCount; ++d) {
+            u[d+1] = Type(0.1*(d+1));
+            momentum[d] = Type(0.05*(d+1));
+            kinetic += momentum[d]*momentum[d]/(2*rho);
+        }
+        Type const gas = e+kinetic;
+        Type const dt = Type(0.1)/c;
+        auto const next = u.couple(momentum, gas, e, rho, Type(0.4), Type(0.7),
+            dt, c, std::log(Type(0.04)), false, factor);
+        near(next.gasEnergy+next.radiation[0]/factor,
+            gas+static_cast<long double>(u[0])/factor, gas+u[0]/factor,
+            "RSLA weighted coupled energy", 1024);
+        Type newKinetic=0;
+        for (int d=0; d<dimensionCount; ++d) {
+            near(next.momentum[d]+next.radiation[d+1]/(factor*c),
+                momentum[d]+static_cast<long double>(u[d+1])/(factor*c),
+                std::abs(momentum[d])+std::abs(u[d+1]/(factor*c)),
+                "RSLA weighted coupled momentum", 1024);
+            newKinetic += next.momentum[d]*next.momentum[d]/(2*rho);
+        }
+        near(next.internalEnergy+newKinetic, next.gasEnergy, gas+u[0]/factor,
+            "RSLA internal/total gas consistency", 1024);
+        if (factor == Type(1)) {
+            auto const legacy = u.couple(momentum, gas, e, rho, Type(0.4), Type(0.7),
+                dt, c, std::log(Type(0.04)));
+            require(next.gasEnergy==legacy.gasEnergy && next.internalEnergy==legacy.internalEnergy,
+                "factor-one coupled gas path equals default");
+            for (int f=0; f<=dimensionCount; ++f) {
+                require(next.radiation[f]==legacy.radiation[f], "factor-one radiation equals default");
+            }
+        }
+    }
 }
 
 template <class Type, int dimensionCount>
@@ -508,6 +585,7 @@ void run() {
 		primitiveFluxPaths<Type, dimensionCount>(c);
 		sourceConservation<Type, dimensionCount>(c);
 		physicalSourceReference<Type, dimensionCount>(c);
+		reducedLightSpeed<Type, dimensionCount>(c);
 	}
 }
 

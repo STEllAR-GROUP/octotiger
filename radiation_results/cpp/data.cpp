@@ -152,10 +152,56 @@ Json read_norms(const fs::path &folder, const Json &m)
   }
 	return rows;
 }
+namespace {
+Table adaptive_slice(const fs::path &directory, const Json &m, const std::vector<std::string> &columns)
+{
+    const int n = m.at("cells"), max_level = m.at("level"), min_level = m.at("min_level");
+    const double dx = m.at("dx"), length = m.at("length");
+    require(n > 0 && dx > 0 && close(n * dx, length) && min_level >= 0 && min_level <= max_level,
+        "Invalid adaptive slice mesh metadata");
+    require(fs::is_directory(directory), "Missing adaptive slices: " + directory.string());
+    Table data{columns, std::vector<std::vector<double>>(size_t(n) * n)};
+    size_t covered = 0;
+    for (const auto &entry : fs::directory_iterator(directory)) {
+        if (entry.path().extension() != ".csv") {
+            continue;
+        }
+        for (const auto &row : read_csv(entry.path(), columns).rows) {
+            const double ratio = row[1] / dx;
+            require(ratio >= 1 && ratio <= std::ldexp(1., max_level - min_level), "Adaptive leaf spacing outside configured levels");
+            const int width = std::lround(ratio);
+            require(close(ratio, width) && (width & (width - 1)) == 0, "Adaptive spacing is not dyadic");
+            require(close(row[0], m.at("time")) && close(row[4], row[1] / 2), "Adaptive slice time or positive-side layer mismatch");
+            const double a = (row[2] - row[1] / 2 + length / 2) / dx;
+            const double b = (row[3] - row[1] / 2 + length / 2) / dx;
+            const int i = std::lround(a), j = std::lround(b);
+            require(close(a, i, 0, 1.e-8) && close(b, j, 0, 1.e-8) && i % width == 0 && j % width == 0 &&
+                i >= 0 && j >= 0 && i + width <= n && j + width <= n, "Adaptive cell footprint is misaligned or outside the domain");
+            for (int ii = i; ii < i + width; ++ii) {
+                for (int jj = j; jj < j + width; ++jj) {
+                    auto &pixel = data.rows[size_t(ii) * n + jj];
+                    require(pixel.empty(), "Overlapping adaptive slice cells");
+                    pixel = row;
+                    // Constant projection of actual cell averages for display only.
+                    // dx and z retain the source leaf values; no new analytic samples.
+                    pixel[2] = -length / 2 + (ii + .5) * dx;
+                    pixel[3] = -length / 2 + (jj + .5) * dx;
+                    ++covered;
+                }
+            }
+        }
+    }
+    require(covered == size_t(n) * n, "Missing adaptive slice coverage");
+    return data;
+}
+}
 Table read_slice(const fs::path &folder, const Json &m)
 {
 	std::vector<std::string> cols{"t",	"dx", "x",		"y",	  "z",		"er",	 "fx",
 								  "fy", "fz", "er_ref", "fx_ref", "fy_ref", "fz_ref"};
+    if (m.value("adaptive", false)) {
+        return adaptive_slice(folder / "radiation-slices", m, cols);
+    }
 	Table t{cols, {}};
 	auto dir = folder / "radiation-slices";
 	require(fs::is_directory(dir), "Missing slices: " + dir.string());
@@ -185,6 +231,53 @@ Table read_slice(const fs::path &folder, const Json &m)
   }
   require(count == size_t(n) * n, "Missing slice cells");
 	return t;
+}
+Table read_hydro_profile(const fs::path &folder, const Json &m)
+{
+    const std::vector<std::string> columns{"t", "dx", "x", "y", "z", "rho", "vx", "vy", "vz",
+        "gas_temperature", "radiation_temperature", "er", "fx", "fy", "fz"};
+    if (m.value("adaptive", false)) {
+        auto result = adaptive_slice(folder / "radiation-hydro-slices", m, columns);
+        for (const auto &r : result.rows) {
+            require(r[5] > 0 && r[9] > 0 && r[10] >= 0 && r[11] >= 0 &&
+                std::hypot(r[12], r[13], r[14]) <= m.at("c").get<double>() * r[11] * (1 + 1.e-10),
+                "Nonphysical adaptive hydro slice state");
+        }
+        return result;
+    }
+    const int n = m.at("cells");
+    const double dx = m.at("dx"), length = m.at("length");
+    require(n > 0 && dx > 0 && length > 0, "Invalid hydro profile dimensions");
+    Table data{columns, std::vector<std::vector<double>>(size_t(n) * n)};
+    const auto dir = folder / "radiation-hydro-slices";
+    require(fs::is_directory(dir), "Missing hydro slices: " + dir.string());
+    size_t count = 0;
+    for (const auto &entry : fs::directory_iterator(dir)) {
+        if (entry.path().extension() != ".csv") {
+            continue;
+        }
+        for (const auto &r : read_csv(entry.path(), columns).rows) {
+            require(close(r[0], m.at("time")) && close(r[1], dx) && close(r[4], dx / 2),
+                "Hydro slice time, spacing or plane mismatch");
+            const double a = (r[2] + length / 2) / dx - .5;
+            const double b = (r[3] + length / 2) / dx - .5;
+            require(a >= -.5 && a < n - .5 && b >= -.5 && b < n - .5, "Hydro slice outside domain");
+            const int i = std::lround(a), j = std::lround(b);
+            require(close(r[2], -length / 2 + (i + .5) * dx, 0, 1e-10 * dx) &&
+                close(r[3], -length / 2 + (j + .5) * dx, 0, 1e-10 * dx),
+                "Hydro slice position mismatch");
+            require(r[5] > 0 && r[9] > 0 && r[10] >= 0 && r[11] >= 0,
+                "Nonphysical hydro profile density, temperature or radiation energy");
+            require(std::hypot(r[12], r[13], r[14]) <= m.at("c").get<double>() * r[11] * (1 + 1e-10),
+                "Hydro profile radiation flux exceeds c E");
+            auto &cell = data.rows[size_t(i) * n + j];
+            require(cell.empty(), "Duplicate hydro slice cell");
+            cell = r;
+            ++count;
+        }
+    }
+    require(count == size_t(n) * n, "Missing hydro slice cells");
+    return data;
 }
 std::optional<Budget> read_conservation(const fs::path &folder, const Json &m)
 {
@@ -412,5 +505,75 @@ std::vector<std::pair<fs::path, Json>> completed_runs(const fs::path &dir)
 							  b.second.at("case").template get<std::string>());
 	});
 	return out;
+}
+Json slice_mesh_summary(const fs::path &folder, const Json &m)
+{
+    const bool hydro = coupled_case(m.at("case"));
+    const std::vector<std::string> columns = hydro ?
+        std::vector<std::string>{"t", "dx", "x", "y", "z", "rho", "vx", "vy", "vz", "gas_temperature", "radiation_temperature", "er", "fx", "fy", "fz"} :
+        std::vector<std::string>{"t", "dx", "x", "y", "z", "er", "fx", "fy", "fz", "er_ref", "fx_ref", "fy_ref", "fz_ref"};
+    Json counts = Json::object();
+    size_t total = 0;
+    for (const auto &entry : fs::directory_iterator(folder / (hydro ? "radiation-hydro-slices" : "radiation-slices"))) {
+        if (entry.path().extension() != ".csv") {
+            continue;
+        }
+        for (const auto &row : read_csv(entry.path(), columns).rows) {
+            const int level = m.at("level").get<int>() - int(std::llround(std::log2(row[1] / m.at("dx").get<double>())));
+            const auto key = std::to_string(level);
+            counts[key] = counts.value(key, size_t(0)) + 1;
+            ++total;
+        }
+    }
+    Json result{{"native_slice_cells", total}, {"slice_cells_by_level", counts},
+        {"projection", "Piecewise-constant leaf cell averages onto finest display pixels; raw CSV retains native cells"},
+        {"geometry", "Positive-side leaf cells touching geometric z=0; cell centers have z=leaf_dx/2"}};
+    if (fs::is_regular_file(folder / "gradient-amr.csv")) {
+        const auto history = read_csv(folder / "gradient-amr.csv", {"t", "step", "level", "leaf_blocks", "leaf_cells"});
+        const auto last = history.rows.back();
+        Json leaves = Json::object();
+        size_t blocks = 0, cells = 0;
+        double covered_volume_fraction = 0;
+        const int inx = m.at("inx");
+        require(last[0] >= 0 && last[0] <= m.at("time").get<double>() * (1 + 1.e-12) && last[1] >= 0,
+            "Adaptive mesh census time/step outside the run");
+        for (const auto &row : history.rows) {
+            if (row[0] == last[0] && row[1] == last[1]) {
+                require(row[2] >= m.at("min_level").get<int>() && row[2] <= m.at("level").get<int>() &&
+                    row[3] >= 1 && row[4] >= 1 && row[2] == std::floor(row[2]) &&
+                    row[3] == std::floor(row[3]) && row[4] == std::floor(row[4]), "Invalid adaptive mesh census");
+                const auto key = std::to_string(int(row[2]));
+                require(!leaves.contains(key), "Duplicate level in adaptive mesh census");
+                require(row[4] == row[3] * inx * inx * inx, "Adaptive mesh census cells disagree with block count");
+                const double side_cells = std::ldexp(double(inx), int(row[2]));
+                covered_volume_fraction += row[4] / (side_cells * side_cells * side_cells);
+                leaves[key] = {{"leaf_blocks", size_t(row[3])}, {"leaf_cells", size_t(row[4])}};
+                blocks += size_t(row[3]);
+                cells += size_t(row[4]);
+            }
+        }
+        require(close(covered_volume_fraction, 1.), "Adaptive mesh census does not cover the full domain");
+        result["full_mesh"] = {{"last_regrid_time", last[0]}, {"last_regrid_step", last[1]},
+            {"leaf_blocks", blocks}, {"leaf_cells", cells}, {"levels", leaves}};
+    }
+    return result;
+}
+std::string mesh_label(const Json &m)
+{
+    if (!m.value("adaptive", false)) {
+        return std::to_string(m.at("cells").get<int>()) + "³ cells";
+    }
+    std::string label = "AMR levels " + std::to_string(m.at("min_level").get<int>()) + "–" +
+        std::to_string(m.at("level").get<int>());
+    if (m.contains("mesh") && m["mesh"].contains("full_mesh")) {
+        label += "; " + std::to_string(m["mesh"]["full_mesh"]["leaf_cells"].get<size_t>()) + " active cells";
+    }
+    return label + "; finest equivalent " + std::to_string(m.at("cells").get<int>()) + "³";
+}
+std::string slice_geometry_note(const Json &m)
+{
+    return m.value("adaptive", false) ?
+        "AMR: positive-side cells touching z=0, projected as constant leaf averages. Centers have z=leaf_dx/2; the ray similarly touches y=0. This is not a common cell-center plane. Raw CSV preserves native cells; display CSV repeats coarse values on finest pixels, retaining source dx/z. Full-volume norms use actual leaf volumes; uniform-grid convergence orders are not reported." :
+        "Central cell layer at z=dx/2; ray at y=z=dx/2.";
 }
 } // namespace rr

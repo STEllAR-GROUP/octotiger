@@ -110,6 +110,12 @@ bool options::process_options(int argc, char *argv[]) {
 	("silo_num_groups", po::value<integer>(&(opts().silo_num_groups))->default_value(-1), "Number of SILO I/O groups")        //
 	("core_refine", po::value<bool>(&(opts().core_refine))->default_value(false), "refine cores by one more level")           //
 	("grad_rho_refine", po::value<real>(&(opts().grad_rho_refine))->default_value(-1.0), "density gradient refinement criteria (-1=off)")           //
+	("gradient_refine_field", po::value<std::string>(&(opts().gradient_refine_field))->default_value("none"), "Opt-in gradient refinement: none (legacy behavior), density, or radiation_energy; requires unigrid=off")
+	("gradient_refine_mode", po::value<std::string>(&(opts().gradient_refine_mode))->default_value("relative"), "Gradient of field (absolute) or log(max(field,floor)) (relative); maximum one-sided axis slope")
+	("gradient_refine_threshold", po::value<real>(&(opts().gradient_refine_threshold))->default_value(1), "Refine above this gradient: field/code-length for absolute, inverse code-length for relative")
+	("gradient_refine_floor", po::value<real>(&(opts().gradient_refine_floor))->default_value(1e-30), "Positive field floor used only by logarithmic gradient refinement")
+	("gradient_refine_buffer", po::value<integer>(&(opts().gradient_refine_buffer))->default_value(0), "Additional coarse face-halo cells inspected for gradient refinement (0 through 2)")
+	("gradient_refine_coarsen_factor", po::value<real>(&(opts().gradient_refine_coarsen_factor))->default_value(.8), "Retain existing refinement above threshold times this factor (0 < factor <= 1)")
 	("accretor_refine", po::value<integer>(&(opts().accretor_refine))->default_value(0), "number of extra levels for accretor") //
 	("extra_regrid", po::value<integer>(&(opts().extra_regrid))->default_value(0), "number of extra regrids on startup") //
 	("donor_refine", po::value<integer>(&(opts().donor_refine))->default_value(0), "number of extra levels for donor")      //
@@ -128,6 +134,7 @@ bool options::process_options(int argc, char *argv[]) {
 	("correct_am_grav", po::value<bool>(&(opts().correct_am_grav))->default_value(true), "Angular momentum correction switch for gravity")    //
 	("rewrite_silo", po::value<bool>(&(opts().rewrite_silo))->default_value(false), "rewrite silo and exit")    //
 	("rad_implicit", po::value<bool>(&(opts().rad_implicit))->default_value(true), "implicit radiation on/off")    //
+	("radiation_reduced_c_factor", po::value<real>(&(opts().radiation_reduced_c_factor))->default_value(1), "Reduced radiation light speed / physical c (finite, 0 < factor <= 1; default 1 keeps full c)")
 	("gravity", po::value<bool>(&(opts().gravity))->default_value(true), "gravity on/off")    //
 	("bench", po::value<bool>(&(opts().bench))->default_value(false), "run benchmark") //
 	("datadir", po::value<std::string>(&(opts().data_dir))->default_value("./"), "directory for output") //
@@ -219,6 +226,14 @@ bool options::process_options(int argc, char *argv[]) {
 		}
 	}
 	po::notify(vm);
+	const auto validateReducedRadiationSpeed = []() {
+		const real factor = opts().radiation_reduced_c_factor;
+		if (!std::isfinite(factor) || !(factor > 0 && factor <= 1)) {
+			throw std::invalid_argument("radiation_reduced_c_factor must be finite and satisfy 0 < factor <= 1");
+		}
+	};
+	validateReducedRadiationSpeed();
+	opts().validateGradientRefinement();
 	if (opts().silo_num_groups == -1) {
 		opts().silo_num_groups = hpx::find_all_localities().size();
 
@@ -241,6 +256,8 @@ bool options::process_options(int argc, char *argv[]) {
 		}
 		load_options_from_silo(opts().restart_filename);
 	}
+	validateReducedRadiationSpeed();
+	opts().validateGradientRefinement();
     if (opts().executors_per_gpu > 0 && opts().number_gpus == 0) {
         opts().number_gpus = 1;
 	}
@@ -319,6 +336,12 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(entropy_driving_time);
 		SHOW(future_wait_time);
 		SHOW(grad_rho_refine);
+		SHOW(gradient_refine_field);
+		SHOW(gradient_refine_mode);
+		SHOW(gradient_refine_threshold);
+		SHOW(gradient_refine_floor);
+		SHOW(gradient_refine_buffer);
+		SHOW(gradient_refine_coarsen_factor);
 		SHOW(hard_dt);
 		SHOW(hydro);
 		SHOW(inflow_bc);
@@ -332,6 +355,7 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(output_filename);
 		SHOW(problem);
 		SHOW(rad_implicit);
+		SHOW(radiation_reduced_c_factor);
 		SHOW(radReference);
 		SHOW(radTestChi);
 		SHOW(radTestWidth);
@@ -396,7 +420,7 @@ bool options::process_options(int argc, char *argv[]) {
     }
 #endif
     const bool radiationProblem = opts().problem == RADIATION_TEST || opts().problem == MARSHAK ||
-        (opts().problem >= RADIATION_DIFFUSION && opts().problem <= RADIATION_EQUILIBRIUM_SPHERE);
+        (opts().problem >= RADIATION_DIFFUSION && opts().problem <= RADIATION_BLAST_WAVE);
     if (radiationProblem && !opts().radiation) {
         throw std::invalid_argument("The selected radiation problem requires --radiation=on");
     }

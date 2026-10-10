@@ -24,7 +24,8 @@ CGS_C = 2.99792458e10
 SILO_TYPES = {16: ct.c_int, 17: ct.c_short, 18: ct.c_long,
               19: ct.c_float, 20: ct.c_double, 21: ct.c_char, 22: ct.c_longlong}
 EXPECTED = {
-    "radiation_options_version": 1,
+    "radiation_options_version": 2,
+    "radiation_reduced_c_factor": 1.0,
     "radiation": 1,
     "periodic": 1,
     "rad_implicit": 0,
@@ -104,20 +105,20 @@ class Silo:
             raise AssertionError(f"Expected scalar Silo metadata {name}")
         return buffer[0]
 
-    def snapshot(self, path):
+    def snapshot(self, path, fields=FIELDS, metadata_names=EXPECTED, block_count=8):
         handle = self.open(path)
         try:
-            metadata = {name: self.metadata(handle, name) for name in EXPECTED}
-            metadata["time"] = self.metadata(handle, "cgs_time") / metadata["code_to_s"]
+            metadata = {name: self.metadata(handle, name) for name in metadata_names}
+            metadata["time"] = self.metadata(handle, "cgs_time") / self.metadata(handle, "code_to_s")
             result = {}
-            for field in FIELDS:
+            for field in fields:
                 multivar = self.lib.DBGetMultivar(handle, field.encode())
                 if not multivar:
                     raise AssertionError(f"Checkpoint does not contain {field}")
                 try:
                     count = multivar.contents.nvars
-                    if count != 8:
-                        raise AssertionError(f"Expected eight level-one blocks for {field}, got {count}")
+                    if count != block_count:
+                        raise AssertionError(f"Expected {block_count} blocks for {field}, got {count}")
                     names = [multivar.contents.varnames[index].decode() for index in range(count)]
                 finally:
                     self.lib.DBFreeMultivar(multivar)
@@ -145,7 +146,7 @@ class Silo:
                             self.lib.DBFreeQuadvar(variable)
                     finally:
                         self.lib.DBClose(block_file)
-                if len(blocks) != 8:
+                if len(blocks) != block_count:
                     raise AssertionError(f"Duplicate/missing radiation block paths for {field}")
                 result[field] = blocks
             return metadata, result
@@ -182,13 +183,14 @@ def run(executable, folder, final_time, threads, timeout, restart=None):
         "silo_num_groups": 1, "datadir": str(folder) + os.sep,
     }
     config.update({name: value for name, value in EXPECTED.items()
-                   if name.startswith("rad_test_") or name in ("rad_reference", "code_to_g", "code_to_cm", "code_to_s")})
+                   if name.startswith("rad_test_") or name in ("rad_reference", "radiation_reduced_c_factor", "code_to_g", "code_to_cm", "code_to_s")})
     if restart:
         config.update({
             "restart_filename": str(restart), "periodic": "off", "rad_implicit": "on",
             "rad_test_chi": 0.75, "rad_test_width": 0.19, "rad_test_background": 5,
             "rad_test_amplitude": 0.2, "rad_test_luminosity": 0.9,
             "rad_reference": "deliberately-wrong-reference.bin",
+            "radiation_reduced_c_factor": 0.9 if EXPECTED["radiation_reduced_c_factor"] != 0.9 else 1.0,
             "code_to_g": 1, "code_to_cm": CGS_C / 2, "code_to_s": 2,
         })
     config_path = folder / "run.ini"
@@ -239,9 +241,13 @@ def main():
     parser.add_argument("--threads", type=int, default=2)
     parser.add_argument("--timeout", type=float, default=180)
     parser.add_argument("--work-dir", type=Path, help="Optional empty output directory; kept for inspection")
+    parser.add_argument("--factor", type=float, default=1.0, help="Radiation reduced-c factor to preserve across restart")
     args = parser.parse_args()
     if not 1 <= args.threads <= 2:
         parser.error("--threads must be 1 or 2; runs share the local resource budget")
+    if not math.isfinite(args.factor) or not 0 < args.factor <= 1:
+        parser.error("--factor must be finite and satisfy 0 < factor <= 1")
+    EXPECTED["radiation_reduced_c_factor"] = args.factor
     executable = args.executable.resolve()
     if not executable.is_file():
         parser.error(f"Executable does not exist: {executable}")

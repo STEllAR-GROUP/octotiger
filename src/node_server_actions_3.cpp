@@ -9,6 +9,7 @@
 #include "octotiger/node_server.hpp"
 #include "octotiger/options.hpp"
 #include "octotiger/problem.hpp"
+#include "octotiger/test_problems/radiation.hpp"
 #include "octotiger/math/Debug.hpp"
 #include "octotiger/real.hpp"
 #include "octotiger/util.hpp"
@@ -364,6 +365,33 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 	printf("%e %e\n", root_ptr->get_rotation_count(), output_dt);
 
 	real bench_start, bench_stop;
+	std::ofstream gradientOutput;
+	if (opts().gradient_refine_field != "none") {
+		const auto filename = (std::filesystem::path(opts().data_dir) / "gradient-amr.csv").string();
+		gradientOutput.open(filename, std::ios::out | std::ios::trunc);
+		if (!gradientOutput) {
+			throw std::runtime_error("Cannot write " + filename);
+		}
+		gradientOutput.exceptions(std::ios::badbit | std::ios::failbit);
+		gradientOutput << "t,step,level,leaf_blocks,leaf_cells\n";
+	}
+	auto sampleGradientMesh = [&]() {
+		if (opts().gradient_refine_field == "none") {
+			return;
+		}
+		gradientOutput.precision(17);
+		for (size_t level = 0; level < ngrids.leaf_per_level.size(); ++level) {
+			const auto blocks = ngrids.leaf_per_level[level];
+			if (blocks != 0) {
+				gradientOutput << current_time << ',' << step_num << ',' << level << ','
+					<< blocks << ',' << blocks * INX * INX * INX << '\n';
+				printf("GRADIENT_AMR level=%zu leaf_blocks=%lu leaf_cells=%lu\n", level,
+					static_cast<unsigned long>(blocks), static_cast<unsigned long>(blocks * INX * INX * INX));
+			}
+		}
+		gradientOutput.flush();
+	};
+	sampleGradientMesh();
 	// Keep radiation diagnostics available with hydro diagnostics or SILO disabled.
 	// Each process/restart starts a new baseline; diagnostic counters are not serialized.
 	radiationConservation::Ledger radiationLedger;
@@ -401,7 +429,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 		sampleRadiation();
 		auto time_start = std::chrono::high_resolution_clock::now();
 		auto diags = diagnostics();
-		if (opts().problem != DWD) {
+		if (!opts().disable_diagnostics && opts().problem != DWD) {
 			std::sort(diags.xline.begin(), diags.xline.end(),
 					[](const std::pair<real, std::vector<real>> &a, const std::pair<real, std::vector<real>> &b) {
 						return (a.first < b.first);
@@ -526,6 +554,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 				radiationLedger.consume(interval);
 			}
 			ngrids = regrid(me.get_gid(), omega, new_floor, false);
+			sampleGradientMesh();
 
 			// run output on separate thread
 			auto need_break = hpx::threads::run_as_os_thread([&]() {
@@ -553,8 +582,11 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 	}
 	// Final numerical sample precedes analytic comparison, which replaces fields.
 	sampleRadiation();
+	if (radiationHydroProblem()) {
+		export_radiation_hydro();
+	}
 	auto diags = diagnostics();
-	if (opts().problem != DWD) {
+	if (!opts().disable_diagnostics && opts().problem != DWD) {
 		std::sort(diags.xline.begin(), diags.xline.end(),
 				[](const std::pair<real, std::vector<real>> &a, const std::pair<real, std::vector<real>> &b) {
 					return (a.first < b.first);

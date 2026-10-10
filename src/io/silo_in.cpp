@@ -21,6 +21,7 @@
 #include <hpx/io_service/io_service_pool.hpp>
 
 #include <cstddef>
+#include <cmath>
 #include <future>
 #include <stdexcept>
 #include <mutex>
@@ -106,16 +107,36 @@ void load_options_from_silo(std::string fname, DBfile *db) {
 			opts().output_dt = rr(db, "output_frequency");
 			opts().problem = problem_type(ri(db, "problem"));
 			opts().radiation = DBInqVarExists(db, "radiation") && ri(db, "radiation") != 0;
+			// Checkpoints predating the opt-in reduced-speed model used full c.
+			// Saved physics takes precedence over a conflicting restart command line.
+			opts().radiation_reduced_c_factor = 1;
 			if (DBInqVarExists(db, "periodic")) {
 				opts().periodic = ri(db, "periodic") != 0;
 			}
 			if (opts().radiation) {
 				if (DBInqVarExists(db, "radiation_options_version")) {
-					if (ri(db, "radiation_options_version") != 1) {
+					const integer radiation_version = ri(db, "radiation_options_version");
+					if (radiation_version != 1 && radiation_version != 2) {
 						if (!leaveopen) {
 							DBClose(db);
 						}
 						throw std::runtime_error("Unsupported radiation restart metadata version");
+					}
+					if (radiation_version == 2) {
+						if (!DBInqVarExists(db, "radiation_reduced_c_factor")) {
+							if (!leaveopen) {
+								DBClose(db);
+							}
+							throw std::runtime_error("Missing radiation restart option radiation_reduced_c_factor");
+						}
+						const real factor = rr(db, "radiation_reduced_c_factor");
+						if (!std::isfinite(factor) || !(factor > 0 && factor <= 1)) {
+							if (!leaveopen) {
+								DBClose(db);
+							}
+							throw std::runtime_error("Invalid radiation restart option radiation_reduced_c_factor: expected finite 0 < factor <= 1");
+						}
+						opts().radiation_reduced_c_factor = factor;
 					}
 					// A partial new-format checkpoint must not silently alter the model.
 					for (const char *name : {"periodic", "rad_implicit", "rad_test_chi",
@@ -155,6 +176,39 @@ void load_options_from_silo(std::string fname, DBfile *db) {
 				}
 			}
 			opts().refinement_floor = rr(db, "refinement_floor");
+			if (DBInqVarExists(db, "gradient_amr_options_version")) {
+				try {
+					if (ri(db, "gradient_amr_options_version") != 1) {
+						throw std::runtime_error("Unsupported gradient AMR restart metadata version");
+					}
+					for (const char* name : {"gradient_refine_field", "gradient_refine_mode", "gradient_refine_threshold",
+							"gradient_refine_floor", "gradient_refine_coarsen_factor", "gradient_refine_buffer",
+							"gradient_min_level", "gradient_max_level"}) {
+						if (!DBInqVarExists(db, name)) {
+							throw std::runtime_error(std::string("Missing gradient AMR restart option ") + name);
+						}
+					}
+					const integer field = ri(db, "gradient_refine_field"), mode = ri(db, "gradient_refine_mode");
+					if ((field != 1 && field != 2) || (mode != 0 && mode != 1)) {
+						throw std::runtime_error("Invalid gradient AMR restart field or mode");
+					}
+					opts().gradient_refine_field = field == 1 ? "density" : "radiation_energy";
+					opts().gradient_refine_mode = mode == 0 ? "absolute" : "relative";
+					opts().gradient_refine_threshold = rr(db, "gradient_refine_threshold");
+					opts().gradient_refine_floor = rr(db, "gradient_refine_floor");
+					opts().gradient_refine_coarsen_factor = rr(db, "gradient_refine_coarsen_factor");
+					opts().gradient_refine_buffer = ri(db, "gradient_refine_buffer");
+					opts().min_level = ri(db, "gradient_min_level");
+					opts().max_level = ri(db, "gradient_max_level");
+					opts().unigrid = false;
+					opts().validateGradientRefinement();
+				} catch (...) {
+					if (!leaveopen) {
+						DBClose(db);
+					}
+					throw;
+				}
+			}
 			opts().xscale = rr(db, "xscale");
 			opts().atomic_number.resize(opts().n_species);
 			opts().atomic_mass.resize(opts().n_species);

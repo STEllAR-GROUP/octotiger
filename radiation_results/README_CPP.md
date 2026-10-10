@@ -1,5 +1,83 @@
 # C++ radiation results tools
 
+## QB4 levels 2–5
+
+The offline-first cluster workflow builds Octo-TIGER, runs all seven problems at
+levels 2–5, and collects their plots and webpages. Start with
+[`qb4/README.md`](qb4/README.md); `workflow.py prepare` creates the plan without
+contacting Slurm. Submission requires a separate explicit `--submit` command.
+
+## Coupled shocks and blast wave
+
+Full-duration launcher (from the repository root):
+
+```sh
+radiation_results/run_ensman.sh 2 --dry-run
+radiation_results/run_ensman.sh 2 --output radiation_results/results/ensman-full-l2
+```
+
+The second command runs the real simulations: blast → supercritical →
+subcritical, sequentially, using their full configured durations, two workers,
+two build jobs, and 21 Silo snapshots. It updates the batch website after each
+completed case. Level 2 is a coarse first run. The shock cases require roughly
+1.23 million and 6.30 million steps at this resolution with the physical light
+speed; no long runs were launched while setting up the scripts.
+See [ENSMAN.md](ENSMAN.md#full-duration-local-runs) for individual cases,
+resolutions, result locations, and the limits of batch resume.
+
+
+The local suite also includes `subcritical` (`subcritical_shock`), `supercritical`
+(`supercritical_shock`), and `blast` (`radiating_blast`). `all` now selects all seven
+problems. The three additions enable radiation hydrodynamics and retain their
+physical CGS configuration directly; they are not rescaled to the radiation-only
+6 × 10¹⁰ cm box. Their template final times are 38300, 7500, and 22000 s.
+`--time` explicitly overrides the duration for each selected case.
+`--radiation-reduced-c-factor F` opts the coupled cases into the
+Skinner-Ostriker reduced-speed-of-light approximation, with 0 < F ≤ 1 and
+default F=1. The four analytic cases retain F=1 even in an `all` batch. The
+runner saves both speeds and the factor, preserves it on batch resume, and
+labels modified-equation conservation budgets in the generated pages. Factor
+convergence must be checked before drawing physical conclusions. The QB
+configuration supports separate factors for the three coupled cases.
+
+These are Cartesian adaptations of the problems in [Ensman (1994), *Test Problems
+for Radiation and Radiation-Hydrodynamics Codes*](https://doi.org/10.1086/173889),
+§§5.1–5.3. The original paper uses a spherical moving piston for the shocks and a
+hollow, stratified shell with innermost-zone energy deposition for the blast.
+The local shocks use a stationary reflecting planar wall and incoming gas. The
+blast uses spherically symmetric initial profiles on the Cartesian mesh, a
+filled core, Gaussian deposition width, and approximate LTE diffusion radiation
+field with a realizability floor. The new web pages document these differences,
+the original numerical targets, and each local run's actual parameters.
+
+There is no supplied exact analytic profile for these coupled problems. Reports
+show gas and radiation temperatures, density, velocity, radiation energy, signed radiation flux, and reduced flux as
+numerical profiles, without invented reference curves, error norms, or convergence
+orders. A run ending before its template final time is visibly labeled an
+**early-time implementation check**. Such a run does not establish a developed
+subcritical/supercritical structure or quantitative agreement with the paper.
+
+For a deliberately short local preview, after building Octo-TIGER with radiation:
+
+```sh
+radiation_results/run.sh subcritical 1 --build cmake-build-hpx2rc-radiation \
+  --time 0.01 --snapshots 3 --threads 2 --jobs 2 --no-build --no-open --no-movies --no-silo
+```
+
+The runner creates `radiation-hydro-slices/`, which opts the application into final
+numerical CSV output independently of analytic comparisons. The CSV schema is
+`t,dx,x,y,z,rho,vx,vy,vz,gas_temperature,radiation_temperature,er,fx,fy,fz`.
+The full central plane is validated for cell coverage, time, spacing, positivity,
+and radiation realizability. Temperature units are K; the default configurations
+use CGS for the other fields. Plots use the plane at z=Δx/2 and the ray at
+y=z=Δx/2. Both are half-cell offsets, not exact central-axis samples.
+
+The C++ reader and integration tests exercise the new data validation, seven-page
+navigation, preserved physical time/domain, and absence of fabricated accuracy
+norms. Their synthetic fixtures test the reporting pipeline, not solver physics.
+All generated pages remain local until separately published.
+
+
 > **hpx2rc-radiation restoration:** These tools and the complete workflow reference
 > below are restored from `dominic-wip2` onto `7485b798`. See
 > [tests/README.md](../tests/README.md) for solver provenance and validation.
@@ -99,18 +177,19 @@ cd ~
 ~/octotiger/src/octotiger/radiation_results/run_live.sh wave 2 release --threads 2 --no-build
 ```
 
-Aliases: `wave`, `front` / `streaming`, `gaussian` / `diffusion`, and `sphere`.
+Radiation-only aliases: `wave`, `front` / `streaming`, `gaussian` / `diffusion`, and `sphere`.
+Coupled cases add `subcritical`, `supercritical`, and `blast` (see above).
 The full names streaming_wave, streaming_front, gaussian_pulse, and
 equilibrium_sphere are also accepted. `run.sh` runs the same CGS workflow with
 plots and without automatic movies. `--no-silo` disables snapshots as well.
 
-Defaults are a domain of [−3×10¹⁰,+3×10¹⁰] cm on every axis, t=0–4 s,
+The four radiation-only cases default to a domain of [−3×10¹⁰,+3×10¹⁰] cm on every axis, t=0–4 s,
 c=2.99792458×10¹⁰ cm/s, 2 threads, and 61 requested snapshots. `run_live.sh`
 defaults to levels 2,3,4 in Debug; `run.sh` defaults to levels 2,3 in Release.
 The timestep cap accounts for Octo-TIGER's output-check interval.
 
 The runner reads `~/octotiger/src/octotiger/radiation_results/configs/*.ini`, scales those
-templates to CGS, and writes each run's effective configuration as
+radiation-only templates to CGS, preserves the coupled CGS templates, and writes each run's effective configuration as
 `run.ini`. Do not replace a template with a generated `run.ini`.
 `--rad-reconstruction plm|ppm` passes the choice to a solver that supports that
 option; this package adds no reconstruction method to the solver.
@@ -142,7 +221,7 @@ your existing results hosting; it does not upload or deploy them.
 
 ## Problem pages
 
-The batch's `index.html` is a responsive 2×2 index with one card per test,
+The batch's `index.html` is a responsive two-column index with one card per test,
 a preview from the highest completed resolution with a plot, and a link to:
 
 - `streaming_wave.html`: periodic exact M1 transport of a sinusoid.

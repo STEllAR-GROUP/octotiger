@@ -9,6 +9,7 @@
 #include "octotiger/options.hpp"
 #include "octotiger/physcon.hpp"
 #include "octotiger/math/Debug.hpp"
+#include "test_problems/radiation/hydro_benchmarks.hpp"
 
 template<class U>
 U temperature(U rho, U e, U mmw, Real gamma = 5.0 / 3.0) {
@@ -24,6 +25,11 @@ U temperature(U rho, U e, U mmw, Real gamma = 5.0 / 3.0) {
 template<class U>
 U kappa_R(U rho, U e, U mmw, Real X, Real Z, Real gamma = 5.0 / 3.0) {
 	FpeGuard fpeGuard{};
+	if (opts().problem == RADIATION_SUBCRITICAL_SHOCK || opts().problem == RADIATION_SUPERCRITICAL_SHOCK ||
+		opts().problem == RADIATION_BLAST_WAVE) {
+		// rho is in code units; kappa is cm^2/g, so chi is inverse code length.
+		return rho * U(radiationHydroTests::kappa * opts().code_to_g / (opts().code_to_cm * opts().code_to_cm));
+	}
 	if (opts().problem == MARSHAK) {
 		return MARSHAK_OPAC;
 	} else if (opts().problem == RADIATION_TEST) {
@@ -46,6 +52,10 @@ U kappa_R(U rho, U e, U mmw, Real X, Real Z, Real gamma = 5.0 / 3.0) {
 template<class U>
 U kappa_p(U rho, U e, U mmw, Real X, Real Z, Real gamma = 5.0 / 3.0) {
 	FpeGuard fpeGuard{};
+	if (opts().problem == RADIATION_SUBCRITICAL_SHOCK || opts().problem == RADIATION_SUPERCRITICAL_SHOCK ||
+		opts().problem == RADIATION_BLAST_WAVE) {
+		return kappa_R(rho, e, mmw, X, Z, gamma);
+	}
 	if (opts().problem == MARSHAK) {
 		return MARSHAK_OPAC;
 	} else if (opts().problem == RADIATION_TEST) {

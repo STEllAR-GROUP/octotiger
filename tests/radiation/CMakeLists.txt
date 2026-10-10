@@ -11,6 +11,18 @@ get_filename_component(radiation_root "${CMAKE_CURRENT_SOURCE_DIR}/../.." ABSOLU
 include("${radiation_root}/radiation_results/reference.cmake")
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
+add_executable(test_radiation_hydro_benchmarks test_hydro_benchmarks.cpp)
+target_compile_features(test_radiation_hydro_benchmarks PRIVATE cxx_std_20)
+target_include_directories(test_radiation_hydro_benchmarks PRIVATE "${radiation_root}")
+add_test(NAME radiation.unit.hydro_benchmarks COMMAND test_radiation_hydro_benchmarks)
+set_tests_properties(radiation.unit.hydro_benchmarks PROPERTIES
+  LABELS "radiation;radiation-hydro" TIMEOUT 60)
+add_test(NAME radiation.production.hydro_boundaries
+  COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_hydro_boundaries.py"
+    --cxx "${CMAKE_CXX_COMPILER}" --sanitize)
+set_tests_properties(radiation.production.hydro_boundaries PROPERTIES
+  LABELS "radiation;radiation-hydro" TIMEOUT 120 PROCESSORS 1 RUN_SERIAL TRUE)
+
 add_executable(test_radiation_reference test_reference.cpp)
 target_compile_features(test_radiation_reference PRIVATE cxx_std_20)
 target_include_directories(test_radiation_reference PRIVATE "${radiation_root}")
@@ -41,3 +53,9 @@ add_test(NAME radiation.production.regressions
     --reference "${CMAKE_CURRENT_BINARY_DIR}/unit-reference.bin" --cxx "${CMAKE_CXX_COMPILER}")
 set_tests_properties(radiation.production.regressions PROPERTIES FIXTURES_REQUIRED radiation.unit.reference
   LABELS radiation TIMEOUT 300 PROCESSORS 1 RUN_SERIAL TRUE)
+add_test(NAME radiation.production.rsla_regressions
+  COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_regression_kernels.py"
+    --reference "${CMAKE_CURRENT_BINARY_DIR}/unit-reference.bin" --cxx "${CMAKE_CXX_COMPILER}"
+    --radiation-reduced-c-factor 0.1)
+set_tests_properties(radiation.production.rsla_regressions PROPERTIES FIXTURES_REQUIRED radiation.unit.reference
+  LABELS "radiation;rsla" TIMEOUT 300 PROCESSORS 1 RUN_SERIAL TRUE)

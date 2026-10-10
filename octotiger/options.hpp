@@ -11,10 +11,12 @@
 #include "octotiger/interaction_types.hpp"
 #include "octotiger/options_enum.hpp"
 #include "octotiger/real.hpp"
+#include "octotiger/amr/gradient.hpp"
 
 #include <hpx/include/naming.hpp>
 
 #include <cstddef>
+#include <cmath>
 #include <string>
 #include <stdexcept>
 #include <utility>
@@ -40,7 +42,10 @@ enum problem_type : integer {
     RADIATION_STREAMING_WAVE = 14,
     RADIATION_STREAMING_FRONT = 15,
     RADIATION_GAUSSIAN_PULSE = 16,
-    RADIATION_EQUILIBRIUM_SPHERE = 17
+    RADIATION_EQUILIBRIUM_SPHERE = 17,
+    RADIATION_SUBCRITICAL_SHOCK = 18,
+    RADIATION_SUPERCRITICAL_SHOCK = 19,
+    RADIATION_BLAST_WAVE = 20
 };
 
 inline constexpr std::pair<problem_type, const char*> problem_names[] = {
@@ -54,7 +59,10 @@ inline constexpr std::pair<problem_type, const char*> problem_names[] = {
     {RADIATION_STREAMING_WAVE, "RADIATION_STREAMING_WAVE"},
     {RADIATION_STREAMING_FRONT, "RADIATION_STREAMING_FRONT"},
     {RADIATION_GAUSSIAN_PULSE, "RADIATION_GAUSSIAN_PULSE"},
-    {RADIATION_EQUILIBRIUM_SPHERE, "RADIATION_EQUILIBRIUM_SPHERE"}
+    {RADIATION_EQUILIBRIUM_SPHERE, "RADIATION_EQUILIBRIUM_SPHERE"},
+    {RADIATION_SUBCRITICAL_SHOCK, "RADIATION_SUBCRITICAL_SHOCK"},
+    {RADIATION_SUPERCRITICAL_SHOCK, "RADIATION_SUPERCRITICAL_SHOCK"},
+    {RADIATION_BLAST_WAVE, "RADIATION_BLAST_WAVE"}
 };
 
 inline std::istream& operator>>(std::istream& in, problem_type& problem) {
@@ -99,11 +107,45 @@ public:
 	bool periodic;
 	bool radiation;
 	bool rad_implicit;
+	// Opt-in reduced transport light speed; physical constants retain full c.
+	real radiation_reduced_c_factor = 1;
 	// Prescribed-medium radiation regression parameters in physical code units.
 	std::string radReference = "gaussian_pulse.bin";
 	real radTestChi = 5, radTestWidth = .2;
 	real radTestBackground = 1, radTestAmplitude = .01, radTestLuminosity = .01;
 	real grad_rho_refine;
+	// Disabled by default: existing problem-specific refinement remains unchanged.
+	std::string gradient_refine_field = "none";
+	std::string gradient_refine_mode = "relative";
+	real gradient_refine_threshold = 1;
+	real gradient_refine_floor = 1e-30;
+	integer gradient_refine_buffer = 0;
+	real gradient_refine_coarsen_factor = .8;
+
+	void validateGradientRefinement() const {
+		if (gradient_refine_field != "none" && gradient_refine_field != "density" &&
+				gradient_refine_field != "radiation_energy") {
+			throw std::invalid_argument("gradient_refine_field must be none, density, or radiation_energy");
+		}
+		if (gradient_refine_field == "none") {
+			return;
+		}
+		if (gradient_refine_mode != "absolute" && gradient_refine_mode != "relative") {
+			throw std::invalid_argument("gradient_refine_mode must be absolute or relative");
+		}
+		if (!gradientRefinement::isFinite(gradient_refine_threshold) || gradient_refine_threshold <= 0 ||
+				!gradientRefinement::isFinite(gradient_refine_floor) || gradient_refine_floor <= 0 ||
+				!gradientRefinement::isFinite(gradient_refine_coarsen_factor) || gradient_refine_coarsen_factor <= 0 ||
+				gradient_refine_coarsen_factor > 1 || gradient_refine_buffer < 0 || gradient_refine_buffer > 2) {
+			throw std::invalid_argument("Gradient refinement requires finite positive threshold/floor, 0 < coarsen_factor <= 1, and buffer in [0,2]");
+		}
+		if (unigrid || min_level < 0 || max_level < min_level) {
+			throw std::invalid_argument("Gradient refinement requires unigrid=off and 0 <= min_level <= max_level");
+		}
+		if (gradient_refine_field == "radiation_energy" && !radiation) {
+			throw std::invalid_argument("Radiation-energy gradient refinement requires radiation=on");
+		}
+	}
 	bool v1309;
 	bool rewrite_silo;
 	bool correct_am_grav;
@@ -284,6 +326,7 @@ public:
 		arc & periodic;
 		arc & radiation;
 		arc & rad_implicit;
+		arc & radiation_reduced_c_factor;
 		arc & radReference & radTestChi & radTestWidth;
 		arc & radTestBackground & radTestAmplitude & radTestLuminosity;
 		arc & gravity;
@@ -342,6 +385,12 @@ public:
 		arc & X;
 		arc & Z;
 		arc & grad_rho_refine;
+		arc & gradient_refine_field;
+		arc & gradient_refine_mode;
+		arc & gradient_refine_threshold;
+		arc & gradient_refine_floor;
+		arc & gradient_refine_buffer;
+		arc & gradient_refine_coarsen_factor;
 		arc & code_to_g;
 		arc & code_to_s;
 		arc & code_to_cm;

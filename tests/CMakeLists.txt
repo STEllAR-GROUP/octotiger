@@ -30,14 +30,65 @@ set_tests_properties(radiation.production.conservation PROPERTIES LABELS radiati
 
 add_subdirectory(radiation)
 
+add_executable(gradientRefinementTests test_gradient_refinement.cpp)
+target_include_directories(gradientRefinementTests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
+target_compile_features(gradientRefinementTests PRIVATE cxx_std_20)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  target_compile_options(gradientRefinementTests PRIVATE -ffast-math)
+endif()
+add_test(NAME amr.gradient.unit COMMAND gradientRefinementTests)
+add_test(NAME amr.gradient.grid
+  COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_gradient_refinement_grid.py"
+    --cxx "${CMAKE_CXX_COMPILER}" --sanitize --fast-math)
+add_test(NAME amr.gradient.study
+  COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/../radiation_results/amr/test_study.py")
+set_tests_properties(amr.gradient.unit amr.gradient.grid amr.gradient.study PROPERTIES
+  LABELS "amr;gradient" TIMEOUT 120 PROCESSORS 1)
+
 # These checks run the actual HPX application and retain their individual logs.
 # Original error thresholds were calibrated at 32 cells per side, c=1 and t=.2.
 if(TARGET octotiger AND OCTOTIGER_WITH_RADIATION)
+  add_test(NAME amr.gradient.options
+    COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_gradient_options.py"
+      --executable $<TARGET_FILE:octotiger> --silo-library "${Silo_LIBRARY}")
+  set_tests_properties(amr.gradient.options PROPERTIES LABELS "amr;gradient;application"
+    PROCESSORS 1 RUN_SERIAL TRUE TIMEOUT 300)
+  if(OCTOTIGER_WITH_GRIDDIM EQUAL 8)
+    add_test(NAME amr.gradient.restart_zero
+      COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_gradient_restart_zero.py"
+        --executable $<TARGET_FILE:octotiger> --silo-library "${Silo_LIBRARY}")
+    set_tests_properties(amr.gradient.restart_zero PROPERTIES LABELS "amr;gradient;radiation;application"
+      PROCESSORS 1 RUN_SERIAL TRUE TIMEOUT 300)
+    add_test(NAME amr.gradient.radiation
+      COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_gradient_radiation.py"
+        --executable $<TARGET_FILE:octotiger> --threads 4)
+    set_tests_properties(amr.gradient.radiation PROPERTIES LABELS "amr;gradient;radiation;application"
+      PROCESSORS 4 RUN_SERIAL TRUE TIMEOUT 180)
+  endif()
+  foreach(_case IN ITEMS subcritical_shock supercritical_shock radiating_blast)
+    add_test(NAME radiation.application.${_case}.smoke
+      COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/radiation/test_hydro_application.py"
+        --executable $<TARGET_FILE:octotiger> --silo-library "${Silo_LIBRARY}"
+        --config "${CMAKE_CURRENT_SOURCE_DIR}/../radiation_results/configs/${_case}.ini"
+        --case "${_case}" --threads 2)
+    set_tests_properties(radiation.application.${_case}.smoke PROPERTIES
+      LABELS "radiation;application;radiation-hydro" PROCESSORS 2 RUN_SERIAL TRUE TIMEOUT 300)
+  endforeach()
   add_test(NAME radiation.application.restart
     COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/radiation/test_restart.py"
       --executable $<TARGET_FILE:octotiger> --silo-library "${Silo_LIBRARY}" --threads 2)
   set_tests_properties(radiation.application.restart PROPERTIES LABELS "radiation;application"
     PROCESSORS 2 RUN_SERIAL TRUE TIMEOUT 600)
+  add_test(NAME radiation.application.restart.reduced_c
+    COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/radiation/test_restart.py"
+      --executable $<TARGET_FILE:octotiger> --silo-library "${Silo_LIBRARY}" --threads 2 --factor 0.1)
+  set_tests_properties(radiation.application.restart.reduced_c PROPERTIES LABELS "radiation;application"
+    PROCESSORS 2 RUN_SERIAL TRUE TIMEOUT 600)
+  add_test(NAME radiation.application.reduced_c_options
+    COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/radiation/test_reduced_c_options.py"
+      --executable $<TARGET_FILE:octotiger> --silo-library "${Silo_LIBRARY}")
+  set_tests_properties(radiation.application.reduced_c_options PROPERTIES LABELS "radiation;application"
+    PROCESSORS 1 RUN_SERIAL TRUE TIMEOUT 300)
   if(OCTOTIGER_WITH_GRIDDIM EQUAL 8)
     foreach(_case IN ITEMS streaming_wave streaming_front gaussian_pulse equilibrium_sphere)
       set(_reference_args)

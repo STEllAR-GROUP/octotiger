@@ -92,6 +92,7 @@ public:
     future<diagnostics_t> diagnostics(const diagnostics_t&) const;
     future<radiationConservation::Totals> collectRadiationConservation() const;
     future<analytic_t> compare_analytic() const;
+    future<void> export_radiation_hydro() const;
     //	hpx::future<void> set_parent(hpx::id_type);
     node_client();
     future<set_child_aunt_type> set_child_aunt(

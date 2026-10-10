@@ -1,0 +1,1276 @@
+{
+  "scope": "Practical 28-row plan: offline initial proposals plus explicitly identified six-step local application checks; no full-time accuracy or threshold-convergence validation.",
+  "ratio_target": [
+    0.1,
+    1.0
+  ],
+  "source_root": "/home/dmarce1/workspace/octotiger",
+  "mode": "absolute",
+  "buffer": 0,
+  "gaussian_note": "t=0 exact periodized cell integrals; reference-generator FFT roundoff is not reproduced",
+  "source_sha256": {
+    "octotiger/amr/gradient.hpp": "58d413487ecbbe95602ac1ec6f356c98630892efe180dcf8352c176bd2c529f5",
+    "test_problems/radiation/profiles.hpp": "c868e2b5675fac65d3df3c2113c2b4f51de866d550cc039a14d4a4ea4f722b43",
+    "test_problems/radiation/hydro_benchmarks.hpp": "d2e42bfde0de5c9bde0200453ea40bcefaea91d63455319e08a3e9a5fb5c6c4c"
+  },
+  "rows": [
+    {
+      "case": "streaming_front",
+      "finest_level": 2,
+      "base_level": 1,
+      "base_blocks": 8,
+      "field": "radiation_energy",
+      "floor": 1e-30,
+      "buffer": 0,
+      "dx": 0.125,
+      "mode": "absolute",
+      "status": "all_fine_initial",
+      "selected": {
+        "threshold": 3.9999999996,
+        "refined_base_blocks": 8,
+        "coarse_leaf_blocks": 0,
+        "fine_leaf_blocks": 64,
+        "fine_to_coarse_leaf_cell_ratio": null,
+        "fine_volume_fraction": 1.0
+      },
+      "minimum_nonempty": {
+        "threshold": 3.9999999996,
+        "refined_base_blocks": 8,
+        "coarse_leaf_blocks": 0,
+        "fine_leaf_blocks": 64,
+        "fine_to_coarse_leaf_cell_ratio": null,
+        "fine_volume_fraction": 1.0
+      },
+      "sample_seconds": 0.009576224998454563,
+      "verification": {
+        "status": "six_step_application_checks_passed",
+        "evidence_path": "radiation_results/results/amr-gradient-20261010/streaming-coarse/streaming_front-l2/validation.json",
+        "ratio_in_target_at_all_observed_meshes": false,
+        "target_or_allowed_coarse_exception": true,
+        "observed_meshes": [
+          {
+            "step": 0,
+            "t": 0.0,
+            "coarse_leaf_blocks": 0,
+            "fine_leaf_blocks": 64,
+            "coarse_leaf_cells": 0,
+            "fine_leaf_cells": 32768,
+            "fine_to_coarse_leaf_cell_ratio": null,
+            "status": "all_fine_coarse_exception"
+          },
+          {
+            "step": 5,
+            "t": 0.02604166666666667,
+            "coarse_leaf_blocks": 0,
+            "fine_leaf_blocks": 64,
+            "coarse_leaf_cells": 0,
+            "fine_leaf_cells": 32768,
+            "fine_to_coarse_leaf_cell_ratio": null,
+            "status": "all_fine_coarse_exception"
+          }
+        ],
+        "physical_light_speed_factor": 1,
+        "scope": "Fresh initial conditions, six steps and one evolved regrid; no full-time accuracy claim."
+      }
+    },
+    {
+      "case": "streaming_front",
+      "finest_level": 3,
+      "base_level": 2,
+      "base_blocks": 64,
+      "field": "radiation_energy",
+      "floor": 1e-30,
+      "buffer": 0,
+      "dx": 0.0625,
+      "mode": "absolute",
+      "status": "all_fine_initial",
+      "selected": {
+        "threshold": 7.9999999992,
+        "refined_base_blocks": 64,
+        "coarse_leaf_blocks": 0,
+        "fine_leaf_blocks": 512,
+        "fine_to_coarse_leaf_cell_ratio": null,
+        "fine_volume_fraction": 1.0
+      },
+      "minimum_nonempty": {
+        "threshold": 7.9999999992,
+        "refined_base_blocks": 64,
+        "coarse_leaf_blocks": 0,
+        "fine_leaf_blocks": 512,
+        "fine_to_coarse_leaf_cell_ratio": null,
+        "fine_volume_fraction": 1.0
+      },
+      "sample_seconds": 0.030482163001579465,
+      "verification": {
+        "status": "offline_proposal_not_run",
+        "scope": "No completed application verification for this case/level."
+      }
+    },
+    {
+      "case": "streaming_front",
+      "finest_level": 4,
+      "base_level": 3,
+      "base_blocks": 512,
+      "field": "radiation_energy",
+      "floor": 1e-30,
+      "buffer": 0,
+      "dx": 0.03125,
+      "mode": "absolute",
+      "status": "initial_ratio_unattainable",
+      "selected": {
+        "threshold": 15.9999999984,
+        "refined_base_blocks": 256,
+        "coarse_leaf_blocks": 256,
+        "fine_leaf_blocks": 2048,
+        "fine_to_coarse_leaf_cell_ratio": 8.0,
+        "fine_volume_fraction": 0.5
+      },
+      "minimum_nonempty": {
+        "threshold": 15.9999999984,
+        "refined_base_blocks": 256,
+        "coarse_leaf_blocks": 256,
+        "fine_leaf_blocks": 2048,
+        "fine_to_coarse_leaf_cell_ratio": 8.0,
+        "fine_volume_fraction": 0.5
+      },
+      "sample_seconds": 0.20098695500200847,
+      "verification": {
+        "status": "offline_proposal_not_run",
+        "scope": "No completed application verification for this case/level."
+      }
+    },
+    {
+      "case": "streaming_front",
+      "finest_level": 5,
+      "base_level": 4,
+      "base_blocks": 4096,
+      "field": "radiation_energy",
+      "floor": 1e-30,
+      "buffer": 0,
+      "dx": 0.015625,
+      "mode": "absolute",
+      "status": "initial_ratio_unattainable",
+      "selected": {
+        "threshold": 31.9999999968,
+        "refined_base_blocks": 1024,
+        "coarse_leaf_blocks": 3072,
+        "fine_leaf_blocks": 8192,
+        "fine_to_coarse_leaf_cell_ratio": 2.6666666666666665,
+        "fine_volume_fraction": 0.25
+      },
+      "minimum_nonempty": {
+        "threshold": 31.9999999968,
+        "refined_base_blocks": 1024,
+        "coarse_leaf_blocks": 3072,
+        "fine_leaf_blocks": 8192,
+        "fine_to_coarse_leaf_cell_ratio": 2.6666666666666665,
+        "fine_volume_fraction": 0.25
+      },
+      "sample_seconds": 1.5578477470007783,
+      "verification": {
+        "status": "offline_proposal_not_run",
+        "scope": "No completed application verification for this case/level."
+      },
+      "local_resource_estimate": {
+        "total_nodes": 12873,
+        "estimated_peak_rss_gib": 23.85958690480125,
+        "basis": "Measured L5 sphere: 5961 total nodes and 11.0485 GiB peak RSS. Linear storage estimate only, not a measured run.",
+        "disposition": "Not launched: estimate exceeds the 16 GiB local process cap."
+      }
+    },
+    {
+      "case": "streaming_wave",
+      "finest_level": 2,
+      "base_level": 1,
+      "base_blocks": 8,
+      "field": "radiation_energy",
+      "floor": 1e-30,
+      "buffer": 0,
+      "dx": 0.125,
+      "mode": "absolute",
+      "status": "all_fine_initial",
+      "selected": {
+        "threshold": 1.9904273631109852,
+        "refined_base_blocks": 8,
+        "coarse_leaf_blocks": 0,
+        "fine_leaf_blocks": 64,
+        "fine_to_coarse_leaf_cell_ratio": null,
+        "fine_volume_fraction": 1.0
+      },
+      "minimum_nonempty": {
+        "threshold": 1.9904273631109852,
+        "refined_base_blocks": 8,
+        "coarse_leaf_blocks": 0,
+        "fine_leaf_blocks": 64,
+        "fine_to_coarse_leaf_cell_ratio": null,
+        "fine_volume_fraction": 1.0
+      },
+      "sample_seconds": 0.00709195799936424,
+      "verification": {
+        "status": "six_step_application_checks_passed",
+        "evidence_path": "radiation_results/results/amr-gradient-20261010/streaming-coarse/streaming_wave-l2/validation.json",
+        "ratio_in_target_at_all_observed_meshes": false,
+        "target_or_allowed_coarse_exception": true,
+        "observed_meshes": [
+          {
+            "step": 0,
+            "t": 0.0,
+            "coarse_leaf_blocks": 0,
+            "fine_leaf_blocks": 64,
+            "coarse_leaf_cells": 0,
+            "fine_leaf_cells": 32768,
+            "fine_to_coarse_leaf_cell_ratio": null,
+            "status": "all_fine_coarse_exception"
+          },
+          {
+            "step": 5,
+            "t": 0.02604166666666667,
+            "coarse_leaf_blocks": 0,
+            "fine_leaf_blocks": 64,
+            "coarse_leaf_cells": 0,
+            "fine_leaf_cells": 32768,
+            "fine_to_coarse_leaf_cell_ratio": null,
+            "status": "all_fine_coarse_exception"
+          }
+        ],
+        "physical_light_speed_factor": 1,
+        "scope": "Fresh initial conditions, six steps and one evolved regrid; no full-time accuracy claim."
+      }
+    },
+    {
+      "case": "streaming_wave",
+      "finest_level": 3,
+      "base_level": 2,
+      "base_blocks": 64,
+      "field": "radiation_energy",
+      "floor": 1e-30,
+      "buffer": 0,
+      "dx": 0.0625,
+      "mode": "absolute",
+      "status": "all_fine_initial",
+      "selected": {
+        "threshold": 2.259585260722008,
+        "refined_base_blocks": 64,
+        "coarse_leaf_blocks": 0,
+        "fine_leaf_blocks": 512,
+        "fine_to_coarse_leaf_cell_ratio": null,
+        "fine_volume_fraction": 1.0
+      },
+      "minimum_nonempty": {
+        "threshold": 2.259585260722008,
+        "refined_base_blocks": 64,
+        "coarse_leaf_blocks": 0,
+        "fine_leaf_blocks": 512,
+        "fine_to_coarse_leaf_cell_ratio": null,
+        "fine_volume_fraction": 1.0
+      },
+      "sample_seconds": 0.02914707499803626,
+      "verification": {
+        "status": "offline_proposal_not_run",
+        "scope": "No completed application verification for this case/level."
+      }
+    },
+    {
+      "case": "streaming_wave",
+      "finest_level": 4,
+      "base_level": 3,
+      "base_blocks": 512,
+      "field": "radiation_energy",
+      "floor": 1e-30,
+      "buffer": 0,
+      "dx": 0.03125,
+      "mode": "absolute",
+      "status": "all_fine_initial",
+      "selected": {
+        "threshold": 2.3317057282037528,
+        "refined_base_blocks": 512,
+        "coarse_leaf_blocks": 0,
+        "fine_leaf_blocks": 4096,
+        "fine_to_coarse_leaf_cell_ratio": null,
+        "fine_volume_fraction": 1.0
+      },
+      "minimum_nonempty": {
+        "threshold": 2.3317057282037528,
+        "refined_base_blocks": 512,
+        "coarse_leaf_blocks": 0,
+        "fine_leaf_blocks": 4096,
+        "fine_to_coarse_leaf_cell_ratio": null,
+        "fine_volume_fraction": 1.0
+      },
+      "sample_seconds": 0.21967037099966547,
+      "verification": {
+        "status": "offline_proposal_not_run",
+        "scope": "No completed application verification for this case/level."
+      }
+    },
+    {
+      "case": "streaming_wave",
+      "finest_level": 5,
+      "base_level": 4,
+      "base_blocks": 4096,
+      "field": "radiation_energy",
+      "floor": 1e-30,
+      "buffer": 0,
+      "dx": 0.015625,
+      "mode": "absolute",
+      "status": "initial_ratio_unattainable",
+      "selected": {
+        "threshold": 4.694440629853041,
+        "refined_base_blocks": 2560,
+        "coarse_leaf_blocks": 1536,
+        "fine_leaf_blocks": 20480,
+        "fine_to_coarse_leaf_cell_ratio": 13.333333333333334,
+        "fine_volume_fraction": 0.625
+      },
+      "minimum_nonempty": {
+        "threshold": 4.694440629853041,
+        "refined_base_blocks": 2560,
+        "coarse_leaf_blocks": 1536,
+        "fine_leaf_blocks": 20480,
+        "fine_to_coarse_leaf_cell_ratio": 13.333333333333334,
+        "fine_volume_fraction": 0.625
+      },
+      "sample_seconds": 1.501913940999657,
+      "verification": {
+        "status": "offline_proposal_not_run",
+        "scope": "No completed application verification for this case/level."
+      },
+      "local_resource_estimate": {
+        "total_nodes": 25161,
+        "estimated_peak_rss_gib": 46.634899876618064,
+        "basis": "Measured L5 sphere: 5961 total nodes and 11.0485 GiB peak RSS. Linear storage estimate only, not a measured run.",
+        "disposition": "Not launched: estimate exceeds the 16 GiB local process cap."
+      }
+    },
+    {
+      "case": "gaussian_pulse",
+      "finest_level": 2,
+      "base_level": 1,
+      "base_blocks": 8,
+      "field": "radiation_energy",
+      "floor": 1e-30,
+      "buffer": 0,
+      "dx": 0.125,
+      "mode": "absolute",
+      "status": "all_fine_initial",
+      "selected": {
+        "threshold": 0.014333442059503376,
+        "refined_base_blocks": 8,
+        "coarse_leaf_blocks": 0,
+        "fine_leaf_blocks": 64,
+        "fine_to_coarse_leaf_cell_ratio": null,
+        "fine_volume_fraction": 1.0
+      },
+      "minimum_nonempty": {
+        "threshold": 0.014333442059503376,
+        "refined_base_blocks": 8,
+        "coarse_leaf_blocks": 0,
+        "fine_leaf_blocks": 64,
+        "fine_to_coarse_leaf_cell_ratio": null,
+        "fine_volume_fraction": 1.0
+      },
+      "sample_seconds": 0.006055994002963416,
+      "verification": {
+        "status": "offline_proposal_not_run",
+        "scope": "No completed application verification for this case/level."
+      }
+    },
+    {
+      "case": "gaussian_pulse",
+      "finest_level": 3,
+      "base_level": 2,
+      "base_blocks": 64,
+      "field": "radiation_energy",
+      "floor": 1e-30,
+      "buffer": 0,
+      "dx": 0.0625,
+      "mode": "absolute",
+      "status": "all_fine_initial",
+      "selected": {
+        "threshold": 2.560103240512035e-10,
+        "refined_base_blocks": 64,
+        "coarse_leaf_blocks": 0,
+        "fine_leaf_blocks": 512,
+        "fine_to_coarse_leaf_cell_ratio": null,
+        "fine_volume_fraction": 1.0
+      },
+      "minimum_nonempty": {
+        "threshold": 0.019391183130181844,
+        "refined_base_blocks": 8,
+        "coarse_leaf_blocks": 56,
+        "fine_leaf_blocks": 64,
+        "fine_to_coarse_leaf_cell_ratio": 1.1428571428571428,
+        "fine_volume_fraction": 0.125
+      },
+      "sample_seconds": 0.02096963900112314,
+      "verification": {
+        "status": "offline_proposal_not_run",
+        "scope": "No completed application verification for this case/level."
+      }
+    },
+    {
+      "case": "gaussian_pulse",
+      "finest_level": 4,
+      "base_level": 3,
+      "base_blocks": 512,
+      "field": "radiation_energy",
+      "floor": 1e-30,
+      "buffer": 0,
+      "dx": 0.03125,
+      "mode": "absolute",
+      "status": "initial_ratio_feasible",
+      "selected": {
+        "threshold": 0.015135341534527669,
+        "refined_base_blocks": 32,
+        "coarse_leaf_blocks": 480,
+        "fine_leaf_blocks": 256,
+        "fine_to_coarse_leaf_cell_ratio": 0.5333333333333333,
+        "fine_volume_fraction": 0.0625
+      },
+      "minimum_nonempty": {
+        "threshold": 0.033621099829314716,
+        "refined_base_blocks": 8,
+        "coarse_leaf_blocks": 504,
+        "fine_leaf_blocks": 64,
+        "fine_to_coarse_leaf_cell_ratio": 0.12698412698412698,
+        "fine_volume_fraction": 0.015625
+      },
+      "sample_seconds": 0.14222936100122752,
+      "verification": {
+        "status": "six_step_application_checks_passed",
+        "evidence_path": "radiation_results/results/amr-gradient-20261010/gaussian-mixed/gaussian_pulse-l4/validation.json",
+        "ratio_in_target_at_all_observed_meshes": true,
+        "target_or_allowed_coarse_exception": true,
+        "observed_meshes": [
+          {
+            "step": 0,
+            "t": 0.0,
+            "coarse_leaf_blocks": 480,
+            "fine_leaf_blocks": 256,
+            "coarse_leaf_cells": 245760,
+            "fine_leaf_cells": 131072,
+            "fine_to_coarse_leaf_cell_ratio": 0.5333333333333333,
+            "status": "ratio_in_target"
+          },
+          {
+            "step": 5,
+            "t": 0.006510416666666668,
+            "coarse_leaf_blocks": 480,
+            "fine_leaf_blocks": 256,
+            "coarse_leaf_cells": 245760,
+            "fine_leaf_cells": 131072,
+            "fine_to_coarse_leaf_cell_ratio": 0.5333333333333333,
+            "status": "ratio_in_target"
+          }
+        ],
+        "physical_light_speed_factor": 1,
+        "scope": "Fresh initial conditions, six steps and one evolved regrid; no full-time accuracy claim."
+      }
+    },
+    {
+      "case": "gaussian_pulse",
+      "finest_level": 5,
+      "base_level": 4,
+      "base_blocks": 4096,
+      "field": "radiation_energy",
+      "floor": 1e-30,
+      "buffer": 0,
+      "dx": 0.015625,
+      "mode": "absolute",
+      "status": "initial_ratio_feasible",
+      "selected": {
+        "threshold": 0.008210526280350905,
+        "refined_base_blocks": 160,
+        "coarse_leaf_blocks": 3936,
+        "fine_leaf_blocks": 1280,
+        "fine_to_coarse_leaf_cell_ratio": 0.3252032520325203,
+        "fine_volume_fraction": 0.0390625
+      },
+      "minimum_nonempty": {
+        "threshold": 0.04232432131176722,
+        "refined_base_blocks": 24,
+        "coarse_leaf_blocks": 4072,
+        "fine_leaf_blocks": 192,
+        "fine_to_coarse_leaf_cell_ratio": 0.047151277013752456,
+        "fine_volume_fraction": 0.005859375
+      },
+      "sample_seconds": 0.9357993959965825,
+      "verification": {
+        "status": "offline_proposal_not_run",
+        "scope": "No completed application verification for this case/level."
+      }
+    },
+    {
+      "case": "equilibrium_sphere",
+      "finest_level": 2,
+      "base_level": 1,
+      "base_blocks": 8,
+      "field": "radiation_energy",
+      "floor": 1e-30,
+      "buffer": 0,
+      "dx": 0.125,
+      "mode": "absolute",
+      "status": "all_fine_initial",
+      "selected": {
+        "threshold": 0.051313689748234914,
+        "refined_base_blocks": 8,
+        "coarse_leaf_blocks": 0,
+        "fine_leaf_blocks": 64,
+        "fine_to_coarse_leaf_cell_ratio": null,
+        "fine_volume_fraction": 1.0
+      },
+      "minimum_nonempty": {
+        "threshold": 0.051313689748234914,
+        "refined_base_blocks": 8,
+        "coarse_leaf_blocks": 0,
+        "fine_leaf_blocks": 64,
+        "fine_to_coarse_leaf_cell_ratio": null,
+        "fine_volume_fraction": 1.0
+      },
+      "sample_seconds": 0.0056579929987492505,
+      "verification": {
+        "status": "six_step_application_checks_passed",
+        "evidence_path": "radiation_results/results/amr-gradient-20261010/sphere-first-repaired/equilibrium_sphere-l2/validation.json",
+        "ratio_in_target_at_all_observed_meshes": false,
+        "target_or_allowed_coarse_exception": true,
+        "observed_meshes": [
+          {
+            "step": 0,
+            "t": 0.0,
+            "coarse_leaf_blocks": 0,
+            "fine_leaf_blocks": 64,
+            "coarse_leaf_cells": 0,
+            "fine_leaf_cells": 32768,
+            "fine_to_coarse_leaf_cell_ratio": null,
+            "status": "all_fine_coarse_exception"
+          },
+          {
+            "step": 5,
+            "t": 0.02604166666666667,
+            "coarse_leaf_blocks": 0,
+            "fine_leaf_blocks": 64,
+            "coarse_leaf_cells": 0,
+            "fine_leaf_cells": 32768,
+            "fine_to_coarse_leaf_cell_ratio": null,
+            "status": "all_fine_coarse_exception"
+          }
+        ],
+        "physical_light_speed_factor": 1,
+        "scope": "Fresh initial conditions, six steps and one evolved regrid; no full-time accuracy claim."
+      }
+    },
+    {
+      "case": "equilibrium_sphere",
+      "finest_level": 3,
+      "base_level": 2,
+      "base_blocks": 64,
+      "field": "radiation_energy",
+      "floor": 1e-30,
+      "buffer": 0,
+      "dx": 0.0625,
+      "mode": "absolute",
+      "status": "all_fine_initial",
+      "selected": {
+        "threshold": 0.004058115637757709,
+        "refined_base_blocks": 64,
+        "coarse_leaf_blocks": 0,
+        "fine_leaf_blocks": 512,
+        "fine_to_coarse_leaf_cell_ratio": null,
+        "fine_volume_fraction": 1.0
+      },
+      "minimum_nonempty": {
+        "threshold": 0.08419409877379103,
+        "refined_base_blocks": 8,
+        "coarse_leaf_blocks": 56,
+        "fine_leaf_blocks": 64,
+        "fine_to_coarse_leaf_cell_ratio": 1.1428571428571428,
+        "fine_volume_fraction": 0.125
+      },
+      "sample_seconds": 0.020378041997901164,
+      "verification": {
+        "status": "offline_proposal_not_run",
+        "scope": "No completed application verification for this case/level."
+      }
+    },
+    {
+      "case": "equilibrium_sphere",
+      "finest_level": 4,
+      "base_level": 3,
+      "base_blocks": 512,
+      "field": "radiation_energy",
+      "floor": 1e-30,
+      "buffer": 0,
+      "dx": 0.03125,
+      "mode": "absolute",
+      "status": "initial_ratio_feasible",
+      "selected": {
+        "threshold": 0.0873476728317506,
+        "refined_base_blocks": 32,
+        "coarse_leaf_blocks": 480,
+        "fine_leaf_blocks": 256,
+        "fine_to_coarse_leaf_cell_ratio": 0.5333333333333333,
+        "fine_volume_fraction": 0.0625
+      },
+      "minimum_nonempty": {
+        "threshold": 0.12230429877983795,
+        "refined_base_blocks": 8,
+        "coarse_leaf_blocks": 504,
+        "fine_leaf_blocks": 64,
+        "fine_to_coarse_leaf_cell_ratio": 0.12698412698412698,
+        "fine_volume_fraction": 0.015625
+      },
+      "sample_seconds": 0.1407585770029982,
+      "verification": {
+        "status": "six_step_application_checks_passed",
+        "evidence_path": "radiation_results/results/amr-gradient-20261010/sphere-first-repaired/equilibrium_sphere-l4/validation.json",
+        "ratio_in_target_at_all_observed_meshes": true,
+        "target_or_allowed_coarse_exception": true,
+        "observed_meshes": [
+          {
+            "step": 0,
+            "t": 0.0,
+            "coarse_leaf_blocks": 480,
+            "fine_leaf_blocks": 256,
+            "coarse_leaf_cells": 245760,
+            "fine_leaf_cells": 131072,
+            "fine_to_coarse_leaf_cell_ratio": 0.5333333333333333,
+            "status": "ratio_in_target"
+          },
+          {
+            "step": 5,
+            "t": 0.006510416666666668,
+            "coarse_leaf_blocks": 480,
+            "fine_leaf_blocks": 256,
+            "coarse_leaf_cells": 245760,
+            "fine_leaf_cells": 131072,
+            "fine_to_coarse_leaf_cell_ratio": 0.5333333333333333,
+            "status": "ratio_in_target"
+          }
+        ],
+        "physical_light_speed_factor": 1,
+        "scope": "Fresh initial conditions, six steps and one evolved regrid; no full-time accuracy claim."
+      }
+    },
+    {
+      "case": "equilibrium_sphere",
+      "finest_level": 5,
+      "base_level": 4,
+      "base_blocks": 4096,
+      "field": "radiation_energy",
+      "floor": 1e-30,
+      "buffer": 0,
+      "dx": 0.015625,
+      "mode": "absolute",
+      "status": "initial_ratio_feasible",
+      "selected": {
+        "threshold": 0.07936638408182972,
+        "refined_base_blocks": 160,
+        "coarse_leaf_blocks": 3936,
+        "fine_leaf_blocks": 1280,
+        "fine_to_coarse_leaf_cell_ratio": 0.3252032520325203,
+        "fine_volume_fraction": 0.0390625
+      },
+      "minimum_nonempty": {
+        "threshold": 0.1233509836374651,
+        "refined_base_blocks": 24,
+        "coarse_leaf_blocks": 4072,
+        "fine_leaf_blocks": 192,
+        "fine_to_coarse_leaf_cell_ratio": 0.047151277013752456,
+        "fine_volume_fraction": 0.005859375
+      },
+      "sample_seconds": 1.2600187360003474,
+      "verification": {
+        "status": "six_step_application_checks_passed",
+        "evidence_path": "radiation_results/results/amr-gradient-20261010/priority-l5/equilibrium_sphere-l5/validation.json",
+        "ratio_in_target_at_all_observed_meshes": true,
+        "target_or_allowed_coarse_exception": true,
+        "observed_meshes": [
+          {
+            "step": 0,
+            "t": 0.0,
+            "coarse_leaf_blocks": 3936,
+            "fine_leaf_blocks": 1280,
+            "coarse_leaf_cells": 2015232,
+            "fine_leaf_cells": 655360,
+            "fine_to_coarse_leaf_cell_ratio": 0.3252032520325203,
+            "status": "ratio_in_target"
+          },
+          {
+            "step": 5,
+            "t": 0.003255208333333334,
+            "coarse_leaf_blocks": 3936,
+            "fine_leaf_blocks": 1280,
+            "coarse_leaf_cells": 2015232,
+            "fine_leaf_cells": 655360,
+            "fine_to_coarse_leaf_cell_ratio": 0.3252032520325203,
+            "status": "ratio_in_target"
+          }
+        ],
+        "physical_light_speed_factor": 1,
+        "scope": "Fresh initial conditions, six steps and one evolved regrid; no full-time accuracy claim."
+      }
+    },
+    {
+      "case": "subcritical_shock",
+      "finest_level": 2,
+      "base_level": 1,
+      "base_blocks": 8,
+      "field": "radiation_energy",
+      "floor": 1e-30,
+      "buffer": 0,
+      "dx": 4375000000,
+      "mode": "absolute",
+      "status": "all_fine_initial",
+      "selected": {
+        "threshold": 1.746003176272545e-18,
+        "refined_base_blocks": 8,
+        "coarse_leaf_blocks": 0,
+        "fine_leaf_blocks": 64,
+        "fine_to_coarse_leaf_cell_ratio": null,
+        "fine_volume_fraction": 1.0
+      },
+      "minimum_nonempty": {
+        "threshold": 1.015885344348489e-17,
+        "refined_base_blocks": 4,
+        "coarse_leaf_blocks": 4,
+        "fine_leaf_blocks": 32,
+        "fine_to_coarse_leaf_cell_ratio": 8.0,
+        "fine_volume_fraction": 0.5
+      },
+      "sample_seconds": 0.00655131800158415,
+      "verification": {
+        "status": "six_step_application_checks_passed",
+        "evidence_path": "radiation_results/results/amr-gradient-20261010/coupled-first/subcritical_shock-l2/validation.json",
+        "ratio_in_target_at_all_observed_meshes": false,
+        "target_or_allowed_coarse_exception": true,
+        "observed_meshes": [
+          {
+            "step": 0,
+            "t": 0.0,
+            "coarse_leaf_blocks": 0,
+            "fine_leaf_blocks": 64,
+            "coarse_leaf_cells": 0,
+            "fine_leaf_cells": 32768,
+            "fine_to_coarse_leaf_cell_ratio": null,
+            "status": "all_fine_coarse_exception"
+          },
+          {
+            "step": 5,
+            "t": 0.030402977426914897,
+            "coarse_leaf_blocks": 0,
+            "fine_leaf_blocks": 64,
+            "coarse_leaf_cells": 0,
+            "fine_leaf_cells": 32768,
+            "fine_to_coarse_leaf_cell_ratio": null,
+            "status": "all_fine_coarse_exception"
+          }
+        ],
+        "physical_light_speed_factor": 1,
+        "scope": "Fresh initial conditions, six steps and one evolved regrid; no full-time accuracy claim."
+      }
+    },
+    {
+      "case": "subcritical_shock",
+      "finest_level": 3,
+      "base_level": 2,
+      "base_blocks": 64,
+      "field": "radiation_energy",
+      "floor": 1e-30,
+      "buffer": 0,
+      "dx": 2187500000,
+      "mode": "absolute",
+      "status": "all_fine_initial",
+      "selected": {
+        "threshold": 3.8655286693331886e-19,
+        "refined_base_blocks": 64,
+        "coarse_leaf_blocks": 0,
+        "fine_leaf_blocks": 512,
+        "fine_to_coarse_leaf_cell_ratio": null,
+        "fine_volume_fraction": 1.0
+      },
+      "minimum_nonempty": {
+        "threshold": 1.387636982096575e-17,
+        "refined_base_blocks": 16,
+        "coarse_leaf_blocks": 48,
+        "fine_leaf_blocks": 128,
+        "fine_to_coarse_leaf_cell_ratio": 2.6666666666666665,
+        "fine_volume_fraction": 0.25
+      },
+      "sample_seconds": 0.019034107001061784,
+      "verification": {
+        "status": "offline_proposal_not_run",
+        "scope": "No completed application verification for this case/level."
+      }
+    },
+    {
+      "case": "subcritical_shock",
+      "finest_level": 4,
+      "base_level": 3,
+      "base_blocks": 512,
+      "field": "radiation_energy",
+      "floor": 1e-30,
+      "buffer": 0,
+      "dx": 1093750000,
+      "mode": "absolute",
+      "status": "initial_ratio_unattainable",
+      "selected": {
+        "threshold": 1.6564369619631036e-17,
+        "refined_base_blocks": 64,
+        "coarse_leaf_blocks": 448,
+        "fine_leaf_blocks": 512,
+        "fine_to_coarse_leaf_cell_ratio": 1.1428571428571428,
+        "fine_volume_fraction": 0.125
+      },
+      "minimum_nonempty": {
+        "threshold": 1.6564369619631036e-17,
+        "refined_base_blocks": 64,
+        "coarse_leaf_blocks": 448,
+        "fine_leaf_blocks": 512,
+        "fine_to_coarse_leaf_cell_ratio": 1.1428571428571428,
+        "fine_volume_fraction": 0.125
+      },
+      "sample_seconds": 0.11370862799958559,
+      "verification": {
+        "status": "six_step_application_checks_passed",
+        "evidence_path": "radiation_results/results/amr-gradient-20261010/coupled-first/subcritical_shock-l4/validation.json",
+        "ratio_in_target_at_all_observed_meshes": false,
+        "target_or_allowed_coarse_exception": false,
+        "observed_meshes": [
+          {
+            "step": 0,
+            "t": 0.0,
+            "coarse_leaf_blocks": 448,
+            "fine_leaf_blocks": 512,
+            "coarse_leaf_cells": 229376,
+            "fine_leaf_cells": 262144,
+            "fine_to_coarse_leaf_cell_ratio": 1.1428571428571428,
+            "status": "mixed_outside_target"
+          },
+          {
+            "step": 5,
+            "t": 0.007600744356728724,
+            "coarse_leaf_blocks": 448,
+            "fine_leaf_blocks": 512,
+            "coarse_leaf_cells": 229376,
+            "fine_leaf_cells": 262144,
+            "fine_to_coarse_leaf_cell_ratio": 1.1428571428571428,
+            "status": "mixed_outside_target"
+          }
+        ],
+        "physical_light_speed_factor": 1,
+        "scope": "Fresh initial conditions, six steps and one evolved regrid; no full-time accuracy claim."
+      }
+    },
+    {
+      "case": "subcritical_shock",
+      "finest_level": 5,
+      "base_level": 4,
+      "base_blocks": 4096,
+      "field": "radiation_energy",
+      "floor": 1e-30,
+      "buffer": 0,
+      "dx": 546875000,
+      "mode": "absolute",
+      "status": "initial_ratio_feasible",
+      "selected": {
+        "threshold": 1.8151123548501805e-17,
+        "refined_base_blocks": 256,
+        "coarse_leaf_blocks": 3840,
+        "fine_leaf_blocks": 2048,
+        "fine_to_coarse_leaf_cell_ratio": 0.5333333333333333,
+        "fine_volume_fraction": 0.0625
+      },
+      "minimum_nonempty": {
+        "threshold": 1.8151123548501805e-17,
+        "refined_base_blocks": 256,
+        "coarse_leaf_blocks": 3840,
+        "fine_leaf_blocks": 2048,
+        "fine_to_coarse_leaf_cell_ratio": 0.5333333333333333,
+        "fine_volume_fraction": 0.0625
+      },
+      "sample_seconds": 0.8285259090007457,
+      "verification": {
+        "status": "six_step_application_checks_passed",
+        "evidence_path": "radiation_results/results/amr-gradient-20261010/priority-l5/subcritical_shock-l5/validation.json",
+        "ratio_in_target_at_all_observed_meshes": true,
+        "target_or_allowed_coarse_exception": true,
+        "observed_meshes": [
+          {
+            "step": 0,
+            "t": 0.0,
+            "coarse_leaf_blocks": 3840,
+            "fine_leaf_blocks": 2048,
+            "coarse_leaf_cells": 1966080,
+            "fine_leaf_cells": 1048576,
+            "fine_to_coarse_leaf_cell_ratio": 0.5333333333333333,
+            "status": "ratio_in_target"
+          },
+          {
+            "step": 5,
+            "t": 0.003800372178364362,
+            "coarse_leaf_blocks": 3840,
+            "fine_leaf_blocks": 2048,
+            "coarse_leaf_cells": 1966080,
+            "fine_leaf_cells": 1048576,
+            "fine_to_coarse_leaf_cell_ratio": 0.5333333333333333,
+            "status": "ratio_in_target"
+          }
+        ],
+        "physical_light_speed_factor": 1,
+        "scope": "Fresh initial conditions, six steps and one evolved regrid; no full-time accuracy claim."
+      }
+    },
+    {
+      "case": "supercritical_shock",
+      "finest_level": 2,
+      "base_level": 1,
+      "base_blocks": 8,
+      "field": "radiation_energy",
+      "floor": 1e-30,
+      "buffer": 0,
+      "dx": 4375000000,
+      "mode": "absolute",
+      "status": "all_fine_initial",
+      "selected": {
+        "threshold": 1.746003176272545e-18,
+        "refined_base_blocks": 8,
+        "coarse_leaf_blocks": 0,
+        "fine_leaf_blocks": 64,
+        "fine_to_coarse_leaf_cell_ratio": null,
+        "fine_volume_fraction": 1.0
+      },
+      "minimum_nonempty": {
+        "threshold": 1.015885344348489e-17,
+        "refined_base_blocks": 4,
+        "coarse_leaf_blocks": 4,
+        "fine_leaf_blocks": 32,
+        "fine_to_coarse_leaf_cell_ratio": 8.0,
+        "fine_volume_fraction": 0.5
+      },
+      "sample_seconds": 0.006525589997181669,
+      "verification": {
+        "status": "offline_proposal_not_run",
+        "scope": "No completed application verification for this case/level."
+      }
+    },
+    {
+      "case": "supercritical_shock",
+      "finest_level": 3,
+      "base_level": 2,
+      "base_blocks": 64,
+      "field": "radiation_energy",
+      "floor": 1e-30,
+      "buffer": 0,
+      "dx": 2187500000,
+      "mode": "absolute",
+      "status": "all_fine_initial",
+      "selected": {
+        "threshold": 3.8655286693331886e-19,
+        "refined_base_blocks": 64,
+        "coarse_leaf_blocks": 0,
+        "fine_leaf_blocks": 512,
+        "fine_to_coarse_leaf_cell_ratio": null,
+        "fine_volume_fraction": 1.0
+      },
+      "minimum_nonempty": {
+        "threshold": 1.387636982096575e-17,
+        "refined_base_blocks": 16,
+        "coarse_leaf_blocks": 48,
+        "fine_leaf_blocks": 128,
+        "fine_to_coarse_leaf_cell_ratio": 2.6666666666666665,
+        "fine_volume_fraction": 0.25
+      },
+      "sample_seconds": 0.018898500999057433,
+      "verification": {
+        "status": "offline_proposal_not_run",
+        "scope": "No completed application verification for this case/level."
+      }
+    },
+    {
+      "case": "supercritical_shock",
+      "finest_level": 4,
+      "base_level": 3,
+      "base_blocks": 512,
+      "field": "radiation_energy",
+      "floor": 1e-30,
+      "buffer": 0,
+      "dx": 1093750000,
+      "mode": "absolute",
+      "status": "initial_ratio_unattainable",
+      "selected": {
+        "threshold": 1.6564369619631036e-17,
+        "refined_base_blocks": 64,
+        "coarse_leaf_blocks": 448,
+        "fine_leaf_blocks": 512,
+        "fine_to_coarse_leaf_cell_ratio": 1.1428571428571428,
+        "fine_volume_fraction": 0.125
+      },
+      "minimum_nonempty": {
+        "threshold": 1.6564369619631036e-17,
+        "refined_base_blocks": 64,
+        "coarse_leaf_blocks": 448,
+        "fine_leaf_blocks": 512,
+        "fine_to_coarse_leaf_cell_ratio": 1.1428571428571428,
+        "fine_volume_fraction": 0.125
+      },
+      "sample_seconds": 0.08199142399826087,
+      "verification": {
+        "status": "offline_proposal_not_run",
+        "scope": "No completed application verification for this case/level."
+      }
+    },
+    {
+      "case": "supercritical_shock",
+      "finest_level": 5,
+      "base_level": 4,
+      "base_blocks": 4096,
+      "field": "radiation_energy",
+      "floor": 1e-30,
+      "buffer": 0,
+      "dx": 546875000,
+      "mode": "absolute",
+      "status": "initial_ratio_feasible",
+      "selected": {
+        "threshold": 1.8151123548501805e-17,
+        "refined_base_blocks": 256,
+        "coarse_leaf_blocks": 3840,
+        "fine_leaf_blocks": 2048,
+        "fine_to_coarse_leaf_cell_ratio": 0.5333333333333333,
+        "fine_volume_fraction": 0.0625
+      },
+      "minimum_nonempty": {
+        "threshold": 1.8151123548501805e-17,
+        "refined_base_blocks": 256,
+        "coarse_leaf_blocks": 3840,
+        "fine_leaf_blocks": 2048,
+        "fine_to_coarse_leaf_cell_ratio": 0.5333333333333333,
+        "fine_volume_fraction": 0.0625
+      },
+      "sample_seconds": 0.5954613909998443,
+      "verification": {
+        "status": "six_step_application_checks_passed",
+        "evidence_path": "radiation_results/results/amr-gradient-20261010/supercritical-priority/supercritical_shock-l5/validation.json",
+        "ratio_in_target_at_all_observed_meshes": true,
+        "target_or_allowed_coarse_exception": true,
+        "observed_meshes": [
+          {
+            "step": 0,
+            "t": 0.0,
+            "coarse_leaf_blocks": 3840,
+            "fine_leaf_blocks": 2048,
+            "coarse_leaf_cells": 1966080,
+            "fine_leaf_cells": 1048576,
+            "fine_to_coarse_leaf_cell_ratio": 0.5333333333333333,
+            "status": "ratio_in_target"
+          },
+          {
+            "step": 5,
+            "t": 0.003800372178364362,
+            "coarse_leaf_blocks": 3840,
+            "fine_leaf_blocks": 2048,
+            "coarse_leaf_cells": 1966080,
+            "fine_leaf_cells": 1048576,
+            "fine_to_coarse_leaf_cell_ratio": 0.5333333333333333,
+            "status": "ratio_in_target"
+          }
+        ],
+        "physical_light_speed_factor": 1,
+        "scope": "Fresh initial conditions, six steps and one evolved regrid; no full-time accuracy claim."
+      }
+    },
+    {
+      "case": "radiating_blast",
+      "finest_level": 2,
+      "base_level": 1,
+      "base_blocks": 8,
+      "field": "radiation_energy",
+      "floor": 1e-30,
+      "buffer": 0,
+      "dx": 1250000000000,
+      "mode": "absolute",
+      "status": "all_fine_initial",
+      "selected": {
+        "threshold": 1.3202055820024439e-09,
+        "refined_base_blocks": 8,
+        "coarse_leaf_blocks": 0,
+        "fine_leaf_blocks": 64,
+        "fine_to_coarse_leaf_cell_ratio": null,
+        "fine_volume_fraction": 1.0
+      },
+      "minimum_nonempty": {
+        "threshold": 1.3202055820024439e-09,
+        "refined_base_blocks": 8,
+        "coarse_leaf_blocks": 0,
+        "fine_leaf_blocks": 64,
+        "fine_to_coarse_leaf_cell_ratio": null,
+        "fine_volume_fraction": 1.0
+      },
+      "sample_seconds": 0.005354259999876376,
+      "verification": {
+        "status": "six_step_application_checks_passed",
+        "evidence_path": "radiation_results/results/amr-gradient-20261010/coupled-first/radiating_blast-l2/validation.json",
+        "ratio_in_target_at_all_observed_meshes": false,
+        "target_or_allowed_coarse_exception": true,
+        "observed_meshes": [
+          {
+            "step": 0,
+            "t": 0.0,
+            "coarse_leaf_blocks": 0,
+            "fine_leaf_blocks": 64,
+            "coarse_leaf_cells": 0,
+            "fine_leaf_cells": 32768,
+            "fine_to_coarse_leaf_cell_ratio": null,
+            "status": "all_fine_coarse_exception"
+          },
+          {
+            "step": 5,
+            "t": 8.686564979118542,
+            "coarse_leaf_blocks": 0,
+            "fine_leaf_blocks": 64,
+            "coarse_leaf_cells": 0,
+            "fine_leaf_cells": 32768,
+            "fine_to_coarse_leaf_cell_ratio": null,
+            "status": "all_fine_coarse_exception"
+          }
+        ],
+        "physical_light_speed_factor": 1,
+        "scope": "Fresh initial conditions, six steps and one evolved regrid; no full-time accuracy claim."
+      }
+    },
+    {
+      "case": "radiating_blast",
+      "finest_level": 3,
+      "base_level": 2,
+      "base_blocks": 64,
+      "field": "radiation_energy",
+      "floor": 1e-30,
+      "buffer": 0,
+      "dx": 625000000000,
+      "mode": "absolute",
+      "status": "all_fine_initial",
+      "selected": {
+        "threshold": 2.021018940498577e-17,
+        "refined_base_blocks": 64,
+        "coarse_leaf_blocks": 0,
+        "fine_leaf_blocks": 512,
+        "fine_to_coarse_leaf_cell_ratio": null,
+        "fine_volume_fraction": 1.0
+      },
+      "minimum_nonempty": {
+        "threshold": 8.016416253159597e-09,
+        "refined_base_blocks": 8,
+        "coarse_leaf_blocks": 56,
+        "fine_leaf_blocks": 64,
+        "fine_to_coarse_leaf_cell_ratio": 1.1428571428571428,
+        "fine_volume_fraction": 0.125
+      },
+      "sample_seconds": 0.020557310999720357,
+      "verification": {
+        "status": "offline_proposal_not_run",
+        "scope": "No completed application verification for this case/level."
+      }
+    },
+    {
+      "case": "radiating_blast",
+      "finest_level": 4,
+      "base_level": 3,
+      "base_blocks": 512,
+      "field": "radiation_energy",
+      "floor": 1e-30,
+      "buffer": 0,
+      "dx": 312500000000,
+      "mode": "absolute",
+      "status": "initial_ratio_feasible",
+      "selected": {
+        "threshold": 1.129979020194113e-08,
+        "refined_base_blocks": 8,
+        "coarse_leaf_blocks": 504,
+        "fine_leaf_blocks": 64,
+        "fine_to_coarse_leaf_cell_ratio": 0.12698412698412698,
+        "fine_volume_fraction": 0.015625
+      },
+      "minimum_nonempty": {
+        "threshold": 1.129979020194113e-08,
+        "refined_base_blocks": 8,
+        "coarse_leaf_blocks": 504,
+        "fine_leaf_blocks": 64,
+        "fine_to_coarse_leaf_cell_ratio": 0.12698412698412698,
+        "fine_volume_fraction": 0.015625
+      },
+      "sample_seconds": 0.12473810499795945,
+      "tuning_note": "Raised the scalar radiation-energy threshold to the next complete initial feature group after the first trial grew to R=8/7. Original trial retained in coupled-first/radiating_blast-l4.",
+      "verification": {
+        "status": "six_step_application_checks_passed",
+        "evidence_path": "radiation_results/results/amr-gradient-20261010/blast-stronger/radiating_blast-l4/validation.json",
+        "ratio_in_target_at_all_observed_meshes": true,
+        "target_or_allowed_coarse_exception": true,
+        "observed_meshes": [
+          {
+            "step": 0,
+            "t": 0.0,
+            "coarse_leaf_blocks": 504,
+            "fine_leaf_blocks": 64,
+            "coarse_leaf_cells": 258048,
+            "fine_leaf_cells": 32768,
+            "fine_to_coarse_leaf_cell_ratio": 0.12698412698412698,
+            "status": "ratio_in_target"
+          },
+          {
+            "step": 5,
+            "t": 2.1716412447796354,
+            "coarse_leaf_blocks": 456,
+            "fine_leaf_blocks": 448,
+            "coarse_leaf_cells": 233472,
+            "fine_leaf_cells": 229376,
+            "fine_to_coarse_leaf_cell_ratio": 0.9824561403508771,
+            "status": "ratio_in_target"
+          }
+        ],
+        "physical_light_speed_factor": 1,
+        "scope": "Fresh initial conditions, six steps and one evolved regrid; no full-time accuracy claim."
+      }
+    },
+    {
+      "case": "radiating_blast",
+      "finest_level": 5,
+      "base_level": 4,
+      "base_blocks": 4096,
+      "field": "radiation_energy",
+      "floor": 1e-30,
+      "buffer": 0,
+      "dx": 156250000000,
+      "mode": "absolute",
+      "status": "initial_ratio_feasible",
+      "selected": {
+        "threshold": 5.636985687881309e-13,
+        "refined_base_blocks": 160,
+        "coarse_leaf_blocks": 3936,
+        "fine_leaf_blocks": 1280,
+        "fine_to_coarse_leaf_cell_ratio": 0.3252032520325203,
+        "fine_volume_fraction": 0.0390625
+      },
+      "minimum_nonempty": {
+        "threshold": 1.6294141478563658e-08,
+        "refined_base_blocks": 8,
+        "coarse_leaf_blocks": 4088,
+        "fine_leaf_blocks": 64,
+        "fine_to_coarse_leaf_cell_ratio": 0.015655577299412915,
+        "fine_volume_fraction": 0.001953125
+      },
+      "sample_seconds": 1.150118145000306,
+      "verification": {
+        "status": "offline_proposal_not_run",
+        "scope": "No completed application verification for this case/level."
+      }
+    }
+  ],
+  "limitations": [
+    "No full-duration evolution or accuracy validation.",
+    "Initial parent restriction and hysteresis can change actual mesh counts.",
+    "The cell-ratio target is not a solver quota; tied feature blocks remain grouped."
+  ],
+  "resampling_verification": {
+    "status": "all_28_initial_proposals_identical_after_current_source_resampling",
+    "evidence": "radiation_results/results/amr-gradient-20261010/current-source-plan/plan.json"
+  }
+}

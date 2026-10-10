@@ -58,7 +58,7 @@ constexpr int HS_NX=INX/2+2*H_BW, HS_N3=HS_NX*HS_NX*HS_NX;
 constexpr int XDIM=0, YDIM=1, ZDIM=2, RADIATION_EQUILIBRIUM_SPHERE=3;
 integer rindex(integer i,integer j,integer k) { return k+RAD_NX*(j+RAD_NX*i); }
 integer hindex(integer i,integer j,integer k) { return rindex(i,j,k); }
-struct options_fixture { Real cfl=.25; int problem=0; };
+struct options_fixture { Real cfl=.25,radiation_reduced_c_factor=1; int problem=0; };
 options_fixture& opts() { static options_fixture o; return o; }
 struct constants_fixture { Real c=1; };
 constants_fixture& physcon() { static constants_fixture p; return p; }

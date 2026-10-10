@@ -32,7 +32,7 @@ std::string start(const std::string &title)
 std::string finish(const Json &state)
 {
 	std::string s = "</main><footer>Octo-TIGER · Radiation verification · Descriptions reviewed against the "
-					"September 17, 2026 source. "
+					"local source implementation. "
 					"Recorded run settings and provenance accompany the results.";
 	if (state.value("active", false)) {
     s +=
@@ -65,6 +65,9 @@ bool comparable(const std::vector<Run> &runs)
   }
   std::set<double> dx;
 	for (auto &[p, m] : runs) {
+		if (m.value("adaptive", false)) {
+			return false;
+		}
 		if (!dx.insert(m.at("dx").get<double>()).second) {
       return false;
     }
@@ -104,10 +107,17 @@ std::string settings(const Json &m)
 	std::string s = "<div class=\"scroll\"><table><tbody>";
 	s += row("Origin", show(m.value("origin", Json())));
 	s += row("Domain", "Cube of side " + show(m.at("length")) + lu + "; centered at the origin");
-	s += row("Resolution", show(m.at("cells")) + "³ cells; level " + show(m.at("level")) +
-							   "; Δx = " + show(m.at("dx")) + lu);
+	s += row("Resolution", html(mesh_label(m)) + "; finest Δx = " + show(m.at("dx")) + lu);
+	if (m.value("adaptive", false)) {
+		s += row("Slice geometry", html(slice_geometry_note(m)));
+	}
 	s += row("Final comparison time", show(m.at("time")) + tu);
-	s += row("Light speed", show(m.at("c")) + (cgs(m) ? " cm/s" : " (code speed)"));
+	s += row("Physical light speed", show(m.at("c")) + (cgs(m) ? " cm/s" : " (code speed)"));
+    if (m.contains("radiation_reduced_c_factor")) {
+        s += row("Reduced-speed factor α", show(m.at("radiation_reduced_c_factor")));
+        s += row("Radiation transport speed", show(m.at("transport_c")) +
+            (cgs(m) ? " cm/s" : " (code speed)"));
+    }
 	for (const auto &[key, title] :
 		 std::vector<std::pair<std::string, std::string>>{{"periodic", "Periodic boundaries"},
 														  {"hydro", "Hydrodynamics"},
@@ -122,7 +132,7 @@ std::string settings(const Json &m)
       s += row(title, show(cfg.at(key)) + ((key == "hard_dt" || key == "odt") ? tu : ""));
     }
   }
-  if (!m.at("case").get<std::string>().starts_with("streaming")) {
+  if (m.at("case") == "gaussian_pulse" || m.at("case") == "equilibrium_sphere") {
 		for (const auto &[key, title, unit] : std::vector<std::tuple<std::string, std::string, std::string>>{
 				 {"rad_test_background", "Background energy density", "erg/cm³"},
 				 {"rad_test_chi", "Scattering coefficient χ", "cm⁻¹"},
@@ -167,7 +177,7 @@ std::string norms_table(const std::vector<Run> &runs, bool compare, Json &errors
 								  {"order", order},
 								  {"error_units", units},
 								  {"origin", m.value("origin", "")}});
-				s += "<tr><td>" + show(m.at("cells")) + "³</td><td>" + fields[f] + "</td><td>" + n +
+				s += "<tr><td>" + html(mesh_label(m)) + "</td><td>" + fields[f] + "</td><td>" + n +
 					 "</td><td>" + show(error) + "</td><td>" + show(order) + "</td><td>" + units +
 					 "</td></tr>";
 			}
@@ -247,6 +257,7 @@ std::string method_notes()
 <p><var>B</var> is outward transport and <var>S</var> is the source change. Conservation plots and this page's budget tables show <strong>fractions of the initial totals</strong>: Q(t)/D, [Q(0) − B(t) + S(t)]/D, and the signed residual R(t)/D. The denominator D = |Q(0)| is fixed for the entire history. It never grows with the current total or accumulated transport/source budgets. A negative initial flux therefore starts at −1, and the plotted fraction retains its sign.</p>
 <p>A component whose initial net flux is zero or negligible cannot be divided by its own initial total. It instead uses the fixed scale D = c |E₀|, where E₀ is the initial integrated radiation energy. This fallback is labeled on its panels and in the table. “Negligible” means |Q(0)|/(c |E₀|) ≤ 64ε ≈ 1.421085 × 10<sup>−14</sup>, with ε the double-precision machine epsilon. This prevents roundoff left by cancellation in a symmetric field from becoming the denominator. A nonzero initial radiation energy is required.</p>
 <p>Raw histories and dimensional summary columns remain in physical units: energy integrals in erg, physical-flux integrals in erg cm/s for CGS runs. Dividing a flux integral by c² gives radiation momentum. Fraction-history CSV files are dimensionless except for their time column; summary files record each denominator and its basis. Maximum fractional residuals use the same fixed denominator as the final residual.</p>
+<p>For runs labeled RSLA, these budgets check the modified radiation equations. They do not establish conservation of physical gas-plus-radiation energy. With reduced-speed factor α, the closed-system coupled invariants are Egas + Er/α and gas momentum + F/(αc²), with physical c in the closure. Compare multiple α values before interpreting an RSLA result as an approximation to physical-c evolution.</p>
 <p>Movies show the numerical Silo states with a fixed color range for each movie. Recorded states are held for their actual simulation-time gaps; intermediate solutions are not interpolated. The 3D option shows the domain's exterior surface. Movies and plots retain their recorded physical units.</p></section>)";
 }
 } // namespace
@@ -261,8 +272,12 @@ fs::path report_pages(const fs::path &batch, bool live_update)
 	std::map<std::string, std::string> unreadable;
 	for (auto &[p, m] : all) {
 		try {
-			m["norms"] = read_norms(p, m);
-			if (live_update) {
+			if (coupled_case(m.at("case"))) {
+                read_hydro_profile(p, m);
+            } else {
+                m["norms"] = read_norms(p, m);
+            }
+            if (live_update) {
         read_conservation(p, m);
       }
       groups[m.at("case")].emplace_back(p, m);
@@ -288,8 +303,8 @@ fs::path report_pages(const fs::path &batch, bool live_update)
 	std::string index =
 		start("Radiation test problems") +
 		"<header><div class=\"brand\">Octo-TIGER / Radiation verification</div><h1>Radiation test "
-		"problems</h1><p class=\"lead\">Transport, relaxation, and equilibrium. Open a problem for its "
-		"physical setup, reference solution, sources, and results at every completed resolution.</p>";
+		"problems</h1><p class=\"lead\">Transport, equilibrium, and radiation hydrodynamics. Open a problem for its "
+		"physical setup, comparison method, sources, and results at every completed resolution.</p>";
 	index += "<div class=\"status\"><strong>" + html(state.value("message", "Saved results")) +
 			 "</strong><span>" + std::to_string(all.size()) + " completed runs</span><span>" +
 			 html(batch.filename().string()) + "</span></div>";
@@ -302,6 +317,7 @@ fs::path report_pages(const fs::path &batch, bool live_update)
   }
   index += fixture_note + "</header><main><div class=\"cards\">";
 	for (auto &d : problem_descriptions) {
+        const bool coupled = coupled_case(d.name);
 		auto &runs = groups[d.name];
 		std::sort(runs.begin(), runs.end(), [](auto &a, auto &b) {
 			return a.second.at("dx").template get<double>() > b.second.at("dx").template get<double>();
@@ -310,15 +326,15 @@ fs::path report_pages(const fs::path &batch, bool live_update)
 		std::string preview;
 		for (auto it = runs.rbegin(); it != runs.rend(); ++it) {
 			const auto img =
-				case_dir / ("l" + std::to_string(it->second.at("level").get<int>())) / "slice_er.png";
+				case_dir / ("l" + std::to_string(it->second.at("level").get<int>())) / (coupled ? "hydro_slice.png" : "slice_er.png");
 			if (!fs::is_regular_file(img)) {
         continue;
       }
       preview = "<figure class=\"preview\"><a href=\"" + d.name +
 					  ".html\"><img loading=\"lazy\" src=\"" +
 					  url(fs::relative(img, batch).generic_string()) + "\" alt=\"" + d.title +
-					  " energy comparison\"></a><figcaption>Energy comparison · " +
-					  show(it->second.at("cells")) + "³ cells · t = " + show(it->second.at("time")) +
+					  (coupled ? " numerical hydro fields\"></a><figcaption>Numerical fields · " : " energy comparison\"></a><figcaption>Energy comparison · ") +
+					  html(mesh_label(it->second)) + " · t = " + show(it->second.at("time")) +
 					  (cgs(it->second) ? " s" : " code time") + "</figcaption></figure>";
 			break;
 		}
@@ -342,19 +358,21 @@ fs::path report_pages(const fs::path &batch, bool live_update)
     page += "</nav><span class=\"tag\">" + d.regime + "</span><h1>" + d.title +
 				"</h1><p class=\"lead\">" + d.summary + "</p>" + fixture_note +
 				"</header><main><nav class=\"contents\" aria-label=\"On this page\"><a "
-				"href=\"#setup\">Setup</a><a href=\"#reference\">Reference solution</a><a "
+				"href=\"#setup\">Setup</a><a href=\"#reference\">Comparison method</a><a "
 				"href=\"#results\">Results</a><a href=\"#diagnostics\">Diagnostics</a><a "
 				"href=\"#sources\">Sources &amp; provenance</a></nav>";
-		page += "<section class=\"section\" id=\"setup\"><span class=\"tag\">The "
-				"experiment</span><h2>Physical setup</h2>" +
-				d.setup +
-				"<p>The standard runner uses a uniform cubic grid with hydrodynamics and gravity disabled. "
-				"Its CGS box spans −3 × 10¹⁰ to +3 × 10¹⁰ cm on each axis, with <var>c</var> = 2.99792458 × "
-				"10¹⁰ cm/s and default final time 4 s. A level has <var>N</var> = INX × 2<sup>level</sup> "
-				"cells per side. Each completed run below lists its recorded parameters; template defaults "
-				"are not substituted for missing metadata.</p></section>";
+        page += "<section class=\"section\" id=\"setup\"><span class=\"tag\">The experiment</span>"
+            "<h2>Physical setup</h2>" + d.setup;
+        page += coupled ?
+            "<p>These cases enable gas dynamics and radiation coupling on a Cartesian grid; gravity is disabled. Uniform runs are the default; adaptive runs are identified in their recorded setup. "
+            "Each completed run records its actual configuration, time, units, and executable hash below. "
+            "The configured finest equivalent cells per side are N = INX × 2<sup>level</sup>.</p></section>" :
+            "<p>The standard runner uses a uniform cubic grid with hydrodynamics and gravity disabled. "
+            "Its CGS box spans −3 × 10¹⁰ to +3 × 10¹⁰ cm on each axis, with c = 2.99792458 × 10¹⁰ cm/s "
+            "and default final time 4 s. Opt-in adaptive runs are identified below; N = INX × 2<sup>level</sup> then describes their configured finest equivalent resolution. "
+            "Each completed run below lists its recorded parameters.</p></section>";
 		page += "<section class=\"section\" id=\"reference\"><span class=\"tag\">The "
-				"comparison</span><h2>How the reference is computed</h2>" +
+				"comparison</span><h2>Comparison and interpretation</h2>" +
 				d.reference + "<h3>What this test measures</h3>" + d.interpretation + "</section>";
 		page += "<section class=\"section\" id=\"results\"><span class=\"tag\">Measured "
 				"results</span><h2>All resolutions</h2>" +
@@ -362,6 +380,33 @@ fs::path report_pages(const fs::path &batch, bool live_update)
 		if (runs.empty()) {
 			page += "<p>No completed run is available for this problem in this batch. Its description is "
 					"available above; results will appear here as runs finish.</p>";
+        } else if (coupled) {
+            page += "<p class=\"note\">These are numerical solutions without a supplied analytic reference. "
+                "No error norms or convergence orders are inferred from the profiles. "
+                "Short runs used for implementation checks do not establish the published late-time shock or blast structure.</p>";
+            for (const auto &[folder, m] : runs) {
+                const auto level = std::to_string(m.at("level").get<int>());
+                const auto target = case_dir / ("l" + level);
+                page += "<article class=\"run\" id=\"level-" + level + "\"><h3>" + html(mesh_label(m)) +
+                    " · actual final time " + show(m.at("time")) + " s</h3><p>" + html(slice_geometry_note(m)) + "</p>";
+                if (m.contains("validation_scope")) {
+                    page += "<p class=\"note\">" + show(m.at("validation_scope")) + "</p>";
+                }
+                page += "<p class=\"note\">" + html(radiation_method_note(m)) + "</p>";
+                page += "<details><summary>Recorded setup and run provenance</summary>" + settings(m) +
+                    "<pre>" + html(m.dump(2)) + "</pre></details>";
+                page += figure(batch, target / "hydro_slice", "Numerical gas temperature, radiation temperature, and density. " + slice_geometry_note(m));
+                page += figure(batch, target / "profiles", "Numerical profiles; no reference curves are supplied. " + slice_geometry_note(m));
+                page += "<h4>Movies</h4>" + movies(batch, folder);
+                page += "<h4>Data and reproducibility</h4><div class=\"downloads\">";
+                for (const auto &[file, label] : std::vector<std::pair<fs::path, std::string>>{
+                    {folder / "run.ini", "Effective configuration"}, {folder / "run.json", "Run metadata"},
+                    {folder / "run.log", "Solver log"}, {target / "hydro-slice.csv", "Numerical slice CSV"},
+                    {target / "hydro-slice.units.json", "Data units"}, {folder / "final.silo", "Final numerical Silo"}}) {
+                    page += link(batch, file, label);
+                }
+                page += "</div></article>";
+            }
 		} else {
 			const bool compare = comparable(runs);
 			if (compare) {
@@ -390,11 +435,11 @@ fs::path report_pages(const fs::path &batch, bool live_update)
 			for (auto &[folder, m] : runs) {
 				const std::string level = std::to_string(m.at("level").get<int>());
 				const auto target = case_dir / ("l" + level);
-				page += "<article class=\"run\" id=\"level-" + level + "\"><h3>" + show(m.at("cells")) +
-						"³ cells <span class=\"muted\">/ level " + level +
+				page += "<article class=\"run\" id=\"level-" + level + "\"><h3>" + html(mesh_label(m)) +
+						" <span class=\"muted\">/ level " + level +
 						"</span></h3><details><summary>Recorded setup and run provenance</summary>" +
 						settings(m) + "<pre>" + html(m.dump(2)) + "</pre></details>";
-				page += "<h4>Final fields and profiles</h4>";
+				page += "<h4>Final fields and profiles</h4><p>" + html(slice_geometry_note(m)) + "</p>";
 				if (d.name == "gaussian_pulse") {
 					auto style_file = target / "display.json";
 					if (fs::is_regular_file(style_file) &&
@@ -415,7 +460,7 @@ fs::path report_pages(const fs::path &batch, bool live_update)
 							"budgets are listed here.</p>";
         }
         page += figure(batch, target / "slice_er",
-							   "Numerical, reference, and signed-error energy slices at z = Δx/2");
+							   "Numerical, reference, and signed-error energy slices. " + slice_geometry_note(m));
 				page += figure(
 					batch, target / "profiles",
 					"Numerical/reference line profiles and signed errors for all four radiation fields");
@@ -492,12 +537,15 @@ fs::path report_pages(const fs::path &batch, bool live_update)
 						link(batch, case_dir / "conservation.json", "JSON") + "</div>";
       }
     }
-		page += "</section>" + method_notes();
+		page += "</section>";
+        page += coupled ? R"(<section class="section" id="diagnostics"><h2>Reading the numerical profiles</h2>
+<p>Gas and radiation temperatures are distinct diagnostics; the radiation temperature is defined by E = a<sub>r</sub>T<sub>r</sub><sup>4</sup>. The central ray lies at y = z = Δx/2 and is offset from the exact origin by half a cell in each transverse direction. The two-dimensional plane is z = Δx/2.</p>
+<p>Check positivity, radiation realizability |F| ≤ cE, conservation with the appropriate boundary budget, thermal equilibration, shock speed and precursor structure, and sensitivity to resolution and timestep. A finite, positive short run is an implementation check, not evidence that a subcritical or supercritical state has developed. Comparisons to published figures also require matching geometry, opacities, boundaries, and physical time.</p></section>)" : method_notes();
 		page += "<section class=\"section\" id=\"sources\"><span class=\"tag\">Sources &amp; "
 				"provenance</span><h2>Where this problem comes from</h2>" +
 				d.source;
 		page +=
-			R"(<h3>Radiation method context</h3><p><a href="https://arxiv.org/abs/1306.0010">Skinner &amp; Ostriker (2013), “A Two-moment Radiation Hydrodynamics Module in Athena Using a Time-explicit Godunov Method,” ApJS 206, 21</a>, provides context for the two-moment M1 system and source integration. The suite's fixed-medium damping uses the algebra of their equations (42b)–(43) with θ = 1 and prescribed χ. Their paper neglects scattering; the suite reuses that damping formula for its prescribed scattering medium.</p>
+			R"(<h3>Radiation method context</h3><p><a href="https://arxiv.org/abs/1306.0010">Skinner &amp; Ostriker (2013), “A Two-moment Radiation Hydrodynamics Module in Athena Using a Time-explicit Godunov Method,” ApJS 206, 21</a>, provides context for the two-moment M1 system and source integration. For the radiation-only Gaussian and sphere cases, the fixed-medium damping uses the algebra of their equations (42b)–(43) with θ = 1 and prescribed χ. Their paper neglects scattering; the suite reuses that damping formula for its prescribed scattering medium.</p>
 <p>The solver's M1 implementation also cites <a href="https://doi.org/10.1016/j.jqsrt.2014.04.014">Hanawa &amp; Audit (2014), “Reformulation of the M1 model of radiative transfer,” JQSRT 145, 9–16</a>. These references describe the numerical/physical framework; the exact test definitions are the source functions identified above.</p>
 <h3>Reproducing this batch</h3><p>Descriptions document the reviewed source implementation. Older or edited solver versions can use different profile constants or averaging rules; these are not all encoded in <code>run.ini</code>. Use the run metadata, executable hash, and saved batch source hashes to identify the implementation behind a result. A source path or descriptive formula alone is not proof of the executable's contents.</p>)";
 		page += "<div class=\"downloads\">" +

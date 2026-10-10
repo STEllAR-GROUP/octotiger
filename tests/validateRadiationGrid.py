@@ -87,7 +87,7 @@ using M1=RadiationM1<Real,NDIM>;
 integer rindex(integer i,integer j,integer k) { return k+RAD_NX*(j+RAD_NX*i); }
 integer hindex(integer i,integer j,integer k) { return rindex(i,j,k); }
 integer hSindex(integer i,integer j,integer k) { return k+HS_NX*(j+HS_NX*i); }
-struct OptionsFixture { Real cfl=.25, dual_energy_sw1=.001; int eos=0,problem=0; };
+struct OptionsFixture { Real cfl=.25, dual_energy_sw1=.001, radiation_reduced_c_factor=1; int eos=0,problem=0; };
 OptionsFixture& opts() { static OptionsFixture o; return o; }
 struct ConstantsFixture { Real c=lightSpeed,sigma=lightSpeed/4,mh=1,kb=1; };
 ConstantsFixture& physcon() { static ConstantsFixture p; return p; }
@@ -246,7 +246,7 @@ void periodicTransport(const std::string& name) {
         periodic(grid);
         Real const dt=.71*grid.maxTimestep(0);
         require(std::isfinite(dt)&&dt>0,"positive finite timestep");
-        require(dt<=cellWidth/(12*lightSpeed),"multidimensional transport CFL");
+        require(dt<=cellWidth/(12*lightSpeed*opts().radiation_reduced_c_factor),"multidimensional transport CFL");
         grid.compute_flux(0);
         grid.advance(dt,0);
         checkRealizability(grid,name);
@@ -366,10 +366,10 @@ void physicalStorageUnits() {
       near(grid.primitive[d+1][r],beta[d],1,"physical storage to beta");
     }
     for(int normal=0;normal<NDIM;++normal) {
-            near(grid.flux[normal][0][r],state[normal+1],lightSpeed*state[0],"physical energy flux");
+            near(grid.flux[normal][0][r],opts().radiation_reduced_c_factor*state[normal+1],lightSpeed*state[0],"physical energy flux");
             for(int d=0;d<NDIM;++d) {
                 Real const tensor=h*beta[normal]*beta[d]+(normal==d?pressure:0);
-                near(grid.flux[normal][d+1][r],lightSpeed*lightSpeed*tensor,
+                near(grid.flux[normal][d+1][r],opts().radiation_reduced_c_factor*lightSpeed*lightSpeed*tensor,
                      lightSpeed*lightSpeed*state[0],"physical F transport flux");
             }
         }
@@ -426,14 +426,15 @@ void sourceStorageUnits() {
             near(drainedBudget.source[f],0,scale,"matter source budget drains once");
         }
         interior([&](auto r) {
-            near(egas[r]+radiation.U[0][r],5+state[0],5+state[0],"source total energy");
+            Real const factor=opts().radiation_reduced_c_factor;
+            near(egas[r]+radiation.U[0][r]/factor,5+state[0]/factor,5+state[0]/factor,"source weighted total energy");
             Point const momentum{sx[r],sy[r],sz[r]};
             for(int d=0;d<NDIM;++d) {
-                long double const initialMomentum=static_cast<long double>(state[d+1])/lightSpeed/lightSpeed;
-                long double const finalMomentum=momentum[d]+static_cast<long double>(radiation.U[d+1][r])/lightSpeed/lightSpeed;
-                near(finalMomentum,initialMomentum,state[0]/lightSpeed,"source total physical momentum");
+                long double const initialMomentum=static_cast<long double>(state[d+1])/lightSpeed/lightSpeed/factor;
+                long double const finalMomentum=momentum[d]+static_cast<long double>(radiation.U[d+1][r])/lightSpeed/lightSpeed/factor;
+                near(finalMomentum,initialMomentum,state[0]/lightSpeed/factor,"source weighted total momentum");
                 if(!absorption) {
-          near(radiation.U[d+1][r],state[d+1]/1.5,lightSpeed*state[0],"physical F scattering damping");
+          near(radiation.U[d+1][r],state[d+1]/(1+.5*factor),lightSpeed*state[0],"physical F scattering damping");
         }
       }
             require(std::isfinite(tau[r])&&tau[r]>0,"source tau remains finite and positive");
@@ -490,12 +491,17 @@ void coarseFineStorageUnits() {
 }
 int main() {
     try {
+        for (Real const factor : {Real(1),Real(.1),Real(.01)}) {
+        opts().radiation_reduced_c_factor=factor;
+        rad_grid timestepGrid(cellWidth);
+        near(timestepGrid.maxTimestep(0),.25*cellWidth/(3*lightSpeed*factor),cellWidth/(lightSpeed*factor),"RSLA transport CFL");
         uniformStates();
         for(const auto& name:{"streaming","oblique","isotropic","smooth"}) {
       periodicTransport(name);
     }
     rotation(); adjacentBlocks();
         physicalStorageUnits(); sourceStorageUnits(); coarseFineStorageUnits();
+        }
         std::cout<<"PASS: uniform/vacuum, axis/oblique streaming, isotropic, smooth H/beta, rotation, adjacent blocks, physical storage/flux/reflux, source coupling/budgets, AMR means\n";
     } catch(const std::exception& error) {
         std::cerr<<error.what()<<'\n'; return 1;

@@ -20,12 +20,13 @@ class SliceOutput {
 	std::ofstream stream_;
 	double time_, dx_, length_;
 	bool enabled_;
+	int level_;
 public:
 	SliceOutput(bool regression, std::string const& dataDir, double time,
-			double dx, double length) :
+			double dx, double length, int level = -1) :
 		directory_(std::filesystem::path(dataDir) / "radiation-slices"),
 		time_(time), dx_(dx), length_(length),
-		enabled_(regression && std::filesystem::is_directory(directory_)) {}
+		enabled_(regression && std::filesystem::is_directory(directory_)), level_(level) {}
 	template<class Reference, class ReadField>
 	void capture(double x, double y, double z, Reference const& reference,
 			int offset, ReadField read) {
@@ -39,7 +40,8 @@ public:
 			auto const j = std::llround((y + length_ / 2) / dx_ - .5);
 			stream_.exceptions(std::ios::badbit | std::ios::failbit);
 			stream_.imbue(std::locale::classic());
-			stream_.open(directory_ / ("slice-" + std::to_string(i) + "-" +
+			const auto prefix = level_ < 0 ? std::string("slice-") : "slice-level-" + std::to_string(level_) + "-";
+			stream_.open(directory_ / (prefix + std::to_string(i) + "-" +
 				std::to_string(j) + ".csv"), std::ios::out | std::ios::trunc);
 			stream_ << "t,dx,x,y,z,er,fx,fy,fz,er_ref,fx_ref,fy_ref,fz_ref\n"
 				<< std::scientific << std::setprecision(17);

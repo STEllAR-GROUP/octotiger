@@ -4,8 +4,10 @@
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 #include "octotiger/math/Debug.hpp"
+#include "octotiger/amr/gradient.hpp"
 #include "octotiger/test_problems/radiation.hpp"
 #include "octotiger/test_problems/radiation/plot_output.hpp"
+#include "octotiger/test_problems/radiation/hydro_output.hpp"
 #include "octotiger/radiation/rad_grid.hpp"
 #include "octotiger/test_problems/exact_sod.hpp"
 
@@ -1503,6 +1505,56 @@ bool grid::refine_me(integer lev, integer last_ngrids) const {
 
 		return true;
 	}
+	if (!opts().unigrid && opts().gradient_refine_field != "none") {
+		if (lev >= max_level) {
+			return false;
+		}
+		const bool radiation = opts().gradient_refine_field == "radiation_energy";
+		if (!radiation && opts().gradient_refine_field != "density") {
+			throw std::invalid_argument("Unknown gradient refinement field");
+		}
+		if (radiation && (!opts().radiation || !rad_grid_ptr)) {
+			throw std::runtime_error("Radiation energy refinement requires a radiation grid");
+		}
+		if (opts().gradient_refine_mode != "absolute" && opts().gradient_refine_mode != "relative") {
+			throw std::invalid_argument("Unknown gradient refinement mode");
+		}
+		const gradientRefinement::Parameters parameters{
+			opts().gradient_refine_mode == "relative" ? gradientRefinement::Mode::relative : gradientRefinement::Mode::absolute,
+			opts().gradient_refine_threshold, opts().gradient_refine_floor,
+			opts().gradient_refine_coarsen_factor, int(opts().gradient_refine_buffer)};
+		parameters.validate();
+		static_assert(H_BW >= 3 && RAD_BW >= 3, "Gradient face buffer plus edge stencil requires three ghost cells");
+		const long double threshold = parameters.effectiveThreshold(!get_leaf());
+		const auto sample = [this, radiation](integer i, integer j, integer k) -> double {
+			if (radiation) {
+				// Hydro and radiation storage can have different halo widths.
+				return rad_grid_ptr->get_field(0, i - H_BW + RAD_BW,
+					j - H_BW + RAD_BW, k - H_BW + RAD_BW);
+			}
+			return U[rho_i][hindex(i, j, k)];
+		};
+		const integer lo = H_BW - parameters.buffer;
+		const integer hi = H_NX - H_BW + parameters.buffer;
+		for (integer i = lo; i < hi; ++i) {
+			for (integer j = lo; j < hi; ++j) {
+				for (integer k = lo; k < hi; ++k) {
+					const int outside = int(i < H_BW || i >= H_NX - H_BW) +
+						int(j < H_BW || j >= H_NX - H_BW) + int(k < H_BW || k >= H_NX - H_BW);
+					if (outside > 1) {
+						continue;
+					}
+					const std::array<double, 6> neighbors{sample(i - 1, j, k), sample(i + 1, j, k),
+						sample(i, j - 1, k), sample(i, j + 1, k), sample(i, j, k - 1), sample(i, j, k + 1)};
+					if (gradientRefinement::edgeGradient(sample(i, j, k), neighbors, dx,
+						parameters.mode, parameters.floor) >= threshold) {
+						return true;
+					}
+				}
+			}
+		}
+		return false;
+	}
 	bool rc = false;
 	std::vector<real> state(opts().n_fields);
 	std::array<std::vector<real>, NDIM> dud;
@@ -1751,6 +1803,41 @@ std::vector<std::pair<std::string, std::string>> grid::get_vector_expressions() 
 	return std::move(rc);
 }
 
+void grid::export_radiation_hydro(real t) const {
+	FpeGuard fpeGuard{};
+	radiationHydroTests::SliceOutput output(opts().data_dir, t, dx, 2 * opts().xscale,
+		opts().unigrid ? -1 : int(std::llround(std::log2(2 * opts().xscale / (INX * dx)))));
+	const real radiationConstant = 4 * physcon().sigma / physcon().c;
+	for (integer i = H_BW; i < H_NX - H_BW; ++i) {
+		for (integer j = H_BW; j < H_NX - H_BW; ++j) {
+			for (integer k = H_BW; k < H_NX - H_BW; ++k) {
+				const auto h = hindex(i, j, k);
+				const real rho = U[rho_i][h];
+				const real vx = U[sx_i][h] / rho, vy = U[sy_i][h] / rho, vz = U[sz_i][h] / rho;
+				real internal = U[egas_i][h] - .5 * rho * (vx * vx + vy * vy + vz * vz);
+				if (internal < opts().dual_energy_sw1 * U[egas_i][h]) {
+					internal = std::pow(U[tau_i][h], fgamma);
+				}
+				specie_state_t<> species;
+				for (int s = 0; s < opts().n_species; ++s) {
+					species[s] = U[spc_i + s][h];
+				}
+				real mu, hydrogen, metals;
+				mean_ion_weight(species, mu, hydrogen, metals);
+				const real gasTemperature = (fgamma - 1) * mu * physcon().mh * internal / (physcon().kb * rho);
+				std::array<double, 4> radiation;
+				for (int f = 0; f < NRF; ++f) {
+					radiation[f] = rad_grid_ptr->get_field(f, i - H_BW + R_BW, j - H_BW + R_BW, k - H_BW + R_BW);
+				}
+				output.capture(X[XDIM][h], X[YDIM][h], X[ZDIM][h],
+					{rho, vx, vy, vz, gasTemperature, std::pow(radiation[0] / radiationConstant, .25),
+					 radiation[0], radiation[1], radiation[2], radiation[3]});
+			}
+		}
+	}
+	output.finish();
+}
+
 analytic_t grid::compute_analytic(real t) {
 	FpeGuard fpeGuard{};
 	analytic_t a(opts().n_fields);
@@ -1758,12 +1845,15 @@ analytic_t grid::compute_analytic(real t) {
 	const real dv = dx * dx * dx;
 	// RADIATION_PLOT_EXPORT_BEGIN: opt in by creating datadir/radiation-slices.
 	radiationTests::SliceOutput radiationSlice(radiationRegressionProblem(),
-		opts().data_dir, double(t), double(dx), 2 * double(opts().xscale));
+		opts().data_dir, double(t), double(dx), 2 * double(opts().xscale),
+		opts().unigrid ? -1 : int(std::llround(std::log2(2 * opts().xscale / (INX * dx)))));
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				const integer iii = hindex(i, j, k);
-				auto A = func(X[XDIM][iii], X[YDIM][iii], X[ZDIM][iii], t);
+					auto A = radiationRegressionProblem()
+						? radiationRegressionAnalyticCell(X[XDIM][iii], X[YDIM][iii], X[ZDIM][iii], t, dx)
+						: func(X[XDIM][iii], X[YDIM][iii], X[ZDIM][iii], t);
 				const auto nrho = U[rho_i][iii];
 				for (int M = 2; M <= INX; M *= 2) {
 					auto last_rho = A[rho_i];
@@ -2061,6 +2151,32 @@ void grid::set_physical_boundaries(const geo::face &face, real t) {
 	const integer iub = H_NX;
 	const integer jlb = 0;
 	const integer jub = H_NX;
+
+	if (radiationShockProblem()) {
+		const bool wall = dim == XDIM && side == geo::MINUS;
+		const bool reservoir = dim == XDIM && side == geo::PLUS;
+		const auto upstream = radiationHydroInit(opts().xscale, 0, 0, 0);
+		for (integer k = klb; k < kub; ++k) {
+			const integer k0 = wall ? 2 * H_BW - k - 1 :
+				(side == geo::MINUS ? H_BW : H_NX - H_BW - 1);
+			for (integer j = jlb; j < jub; ++j) {
+				for (integer i = ilb; i < iub; ++i) {
+					const integer target = i * dni + j * dnj + k * dnk;
+					const integer source = i * dni + j * dnj + k0 * dnk;
+					for (integer f = 0; f < opts().n_fields; ++f) {
+						U[f][target] = reservoir ? upstream[f] : U[f][source];
+					}
+					if (wall) {
+						U[sx_i][target] = -U[sx_i][source];
+					}
+					U[lx_i][target] = X[YDIM][target] * U[sz_i][target] - X[ZDIM][target] * U[sy_i][target];
+					U[ly_i][target] = X[ZDIM][target] * U[sx_i][target] - X[XDIM][target] * U[sz_i][target];
+					U[lz_i][target] = X[XDIM][target] * U[sy_i][target] - X[YDIM][target] * U[sx_i][target];
+				}
+			}
+		}
+		return;
+	}
 
 	if (opts().problem == AMR_TEST) {
 		for (integer k = klb; k != kub; ++k) {

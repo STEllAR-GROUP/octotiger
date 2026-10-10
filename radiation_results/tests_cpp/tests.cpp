@@ -51,6 +51,23 @@ void results(const fs::path &p, Json m)
 	std::ostringstream log;
 	log << std::setprecision(17) << "normalized constants\n1 1 1 1\n| c = " << m.at("c").get<double>()
 		<< " |\nRADIATION_TEST_FINISHED RADIATION_" << name << " t=" << time << '\n';
+    if (coupled_case(m.at("case"))) {
+        atomic_text(p / "run.log", log.str());
+        std::ostringstream csv;
+        csv << "t,dx,x,y,z,rho,vx,vy,vz,gas_temperature,radiation_temperature,er,fx,fy,fz\n"
+            << std::scientific << std::setprecision(17);
+        for (int i = n - 1; i >= 0; --i) {
+            for (int j = n - 1; j >= 0; --j) {
+                const double x = -len / 2 + (i + .5) * dx, y = -len / 2 + (j + .5) * dx;
+                const double temperature = 100 + 10 * std::cos(6.283185307179586 * x / len);
+                csv << time << ',' << dx << ',' << x << ',' << y << ',' << dx / 2 <<
+                    ",7.78e-10,-600000,0,0," << temperature << ',' << temperature / 2 <<
+                    ",1,0,0,0\n";
+            }
+        }
+        atomic_text(p / "radiation-hydro-slices/slice-000.csv", csv.str());
+        return;
+    }
 	double error = 1e-3 / n;
 	for (int f = 0; f < 4; ++f) {
     log << fields[f] << ' ' << (f == 0 ? error : 0) << ' ' << (f == 0 ? 2 * error : 0) << ' '
@@ -82,6 +99,47 @@ void results(const fs::path &p, Json m)
 			   << ",0,0,0\n";
   }
   atomic_text(p / "radiation-conservation.csv", budget.str());
+}
+void adaptive_results(const fs::path &folder, const Json &m)
+{
+    const bool hydro = coupled_case(m.at("case"));
+    auto uniform = m;
+    uniform["adaptive"] = false;
+    const auto data = hydro ? read_hydro_profile(folder, uniform) : read_slice(folder, uniform);
+    const int n = m.at("cells");
+    const double h = m.at("dx"), length = m.at("length");
+    const auto directory = folder / (hydro ? "radiation-hydro-slices" : "radiation-slices");
+    fs::remove(directory / "slice-000.csv");
+    Json rows = Json::array();
+    for (int i = 0; i < n;) {
+        const int width = i < n / 2 ? 2 : 1;
+        for (int j = 0; j < n; j += width) {
+            auto row = data.rows[size_t(i) * n + j];
+            row[1] = width * h;
+            row[2] = -length / 2 + (i + width / 2.) * h;
+            row[3] = -length / 2 + (j + width / 2.) * h;
+            row[4] = row[1] / 2;
+            Json record;
+            for (size_t k = 0; k < row.size(); ++k) {
+                record[data.columns[k]] = row[k];
+            }
+            rows.push_back(record);
+        }
+        i += width;
+    }
+    records_csv(directory / "slice-mixed.csv", rows, data.columns);
+    std::string header;
+    for (const auto &column : data.columns) {
+        header += (header.empty() ? "" : ",") + column;
+    }
+    const auto csv = read_text(directory / "slice-mixed.csv");
+    atomic_text(directory / "slice-mixed.csv", header + csv.substr(csv.find('\n')));
+    const int base = 1 << (3 * m.at("min_level").get<int>());
+    const int inx = m.at("inx");
+    atomic_text(folder / "gradient-amr.csv", "t,step,level,leaf_blocks,leaf_cells\n0,0," +
+        std::to_string(m.at("min_level").get<int>()) + "," + std::to_string(base / 2) + "," +
+        std::to_string(base / 2 * inx * inx * inx) + "\n0,0," + std::to_string(m.at("level").get<int>()) +
+        "," + std::to_string(4 * base) + "," + std::to_string(4 * base * inx * inx * inx) + "\n");
 }
 void silos(const fs::path &folder, const Json &m)
 {
@@ -200,6 +258,9 @@ int main(int argc, char **argv)
 			const auto p = fs::current_path();
 			auto m = read_json(p / "run.json");
 			results(p, m);
+            if (m.value("adaptive", false)) {
+                adaptive_results(p, m);
+            }
 			std::ofstream count(p / "solver-executions", std::ios::app);
 			count << "run\n";
 			count.close();
@@ -324,6 +385,65 @@ int main(int argc, char **argv)
 			   "all session files live in one flat directory");
 		expect(xml.find("Pseudocolor_1.0") != std::string::npos && xml.find("Slice_1.0") != std::string::npos,
 			   "session contains native VisIt plot and slice plugins");
+        auto coupled_meta = metadata("subcritical_shock");
+        const auto coupled_folder = tmp / "coupled";
+        results(coupled_folder, coupled_meta);
+        auto coupled_data = read_hydro_profile(coupled_folder, coupled_meta);
+        expect(coupled_data.rows.size() == 16 && coupled_data.rows[0][2] < coupled_data.rows[15][2],
+            "coupled slices sorted into complete plane without analytic data");
+        auto wrong_time = coupled_meta;
+        wrong_time["time"] = 5.;
+        rejects([&] { read_hydro_profile(coupled_folder, wrong_time); }, "wrong hydro final time rejected");
+        const auto hydro_csv = coupled_folder / "radiation-hydro-slices/slice-000.csv";
+        auto hydro_text = read_text(hydro_csv);
+        auto invalid_hydro = hydro_text;
+        auto density_pos = invalid_hydro.find(",7.78e-10");
+        invalid_hydro.replace(density_pos, 9, ",-7.78e-10");
+        atomic_text(hydro_csv, invalid_hydro);
+        rejects([&] { read_hydro_profile(coupled_folder, coupled_meta); }, "negative gas density rejected");
+        atomic_text(hydro_csv, hydro_text);
+        atomic_text(coupled_folder / "radiation-hydro-slices/duplicate.csv", hydro_text);
+        rejects([&] { read_hydro_profile(coupled_folder, coupled_meta); }, "duplicate hydro cells rejected");
+        fs::remove(coupled_folder / "radiation-hydro-slices/duplicate.csv");
+        for (const auto &name : {"streaming_front", "subcritical_shock"}) {
+            auto adaptive_meta = metadata(name, 2);
+            adaptive_meta["adaptive"] = true;
+            adaptive_meta["min_level"] = 1;
+            auto adaptive_folder = tmp / (std::string(name) + "-adaptive");
+            results(adaptive_folder, adaptive_meta);
+            adaptive_results(adaptive_folder, adaptive_meta);
+            const bool hydro = coupled_case(name);
+            auto read = [&] { return hydro ? read_hydro_profile(adaptive_folder, adaptive_meta) : read_slice(adaptive_folder, adaptive_meta); };
+            const auto projected = read();
+            expect(projected.rows.size() == 256 && projected.rows[0][1] == 2 * adaptive_meta.at("dx").get<double>() &&
+                projected.rows[0][5] == projected.rows[16][5] && projected.rows[0][2] != projected.rows[16][2],
+                "mixed leaves project constant values while retaining native width");
+            const auto summary = slice_mesh_summary(adaptive_folder, adaptive_meta);
+            expect(summary.at("native_slice_cells") == 160 && summary["full_mesh"]["leaf_cells"] == 2304,
+                "adaptive metadata distinguishes actual slice and full-volume cell counts");
+            const auto directory = adaptive_folder / (hydro ? "radiation-hydro-slices" : "radiation-slices");
+            const auto text = read_text(directory / "slice-mixed.csv");
+            atomic_text(directory / "duplicate.csv", text);
+            rejects(read, "overlapping AMR leaves rejected");
+            fs::remove(directory / "duplicate.csv");
+            auto nondyadic = text;
+            const auto first_comma = nondyadic.find(',', nondyadic.find('\n') + 1);
+            const auto second_comma = nondyadic.find(',', first_comma + 1);
+            nondyadic.replace(first_comma + 1, second_comma - first_comma - 1, number(1.5 * adaptive_meta.at("dx").get<double>()));
+            atomic_text(directory / "slice-mixed.csv", nondyadic);
+            rejects(read, "non-dyadic AMR leaf spacing rejected");
+            atomic_text(directory / "slice-mixed.csv", text.substr(0, text.find('\n', text.find('\n') + 1) + 1));
+            rejects(read, "missing AMR footprint rejected");
+            atomic_text(directory / "slice-mixed.csv", text);
+            auto wrong = adaptive_meta;
+            wrong["adaptive"] = false;
+            rejects([&] { hydro ? read_hydro_profile(adaptive_folder, wrong) : read_slice(adaptive_folder, wrong); },
+                "uniform reader remains strict about mixed leaf spacing");
+        }
+        silos(coupled_folder, coupled_meta);
+        const auto coupled_session = make_session(coupled_folder, sessions);
+        expect(coupled_session.at("frames").size() == 3,
+            "coupled movie session accepts numerical profiles without analytic norms");
 		auto gaussian_meta = m;
 		gaussian_meta["case"] = "gaussian_pulse";
 		results(p, gaussian_meta);

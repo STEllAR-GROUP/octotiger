@@ -1,0 +1,1023 @@
+\documentclass[manuscript]{aastex7}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{hyperref}
+
+\newcommand{\vct}[1]{\boldsymbol{#1}}
+\newcommand{\Er}{E_{\rm r}}
+\newcommand{\Eg}{E_{\rm g}}
+\newcommand{\Fr}{\vct{F}}
+\newcommand{\Prad}{\mathsf{P}}
+\newcommand{\Id}{\mathsf{I}}
+\newcommand{\ar}{a_{\rm r}}
+\newcommand{\dt}{\Delta t}
+\newcommand{\dx}{\Delta x}
+\newcommand{\eps}{\epsilon_{\rm mach}}
+\newcommand{\chat}{\hat{c}}
+\newcommand{\code}[1]{\texttt{#1}}
+
+\begin{document}
+\title{Radiation Transport and Matter Coupling in Octo-Tiger:\\
+Methods and Verification Problems}
+
+\begin{abstract}
+We describe the gray two-moment radiation solver implemented in the current
+Octo-Tiger development branch and distinguish its numerical verification
+problems from its radiation-hydrodynamic benchmarks. The solver uses the
+Levermore M1 closure, piecewise-linear reconstruction in radiation enthalpy
+and a bounded radiation velocity parameter, and a two-wave HLL flux.
+Radiation transport is advanced explicitly, with the physical light speed
+as the default and an optional constant reduced propagation speed.
+Local interaction with matter combines implicit flux damping, lagged
+velocity-dependent terms, paired gas backreaction, and a backward-Euler
+thermal exchange solved through a scaled scalar quartic. The current
+operator sequence is first order in time for the coupled radiation update.
+The verification suite includes exact streaming solutions, a periodic
+Gaussian pulse compared with a linear isotropic-moment reference, and a
+Gaussian luminous sphere compared with a diffusion-limit reference. Planar
+wall-driven shocks and a spherical radiating blast on a Cartesian mesh extend
+the suite to coupled gas and radiation evolution. We report measured
+single-resolution radiation errors and short coupled implementation checks.
+These results establish the tested implementation behavior, without claiming
+high-resolution convergence or a completed comparison with developed
+radiative-shock and blast solutions.
+\end{abstract}
+
+\section{Scope and relation to the hydrodynamic code}
+Octo-Tiger evolves compressible, self-gravitating flows on an adaptive octree
+using HPX task parallelism. Its finite-volume hydrodynamics, angular-momentum
+treatment, fast-multipole gravity solver, and stellar-merger applications are
+described by \citet{Marcello2021} and \citet{Shiber2024}. Those algorithms
+provide the mesh, gas state, and distributed communication used here. The
+present paper concentrates on radiation transport and the local transfer of
+energy and momentum between radiation and matter. Gravity and grid rotation
+are disabled in all verification calculations reported below.
+
+The implemented closure and its useful change of variables follow
+\citet{Levermore1984} and \citet{HanawaAudit2014}. The source discretization is
+based on the nonrelativistic moment formulation and local implicit updates
+discussed by \citet{SkinnerOstriker2013}, with the particular approximations
+and time ordering specified below. Physical light speed is the default.
+The optional reduced-speed-of-light approximation (RSLA) changes the
+radiation time derivatives while retaining physical light speed in
+moment definitions and matter forces. There is no radiation subcycling.
+
+\section{Radiation variables and interaction model}
+\subsection{Conserved moments and units}
+Throughout this paper, the gray radiation moments are the lab-frame energy
+density $\Er$ and the physical radiation energy flux divided by the physical
+light speed $c$:
+\begin{equation}
+  \Fr\equiv\frac{\vct{F}_{\rm phys}}{c},\qquad
+  \vct{U}=(\Er,F_x,F_y,F_z)^{\mathsf T}.
+  \label{eq:state}
+\end{equation}
+Every component of $\vct{U}$ has energy-density units,
+${\rm erg\,cm^{-3}}$ in CGS. Radiation momentum density is $\Fr/c$.
+This flux normalization follows the nonrelativistic PLUTO formulation
+\citep{MelonFuksman2021}; the physical flux denoted by $\vct{F}$ in
+\citet{HanawaAudit2014} and \citet{SkinnerOstriker2013} corresponds to
+$c\Fr$ here. The mesh arrays, checkpoint files, and exported profiles
+retain the physical flux $c\Fr$; conversion to $\Fr$ is local to the
+numerical kernels.
+
+Let $\zeta=\chat/c$ be the constant parameter
+\code{radiation\_reduced\_c\_factor}, with $0<\zeta\leq1$ and default
+$\zeta=1$. For a stationary Cartesian grid the moment equations are
+\begin{align}
+ \partial_t\Er+\chat\nabla\!\cdot\Fr &= \zeta S_E,\label{eq:energy}\\
+ \partial_t\Fr+\chat\nabla\!\cdot\Prad &= \zeta\vct{S}_F.\label{eq:momentum}
+\end{align}
+The radiation pressure tensor $\Prad$ has energy-density units. The gas
+momentum is $\vct{m}=\rho\vct{v}$, and its total energy is
+$\Eg=e+|\vct{m}|^2/(2\rho)$ for the ideal gas used in the coupled tests.
+The local interaction sources applied to the gas are
+\begin{equation}
+ \left.\partial_t\Eg\right|_{\rm int}=-S_E,
+ \qquad
+ \left.\partial_t\vct{m}\right|_{\rm int}=-\frac{\vct{S}_F}{c}.
+ \label{eq:backreaction}
+\end{equation}
+Thus interaction alone conserves the weighted quantities
+\begin{equation}
+ \Eg+\frac{\Er}{\zeta},\qquad \vct{m}+\frac{\Fr}{\chat}.
+ \label{eq:weighted}
+\end{equation}
+These become physical total energy and momentum only for $\zeta=1$.
+The same weighting gives a combined conservation law including boundary
+transport. This is the RSLA convention of \citet{SkinnerOstriker2013}:
+only radiation time derivatives change, and the gas sources in
+Equation~(\ref{eq:backreaction}) retain their physical strength.
+For $\zeta<1$, physical gas-plus-radiation energy and momentum are not
+conserved quantities of the approximate equations. In particular, $c$
+in the flux normalization, the radiation constant, the $v/c$ terms,
+the LTE state, and the realizability condition remains the physical
+light speed.
+Although the equilibrium relation $\Er=\ar T^4$ is unchanged, the final
+temperature of a closed gas--radiation reservoir can depend on $\zeta$
+because its conserved weighted energy differs.
+
+\subsection{Opacities, temperature, and source approximation}
+We write $\chi_a=\rho\kappa_a$ for absorption and
+$\chi_t=\rho\kappa_t$ for total momentum extinction, including scattering
+when present. The $\kappa$ coefficients have units ${\rm cm^2\,g^{-1}}$;
+the $\chi$ coefficients have units ${\rm cm^{-1}}$. A value returned by
+the grid opacity routine is already a $\chi$ and must not be multiplied by
+density a second time. Thermal equilibrium is
+\begin{equation}
+ \Er^{\rm eq}=\ar T^4,\qquad \ar=\frac{4\sigma_{\rm SB}}{c},\qquad
+ T=\frac{(\gamma-1)\mu m_{\rm H}}{\rho k_{\rm B}}e,
+ \label{eq:eos}
+\end{equation}
+where $\mu$ is the dimensionless mean molecular weight. Composition and
+the thermal gas energy are evaluated on the same local cell as the
+radiation source. Thermal energy excludes kinetic energy; the existing
+dual-energy tracer supplies a fallback when subtracting kinetic energy
+from total energy is ill-conditioned. The benchmark gas is ideal, while
+the production energy extraction also removes the cold degeneracy energy
+when the white-dwarf equation of state is selected.
+
+The particular velocity-dependent source model implemented by the local
+kernel is
+\begin{align}
+ S_E &= c\chi_a(\ar T^4-\Er)
+       +(2\chi_a-\chi_t)\vct{v}\!\cdot\Fr,\label{eq:sourceE}\\
+ \vct{S}_F &= -c\chi_t\Fr+
+       \chi_t(\Er\Id+\Prad)\vct{v}.\label{eq:sourceF}
+\end{align}
+Here $\vct{v}$ is the gas velocity. These expressions retain terms through
+first order in gas $v/c$ under the adopted gray-opacity assumptions. In
+particular, the velocity-dependent momentum source uses the near-equilibrium
+replacement $\ar T^4\simeq\Er$ that leads to the corresponding reduced
+momentum equation in \citet{SkinnerOstriker2013}. It retains the full M1
+pressure tensor rather than replacing it by an isotropic tensor. It is not
+the complete unequal-opacity mixed-frame four-force in arbitrary
+nonequilibrium conditions. This restriction matters when interpreting the
+strongly heated initial state of the blast benchmark.
+
+\subsection{Reduced-speed validity and scope}
+The static-diffusion timescale criterion is
+\begin{equation}
+ \chat\gg v_{\max}\max(1,\tau_{\max}),\qquad
+ v_{\max}=\max(|\vct{v}|+c_{\rm eff}),
+ \label{eq:rsla}
+\end{equation}
+where $c_{\rm eff}$ includes the gas and radiation contribution to the
+acoustic speed, and $\tau_{\max}$ is an optical depth across the relevant
+flow or precursor scale, not simply across one cell
+\citep[Section~3.2]{SkinnerOstriker2013}. This keeps radiation propagation
+and diffusion faster than gas evolution when that ordering holds for
+physical $c$. A constant factor preserves the weighted invariants; changing
+it during a run would require additional accounting.
+RSLA slows radiation transients and does not guarantee the same solution
+for a rapidly heated, radiation-dominated blast. Factor and resolution
+convergence must be assessed separately. The radiation-only error table
+and the full-speed coupled checks below use $\zeta=1$; additional RSLA
+implementation checks are identified separately. No reduced-speed
+full-duration physical-validation result is claimed here.
+The four radiation-only reference problems retain
+$\zeta=1$ in the results workflow so that their time-dependent reference
+solutions remain unchanged.
+
+\section{Levermore M1 closure}
+\subsection{Pressure tensor and physical limits}
+For $\Er>0$, define the reduced flux and its direction by
+\begin{equation}
+ f=\frac{|\Fr|}{\Er},\qquad
+ \vct{n}=\frac{\Fr}{|\Fr|}.
+\end{equation}
+An admissible radiation state obeys $\Er\geq0$ and $|\Fr|\leq\Er$;
+vacuum has both $\Er=0$ and $\Fr=0$. Using the notation of
+\citet{MelonFuksman2021}, the implemented Eddington factor is
+\begin{equation}
+ \xi(f)=\frac{5-2\sqrt{4-3f^2}}{3}
+ =\frac{3+4f^2}{5+2\sqrt{4-3f^2}},
+ \label{eq:eddington}
+\end{equation}
+and the pressure tensor is
+\begin{equation}
+ \Prad=\Er\left[
+ \frac{1-\xi}{2}\Id+
+ \frac{3\xi-1}{2}\vct{n}\vct{n}^{\mathsf T}\right].
+ \label{eq:closure}
+\end{equation}
+This is the Levermore M1 closure \citep{Levermore1984}. At isotropy it gives
+$\Prad=\Er\Id/3$; at free streaming it gives
+$\Prad=\Er\vct{n}\vct{n}^{\mathsf T}$. The isotropic limit is evaluated
+without assigning a direction to a zero flux. M1 represents a single local
+preferred direction and does not independently propagate intersecting beams
+that share the same cell moments.
+
+\subsection{Enthalpy variables}
+Following the reformulation of \citet{HanawaAudit2014}, introduce the
+isotropic pressure component $P$, radiation enthalpy $H$, and radiation
+velocity parameter $\vct{\beta}$:
+\begin{align}
+ H&=\Er+P,& \vct{\beta}&=\frac{\Fr}{H},\label{eq:hb}\\
+ P&=\frac{1-\beta^2}{4}H,&
+ \Prad&=H\vct{\beta}\vct{\beta}^{\mathsf T}+P\Id,\label{eq:hbP}\\
+ \Er&=\frac{3+\beta^2}{4}H,& \Fr&=H\vct{\beta}.
+ \label{eq:hbE}
+\end{align}
+Here $\beta^2=|\vct{\beta}|^2$. The scalar $P$ is the isotropic part of
+this decomposition and is distinct from the tensor $\Prad$; $H$ is not
+the comoving radiation energy. The vector $\vct{\beta}$ parametrizes the
+boost of a distribution isotropic in its radiation rest frame and is
+distinct from the gas velocity divided by $c$. This radiation velocity
+parametrization also appears in the relativistic PLUTO module
+\citep{MelonFuksman2019}.
+The inverse map, written in terms of $\vct{f}=\Fr/\Er$, is
+\begin{equation}
+ \frac{H}{\Er}=\frac{2+\sqrt{4-3f^2}}{3},\qquad
+ \vct{\beta}=\frac{3\vct{f}}{2+\sqrt{4-3f^2}}.
+ \label{eq:inverse}
+\end{equation}
+It remains regular at zero flux. The reconstruction variables are
+$\vct{q}=(H,\beta_x,\beta_y,\beta_z)$, constrained by $H\geq0$ and
+$\beta^2\leq1$.
+Vacuum maps to $H=0$, $\vct{\beta}=0$.
+
+\section{Finite-volume radiation transport}
+\subsection{Reconstruction and face admissibility}
+The cell averages are converted to $\vct{q}$ once for each transport step.
+In each coordinate direction, every component uses a generalized minmod
+slope with $\theta=1.3$:
+\begin{equation}
+ s_i={\rm minmod}\!\left(
+ \theta(q_i-q_{i-1}),\,
+ \frac{q_{i+1}-q_{i-1}}{2},\,
+ \theta(q_{i+1}-q_i)\right).
+ \label{eq:limiter}
+\end{equation}
+Minmod returns the common sign times the smallest magnitude when all
+arguments have that sign, and zero otherwise. The preliminary face states
+are $\vct{q}_i^\pm=\vct{q}_i\pm\vct{s}_i/2$. For nonnegative neighboring
+enthalpies, this scalar limiting keeps the face enthalpies nonnegative.
+
+Limiting the three components of $\vct{\beta}$ separately does not ensure that
+the reconstructed vector remains inside the unit ball. Therefore a common
+factor is applied to its half-slope $\delta\vct{\beta}$.
+Let $a=|\delta\vct{\beta}|^2$, $d=|\vct{\beta}\cdot\delta\vct{\beta}|$, and
+$r=\max(0,1-|\vct{\beta}|^2)$. If $a+2d>r$, replace
+\begin{equation}
+ \delta\vct{\beta}\ \longleftarrow
+ \frac{r}{\sqrt{d^2+ar}+d}\,\delta\vct{\beta}.
+ \label{eq:vectorlimit}
+\end{equation}
+A vanishing denominator gives a zero half-slope. This expression is the
+nonnegative solution of $a\lambda^2+2d\lambda=r$ and constrains both
+$\vct{\beta}\pm\lambda\delta\vct{\beta}$ simultaneously. The same canonical
+face state supplies the conserved jump and pressure tensor in the Riemann
+solver. Roundoff excursions outside the unit ball are projected back to its
+surface; they are not interpreted as a physically superluminal flux.
+
+\subsection{Characteristics and HLL flux}
+Across a face with unit normal $\vct{e}_n$, the stationary-grid flux of
+Equation~(\ref{eq:state}) is
+\begin{equation}
+ \vct{\mathcal{F}}_n(\vct{U})=
+       (\chat F_n,\chat P_{nx},\chat P_{ny},\chat P_{nz})^{\mathsf T}.
+ \label{eq:pdeflux}
+\end{equation}
+In the $H,\vct{\beta}$ representation the two extreme characteristic speeds
+are \citep{HanawaAudit2014}
+\begin{equation}
+ \lambda_\pm=\chat\,
+ \frac{2\beta_n\pm\sqrt{(1-\beta^2)(3-\beta^2-2\beta_n^2)}}{3-\beta^2}.
+ \label{eq:eigenvalues}
+\end{equation}
+The repeated intermediate speed is $\chat \beta_n$. The code evaluates the
+radicand as $(1-\beta^2)[3(1-\beta^2)+2\beta_\perp^2]$ to avoid cancellation
+near free streaming. At isotropy the extremes are $\pm\chat/\sqrt{3}$;
+for a beam they collapse to its normal propagation speed.
+
+For reconstructed left and right states, set
+$s_L=\min(\lambda_-^L,\lambda_-^R)$ and
+$s_R=\max(\lambda_+^L,\lambda_+^R)$. The face flux is
+\begin{equation}
+ \vct{\mathcal{F}}^{\rm HLL}=
+ \begin{cases}
+ \vct{\mathcal{F}}^L,&s_L\geq0,\\
+ \vct{\mathcal{F}}^R,&s_R\leq0,\\
+ \displaystyle\frac{s_R\vct{\mathcal{F}}^L-s_L\vct{\mathcal{F}}^R
+       +s_Ls_R(\vct{U}^R-\vct{U}^L)}{s_R-s_L},&s_L<0<s_R.
+ \end{cases}
+ \label{eq:hll}
+\end{equation}
+The upwind branches are evaluated first, including coincident zero-speed
+waves, so no zero denominator is introduced. This is a two-wave flux;
+there is no separate intermediate-wave reconstruction. Radiation uses one
+left/right pair at each face, independently of the hydrodynamic
+face/edge/vertex reconstruction machinery.
+
+For a moving face with normal grid velocity $w_n$, the implementation
+subtracts $w_n\vct{U}$ from Equation~(\ref{eq:pdeflux}) and $w_n$ from
+the characteristic speeds. With a rotating coordinate basis it also
+rotates the two transverse stored flux components through the angle
+$\Omega\dt$ after transport. This local rotation preserves $|\Fr|$.
+All reported tests use $w_n=\Omega=0$.
+
+\subsection{Update, storage conversion, and timestep}
+The explicit transport update is the unsplit forward-Euler divergence
+\begin{equation}
+ \vct{U}^{\rm tr}_i=\vct{U}_i^n-
+ \frac{\dt}{\dx}\sum_{d=1}^3
+ \left(\vct{\mathcal{F}}_{i+\frac12\vct{e}_d}^{\rm HLL}
+       -\vct{\mathcal{F}}_{i-\frac12\vct{e}_d}^{\rm HLL}\right).
+ \label{eq:fv}
+\end{equation}
+Because the mesh stores $c\Fr$, its flux buffers use the energy component
+of Equation~(\ref{eq:pdeflux}) unchanged and multiply each of the three
+$F$-flux components by physical $c$. Consequently the stored flux equation
+has the required $c\chat\nabla\cdot\Prad$ term. Checkpoint conversion likewise
+uses an energy-density unit for $\Er$ and that unit times a velocity unit
+for $c\Fr$.
+
+Before the update, neighboring radiation ghost data are exchanged and
+coarse--fine face fluxes are synchronized. Afterward, updated leaf values
+are restricted to parents and physical boundaries are refreshed. The
+tests reported here use uniform refinement; testing conservation of
+individual restriction and reflux operations does not establish a
+distributed adaptive-mesh convergence result.
+
+Each leaf contributes the bound
+\begin{equation}
+ \dt_{\rm rad}=\frac{\min(C_{\rm CFL},1/4)\dx}
+ {3(\chat+w_{\max})},
+ \label{eq:cfl}
+\end{equation}
+where $w_{\max}$ bounds the absolute grid-velocity components on the
+block and its faces. The factor $1/4$ is a deliberately restrictive
+implementation choice for piecewise-linear reconstruction followed by
+forward Euler. The shared timestep is reduced over the hydrodynamic and
+radiation bounds, any requested hard upper bound, and the remaining
+evolution time. Radiation is not silently advanced by extra substeps if
+this shared bound is violated. At $\zeta=1$ the physical-$c$ restriction
+can dominate the cost of the long-duration shock problems. RSLA relaxes
+this bound but does not relax the gas or lagged-source restrictions.
+
+The gas update completes its three Runge--Kutta stages before radiation
+transport and interaction are applied once over the same $\dt$. The
+gas boundaries are then refreshed, the dual-energy state is reconciled,
+and the common time advances. Thus a higher-order hydrodynamic stage
+sequence does not make the radiation transport, lagged source terms, or
+overall splitting higher order in time. The current radiation update is
+first order in time, with piecewise-linear spatial reconstruction in
+smooth regions. No global second-order temporal or asymptotic-preserving
+claim is made for this sequence.
+
+\section{Local radiation--matter interaction update}
+\subsection{Flux relaxation and momentum backreaction}
+The interaction step begins with the post-transport radiation state and
+the gas state after the hydrodynamic update. Superscript $0$ below denotes
+these inputs to the local step, not necessarily the beginning of the full
+hydrodynamic timestep. Density, composition, opacities, gas velocity, and
+the M1 pressure tensor are held at those input values while evaluating
+the lagged terms. Define $\eta_t=\chat\chi_t\dt$. Backward-Euler damping of
+$\Fr$, with the velocity contribution evaluated explicitly, gives
+\begin{equation}
+ \Fr^1=\frac{\Fr^0+\zeta\dt\chi_t(\Er^0\Id+\Prad^0)\vct{v}^0}
+                  {1+\eta_t}.
+ \label{eq:fluxrelax}
+\end{equation}
+This update can also be evaluated as a weighted average of $\Fr^0$ and
+$(\Er^0\Id+\Prad^0)\vct{v}^0/c$, using weights
+$1/(1+\eta_t)$ and $\eta_t/(1+\eta_t)$.
+The gas receives the paired momentum increment,
+\begin{equation}
+ \delta\vct{m}=\frac{\Fr^0-\Fr^1}{\chat},\qquad
+ \vct{m}^1=\vct{m}^0+\delta\vct{m}.
+ \label{eq:dm}
+\end{equation}
+This construction conserves the weighted momentum in
+Equation~(\ref{eq:weighted}) locally to floating-point accuracy,
+including when flux damping is stiff. The equilibrium flux and gas
+force retain the physical factors of $c$.
+
+The gas kinetic-energy change is computed without subtracting two
+large squared momenta:
+\begin{equation}
+ \delta K=\delta\vct{m}\cdot\vct{v}^0+
+                 \frac{|\delta\vct{m}|^2}{2\rho}.
+ \label{eq:dK}
+\end{equation}
+The lagged work contribution from Equation~(\ref{eq:sourceE}) is
+\begin{equation}
+ W=\dt(2\chi_a-\chi_t)\vct{v}^0\cdot\Fr^0.
+\end{equation}
+The thermal exchange therefore starts from
+\begin{equation}
+ \Er^*=\Er^0+\zeta W,\qquad e^*=e^0-W-\delta K.
+ \label{eq:star}
+\end{equation}
+Including $\delta K$ is essential: energy transferred to ordered gas
+motion must not also appear as gas thermal energy.
+
+\subsection{Backward-Euler thermal exchange}
+With density and composition fixed, write
+\begin{equation}
+ \alpha=\ar\left[\frac{(\gamma-1)\mu m_{\rm H}}
+                         {\rho k_{\rm B}}\right]^4,
+ \qquad \ar T^4=\alpha e^4,
+ \qquad \eta_a=\chat\chi_a\dt.
+\end{equation}
+The thermal subproblem is
+\begin{align}
+ e^1-e^*&=-\frac{\eta_a}{\zeta}[\alpha(e^1)^4-\Er^1],\\
+ \Er^1-\Er^*&=\eta_a[\alpha(e^1)^4-\Er^1].
+ \label{eq:BE}
+\end{align}
+Its conserved weighted sum $e+\Er/\zeta$ eliminates one unknown. With
+\begin{equation}
+ w=\frac{\eta_a}{1+\eta_a},\qquad
+ q=\frac{w}{\zeta}=\frac{c\chi_a\dt}{1+\chat\chi_a\dt},\qquad
+ r=e^*+q\Er^*,
+\end{equation}
+the remaining equation is
+\begin{equation}
+ x+q\alpha x^4=r,\qquad x=e^1,
+ \label{eq:quartic}
+\end{equation}
+and the updated radiation energy is
+\begin{equation}
+ \Er^1=\frac{\Er^*}{1+\eta_a}+w\alpha x^4.
+ \label{eq:thermalrad}
+\end{equation}
+For nonnegative $r$, the left-hand side of
+Equation~(\ref{eq:quartic}) is monotone for $x\geq0$, so there is one
+nonnegative root. Equation~(\ref{eq:thermalrad}) is evaluated as a sum
+of nonnegative contributions instead of subtracting nearly equal total
+and gas energies. The zero-opacity/time case is an identity update.
+
+Large or small temperatures can make $\alpha$ impractical to form
+directly. The implementation stores $\log\alpha$ and scales the root
+using
+\begin{equation}
+ s=\min\left(r,\left[\frac{r}{q\alpha}\right]^{1/4}\right),
+ \quad x=sy,\quad
+ A=\frac{s}{r},\quad B=\frac{q\alpha s^4}{r},
+ \label{eq:scale}
+\end{equation}
+so that $Ay+By^4=1$ on $0\leq y\leq1$.
+Logarithmic evaluation avoids overflow in constructing the coefficients.
+Both $A$ and $B$ are at most unity, and the active bounding coefficient
+is assigned exactly one to retain the bracket in the nearly linear
+limit. A Newton step uses derivative $A+4By^3$; if the proposal leaves
+the current bracket, bisection is used instead. The bracket is updated
+from the residual sign. The normalized residual tolerance is $16\eps$,
+with an 80-iteration upper limit; $r=0$ is handled directly.
+
+Finally, the total gas energy is updated from the actual radiation
+energy change,
+\begin{equation}
+ \Eg^1=\Eg^0+\frac{\Er^0-\Er^1}{\zeta},
+ \label{eq:totalgas}
+\end{equation}
+and the dual-energy tracer is set consistently with $e^1$.
+Together, Equations~(\ref{eq:dm}) and (\ref{eq:totalgas}) make the local
+momentum and energy backreaction conserve Equation~(\ref{eq:weighted}).
+The quartic residual controls the agreement of the thermal and
+total-energy representations.
+
+\subsection{Positivity checks and limits of the splitting}
+Implicit treatment removes the direct damping and emission/absorption
+timescale restriction from the corresponding scalar relaxation steps.
+It does not make the lagged work and velocity terms unconditionally
+stable. The local update explicitly rejects $\Er^*<0$ or
+$e^*+q\Er^*<0$, and aborts if the scaled thermal root fails to converge.
+It does not clip a failed energy update, because clipping would destroy
+the conservation relations. Such a failure requires a smaller shared
+timestep or a change to the source discretization; the code does not
+automatically retry the step at a reduced timestep.
+
+Debug builds additionally check state positivity, vacuum consistency,
+and the realizability cone, allowing a roundoff tolerance of
+$4096\eps$. Those debug assertions are not all active in optimized
+builds, so the application tests independently inspect the saved states.
+Bounded reconstruction and implicit damping are not, by themselves, a
+proof of positivity or realizability for every coupled nonequilibrium
+state under the transport CFL. Accuracy of the first-order source
+splitting and of the adopted $v/c$ approximation must be assessed in
+the physical regime of an application.
+
+\section{Radiation-only verification problems}
+\subsection{Common setup and error definitions}
+The first four tests suppress hydrodynamics and gravity. Gas variables
+are held fixed rather than allowed to recoil or heat. These reference
+tests use $\zeta=1$. For the Gaussian
+pulse and luminous sphere the prescribed medium damps flux as
+$\partial_t\Fr=-c\chi\Fr$, using
+$\Fr^1=\Fr^0/(1+c\chi\dt)$ after transport. The sphere additionally
+adds its prescribed physical emissivity to the energy equation.
+Periodic boundaries are used for the wave, front, and Gaussian pulse;
+the sphere has nonperiodic boundaries held to its reference state.
+Periodic mesh communication is implemented for both gas and radiation,
+although the tests in this section evolve only radiation.
+
+Let a length unit $\ell_0$, energy-density unit $E_0$, and time unit
+$\ell_0/c$ define dimensionless coordinates $\tilde{\vct{x}}$ and
+$\tilde t$. The standard domain is $[-1,1]^3$ in these coordinates.
+The common parameters are $\tilde\chi=5$, Gaussian width
+$\tilde w=0.2$, background $\tilde E_b=1$, perturbation amplitude
+$\tilde A=0.01$, and dimensionless luminosity
+$\tilde L=0.01$ where appropriate. The streaming wave instead uses a
+fixed relative cosine amplitude of $1/2$.
+
+Errors are measured against cell averages of the stated reference,
+not point values at cell centers. For a field $u$ and total volume $V$,
+\begin{align}
+ L_1(u)&=V^{-1}\sum_i V_i|u_i-u_i^{\rm ref}|,\\
+ L_2(u)&=\left[V^{-1}\sum_i V_i|u_i-u_i^{\rm ref}|^2\right]^{1/2},\\
+ L_\infty(u)&=\max_i|u_i-u_i^{\rm ref}|.
+ \label{eq:norms}
+\end{align}
+These are absolute field errors and retain the units of $u$. A
+dimensionless or relative error requires a separately stated scale.
+For the last two tests, the reference describes an isotropic limit and
+the discrepancy can contain both discretization error and closure-model
+error.
+
+\subsection{Oblique free-streaming wave}
+For the integer mode vector $\vct{m}=(2,-3,1)$, domain width $L$, and
+$\vct{n}=\vct{m}/\sqrt{14}$, the exact M1 solution is
+\begin{equation}
+ \Er(\vct{x},t)=E_0\left[1+\frac12
+ \cos\!\left(\frac{2\pi}{L}
+ [\vct{m}\cdot\vct{x}-c\sqrt{14}\,t]\right)\right],
+ \qquad \Fr=\Er\vct{n}.
+ \label{eq:wave}
+\end{equation}
+The integer components make the solution periodic on every Cartesian
+face. Each cell-average cosine amplitude is multiplied by
+$\prod_d{\rm sinc}(\pi m_d\dx/L)$, with
+${\rm sinc}(z)=\sin z/z$. This test probes multidirectional transport,
+the streaming closure, and conservation of all four moments.
+
+\subsection{Periodic free-streaming front}
+The initial profile is $\Er=E_0$ on the half-domain $-L/2\leq x<0$
+and $\Er=10^{-10}E_0$ on $0\leq x<L/2$, repeated periodically.
+The exact solution is its translation by $ct$ with
+\begin{equation}
+ F_x=\Er,\qquad F_y=F_z=0.
+\end{equation}
+The current initializer uses the streaming boundary $f=1$ exactly.
+The finite-volume reference integrates the translated square wave
+between cell edges, including fractional cells at either periodic
+discontinuity. The test measures front broadening and phase transport.
+The short results reported below stop at $\tilde t=0.2$, not after a
+complete crossing of the width-$2$ domain.
+
+\subsection{Periodic Gaussian pulse and Fourier reference}
+The pulse begins with zero flux and a small periodized energy excess,
+\begin{equation}
+ \Er(\vct{x},0)=E_b+A
+ \sum_{\vct{j}\in\mathbb{Z}^3}
+ \exp\!\left[-\frac{|\vct{x}+L\vct{j}|^2}{w^2}\right],
+ \qquad \Fr(\vct{x},0)=0.
+\end{equation}
+For the reference calculation, isotropic pressure
+$\Prad=\Er\Id/3$ and prescribed scattering give
+\begin{equation}
+ \partial_t^2\Er+c\chi\partial_t\Er
+       -\frac{c^2}{3}\nabla^2\Er=0.
+ \label{eq:telegraph}
+\end{equation}
+Retaining the second time derivative accounts for the finite relaxation
+of the initially zero flux; the pure diffusion equation would discard
+that transient. For a Fourier mode with wavevector $\vct{k}$, define
+$a=c\chi/2$ and $d_k^2=a^2-c^2k^2/3$. Then
+\begin{align}
+ A_k(t)&=e^{-at}\left[\cosh(d_kt)
+                       +a\frac{\sinh(d_kt)}{d_k}\right],\\
+ B_k(t)&=e^{-at}\frac{\sinh(d_kt)}{d_k},\\
+ \widehat{\delta E}_k(t)&=A_k(t)\widehat{\delta E}_k(0),\\
+ \widehat{\Fr}_k(t)&=-i\frac{c}{3}\vct{k}B_k(t)
+                               \widehat{\delta E}_k(0).
+ \label{eq:fourier}
+\end{align}
+Trigonometric forms apply when $d_k^2<0$, with the continuous limit at
+$d_k=0$. The implementation evaluates these expressions with separate
+small-argument, overdamped, and oscillatory branches to avoid cancellation
+and overflow. The zero mode is constant.
+
+The reference generator starts from error-function cell averages of the
+periodized Gaussian, evolves their discrete Fourier modes, and removes
+Nyquist planes on even grids so that odd spectral derivatives retain
+Hermitian symmetry. Initial and final cell averages are stored together
+with the reference parameters, which must match the simulation grid and
+requested time. The simulation itself evolves the nonlinear M1 closure;
+the Fourier solution is an exact reference for the represented isotropic
+linear system, not for nonlinear M1. The small perturbation on a positive
+background keeps this comparison close to the isotropic regime.
+
+\subsection{Gaussian luminous sphere}
+The spherical test has a prescribed, time-independent emissivity
+\begin{equation}
+ q(r)=\frac{L_b}{\pi^{3/2}w^3}e^{-r^2/w^2}.
+ \label{eq:bulbsource}
+\end{equation}
+In a fixed scattering medium, the diffusion-limit relations
+$c\nabla\cdot\Fr=q$ and $\Fr=-\nabla\Er/(3\chi)$ give
+\begin{align}
+ \Er(r)&=E_b+\frac{3\chi L_b}{4\pi c}
+                      \frac{\operatorname{erf}(r/w)}{r},\\
+ \Fr(\vct{x})&=\frac{L_b}{4\pi c}
+ \frac{\operatorname{erf}(s)-2s e^{-s^2}/\sqrt{\pi}}{r^3}
+ \vct{x},\qquad s=r/w.
+ \label{eq:bulb}
+\end{align}
+Regular series evaluate the origin. Positive four-point Gauss--Legendre
+quadrature in each dimension supplies reference cell averages, while
+the emissivity has exact cell integrals obtained from products of
+error-function differences. The prescribed source is Gaussian throughout
+the calculation; it is not a uniform-emissivity solid sphere.
+
+The initial and boundary states are taken from
+Equation~(\ref{eq:bulb}). Supplying the corresponding incoming boundary
+radiation is necessary; replacing it by clipped outflow would define a
+different problem. The M1 evolution includes the physical source
+Equation~(\ref{eq:bulbsource}) and flux damping, but uses its own nonlinear
+pressure tensor. Thus this is a stationary diffusion-limit comparison,
+not an exact nonlinear M1 equilibrium. It is related in purpose to
+spherical illumination tests such as those discussed by
+\citet{Ensman1994}, while the Gaussian source and explicit formulas above
+fully specify the implemented problem.
+
+\section{Coupled wall shocks and spherical radiating blast}
+\subsection{Planar wall-driven shocks}
+The two shock setups use physical parameters from the subcritical and
+supercritical tests of \citet{Ensman1994}, but realize the piston through
+a planar reflecting wall. The original moving spherical shell and its
+equal-mass radial mesh are not reproduced. The computational cube spans
+$[-3.5\times10^{10},3.5\times10^{10}]$ cm in each coordinate.
+Initially
+\begin{align}
+ \rho_0&=7.78\times10^{-10}\ {\rm g\,cm^{-3}},\\
+ v_x&=-v_p,\qquad v_y=v_z=0,\\
+ T(x)&=\left[85-75\frac{x+3.5\times10^{10}\ {\rm cm}}
+                       {7\times10^{10}\ {\rm cm}}\right]\ {\rm K}.
+\end{align}
+The piston-frame inflow speeds are $v_p=6\times10^5\ {\rm cm\,s^{-1}}$
+and $2\times10^6\ {\rm cm\,s^{-1}}$, respectively. The gas has
+$\gamma=5/3$ and $\mu=0.5$. Pure absorption uses
+\begin{equation}
+ \kappa_a=\kappa_t=\frac{3.115\times10^{-10}}{7.78\times10^{-10}}
+       \ {\rm cm^2\,g^{-1}},\qquad \chi_a=\chi_t=\kappa_a\rho.
+ \label{eq:shockopacity}
+\end{equation}
+The extinction therefore increases with compressed density; it is not
+held at its initial inverse mean free path.
+
+Initial radiation is LTE with the first-order lab-frame advective flux,
+$\Er=\ar T^4$ and $F_x=(4/3)(v_x/c)\Er$. Conserved quantities are averaged
+by positive tensor-product quadrature. In particular, $\langle T^4\rangle$
+is used rather than $\langle T\rangle^4$. At the left wall, gas normal
+momentum and radiation normal flux reverse sign in mirrored ghost cells.
+The right boundary supplies the fixed upstream state at 10 K. Transverse
+boundaries copy the adjacent interior values without clipping normal
+momentum or radiation flux. The gas angular momentum in a ghost cell is
+reconstructed consistently from its position and momentum.
+
+The configured comparison times are $38300$ s for the subcritical case
+and $7500$ s for the supercritical case. A developed subcritical solution
+should exhibit a radiative precursor whose upstream gas remains cooler
+than downstream equilibrium gas. In a supercritical solution the upstream
+gas approaches the downstream equilibrium temperature, while a narrow
+gas-temperature excess can remain at the shock. Signed radiation flux
+is a useful diagnostic and must not be replaced by its magnitude when
+examining the shock structure. These are physical comparison targets;
+the short runs reported here have not evolved far enough to establish
+either regime, and the original spherical profiles are not exact
+acceptance curves for the planar wall problem.
+
+Analytical limits provide useful temperature scales. For a strong,
+cold-upstream, nonradiative wall shock, let
+$\mathcal{R}=k_{\rm B}/(\mu m_{\rm H})$. The upstream speed in the shock
+frame is $u_1=(\gamma+1)v_p/2$, so the ideal-gas jump conditions give
+\begin{equation}
+ T_2\simeq\frac{2(\gamma-1)u_1^2}{\mathcal{R}(\gamma+1)^2}
+       =\frac{(\gamma-1)v_p^2}{2\mathcal{R}}.
+ \label{eq:shockscale}
+\end{equation}
+With the present $\gamma$ and $\mu$, this gives approximately $727$ K
+and $8080$ K for the two piston speeds. These are adiabatic baselines;
+finite upstream temperature, radiative preheating, and net radiative
+energy loss change the downstream state. In particular, $8080$ K is
+not a prescribed cooled plateau for the supercritical calculation.
+In the approximately steady, gas-dominated supercritical limit,
+\citet[pp.~283--285]{Ensman1994} gives
+$T_-\simeq T_2$ and $T_+\simeq(3-\gamma)T_2=4T_2/3$, where $T_-$ is
+the gas temperature immediately upstream, $T_+$ is the narrow shock
+maximum, and $T_2$ is the actual downstream equilibrium temperature.
+These approximate relations do not determine the full radiative profile.
+
+\subsection{Spherical blast on a Cartesian mesh}
+The blast has spherically symmetric initial profiles sampled on the
+three-dimensional Cartesian mesh. Its box spans $\pm R_o$, with
+$R_o=10^{13}$ cm, and its regularized central scale is $R_0=10^{12}$ cm.
+The density is
+\begin{equation}
+ \rho(r)=10^{-6}
+ \left[\frac{\max(r,R_0)}{R_0}\right]^{-7}
+              \ {\rm g\,cm^{-3}}.
+ \label{eq:blastdensity}
+\end{equation}
+The gas is initially stationary and uses the same $\gamma$, $\mu$, and
+pure-absorption mass opacity as the wall shocks. A pre-explosion
+luminosity $L_0=10^{34}\ {\rm erg\,s^{-1}}$ defines an approximate LTE
+diffusion atmosphere. For $R_0\leq r\leq R_o$,
+\begin{align}
+ E_d(r)&=\frac{L_0}{4\pi cR_o^2}
+ +\frac{3\chi_0L_0}{32\pi cR_0}
+       \left[\left(\frac{R_0}{r}\right)^8
+                   -\left(\frac{R_0}{R_o}\right)^8\right],\\
+ \Fr(r)&=\frac{L_0}{4\pi c r^2}\hat{\vct{r}},
+ \qquad \chi_0=\kappa_a\rho(R_0).
+ \label{eq:blastenvelope}
+\end{align}
+Inside the filled core,
+\begin{align}
+ E_d(r)&=E_d(R_0)+\frac{3\chi_0L_0}{8\pi cR_0}
+                              \left(1-\frac{r^2}{R_0^2}\right),\\
+ \Fr(\vct{x})&=\frac{L_0}{4\pi c R_0^3}\vct{x}.
+\end{align}
+At cube corners with $r>R_o$, $E_d$ is held at its edge value while the
+spherical flux decreases as $r^{-2}$. The diffusion profile alone becomes
+unrealizable in part of the optically thin outer envelope. Initialization
+therefore sets
+\begin{equation}
+ \Er=\max\left[E_d,(1+10^{-12})|\Fr|\right]
+\end{equation}
+before computing the background gas temperature
+$T=(\Er/\ar)^{1/4}$. This preserves the prescribed radial luminosity and
+keeps the radiation state within the M1 cone.
+
+An energy $E_{\rm dep}=10^{47}$ erg is then added to gas internal energy
+with a Gaussian profile,
+\begin{equation}
+ \delta e(\vct{x})=
+ \frac{E_{\rm dep}\exp(-r^2/R_0^2)}
+ {\pi^{3/2}R_0^3[\operatorname{erf}(R_o/R_0)]^3}.
+ \label{eq:blastdeposit}
+\end{equation}
+Products of error-function differences integrate this addition exactly
+over each Cartesian cell. Its sum over the box is consequently
+$E_{\rm dep}$ at every uniform resolution. Radiation is not given the
+deposited energy directly: the subsequent matter-coupling update transfers
+thermal gas energy to radiation. The luminosity used to construct the
+initial atmosphere is not maintained as an energy source during the run.
+The configured final time is $22000$ s.
+
+This is a spherical explosion, although the domain and numerical grid are
+Cartesian. It remains an adaptation of \citet{Ensman1994}: the original
+hollow shell is filled by a regularized core, Gaussian deposition replaces
+heating of one innermost Lagrangian zone, and an approximate diffusion
+atmosphere replaces a relaxed transfer solution. The streaming floor,
+M1 closure, and outer Cartesian boundary also affect the solution. Neither
+the original breakout times nor a nonradiating Sedov--Taylor profile are
+exact benchmarks for this initial-boundary-value problem. Its deposition
+scale and radiation-mediated structures must be resolved before detailed
+physical conclusions are drawn.
+
+\citet[Section~5.3]{Ensman1994} supplies numerical blast profiles and
+breakout diagnostics, with no exact analytical solution for that
+stratified radiating problem. The Sedov--Taylor limit instead describes
+an energy-conserving point explosion into cold gas of uniform density
+$\rho_0$:
+\begin{equation}
+ R_s(t)=\xi_{\rm ST}(\gamma)\left(\frac{E_{\rm dep}t^2}{\rho_0}\right)^{1/5},
+ \qquad \frac{dR_s}{dt}=\frac{2R_s}{5t},
+ \label{eq:sedovlimit}
+\end{equation}
+where $\xi_{\rm ST}$ is a dimensionless constant fixed by the similarity
+solution, distinct from the M1 Eddington factor $\xi(f)$.
+The present core scale, stratified envelope, finite deposition region,
+and radiative energy losses violate the assumptions of that limit;
+Equation~(\ref{eq:sedovlimit}) is not an exact reference for this test.
+
+\section{Measured checks and interpretation}
+\subsection{Single-resolution radiation errors}
+The current application-generated preview includes all four
+radiation-only problems at $32^3$ cells. It uses
+$\ell_0=3\times10^{10}$ cm and $E_0=1\ {\rm erg\,cm^{-3}}$,
+so $L=6\times10^{10}$ cm, $w=6\times10^9$ cm,
+$\chi=1.6666666667\times10^{-10}\ {\rm cm^{-1}}$, and
+$L_b=2.698132122\times10^{29}\ {\rm erg\,s^{-1}}$ where relevant.
+The final time is $0.2001384571$ s, corresponding to
+$\tilde t=0.2$ with the physical light speed
+$c=2.99792458\times10^{10}\ {\rm cm\,s^{-1}}$.
+Table~\ref{tab:errors} reports the measured absolute energy-density norms
+from those application runs. The Gaussian and sphere rows are discrepancies
+from their limiting references; they are not errors against exact nonlinear
+M1 solutions.
+
+\begin{table}[ht]
+\centering
+\caption{Measured $32^3$ application energy-density errors at
+$t=0.2001384571$ s. All entries are in ${\rm erg\,cm^{-3}}$.
+\label{tab:errors}}
+\begin{tabular}{lccc}
+\hline
+Problem & $L_1(\Er)$ & $L_2(\Er)$ & $L_\infty(\Er)$ \\
+\hline
+Oblique wave & $3.681505\times10^{-2}$ & $4.167722\times10^{-2}$ & $6.610035\times10^{-2}$ \\
+Streaming front & $3.401321\times10^{-2}$ & $7.495241\times10^{-2}$ & $2.206418\times10^{-1}$ \\
+Gaussian pulse & $1.473252\times10^{-6}$ & $8.193512\times10^{-6}$ & $1.431485\times10^{-4}$ \\
+Luminous sphere & $1.461205\times10^{-5}$ & $5.905919\times10^{-5}$ & $8.268966\times10^{-4}$ \\
+\hline
+\end{tabular}
+\end{table}
+
+The implementation also checks all physical flux components $cF_x$,
+$cF_y$, and $cF_z$, and applies fixed regression thresholds. These
+single-resolution results do not determine a convergence order. In particular, no sequence of current
+$32^3$, $64^3$, and $128^3$ results is presented as evidence for an
+observed spatial or temporal order.
+
+\subsection{Coupled implementation checks and conservation}
+At physical light speed, each new coupled problem has completed a four-step CPU check on a
+$16^3$ mesh using two HPX workers. The checks inspect all 4096 cells in
+the initial and final checkpoints for finite positive matter and
+radiation states and $|\Fr|\leq\Er$. Both gas and radiation must evolve;
+the wall-shock checks require compression, and all three require nonzero
+thermal exchange. The exported central plane must contain each expected
+cell once, agree with the final checkpoint time, and satisfy the CGS
+relation $\Er=\ar T_{\rm r}^4$.
+
+The radiation conservation ledger measures the numerical boundary flux
+and the actual local source increments used by the update. The four-step
+application check normalizes its residual in integrated radiation energy
+$\mathcal{E}$ as
+\begin{equation}
+ R_E=\frac{|\mathcal{E}(t)-\mathcal{E}(0)
+                 +\mathcal{B}_E(t)-\mathcal{S}_E(t)|}
+ {\max(|\mathcal{E}(0)|,|\mathcal{E}(t)|,
+                 |\mathcal{B}_E(t)|,|\mathcal{S}_E(t)|)},
+ \label{eq:ledger}
+\end{equation}
+where $\mathcal{B}_E$ is the cumulative outward boundary transport and
+$\mathcal{S}_E$ is the cumulative radiation source contribution.
+Table~\ref{tab:smoke} gives the results. This ledger checks the radiation
+discrete balance with measured source terms; it is distinct from an
+independent global gas-plus-radiation conservation measurement.
+At reduced speed, the same ledger still measures the actual radiation
+increments; the conserved combined quantities would instead be those
+in Equation~(\ref{eq:weighted}).
+The website uses the same unnormalized balance but divides by the fixed
+initial radiation energy $|\mathcal{E}(0)|$, so growth of the source or
+boundary budget cannot reduce the displayed fractional error. Its
+reported fractions therefore use a different normalization from
+Table~\ref{tab:smoke}.
+
+\begin{table}[ht]
+\centering
+\caption{Four-step coupled CPU implementation checks on $16^3$ cells.
+\label{tab:smoke}}
+\begin{tabular}{lccc}
+\hline
+Problem & Final time (s) & Maximum $|\Fr|/\Er$ & $R_E$ \\
+\hline
+Subcritical wall setup & $0.04864476388$ & $0.09560791$ & $7.51\times10^{-17}$ \\
+Supercritical wall setup & $0.04864476388$ & $0.09554431$ & $1.29\times10^{-16}$ \\
+Spherical blast & $13.89850397$ & $0.97602206$ & $2.06\times10^{-16}$ \\
+\hline
+\end{tabular}
+\end{table}
+
+These short integrations test initialization, boundaries, transport,
+stiff thermal exchange, checkpoint output, and reporting together.
+They do not reach the configured long-duration shock or blast comparison
+times. In particular, the terms subcritical and supercritical identify
+the intended benchmark setups, not a demonstrated classification of
+their early-time profiles.
+
+Additional four-step CPU runs on $16^3$ cells used $\zeta=0.03$ for the
+subcritical setup and $\zeta=0.1$ for the supercritical and blast setups.
+They reached $1.62149213$, $0.48644764$, and $138.98503967$ s, respectively.
+All passed the same full-volume state, compression where applicable,
+thermal-exchange, slice, and radiation-ledger checks, and both their
+initial and final checkpoints retained the requested factor. The largest
+radiation-energy ledger residual with the normalization of
+Equation~(\ref{eq:ledger}) was $6.43\times10^{-17}$.
+The blast factor $0.1$ was used only to exercise the implementation;
+it is not an accepted approximation for its physical evolution.
+These runs do not test full-duration RSLA accuracy or convergence with
+light-speed factor, and the physical-speed blast remains the baseline.
+
+Additional standalone checks exercise the closure over multiple scalar
+types, face realizability, transport of uniform and oblique states,
+physical-flux unit conversion, local energy and momentum conservation,
+opacity scaling, and the actual wall/inflow/transverse boundary assignments.
+The blast initializer is checked for rotational symmetry of point states,
+realizability through its outer envelope, and the deposited-energy budget
+at 8, 16, and 32 cells per side. Boundary and grid checks include undefined
+behavior sanitizer builds. A separate application test compares
+checkpoint/restarted streaming-wave evolution with uninterrupted evolution
+at $\zeta=1$ and $0.1$. Across all four radiation fields and 4096 cells,
+the largest relative $L_\infty$ discrepancy was $3.15\times10^{-16}$.
+The checkpoint factor overrides a conflicting input value; an actual
+version-1 checkpoint correctly restores the legacy factor $1$.
+Application option checks also rejected zero, negative, greater-than-one,
+and nonfinite factors from both the command line and configuration file,
+and verified agreement of default and explicit factor-$1$ runs.
+These are continuation and option checks, not an RSLA convergence study.
+GPU and multi-locality execution are outside the runtime evidence
+reported here.
+The RSLA update also passed all 14 selected local CTest cases, including
+independent moment/source checks and production-grid transport, storage,
+and interaction checks at factors $1$, $0.1$, and $0.01$ in debug,
+optimized, and undefined-behavior-sanitizer configurations.
+
+\section{Reproducibility and present limitations}
+This description follows the local \code{hpx2rc-radiation} development
+branch, based on \code{7485b798}, with the restored radiation module and
+the subsequent local benchmark additions. The core transport and
+interaction formulas are implemented in
+\path{octotiger/radiation/m1.hpp}; mesh storage, flux exchange, and the
+operator sequence are implemented in
+\path{src/radiation/rad_grid.cpp} and the node stepping routines.
+Problem definitions and cell averages are in
+\path{test_problems/radiation/}, with coupled benchmark parameters in
+\path{hydro_benchmarks.hpp}. The executable tests and their invocation
+instructions are recorded in \path{tests/README.md}. The local results
+pipeline retains the executable hash, configuration, actual final time,
+physical and transport light speeds, reduced-speed factor, reference
+parameters, and the distinction between application output
+and results-tool fixtures.
+
+The principal limits are the first-order radiation time sequence, the
+near-equilibrium approximation in the velocity-dependent momentum
+source, and the use of limiting-model references for the Gaussian pulse
+and luminous sphere. Physical light-speed transport also makes some
+radiation-hydrodynamic benchmarks expensive to evolve to their published
+comparison times. The optional RSLA has its own timescale and convergence
+requirements and does not establish those benchmarks by itself.
+A completed implementation check must therefore be
+kept separate from a resolved physical validation. The present results
+support the numerical behaviors explicitly tested above; they do not
+establish developed shock profiles, blast breakout timing, or a
+high-resolution convergence rate for the coupled solver.
+
+\appendix
+\section{Archived supplemental movie links}
+The following streaming-front movie links were supplied with the earlier
+draft and are retained as archived supplemental material. Their
+accessibility, code revision, normalization, and correspondence to the
+current solver have not been reverified. They are not evidence for the
+current-resolution or convergence results in this paper:
+\href{https://lsu.box.com/s/o5fwovq8lcowoq0zlh5wwvkmqvq7n3ny}{$32^3$ movie},
+\href{https://lsu.box.com/s/3lxru1v0uazeq2tiyfiv59c9m34y2fpz}{$64^3$ movie}, and
+\href{https://lsu.box.com/s/cm7pqeqgr5dlzsr1s5tof6vvy1bw2ug3}{$128^3$ movie}.
+
+\begin{thebibliography}{}
+\bibitem[Ensman(1994)]{Ensman1994}
+Ensman, L. 1994, ApJ, 424, 275--291,
+\emph{Test Problems for Radiation and Radiation-Hydrodynamics Codes},
+\href{https://doi.org/10.1086/173889}{doi:10.1086/173889}.
+
+\bibitem[Hanawa \& Audit(2014)]{HanawaAudit2014}
+Hanawa, T., \& Audit, E. 2014, Journal of Quantitative Spectroscopy and
+Radiative Transfer, 145, 9--16,
+\emph{Reformulation of the M1 Model of Radiative Transfer},
+\href{https://doi.org/10.1016/j.jqsrt.2014.04.014}{doi:10.1016/j.jqsrt.2014.04.014}.
+
+\bibitem[Levermore(1984)]{Levermore1984}
+Levermore, C. D. 1984, Journal of Quantitative Spectroscopy and Radiative
+Transfer, 31, 149--160,
+\emph{Relating Eddington Factors to Flux Limiters},
+\href{https://doi.org/10.1016/0022-4073(84)90112-2}{doi:10.1016/0022-4073(84)90112-2}.
+
+\bibitem[Marcello et al.(2021)]{Marcello2021}
+Marcello, D. C., Shiber, S., De Marco, O., et al. 2021, MNRAS, 504,
+5345--5382,
+\emph{Octo-Tiger: A New, 3D Hydrodynamic Code for Stellar Mergers that Uses
+HPX Parallelization},
+\href{https://doi.org/10.1093/mnras/stab937}{doi:10.1093/mnras/stab937}.
+
+\bibitem[Melon Fuksman \& Mignone(2019)]{MelonFuksman2019}
+Melon Fuksman, J. D., \& Mignone, A. 2019, ApJS, 242, 20,
+\emph{A Radiative Transfer Module for Relativistic Magnetohydrodynamics
+in the PLUTO Code},
+\href{https://doi.org/10.3847/1538-4365/ab18ff}{doi:10.3847/1538-4365/ab18ff}.
+
+\bibitem[Melon Fuksman et al.(2021)]{MelonFuksman2021}
+Melon Fuksman, J. D., Klahr, H., Flock, M., \& Mignone, A. 2021,
+ApJ, 906, 78,
+\emph{A Two-moment Radiation Hydrodynamics Scheme Applicable to
+Simulations of Planet Formation in Circumstellar Disks},
+\href{https://doi.org/10.3847/1538-4357/abc879}{doi:10.3847/1538-4357/abc879}.
+
+\bibitem[Shiber et al.(2024)]{Shiber2024}
+Shiber, S., De Marco, O., Motl, P. M., et al. 2024, MNRAS, 535,
+1914--1943,
+\emph{Hydrodynamic Simulations of White Dwarf--White Dwarf Mergers and
+the Origin of R Coronae Borealis Stars},
+\href{https://doi.org/10.1093/mnras/stae2343}{doi:10.1093/mnras/stae2343}.
+
+\bibitem[Skinner \& Ostriker(2013)]{SkinnerOstriker2013}
+Skinner, M. A., \& Ostriker, E. C. 2013, ApJS, 206, 21,
+\emph{A Two-moment Radiation Hydrodynamics Module in Athena Using a
+Time-explicit Godunov Method},
+\href{https://doi.org/10.1088/0067-0049/206/2/21}{doi:10.1088/0067-0049/206/2/21}.
+\end{thebibliography}
+\end{document}

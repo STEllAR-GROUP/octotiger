@@ -1,0 +1,42 @@
+# Copy this file to your QB_ENV_FILE and edit it for the installed cluster stack.
+# This file is sourced by build, simulation and collection jobs. It performs no
+# connection, submission, package installation or dependency bootstrap.
+# All paths below are illustrative staging destinations, not detected installs.
+
+# Load the compiler module used for the HPX 2 MPI stack here. A historical QB
+# stack used gcc/13.2.0, but the correct module must match the selected HPX build.
+# module load gcc/13.2.0
+
+QB_STACK_PREFIX=/work/$USER/octotiger-stack/hpx2-mpi
+QB_COMMON_PREFIX=/work/$USER/octotiger-stack/common
+QB_MPI_PREFIX=/work/$USER/octotiger-stack/openmpi
+QB_SOURCE_PREFIX=/work/$USER/octotiger-stack/sources
+
+# HPX and CPPuddle share the compiler/ABI. Use lib64/cmake below instead of
+# lib/cmake when that is where the selected installation exports its packages.
+export CC=gcc CXX=g++
+export HPX_DIR="$QB_STACK_PREFIX/lib/cmake/HPX"
+export CPPuddle_DIR="$QB_STACK_PREFIX/lib/cmake/CPPuddle"
+export Vc_DIR="$QB_COMMON_PREFIX/lib/cmake/Vc"
+export Silo_DIR="$QB_COMMON_PREFIX" SILO_ROOT="$QB_COMMON_PREFIX"
+export HDF5_ROOT="$QB_COMMON_PREFIX"
+export CMAKE_PREFIX_PATH="$QB_STACK_PREFIX:$QB_COMMON_PREFIX${CMAKE_PREFIX_PATH:+:$CMAKE_PREFIX_PATH}"
+
+# This must be the MPI implementation used to build the chosen HPX library.
+export MPI_C_COMPILER="$QB_MPI_PREFIX/bin/mpicc"
+export MPI_CXX_COMPILER="$QB_MPI_PREFIX/bin/mpicxx"
+export MPIEXEC_EXECUTABLE="$QB_MPI_PREFIX/bin/mpiexec"
+export PATH="$QB_MPI_PREFIX/bin:$PATH"
+export LD_LIBRARY_PATH="$QB_MPI_PREFIX/lib:$QB_MPI_PREFIX/lib64:$QB_STACK_PREFIX/lib:$QB_STACK_PREFIX/lib64:$QB_COMMON_PREFIX/lib:$QB_COMMON_PREFIX/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+# Source-only checkouts at the revisions pinned in the root CMakeLists.txt.
+# No clone/download is done by build.sh. The octotiger-testdata submodule must
+# also already be staged with the repository before building test targets.
+export FETCHCONTENT_SOURCE_DIR_KOKKOSSIMD="$QB_SOURCE_PREFIX/simd-math"
+export FETCHCONTENT_SOURCE_DIR_SVESIMD="$QB_SOURCE_PREFIX/sve"
+
+# The common prefix or loaded modules also provide Boost, hwloc, FFTW3,
+# OpenSSL and nlohmann_json. Separate installations can be added to
+# CMAKE_PREFIX_PATH or selected with FFTW3_INCLUDE_DIR, FFTW3_LIBRARY,
+# OPENSSL_ROOT_DIR and nlohmann_json_DIR. Collection requires gnuplot on PATH;
+# FFmpeg is needed only if optional movie generation is enabled.

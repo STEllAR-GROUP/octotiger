@@ -262,7 +262,8 @@ void rad_grid::rad_imp(std::vector<Real>& egas, std::vector<Real>& tau, std::vec
                 const M1::ConservedState old{
                     U[er_i][r], U[fx_i][r] / c, U[fy_i][r] / c, U[fz_i][r] / c};
                 const auto next = old.couple({sx[h], sy[h], sz[h]}, egas[h], e,
-                    rho[h], chiAbsorption, chiTotal, dt, c, logAlpha, marshak);
+                    rho[h], chiAbsorption, chiTotal, dt, c, logAlpha, marshak,
+                    opts().radiation_reduced_c_factor);
                 // Commit all four components together, after checking a complete state.
                 for (int f = 0; f < NRF; f++) {
                     Real const updated = f == er_i ? next.radiation[f] : c * next.radiation[f];
@@ -410,7 +411,8 @@ void rad_grid::applyRegressionSource(Real dt) {
                 Real const emission = bulb ? radiationTests::bulbSourceAverage(
                     {X[0][r], X[1][r], X[2][r]}, dx, parameters) : 0;
                 auto const updated = radiationTests::mediumSource(
-                    {U[0][r], U[1][r], U[2][r], U[3][r]}, dt, parameters, emission);
+                    {U[0][r], U[1][r], U[2][r], U[3][r]},
+                    dt * opts().radiation_reduced_c_factor, parameters, emission);
                 M1::ConservedState{updated[0], updated[1] / parameters.c,
                     updated[2] / parameters.c, updated[3] / parameters.c}.checkState();
                 for (int f = 0; f < NRF; ++f) {
@@ -468,7 +470,8 @@ Real rad_grid::maxTimestep(Real omega) const {
       }
     }
     }
-    return M1::transportTimestep(dx, physcon().c, opts().cfl, gridSpeed);
+    return M1::transportTimestep(dx, physcon().c * opts().radiation_reduced_c_factor,
+        opts().cfl, gridSpeed);
 }
 
 void rad_grid::compute_flux(Real omega) {
@@ -539,7 +542,10 @@ void rad_grid::compute_flux(Real omega) {
                         Real const x = 0.5 * (X[transverse][left] + X[transverse][right]);
                         vg = (normal == XDIM ? -omega : omega) * x;
                     }
-                    const auto F = M1::hll(leftPrimitives, rightPrimitives, normal, c, vg);
+                    // Only propagation uses c-hat. State normalization and stored
+                    // physical F retain c; coordinate motion is not rescaled.
+                    const auto F = M1::hll(leftPrimitives, rightPrimitives, normal,
+                        c * opts().radiation_reduced_c_factor, vg);
                     // The finite-volume/reflux buffers evolve physical F, not Q.
                     for (int f = 0; f < NRF; ++f) {
             flux[normal][f][right] = f == er_i ? F[f] : c * F[f];
@@ -644,6 +650,28 @@ void rad_grid::set_physical_boundaries(geo::face face, Real t) {
                 default:
                     iii1 = rindex(i, j, RAD_NX - 1 - k);
                     iii0 = rindex(i, j, RAD_NX - 1 - RAD_BW);
+                }
+                if (radiationShockProblem()) {
+                    const auto dim = face.get_dimension();
+                    const bool wall = dim == XDIM && face.get_side() == geo::MINUS;
+                    const bool reservoir = dim == XDIM && face.get_side() == geo::PLUS;
+                    if (wall) {
+                        iii0 = rindex(2 * RAD_BW - 1 - k, i, j);
+                    }
+                    if (reservoir) {
+                        const auto state = radiationHydroInit(opts().xscale, 0, 0, 0);
+                        for (int f = 0; f < NRF; ++f) {
+                            U[f][iii1] = state[opts().n_fields + f];
+                        }
+                    } else {
+                        for (int f = 0; f < NRF; ++f) {
+                            U[f][iii1] = U[f][iii0];
+                        }
+                        if (wall) {
+                            U[fx_i][iii1] = -U[fx_i][iii0];
+                        }
+                    }
+                    continue;
                 }
                 if (opts().problem == RADIATION_EQUILIBRIUM_SPHERE) {
                     // The reference includes incoming radiation at the box faces;

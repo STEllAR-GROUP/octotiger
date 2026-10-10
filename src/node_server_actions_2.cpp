@@ -56,8 +56,15 @@ void node_server::check_for_refinement(real omega, real new_floor) {
 			futs[index++] = child.check_for_refinement(omega, new_floor);
 		}
 	}
-	if (opts().hydro || opts().problem == AMR_TEST) {
+	if (opts().hydro || opts().problem == AMR_TEST || opts().gradient_refine_field == "density") {
 		all_hydro_bounds();
+	}
+	if (opts().gradient_refine_field == "radiation_energy") {
+		// Refresh restricted parent values and all ghost stencils before tagging.
+		// Every node participates, including nodes already at the finest level.
+		rad_grid_ptr->set_dx(grid_ptr->get_dx());
+		rad_grid_ptr->set_X(grid_ptr->get_X());
+		all_rad_bounds(current_time);
 	}
 	if (!rc) {
 		rc = grid_ptr->refine_me(my_location.level(), new_floor);
@@ -176,6 +183,31 @@ radiationConservation::Totals node_server::collectRadiationConservation() {
 
 using compare_analytic_action_type = node_server::compare_analytic_action;
 HPX_REGISTER_ACTION(compare_analytic_action_type);
+
+using export_radiation_hydro_action_type = node_server::export_radiation_hydro_action;
+HPX_REGISTER_ACTION(export_radiation_hydro_action_type);
+
+future<void> node_client::export_radiation_hydro() const {
+	return hpx::async<node_server::export_radiation_hydro_action>(get_unmanaged_gid());
+}
+
+void node_server::export_radiation_hydro() {
+	if (is_refined) {
+		std::array<future<void>, NCHILD> pending;
+		for (int i = 0; i < NCHILD; ++i) {
+			pending[i] = children[i].export_radiation_hydro();
+		}
+		for (auto& child : pending) {
+			GET(child);
+		}
+	} else {
+		grid_ptr->export_radiation_hydro(current_time);
+	}
+	if (my_location.level() == 0) {
+		printf("RADIATION_HYDRO_FINISHED %s t=%.17e requested=%.17e\n",
+			to_string(opts().problem).c_str(), double(current_time), double(opts().stop_time));
+	}
+}
 
 future<analytic_t> node_client::compare_analytic() const {
 	return hpx::async<typename node_server::compare_analytic_action>(get_unmanaged_gid());

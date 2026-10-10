@@ -38,11 +38,14 @@ struct node_count_type {
 	std::uint64_t total;
 	std::uint64_t leaf;
 	std::uint64_t amr_bnd;
+	// Populated only for opt-in gradient AMR diagnostics; these count leaves.
+	std::vector<std::uint64_t> leaf_per_level;
 	template<class A>
 	void serialize(A& arc, unsigned) {
 		arc & total;
 		arc & leaf;
 		arc & amr_bnd;
+		arc & leaf_per_level;
 	}
 	node_count_type() {
 		total = leaf = amr_bnd = std::uint64_t(0);
@@ -258,6 +261,8 @@ public:
 
 	analytic_t compare_analytic();/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server, compare_analytic, compare_analytic_action);
+	void export_radiation_hydro();
+	HPX_DEFINE_COMPONENT_ACTION(node_server, export_radiation_hydro, export_radiation_hydro_action);
 
 	std::pair<real,real> amr_error();
 	HPX_DEFINE_COMPONENT_ACTION(node_server, amr_error, amr_error_action);
@@ -390,6 +395,7 @@ HPX_REGISTER_ACTION_DECLARATION(node_server::set_rad_grid_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::erad_init_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::collectRadiationConservationAction);
 HPX_REGISTER_ACTION_DECLARATION(node_server::amr_error_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::export_radiation_hydro_action);
 //HPX_REGISTER_ACTION_DECLARATION(node_server::set_parent_action);
 
 #endif /* NODE_SERVER_HPP_ */

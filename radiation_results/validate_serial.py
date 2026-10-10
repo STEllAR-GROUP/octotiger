@@ -4,11 +4,14 @@
 This emits conservation histories, final slices and volume errors without HPX (validation only). Distributed
 boundary actions are tested only by the full Octo-TIGER CTest cases.
 """
-import argparse, pathlib, subprocess, tempfile
+import argparse, math, pathlib, subprocess, tempfile
 p=argparse.ArgumentParser();p.add_argument('--root',type=pathlib.Path,required=True);p.add_argument('--reference',type=pathlib.Path,required=True)
 p.add_argument('--cells',type=int,default=32);p.add_argument('--cxx',default='g++')
 p.add_argument('--sanitize',action='store_true');p.add_argument('--output',type=pathlib.Path,required=True)
+p.add_argument('--radiation-reduced-c-factor',type=float,default=1)
 a=p.parse_args()
+if not math.isfinite(a.radiation_reduced_c_factor) or not 0 < a.radiation_reduced_c_factor <= 1:
+    p.error('radiation-reduced-c-factor must be finite and in (0,1]')
 project=a.root.resolve()
 nested=project/'src/octotiger'
 root=nested if (nested/'CMakeLists.txt').is_file() else project
@@ -28,57 +31,8 @@ bodies='\n'.join(method(s) for s in ['void rad_grid::allocate()', 'void rad_grid
  'void rad_grid::set_physical_boundaries(', 'rad_grid::rad_grid(Real _dx)', 'rad_grid::rad_grid()'])
 app_header='\n'.join(l for l in (root/'test_problems/radiation.hpp').read_text().splitlines() if not l.startswith(('#include','#pragma once')))
 app_cpp='\n'.join(l for l in (root/'src/test_problems/radiation/radiation.cpp').read_text().splitlines() if not l.startswith('#include'))
-fixture='#include \"'+str(pathlib.Path(__file__).resolve().parent/'support/plot_output.hpp')+'\"\n'+r'''
-#include "octotiger/math/Debug.hpp"
-#include "octotiger/radiation/m1.hpp"
-#include "octotiger/radiation/conservation.hpp"
-#include "octotiger/test_problems/radiation/reference.hpp"
-#include <atomic>
-#include <functional>
-#include <unordered_map>
-#include <vector>
-#include <iostream>
-#include <iomanip>
-#include <filesystem>
-#include <fstream>
-#define PROFILE()
-#define OCTOTIGER_EXPORT
-using integer=long long;
-constexpr int INX=TEST_CELLS,NRF=4,NDIM=3,NCHILD=8,H_BW=3,RAD_BW=3;
-using M1=RadiationM1<Real,NDIM>;
-constexpr int RAD_NX=INX+2*RAD_BW,RAD_N3=RAD_NX*RAD_NX*RAD_NX,H_NX=RAD_NX,H_N3=RAD_N3;
-constexpr int HS_NX=INX/2+2*H_BW,HS_N3=HS_NX*HS_NX*HS_NX;
-constexpr int XDIM=0,YDIM=1,ZDIM=2,MARSHAK=9,RADIATION_EQUILIBRIUM_SPHERE=3;
-constexpr int RADIATION_STREAMING_WAVE=0,RADIATION_STREAMING_FRONT=1,RADIATION_GAUSSIAN_PULSE=2;
-constexpr int rho_i=0,egas_i=1,tau_i=2,spc_i=3;
-integer rindex(integer i,integer j,integer k){return k+RAD_NX*(j+RAD_NX*i);}
-integer hindex(integer i,integer j,integer k){return rindex(i,j,k);}
-struct options_fixture {
-    Real cfl=.4,xscale=1,stop_time=.2,omega=0;
-    Real radTestChi=5,radTestWidth=.2,radTestBackground=1,radTestAmplitude=.01,radTestLuminosity=.01;
-    int problem=0,n_fields=15,max_level=0;
-    bool radiation=true,hydro=false,gravity=false,unigrid=true,periodic=true,rad_implicit=false;
-    std::string radReference;
-};
-options_fixture& opts(){static options_fixture o;return o;}
-struct constants_fixture {Real c=1;};
-constants_fixture& physcon(){static constants_fixture p;return p;}
-
-std::vector<Real> marshak_wave_analytic(Real,Real,Real,Real){throw std::runtime_error("Unused Marshak fixture");}
-struct silo_var_t{};
-namespace geo {
-constexpr int PLUS=1;
-struct face {
-    int index;
-    face(int value):index(value){}
-    operator int() const {return index;}
-    int get_dimension() const {return index/2;}
-    int get_side() const {return index%2;}
-};
-struct direction{};struct dimension{};struct octant{};
-}
-#define private public
-'''
+support = pathlib.Path(__file__).resolve().parent / 'support'
+fixture = '#include \"' + str(support / 'plot_output.hpp') + '\"\n' + (support / 'serial_fixture.inc').read_text()
 checks=r'''
 #undef private
 int main(int argc,char** argv) {
@@ -88,7 +42,8 @@ int main(int argc,char** argv) {
       throw std::runtime_error("fixture/reference size mismatch");
     }
     auto const& p=ref.p; physcon().c=p.c;
-    opts().radReference=argv[1];opts().stop_time=p.time;opts().xscale=p.length/2;
+    opts().radiation_reduced_c_factor=std::stod(argv[3]);
+    opts().radReference=argv[1];opts().stop_time=p.time/opts().radiation_reduced_c_factor;opts().xscale=p.length/2;
     opts().radTestChi=p.chi;opts().radTestWidth=p.width;opts().radTestBackground=p.background;
     opts().radTestAmplitude=p.amplitude;opts().radTestLuminosity=p.luminosity;
     double const dx=p.length/INX;
@@ -132,7 +87,7 @@ int main(int argc,char** argv) {
         radiationConservation::writeCsvHeader(conservation);
         radiationConservation::writeCsvRow(conservation,0,budget.consume(g.takeConservation()));
         double t=0;
-        while(t<p.time){
+        while(t<opts().stop_time){
             if(test==3){for(int face=0;face<6;++face) {
             g.set_physical_boundaries(face,t);
           }
@@ -149,7 +104,7 @@ int main(int argc,char** argv) {
             }
           }
         }
-            double const dt=std::min(g.maxTimestep(0),p.time-t);
+            double const dt=std::min(g.maxTimestep(0),opts().stop_time-t);
             g.compute_flux(0);
             if(test==3) {
           for(int face=0;face<6;++face) {
@@ -204,6 +159,6 @@ with tempfile.TemporaryDirectory(prefix='radiation-regression-') as tmp:
     src.write_text(fixture+app_header+'\n'+app_cpp+'\n'+header+'\n'+bodies+'\n'+checks)
     flags=['-O1','-g','-fsanitize=address,undefined','-fno-omit-frame-pointer'] if a.sanitize else ['-O3']
     subprocess.run([a.cxx,'-std=c++20',*flags,'-I'+str(root),'-DTEST_CELLS='+str(a.cells),str(src),'-o',str(exe)],check=True)
-    result=subprocess.run([str(exe),str(a.reference.resolve()),str(a.output.resolve())],check=True,text=True,stdout=subprocess.PIPE)
+    result=subprocess.run([str(exe),str(a.reference.resolve()),str(a.output.resolve()),str(a.radiation_reduced_c_factor)],check=True,text=True,stdout=subprocess.PIPE)
     print(result.stdout,end='')
     print('Serial harness output:',a.output)

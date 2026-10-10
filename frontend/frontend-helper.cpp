@@ -110,6 +110,9 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
       if (radiationRegressionProblem()) {
           validateRadiationTest();
       }
+      if (radiationHydroProblem()) {
+          validateRadiationHydroTest();
+      }
       std::cerr << "Finished normalizing" << std::endl;
 #ifdef SILO_UNITS
 //	grid::set_unit_conversions();

@@ -274,7 +274,11 @@ Json make_session(const fs::path &folder, const Options &o)
 {
 	auto m = read_json(folder / "run.json");
 	require(m.at("status") == "complete", "Simulation is incomplete");
-	read_norms(folder, m);
+    if (coupled_case(m.at("case"))) {
+        read_hydro_profile(folder, m);
+    } else {
+        read_norms(folder, m);
+    }
 	const bool logarithmic = m.at("case") == "gaussian_pulse" && o.field == "er";
 	const double background = logarithmic ? m.at("background").get<double>() : 0;
 	require(o.width >= 128 && o.height >= 128, "Movie dimensions must be at least 128");

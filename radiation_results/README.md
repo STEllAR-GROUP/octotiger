@@ -1,5 +1,117 @@
 # Radiation results for the new Octo-TIGER solver
 
+## Opt-in gradient AMR
+
+The uniform-grid workflow remains the default. Gradient runs allow exactly two
+adjacent leaf levels: the positional level is the maximum, and the minimum
+defaults to one less. For example, this prepares a short front run without
+launching it:
+
+```sh
+radiation_results/run.sh front 3 --build cmake-build-hpx2rc-radiation \
+  --gradient-refine-field radiation_energy --gradient-refine-mode absolute \
+  --gradient-refine-threshold 1e-10 --gradient-refine-floor 1e-30 \
+  --gradient-refine-buffer 2 --gradient-refine-coarsen-factor 0.8 \
+  --time 0.02 --snapshots 3 --threads 2 --jobs 2 --no-build --no-open \
+  --no-movies --no-silo --dry-run
+```
+
+The threshold above is illustrative, not an accuracy-approved setting. Absolute
+mode measures a field gradient per code length; relative mode measures the
+gradient of `log(max(field,floor))`, also per code length. The runner uses CGS,
+so these are per cm, not cell-to-cell dimensionless jumps. Available fields are
+`density` and `radiation_energy`; the latter is total radiation energy, without
+background subtraction. `--min-level` can explicitly set the adjacent lower
+level. All controls are recorded and restored by batch resume.
+
+Adaptive reports read actual whole-mesh block/cell counts from
+`gradient-amr.csv`. Raw final CSV files preserve native leaf widths and have
+level-qualified filenames. Display plots project constant leaf averages onto
+finest pixels, after checking that leaf footprints tile the plane without gaps
+or overlaps. They show positive-side cells touching geometric z=0, whose centers
+are at `z=leaf_dx/2`; mixed levels therefore do not share a cell-center plane.
+Full-volume reference norms use each leaf's own cell average and volume. Uniform
+grid convergence orders are suppressed for adaptive runs. AMR accuracy and cost
+must be established against a uniform run at the same finest resolution.
+
+## QB4 levels 2–5
+
+The offline-first cluster workflow builds Octo-TIGER, runs all seven problems at
+levels 2–5, and collects their plots and webpages. Start with
+[`qb4/README.md`](qb4/README.md); `workflow.py prepare` creates the plan without
+contacting Slurm. Submission requires a separate explicit `--submit` command.
+
+## Coupled shocks and blast wave
+
+Full-duration launcher (from the repository root):
+
+```sh
+radiation_results/run_ensman.sh 2 --dry-run
+radiation_results/run_ensman.sh 2 --output radiation_results/results/ensman-full-l2
+```
+
+The second command runs the real simulations: blast → supercritical →
+subcritical, sequentially, using their full configured durations, two workers,
+two build jobs, and 21 Silo snapshots. It updates the batch website after each
+completed case. Level 2 is a coarse first run. The shock cases require roughly
+1.23 million and 6.30 million steps at this resolution with the physical light
+speed; no long runs were launched while setting up the scripts.
+See [ENSMAN.md](ENSMAN.md#full-duration-local-runs) for individual cases,
+resolutions, result locations, and the limits of batch resume.
+
+
+The local suite also includes `subcritical` (`subcritical_shock`), `supercritical`
+(`supercritical_shock`), and `blast` (`radiating_blast`). `all` now selects all seven
+problems. The three additions enable radiation hydrodynamics and retain their
+physical CGS configuration directly; they are not rescaled to the radiation-only
+6 × 10¹⁰ cm box. Their template final times are 38300, 7500, and 22000 s.
+`--time` explicitly overrides the duration for each selected case.
+`--radiation-reduced-c-factor F` opts the coupled cases into the
+Skinner-Ostriker reduced-speed-of-light approximation, with 0 < F ≤ 1 and
+default F=1. The four analytic cases retain F=1 even in an `all` batch. The
+runner saves both speeds and the factor, preserves it on batch resume, and
+labels modified-equation conservation budgets in the generated pages. Factor
+convergence must be checked before drawing physical conclusions. The QB
+configuration supports separate factors for the three coupled cases.
+
+These are Cartesian adaptations of the problems in [Ensman (1994), *Test Problems
+for Radiation and Radiation-Hydrodynamics Codes*](https://doi.org/10.1086/173889),
+§§5.1–5.3. The original paper uses a spherical moving piston for the shocks and a
+hollow, stratified shell with innermost-zone energy deposition for the blast.
+The local shocks use a stationary reflecting planar wall and incoming gas. The
+blast uses spherically symmetric initial profiles on the Cartesian mesh, a
+filled core, Gaussian deposition width, and approximate LTE diffusion radiation
+field with a realizability floor. The new web pages document these differences,
+the original numerical targets, and each local run's actual parameters.
+
+There is no supplied exact analytic profile for these coupled problems. Reports
+show gas and radiation temperatures, density, velocity, radiation energy, signed radiation flux, and reduced flux as
+numerical profiles, without invented reference curves, error norms, or convergence
+orders. A run ending before its template final time is visibly labeled an
+**early-time implementation check**. Such a run does not establish a developed
+subcritical/supercritical structure or quantitative agreement with the paper.
+
+For a deliberately short local preview, after building Octo-TIGER with radiation:
+
+```sh
+radiation_results/run.sh subcritical 1 --build cmake-build-hpx2rc-radiation \
+  --time 0.01 --snapshots 3 --threads 2 --jobs 2 --no-build --no-open --no-movies --no-silo
+```
+
+The runner creates `radiation-hydro-slices/`, which opts the application into final
+numerical CSV output independently of analytic comparisons. The CSV schema is
+`t,dx,x,y,z,rho,vx,vy,vz,gas_temperature,radiation_temperature,er,fx,fy,fz`.
+The full central plane is validated for cell coverage, time, spacing, positivity,
+and radiation realizability. Temperature units are K; the default configurations
+use CGS for the other fields. Plots use the plane at z=Δx/2 and the ray at
+y=z=Δx/2. Both are half-cell offsets, not exact central-axis samples.
+
+The C++ reader and integration tests exercise the new data validation, seven-page
+navigation, preserved physical time/domain, and absence of fabricated accuracy
+norms. Their synthetic fixtures test the reporting pipeline, not solver physics.
+All generated pages remain local until separately published.
+
+
 > **hpx2rc-radiation restoration:** These tools and the complete workflow reference
 > below are restored from `dominic-wip2` onto `7485b798`. See
 > [tests/README.md](../tests/README.md) for solver provenance and validation.
@@ -82,6 +194,10 @@ bash radiation_results/run.sh sphere 2 3 4 release --threads 2
 ```
 
 `--no-silo` retains the CSV slices and full-volume norms; it skips Silo output.
+For new batches it also removes the snapshot-cadence timestep cap, since no
+snapshots are being written. An explicit `--hard-dt` or positive template
+`hard_dt` remains an upper bound, and the solver still applies its physical
+CFL limit. Resuming an older batch retains that batch's original timestep policy.
 `--no-build` reuses an already rebuilt executable. `--jobs` controls build
 parallelism; `--threads` controls HPX worker threads. Debug does not imply ASan,
 so the old unconditional ASan preload has been removed.

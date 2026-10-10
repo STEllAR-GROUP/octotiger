@@ -14,6 +14,7 @@ parser.add_argument("--cells", type=int, default=32)
 parser.add_argument("--cxx", default="g++")
 parser.add_argument("--sanitize", action="store_true")
 parser.add_argument("--output", type=Path)
+parser.add_argument("--radiation-reduced-c-factor", type=float, default=1)
 args = parser.parse_args()
 spec = importlib.util.spec_from_file_location("radiation_check", ROOT / "test_problems/radiation/check.py")
 comparison = importlib.util.module_from_spec(spec)
@@ -22,14 +23,14 @@ with tempfile.TemporaryDirectory(prefix="radiation-regression-") as temporary:
     output = Path(temporary) / "results"
     command = [sys.executable, str(ROOT / "radiation_results/validate_serial.py"),
                "--root", str(ROOT), "--reference", str(args.reference.resolve()),
-               "--cells", str(args.cells), "--cxx", args.cxx, "--output", str(output)]
+               "--cells", str(args.cells), "--radiation-reduced-c-factor", str(args.radiation_reduced_c_factor), "--cxx", args.cxx, "--output", str(output)]
     if args.sanitize:
         command.append("--sanitize")
     subprocess.run(command, check=True)
     logs = []
     for case in comparison.CASES:
         text = (output / case.upper() / "run.log").read_text()
-        comparison.check(text, case, .2)
+        comparison.check(text, case, .2 / args.radiation_reduced_c_factor)
         logs.append(text)
     if args.output:
         args.output.write_text("".join(logs))

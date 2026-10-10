@@ -1,0 +1,119 @@
+{
+  "source_root": "/work/EDIT_ME/octotiger",
+  "build_dir": "/work/EDIT_ME/octotiger/build-qb4-radiation",
+  "output_root": "/work/EDIT_ME/octotiger/radiation_results/results/qb4-full",
+  "environment_file": "/work/EDIT_ME/octotiger/tools/qb4/environment.sh",
+  "account": "EDIT_ME",
+  "partition": "workq",
+  "mpi_type": "EDIT_ME",
+  "build_walltime": "EDIT_ME",
+  "run_walltime": "2-00:00:00",
+  "plot_walltime": "EDIT_ME",
+  "nodes_by_level": {
+    "2": 1,
+    "3": 1,
+    "4": 2,
+    "5": 4
+  },
+  "threads": 64,
+  "build_cpus": 8,
+  "plot_cpus": 2,
+  "snapshots": 9,
+  "no_silo": false,
+  "radiation_time": 4.0,
+  "reduced_c_factors": {
+    "radiating_blast": 1.0,
+    "supercritical_shock": 0.1,
+    "subcritical_shock": 0.03
+  },
+  "build_partition": "single",
+  "plot_partition": "single",
+  "amr_plan": "radiation_results/amr/local-thresholds.json",
+  "timing_samples": true,
+  "test_walltime": "02:00:00",
+  "timing_walltime": "01:00:00",
+  "run_selection": [
+    {
+      "case": "streaming_wave",
+      "level": 2
+    },
+    {
+      "case": "streaming_front",
+      "level": 2
+    },
+    {
+      "case": "gaussian_pulse",
+      "level": 2
+    },
+    {
+      "case": "equilibrium_sphere",
+      "level": 2
+    },
+    {
+      "case": "radiating_blast",
+      "level": 2
+    },
+    {
+      "case": "supercritical_shock",
+      "level": 2
+    },
+    {
+      "case": "subcritical_shock",
+      "level": 2
+    },
+    {
+      "case": "streaming_wave",
+      "level": 3
+    },
+    {
+      "case": "streaming_front",
+      "level": 3
+    },
+    {
+      "case": "gaussian_pulse",
+      "level": 3
+    },
+    {
+      "case": "equilibrium_sphere",
+      "level": 3
+    },
+    {
+      "case": "radiating_blast",
+      "level": 3
+    },
+    {
+      "case": "streaming_wave",
+      "level": 4
+    },
+    {
+      "case": "streaming_front",
+      "level": 4
+    },
+    {
+      "case": "gaussian_pulse",
+      "level": 4
+    },
+    {
+      "case": "equilibrium_sphere",
+      "level": 4
+    },
+    {
+      "case": "streaming_wave",
+      "level": 5
+    },
+    {
+      "case": "streaming_front",
+      "level": 5
+    },
+    {
+      "case": "gaussian_pulse",
+      "level": 5
+    },
+    {
+      "case": "equilibrium_sphere",
+      "level": 5
+    }
+  ],
+  "checkpoint_odt": {},
+  "scope": "Phased AMR study: 20 full-time cases, 4 timing jobs; eight expensive coupled cases remain deferred. No full-matrix collection or factor-convergence claim."
+}

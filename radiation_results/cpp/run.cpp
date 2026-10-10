@@ -67,6 +67,13 @@ Json signature(Json cfg)
 }
 bool config_equal(Json a, Json b)
 {
+    // Legacy batches omitted this option; absence means physical-light-speed evolution.
+    if (!a.contains("radiation_reduced_c_factor")) {
+        a["radiation_reduced_c_factor"] = "1";
+    }
+    if (!b.contains("radiation_reduced_c_factor")) {
+        b["radiation_reduced_c_factor"] = "1";
+    }
 	for (auto k : {"datadir", "rad_reference"}) {
 		a.erase(k);
 		b.erase(k);
@@ -119,7 +126,9 @@ int run(Options o)
 	bool resumed = !o.resume.empty();
 	if (resumed) {
 		for (auto key : {"--output", "--time", "--snapshots", "--build", "--exe", "--odt", "--hard-dt",
-						 "--rad-reconstruction", "positionals"}) {
+						 "--rad-reconstruction", "--launcher", "--radiation-reduced-c-factor", "--min-level",
+                         "--gradient-refine-field", "--gradient-refine-mode", "--gradient-refine-threshold",
+                         "--gradient-refine-floor", "--gradient-refine-buffer", "--gradient-refine-coarsen-factor", "positionals"}) {
       require(!o.explicit_options.contains(key),
 					"--resume uses saved cases, levels, build, executable, time and snapshot count");
     }
@@ -142,11 +151,22 @@ int run(Options o)
 			o.hard_dt = a.value("hard_dt", 0.);
 			o.no_silo = a.value("no_silo", false);
 			o.reconstruction = a.value("reconstruction", "");
+            o.launcher = a.value("launcher", "");
+            o.reduced_c_factor = a.value("radiation_reduced_c_factor", 1.);
+            o.min_level = a.value("min_level", -1);
+            o.gradient_field = a.value("gradient_refine_field", "none");
+            o.gradient_mode = a.value("gradient_refine_mode", "relative");
+            o.gradient_threshold = a.value("gradient_refine_threshold", 1.);
+            o.gradient_floor = a.value("gradient_refine_floor", 1.e-30);
+            o.gradient_buffer = a.value("gradient_refine_buffer", 0);
+            o.gradient_coarsen_factor = a.value("gradient_refine_coarsen_factor", .8);
 			if (o.generator.empty()) {
         o.generator = a.value("generator", "");
       }
     }
 	}
+	require(std::isfinite(o.reduced_c_factor) && o.reduced_c_factor > 0 && o.reduced_c_factor <= 1,
+        "Invalid saved radiation_reduced_c_factor");
 	o.root = rr::absolute(o.root);
 	o.build = rr::absolute(o.build.is_absolute() ? o.build : o.root / o.build);
 	auto source = source_root(o.root);
@@ -157,6 +177,9 @@ int run(Options o)
     o.exe = o.build / "octotiger";
   }
   o.exe = rr::absolute(o.exe);
+    if (!o.launcher.empty()) {
+        o.launcher = rr::absolute(o.launcher);
+    }
 	if (!o.generator.empty()) {
     o.generator = rr::absolute(o.generator);
   }
@@ -178,6 +201,11 @@ int run(Options o)
 	require(read_text(source / "src/grid.cpp").find("RADIATION_PLOT_EXPORT_BEGIN") != std::string::npos,
 			"Install slice export first: radiation-results install --root PROJECT");
 	Json plans = Json::array();
+    const bool rsla_metadata = !resumed || (saved.contains("options") &&
+        saved.at("options").contains("radiation_reduced_c_factor"));
+    // Old batches retain their recorded snapshot-derived cap when resumed.
+    const bool no_silo_uncapped = o.no_silo && (!resumed ||
+        saved.value("options", Json::object()).value("no_silo_ignores_snapshot_cadence", false));
 	for (int level : o.levels) {
     for (auto &name : o.selected_cases) {
 			require(level >= 0 && level <= 9 && std::find(cases.begin(), cases.end(), name) != cases.end(),
@@ -185,35 +213,62 @@ int run(Options o)
 			int n = inx * (1 << level);
 			require(name != "gaussian_pulse" || (n >= 4 && n <= 512 && n % 2 == 0),
 					"Gaussian reference requires even N from 4 through 512");
-			auto cfg = scaled_config(read_config(tools / "configs" / (name + ".ini")));
-			auto cap = cadence(o.time, o.snapshots, numeric(cfg.at("cfl")),
+			auto cfg = read_config(tools / "configs" / (name + ".ini"));
+            const bool adaptive = o.gradient_field != "none";
+            const int min_level = o.min_level >= 0 ? o.min_level : (adaptive ? level - 1 : level);
+            require(min_level >= 0 && min_level <= level && (adaptive || min_level == level),
+                "--min-level must be within [0,max level]; mixed levels require --gradient-refine-field");
+            if (adaptive) {
+                require(min_level == level - 1, "Gradient runs require exactly two adjacent allowed leaf levels");
+                cfg.update({{"unigrid", "off"}, {"gradient_refine_field", o.gradient_field},
+                    {"gradient_refine_mode", o.gradient_mode}, {"gradient_refine_threshold", number(o.gradient_threshold)},
+                    {"gradient_refine_floor", number(o.gradient_floor)}, {"gradient_refine_buffer", std::to_string(o.gradient_buffer)},
+                    {"gradient_refine_coarsen_factor", number(o.gradient_coarsen_factor)}});
+            }
+            const bool coupled = coupled_case(name);
+            if (rsla_metadata) {
+                cfg["radiation_reduced_c_factor"] = number(coupled ? o.reduced_c_factor : 1.);
+            }
+            if (!coupled) {
+                cfg = scaled_config(cfg);
+            }
+            const bool custom_time = o.explicit_options.contains("--time") ||
+                (resumed && saved.value("custom_time", false));
+            const double run_time = coupled && !custom_time ? numeric(cfg.at("stop_time")) : o.time;
+			auto cap = cadence(run_time, o.snapshots, numeric(cfg.at("cfl")),
 							   o.odt > 0 ? std::optional<double>(o.odt) : std::nullopt);
-			double dt = cap.at("hard_dt");
+			double dt = no_silo_uncapped ? 0. : cap.at("hard_dt").get<double>();
 			if (cfg.contains("hard_dt") && numeric(cfg["hard_dt"]) > 0) {
-        dt = std::min(dt, numeric(cfg["hard_dt"]));
+        const double bound = numeric(cfg["hard_dt"]);
+        dt = dt > 0 ? std::min(dt, bound) : bound;
       }
       if (o.hard_dt > 0) {
-        dt = std::min(dt, o.hard_dt);
+        dt = dt > 0 ? std::min(dt, o.hard_dt) : o.hard_dt;
       }
       cap["hard_dt"] = dt;
 			cfg.update({{"max_level", std::to_string(level)},
-						{"min_level", std::to_string(level)},
-						{"stop_time", number(o.time)},
+						{"min_level", std::to_string(min_level)},
+						{"stop_time", number(run_time)},
 						{"odt", number(cap.at("odt"))},
 						{"hard_dt", number(dt)},
 						{"disable_output", o.no_silo ? "on" : "off"},
 						{"disable_diagnostics", "on"},
-						{"disable_analytic", "off"},
+						{"disable_analytic", coupled ? "on" : "off"},
 						{"n_species", "1"},
-						{"atomic_mass", "1"},
-						{"atomic_number", "1"}});
+						{"atomic_mass", coupled ? cfg.value("atomic_mass", "1") : "1"},
+						{"atomic_number", coupled ? cfg.value("atomic_number", "1") : "1"}});
 			if (!o.reconstruction.empty()) {
         cfg["rad_reconstruction"] = o.reconstruction;
       }
       plans.push_back(
 				{{"case", name}, {"level", level}, {"cells", n}, {"config", cfg}, {"capture", cap}});
-			std::cout << name << " level=" << level << " N=" << n << " t=" << number(o.time)
-					  << " s odt=" << number(cap.at("odt")) << " s hard_dt=" << number(dt) << " s\n";
+			std::cout << name << " level=" << level << " N=" << n << " t=" << number(run_time)
+					  << " s odt=" << number(cap.at("odt")) << " s hard_dt=" << number(dt)
+                      << " s alpha=" << cfg.value("radiation_reduced_c_factor", "1") << "\n";
+            if (adaptive) {
+                std::cout << "  adaptive leaves=" << min_level << ".." << level << " field=" << o.gradient_field
+                    << " mode=" << o.gradient_mode << " threshold=" << number(o.gradient_threshold) << "\n";
+            }
 		}
   }
   if (o.dry_run) {
@@ -235,6 +290,10 @@ int run(Options o)
       require(sha256(source / it.key()) == it.value().get<std::string>(),
 					"Source changed since batch began: " + it.key());
     }
+        if (!o.launcher.empty()) {
+            require(sha256(o.launcher) == saved.at("options").at("launcher_sha256").get<std::string>(),
+                "Launcher changed since batch began; use a new batch");
+        }
     auto old = read_json(o.output / "live.json");
 		require(!old.value("active", false),
 				"Batch is marked active; stop its existing runner before resuming");
@@ -304,7 +363,16 @@ int run(Options o)
 				 {"src/grid.cpp", "src/physcon.cpp", "src/radiation/rad_grid.cpp",
 				  "octotiger/test_problems/radiation/profiles.hpp",
 				  "octotiger/test_problems/radiation/plot_output.hpp", "octotiger/radiation/conservation.hpp",
-				  "octotiger/radiation/rad_grid.hpp", "src/node_server_actions_3.cpp"}) {
+				  "octotiger/radiation/rad_grid.hpp", "src/node_server_actions_3.cpp",
+                  "src/node_server_actions_1.cpp", "src/node_server_actions_2.cpp", "octotiger/node_server.hpp",
+                  "src/test_problems/radiation/radiation.cpp",
+                  "octotiger/test_problems/radiation/hydro_output.hpp",
+                  "test_problems/radiation/hydro_benchmarks.hpp",
+                  "octotiger/radiation/m1.hpp", "octotiger/radiation/opacities.hpp",
+                  "test_problems/radiation/profiles.hpp", "test_problems/radiation/reference.hpp",
+                  "octotiger/options.hpp", "src/options_processing.cpp",
+                  "test_problems/radiation.hpp", "octotiger/amr/gradient.hpp",
+                  "src/io/silo_in.cpp", "src/io/silo_out.cpp"}) {
         sources[s] = sha256(source / s);
       }
       saved = {{"created_utc", stamp()},
@@ -319,6 +387,7 @@ int run(Options o)
 					 {"time", o.time},
 					 {"snapshots", o.snapshots},
 					 {"workflow", "radiation-results"},
+                     {"custom_time", o.explicit_options.contains("--time")},
 					 {"units", cgs_units},
 					 {"length", 2 * half_width},
 					 {"c", c_cgs},
@@ -326,8 +395,16 @@ int run(Options o)
 					  {{"odt", o.odt},
 					   {"hard_dt", o.hard_dt},
 					   {"no_silo", o.no_silo},
+                       {"no_silo_ignores_snapshot_cadence", no_silo_uncapped},
 					   {"reconstruction", o.reconstruction},
-					   {"generator", o.generator.string()}}}};
+					   {"generator", o.generator.string()},
+                       {"launcher", o.launcher.string()},
+                       {"radiation_reduced_c_factor", o.reduced_c_factor},
+                       {"min_level", o.min_level}, {"gradient_refine_field", o.gradient_field},
+                       {"gradient_refine_mode", o.gradient_mode}, {"gradient_refine_threshold", o.gradient_threshold},
+                       {"gradient_refine_floor", o.gradient_floor}, {"gradient_refine_buffer", o.gradient_buffer},
+                       {"gradient_refine_coarsen_factor", o.gradient_coarsen_factor},
+                       {"launcher_sha256", o.launcher.empty() ? "" : sha256(o.launcher)}}}};
 			write_json(o.output / "batch.json", saved);
 		}
 		for (size_t index = 0; index < plans.size(); ++index) {
@@ -342,15 +419,37 @@ int run(Options o)
 						  {"level", level},
 						  {"inx", inx},
 						  {"cells", cells},
-						  {"length", 2 * half_width},
-						  {"dx", 2 * half_width / cells},
-						  {"time", o.time},
+						  {"length", 2 * numeric(cfg.at("xscale"))},
+                          {"dx", 2 * numeric(cfg.at("xscale")) / cells},
+                          {"time", numeric(cfg.at("stop_time"))},
 						  {"c", c_cgs},
 						  {"units", cgs_units},
 						  {"origin", "Octo-TIGER application"},
-						  {"background", numeric(cfg.at("rad_test_background"))},
+						  {"background", numeric(cfg.value("rad_test_background", "0"))},
 						  {"executable_sha256", hash},
 						  {"movie_capture", plan["capture"]}};
+            if (rsla_metadata) {
+                const double factor = numeric(cfg.at("radiation_reduced_c_factor"));
+                expected["radiation_reduced_c_factor"] = factor;
+                expected["physical_c"] = c_cgs;
+                expected["transport_c"] = factor * c_cgs;
+                expected["radiation_equations"] = factor == 1. ? "physical-c" : "Skinner-Ostriker RSLA";
+            }
+            if (cfg.value("unigrid", "on") == "off") {
+                expected["adaptive"] = true;
+                expected["min_level"] = int(numeric(cfg.at("min_level")));
+                expected["max_level"] = level;
+                expected["mesh_description"] = "Adaptive Cartesian leaves; cells/dx denote configured finest equivalent resolution";
+            }
+            if (coupled_case(name)) {
+                const auto original = read_config(tools / "configs" / (name + ".ini"));
+                const double benchmark_time = numeric(original.at("stop_time"));
+                expected["benchmark_time"] = benchmark_time;
+                expected["reference_kind"] = "numerical-only";
+                expected["validation_scope"] = numeric(cfg.at("stop_time")) < benchmark_time ?
+                    "Early-time implementation check. This run stops before the configured benchmark time and does not validate the developed shock or blast." :
+                    "Numerical Cartesian adaptation. No independent reference profile or quantitative agreement with the original spherical benchmark is established.";
+            }
 			bool existing = resumed && fs::exists(folder);
 			if (existing) {
 				stage("Checking saved run");
@@ -372,9 +471,16 @@ int run(Options o)
 				require(config_equal(candidate.at("config"), cfg),
 						"Saved configuration differs from current templates");
 				verify_cgs_log(folder / "run.log");
-				candidate["norms"] = read_norms(folder, candidate);
-				read_slice(folder, candidate);
+				if (coupled_case(name)) {
+                    read_hydro_profile(folder, candidate);
+                } else {
+                    candidate["norms"] = read_norms(folder, candidate);
+                    read_slice(folder, candidate);
+                }
 				auto b = read_conservation(folder, candidate);
+                if (candidate.value("adaptive", false)) {
+                    candidate["mesh"] = slice_mesh_summary(folder, candidate);
+                }
 				if (b) {
           candidate["conservation"] = b->summary;
         }
@@ -391,7 +497,7 @@ int run(Options o)
 				meta = candidate;
 				write_json(folder / "run.json", meta);
 			} else {
-				fs::create_directories(folder / "radiation-slices");
+				fs::create_directories(folder / (coupled_case(name) ? "radiation-hydro-slices" : "radiation-slices"));
 				cfg["datadir"] = folder.string() + "/";
 				meta = expected;
 				meta["status"] = "running";
@@ -431,17 +537,30 @@ int run(Options o)
         meta["comparison_signature"] = signature(cfg);
 				std::vector<std::string> cmd{o.exe.string(), "--config_file=" + (folder / "run.ini").string(),
 											 "--hpx:threads=" + std::to_string(o.threads)};
+                if (!o.launcher.empty()) {
+                    cmd.insert(cmd.begin(), o.launcher.string());
+                }
 				meta["command"] = cmd;
 				write_json(folder / "run.json", meta);
 				stage("Simulating");
 				CGSCheck checker;
 				execute(cmd, folder, folder / "run.log", [&](auto &line) { checker.feed(line); });
 				checker.finish();
-				meta["norms"] = read_norms(folder, meta);
-				read_slice(folder, meta);
+				if (coupled_case(name)) {
+                    read_hydro_profile(folder, meta);
+                    meta["reference_kind"] = "numerical-only";
+                } else {
+                    meta["norms"] = read_norms(folder, meta);
+                    read_slice(folder, meta);
+                }
 				auto b = read_conservation(folder, meta);
-				require(bool(b), "Missing radiation-conservation.csv; rebuild with diagnostics");
-				meta["conservation"] = b->summary;
+                if (meta.value("adaptive", false)) {
+                    meta["mesh"] = slice_mesh_summary(folder, meta);
+                }
+				require(bool(b) || coupled_case(name), "Missing radiation-conservation.csv; rebuild with diagnostics");
+                if (b) {
+                    meta["conservation"] = b->summary;
+                }
 				meta["status"] = "complete";
 				write_json(folder / "run.json", meta);
 			}

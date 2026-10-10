@@ -443,4 +443,22 @@ std::string field_label(const Json &m, int f)
 	return std::array<std::string, 4>{"E", "Fx", "Fy", "Fz"}[f] +
 		   (cgs(m) ? (f == 0 ? " (erg/cm^3)" : " (erg/(cm^2 s))") : " (code units)");
 }
+std::string radiation_method_note(const Json &m)
+{
+    const double factor = m.value("radiation_reduced_c_factor", 1.);
+    require(factor > 0 && factor <= 1, "Invalid recorded reduced light-speed factor");
+    const double physical = m.value("physical_c", m.value("c", c_cgs));
+    if (factor == 1.) {
+        return "Physical-light-speed radiation equations (alpha = 1); c = " +
+            number(physical) + " cm/s.";
+    }
+    return "Skinner-Ostriker reduced-speed-of-light approximation (RSLA): alpha = " +
+        number(factor) + ", transport speed = " + number(factor * physical) +
+        " cm/s; physical c = " + number(physical) +
+        " cm/s. Radiation time derivatives use alpha times the physical right-hand side; "
+        "gas source terms and the physical F/c closure retain physical c. Budget plots check "
+        "these modified radiation equations, not conservation of total physical gas-plus-radiation "
+        "energy. Closed-system invariants are Egas + Er/alpha and gas momentum + F/(alpha c^2). "
+        "Accuracy requires comparison across reduced-speed factors.";
+}
 } // namespace rr

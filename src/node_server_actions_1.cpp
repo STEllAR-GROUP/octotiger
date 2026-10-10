@@ -96,6 +96,12 @@ node_count_type node_server::regrid_gather(bool rebalance_only) {
 				child_descendant_count[ci] = child_cnt.total;
 				count.leaf += child_cnt.leaf;
 				count.total += child_cnt.total;
+				if (opts().gradient_refine_field != "none") {
+					count.leaf_per_level.resize(std::max(count.leaf_per_level.size(), child_cnt.leaf_per_level.size()), 0);
+					for (size_t level = 0; level < child_cnt.leaf_per_level.size(); ++level) {
+						count.leaf_per_level[level] += child_cnt.leaf_per_level[level];
+					}
+				}
 			}
 		} else {
 			count.leaf = 1;
@@ -108,6 +114,10 @@ node_count_type node_server::regrid_gather(bool rebalance_only) {
 			refinement_flag = 0;
 			count.total += NCHILD;
 			count.leaf += NCHILD - 1;
+			if (opts().gradient_refine_field != "none") {
+				count.leaf_per_level.resize(my_location.level() + 2, 0);
+				count.leaf_per_level[my_location.level() + 1] = NCHILD;
+			}
 
 			/* Turning refinement on*/
 			is_refined = true;
@@ -119,6 +129,10 @@ node_count_type node_server::regrid_gather(bool rebalance_only) {
 		}
 	}
 	grid_ptr->set_leaf(!is_refined);
+	if (!is_refined && opts().gradient_refine_field != "none") {
+		count.leaf_per_level.assign(my_location.level() + 1, 0);
+		count.leaf_per_level[my_location.level()] = 1;
+	}
 	hpx::wait_all(kfuts);
 	return count;
 }
@@ -164,7 +178,7 @@ future<hpx::id_type> node_server::create_child(hpx::id_type const &locality, int
 			 if (ci == 0) {
 			 outflows = grid_ptr->get_outflows();
 			 }*/
-			if (current_time > ZERO) {
+			if (current_time > ZERO || opts().restart_filename != "") {
 				std::vector<real> prolong;
 				{
 					std::unique_lock < hpx::spinlock > lk(prolong_mtx);

@@ -65,6 +65,86 @@ std::string data_path(const fs::path &p)
 {
 	return gp_quote(p.string());
 }
+void render_coupled(const fs::path &folder, const Json &m, const fs::path &target, const Options &o)
+{
+    const auto data = read_hydro_profile(folder, m);
+    fs::create_directories(target);
+    std::ostringstream plane, ray;
+    plane << std::scientific << std::setprecision(17);
+    ray << std::scientific << std::setprecision(17);
+    Json records = Json::array();
+    const int n = m.at("cells");
+    for (int i = 0; i < n; ++i) {
+        for (int j = 0; j < n; ++j) {
+            const auto &row = data.rows[size_t(i) * n + j];
+            Json record;
+            for (size_t k = 0; k < row.size(); ++k) {
+                record[data.columns[k]] = row[k];
+                plane << row[k] << ' ';
+                if (j == n / 2) {
+                    ray << row[k] << ' ';
+                }
+            }
+            plane << '\n';
+            if (j == n / 2) {
+                ray << '\n';
+            }
+            records.push_back(record);
+        }
+        plane << '\n';
+    }
+    atomic_text(target / "hydro-slice.dat", plane.str());
+    atomic_text(target / "profiles.dat", ray.str());
+    records_csv(target / "hydro-slice.csv", records, data.columns);
+    write_json(target / "hydro-slice.units.json", {
+        {"t", "s"}, {"dx", "cm"}, {"x", "cm"}, {"y", "cm"}, {"z", "cm"},
+        {"rho", "g/cm^3"}, {"vx", "cm/s"}, {"vy", "cm/s"}, {"vz", "cm/s"},
+        {"gas_temperature", "K"}, {"radiation_temperature", "K"},
+        {"er", "erg/cm^3"}, {"fx", "erg/(cm^2 s)"}, {"fy", "erg/(cm^2 s)"}, {"fz", "erg/(cm^2 s)"}});
+    std::string display_name = m.at("case");
+    std::replace(display_name.begin(), display_name.end(), '_', ' ');
+    const std::string title = display_name + " | " + mesh_label(m) +
+        " | t=" + number(m.at("time")) + " s | numerical solution" +
+        (m.value("origin", "").find("fixture") == std::string::npos ? "" : " | SYNTHETIC DATA");
+    const auto file = data_path(target / "profiles.dat");
+    std::string profiles = "set multiplot layout 3,2 title " + gp_quote(title) +
+        "\nset autoscale\nset lmargin 16\nset rmargin 7\nset xlabel 'x (cm)'\nset key top right\nset format y '%.4g'\nset xrange [" +
+        number(-m.at("length").get<double>() / 2) + ":" + number(m.at("length").get<double>() / 2) +
+        "]\nset xtics " + number(m.at("length").get<double>() / 4) + "\n";
+    profiles += "set ylabel 'Temperature (K)'\nplot " + file +
+        " using 3:10 with linespoints pt 7 ps .35 lc rgb '#076e76' title 'Gas', '' using 3:11 with lines dt 2 lw 2 lc rgb '#bc6b20' title 'Radiation'\n";
+    for (const auto &[column, label] : std::vector<std::pair<int, std::string>>{
+        {6, "Density (g/cm^3)"}, {7, "Velocity x (cm/s)"}, {12, "Radiation energy (erg/cm^3)"},
+        {13, "Radiation flux x (erg/cm^2/s)"}}) {
+        double low = INFINITY, high = -INFINITY;
+        for (int i = 0; i < n; ++i) {
+            const double value = data.rows[size_t(i) * n + n / 2][column - 1];
+            low = std::min(low, value);
+            high = std::max(high, value);
+        }
+        const double scale = std::max(std::abs(low), std::abs(high));
+        const double pad = scale > 0 ? std::max(.05 * (high - low), .01 * scale) : 1;
+        profiles += "set yrange [" + number(low - pad) + ":" + number(high + pad) +
+            "]\nset ylabel " + gp_quote(label) + "\nplot " + file + " using 3:" +
+            std::to_string(column) + " with linespoints pt 7 ps .35 lc rgb '#076e76' notitle\n";
+    }
+    profiles += "set yrange [0:1.05]\nset ylabel 'Reduced flux |F|/(c E)'\nplot " + file +
+        " using 3:($12>0?sqrt($13*$13+$14*$14+$15*$15)/(" + number(m.at("c")) +
+        "*$12):0) with linespoints pt 7 ps .35 lc rgb '#076e76' notitle\nunset multiplot\n";
+    plot_pair(target / "profiles", profiles, 1400, 1450, o);
+    std::string maps = "set multiplot layout 1,3 title " + gp_quote(title) +
+        "\nunset key\nunset grid\nset lmargin 12\nset rmargin 13\nset size ratio -1\nset xlabel 'x (cm)'\nset ylabel 'y (cm)'\n"
+        "set palette defined (0 '#440154',.25 '#3b528b',.5 '#21918c',.75 '#5ec962',1 '#fde725')\n";
+    maps += "set xtics " + number(m.at("length").get<double>() / 2) +
+        "\nset ytics " + number(m.at("length").get<double>() / 2) + "\n";
+    for (const auto &[column, label] : std::vector<std::pair<int, std::string>>{
+        {10, "Gas temperature (K)"}, {11, "Radiation temperature (K)"}, {6, "Density (g/cm^3)"}}) {
+        maps += "set autoscale cb\nset title " + gp_quote(label) + "\nplot " +
+            data_path(target / "hydro-slice.dat") + " using 3:4:" + std::to_string(column) + " with image\n";
+    }
+    maps += "unset multiplot\nset size noratio\nset grid\n";
+    plot_pair(target / "hydro_slice", maps, 1800, 650, o);
+}
 void render_run(const fs::path &folder, const Json &m, const fs::path &target,
 				const std::optional<Budget> &budget, const Options &o)
 {
@@ -73,8 +153,8 @@ void render_run(const fs::path &folder, const Json &m, const fs::path &target,
 	double dx = m.at("dx"), length = m.at("length");
 	fs::create_directories(target);
 	bool excess = m.at("case") == "gaussian_pulse" || m.at("case") == "equilibrium_sphere";
-	std::string title = m.at("case").get<std::string>() + " | " + std::to_string(n) +
-						"^3 cells | t=" + number(m.at("time")) + (cgs(m) ? " s" : "");
+	std::string title = m.at("case").get<std::string>() + " | " + mesh_label(m) +
+						" | t=" + number(m.at("time")) + (cgs(m) ? " s" : "");
 	std::ostringstream grid, row;
 	grid << std::scientific << std::setprecision(17);
 	row << std::scientific << std::setprecision(17);
@@ -124,7 +204,7 @@ void render_run(const fs::path &folder, const Json &m, const fs::path &target,
   }
   write_json(target / "slice.units.json", units);
 	std::string profiles = "set multiplot layout 4,2 rowsfirst title " +
-						   gp_quote(title + " | y=z=dx/2=" + sci(dx / 2)) +
+						   gp_quote(title + (m.value("adaptive", false) ? " | projected positive-side leaf averages" : " | y=z=dx/2=" + sci(dx / 2))) +
 						   "\nset key top right\nset xlabel " + gp_quote(cgs(m) ? "x (cm)" : "x") +
 						   "\nset autoscale\nset xrange [" + number(-length / 2) + ":" + number(length / 2) +
 						   "]\nset xtics " + number(length / 4) + "\n";
@@ -195,7 +275,7 @@ void render_run(const fs::path &folder, const Json &m, const fs::path &target,
 		}
 		err = std::max(err, 1e-30);
 		std::string maps =
-			"set multiplot layout 1,3 title " + gp_quote(title + " | " + label + " | z=dx/2=" + sci(dx / 2)) +
+			"set multiplot layout 1,3 title " + gp_quote(title + " | " + label + (m.value("adaptive", false) ? " | projected positive-side leaf averages" : " | z=dx/2=" + sci(dx / 2))) +
 			"\nunset key\nunset grid\nset lmargin 12\nset rmargin 13\nset bmargin "
 			"5\nset tmargin 4\nset size ratio -1\nset xrange [" +
 			number(-length / 2) + ":" + number(length / 2) + "]\nset yrange [" + number(-length / 2) + ":" +
@@ -325,14 +405,21 @@ fs::path render(const fs::path &batch, const Options &o)
 	fs::create_directories(output);
 	std::map<std::string, std::vector<std::pair<fs::path, Json>>> groups;
 	for (auto &[p, m] : runs) {
-		m["norms"] = read_norms(p, m);
-		groups[m.at("case")].emplace_back(p, m);
+		if (coupled_case(m.at("case"))) {
+            read_hydro_profile(p, m);
+        } else {
+            m["norms"] = read_norms(p, m);
+        }
+        groups[m.at("case")].emplace_back(p, m);
 	}
 	Json errors = Json::array(), budgets = Json::array();
 	std::string page = page_start("Octo-TIGER radiation results") +
 					   "<p><a href=\"errors.csv\">All norms/orders CSV</a> · <a "
-					   "href=\"conservation.csv\">Conservation "
-					   "CSV</a> · <a href=\"../movies.html\">Movies</a></p><p>Norms use the full "
+					   "href=\"conservation.csv\">Conservation CSV</a>";
+    if (fs::exists(batch / "movies.html")) {
+        page += " · <a href=\"../movies.html\">Movies</a>";
+    }
+    page += "</p><p>Norms use the full "
 					   "3D domain: L1 = Σ|e|ΔV/V; "
 					   "L2 = √(Σe²ΔV/V); L∞ = max|e|. Orders compare matching physical times and "
 					   "configurations. Zero "
@@ -345,6 +432,24 @@ fs::path render(const fs::path &batch, const Options &o)
 		std::set<double> seen;
 		auto case_dir = output / name;
 		fs::create_directories(case_dir);
+        if (coupled_case(name)) {
+            page += "<section><h2>" + html(name) + "</h2><p>Coupled radiation hydrodynamics. "
+                "These numerical profiles have no supplied analytic reference or accuracy norms.</p>";
+            for (const auto &[folder, m] : series) {
+                const auto target = case_dir / ("l" + std::to_string(m.at("level").get<int>()));
+                render_coupled(folder, m, target, o);
+                const auto rel = name + "/l" + std::to_string(m.at("level").get<int>());
+                page += "<h3>" + html(mesh_label(m)) + "; t=" +
+                    html(number(m.at("time"))) + " s</h3><p>" +
+                    html(m.value("validation_scope", "No independent reference comparison has been performed.")) +
+                    "</p><p>" + html(radiation_method_note(m)) + "</p><p>" + html(slice_geometry_note(m)) + "</p>" +
+                    image_tag(rel + "/hydro_slice.png", "Gas and radiation temperature and density") +
+                    image_tag(rel + "/profiles.png", "Numerical gas and radiation profiles") +
+                    "<p><a href=\"" + rel + "/hydro-slice.csv\">Profile data CSV</a></p>";
+            }
+            page += "</section>";
+            continue;
+        }
 		page +=
 			"<section><h2>" + html(name) + "</h2><p>" +
 			(name.starts_with("streaming")
@@ -365,11 +470,13 @@ fs::path render(const fs::path &batch, const Options &o)
       require(seen.insert(m.at("dx").get<double>()).second,
 					"Duplicate resolution in convergence series");
 		}
-		if (series.size() < 2) {
+		const bool adaptive_series = std::any_of(series.begin(), series.end(), [](const auto &run) { return run.second.value("adaptive", false); });
+		if (series.size() < 2 || adaptive_series) {
 			for (auto ext : {"png", "pdf"}) {
         fs::remove(case_dir / ("convergence." + std::string(ext)));
       }
-      page += "<p>Convergence becomes available after two resolutions are complete.</p>";
+      page += adaptive_series ? "<p>Adaptive leaf-volume norms are reported without uniform-grid convergence orders.</p>" :
+          "<p>Convergence becomes available after two resolutions are complete.</p>";
 		} else {
 			std::ostringstream dat;
 			dat << std::scientific << std::setprecision(17);
@@ -480,7 +587,7 @@ fs::path render(const fs::path &batch, const Options &o)
 					auto n = norms[k];
 					double error = m["norms"][fields[f]][n];
 					Json order;
-					if (!previous.is_null() && error > 0 && previous["norms"][fields[f]][n].get<double>() > 0) {
+					if (!adaptive_series && !previous.is_null() && error > 0 && previous["norms"][fields[f]][n].get<double>() > 0) {
             order = std::log(previous["norms"][fields[f]][n].get<double>() / error) /
 								std::log(previous.at("dx").get<double>() / m.at("dx").get<double>());
           }
@@ -512,8 +619,8 @@ fs::path render(const fs::path &batch, const Options &o)
       }
       page += "</tr>";
 			std::string rel = name + "/l" + std::to_string(m.at("level").get<int>());
-			details += "<details open><summary>" + std::to_string(m.at("cells").get<int>()) +
-					   "³ cells</summary><p>Central cell layer at z=dx/2. <a href=\"" + rel +
+			details += "<details open><summary>" + html(mesh_label(m)) +
+					   "</summary><p>" + html(slice_geometry_note(m)) + " <a href=\"" + rel +
 					   "/slice.csv\">Paired values CSV</a> · <a href=\"" + rel +
 					   "/profiles.pdf\">Profiles PDF</a></p>" +
 					   image_tag(rel + "/slice_er.png", "Energy slice") +
