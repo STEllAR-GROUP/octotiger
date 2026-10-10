@@ -21,6 +21,7 @@
 #include "octotiger/io/silo.hpp"
 // #include "octotiger/simd_legacy.hpp"
 #include "octotiger/space_vector.hpp"
+#include "octotiger/ssp_multistep.hpp"
 //#include "octotiger/taylor.hpp"
 #include "octotiger/unitiger/safe_real.hpp"
 #include "octotiger/unitiger/hydro.hpp"
@@ -128,6 +129,14 @@ private:
 	std::vector<std::vector<safe_real>> U;
 	std::vector<std::vector<safe_real>> U0;
 	std::vector<std::vector<safe_real>> dUdt;
+    // Only populated by SSP_MULTISTEP. History is restarted collectively at
+    // each step batch, after mesh changes/migration or a Silo restart.
+    std::vector<std::vector<safe_real>> ssp_previous_u;
+    std::vector<std::vector<safe_real>> ssp_previous_rhs;
+    std::vector<std::vector<safe_real>> ssp_initial_rhs;
+    std::vector<real> ssp_previous_out;
+    std::vector<real> ssp_previous_out_rhs;
+    std::vector<real> ssp_initial_out_rhs;
 	std::vector<hydro_state_t<std::vector<safe_real>>> F;
 	std::vector<std::vector<safe_real>> X;
 #if defined(__AVX2__) && defined(OCTOTIGER_LEGACY_VC)
@@ -343,7 +352,10 @@ public:
 	real compute_positivity_speed_limit() const;
 	void compute_sources(real t, real);
 	void set_physical_boundaries(const geo::face&, real t);
-	void next_u(integer rk, real t, real dt);
+	void next_u(integer rk, real t, real dt,
+        const ssp_multistep::coefficients* coefficients = nullptr,
+        bool save_ssp_history = false);
+    void finish_ssp_step();
 	template<class Archive>
 	void load(Archive &arc, const unsigned);
 	static real convert_gravity_units(int);

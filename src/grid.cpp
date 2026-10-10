@@ -2236,7 +2236,17 @@ void grid::etot_to_egas() {
 	}
 }
 
-void grid::next_u(integer rk, real t, real dt) {
+void grid::finish_ssp_step() {
+    // U0 includes rho*phi at t_n. Its potential must be combined along with
+    // gas energy so the subsequent RHO solve preserves total energy.
+    ssp_previous_u = U0;
+    ssp_previous_rhs.swap(ssp_initial_rhs);
+    ssp_previous_out = U_out0;
+    ssp_previous_out_rhs.swap(ssp_initial_out_rhs);
+}
+
+void grid::next_u(integer rk, real t, real dt,
+        const ssp_multistep::coefficients* coefficients, bool save_ssp_history) {
 	ENABLE_THREAD_DEBUG();
 	if (!opts().hydro) {
 		return;
@@ -2254,6 +2264,12 @@ void grid::next_u(integer rk, real t, real dt) {
 		}
 	}
 
+    // DRHODT gravity has already supplied dphi_dt. Cache the complete RHS,
+    // including its gravitational energy term, before advancing any field.
+    if (save_ssp_history && rk == 0) {
+        ssp_initial_rhs = dUdt;
+    }
+
 	std::vector<real> du_out(opts().n_fields, ZERO);
 
 	std::vector<real> ds(NDIM, ZERO);
@@ -2266,7 +2282,19 @@ void grid::next_u(integer rk, real t, real dt) {
 				for (integer field = 0; field != opts().n_fields; ++field) {
 					const real u1 = U[field][iii] + dUdt[field][iii0] * dt;
 					const real u0 = U0[field][h0index(i - H_BW, j - H_BW, k - H_BW)];
-					U[field][iii] = (ONE - rk_beta[rk]) * u0 + rk_beta[rk] * u1;
+                    if (coefficients == nullptr) {
+                        U[field][iii] = (ONE - rk_beta[rk]) * u0 + rk_beta[rk] * u1;
+                    } else {
+                        const auto& c = *coefficients;
+                        const real previous = ssp_previous_u[field][iii0];
+                        const real forward = U[field][iii] + c.v * dt * dUdt[field][iii0];
+                        if (rk == 0) {
+                            U[field][iii] = c.c1 * forward + c.c2 * previous;
+                        } else {
+                            U[field][iii] = c.c3 * u0 + c.c4 * forward
+                                + c.c5 * (previous + c.v5 * dt * ssp_previous_rhs[field][iii0]);
+                        }
+                    }
 				}
 			}
 		}
@@ -2322,8 +2350,26 @@ void grid::next_u(integer rk, real t, real dt) {
 	for (integer field = 0; field != opts().n_fields; ++field) {
 		const real out1 = U_out[field] + du_out[field];
 		const real out0 = U_out0[field];
-		U_out[field] = (ONE - rk_beta[rk]) * out0 + rk_beta[rk] * out1;
+        if (coefficients == nullptr) {
+            U_out[field] = (ONE - rk_beta[rk]) * out0 + rk_beta[rk] * out1;
+        } else {
+            const auto& c = *coefficients;
+            const real forward = U_out[field] + c.v * du_out[field];
+            if (rk == 0) {
+                U_out[field] = c.c1 * forward + c.c2 * ssp_previous_out[field];
+            } else {
+                U_out[field] = c.c3 * out0 + c.c4 * forward
+                    + c.c5 * (ssp_previous_out[field]
+                        + c.v5 * dt * ssp_previous_out_rhs[field]);
+            }
+        }
 	}
+    if (save_ssp_history && rk == 0) {
+        ssp_initial_out_rhs.resize(opts().n_fields);
+        for (integer field = 0; field != opts().n_fields; ++field) {
+            ssp_initial_out_rhs[field] = du_out[field] / dt;
+        }
+    }
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
 #pragma GCC ivdep

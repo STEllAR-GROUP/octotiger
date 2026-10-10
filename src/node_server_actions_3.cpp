@@ -23,6 +23,8 @@
 #include <algorithm>
 #include <array>
 #include <cstdio>
+#include <cmath>
+#include <stdexcept>
 
 #if !defined(HPX_COMPUTE_DEVICE_CODE)
 
@@ -660,6 +662,101 @@ future<void> node_server::nonrefined_step() {
 	);
 }
 
+void node_server::select_ssp_timestep(timestep_t& timestep) const {
+    if (opts().time_integrator != SSP_MULTISTEP) {
+        return;
+    }
+    timestep.use_ssp_multistep = false;
+    const real selected = ssp_multistep::select_step(ssp_previous_dt,
+        timestep.dt, timestep.fe_dt, ssp_previous_fe_dt);
+    if (selected > 0.0) {
+        timestep.dt = selected;
+        timestep.use_ssp_multistep = true;
+    }
+}
+
+void node_server::multistep_step() {
+    timings::scope ts(timings_, timings::time_computation);
+    all_hydro_bounds();
+    auto dt_fut = global_timestep_channel.get_future();
+    timestep_t proposed{};
+    proposed.dt = std::numeric_limits<real>::max();
+    if (!is_refined) {
+        grid_ptr->store();
+        proposed = grid_ptr->compute_fluxes();
+        exchange_flux_corrections().get();
+        const real dx = TWO * grid::get_scaling_factor() / real(INX << my_location.level());
+        proposed.fe_dt = opts().cfl * dx / proposed.a;
+        proposed.dt = proposed.fe_dt;
+        if (opts().hard_dt > 0.0) {
+            proposed.dt = std::min(proposed.dt, opts().hard_dt);
+        }
+        if (opts().stop_time > 0.0) {
+            const real remaining = (opts().stop_time - current_time)
+                / (refinement_freq() - (step_num % refinement_freq()));
+            proposed.dt = std::min(proposed.dt, remaining);
+        }
+    }
+    local_timestep_channels[NCHILD].set_value(proposed);
+    dt_ = GET(dt_fut);
+    if (!(dt_.dt > 0.0) || !std::isfinite(dt_.dt)) {
+        throw std::runtime_error("SSP_MULTISTEP requires a finite positive timestep");
+    }
+
+    ssp_multistep::coefficients coefficients{};
+    if (dt_.use_ssp_multistep
+            && !ssp_multistep::make_coefficients(ssp_previous_dt / dt_.dt, coefficients)) {
+        throw std::runtime_error("Invalid globally selected SSP_MULTISTEP coefficients");
+    }
+    const integer stages = dt_.use_ssp_multistep ? 2 : NRK;
+    for (integer stage = 0; stage < stages; ++stage) {
+        if (!is_refined) {
+            if (stage != 0) {
+                grid_ptr->compute_fluxes();
+                exchange_flux_corrections().get();
+            }
+            real abscissa = 0.0;
+            if (dt_.use_ssp_multistep && stage == 1) {
+                abscissa = coefficients.c1 * coefficients.v
+                    - coefficients.c2 * ssp_previous_dt / dt_.dt;
+            } else if (!dt_.use_ssp_multistep) {
+                constexpr real rk_time[] = {0.0, 1.0, 0.5};
+                abscissa = rk_time[stage];
+            }
+            const real offset = abscissa * dt_.dt;
+            const real rotation_rate = grid::get_omega() != 0.0 ? grid::get_omega() : 1.0;
+            grid_ptr->compute_sources(current_time + offset, rotational_time + rotation_rate * offset);
+            grid_ptr->compute_dudt();
+        }
+        // Both leaves and internal nodes must take the same sequence of FMM
+        // and boundary exchanges, including when the whole tree bootstraps.
+        compute_fmm(DRHODT, false);
+        if (!is_refined) {
+            if (!opts().gravity && opts().optimize_local_communication) {
+                all_neighbors_got_hydro[(hcycle - 1) % number_hydro_exchange_promises].get();
+            }
+            grid_ptr->next_u(stage, current_time, dt_.dt,
+                dt_.use_ssp_multistep ? &coefficients : nullptr, true);
+        }
+        compute_fmm(RHO, true);
+        if (stage == stages - 1) {
+            energy_hydro_bounds();
+        } else {
+            all_hydro_bounds();
+        }
+    }
+    if (!is_refined) {
+        grid_ptr->finish_ssp_step();
+    }
+    if (my_location.level() == 0) {
+        printf("SSP_MULTISTEP stages=%i alpha=%e\n", int(stages),
+            ssp_previous_dt > 0.0 ? ssp_previous_dt / dt_.dt : 0.0);
+    }
+    ssp_previous_dt = dt_.dt;
+    ssp_previous_fe_dt = dt_.fe_dt;
+    update();
+}
+
 void node_server::update() {
 	grid_ptr->dual_energy_update();
 	current_time += dt_.dt;
@@ -701,7 +798,9 @@ future<real> node_server::local_step(integer steps) {
         auto time_start = std::chrono::high_resolution_clock::now();
         auto next_dt = timestep_driver_descend();
 
-        if (is_refined) {
+        if (opts().time_integrator == SSP_MULTISTEP) {
+          multistep_step();
+        } else if (is_refined) {
           refined_step();
         } else {
           GET(nonrefined_step());
@@ -749,6 +848,11 @@ future<real> node_server::local_step(integer steps) {
 }
 
 future<real> node_server::step(integer steps) {
+    // Every node starts the same batch with RK3. Refinement and migration take
+    // place between batches; old states/RHS values from a different discrete
+    // operator must never be mixed with the new mesh. Also bootstraps restart.
+    ssp_previous_dt = 0.0;
+    ssp_previous_fe_dt = 0.0;
 	grid_ptr->set_coordinates();
 
 	std::array<future<void>, NCHILD> child_futs;
@@ -814,13 +918,17 @@ future<void> node_server::timestep_driver_descend() {
 			auto dts = hpx::unwrap(dts_fut);
 			timestep_t dt;
 			dt.dt = 1.0e+99;
+            real fe_dt = std::numeric_limits<real>::max();
 			for (const auto &this_dt : dts) {
+                fe_dt = std::min(fe_dt, this_dt.fe_dt);
 				if (this_dt.dt < dt.dt) {
 					dt = this_dt;
 				}
 			}
+            dt.fe_dt = fe_dt;
 
 			if (my_location.level() == 0) {
+                select_ssp_timestep(dt);
 				timestep_driver_ascend(dt);
 			} else {
 				parent.set_local_timestep(my_location.get_child_index(), dt);
@@ -831,7 +939,12 @@ future<void> node_server::timestep_driver_descend() {
 	} else {
 		return local_timestep_channels[NCHILD].get_future().then(hpx::launch::sync, hpx::annotated_function([this](future<timestep_t> &&f) {
 			timestep_t dt = GET(f);
-			parent.set_local_timestep(my_location.get_child_index(), dt);
+            if (my_location.level() == 0) {
+                select_ssp_timestep(dt);
+                timestep_driver_ascend(dt);
+            } else {
+			    parent.set_local_timestep(my_location.get_child_index(), dt);
+            }
 			return;
 		}, "timestep_driver_descend::set_local_timestep")
 		);

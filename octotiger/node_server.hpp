@@ -109,6 +109,8 @@ private:
 	std::array<channel<timestep_t>, NCHILD + 1> local_timestep_channels;
 
 	timestep_t dt_;
+    real ssp_previous_dt = 0.0;
+    real ssp_previous_fe_dt = 0.0;
 
 public:
 	timings timings_;
@@ -142,6 +144,8 @@ private:
 
 	hpx::future<void> nonrefined_step();
 	void refined_step();
+    void multistep_step();
+    void select_ssp_timestep(timestep_t& timestep) const;
 
 	diagnostics_t root_diagnostics(const diagnostics_t& diags);
 	diagnostics_t child_diagnostics(const diagnostics_t& diags);

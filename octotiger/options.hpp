@@ -66,6 +66,7 @@ inline std::string to_string(problem_type problem) {
 }
 
 COMMAND_LINE_ENUM(eos_type, IDEAL, WD, IPR);
+COMMAND_LINE_ENUM(time_integrator_type, RK3, SSP_MULTISTEP);
 
 class options {
 public:
@@ -182,6 +183,7 @@ public:
 	integer n_fields;
 
 	eos_type eos;
+	time_integrator_type time_integrator = RK3;
 
 	problem_type problem;
 
@@ -300,6 +302,9 @@ public:
 		tmp = eos;
 		arc & tmp;
 		eos = static_cast<eos_type>(tmp);
+		tmp = time_integrator;
+		arc & tmp;
+		time_integrator = static_cast<time_integrator_type>(tmp);
 		arc & data_dir;
 		arc & number_gpus;
 		arc & executors_per_gpu;
