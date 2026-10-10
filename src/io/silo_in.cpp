@@ -22,6 +22,7 @@
 
 #include <future>
 #include <mutex>
+#include <stdexcept>
 #include <map>
 #include <vector>
 
@@ -103,7 +104,12 @@ void load_options_from_silo(std::string fname, DBfile *db) {
 			opts().omega = rr(db, "omega") * opts().code_to_s;
 			opts().output_dt = rr(db, "output_frequency");
 			opts().problem = problem_type(ri(db, "problem"));
-			opts().radiation = ri(db, "radiation");
+			if (DBInqVarExists(db, "radiation") && ri(db, "radiation") != 0) {
+				if (!leaveopen) {
+					DBClose(db);
+				}
+				throw std::runtime_error("This branch does not support radiation transport restarts");
+			}
 			opts().refinement_floor = rr(db, "refinement_floor");
 			opts().xscale = rr(db, "xscale");
 			opts().atomic_number.resize(opts().n_species);
@@ -159,7 +165,7 @@ node_server::node_server(const node_location &loc) :
 		my_location(loc) {
 	const auto &localities = opts().all_localities;
 	initialize(0.0, 0.0);
-	step_num = gcycle = hcycle = rcycle = 0;
+	step_num = gcycle = hcycle = 0;
 
 	auto iter = node_dir_.find(loc.to_id());
 	assert(iter != node_dir_.end());
@@ -227,7 +233,7 @@ node_server::node_server(const node_location &loc, silo_load_t load) :
 //	printf("Distributing %s on %i\n", loc.to_str().c_str(), int(hpx::get_locality_id()));
 	const auto &localities = opts().all_localities;
 	initialize(0.0, 0.0);
-	step_num = gcycle = hcycle = rcycle = 0;
+	step_num = gcycle = hcycle = 0;
 	int nc = 0;
 	static const auto hydro_names = grid::get_hydro_field_names();
 	is_refined = false;

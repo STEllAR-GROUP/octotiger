@@ -272,7 +272,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 	integer output_cnt { };
 //	output_all("X", 0, false);
 
-	if (!opts().hydro && !opts().radiation) {
+	if (!opts().hydro) {
 //		diagnostics();
 		if (!opts().disable_output) {
 			output_all(this, "final", output_cnt, true);
@@ -325,13 +325,6 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 		dv[ZDIM] = -diag.grid_sum[sz_i] / diag.grid_sum[rho_i];
 		this->velocity_inc(dv);
 	}
-	if (opts().radiation) {
-		if (opts().eos == WD && opts().problem == STAR) {
-			printf("Initialized radiation and cgs\n");
-			set_cgs();
-			erad_init();
-		}
-	}
 	printf("Starting run...\n");
 	auto fut_ptr = me.get_ptr();
 	auto root_ptr = GET(fut_ptr);
@@ -380,9 +373,6 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 				}
 				fprintf(fp, "\n");
 			}
-			fclose(fp);
-			fp = fopen( "temp.dat", "at");
-			fprintf( fp, "%e %e %e\n", current_time, diags.Tgas0, diags.Trad0);
 			fclose(fp);
 			fnum++;
 		}
@@ -445,7 +435,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 
 		// run output on separate thread
 		if (!opts().disable_output) {
-			hpx::threads::run_as_os_thread([=]() {
+			hpx::threads::run_as_os_thread([=, this]() {
 				FILE *fp = fopen((opts().data_dir + "step.dat").c_str(), "at");
 				if (fp == NULL) {
 					printf("Unable to open step.dat for writing %s\n", std::strerror(errno));
@@ -597,10 +587,6 @@ void node_server::refined_step() {
 
 	dt_ = GET(dt_fut);
 	update();
-	if (opts().radiation) {
-		compute_radiation(dt_.dt, grid_ptr->get_omega());
-		all_hydro_bounds();
-	}
 
 }
 
@@ -669,10 +655,6 @@ future<void> node_server::nonrefined_step() {
 		GET(f);
 
 		update();
-		if (opts().radiation) {
-			compute_radiation(dt_.dt, grid_ptr->get_omega());
-			all_hydro_bounds();
-		}
 
 	}, "node_server::nonrefined_step::update" )
 	);
@@ -731,7 +713,7 @@ future<real> node_server::local_step(integer steps) {
           if (opts().print_times_per_timestep)
             timestep_util::add_time_per_timestep(time_elapsed);
 
-          hpx::threads::run_as_os_thread([=]() {
+          hpx::threads::run_as_os_thread([=, this]() {
             printf("%i %e %e %e %e\n", local_step_num, double(current_time), double(dt_.dt), time_elapsed, rotational_time);
           });  // do not wait for output to finish
         }

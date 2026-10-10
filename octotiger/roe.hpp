@@ -49,9 +49,9 @@ inline real ztwd_enthalpy(real d, real A = physcon().A, real B = physcon().B) {
 	const real x = pow(d / B, 1.0 / 3.0);
 	real h;
 	if (x < 0.01) {
-		h = 4.0 * A / B * sqr(x);
+		h = 4.0 * A / B * x*x;
 	} else {
-		h = 8.0 * A / B * (sqrt(sqr(x) + 1.0) - 1.0);
+		h = 8.0 * A / B * (sqrt(x*x + 1.0) - 1.0);
 	}
 	return h;
 }

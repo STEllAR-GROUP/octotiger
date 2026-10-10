@@ -1,0 +1,22 @@
+diff --git a/include/cppuddle/kernel_aggregation/detail/aggregation_executors_and_allocators.hpp b/include/cppuddle/kernel_aggregation/detail/aggregation_executors_and_allocators.hpp
+index b3b582c..27ee7ab 100644
+--- a/include/cppuddle/kernel_aggregation/detail/aggregation_executors_and_allocators.hpp
++++ b/include/cppuddle/kernel_aggregation/detail/aggregation_executors_and_allocators.hpp
+@@ -40,7 +40,7 @@
+ #include <hpx/include/async.hpp>
+ #include <hpx/include/iostreams.hpp>
+ #include <hpx/include/lcos.hpp>
+-#include <hpx/lcos/promise.hpp>
++#include <hpx/modules/futures.hpp>
+ #include <hpx/mutex.hpp>
+ 
+ #if defined(HPX_HAVE_CUDA) || defined(HPX_HAVE_HIP)
+@@ -124,7 +124,7 @@ template <class... T> void print_tuple(const std::tuple<T...> &_tup) {
+ //===============================================================================
+ template <typename Executor, typename F, typename... Ts>
+ void exec_post_wrapper(Executor & exec, F &&f, Ts &&...ts) {
+-  hpx::apply(exec, std::forward<F>(f), std::forward<Ts>(ts)...);
++  hpx::post(exec, std::forward<F>(f), std::forward<Ts>(ts)...);
+ }
+ 
+ template <typename Executor, typename F, typename... Ts>

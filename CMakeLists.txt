@@ -39,14 +39,18 @@ set(CMAKE_CXX_STANDARD ${OCTOTIGER_CXX_STANDARD})
 option(OCTOTIGER_DISABLE_ILIST "Disables the interaction list to allow larger sub-grids for hydro-only scenarios!" OFF)
 option(OCTOTIGER_WITH_UNBUFFERED_STDOUT "Disable stdout buffering on all localities for debugging" OFF)
 option(OCTOTIGER_WITH_GRAV_PAR "Enable parallelism in gravitational solver" OFF)
-option(OCTOTIGER_WITH_RADIATION "Enable radiation transport solver" OFF)
 option(OCTOTIGER_WITH_CUDA "Enable CUDA kernels" OFF)
 option(OCTOTIGER_WITH_HIP "Enable HIP kernels" OFF)
 option(OCTOTIGER_WITH_KOKKOS "Enable the build with Kokkos" OFF)
 option(OCTOTIGER_SPACK_BUILD "Project is build with the spack package" OFF)
 option(OCTOTIGER_WITH_BLAST_TEST "Enable the Blast test" ON)
+set(OCTOTIGER_BOOST_MULTIPRECISION_DEFAULT OFF)
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  set(OCTOTIGER_BOOST_MULTIPRECISION_DEFAULT ON)
+endif()
 option(OCTOTIGER_WITH_BOOST_MULTIPRECISION
-  "Use Boost.Multiprecision Instead of GCC Quad-Precision Math Library" OFF)
+  "Use Boost.Multiprecision Instead of GCC Quad-Precision Math Library"
+  ${OCTOTIGER_BOOST_MULTIPRECISION_DEFAULT})
 option(OCTOTIGER_WITH_QUADMATH "Enable sections using GCC Quad-Precision Math Library" ON)
 option(OCTOTIGER_WITH_Vc "" ON)
 # Re-enables Vc datatypes in the octotiger parts - use with caution
@@ -93,6 +97,8 @@ set(OCTOTIGER_SVE_LEN "512" CACHE STRING "Choose number of bits for SVE (must be
 # silence warnings for deprecated HPX includes
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-cpp")
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-omit-frame-pointer")
+
 # add -fPIC option to avoid this error:
 # https://cmake.org/pipermail/cmake/2015-January/059513.html 
 # in case of relocatable device code
@@ -118,7 +124,21 @@ endif()
 ################################################################################
 # Find required packages
 ################################################################################
+# Vc probes the host compiler with -dumpversion and -print-prog-name=as,
+# which nvcc_wrapper forwards to NVCC. Run only Vc discovery through the
+# selected CUDA host compiler, then restore the CUDA wrapper for the build.
+get_filename_component(OCTOTIGER_CXX_DRIVER "${CMAKE_CXX_COMPILER}" NAME)
+if(OCTOTIGER_WITH_CUDA AND OCTOTIGER_CXX_DRIVER STREQUAL "nvcc_wrapper"
+   AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CUDA_HOST_COMPILER)
+  set(OCTOTIGER_VC_SAVED_CXX_COMPILER "${CMAKE_CXX_COMPILER}")
+  set(CMAKE_CXX_COMPILER "${CMAKE_CUDA_HOST_COMPILER}")
+endif()
 find_package(Vc REQUIRED)
+if(DEFINED OCTOTIGER_VC_SAVED_CXX_COMPILER)
+  set(CMAKE_CXX_COMPILER "${OCTOTIGER_VC_SAVED_CXX_COMPILER}")
+  unset(OCTOTIGER_VC_SAVED_CXX_COMPILER)
+endif()
+unset(OCTOTIGER_CXX_DRIVER)
 find_package(HPX REQUIRED NO_CMAKE_PACKAGE_REGISTRY 1.8.1)
 find_package(CPPuddle REQUIRED)
 find_package(Silo REQUIRED)
@@ -211,7 +231,6 @@ set(source_files
     src/io/silo.cpp
     src/io/silo_out.cpp
     src/io/silo_in.cpp
-    src/stack_trace.cpp
     src/taylor.cpp
     src/util.cpp
     src/common_kernel/interactions_iterators.cpp
@@ -231,8 +250,6 @@ set(source_files
     src/multipole_interactions/legacy/multipole_cuda_kernel.cpp
     src/multipole_interactions/util/calculate_stencil.cpp
     src/multipole_interactions/legacy/multipole_cpu_kernel.cpp
-    src/radiation/rad_grid.cpp
-    src/test_problems/marshak/marshak.cpp
     src/test_problems/rotating_star/rotating_star.cpp
     src/test_problems/sod/sod.cpp
     src/test_problems/sod/exact_sod.cpp
@@ -253,7 +270,7 @@ set(header_files
     octotiger/config.hpp
     octotiger/const.hpp
     octotiger/container_device.hpp
-    octotiger/defs.hpp
+ 	octotiger/defs.hpp
     octotiger/diagnostics.hpp
     octotiger/eos.hpp
     octotiger/future.hpp
@@ -311,14 +328,8 @@ set(header_files
     octotiger/multipole_interactions/legacy/multipole_cpu_kernel.hpp
     octotiger/multipole_interactions/legacy/multipole_cuda_kernel.hpp
     octotiger/multipole_interactions/legacy/multipole_interaction_interface.hpp
-    octotiger/radiation/cpu_kernel.hpp
-    octotiger/radiation/cuda_kernel.hpp
-    octotiger/radiation/implicit.hpp
-    octotiger/radiation/kernel_interface.hpp
-    octotiger/radiation/opacities.hpp
-    octotiger/radiation/rad_grid.hpp
     octotiger/test_problems/rotating_star.hpp
-    
+
 )
 
 list(APPEND octo_dependencies Silo::silo Vc::Vc Boost::boost Boost::program_options CPPuddle::buffer_manager CPPuddle::stream_manager)
@@ -334,7 +345,8 @@ endif()
 add_hpx_library(
   optionslib
   DEPENDENCIES
-  Boost::boost Boost::program_options Silo::silo CPPuddle::buffer_manager CPPuddle::stream_manager 
+    debuglib
+    Boost::boost Boost::program_options Silo::silo CPPuddle::buffer_manager CPPuddle::stream_manager 
   SOURCES
     src/options.cpp
     # As we need silo to load the options and the options get saved via silo 
@@ -343,12 +355,25 @@ add_hpx_library(
     octotiger/options_enum.hpp
 )
 
+add_hpx_library(
+  debuglib
+  DEPENDENCIES
+  SOURCES
+    src/debug.cpp
+  HEADERS
+    octotiger/debug.hpp
+)
+
+# debug.cpp uses the header-only addr2line stacktrace backend, which needs dladdr.
+target_link_libraries(debuglib PRIVATE Boost::boost ${CMAKE_DL_LIBS})
+
 # Octo-Tiger library
 add_hpx_library(
   octolib
   DEPENDENCIES
+    debuglib
+    hydrolib
     optionslib
-    hydrolib # grid.cpp requires the hydro solver 
     ${octo_dependencies}
   SOURCES
     ${source_files}
@@ -369,8 +394,6 @@ set(hydro_header_files
     octotiger/unitiger/hydro_impl/reconstruct.hpp
     octotiger/unitiger/hydro_impl/flux.hpp
     octotiger/unitiger/hydro_impl/hydro_performance_counters.hpp
-    octotiger/unitiger/radiation/radiation_physics.hpp
-    octotiger/unitiger/radiation/radiation_physics_impl.hpp
     octotiger/test_problems/exact_sod.hpp
     octotiger/unitiger/hydro_impl/hydro_kernel_interface.hpp)
 
@@ -505,6 +528,7 @@ endif()
 add_hpx_library(
   hydrolib
   DEPENDENCIES
+    debuglib
     optionslib
     ${hydro_dependencies}
   SOURCES
@@ -546,12 +570,11 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/physcon.cpp 
     src/io/silo_out.cpp
     src/io/silo_in.cpp
-    src/radiation/rad_grid.cpp
     frontend/frontend-helper.cpp
 
     src/eos.cpp
     src/util.cpp
-    
+
 
     #misc
     src/cuda_util/cuda_scheduler.cpp
@@ -593,6 +616,7 @@ endif()
 #set_property(TARGET octolib PROPERTY FOLDER "Octo-Tiger")
 
 # add octotiger/* to compiler search path
+target_include_directories(debuglib PUBLIC ${PROJECT_SOURCE_DIR})
 target_include_directories(optionslib PUBLIC ${PROJECT_SOURCE_DIR})
 target_include_directories(octolib PUBLIC ${PROJECT_SOURCE_DIR})
 target_include_directories(hydrolib PUBLIC ${PROJECT_SOURCE_DIR})
@@ -601,6 +625,7 @@ target_include_directories(hydrolib PUBLIC ${PROJECT_SOURCE_DIR})
 add_hpx_executable(
   octotiger
   DEPENDENCIES
+    debuglib
     optionslib
     hydrolib
     octolib
@@ -612,7 +637,7 @@ add_hpx_executable(
     frontend/init_methods.cpp
 )
 set_property(TARGET octotiger PROPERTY FOLDER "Octo-Tiger")
-
+target_link_options(octotiger PRIVATE -rdynamic)
 if(OCTOTIGER_WITH_CUDA)
   target_compile_definitions(octotiger PUBLIC OCTOTIGER_HAVE_CUDA)
 endif()
@@ -627,6 +652,7 @@ endif()
 add_hpx_executable(
   unitiger
   DEPENDENCIES
+    debuglib
     Silo::silo hydrolib octolib
   SOURCES
     src/unitiger/main.cpp
@@ -634,6 +660,17 @@ add_hpx_executable(
     ${hydro_header_files}
 )
 set_property(TARGET octotiger PROPERTY FOLDER "Octo-Tiger")
+target_link_options(unitiger PRIVATE -rdynamic)
+
+if(OCTOTIGER_WITH_KOKKOS)
+  # Kokkos SIMD discovery also runs in host-only translation units. Keep their
+  # host architecture consistent with the CUDA kernels compiled above.
+  separate_arguments(octotiger_host_arch_options NATIVE_COMMAND "${OCTOTIGER_ARCH_FLAG}")
+  foreach(target debuglib optionslib octolib hydrolib octotiger unitiger)
+    target_compile_options(${target} PRIVATE
+      "$<$<COMPILE_LANGUAGE:CXX>:${octotiger_host_arch_options}>")
+  endforeach()
+endif()
 
 if(MSVC)
   # Enable solution folders for MSVC
@@ -861,10 +898,6 @@ if(OCTOTIGER_WITH_GRAV_PAR)
   target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_GRAV_PAR)
 endif()
 
-if(OCTOTIGER_WITH_RADIATION)
-  target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_RADIATION)
-endif()
-
 
 # Grid size
 message(STATUS "Octo-Tiger grid size: ${OCTOTIGER_WITH_GRIDDIM}")
@@ -937,7 +970,6 @@ else()
 endif()
 
 
-
 # Maximum allowed nf (for kernel optimizations)
 message(STATUS "Octo-Tiger max nf: ${OCTOTIGER_WITH_MAX_NUMBER_FIELDS}")
 target_compile_definitions(optionslib PUBLIC OCTOTIGER_MAX_NUMBER_FIELDS=${OCTOTIGER_WITH_MAX_NUMBER_FIELDS})
@@ -952,11 +984,10 @@ target_compile_definitions(hydrolib PUBLIC OCTOTIGER_THETA_MINIMUM=${OCTOTIGER_T
 
 # Blast test problem quad-precision float support
 if(OCTOTIGER_WITH_BLAST_TEST)
-  if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-    message(FATAL_ERROR "Trying to build BLAST test with clang. The test requires quadmath which is not "
-    "bundled with clang. If you really need the blast test scenario compile "
-    "with a different compiler (gcc). If do not need this test (or aren't sure about it) "
-    " try the cmake variable OCTOTIGER_WITH_BLAST_TEST=OFF")
+  if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" AND NOT OCTOTIGER_WITH_BOOST_MULTIPRECISION)
+    message(FATAL_ERROR "The BLAST test with Clang requires "
+      "OCTOTIGER_WITH_BOOST_MULTIPRECISION=ON because quadmath is not bundled "
+      "with Clang. Alternatively, set OCTOTIGER_WITH_BLAST_TEST=OFF.")
   endif()
   target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_BLAST_TEST)
   set(blast_sources

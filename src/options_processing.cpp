@@ -96,7 +96,6 @@ bool options::process_options(int argc, char *argv[]) {
         ("moving_star_xvelocity", po::value<real>(&(opts().moving_star_xvelocity))->default_value(1.0), "velocity of the star in the x-direction")     //
         ("moving_star_yvelocity", po::value<real>(&(opts().moving_star_yvelocity))->default_value(1.0), "velocity of the star in the y-direction")     //
         ("moving_star_zvelocity", po::value<real>(&(opts().moving_star_zvelocity))->default_value(1.0), "velocity of the star in the z-direction")     //
-	("clight_retard", po::value<real>(&(opts().clight_retard))->default_value(1.0), "retardation factor for speed of light")                 //
 	("driving_rate", po::value<real>(&(opts().driving_rate))->default_value(0.0), "angular momentum loss driving rate")     //
 	("driving_time", po::value<real>(&(opts().driving_time))->default_value(0.0), "A.M. driving rate time")                 //
 	("entropy_driving_time", po::value<real>(&(opts().entropy_driving_time))->default_value(0.0), "entropy driving rate time")                 //
@@ -123,11 +122,9 @@ bool options::process_options(int argc, char *argv[]) {
         ("ipr_test", po::value<bool>(&(opts().ipr_test))->default_value(false), "test consistency of the ideal gas plus radiation eos")                              //
         ("ipr_eint_floor", po::value<real>(&(opts().ipr_eint_floor))->default_value(0.0), "floor thermal energy for ideal gas plus radiation eos")                              //
 	("hydro", po::value<bool>(&(opts().hydro))->default_value(true), "hydro on/off")    //
-	("radiation", po::value<bool>(&(opts().radiation))->default_value(false), "radiation on/off")    //
 	("correct_am_hydro", po::value<bool>(&(opts().correct_am_hydro))->default_value(false), "Angular momentum correction switch for hydro")    //
 	("correct_am_grav", po::value<bool>(&(opts().correct_am_grav))->default_value(true), "Angular momentum correction switch for gravity")    //
 	("rewrite_silo", po::value<bool>(&(opts().rewrite_silo))->default_value(false), "rewrite silo and exit")    //
-	("rad_implicit", po::value<bool>(&(opts().rad_implicit))->default_value(true), "implicit radiation on/off")    //
 	("gravity", po::value<bool>(&(opts().gravity))->default_value(true), "gravity on/off")    //
 	("bench", po::value<bool>(&(opts().bench))->default_value(false), "run benchmark") //
 	("datadir", po::value<std::string>(&(opts().data_dir))->default_value("./"), "directory for output") //
@@ -189,8 +186,16 @@ bool options::process_options(int argc, char *argv[]) {
 			;
 
 	boost::program_options::variables_map vm;
-	//po::store(po::parse_command_line(argc, argv, command_opts), vm);
-  po::store(po::command_line_parser(argc, argv).options(command_opts).allow_unregistered().run(), vm);
+	// HPX options are parsed separately, but removed transport options must not
+	// silently turn a requested radiation run into a hydro-only run.
+	auto parsed = po::command_line_parser(argc, argv).options(command_opts).allow_unregistered().run();
+	for (const auto& option : parsed.options) {
+		if (option.string_key == "radiation" || option.string_key == "rad_implicit" ||
+			option.string_key == "clight_retard") {
+			throw std::invalid_argument("Radiation transport is not supported in this branch");
+		}
+	}
+	po::store(parsed, vm);
 	po::notify(vm);
 	if (vm.count("help")) {
 		std::cout << command_opts << "\n";
@@ -236,7 +241,14 @@ bool options::process_options(int argc, char *argv[]) {
 		std::cerr << "Either increase theta or recompile with a new theta minimum using the cmake parameter OCTOTIGER_THETA_MINIMUM";
 		abort();
 	}
-  opts().detected_intel_compiler = false;
+    if (opts().correct_am_hydro) {
+		std::cerr << std::endl;
+		std::cerr << "WARNING: correct_am_hydro=1 is obsolete, setting to 0" << std::endl;
+		std::cerr << "(pausing for 10 seconds)" << std::endl;
+		opts().correct_am_hydro = 0;
+		hpx::this_thread::sleep_for(std::chrono::seconds(10));       
+	}
+    opts().detected_intel_compiler = false;
 
 #ifdef __VERSION__
   std::string compiler_version = std::string(__VERSION__);
@@ -278,7 +290,6 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(bench);
 		SHOW(cdisc_detect);
 		SHOW(cfl);
-		SHOW(clight_retard);
 		SHOW(config_file);
 		SHOW(core_refine);
 		SHOW(correct_am_grav);
@@ -312,8 +323,6 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(output_dt);
 		SHOW(output_filename);
 		SHOW(problem);
-		SHOW(rad_implicit);
-		SHOW(radiation);
 		SHOW(refinement_floor);
 		SHOW(reflect_bc);
 		SHOW(restart_filename);
@@ -477,12 +486,6 @@ bool options::process_options(int argc, char *argv[]) {
             << " Either set cdisc_detect to off or use a different eos!" << std::endl;
             abort();        
         }
-        if (opts().radiation) {
-            std::cerr << std::endl << "ERROR: ";
-            std::cerr << "The ideal gas plus radiation (ipr) eos is currently not supported together with radiation field on!"  << std::endl
-            << " Either set radiation to off or use a different eos!" << std::endl;
-            abort();
-        }
     }
     if (opts().executors_per_gpu < 1 && (opts().monopole_device_kernel_type != OFF ||
           opts().multipole_device_kernel_type != OFF || opts().hydro_device_kernel_type != OFF)) {
@@ -527,5 +530,3 @@ bool options::process_options(int argc, char *argv[]) {
 
     return true;
 }
-
-std::vector<hpx::id_type> options::all_localities = { };

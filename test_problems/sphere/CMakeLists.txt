@@ -23,7 +23,7 @@ if (OCTOTIGER_WITH_GRIDDIM EQUAL 8)
   set(zy_regex "zy 0.000000e.00 0.000000e.00")
   set(zz_regex "zz 0.000000e.00 0.000000e.00")
   set(spc1_regex "spc_1 1.048130e-03 1.989298e-02")
-  set(spc2_regex "spc_3 0.000000e.00 0.000000e.00")
+  set(spc2_regex "spc_2 0.000000e.00 0.000000e.00")
   set(spc3_regex "spc_3 0.000000e.00 0.000000e.00")
   set(spc4_regex "spc_4 0.000000e.00 0.000000e.00")
   set(spc5_regex "spc_5 0.000000e.00 0.000000e.00")
@@ -40,7 +40,7 @@ elseif (OCTOTIGER_WITH_GRIDDIM EQUAL 16)
   set(zy_regex "zy 0.000000e.00 0.000000e.00")
   set(zz_regex "zz 0.000000e.00 0.000000e.00")
   set(spc1_regex "spc_1 4.665483e-04 1.508687e-02")
-  set(spc2_regex "spc_3 0.000000e.00 0.000000e.00")
+  set(spc2_regex "spc_2 0.000000e.00 0.000000e.00")
   set(spc3_regex "spc_3 0.000000e.00 0.000000e.00")
   set(spc4_regex "spc_4 0.000000e.00 0.000000e.00")
   set(spc5_regex "spc_5 0.000000e.00 0.000000e.00")
@@ -121,8 +121,9 @@ function(test_sphere_scenario test_name test_log_file reference_filename kernel_
 
   if (NOT ${reference_filename} STREQUAL "none" )
     add_test(NAME ${test_name}.diff
-      COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
-       ${PROJECT_SOURCE_DIR}/octotiger-testdata/${reference_filename} ${PROJECT_BINARY_DIR}/test_problems/sphere/final.silo.data/0.silo)
+      COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12 -E "lx, ly, lz, idle_rate, locality, _hdf5libinfo, _silolibinfo"
+#      COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
+       ${OCTOTIGER_TESTDATA_DIR}/${reference_filename} ${PROJECT_BINARY_DIR}/test_problems/sphere/final.silo.data/0.silo)
     set_tests_properties(${test_name}.diff PROPERTIES
       FIXTURES_REQUIRED ${test_name}
       FAIL_REGULAR_EXPRESSION ${OCTOTIGER_SILODIFF_FAIL_PATTERN})

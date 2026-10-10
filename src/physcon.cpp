@@ -64,7 +64,7 @@ void these_units(real &m, real &l, real &t, real &k) {
 	real m1, l1, t1, k1;
 	real kb = kbcgs;
 	real A, B, G;
-	if ((opts().radiation || opts().eos == WD) && opts().gravity) {
+	if (opts().eos == WD && opts().gravity) {
 		A = physcon().A;
 		B = physcon().B;
 		G = physcon().G;
@@ -84,15 +84,10 @@ void these_units(real &m, real &l, real &t, real &k) {
 		t = t2 / t1;
 		k = 1.0;
 		;
-	} else if (!opts().radiation && !opts().gravity) {
+	} else if (!opts().gravity) {
 		m = opts().code_to_g;
 		l = opts().code_to_cm;
 		t = opts().code_to_s;
-		k = 1.0;
-	} else if (opts().radiation) {
-		m = opts().code_to_g;
-		l = opts().code_to_cm;
-		t = opts().code_to_cm / 2.99792458e+10;
 		k = 1.0;
 	} else {
 		G = 1.0;
@@ -103,15 +98,11 @@ void these_units(real &m, real &l, real &t, real &k) {
 	}
 
 //	printf("%e %e %e %e\n", l, m, t, k);
-	if (opts().problem == MARSHAK) {
-		opts().code_to_g = 1.0;
-		opts().code_to_s = 1.0;
-		opts().code_to_cm = 1.0;
-	} else {
-		opts().code_to_cm = l;
-		opts().code_to_g = m;
-		opts().code_to_s = t;
-	}
+
+	opts().code_to_cm = l;
+	opts().code_to_g = m;
+	opts().code_to_s = t;
+
 }
 
 void normalize_constants() {
@@ -132,15 +123,11 @@ void normalize_constants() {
 		printf("A = %e | B = %e | G = %e | kb = %e | c = %e | mh = %e | sigma = %e | h = %e\n", physcon().A, physcon().B, physcon().G, physcon().kb,
 				physcon().c, physcon().mh, physcon().sigma, physcon().h);
 	}
-	if (opts().problem == MARSHAK) {
-		opts().code_to_g = 1.0;
-		opts().code_to_s = 1.0;
-		opts().code_to_cm = 1.0;
-	} else {
-		opts().code_to_g = 1.0 / m;
-		opts().code_to_s = 1.0 / t;
-		opts().code_to_cm = 1.0 / l;
-	}
+
+	opts().code_to_g = 1.0 / m;
+	opts().code_to_s = 1.0 / t;
+	opts().code_to_cm = 1.0 / l;
+
 }
 
 void set_units(real m, real l, real t, real k) {
@@ -353,17 +340,5 @@ real stellar_rho_from_enthalpy_mu_s(real h, real mu, real s) {
 	return rho;
 }
 
-void rad_coupling_vars(real rho, real e, real mmw, real &bp, real &kp, real &dkpde, real &dbde) {
-	constexpr const real gm1 = 2.0 / 3.0;
-	constexpr real pi_inv = 1.0 / M_PI;
-	constexpr real coeff = 30.262 * 4.0e+25;
-	const real Z = 0.0;
-	const real einv = 1.0 / e;
-	const real T = (gm1 * mmw * physcon().mh / physcon().kb) * (e / rho);
-	kp = coeff * (Z + 0.0001) * rho * rho * std::pow(T, -3.5);
-	dkpde = -3.5 * kp * einv;
-	bp = physcon().sigma * pi_inv * std::pow(T, 4.0);
-	dbde = 4.0 * bp * einv;
-}
 
 #endif

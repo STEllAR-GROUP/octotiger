@@ -5,7 +5,7 @@
 #include "octotiger/node_registry.hpp"
 
 #include <ctime>
-#include <hpx/runtime/threads/run_as_os_thread.hpp>
+#include <hpx/modules/runtime_local.hpp>
 #include <cerrno>
 
 #include <sys/stat.h>
@@ -365,7 +365,8 @@ void output_stage4(std::string fname, int cycle) {
 		fr(db, "omega", grid::get_omega() / opts().code_to_s);
 		fr(db, "output_frequency", opts().output_dt);
 		fi(db, "problem", integer(opts().problem));
-		fi(db, "radiation", integer(opts().radiation));
+		// Keep the legacy metadata field for non-radiative restart compatibility.
+		fi(db, "radiation", integer(0));
 		fr(db, "refinement_floor", opts().refinement_floor);
 		fr(db, "cgs_time", dtime);
 		fr(db, "rotational_time", rtime);

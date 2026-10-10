@@ -6,7 +6,6 @@
 #pragma once
 #if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)
 
-#define BOOST_NO_CXX11_ALLOCATOR
 #define CUDA_API_PER_THREAD_DEFAULT_STREAM
 #include <hpx/async_cuda/cuda_executor.hpp>
 

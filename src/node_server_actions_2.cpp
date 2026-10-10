@@ -17,7 +17,7 @@
 
 #include <hpx/include/lcos.hpp>
 #include <hpx/include/run_as.hpp>
-#include <hpx/runtime/get_colocation_id.hpp>
+#include <hpx/modules/async_colocated.hpp>
 #include <hpx/serialization/list.hpp>
 
 #include <cerrno>
@@ -129,7 +129,7 @@ future<hpx::id_type> node_server::copy_to_locality(const hpx::id_type &id) {
 		}
 	}
 	auto rc = hpx::new_<node_server>(id, my_location, step_num, bool(is_refined), current_time, rotational_time, child_descendant_count, std::move(*grid_ptr),
-			cids, std::size_t(hcycle), std::size_t(rcycle), std::size_t(gcycle), position);
+			cids, std::size_t(hcycle), std::size_t(gcycle), position);
 	clear_family();
 	parent = hpx::invalid_id;
 	std::fill(neighbors.begin(), neighbors.end(), hpx::invalid_id);
@@ -172,18 +172,8 @@ analytic_t node_server::compare_analytic() {
 			vol *= 2.0 * opts().xscale;
 		}
 		int nfields = opts().n_fields;
-		int top = opts().n_fields;
-		if( opts().radiation) {
-			nfields += NRF;
-		}
 		for (integer field = 0; field != opts().n_fields; ++field) {
 			printf("%16s %e %e %e\n", physics<3>::field_names3[field], a.l1[field] / vol, std::sqrt(a.l2[field] / vol), a.linf[field]);
-		}
-		if( opts().radiation) {
-			printf("%16s %e %e %e\n", "er", a.l1[top+0] / vol, std::sqrt(a.l2[top+0] / vol), a.linf[top+0]);
-			printf("%16s %e %e %e\n", "fx", a.l1[top+1] / vol, std::sqrt(a.l2[top+1] / vol), a.linf[top+1]);
-			printf("%16s %e %e %e\n", "fy", a.l1[top+2] / vol, std::sqrt(a.l2[top+2] / vol), a.linf[top+2]);
-			printf("%16s %e %e %e\n", "fz", a.l1[top+3] / vol, std::sqrt(a.l2[top+3] / vol), a.linf[top+3]);
 		}
 		const auto ml = opts().max_level;
 		const auto dxmin = 2.0 * opts().xscale / INX / double(1 << ml);

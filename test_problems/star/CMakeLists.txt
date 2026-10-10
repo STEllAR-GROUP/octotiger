@@ -15,7 +15,7 @@
 function(test_star_scenario test_name test_log_file kernel_parameters)
   # Run test
   add_test(NAME ${test_name}
-    COMMAND sh -c "${PROJECT_BINARY_DIR}/octotiger --config_file=${PROJECT_SOURCE_DIR}/test_problems/star/star.ini ${kernel_parameters} | tee ${test_log_file}")
+    COMMAND sh -c "${PROJECT_BINARY_DIR}/octotiger --config_file=${PROJECT_SOURCE_DIR}/test_problems/star/star.ini ${kernel_parameters} > ${test_log_file}")
   set_tests_properties(${test_name} PROPERTIES
     FIXTURES_SETUP ${test_name})
 
@@ -58,10 +58,10 @@ function(test_star_scenario test_name test_log_file kernel_parameters)
   # Analyze test log file: silodiff 
   add_test(NAME ${test_name}.diff
     COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-11
-     ${PROJECT_SOURCE_DIR}/octotiger-testdata/star_with_eos_ipr.silo ${PROJECT_BINARY_DIR}/test_problems/star/final.silo.data/0.silo)
+     ${OCTOTIGER_TESTDATA_DIR}/star_with_eos_ipr.silo ${PROJECT_BINARY_DIR}/test_problems/star/final.silo.data/0.silo)
   set_tests_properties(${test_name}.diff PROPERTIES
     FIXTURES_REQUIRED ${test_name}
-    FAIL_REGULAR_EXPRESSION "(egas|gx|gy|gz|pot|rho_1|sx|sy|sy|tau).vals")
+    FAIL_REGULAR_EXPRESSION "(egas|gx|gy|gz|pot|rho_1|sx|sy|sz|tau)[.]vals|appears only in file")
 
   # Cleanup
   add_test(${test_name}.fixture_cleanup ${CMAKE_COMMAND} -E remove ${PROJECT_BINARY_DIR}/test_problems/star/final.silo ${PROJECT_BINARY_DIR}/test_problems/star/final.silo.data/0.silo ${test_log_file})
@@ -76,5 +76,4 @@ if (OCTOTIGER_WITH_GRIDDIM EQUAL 8)
 
 # TODO Add CUDA/HIP/KOKKOS tests as the kernels get ported...
 endif()
-
 

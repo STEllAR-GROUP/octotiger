@@ -1,0 +1,464 @@
+diff --git a/build-stack.py b/build-stack.py
+new file mode 100644
+index 0000000..3ddcc27
+--- /dev/null
++++ b/build-stack.py
+@@ -0,0 +1,312 @@
++#!/usr/bin/env python3
++"""Build the locked Octotiger stack using a job-private Spack repository."""
++import argparse
++import ast
++import contextlib
++import copy
++import fcntl
++import hashlib
++import json
++import os
++from pathlib import Path
++import re
++import shlex
++import shutil
++import subprocess
++import sys
++import time
++
++GCC_VERSION = "13.2.0"
++CORE_PACKAGES = ("hpx", "kokkos", "hpx-kokkos", "cppuddle", "silo")
++COMPILER_QUERY = """
++import json, spack.compilers, spack.platforms
++host = spack.platforms.host()
++print(json.dumps({"os": str(host.operating_system("default_os")),
++                 "compilers": spack.compilers.all_compilers_config(init_config=False)}))
++"""
++
++
++def digest(path):
++    return hashlib.sha256(path.read_bytes()).hexdigest()
++
++
++def write_json(path, value):
++    path.write_text(json.dumps(value, indent=2) + "\n")
++
++
++def checked_jobs(value, env):
++    jobs = int(value)
++    available = os.cpu_count() or 1
++    if hasattr(os, "sched_getaffinity"):
++        available = min(available, len(os.sched_getaffinity(0)))
++    if env.get("SLURM_CPUS_PER_TASK"):
++        allocated = int(env["SLURM_CPUS_PER_TASK"])
++        available = min(available, allocated)
++    elif not env.get("SLURM_JOB_ID"):
++        available = min(available, max(1, (os.cpu_count() or 1) // 2))
++    if jobs < 1 or jobs > available:
++        raise ValueError("--jobs must be between 1 and the CPU limit ({})".format(available))
++    return jobs
++
++
++def build_environment(env, jobs):
++    env = dict(env)
++    # Never inherit the legacy PowerTiger C++14/fast-math/compiler overrides.
++    for key in ("CC", "CXX", "FC", "F77", "CFLAGS", "CXXFLAGS", "CPPFLAGS",
++                "FFLAGS", "FCFLAGS", "LDFLAGS", "LDLIBS", "MAKEFLAGS", "MFLAGS",
++                "CUDACXX", "CUDAHOSTCXX", "NVCC_WRAPPER_DEFAULT_COMPILER",
++                "NVCC_WRAPPER_DEFAULT_COMPILER_FLAGS"):
++        env.pop(key, None)
++    env.update({"HPX_NUM_WORKER_THREADS": str(jobs), "OMP_NUM_THREADS": "1",
++                "OPENBLAS_NUM_THREADS": "1", "CTEST_PARALLEL_LEVEL": "1",
++                "CMAKE_BUILD_PARALLEL_LEVEL": str(jobs)})
++    return env
++
++
++def stage(stack, source, jobs):
++    lock_path = stack / "stack-lock.json"
++    lock = json.loads(lock_path.read_text())
++    if lock.get("schema_version") != 1:
++        raise ValueError("Unsupported stack-lock schema")
++    patches = []
++    for name in CORE_PACKAGES:
++        item = lock["sources"][name]
++        if not re.fullmatch(r"[0-9a-f]{40}", item["commit"]):
++            raise ValueError("Invalid commit for " + name)
++        if name == "kokkos" and item["patches"]:
++            raise ValueError("This stack requires pristine Kokkos")
++        for patch in item["patches"]:
++            path = stack / patch["file"]
++            if path.parent != stack or path.is_symlink() or digest(path) != patch["sha256"]:
++                raise ValueError("Invalid patch or checksum: " + patch["file"])
++            patches.append((name, path))
++    for name in CORE_PACKAGES:
++        recipe = stack / "repo/packages" / name / "package.py"
++        calls = [node for node in ast.walk(ast.parse(recipe.read_text()))
++                 if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
++                 and node.func.id == "version"]
++        commits = [ast.literal_eval(key.value) for call in calls for key in call.keywords
++                   if key.arg == "commit"]
++        if commits != [lock["sources"][name]["commit"]]:
++            raise ValueError("Private recipe commit differs from lock: " + name)
++    for name in CORE_PACKAGES + ("octotiger",):
++        if not (stack / "repo/packages" / name / "package.py").is_file():
++            raise ValueError("Missing private recipe: " + name)
++    output = source / ".jenkins-spack-overlay"
++    if output.is_symlink():
++        raise ValueError("Refusing symlink overlay directory")
++    output.mkdir(exist_ok=True)
++    repo = output / "repo"
++    if repo.is_symlink():
++        raise ValueError("Refusing symlink repository directory")
++    if repo.exists():
++        shutil.rmtree(str(repo))
++    shutil.copytree(str(stack / "repo"), str(repo))
++    for name, patch in patches:
++        shutil.copyfile(str(patch), str(repo / "packages" / name / patch.name))
++    config = output / "config"
++    if config.is_symlink():
++        raise ValueError("Refusing symlink configuration directory")
++    config.mkdir(exist_ok=True)
++    write_json(config / "repos.yaml", {"repos": [str(repo)]})
++    # Jenkins recreates each row's checkout. Override the site's shared stages,
++    # where interrupted builds can leave sources marked as already extracted.
++    write_json(config / "config.yaml", {"config": {"misc_cache": str(output / "cache"),
++                                                   "build_stage:": [str(output / "stage")],
++                                                   "build_jobs": jobs}})
++    write_json(config / "concretizer.yaml", {"concretizer": {"reuse": False}})
++    # Keep site settings for supporting packages, but never use external core libraries.
++    (config / "packages.yaml").write_text("packages:\n" + "".join(
++        "  {}:\n    externals:: []\n    buildable: true\n".format(name)
++        for name in CORE_PACKAGES))
++    write_json(config / "compilers.yaml", {"compilers": []})
++    manifest = {"stack_lock_sha256": digest(lock_path), "jobs": jobs,
++                "sources": lock["sources"], "repo": str(repo),
++                "recipes": {str(p.relative_to(repo)): digest(p)
++                            for p in sorted(repo.rglob("*")) if p.is_file()}}
++    write_json(output / "manifest.json", manifest)
++    shutil.copyfile(str(lock_path), str(output / "stack-lock.json"))
++    return output, config, manifest
++
++
++class Spack:
++    def __init__(self, executable, config, source, env):
++        self.executable, self.config, self.source, self.env = executable, config, source, env
++
++    def run(self, *args, capture=False, verbose=False, timeout=None):
++        command = [self.executable]
++        if verbose:
++            command.append("-v")
++        command += ["-C", str(self.config)] + list(args)
++        print("PowerTiger: " + " ".join(shlex.quote(x) for x in command), flush=True)
++        result = subprocess.run(command, cwd=str(self.source), env=self.env, check=True,
++                                stdout=subprocess.PIPE if capture else None,
++                                universal_newlines=True, timeout=timeout)
++        return result.stdout.strip() if capture else None
++
++
++def compiler_record(cc, cxx, version, os_name):
++    return {"compiler": {"spec": "gcc@" + version,
++                         "paths": {"cc": str(cc), "cxx": str(cxx), "f77": None, "fc": None},
++                         "flags": {}, "operating_system": os_name, "target": "x86_64",
++                         "modules": [], "environment": {}, "extra_rpaths": []}}
++
++
++def compiler_version(path, env):
++    if not path or not os.path.isfile(path) or not os.access(path, os.X_OK):
++        return None
++    try:
++        result = subprocess.run([str(path), "-dumpfullversion", "-dumpversion"],
++                                env=env, check=True, stdout=subprocess.PIPE,
++                                stderr=subprocess.PIPE, universal_newlines=True, timeout=15)
++        return result.stdout.strip()
++    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
++        return None
++
++
++def probe_cxx(path, env):
++    source = "#include <concepts>\n#include <span>\nstatic_assert(std::same_as<int, int>);\nint f(std::span<int> x) { return x[0]; }\n"
++    try:
++        subprocess.run([str(path), "-std=c++20", "-x", "c++", "-fsyntax-only", "-"],
++                       input=source, env=env, check=True, stdout=subprocess.PIPE,
++                       stderr=subprocess.PIPE, universal_newlines=True, timeout=30)
++        return True
++    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
++        return False
++
++
++def find_gcc(records, wanted, os_name, env, extra=()):
++    candidates = [(cc, cxx, None) for cc, cxx in extra]
++    for record in records:
++        c = record["compiler"]
++        if c["spec"].startswith("gcc@"):
++            candidates.append((c["paths"].get("cc"), c["paths"].get("cxx"), c))
++    for suffix in ("", "-13", "-11"):
++        candidates.append((shutil.which("gcc" + suffix, path=env.get("PATH")),
++                           shutil.which("g++" + suffix, path=env.get("PATH")), None))
++    seen = set()
++    for cc, cxx, original in candidates:
++        if (cc, cxx) in seen:
++            continue
++        seen.add((cc, cxx))
++        version = compiler_version(cc, env)
++        if version and (version == wanted or (wanted == "11" and version.startswith("11."))):
++            if compiler_version(cxx, env) == version and probe_cxx(cxx, env):
++                selected = compiler_record(cc, cxx, version, os_name)
++                if original is not None:
++                    for key in ("modules", "environment", "extra_rpaths", "implicit_rpaths"):
++                        if key in original:
++                            selected["compiler"][key] = copy.deepcopy(original[key])
++                return selected
++    return None
++
++
++@contextlib.contextmanager
++def bootstrap_lock(path, wait=7200):
++    path.parent.mkdir(parents=True, exist_ok=True)
++    with path.open("a") as handle:
++        end = time.monotonic() + wait
++        while True:
++            try:
++                fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
++                break
++            except BlockingIOError:
++                if time.monotonic() >= end:
++                    raise TimeoutError("GCC bootstrap lock wait exceeded 120 minutes")
++                time.sleep(1)
++        try:
++            yield
++        finally:
++            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
++
++
++def query_compilers(spack):
++    # Spack's -c uses InteractiveConsole's single-statement mode, unlike
++    # python -c. exec() keeps this multiline program one complete statement.
++    return json.loads(spack.run("python", "-c", "exec(" + repr(COMPILER_QUERY) + ")",
++                                capture=True))
++
++
++def ensure_gcc(spack, jobs, bootstrap):
++    data = query_compilers(spack)
++    records, os_name = data["compilers"], data["os"]
++    selected = find_gcc(records, GCC_VERSION, os_name, spack.env)
++    private = spack.config / "compilers.yaml"
++    if selected:
++        write_json(private, {"compilers": [selected]})
++        return selected
++    seed = find_gcc(records, "11", os_name, spack.env)
++    write_json(private, {"compilers": [seed] if seed else []})
++    saved = bootstrap / "gcc-13.2.0.json"
++    print("PowerTiger: waiting for shared GCC13.2.0 bootstrap lock", flush=True)
++    with bootstrap_lock(bootstrap / "gcc-13.2.0.lock"):
++        if saved.is_file():
++            old = json.loads(saved.read_text())["compiler"]["paths"]
++            selected = find_gcc([], GCC_VERSION, os_name, spack.env,
++                                [(old["cc"], old["cxx"])])
++        if not selected:
++            if not seed:
++                raise RuntimeError("GCC13.2.0 missing and no runnable GCC11 C/C++ bootstrap compiler found")
++            gcc_spec = ["gcc@13.2.0", "languages=c,c++", "target=x86_64", "%gcc@11"]
++            concrete = json.loads(spack.run("spec", "--fresh", "--json", *gcc_spec, capture=True))
++            root = concrete["spec"]["nodes"][0]
++            dag_hash = root["hash"]
++            if root["name"] != "gcc" or not re.fullmatch(r"[a-z0-9]{32}", dag_hash):
++                raise ValueError("Unexpected concrete GCC bootstrap spec")
++            concrete_path = spack.config.parent / "gcc-bootstrap-spec.json"
++            write_json(concrete_path, concrete)
++            spack.run("install", "--fail-fast", "--no-cache", "-j", str(jobs),
++                      "--file", str(concrete_path), verbose=True)
++            prefix = Path(spack.run("location", "-i", "/" + dag_hash, capture=True))
++            selected = find_gcc([], GCC_VERSION, os_name, spack.env,
++                                [(str(prefix / "bin/gcc"), str(prefix / "bin/g++"))])
++            if not selected:
++                raise RuntimeError("Installed GCC13.2.0 compiler paths failed version verification")
++            write_json(saved, selected)
++        write_json(private, {"compilers": [selected] + ([seed] if seed else [])})
++    return selected
++
++
++def main(argv=None):
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--stack-dir", required=True, type=Path)
++    parser.add_argument("--source", required=True, type=Path)
++    parser.add_argument("--spec", required=True)
++    parser.add_argument("--jobs", required=True, type=int)
++    parser.add_argument("--dirty", action="store_true")
++    args = parser.parse_args(argv)
++    if not args.stack_dir.is_absolute() or not args.source.is_absolute():
++        parser.error("--stack-dir and --source must be absolute paths")
++    stack, source = args.stack_dir.resolve(), args.source.resolve()
++    if not (source / "CMakeLists.txt").is_file():
++        parser.error("--source must contain the Octotiger checkout")
++    jobs = checked_jobs(args.jobs, os.environ)
++    spec = shlex.split(args.spec)
++    if not spec or not spec[0].startswith("octotiger@") or any(x.startswith("-") for x in spec):
++        parser.error("--spec must be one versioned Octotiger spec, without CLI options")
++    executable = shutil.which("spack")
++    if not executable:
++        raise RuntimeError("spack must be available on PATH")
++    output, config, manifest = stage(stack, source, jobs)
++    env = build_environment(os.environ, jobs)
++    spack = Spack(executable, config, source, env)
++    manifest.update({"spec": args.spec, "spack_version": spack.run("--version", capture=True)})
++    if re.search(r"%gcc@13\.2\.0(?![0-9.])", args.spec) or "+sycl" in args.spec:
++        bootstrap = Path(env.get("POWERTIGER_BOOTSTRAP_DIR", str(source.parent / ".powertiger-bootstrap"))).resolve()
++        manifest["gcc_compiler"] = ensure_gcc(spack, jobs, bootstrap)
++    write_json(output / "manifest.json", manifest)
++    spack.run("spec", "--fresh", *spec)
++    command = ["dev-build", "--fresh", "-j", str(jobs), "--until", "build", "--test=root"]
++    if args.dirty:
++        command.append("--dirty")
++    spack.run(*(command + spec), verbose=True)
++    return 0
++
++
++if __name__ == "__main__":
++    try:
++        sys.exit(main())
++    except (OSError, ValueError, RuntimeError, subprocess.CalledProcessError,
++            subprocess.TimeoutExpired) as error:
++        print("PowerTiger failed: " + str(error), file=sys.stderr, flush=True)
++        sys.exit(1)
+diff --git a/README.md b/README.md
+new file mode 100644
+index 0000000..62f449b
+--- /dev/null
++++ b/README.md
+@@ -0,0 +1,67 @@
++# PowerTiger
++
++`build-stack.py` builds the pinned Octotiger dependency stack using the Spack
++installation provided by the build machine. It is the maintained entry point;
++the older `build-*.sh` scripts describe a historical GCC 8/C++14 environment and
++are not invoked by this driver.
++
++## Building the locked stack
++
++Provide an Octotiger checkout and its `.jenkins/lsu/hpx2rc` bundle:
++
++```sh
++python3 build-stack.py \
++  --stack-dir /absolute/path/octotiger/.jenkins/lsu/hpx2rc \
++  --source /absolute/path/octotiger \
++  --spec 'octotiger@develop %gcc@13.2.0 +kokkos ~cuda ~rocm ~sycl' \
++  --jobs 4
++```
++
++Use the complete Jenkins matrix spec to select its existing backend and test
++parameters. `--dirty` forwards Spack's dirty-environment option when a site
++requires it. Compiler and floating-point flags from the legacy shell scripts
++are cleared in either mode; module paths and GPU visibility settings remain.
++The job count must fit the current CPU affinity and Slurm CPUs per task. Outside
++Slurm, the driver also caps a run at half the machine's logical CPUs; callers
++must still reserve that budget across simultaneous local work.
++
++The driver verifies the bundle's patch hashes and core recipe commit pins,
++then stages recipes and adjacent patches in
++`SOURCE/.jenkins-spack-overlay/repo`. A private configuration directory contains
++repository precedence, compiler registrations, the job count, and an isolated
++Spack metadata cache. Dependency source and build stages are isolated under
++`SOURCE/.jenkins-spack-overlay/stage`; Jenkins recreates each row's checkout
++before a run. Installed packages and downloaded source archives still use the
++site's shared caches. It preserves site configuration for supporting packages,
++but disallows external HPX, Kokkos, HPXKokkos, CPPuddle, and Silo. The manifest records
++exact recipe hashes, source pins, selected compiler, and requested spec.
++Nothing is written to the site's compiler configuration. Kokkos has no source
++patches in this stack. HPX applies its locked stdexec patches internally.
++
++## GCC bootstrap
++
++For `%gcc@13.2.0` or SYCL specs, existing configured compiler paths are checked
++for an executable GCC/G++ 13.2.0 pair, checked with a bounded C++20
++`<concepts>`/`<span>` syntax probe, and registered with the operating system
++reported on the current node. This permits a valid compiler previously
++registered under an older OS name to be used without editing central settings.
++Clang-only specs do not force a GCC bootstrap.
++
++If needed, Spack builds `gcc@13.2.0 languages=c,c++ target=x86_64 %gcc@11` from
++source with the same bounded job count. A runnable GCC11 pair is required;
++Fortran is not built. A shared file lock serializes that bootstrap, with a
++maximum lock wait of 120 minutes. The default coordination directory is
++`SOURCE/../.powertiger-bootstrap`; set `POWERTIGER_BOOTSTRAP_DIR` to a shared
++absolute path when matrix checkouts do not share a parent directory. The
++compiler itself lives in Spack's existing installation tree. The bootstrap
++record stores only verified compiler paths; each node checks them again.
++
++Finally, the driver runs a fresh Spack concretization and `dev-build` through
++the build phase with root-package tests enabled and verbose output. Test
++failures propagate. The Octotiger recipe controls the full CTest suite and its
++per-test timeout; this driver does not remove tests or adjust tolerances.
++
++The checked-in lock describes successful local GCC13/Clang21/CUDA12.8 results.
++Other compilers, architectures, and HIP/SYCL configurations require their own
++Jenkins validation. Staging and mocked-driver checks do not establish build or
++runtime success.
+diff --git a/tests/check-spack-compiler-query.py b/tests/check-spack-compiler-query.py
+new file mode 100644
+index 0000000..94dfd7f
+--- /dev/null
++++ b/tests/check-spack-compiler-query.py
+@@ -0,0 +1,67 @@
++#!/usr/bin/env python3
++"""Exercise the production compiler query against an actual Spack CLI.
++
++No compiler probes, concretization, downloads, or builds are performed.
++"""
++import argparse
++import contextlib
++import importlib.util
++import io
++import json
++import os
++from pathlib import Path
++import subprocess
++import tempfile
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--spack", type=Path, required=True)
++    parser.add_argument("--output", type=Path)
++    args = parser.parse_args()
++    path = Path(__file__).resolve().parent.parent / "build-stack.py"
++    module_spec = importlib.util.spec_from_file_location("powertiger_driver", str(path))
++    driver = importlib.util.module_from_spec(module_spec)
++    module_spec.loader.exec_module(driver)
++    with tempfile.TemporaryDirectory(prefix="powertiger-query-") as directory:
++        root = Path(directory)
++        config = root / "config"
++        config.mkdir()
++        driver.write_json(config / "config.yaml", {"config": {"misc_cache": str(root / "cache"),
++                                                               "build_jobs": 1}})
++        # A private fixture record ensures the query actually reads this scope.
++        fixture = driver.compiler_record("/powertiger-fixture/gcc", "/powertiger-fixture/g++",
++                                         "13.2.0", "powertiger-test-os")
++        driver.write_json(config / "compilers.yaml", {"compilers": [fixture]})
++        env = driver.build_environment(dict(os.environ, PYTHONDONTWRITEBYTECODE="1"), 1)
++        spack = driver.Spack(str(args.spack.resolve()), config, root, env)
++        failed = subprocess.run([spack.executable, "-C", str(config), "python", "-c",
++                                 driver.COMPILER_QUERY], cwd=str(root), env=env,
++                                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
++                                universal_newlines=True, timeout=60)
++        assert failed.returncode != 0, "Old multiline invocation unexpectedly succeeded"
++        assert "multiple statements found while compiling a single statement" in failed.stderr
++        log = io.StringIO()
++        with contextlib.redirect_stdout(log):
++            actual = driver.query_compilers(spack)
++        assert actual["os"] and isinstance(actual["os"], str)
++        assert fixture in actual["compilers"], "Private compiler scope was not read"
++        expression = "exec(" + repr(driver.COMPILER_QUERY) + ")"
++        compile(expression, "<production-spack-query>", "single")
++        result = {"checks_passed": 4,
++                  "checks": ["Original production query reproduces real Spack SyntaxError",
++                             "Corrected production query succeeds through real Spack CLI",
++                             "Corrected query reads job-private compiler configuration",
++                             "Corrected expression is one InteractiveConsole statement"],
++                  "spack_version": spack.run("--version", capture=True),
++                  "detected_os": actual["os"],
++                  "old_query_exit_code": failed.returncode,
++                  "production_command": log.getvalue().strip(),
++                  "driver_sha256": driver.digest(path)}
++        if args.output:
++            driver.write_json(args.output, result)
++        print(json.dumps(result, indent=2))
++
++
++if __name__ == "__main__":
++    main()

@@ -132,7 +132,7 @@ namespace fmm {
                 update_input(monopoles, neighbors, type, local_monopoles, 
                     grid_ptr);
 
-                hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
+                hpx::post(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                     cudaMemcpyAsync, device_local_monopoles.device_side_buffer,
                     local_monopoles.data(), local_monopoles_size, cudaMemcpyHostToDevice);
 
@@ -180,7 +180,7 @@ namespace fmm {
                     // Same for all p2m kernel types
                     device_buffer_t<double> device_erg_corrs(NUMBER_ANG_CORRECTIONS, device_id);
                     if (type == RHO)
-                      hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
+                      hpx::post(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                           cudaMemsetAsync, device_erg_corrs.device_side_buffer, 0,
                           (INNER_CELLS + SOA_PADDING) * 3 * sizeof(double));
                     // Convert and move inner cells coms to device
@@ -197,7 +197,7 @@ namespace fmm {
                         });
                     device_buffer_t<double> center_of_masses_inner_cells(
                         (INNER_CELLS + SOA_PADDING) * 3, device_id);
-                    hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
+                    hpx::post(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                         cudaMemcpyAsync, center_of_masses_inner_cells.device_side_buffer,
                         center_of_masses_inner_cells_staging_area.get_pod(),
                         (INNER_CELLS + SOA_PADDING) * 3 * sizeof(double), cudaMemcpyHostToDevice);
@@ -357,7 +357,7 @@ namespace fmm {
                             // uses a different input buffer and a different launch size 
                             // Otherwise the launches are identical
                             if (size == INX * INX * STENCIL_MAX) {
-                                hpx::apply(
+                                hpx::post(
                                     static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                                     cudaMemcpyAsync,
                                     (local_expansions_type1.device_side_buffer) +
@@ -367,7 +367,7 @@ namespace fmm {
                                         .get_pod(),
                                     (buffer_size_kernel_type1 + SOA_PADDING) * 20 * sizeof(double),
                                     cudaMemcpyHostToDevice);
-                                hpx::apply(
+                                hpx::post(
                                     static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                                     cudaMemcpyAsync,
                                     center_of_masses_type1.device_side_buffer +
@@ -392,7 +392,7 @@ namespace fmm {
 
                                 counter_kernel_type1++;
                             } else if (size == INX * STENCIL_MAX * STENCIL_MAX) {
-                                hpx::apply(
+                                hpx::post(
                                     static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                                     cudaMemcpyAsync,
                                     (local_expansions_type2.device_side_buffer) +
@@ -402,7 +402,7 @@ namespace fmm {
                                         .get_pod(),
                                     (buffer_size_kernel_type2 + SOA_PADDING) * 20 * sizeof(double),
                                     cudaMemcpyHostToDevice);
-                                hpx::apply(
+                                hpx::post(
                                     static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                                     cudaMemcpyAsync,
                                     center_of_masses_type2.device_side_buffer +
@@ -426,7 +426,7 @@ namespace fmm {
                                     cells_start, cells_end);
                                 counter_kernel_type2++;
                             } else if (size == STENCIL_MAX * STENCIL_MAX * STENCIL_MAX) {
-                                hpx::apply(
+                                hpx::post(
                                     static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                                     cudaMemcpyAsync,
                                     (local_expansions_type3.device_side_buffer) +
@@ -436,7 +436,7 @@ namespace fmm {
                                         .get_pod(),
                                     (buffer_size_kernel_type3 + SOA_PADDING) * 20 * sizeof(double),
                                     cudaMemcpyHostToDevice);
-                                hpx::apply(
+                                hpx::post(
                                     static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                                     cudaMemcpyAsync,
                                     center_of_masses_type3.device_side_buffer +
@@ -467,7 +467,7 @@ namespace fmm {
                     // as they share their results buffers
                     cuda_angular_result_t angular_corrections_SoA;
                     if (type == RHO) {
-                        hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
+                        hpx::post(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                             cudaMemcpyAsync, angular_corrections_SoA.get_pod(),
                             device_erg_corrs.device_side_buffer, angular_corrections_size,
                             cudaMemcpyDeviceToHost);

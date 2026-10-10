@@ -6,6 +6,7 @@
 #if !defined(DEFS_HPP_)
 #define DEFS_HPP_
 
+#include "octotiger/debug.hpp"
 #include "octotiger/real.hpp"
 
 #include <array>
@@ -15,7 +16,6 @@
 //#define FACES_ONLY
 //#define CHECK_FLUXES
 
-constexpr double MARSHAK_OPAC = 1.0e+2;
 //#define OCTOTIGER_RESTART_LOAD_SEQ
 
 //#define OCTOTIGER_USE_NODE_CACHE
@@ -37,10 +37,8 @@ constexpr int REFINE_BW = 2;
 
 
 //#define EXPERIMENT
-constexpr int NRF = 7;
 
 #define abort_error() printf( "Error in %s on line %i\n", __FILE__, __LINE__); abort()
-
 
 
 //#define USE_SIMD
@@ -83,7 +81,6 @@ enum gsolve_type {
 //constexpr integer L_POLES = M_POLES;
 
 
-
 //#define GRID_SIZE real(2.0)
 
 constexpr real DEFAULT_OMEGA = 0.0;
@@ -92,7 +89,6 @@ constexpr real DEFAULT_OMEGA = 0.0;
 
 #include "hydro_defs.hpp"
 
-constexpr integer R_BW = 3;
 
 constexpr integer HS_NX = (2 * H_BW + INX/2);
 constexpr integer G_NX = INX;
@@ -115,17 +111,6 @@ constexpr integer G_DNX = G_NX * G_NX;
 constexpr integer G_DNY = G_NX;
 constexpr integer G_DNZ = 1;
 constexpr integer G_DN[NDIM] = { G_NX * G_NX, G_NX, 1 };
-
-// Radiation {{{
-constexpr integer RAD_BW = 3;
-constexpr integer RAD_NX = INX + 2 * RAD_BW;
-constexpr integer RAD_N3 = RAD_NX * RAD_NX * RAD_NX;
-
-constexpr inline integer rindex(integer x, integer y, integer z)
-{
-    return z + RAD_NX * (y + RAD_NX * x);
-}
-// }}}
 
 
 constexpr integer vx_i = sx_i;
