@@ -9,7 +9,7 @@ The time integrator is selected with `--time_integrator`:
 
 The selection applies to hydrodynamics and its coupled gravity sources. It can
 also be set as `time_integrator = SSP_MULTISTEP` in a configuration file. Values
-are case-insensitive. Omitting the option preserves the existing integrator.
+are case-insensitive. For a fresh run, omitting the option preserves the existing integrator.
 
 For example:
 
@@ -17,7 +17,11 @@ For example:
 ./octotiger --config_file=problem.ini --time_integrator=SSP_MULTISTEP
 ```
 
-The option is chosen for each run, including runs restarted from Silo files.
+New SSP Silo checkpoints preserve the integrator and all state needed for
+exact continuation. If the option is omitted on restart, the checkpoint's SSP
+integrator is restored automatically. An explicitly conflicting integrator or
+incompatible solver configuration is rejected. Older Silo files without the
+lossless restart payload retain the legacy loading/bootstrap behavior.
 
 `SSP_MULTISTEP` implements the manuscript's two-step general linear method,
 retaining the previous state and its complete right-hand side, including gravity
@@ -33,9 +37,10 @@ and the forward-Euler limits from both the current and cached derivatives:
 existing `cfl * dx / wavespeed` calculation. As with SSPRK3, the SSP guarantee
 requires that the spatial operator is stable under this forward-Euler bound.
 
-The first step of every batch uses RK3 to initialize the history. This also
-resets history around regridding, migration, and restarts. A step whose history
-or timestep ratio is unsuitable uses RK3. The log reports
+The first step at each scheduled batch boundary uses RK3 to initialize history
+after regridding. Migration preserves histories. Restarting inside a batch
+continues with the saved history and original batch phase; it does not add an
+RK3 startup step. A step whose history or timestep ratio is unsuitable uses RK3. The log reports
 `SSP_MULTISTEP stages=2 alpha=...` for multistep updates and `stages=3` for RK3
 startup or fallback. Two stages reduce right-hand-side evaluations on those
 steps; timestep restrictions and startup frequency determine the total cost.

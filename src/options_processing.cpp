@@ -232,7 +232,7 @@ bool options::process_options(int argc, char *argv[]) {
 		} else {
 			fclose(fp);
 		}
-		load_options_from_silo(opts().restart_filename);
+		load_options_from_silo(opts().restart_filename, nullptr, vm["time_integrator"].defaulted());
 	}
     if (opts().executors_per_gpu > 0 && opts().number_gpus == 0) {
         opts().number_gpus = 1;

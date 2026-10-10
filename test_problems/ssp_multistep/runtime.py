@@ -13,6 +13,8 @@ import subprocess
 import sys
 import tempfile
 
+from silo_snapshot import SiloSnapshot, compare_checkpoints
+
 
 # Field ordering from octotiger/hydro_defs.hpp. These runs use one species.
 RHO, EGAS, TAU, POT, SX, SY, SZ, SPECIES = 0, 1, 2, 3, 4, 5, 6, 10
@@ -55,15 +57,16 @@ def compare_tables(left, right, description, rel_tol=2.0e-12, abs_tol=2.0e-12):
 
 
 def run_case(executable, scenario, integrator, directory, timeout, *,
-             step_count=N_STEPS, start_time=0.0, write_checkpoint=False,
-             restart_from=None, integrator_from_config=False):
+             step_count=N_STEPS, start_time=0.0, start_step=0, stop_time=1.0,
+             write_checkpoint=False, restart_from=None, integrator_from_config=False,
+             expected_integrator=None, code_units=None, omega=0.0):
     directory.mkdir()
     if restart_from is not None:
         # Silo mesh references are relative to the run directory.
-        checkpoint = directory / "restart.silo"
+        checkpoint = directory / restart_from.name
         shutil.copy2(restart_from, checkpoint)
-        shutil.copytree(restart_from.parent / "final.silo.data",
-                        directory / "final.silo.data")
+        shutil.copytree(restart_from.parent / (restart_from.name + ".data"),
+                        directory / (restart_from.name + ".data"))
     command = [
         str(executable), "--hpx:threads=2",
         "--hpx:ini=hpx.threadpools.io_pool_size=1",
@@ -73,13 +76,18 @@ def run_case(executable, scenario, integrator, directory, timeout, *,
         "--problem=SOD", "--eos=IDEAL",
         f"--gravity={'on' if scenario == 'gravity' else 'off'}", "--hydro=on",
         "--min_level=1", "--max_level=1", "--n_species=1", "--cfl=0.4",
-        f"--hard_dt={HARD_DT}", f"--stop_step={step_count - 1}", "--stop_time=1",
+        f"--hard_dt={HARD_DT}", f"--stop_step={step_count - 1}", f"--stop_time={stop_time}",
         f"--disable_output={'off' if write_checkpoint else 'on'}", "--disable_analytic=on", "--disable_diagnostics=off",
-        "--omega=0", "--theta=0.5", "--number_gpus=0", "--executors_per_gpu=0",
+        "--theta=0.5", "--number_gpus=0", "--executors_per_gpu=0",
         "--hydro_host_kernel_type=LEGACY", "--hydro_device_kernel_type=OFF",
         "--multipole_host_kernel_type=LEGACY", "--multipole_device_kernel_type=OFF",
         "--monopole_host_kernel_type=LEGACY", "--monopole_device_kernel_type=OFF",
     ]
+    if omega is not None:
+        command.append(f"--omega={omega}")
+    if code_units is not None:
+        for unit, value in zip(("g", "cm", "s"), code_units):
+            command.append(f"--code_to_{unit}={value}")
     if integrator is not None:
         if integrator_from_config:
             configuration = directory / "config.ini"
@@ -99,13 +107,14 @@ def run_case(executable, scenario, integrator, directory, timeout, *,
     log = log_path.read_text()
     require(completed.returncode == 0,
             f"Octo-Tiger exited {completed.returncode}; inspect {log_path}\n{log[-4000:]}")
-    selected = integrator or "RK3"
+    selected = expected_integrator or integrator or "RK3"
     require(f"time_integrator = {selected}" in log,
             f"Integrator selection missing from {log_path}")
     completed_steps = re.findall(r"TS (\d+)::", log)
     require(completed_steps and int(completed_steps[-1]) == step_count,
             f"Did not complete {step_count} timesteps; inspect {log_path}")
-    require(len(completed_steps) == (step_count + 4) // 5,
+    expected_batches = (start_step + step_count + 4) // 5 - start_step // 5
+    require(len(completed_steps) == expected_batches,
             f"Unexpected number of regrid/batch boundaries; inspect {log_path}")
     stages = re.findall(r"SSP_MULTISTEP stages=(\d+) alpha=([^\s]+)", log)
     if selected == "SSP_MULTISTEP":
@@ -113,18 +122,23 @@ def run_case(executable, scenario, integrator, directory, timeout, *,
                 f"Expected {step_count} SSP stage reports, found {len(stages)} in {log_path}")
         require(any(stage == "2" for stage, _ in stages),
                 f"Multistep path was never used; inspect {log_path}")
-        require(any(stage == "3" for stage, _ in stages),
-                f"RK3 startup was never used; inspect {log_path}")
-        require(stages[0][0] == "3", f"First SSP step must initialize history: {log_path}")
+        if start_step % 5 == 0:
+            require(stages[0][0] == "3", f"Batch startup must initialize history: {log_path}")
+        else:
+            require(stages[0][0] == "2", f"Restart discarded active SSP history: {log_path}")
         require([int(stage) for stage, _ in stages] ==
-                [3 if step % 5 == 0 else 2 for step in range(step_count)],
+                [3 if step % 5 == 0 else 2
+                 for step in range(start_step, start_step + step_count)],
                 f"Unexpected startup/regrid stage sequence: {log_path}")
     else:
         require(not stages, f"Legacy integrator unexpectedly entered SSP path: {log_path}")
     sums = read_table(directory / "sums.dat", 1 + 2 * N_FIELDS + 3)
     profile = read_table(directory / "line.final.dat", N_FIELDS + 1)
     initial_profile = read_table(directory / "line.0.dat", N_FIELDS + 1)
-    require(math.isclose(sums[-1][0], start_time + step_count * HARD_DT, rel_tol=1.0e-12),
+    expected_time = start_time
+    for step in range(start_step, start_step + step_count):
+        expected_time += min(HARD_DT, (stop_time - expected_time) / (5 - step % 5))
+    require(math.isclose(sums[-1][0], expected_time, rel_tol=1.0e-12),
             f"Unexpected final time in {directory / 'sums.dat'}")
     for row in profile:
         density, energy, entropy = row[1 + RHO], row[1 + EGAS], row[1 + TAU]
@@ -149,31 +163,62 @@ def run_case(executable, scenario, integrator, directory, timeout, *,
     if write_checkpoint:
         require((directory / "final.silo").is_file(),
                 f"Missing final Silo checkpoint in {directory}")
-    return sums, sorted(profile), energy_drift
+    return sums, sorted(profile), energy_drift, stages
 
 
-def run_restart(executable, directory, timeout):
-    uninterrupted = run_case(executable, "gravity", "SSP_MULTISTEP",
-                             directory / "uninterrupted", timeout, step_count=10)
-    seed = run_case(executable, "gravity", "SSP_MULTISTEP",
-                    directory / "seed", timeout, step_count=5, write_checkpoint=True)
-    resumed = run_case(executable, "gravity", "SSP_MULTISTEP",
-                       directory / "resumed", timeout, step_count=5,
-                       start_time=5 * HARD_DT,
-                       restart_from=directory / "seed" / "final.silo",
-                       integrator_from_config=True)
-    # Check the loaded state, including accumulated boundary outflow, before
-    # evaluating the continuation. The sums use thirteen decimal places.
-    compare_tables([seed[0][-1]], [resumed[0][0]], "checkpoint conserved sums",
-                   rel_tol=5.0e-11, abs_tol=5.0e-11)
-    compare_tables([uninterrupted[0][-1]], [resumed[0][-1]],
-                   "uninterrupted/restarted conserved sums", rel_tol=5.0e-11, abs_tol=5.0e-11)
-    # line.final.dat uses %e (six decimal places); a roundoff perturbation can
-    # cross its final-digit rounding boundary, so allow that text resolution.
-    compare_tables(uninterrupted[1], resumed[1], "uninterrupted/restarted profiles",
-                   rel_tol=2.0e-6, abs_tol=2.0e-10)
-    print("PASS restart: uninterrupted 10 steps match checkpoint 5 + restarted 5; "
-          "gravity, saved boundary outflow, RK3 bootstrap, and config selection verified.")
+def run_restart(executable, scenario, directory, timeout, silo_library):
+    reader = SiloSnapshot(silo_library)
+    cases = [("inside_batch", 3, 7, 1.0, {}), ("batch_boundary", 5, 5, 1.0, {}),
+             ("variable_dt", 11, 2, 0.024, {})]
+    if scenario == "gravity":
+        cases.append(("rotating_units", 3, 7, 1.0,
+                      {"code_units": (1.25, 1.75, 0.875), "omega": 0.137}))
+    for label, seed_steps, resumed_steps, stop_time, physics in cases:
+        case = directory / label
+        case.mkdir()
+        total_steps = seed_steps + resumed_steps
+        uninterrupted = run_case(executable, scenario, "SSP_MULTISTEP",
+                                 case / "uninterrupted", timeout, step_count=total_steps,
+                                 stop_time=stop_time, write_checkpoint=True, **physics)
+        seed = run_case(executable, scenario, "SSP_MULTISTEP",
+                        case / "seed", timeout, step_count=seed_steps,
+                        stop_time=stop_time, write_checkpoint=True, **physics)
+        # A fresh run still defaults to RK3. At this boundary restart omit the
+        # selector entirely, requiring SSP_MULTISTEP to come from the checkpoint.
+        automatic_selection = label == "batch_boundary"
+        resumed_integrator = None if automatic_selection else "SSP_MULTISTEP"
+        resumed = run_case(executable, scenario, resumed_integrator,
+                           case / "resumed", timeout, step_count=resumed_steps,
+                           start_time=seed[0][-1][0], start_step=seed_steps,
+                           stop_time=stop_time, write_checkpoint=True,
+                           restart_from=case / "seed" / "final.silo",
+                           integrator_from_config=not automatic_selection,
+                           expected_integrator="SSP_MULTISTEP", omega=None)
+        # The rotating case deliberately supplies no nonunit/rotation overrides
+        # on restart, so these also have to be restored from checkpoint metadata.
+        require(seed[3] == uninterrupted[3][:seed_steps],
+                f"Seed stage/alpha sequence changed in {label}")
+        require(resumed[3] == uninterrupted[3][seed_steps:],
+                f"Restart stage/alpha sequence differs from uninterrupted suffix in {label}")
+        if label == "variable_dt":
+            require(seed[0][-1][0] < seed_steps * HARD_DT,
+                    "Variable-step checkpoint was taken before the timestep changed")
+        # The opaque node archives contain unconverted state, gravity, outflows,
+        # clocks and multistep history. Compare every byte for every node,
+        # including the internal FMM root; rounded text is only a secondary check.
+        nodes, byte_count = compare_checkpoints(reader,
+            case / "uninterrupted" / "final.silo", case / "resumed" / "final.silo")
+        compare_tables([seed[0][-1]], [resumed[0][0]], "checkpoint conserved sums",
+                       rel_tol=0.0, abs_tol=0.0)
+        compare_tables([uninterrupted[0][-1]], [resumed[0][-1]],
+                       "uninterrupted/restarted conserved sums", rel_tol=0.0, abs_tol=0.0)
+        compare_tables(uninterrupted[1], resumed[1], "uninterrupted/restarted profiles",
+                       rel_tol=0.0, abs_tol=0.0)
+        print(f"PASS restart {scenario}/{label}: {seed_steps}+{resumed_steps} steps; "
+              f"{nodes} node archives/{byte_count} bytes and master metadata identical; "
+              "SSP history and stage sequence preserved; "
+              + ("checkpoint integrator selection verified." if automatic_selection
+                 else "config selection verified."))
 
 
 def run_baselines(executable, scenario, directory, timeout):
@@ -200,9 +245,10 @@ def run_baselines(executable, scenario, directory, timeout):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("executable", type=Path)
-    parser.add_argument("scenario", choices=("hydro", "gravity", "restart"))
+    parser.add_argument("scenario", choices=("hydro", "gravity", "restart", "restart_hydro", "restart_gravity"))
     parser.add_argument("--work-directory", type=Path, default=Path.cwd())
     parser.add_argument("--timeout", type=int, default=180)
+    parser.add_argument("--silo-library", type=Path)
     parser.add_argument("--keep-output", action="store_true")
     args = parser.parse_args()
     executable = args.executable.resolve()
@@ -212,7 +258,13 @@ def main():
                                       dir=args.work_directory.resolve()))
     try:
         if args.scenario == "restart":
-            run_restart(executable, directory, args.timeout)
+            for scenario in ("hydro", "gravity"):
+                child = directory / scenario
+                child.mkdir()
+                run_restart(executable, scenario, child, args.timeout, args.silo_library)
+        elif args.scenario.startswith("restart_"):
+            scenario = args.scenario[len("restart_"): ]
+            run_restart(executable, scenario, directory, args.timeout, args.silo_library)
         else:
             run_baselines(executable, args.scenario, directory, args.timeout)
     except Exception:

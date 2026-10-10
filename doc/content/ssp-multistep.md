@@ -134,14 +134,46 @@ interior state.
 
 ## History lifetime and cost
 
-Every `node_server::step(steps)` batch begins with an RK3 bootstrap step on every
-node. Regridding, load balancing, and migration occur between these batches.
-Silo restarts likewise begin a new batch. This collectively discards histories
-from a different mesh or discrete operator and avoids mixing stage counts
-between nodes. Multistep history is not written to Silo or serialized for node
-migration; the next batch's bootstrap replaces it before use.
+Scheduled batch boundaries begin with an RK3 bootstrap step on every node.
+Regridding occurs at those boundaries, so histories from a different mesh or
+discrete operator are not reused. Migration serializes the current state,
+multistep histories, previous timestep and FE limit, and gravity caches.
+A checkpoint inside a batch resumes at its saved absolute step and completes
+the remainder of that batch. It neither inserts an RK3 startup step nor shifts
+the original regrid schedule. `--stop_step` still counts steps requested for
+the current invocation.
 
-This restart also happens when a regrid leaves the mesh unchanged. The current
+SSP Silo output includes a versioned lossless restart payload alongside the
+usual visualization fields. The latter are insufficient for exact restart:
+they use unit conversions and reconstructed density, and omit integration
+history. `restart_version=1` and `restart_groups`, aligned with `node_list`,
+identify the payload in each data group's `restart/<octal node id>/state`.
+Every node, including internal gravity nodes, is saved. Each payload contains
+the raw current hydro fields, gravity fields, outflows, previous state and
+complete derivative, historical outflows and derivatives, gravity centers,
+cached masses and multipoles,
+clocks, absolute step, previous timestep, and previous FE limit. Global
+metadata preserves physical constants, units, and rotation without arithmetic
+conversion. Scratch stage buffers are recomputed before use.
+
+An exact restart reconnects the saved tree without extra gravity solves,
+density reconstruction, normalization, or startup regridding. It restores the
+saved integrator when no explicit selection is supplied. Incompatible solver
+settings, layouts, or malformed claimed-exact payloads produce an error; they
+do not silently discard history. Older Silo files without this payload retain
+the legacy loader and RK3 bootstrap and cannot promise exact continuation.
+
+Bitwise continuation is tested with the same executable, CPU backend,
+single-locality configuration, solver settings, and stopping-time policy.
+`--stop_time` may be changed to extend a run; this intentionally changes the
+timestep cap near the end and therefore the trajectory being compared. Changing hardware,
+backends, decomposition, or floating-point reduction order is not covered by
+that result. Extra checkpoint data can exceed twice the old visualization
+file size: it includes raw current state and both historical field arrays,
+plus gravity caches on internal nodes. File size depends on mesh and fields.
+
+The scheduled RK3 bootstrap also occurs when regridding leaves the mesh
+unchanged. The current
 batch length is `refinement_freq()`, approximately `2 / cfl`. At the default
 `cfl=0.4`, a five-step batch uses 11 new hydro RHS evaluations if its four
 post-bootstrap steps all accept multistep coefficients, compared with 15 for
@@ -193,6 +225,13 @@ mass/species conservation including outflows, hydro energy conservation, and a
 self-gravity energy-drift bound relative to RK3. Failed runs retain their logs
 and diagnostics for inspection.
 
-The test definitions describe intended coverage, not a record of successful
-execution. A coefficient-test result alone does not establish full-solver,
-multilocality, GPU, dynamically changing AMR, or checkpoint-restart validation.
+The separate hydro and gravity restart tests split runs inside a batch (3+7
+steps), at a boundary (5+5), and after a timestep change (11+2). They compare
+every saved node archive byte-for-byte, check raw global metadata, and require
+the restarted stage/ratio sequence to equal the uninterrupted suffix. A
+scaled-unit rotating gravity case also exercises raw clocks and conversions.
+The tests use Python's standard library and the configured Silo shared library.
+
+The test definitions describe required coverage, not a record of successful
+execution. Passing CPU tests does not establish multilocality, GPU, or
+dynamically changing AMR continuation.

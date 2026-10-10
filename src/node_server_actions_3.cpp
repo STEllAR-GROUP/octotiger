@@ -332,12 +332,14 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 	auto root_ptr = GET(fut_ptr);
 	if (!opts().output_filename.empty()) {
 		diagnostics();
-		solve_gravity(false, false);
+        if (!has_exact_checkpoint()) {
+            solve_gravity(false, false);
+        }
 		output_all(this, opts().output_filename, output_cnt, false);
 		return;
 	}
 
-	if (opts().stop_step != 0) {
+	if (opts().stop_step != 0 && !has_exact_checkpoint()) {
 		printf("Solving gravity\n");
 		solve_gravity(false, false);
 		ngrids = regrid(me.get_gid(), grid::get_omega(), -1, false);
@@ -401,10 +403,15 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 		}
 
 		real dt = 0;
-		integer next_step = (std::min)(step_num + refinement_freq(), opts().stop_step + 1);
+        // Keep the stop-step counter relative to this invocation, but resume
+        // SSP batches at their saved absolute phase after a checkpoint.
+        const integer batch_phase = (opts().time_integrator == SSP_MULTISTEP
+            ? this->step_num : step_num) % refinement_freq();
+        const integer batch_steps = refinement_freq() - batch_phase;
+		integer next_step = (std::min)(step_num + batch_steps, opts().stop_step + 1);
 		real omega_dot = 0.0, omega = 0.0, theta = 0.0, theta_dot = 0.0;
 
-		if ((opts().problem == DWD) && (step_num % refinement_freq() == 0)) {
+		if ((opts().problem == DWD) && (batch_phase == 0)) {
 			printf("dwd step...\n");
 			auto dt = GET(step(next_step - step_num));
 			if (!opts().disable_diagnostics) {
@@ -466,7 +473,8 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 
 		step_num = next_step;
 
-		if (step_num % refinement_freq() == 0) {
+		if ((opts().time_integrator == SSP_MULTISTEP ? this->step_num : step_num)
+                % refinement_freq() == 0) {
 			real new_floor = opts().refinement_floor;
 			if (opts().ngrids > 0) {
 				new_floor *= std::pow(real(ngrids.total) / real(opts().ngrids), 2);
@@ -848,11 +856,12 @@ future<real> node_server::local_step(integer steps) {
 }
 
 future<real> node_server::step(integer steps) {
-    // Every node starts the same batch with RK3. Refinement and migration take
-    // place between batches; old states/RHS values from a different discrete
-    // operator must never be mixed with the new mesh. Also bootstraps restart.
-    ssp_previous_dt = 0.0;
-    ssp_previous_fe_dt = 0.0;
+    // Scheduled batch boundaries follow regridding and require fresh history.
+    // A checkpoint inside a batch preserves the preceding state and derivative.
+    if (step_num % refinement_freq() == 0) {
+        ssp_previous_dt = 0.0;
+        ssp_previous_fe_dt = 0.0;
+    }
 	grid_ptr->set_coordinates();
 
 	std::array<future<void>, NCHILD> child_futs;

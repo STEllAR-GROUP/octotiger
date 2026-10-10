@@ -111,8 +111,15 @@ private:
 	timestep_t dt_;
     real ssp_previous_dt = 0.0;
     real ssp_previous_fe_dt = 0.0;
+    bool exact_checkpoint_restored = false;
 
 public:
+    std::vector<char> save_checkpoint() const;
+    void load_checkpoint(const std::vector<char>& data);
+    bool has_exact_checkpoint() const {
+        return exact_checkpoint_restored;
+    }
+
 	timings timings_;
 
 	real get_time() const {
@@ -184,7 +191,8 @@ public:
 	void reconstruct_tree();
 
 	node_server(const node_location&, integer, bool, real, real, const std::array<integer, NCHILD>&, grid,
-			const std::vector<hpx::id_type>&, std::size_t, std::size_t, integer position);
+			const std::vector<hpx::id_type>&, std::size_t, std::size_t, integer position,
+            real previous_dt, real previous_fe_dt);
 
 	void report_timing();/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server, report_timing, report_timing_action);
