@@ -7,6 +7,7 @@
 #include <fenv.h>
 
 #include "octotiger/diagnostics.hpp"
+#include "octotiger/math/Debug.hpp"
 #include "octotiger/future.hpp"
 #include "octotiger/node_client.hpp"
 #include "octotiger/node_registry.hpp"
@@ -14,6 +15,7 @@
 #include "octotiger/options.hpp"
 #include "octotiger/profiler.hpp"
 #include "octotiger/taylor.hpp"
+#include "octotiger/test_problems/radiation.hpp"
 
 #include <hpx/include/lcos.hpp>
 #include <hpx/include/run_as.hpp>
@@ -63,7 +65,7 @@ void node_server::check_for_refinement(real omega, real new_floor) {
 	if (rc) {
 		if (refinement_flag++ == 0) {
 			if (!parent.empty()) {
-				futs[index++] = parent.force_nodes_to_exist(my_location.get_neighbors());
+				futs[index++] = parent.force_nodes_to_exist(my_location.get_neighbors(opts().periodic));
 			}
 		}
 	}
@@ -129,7 +131,7 @@ future<hpx::id_type> node_server::copy_to_locality(const hpx::id_type &id) {
 		}
 	}
 	auto rc = hpx::new_<node_server>(id, my_location, step_num, bool(is_refined), current_time, rotational_time, child_descendant_count, std::move(*grid_ptr),
-			cids, std::size_t(hcycle), std::size_t(gcycle), position);
+			cids, std::size_t(hcycle), std::size_t(rcycle), std::size_t(gcycle), position);
 	clear_family();
 	parent = hpx::invalid_id;
 	std::fill(neighbors.begin(), neighbors.end(), hpx::invalid_id);
@@ -142,6 +144,34 @@ HPX_REGISTER_ACTION(diagnostics_action_type);
 
 future<diagnostics_t> node_client::diagnostics(const diagnostics_t &d) const {
 	return hpx::async<typename node_server::diagnostics_action>(get_unmanaged_gid(), d);
+}
+
+using collectRadiationConservationActionType = node_server::collectRadiationConservationAction;
+HPX_REGISTER_ACTION(collectRadiationConservationActionType);
+
+future<radiationConservation::Totals> node_client::collectRadiationConservation() const {
+	return hpx::async<node_server::collectRadiationConservationAction>(get_unmanaged_gid());
+}
+
+radiationConservation::Totals node_server::collectRadiationConservation() {
+	if (!is_refined) {
+		return rad_grid_ptr->takeConservation();
+	}
+	// Coarse cells cover their children and must not enter this volume integral.
+	std::array<future<radiationConservation::Totals>, NCHILD> pending;
+	for (int child = 0; child < NCHILD; ++child) {
+		pending[child] = children[child].collectRadiationConservation();
+	}
+	radiationConservation::Totals result;
+	for (auto &child : pending) {
+		// Do not retain a thread-local floating-point environment across an HPX wait.
+		const auto childTotals = GET(child);
+		{
+			FpeGuard fpeGuard{};
+			result += childTotals;
+		}
+	}
+	return result;
 }
 
 using compare_analytic_action_type = node_server::compare_analytic_action;
@@ -166,14 +196,29 @@ analytic_t node_server::compare_analytic() {
 		}
 	}
 	if (my_location.level() == 0) {
+		FpeGuard fpeGuard{};
+		if (radiationRegressionProblem()) {
+			// The comparator rejects runs that stop before the requested final time.
+			printf("RADIATION_TEST_FINISHED %s t=%.17e\n", to_string(opts().problem).c_str(), double(current_time));
+		}
 		printf("L1, L2\n");
 		real vol = 1.0;
 		for (int d = 0; d < NDIM; d++) {
 			vol *= 2.0 * opts().xscale;
 		}
 		int nfields = opts().n_fields;
+		int top = opts().n_fields;
+		if( opts().radiation) {
+			nfields += NRF;
+		}
 		for (integer field = 0; field != opts().n_fields; ++field) {
 			printf("%16s %e %e %e\n", physics<3>::field_names3[field], a.l1[field] / vol, std::sqrt(a.l2[field] / vol), a.linf[field]);
+		}
+		if( opts().radiation) {
+			printf("%16s %e %e %e\n", "er", a.l1[top+0] / vol, std::sqrt(a.l2[top+0] / vol), a.linf[top+0]);
+			printf("%16s %e %e %e\n", "fx", a.l1[top+1] / vol, std::sqrt(a.l2[top+1] / vol), a.linf[top+1]);
+			printf("%16s %e %e %e\n", "fy", a.l1[top+2] / vol, std::sqrt(a.l2[top+2] / vol), a.linf[top+2]);
+			printf("%16s %e %e %e\n", "fz", a.l1[top+3] / vol, std::sqrt(a.l2[top+3] / vol), a.linf[top+3]);
 		}
 		const auto ml = opts().max_level;
 		const auto dxmin = 2.0 * opts().xscale / INX / double(1 << ml);
@@ -388,7 +433,7 @@ void node_server::force_nodes_to_exist(std::vector<node_location> &&locs) {
 		assert(loc != my_location);
 		if (loc.is_child_of(my_location)) {
 			if (refinement_flag++ == 0 && !parent.empty()) {
-				futs.push_back(parent.force_nodes_to_exist(my_location.get_neighbors()));
+				futs.push_back(parent.force_nodes_to_exist(my_location.get_neighbors(opts().periodic)));
 			}
 			if (is_refined) {
 				for (auto ci : geo::octant::full_set()) {
@@ -409,7 +454,7 @@ void node_server::force_nodes_to_exist(std::vector<node_location> &&locs) {
 
 			bool found_match = false;
 			for (auto di : geo::direction::full_set()) {
-				if (loc.is_child_of(my_location.get_neighbor(di)) && !neighbors[di].empty()) {
+				if (loc.is_child_of(my_location.get_neighbor(di, opts().periodic)) && !neighbors[di].empty()) {
 					sibling_lists[di].push_back(loc);
 					found_match = true;
 					break;
@@ -459,6 +504,13 @@ int node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std::
 		neighbors[dir] = std::move(neighbor_gids[dir]);
 	}
 	me = std::move(self_gid);
+	if (opts().periodic && my_location.level() == 0) {
+		for (auto dir : geo::direction::full_set()) {
+			if (neighbors[dir].empty()) {
+				neighbors[dir] = me.get_gid();
+			}
+		}
+	}
 	node_registry::add(my_location, me);
 	parent = std::move(parent_gid);
 	if (is_refined) {
@@ -485,7 +537,7 @@ int node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std::
 										ref = hpx::make_ready_future < hpx::id_type > (hpx::unmanaged(children[other_child].get_gid()));
 									} else {
 										geo::direction dir = geo::direction((x / 2) + NDIM * ((y / 2) + NDIM * (z / 2)));
-										node_location parent_loc = my_location.get_neighbor(dir);
+										node_location parent_loc = my_location.get_neighbor(dir, opts().periodic);
 										ref = neighbors[dir].get_child_client(parent_loc, other_child);
 									}
 								}

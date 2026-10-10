@@ -1,4 +1,5 @@
 #include "frontend-helper.hpp"
+#include "octotiger/test_problems/radiation.hpp"
 #ifdef OCTOTIGER_HAVE_KOKKOS
 #include "octotiger/common_kernel/kokkos_util.hpp"
 #endif
@@ -393,7 +394,22 @@ void init_problem(void) {
     grid::set_scaling_factor(opts().xscale);
     grid::set_min_level(opts().min_level);
     grid::set_max_level(opts().max_level);
-    if (opts().problem == DWD) {
+    if (radiationRegressionProblem()) {
+        grid::set_fgamma(5.0 / 3.0);
+        set_problem(radiationRegressionInit);
+        set_analytic(radiationRegressionAnalytic);
+        set_refine_test(radiation_test_refine);
+    } else if (opts().problem == RADIATION_TEST) {
+        set_problem(radiation_test_problem);
+        set_refine_test(radiation_test_refine);
+    } else if (opts().problem == RADIATION_DIFFUSION) {
+        set_problem(radiation_diffusion_test_problem);
+        set_analytic(radiation_diffusion_analytic);
+        set_refine_test(radiation_test_refine);
+    } else if (opts().problem == RADIATION_COUPLING) {
+        set_problem(radiation_coupling_test_problem);
+        set_refine_test(radiation_test_refine);
+    } else if (opts().problem == DWD) {
         opts().n_species = 5;
         set_problem(scf_binary);
         set_refine_test(refine_test);
@@ -441,6 +457,11 @@ void init_problem(void) {
         set_problem(amr_test);
         set_refine_test(refine_test_moving_star);
         set_refine_test(refine_test_amr);
+    } else if (opts().problem == MARSHAK) {
+        grid::set_fgamma(5.0 / 3.0);
+        set_analytic(marshak_wave_analytic);
+        set_problem(marshak_wave);
+        set_refine_test(refine_test_marshak);
     } else if (opts().problem == SOLID_SPHERE) {
         //	opts().hydro = false;
         set_analytic(

@@ -15,6 +15,7 @@
 #include "octotiger/geometry.hpp"
 #include "octotiger/interaction_types.hpp"
 #include "octotiger/problem.hpp"
+#include "octotiger/radiation/rad_grid.hpp"
 #include "octotiger/real.hpp"
 #include "octotiger/roe.hpp"
 #include "octotiger/scf_data.hpp"
@@ -24,6 +25,7 @@
 //#include "octotiger/taylor.hpp"
 #include "octotiger/unitiger/safe_real.hpp"
 #include "octotiger/unitiger/hydro.hpp"
+#include "octotiger/unitiger/physics.hpp"
 #include "octotiger/unitiger/hydro_impl/reconstruct.hpp"
 #include "octotiger/unitiger/hydro_impl/flux.hpp"
 
@@ -45,9 +47,15 @@ public:
 	template<class Arc>
 	void serialize(Arc &a, unsigned) {
 		a & nfields_;
-		l1.resize(nfields_);
-		l2.resize(nfields_);
-		linf.resize(nfields_);
+		if (opts().radiation) {
+			l1.resize(nfields_ + NRF);
+			l2.resize(nfields_ + NRF);
+			linf.resize(nfields_ + NRF);
+		} else {
+			l1.resize(nfields_);
+			l2.resize(nfields_);
+			linf.resize(nfields_);
+		}
 		a & l1;
 		a & l2;
 		a & linf;
@@ -57,13 +65,20 @@ public:
 	}
 	analytic_t(integer nfields) {
 		nfields_ = nfields;
-		l1.resize(nfields_);
-		l2.resize(nfields_);
-		linf.resize(nfields_);
+		l1.resize(nfields_ + (opts().radiation ? NRF : 0));
+		l2.resize(nfields_ + (opts().radiation ? NRF : 0));
+		linf.resize(nfields_ + (opts().radiation ? NRF : 0));
 		for (integer field = 0; field != nfields_; ++field) {
 			l1[field] = 0.0;
 			l2[field] = 0.0;
 			linf[field] = 0.0;
+		}
+		if (opts().radiation) {
+			for (integer field = nfields_; field != nfields_ + NRF; ++field) {
+				l1[field] = 0.0;
+				l2[field] = 0.0;
+				linf[field] = 0.0;
+			}
 		}
 	}
 	analytic_t& operator+=(const analytic_t &other) {
@@ -71,6 +86,13 @@ public:
 			l1[field] += other.l1[field];
 			l2[field] += other.l2[field];
 			linf[field] = std::max(linf[field], other.linf[field]);
+		}
+		if (opts().radiation) {
+			for (integer field = nfields_; field != nfields_ + NRF; ++field) {
+				l1[field] += other.l1[field];
+				l2[field] += other.l2[field];
+				linf[field] = std::max(linf[field], other.linf[field]);
+			}
 		}
 		return *this;
 	}
@@ -121,6 +143,7 @@ private:
 	static OCTOTIGER_EXPORT real scaling_factor;
 	static double idle_rate;
 	hydro_computer<NDIM, INX, physics<NDIM>> hydro;
+	std::shared_ptr<rad_grid> rad_grid_ptr;
 	std::vector<roche_type> roche_lobe;
 	std::vector<int> is_coarse;
 	std::vector<int> has_coarse;
@@ -202,6 +225,10 @@ public:
 		return X;
 	}
 
+	std::shared_ptr<rad_grid> get_rad_grid() {
+		return rad_grid_ptr;
+	}
+	void rad_init();
 	void change_units(real mass, real length, real time, real temp);
 	static hpx::future<void> static_change_units(real mass, real length, real time, real temp);
 	real get_dx() const {
@@ -390,6 +417,10 @@ void grid::load(Archive &arc, const unsigned) {
 	arc >> xmin;
 	allocate();
 	arc >> U;
+	if (rad_grid_ptr != nullptr) {
+		arc >> *rad_grid_ptr;
+		rad_grid_ptr->set_dx(dx);
+	}
 	for (integer i = 0; i != INX * INX * INX; ++i) {
 #if defined(HPX_HAVE_DATAPAR)
 		arc >> G[i];
@@ -411,6 +442,9 @@ void grid::save(Archive &arc, const unsigned) const {
 	arc << dx;
 	arc << xmin;
 	arc << U;
+	if (rad_grid_ptr != nullptr) {
+		arc << *rad_grid_ptr;
+	}
 	for (integer i = 0; i != INX * INX * INX; ++i) {
 #if defined(HPX_HAVE_DATAPAR)
 		arc << G[i];

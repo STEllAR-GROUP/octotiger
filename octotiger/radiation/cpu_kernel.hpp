@@ -1,0 +1,258 @@
+//  Copyright (c) 2019 AUTHORS
+//
+//  Distributed under the Boost Software License, Version 1.0. (See accompanying
+//  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+
+#if !defined(RADIATION_CPU_KERNEL_HPP_)
+#define RADIATION_CPU_KERNEL_HPP_
+
+#include "octotiger/defs.hpp"
+#include "octotiger/options.hpp"
+#include "octotiger/physcon.hpp"
+#include "octotiger/radiation/implicit.hpp"
+#include "octotiger/radiation/opacities.hpp"
+#include "octotiger/math/Real.hpp"
+#include "octotiger/roe.hpp"
+#include "octotiger/math/Debug.hpp"
+#include "octotiger/space_vector.hpp"
+
+#include <array>
+#include <cassert>
+#include <cmath>
+#include <cstddef>
+#include <functional>
+#include <numeric>
+#include <string>
+#include <vector>
+
+namespace octotiger { namespace radiation {
+    namespace detail {
+        template <typename F>
+        void abort_if_solver_not_converged(Real const eg_t0, Real E0,
+            F const test, Real const E, Real const eg_t)
+        {
+            // Bisection root finding method
+            // Indices of max, mid, and min
+            Real de_max = eg_t0;
+            Real de_mid = 0.0;
+            Real de_min = -E0;
+            // Values of max, mid, and min
+            Real f_min = test(de_min);
+            Real f_mid = test(de_mid);
+            // Max iterations
+            constexpr size_t MAX_ITERATIONS = 50;
+            // Errors
+            Real const error_tolerance = 1.0e-9;
+
+            for (size_t i = 0; i < MAX_ITERATIONS; ++i)
+            {
+                // Root solver has converged if error is smaller that error tolerance
+                Real const error =
+                    std::max(std::abs(f_mid), std::abs(f_min)) / (E + eg_t);
+                if (error < error_tolerance)
+                {
+                    return;
+                }
+
+                // If signs don't match, continue search in the lower half
+                if ((f_min < 0.0) != (f_mid < 0.0))
+                {
+                    de_max = de_mid;
+                    de_mid = 0.5 * (de_min + de_max);
+                    f_mid = test(de_mid);
+                }
+                // Continue search in the upper half
+                else
+                {
+                    de_min = de_mid;
+                    de_mid = 0.5 * (de_min + de_max);
+                    f_min = f_mid;
+                    f_mid = test(de_mid);
+                }
+            }
+            // Error is not smaller that error tolerance after performed iterations. Abort.
+            printf("Implicit radiation solver failed to converge\n");
+            abort();
+        }    // abort_if_solver_not_converged
+
+        std::pair<Real, space_vector> implicit_radiation_step(Real E0, Real& e0,
+            space_vector F0, space_vector u0, Real rho, Real mmw, Real X,
+            Real Z, Real dt)
+        {
+            Real const c = physcon().c;
+            Real kp = kappa_p(rho, e0, mmw, X, Z);
+            Real kr = kappa_R(rho, e0, mmw, X, Z);
+            Real const rhoc2 = rho * c * c;
+
+            E0 /= rhoc2;
+            F0 = F0 / (rhoc2 * c);
+            e0 /= rhoc2;
+            u0 = u0 / c;
+            kp *= dt * c;
+            kr *= dt * c;
+
+            auto const B = [rho, mmw, c, rhoc2](Real e) {
+                return (4.0 * M_PI / c) * B_p(rho, e * rhoc2, mmw) / rhoc2;
+            };
+
+            Real E = E0;
+            auto eg_t =
+                e0 + 0.5 * (u0[0] * u0[0] + u0[1] * u0[1] + u0[2] * u0[2]);
+            space_vector F = F0;
+            space_vector u = u0;
+            Real ei;
+            Real const eg_t0 = eg_t;
+
+            Real u2_0 = 0.0;
+            Real F2_0 = 0.0;
+            for (int d = 0; d < NDIM; d++)
+            {
+                u2_0 += u[d] * u[d];
+                F2_0 += F[d] * F[d];
+            }
+            // printf( "%e %e\n", (double) u2_0, (double) (F2_0/E/E));
+            auto const test = [&](Real de) {
+                E = E0 + de;
+                Real u2 = 0.0;
+                Real udotF = 0.0;
+                for (int d = 0; d < NDIM; d++)
+                {
+                    Real const num =
+                        F0[d] + (4.0 / 3.0) * kr * E * (u0[d] + F0[d]);
+                    Real const den = 1.0 + kr * (1.0 + (4.0 / 3.0) * E);
+                    Real const deninv = 1.0 / den;
+                    F[d] = num * deninv;
+                    u[d] = u0[d] + F0[d] - F[d];
+                    u2 += u[d] * u[d];
+                    udotF += F[d] * u[d];
+                }
+                ei = std::max(eg_t0 - E + E0 - 0.5 * u2, Real(0.0));
+                Real const b = B(ei);
+                Real f = E - E0;
+                f += (kp * (E - b) + (kr - 2.0 * kp) * udotF);
+                eg_t = eg_t0 + E0 - E;
+                return f;
+            };
+
+            abort_if_solver_not_converged(eg_t0, E0, test, E, eg_t);
+
+            ei = eg_t - 0.5 * (u[0] * u[0] + u[1] * u[1] + u[2] * u[2]);
+            e0 = ei * rhoc2;
+            Real const dtinv = 1.0 / dt;
+
+            return std::make_pair(
+                Real((E - E0) * dtinv * rhoc2), ((F - F0) * dtinv * rhoc2 * c));
+        }    // implicit_radiation_step
+    }        // namespace detail
+
+    template <integer er_i, integer fx_i, integer fy_i, integer fz_i>
+    void radiation_cpu_kernel(integer const d,
+        std::vector<Real> const& rho,
+        std::vector<Real>& sx,
+        std::vector<Real>& sy,
+        std::vector<Real>& sz,
+        std::vector<Real>& egas,
+        std::vector<Real>& tau,
+        Real const fgamma,
+        std::vector<std::vector<Real>>& U,
+        std::vector<Real> const& mmw,
+        std::vector<Real> const& X_spc,
+        std::vector<Real> const& Z_spc,
+        Real dt,
+        Real const clightinv)
+    {
+        for (integer i = RAD_BW; i != RAD_NX - RAD_BW; ++i)
+        {
+            for (integer j = RAD_BW; j != RAD_NX - RAD_BW; ++j)
+            {
+                for (integer k = RAD_BW; k != RAD_NX - RAD_BW; ++k)
+                {
+                    integer const iiih = hindex(i + d, j + d, k + d);
+                    integer const iiir = rindex(i, j, k);
+                    Real const den = rho[iiih];
+                    Real const deninv = OCTOTIGER_RADIATION_INVERSE(den);
+                    Real vx = sx[iiih] * deninv;
+                    Real vy = sy[iiih] * deninv;
+                    Real vz = sz[iiih] * deninv;
+
+                    // Compute e0 from dual energy formalism
+                    Real e0 = egas[iiih]         //
+                        - 0.5 * vx * vx * den    //
+                        - 0.5 * vy * vy * den    //
+                        - 0.5 * vz * vz * den;
+                    if (opts().eos == WD)
+                    {
+                        e0 -= ztwd_energy(den);
+                    }
+                    if (e0 < egas[iiih] * de_switch2)
+                    {
+                        e0 = std::pow(tau[iiih], fgamma);
+                    }
+                    Real E0 = U[er_i][iiir];
+                    space_vector F0;
+                    space_vector u0;
+                    F0[0] = U[fx_i][iiir];
+                    F0[1] = U[fy_i][iiir];
+                    F0[2] = U[fz_i][iiir];
+                    u0[0] = vx;
+                    u0[1] = vy;
+                    u0[2] = vz;
+                    Real E1 = E0;
+                    space_vector F1 = F0;
+                    space_vector u1 = u0;
+                    Real e1 = e0;
+
+                    auto const ddt = detail::implicit_radiation_step(E1, e1, F1,
+                        u1, den, mmw[iiir], X_spc[iiir], Z_spc[iiir], dt);
+                    Real const dE_dt = ddt.first;
+                    Real const dFx_dt = ddt.second[0];
+                    Real const dFy_dt = ddt.second[1];
+                    Real const dFz_dt = ddt.second[2];
+
+                    // Accumulate derivatives
+                    U[er_i][iiir] += dE_dt * dt;
+                    U[fx_i][iiir] += dFx_dt * dt;
+                    U[fy_i][iiir] += dFy_dt * dt;
+                    U[fz_i][iiir] += dFz_dt * dt;
+
+                    egas[iiih] -= dE_dt * dt;
+                    sx[iiih] -= dFx_dt * dt * clightinv * clightinv;
+                    sy[iiih] -= dFy_dt * dt * clightinv * clightinv;
+                    sz[iiih] -= dFz_dt * dt * clightinv * clightinv;
+
+                    // Find tau with dual energy formalism
+                    Real e = egas[iiih]                         //
+                        - 0.5 * sx[iiih] * sx[iiih] * deninv    //
+                        - 0.5 * sy[iiih] * sy[iiih] * deninv    //
+                        - 0.5 * sz[iiih] * sz[iiih] * deninv;
+                    if (opts().eos == WD)
+                    {
+                        e -= ztwd_energy(den);
+                    }
+                    if (e < de_switch1 * egas[iiih])
+                    {
+                        e = e1;
+                    }
+                    e = std::max(e, 0.0);
+                    tau[iiih] = std::pow(e, OCTOTIGER_RADIATION_INVERSE(fgamma));
+                    if (U[er_i][iiir] <= 0.0)
+                    {
+                        printf("2231242!!! %e %e %e \n", E0, U[er_i][iiir],
+                            dE_dt * dt);
+                        abort();
+                    }
+                    // Frozen in case of Marshak
+                    if (opts().problem == MARSHAK)
+                    {
+                        egas[iiih] = e;
+                        sx[iiih] = 0.0;
+                        sy[iiih] = 0.0;
+                        sz[iiih] = 0.0;
+                    }
+                }
+            }
+        }
+    }    // radiation_cpu_kernel
+}}       // namespace octotiger::radiation
+
+#endif    // RADIATION_CPU_KERNEL_HPP_

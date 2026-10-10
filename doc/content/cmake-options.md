@@ -5,6 +5,7 @@
 * `OCTOTIGER_WITH_KOKKOS`: Enable the build with [Kokkos](https://github.com/kokkos/kokkos). The default value is `OFF`.
 
 ## Octo-Tiger Experiment Parameters
+* `OCTOTIGER_WITH_RADIATION`: Enable M1 radiation transport and its application regression tests. The default value is `OFF`. This source tree requires C++20.
 * `OCTOTIGER_WITH_GRIDDIM`: Grid size. The default value is `8`.
 * `OCTOTIGER_THETA_MINIMUM`: Minimal allowed theta value - important for optimizations. The default value is `0.34`.
 * `OCTOTIGER_WITH_GRAV_PAR`: Enable parallelism in gravitational solver. The default value is `OFF`.

@@ -365,8 +365,20 @@ void output_stage4(std::string fname, int cycle) {
 		fr(db, "omega", grid::get_omega() / opts().code_to_s);
 		fr(db, "output_frequency", opts().output_dt);
 		fi(db, "problem", integer(opts().problem));
-		// Keep the legacy metadata field for non-radiative restart compatibility.
-		fi(db, "radiation", integer(0));
+		fi(db, "radiation", integer(opts().radiation));
+		fi(db, "periodic", integer(opts().periodic));
+		if (opts().radiation) {
+			// Preserve the transport/source model together with the evolved fields.
+			fi(db, "radiation_options_version", integer(1));
+			fi(db, "rad_implicit", integer(opts().rad_implicit));
+			fr(db, "rad_test_chi", opts().radTestChi);
+			fr(db, "rad_test_width", opts().radTestWidth);
+			fr(db, "rad_test_background", opts().radTestBackground);
+			fr(db, "rad_test_amplitude", opts().radTestAmplitude);
+			fr(db, "rad_test_luminosity", opts().radTestLuminosity);
+			int reference_length = int(opts().radReference.size() + 1);
+			DBWrite(db, "rad_reference", opts().radReference.c_str(), &reference_length, 1, DB_CHAR);
+		}
 		fr(db, "refinement_floor", opts().refinement_floor);
 		fr(db, "cgs_time", dtime);
 		fr(db, "rotational_time", rtime);

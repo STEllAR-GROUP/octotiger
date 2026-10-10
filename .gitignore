@@ -8,3 +8,8 @@ spack-build*
 .clangd/*
 .cache
 compile_commands.json
+
+# Radiation harness build products and Python caches.
+/radiation_results/.build/
+__pycache__/
+*.pyc

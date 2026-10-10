@@ -7,6 +7,7 @@
 #include "octotiger/grid.hpp"
 #include "octotiger/options.hpp"
 #include "octotiger/physcon.hpp"
+#include "octotiger/radiation/rad_grid.hpp"
 
 #include <hpx/include/lcos.hpp>
 

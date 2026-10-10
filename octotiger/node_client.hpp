@@ -6,7 +6,11 @@
 #ifndef NODE_CLIENT_HPP_
 #define NODE_CLIENT_HPP_
 
+#include "octotiger/timestep.hpp"
+
 #include "octotiger/config/export_definitions.hpp"
+#include "octotiger/radiation/rad_grid.hpp"
+#include "octotiger/radiation/conservation.hpp"
 #include "octotiger/defs.hpp"
 #include "octotiger/diagnostics.hpp"
 #include "octotiger/eos.hpp"
@@ -81,7 +85,12 @@ public:
         std::vector<real>&&, const geo::octant& ci, std::size_t cycle) const;
     void send_hydro_flux_correct(std::vector<real>&&, const geo::face& face,
         const geo::octant& ci) const;
+    void send_read_flux_correct(std::vector<real>&&, const geo::face& face,
+        const geo::octant& ci) const;
+    void send_rad_flux_correct(std::vector<real>&&, const geo::face& face,
+        const geo::octant& ci) const;
     future<diagnostics_t> diagnostics(const diagnostics_t&) const;
+    future<radiationConservation::Totals> collectRadiationConservation() const;
     future<analytic_t> compare_analytic() const;
     //	hpx::future<void> set_parent(hpx::id_type);
     node_client();
@@ -103,6 +112,8 @@ public:
         std::size_t cycle) const;
     void send_hydro_amr_boundary(std::vector<real>&&, const geo::direction& dir,
         std::size_t cycle) const;
+    void send_rad_amr_boundary(std::vector<real>&&, const geo::direction& dir,
+        std::size_t cycle) const;
     void send_gravity_boundary(gravity_boundary_type&&, const geo::direction&,
         bool monopole, std::size_t cycle) const;
     void send_gravity_multipoles(
@@ -121,6 +132,12 @@ public:
     future<void> force_nodes_to_exist(std::vector<node_location>&& loc) const;
     void report_timing() const;
     future<void> change_units(real, real, real, real) const;
+    future<void> erad_init() const;
+    void send_rad_children(
+        std::vector<real>&&, const geo::octant& ci, std::size_t cycle) const;
+    void send_rad_boundary(
+        std::vector<real>&&, const geo::direction&, std::size_t cycle) const;
+    future<void> set_rad_grid(std::vector<real>&&) const;
     future<void> kill() const;
 };
 #endif /* NODE_CLIENT_HPP_ */

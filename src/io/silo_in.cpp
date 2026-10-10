@@ -20,9 +20,10 @@
 #include <hpx/collectives/broadcast.hpp>
 #include <hpx/io_service/io_service_pool.hpp>
 
+#include <cstddef>
 #include <future>
-#include <mutex>
 #include <stdexcept>
+#include <mutex>
 #include <map>
 #include <vector>
 
@@ -104,11 +105,54 @@ void load_options_from_silo(std::string fname, DBfile *db) {
 			opts().omega = rr(db, "omega") * opts().code_to_s;
 			opts().output_dt = rr(db, "output_frequency");
 			opts().problem = problem_type(ri(db, "problem"));
-			if (DBInqVarExists(db, "radiation") && ri(db, "radiation") != 0) {
-				if (!leaveopen) {
-					DBClose(db);
+			opts().radiation = DBInqVarExists(db, "radiation") && ri(db, "radiation") != 0;
+			if (DBInqVarExists(db, "periodic")) {
+				opts().periodic = ri(db, "periodic") != 0;
+			}
+			if (opts().radiation) {
+				if (DBInqVarExists(db, "radiation_options_version")) {
+					if (ri(db, "radiation_options_version") != 1) {
+						if (!leaveopen) {
+							DBClose(db);
+						}
+						throw std::runtime_error("Unsupported radiation restart metadata version");
+					}
+					// A partial new-format checkpoint must not silently alter the model.
+					for (const char *name : {"periodic", "rad_implicit", "rad_test_chi",
+							"rad_test_width", "rad_test_background", "rad_test_amplitude",
+							"rad_test_luminosity", "rad_reference"}) {
+						if (!DBInqVarExists(db, name)) {
+							if (!leaveopen) {
+								DBClose(db);
+							}
+							throw std::runtime_error(std::string("Missing radiation restart option ") + name);
+						}
+					}
+					opts().rad_implicit = ri(db, "rad_implicit") != 0;
+					opts().radTestChi = rr(db, "rad_test_chi");
+					opts().radTestWidth = rr(db, "rad_test_width");
+					opts().radTestBackground = rr(db, "rad_test_background");
+					opts().radTestAmplitude = rr(db, "rad_test_amplitude");
+					opts().radTestLuminosity = rr(db, "rad_test_luminosity");
+					const int reference_length = DBGetVarLength(db, "rad_reference");
+					if (reference_length <= 0) {
+						if (!leaveopen) {
+							DBClose(db);
+						}
+						throw std::runtime_error("Invalid radiation restart reference filename");
+					}
+					std::vector<char> reference(reference_length);
+					if (DBReadVar(db, "rad_reference", reference.data()) != 0 || reference.back() != '\0') {
+						if (!leaveopen) {
+							DBClose(db);
+						}
+						throw std::runtime_error("Cannot read radiation restart reference filename");
+					}
+					opts().radReference.assign(reference.data(), reference.size() - 1);
+				} else {
+					std::cerr << "WARNING: Legacy radiation restart lacks transport/source options; "
+						"using periodic, rad_implicit, and radiation parameters from the command line/configuration.\n";
 				}
-				throw std::runtime_error("This branch does not support radiation transport restarts");
 			}
 			opts().refinement_floor = rr(db, "refinement_floor");
 			opts().xscale = rr(db, "xscale");
@@ -165,7 +209,7 @@ node_server::node_server(const node_location &loc) :
 		my_location(loc) {
 	const auto &localities = opts().all_localities;
 	initialize(0.0, 0.0);
-	step_num = gcycle = hcycle = 0;
+	step_num = gcycle = hcycle = rcycle = 0;
 
 	auto iter = node_dir_.find(loc.to_id());
 	assert(iter != node_dir_.end());
@@ -190,8 +234,13 @@ node_server::node_server(const node_location &loc) :
 	} else {
 	//	printf("Loading %s on %i\n", loc.to_str().c_str(), int(hpx::get_locality_id()));
 		silo_load_t load;
-		static const auto hydro_names = grid::get_hydro_field_names();
-		load.vars.resize(hydro_names.size());
+		const auto hydro_names = grid::get_hydro_field_names();
+		auto field_names = hydro_names;
+		if (opts().radiation) {
+			const auto radiation_names = rad_grid::get_field_names();
+			field_names.insert(field_names.end(), radiation_names.begin(), radiation_names.end());
+		}
+		load.vars.resize(field_names.size());
 		load.outflows.resize(hydro_names.size());
 		hpx::threads::run_as_os_thread([&]() {
 			static std::mutex mtx;
@@ -203,24 +252,33 @@ node_server::node_server(const node_location &loc) :
 				abort();
 			}
 			const std::string suffix = oct_to_str(loc.to_id());
-			for (int f = 0; f != hydro_names.size(); f++) {
-				const auto this_name = suffix + std::string("/") + hydro_names[f]; /**/
+			for (size_t f = 0; f != field_names.size(); f++) {
+				const auto this_name = suffix + std::string("/") + field_names[f];
 				auto var = DBGetQuadvar(db, this_name.c_str());
+				if (var == nullptr) {
+					DBClose(db);
+					throw std::runtime_error("Missing restart field " + this_name);
+				}
 				load.nx = var->dims[0];
 				const int nvar = load.nx * load.nx * load.nx;
-				load.outflows[f].first = load.vars[f].first = hydro_names[f];
+				load.vars[f].first = field_names[f];
 				load.vars[f].second.resize(nvar);
-				read_silo_var<real> rd;
-				load.outflows[f].second = rd(db, outflow_name(this_name).c_str());
+				if (f < hydro_names.size()) {
+					read_silo_var<real> rd;
+					load.outflows[f].first = field_names[f];
+					load.outflows[f].second = rd(db, outflow_name(this_name).c_str());
+				}
 				std::memcpy(load.vars[f].second.data(), var->vals[0], sizeof(real) * nvar);
 				DBFreeQuadvar(var);
 			}
 			DBClose(db);
 		}).get();
 		is_refined = false;
-		for (integer f = 0; f < hydro_names.size(); f++) {
-			grid_ptr->set(load.vars[f].first, load.vars[f].second.data(), version_);
-			grid_ptr->set_outflow(std::move(load.outflows[f]));
+		for (auto &field : load.vars) {
+			grid_ptr->set(field.first, field.second.data(), version_);
+		}
+		for (auto &outflow : load.outflows) {
+			grid_ptr->set_outflow(std::move(outflow));
 		}
 		grid_ptr->rho_from_species();
 	}
@@ -233,13 +291,14 @@ node_server::node_server(const node_location &loc, silo_load_t load) :
 //	printf("Distributing %s on %i\n", loc.to_str().c_str(), int(hpx::get_locality_id()));
 	const auto &localities = opts().all_localities;
 	initialize(0.0, 0.0);
-	step_num = gcycle = hcycle = 0;
+	step_num = gcycle = hcycle = rcycle = 0;
 	int nc = 0;
-	static const auto hydro_names = grid::get_hydro_field_names();
 	is_refined = false;
-	for (integer f = 0; f < hydro_names.size(); f++) {
-		grid_ptr->set(load.vars[f].first, load.vars[f].second.data(), version_);
-		grid_ptr->set_outflow(std::move(load.outflows[f]));
+	for (auto &field : load.vars) {
+		grid_ptr->set(field.first, field.second.data(), version_);
+	}
+	for (auto &outflow : load.outflows) {
+		grid_ptr->set_outflow(std::move(outflow));
 	}
 	grid_ptr->rho_from_species();
 	current_time = silo_output_time();

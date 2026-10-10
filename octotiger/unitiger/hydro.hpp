@@ -24,25 +24,7 @@ using std::launch;
 
 
 
-struct timestep_t {
-	double a;
-	double x, y, z;
-	double dt;
-	int dim;
-	std::vector<double> ur;
-	std::vector<double> ul;
-	template<class A>
-	void serialize(A &&arc, unsigned) {
-		arc & a;
-		arc & x;
-		arc & y;
-		arc & z;
-		arc & dim;
-		arc & dt;
-		arc & ur;
-		arc & ul;
-	}
-};
+#include "octotiger/timestep.hpp"
 
 namespace hydro {
 

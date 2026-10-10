@@ -20,8 +20,8 @@
 #include <utility>
 #include <vector>
 
-// These values are stored in Silo restart files. Keep the gaps left by the
-// removed radiation transport problems so existing hydro restarts retain meaning.
+// These values are stored in Silo restart files. Preserve the existing IDs
+// when restoring radiation problems and adding the M1 regression cases.
 enum problem_type : integer {
     DWD = 0,
     SOD = 1,
@@ -30,16 +30,31 @@ enum problem_type : integer {
     SOLID_SPHERE = 4,
     STAR = 5,
     MOVING_STAR = 6,
+    RADIATION_TEST = 7,
     ROTATING_STAR = 8,
+    MARSHAK = 9,
     AMR_TEST = 10,
-    ADVECTION = 11
+    ADVECTION = 11,
+    RADIATION_DIFFUSION = 12,
+    RADIATION_COUPLING = 13,
+    RADIATION_STREAMING_WAVE = 14,
+    RADIATION_STREAMING_FRONT = 15,
+    RADIATION_GAUSSIAN_PULSE = 16,
+    RADIATION_EQUILIBRIUM_SPHERE = 17
 };
 
 inline constexpr std::pair<problem_type, const char*> problem_names[] = {
     {DWD, "DWD"}, {SOD, "SOD"}, {BLAST, "BLAST"}, {NONE, "NONE"},
     {SOLID_SPHERE, "SOLID_SPHERE"}, {STAR, "STAR"},
     {MOVING_STAR, "MOVING_STAR"}, {ROTATING_STAR, "ROTATING_STAR"},
-    {AMR_TEST, "AMR_TEST"}, {ADVECTION, "ADVECTION"}
+    {AMR_TEST, "AMR_TEST"}, {ADVECTION, "ADVECTION"},
+    {RADIATION_TEST, "RADIATION_TEST"}, {MARSHAK, "MARSHAK"},
+    {RADIATION_DIFFUSION, "RADIATION_DIFFUSION"},
+    {RADIATION_COUPLING, "RADIATION_COUPLING"},
+    {RADIATION_STREAMING_WAVE, "RADIATION_STREAMING_WAVE"},
+    {RADIATION_STREAMING_FRONT, "RADIATION_STREAMING_FRONT"},
+    {RADIATION_GAUSSIAN_PULSE, "RADIATION_GAUSSIAN_PULSE"},
+    {RADIATION_EQUILIBRIUM_SPHERE, "RADIATION_EQUILIBRIUM_SPHERE"}
 };
 
 inline std::istream& operator>>(std::istream& in, problem_type& problem) {
@@ -81,6 +96,13 @@ public:
 	bool core_refine;
 	bool gravity;
 	bool hydro;
+	bool periodic;
+	bool radiation;
+	bool rad_implicit;
+	// Prescribed-medium radiation regression parameters in physical code units.
+	std::string radReference = "gaussian_pulse.bin";
+	real radTestChi = 5, radTestWidth = .2;
+	real radTestBackground = 1, radTestAmplitude = .01, radTestLuminosity = .01;
 	real grad_rho_refine;
 	bool v1309;
 	bool rewrite_silo;
@@ -259,6 +281,11 @@ public:
 		arc & input_file;
 		arc & config_file;
 		arc & hydro;
+		arc & periodic;
+		arc & radiation;
+		arc & rad_implicit;
+		arc & radReference & radTestChi & radTestWidth;
+		arc & radTestBackground & radTestAmplitude & radTestLuminosity;
 		arc & gravity;
 		arc & bench;
 		arc & multipole_host_kernel_type;

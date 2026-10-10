@@ -1,0 +1,13 @@
+# The serial reference generator is shared by standalone and application tests.
+if(NOT TARGET gen_radiation_reference)
+  get_filename_component(_radiation_source_root "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
+  find_path(FFTW3_INCLUDE_DIR fftw3.h)
+  find_library(FFTW3_LIBRARY NAMES fftw3)
+  if(NOT FFTW3_INCLUDE_DIR OR NOT FFTW3_LIBRARY)
+    message(FATAL_ERROR "Radiation reference tests require FFTW3 (libfftw3-dev).")
+  endif()
+  add_executable(gen_radiation_reference "${CMAKE_CURRENT_LIST_DIR}/cpp/gen_radiation_reference.cpp")
+  target_compile_features(gen_radiation_reference PRIVATE cxx_std_20)
+  target_include_directories(gen_radiation_reference PRIVATE "${_radiation_source_root}" "${FFTW3_INCLUDE_DIR}")
+  target_link_libraries(gen_radiation_reference PRIVATE "${FFTW3_LIBRARY}")
+endif()

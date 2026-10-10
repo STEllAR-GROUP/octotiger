@@ -20,25 +20,22 @@ project(octotiger CXX C)
 # Search path for CMake modules to be loaded by include() and find_package()
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 
-set(OCTOTIGER_CXX_STANDARD "17")
-option(OCTOTIGER_WITH_CXX17 "Compile Octo-Tiger with c++17" OFF)
-option(OCTOTIGER_WITH_CXX20 "Compile Octo-Tiger with c++20" OFF)
-if (OCTOTIGER_WITH_CXX17)
-  set(OCTOTIGER_CXX_STANDARD "17")
-elseif(OCTOTIGER_WITH_CXX20)
-  set(OCTOTIGER_CXX_STANDARD "20")
-else()
-  set(OCTOTIGER_CXX_STANDARD "17")
-  set(OCTOTIGER_WITH_CXX17 ON)
-  message(INFO " No valid CXX Standard set. Using the default ${OCTOTIGER_CXX_STANDARD}")
+# The restored radiation helpers use C++20 concepts and mathematical constants.
+option(OCTOTIGER_WITH_CXX17 "Compile Octo-Tiger with c++17 (unsupported)" OFF)
+option(OCTOTIGER_WITH_CXX20 "Compile Octo-Tiger with c++20" ON)
+if(OCTOTIGER_WITH_CXX17)
+  message(FATAL_ERROR "The radiation-enabled source tree requires C++20 or newer")
 endif()
+set(OCTOTIGER_CXX_STANDARD "20")
 set(CMAKE_CXX_STANDARD ${OCTOTIGER_CXX_STANDARD})
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 ################################################################################
 # Options
 ################################################################################
 option(OCTOTIGER_DISABLE_ILIST "Disables the interaction list to allow larger sub-grids for hydro-only scenarios!" OFF)
 option(OCTOTIGER_WITH_UNBUFFERED_STDOUT "Disable stdout buffering on all localities for debugging" OFF)
 option(OCTOTIGER_WITH_GRAV_PAR "Enable parallelism in gravitational solver" OFF)
+option(OCTOTIGER_WITH_RADIATION "Enable radiation transport solver" OFF)
 option(OCTOTIGER_WITH_CUDA "Enable CUDA kernels" OFF)
 option(OCTOTIGER_WITH_HIP "Enable HIP kernels" OFF)
 option(OCTOTIGER_WITH_KOKKOS "Enable the build with Kokkos" OFF)
@@ -203,6 +200,9 @@ FetchContent_MakeAvailable(svesimd)
 ################################################################################
 # Octo-Tiger library sources
 set(source_files
+    src/radiation/rad_grid.cpp
+    src/test_problems/radiation/radiation.cpp
+    src/test_problems/marshak/marshak.cpp
     src/compute_factor.cpp
     src/eos.cpp
     src/geometry.cpp
@@ -264,6 +264,18 @@ set(source_files
 
 # Octo-Tiger library headers
 set(header_files
+    octotiger/radiation/cpu_kernel.hpp
+    octotiger/radiation/cuda_kernel.hpp
+    octotiger/radiation/implicit.hpp
+    octotiger/radiation/kernel_interface.hpp
+    octotiger/radiation/opacities.hpp
+    octotiger/radiation/rad_grid.hpp
+    octotiger/radiation/m1.hpp
+    octotiger/radiation/conservation.hpp
+    octotiger/test_problems/radiation.hpp
+    octotiger/test_problems/radiation/profiles.hpp
+    octotiger/test_problems/radiation/reference.hpp
+    octotiger/timestep.hpp
     octotiger/config/export_definitions.hpp
     octotiger/channel.hpp
     octotiger/compute_factor.hpp
@@ -382,6 +394,8 @@ add_hpx_library(
 )
 
 set(hydro_header_files
+    octotiger/unitiger/radiation/radiation_physics.hpp
+    octotiger/unitiger/radiation/radiation_physics_impl.hpp
     octotiger/unitiger/hydro.hpp
     octotiger/unitiger/physics.hpp
     octotiger/unitiger/physics_impl.hpp
@@ -570,6 +584,8 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/physcon.cpp 
     src/io/silo_out.cpp
     src/io/silo_in.cpp
+    src/radiation/rad_grid.cpp
+    src/test_problems/radiation/radiation.cpp
     frontend/frontend-helper.cpp
 
     src/eos.cpp
@@ -899,6 +915,11 @@ if(OCTOTIGER_WITH_GRAV_PAR)
 endif()
 
 
+if(OCTOTIGER_WITH_RADIATION)
+  target_compile_definitions(optionslib PUBLIC OCTOTIGER_HAVE_RADIATION)
+  target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_RADIATION)
+endif()
+
 # Grid size
 message(STATUS "Octo-Tiger grid size: ${OCTOTIGER_WITH_GRIDDIM}")
 target_compile_definitions(optionslib PUBLIC OCTOTIGER_GRIDDIM=${OCTOTIGER_WITH_GRIDDIM})
@@ -1070,4 +1091,5 @@ if(OCTOTIGER_WITH_TESTS)
     enable_testing()
 
   add_subdirectory(test_problems)
+  add_subdirectory(tests)
 endif()
