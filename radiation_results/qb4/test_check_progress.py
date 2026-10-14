@@ -132,6 +132,41 @@ class ProgressSafety(unittest.TestCase):
         self.assertEqual(command[:len(argv)], argv)
         self.assertIn('ProxyCommand=/bin/false', command)
 
+    def test_remote_failure_reports_exit_and_stderr_without_dumping_script(self):
+        script = 'PRIVATE_SCRIPT_CONTENT_' * 1000
+        error = subprocess.CalledProcessError(27, ['ssh', script], stderr='Traceback:\nRuntimeError: unknown submission\n')
+        with patch.object(progress.subprocess, 'run', side_effect=error) as run, \
+                self.assertRaises(RuntimeError) as raised:
+            progress.remote_python(progress.ssh_arguments('/existing.sock'), script)
+        message = str(raised.exception)
+        self.assertIn('exit 27', message)
+        self.assertIn('RuntimeError: unknown submission', message)
+        self.assertNotIn('PRIVATE_SCRIPT_CONTENT', message)
+        self.assertLess(len(message), 250)
+        self.assertIsNone(raised.exception.__cause__)
+        self.assertEqual(run.call_count, 1)
+        self.assertEqual(run.call_args.kwargs, {'check': True, 'capture_output': True, 'text': True, 'timeout': 120})
+
+    def test_remote_failure_bounds_stderr_and_reports_empty_stderr(self):
+        for stderr in (None, b'failure bytes', 'x' * 4096 + 'final failure'):
+            error = subprocess.CalledProcessError(1, ['ssh', 'large program'], stderr=stderr)
+            with self.subTest(stderr_type=type(stderr).__name__), \
+                    patch.object(progress.subprocess, 'run', side_effect=error), self.assertRaises(RuntimeError) as raised:
+                progress.remote_python(['ssh'], 'print(1)')
+            message = str(raised.exception)
+            self.assertLess(len(message), 2200)
+            self.assertIn('<empty>' if stderr is None else 'failure bytes' if isinstance(stderr, bytes) else 'final failure', message)
+
+    def test_remote_timeout_reports_unknown_outcome_without_retry(self):
+        error = subprocess.TimeoutExpired(['ssh', 'private script'], 120, stderr=b'remote still active')
+        with patch.object(progress.subprocess, 'run', side_effect=error) as run, self.assertRaises(RuntimeError) as raised:
+            progress.remote_python(['ssh'], 'private script')
+        self.assertIn('timed out after 120 seconds', str(raised.exception))
+        self.assertIn('outcome is unknown', str(raised.exception))
+        self.assertIn('remote still active', str(raised.exception))
+        self.assertNotIn('private script', str(raised.exception))
+        self.assertEqual(run.call_count, 1)
+
     def test_missing_local_stop_rejects_before_any_connection(self):
         (self.root / 'STOP').unlink()
         with patch.dict(sys.modules, {'run_campaign': self.runner, 'campaign_retention': self.retention}), \
@@ -320,6 +355,36 @@ class ProgressSafety(unittest.TestCase):
         self.assertEqual([call.args[0][0] for call in sbatch.call_args_list], ['sacct', 'sbatch'])
         self.assertFalse(any(arg.startswith('--dependency') for arg in sbatch.call_args.args[0]))
         self.assertEqual(first['previous_job_accounting'], ['200', 'COMPLETED', '0:0', '1'])
+
+    def test_site_lua_chatter_before_final_parsable_job_id_is_accepted_once(self):
+        chatter = ('sbatch: 50349.14 SUs available\n'
+                   'sbatch:10752 SUs requested\n'
+                   'sbatch:lua:Submitted job1094046\n1094046\n\n')
+        remote, subprocess_mock = self.run_submission_script(Mock(returncode=0, stdout=chatter, stderr=''))
+        with remote, subprocess_mock as scheduler:
+            result = progress.submit_next([], self.migration, self.worker)
+            replay = progress.submit_next([], self.migration, self.worker)
+        self.assertEqual(result['status'], 'submitted')
+        self.assertEqual(result['job_id'], '1094046')
+        self.assertEqual(result['stdout'], chatter)
+        self.assertEqual(replay, result)
+        self.assertEqual([call.args[0][0] for call in scheduler.call_args_list], ['sacct', 'sbatch'])
+
+    def test_ambiguous_or_nonfinal_job_identity_stays_unknown(self):
+        for stdout in ('sbatch:lua:Submitted job1094046\n', '1094046\nwarning afterward\n',
+                '1094046;cluster;extra\n', '1094046\n1094047\n', '0\n', '１２３\n'):
+            record = self.remote / 'submissions/after-200.json'
+            record.unlink(missing_ok=True)
+            remote, subprocess_mock = self.run_submission_script(Mock(returncode=0, stdout=stdout, stderr=''))
+            with self.subTest(stdout=stdout), remote, subprocess_mock as scheduler, \
+                    self.assertRaisesRegex(RuntimeError, 'Unknown sbatch outcome'):
+                progress.submit_next([], self.migration, self.worker)
+            self.assertEqual([call.args[0][0] for call in scheduler.call_args_list], ['sacct', 'sbatch'])
+            self.assertEqual(progress.read(record)['status'], 'unknown')
+            remote, subprocess_mock = self.run_submission_script()
+            with remote, subprocess_mock as scheduler, self.assertRaisesRegex(RuntimeError, 'Unknown previous'):
+                progress.submit_next([], self.migration, self.worker)
+            scheduler.assert_not_called()
 
     def test_unknown_submission_outcome_remains_reserved_and_never_retries(self):
         remote, subprocess_mock = self.run_submission_script(error=OSError('connection lost during sbatch'))

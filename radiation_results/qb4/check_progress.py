@@ -54,7 +54,20 @@ def connection(migration):
 
 def remote_python(ssh, script):
     command = '/usr/local/packages/python/3.11.5-anaconda/bin/python3.11 -c ' + shlex.quote(script)
-    result = subprocess.run([*ssh, HOST, command], check=True, capture_output=True, text=True, timeout=120)
+    try:
+        result = subprocess.run([*ssh, HOST, command], check=True, capture_output=True, text=True, timeout=120)
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
+        stderr = error.stderr or ''
+        if isinstance(stderr, bytes):
+            stderr = stderr.decode('utf-8', errors='replace')
+        stderr = stderr.strip()
+        if len(stderr) > 2048:
+            stderr = '[truncated; final stderr follows]\n' + stderr[-2048:]
+        reason = (f'exit {error.returncode}' if isinstance(error, subprocess.CalledProcessError)
+                  else f'timed out after {error.timeout} seconds; remote outcome is unknown')
+        # CalledProcessError's default string embeds the entire shell-quoted
+        # program and suppresses the useful captured stderr.
+        raise RuntimeError(f'QueenBee remote command failed ({reason}). stderr: {stderr or "<empty>"}') from None
     return json.loads(result.stdout)
 
 
@@ -145,7 +158,7 @@ def submit_next(ssh, migration, worker):
     if re.fullmatch(r'[1-9][0-9]*', predecessor) is None:
         raise ValueError('Invalid predecessor job identity')
     script = '''from pathlib import Path
-import json,subprocess,os
+import json,subprocess,os,re
 root=Path(ROOT)
 record=root/'submissions'/('after-'+PREVIOUS+'.json')
 record.parent.mkdir(exist_ok=True)
@@ -162,8 +175,11 @@ fd=os.open(record,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
 with os.fdopen(fd,'w') as f:
  json.dump({'status':'reserved','dependency':PREVIOUS,'nodes':1},f);f.flush();os.fsync(f.fileno())
 p=subprocess.run(['sbatch','--parsable',str(root/'run.sbatch')],cwd=root,text=True,capture_output=True)
-job=p.stdout.strip().split(';')[0]
-valid=job.isdigit() and int(job)>0
+lines=[line.strip() for line in p.stdout.splitlines() if line.strip()]
+pattern=r'([1-9][0-9]*)(?:;[A-Za-z0-9][A-Za-z0-9._-]*)?'
+match=re.fullmatch(pattern,lines[-1]) if lines else None
+valid=match is not None and not any(re.fullmatch(pattern,line) for line in lines[:-1])
+job=match.group(1) if valid else ''
 r={'status':('submitted' if valid else 'unknown') if p.returncode==0 else 'rejected','returncode':p.returncode,'stdout':p.stdout,'stderr':p.stderr,'dependency':PREVIOUS,'nodes':1,'tasks':1,'cpus':64,'previous_job_accounting':rows[0]}
 if p.returncode==0 and valid:r['job_id']=job
 temporary=record.with_suffix('.tmp');temporary.write_text(json.dumps(r,indent=2)+'\\n');temporary.replace(record)
