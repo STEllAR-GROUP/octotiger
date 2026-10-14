@@ -63,14 +63,17 @@ class CampaignSafety(unittest.TestCase):
     def write_manifest(self, manifest):
         campaign.write_json(self.root / 'campaign.json', manifest)
 
-    def start(self):
+    def start(self, run_limit=None):
         with patch.object(campaign.subprocess, 'Popen', side_effect=self.fake_child) as spawned, \
                 patch.object(campaign, 'stop_child') as stopped, \
                 patch.object(campaign, 'refresh_comparisons') as refreshed, \
                 patch.object(campaign.shutil, 'disk_usage', return_value=Mock(free=2**50)), \
                 patch.object(campaign, 'process_session_rss', return_value=0), \
                 patch.object(campaign.time, 'sleep'):
-            result = self.main('--resume', str(self.root), '--start')
+            arguments = ['--resume', str(self.root), '--start']
+            if run_limit is not None:
+                arguments += ['--run-limit', str(run_limit)]
+            result = self.main(*arguments)
         return result, spawned, stopped, refreshed
 
     def fake_child(self, command, **kwargs):
@@ -232,10 +235,58 @@ class CampaignSafety(unittest.TestCase):
             campaign.plan(args)
 
     def test_resource_and_timestep_limits_apply_before_preparation(self):
-        for arguments in (('--threads', '7'), ('--hard-dt', '1'), ('--time', 'nan'),
+        for arguments in (('--threads', str((os.cpu_count() or 1) + 1)), ('--hard-dt', '1'), ('--time', 'nan'),
                 ('--minimum-free-gib', '0'), ('--memory-limit-gib', 'inf')):
             with self.subTest(arguments=arguments), self.assertRaises(ValueError):
                 self.main('--output', str(self.root), '--dry-run', *arguments)
+        self.assertFalse(self.root.exists())
+
+    def test_all_available_cpus_can_be_frozen_after_explicit_authorization(self):
+        with patch.object(campaign.os, 'cpu_count', return_value=24):
+            self.prepare('--threads', '24')
+        manifest = campaign.load(self.root)
+        self.assertEqual(manifest['threads'], 24)
+        self.assertTrue(all(command[command.index('--threads') + 1] == '24'
+            for command in self.checked_commands if '--dry-run' in command))
+
+    def test_run_limit_stops_after_new_results_and_resumes_remaining_runs(self):
+        self.prepare()
+        original_plan = campaign.execution_plan(campaign.load(self.root))
+        for limit, expected_total in ((1, 1), (2, 3)):
+            result, spawned, stopped, refreshed = self.start(limit)
+            self.assertEqual(result, 0)
+            self.assertEqual(spawned.call_count, limit)
+            self.assertEqual(stopped.call_count, limit)
+            self.assertEqual(refreshed.call_count, limit)
+            manifest = campaign.load(self.root)
+            self.assertEqual(manifest['status'], 'ready')
+            self.assertFalse(manifest['active'])
+            self.assertFalse((self.root / 'STOP').exists())
+            self.assertEqual(sum(run['status'] == 'completed' for run in manifest['runs']), expected_total)
+            self.assertEqual(campaign.execution_plan(manifest), original_plan)
+            self.assertEqual(manifest['last_start_run_limit'], limit)
+        result, spawned, stopped, _ = self.start()
+        self.assertEqual(result, 0); self.assertEqual(spawned.call_count, 5)
+        self.assertEqual(stopped.call_count, 5)
+        self.assertEqual(campaign.load(self.root)['status'], 'completed')
+        result, spawned, stopped, _ = self.start(1)
+        self.assertEqual(result, 0); spawned.assert_not_called(); stopped.assert_not_called()
+
+    def test_run_limit_two_completes_the_first_model_pair_before_ready(self):
+        self.prepare()
+        result, spawned, _, _ = self.start(2)
+        self.assertEqual(result, 0); self.assertEqual(spawned.call_count, 2)
+        completed = [run for run in campaign.load(self.root)['runs'] if run['status'] == 'completed']
+        self.assertEqual([(run['case'], run['model'], run['level']) for run in completed],
+            [('gaussian_pulse', 'm1', 0), ('gaussian_pulse', 'fld', 0)])
+
+    def test_run_limit_requires_positive_explicit_resume_start(self):
+        for arguments in (['--output', str(self.root), '--prepare', '--run-limit', '1'],
+                ['--resume', str(self.root), '--dry-run', '--run-limit', '1'],
+                ['--resume', str(self.root), '--start', '--run-limit', '0'],
+                ['--resume', str(self.root), '--start', '--run-limit', '-1']):
+            with self.subTest(arguments=arguments), self.assertRaises(SystemExit):
+                self.main(*arguments)
         self.assertFalse(self.root.exists())
 
     def test_explicit_start_is_sequential_and_completed_resume_is_read_only(self):

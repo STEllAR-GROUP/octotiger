@@ -176,7 +176,7 @@ Json read_fld_diagnostics(const fs::path &folder, const Json &m)
     std::istringstream input(read_text(folder / "run.log"));
     std::string line;
     std::smatch match;
-    const std::regex marker(R"(^RADIATION_FLD_FINISHED\s+(\w+)\s+t=(\S+)\s*$)");
+    const std::regex marker(R"(^RADIATION_FLD_FINISHED\s+(\w+)\s+t=(\S+)(?:\s+requested=(\S+))?\s*$)");
     const std::regex accepted(R"(^FLD accepted t=(\S+) dt=(\S+) substeps=(\d+) retries=(\d+) nonlinear_iterations=(\d+) linear_iterations=(\d+) vcycles=(\d+) nonlinear_residual=(\S+) linear_residual=(\S+) boundary_energy=(\S+) conservation_error=(\S+)\s*$)");
     const double start = m.contains("checkpoint_resume") ?
         m.at("checkpoint_resume").at("checkpoint_time").get<double>() : 0.;
@@ -190,6 +190,8 @@ Json read_fld_diagnostics(const fs::path &folder, const Json &m)
                 "radiation_" + m.at("case").get<std::string>();
             require(lower(match[1]) == expected && close(numeric(match[2]), m.at("time")),
                 "Wrong FLD completion marker/time");
+            require(!match[3].matched || close(numeric(match[3]), m.at("time")),
+                "Wrong FLD requested completion time");
         } else if (std::regex_match(line, match, accepted)) {
             require(finished == 0, "FLD step after completion marker");
             const double time = numeric(match[1]), dt = numeric(match[2]);

@@ -78,7 +78,11 @@ python3 output/m1-fld-local/.campaign/run_campaign.py \
   --resume output/m1-fld-local --start
 ```
 
-The runner executes one case/model at a time. It verifies immutable settings,
+The runner executes one case/model at a time. Use `--run-limit 2` with
+`--resume DIR --start` to pause after two newly completed results for website
+staging; the next start continues the remaining plan without a STOP file.
+`--threads` may use up to the available logical CPUs, subject to the current
+user-directed resource budget. It verifies immutable settings,
 source/runtime hashes and completed-run metadata, records each process identity,
 and refreshes comparison plots after each successful run. It never deploys a
 website. Create `STOP` inside the campaign directory or interrupt the runner to

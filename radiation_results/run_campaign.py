@@ -73,8 +73,9 @@ def load(root):
 
 
 def plan(args):
-    if not 1 <= args.threads <= 6:
-        raise ValueError('--threads must be 1..6, within the current shared local resource cap')
+    available = os.cpu_count() or 1
+    if not 1 <= args.threads <= available:
+        raise ValueError(f'--threads must be 1..{available}, within the available CPU count')
     if args.snapshots < 3:
         raise ValueError('At least three snapshots are required')
     for name in ('time', 'hard_dt', 'minimum_free_gib', 'memory_limit_gib'):
@@ -332,7 +333,7 @@ def stop_child(child):
         time.sleep(.05)
 
 
-def execute(root, manifest):
+def execute(root, manifest, run_limit=None):
     checks = manifest.get('preparation_checks', {})
     if checks.get('config_dry_runs') != len(manifest['runs']) or checks.get('solver_runs') != 0 or not checks.get('runtime_help_passed'):
         raise ValueError('Preparation is incomplete; finish --resume DIR --dry-run before starting')
@@ -341,6 +342,8 @@ def execute(root, manifest):
     if (root / 'STOP').exists():
         raise ValueError('STOP is present; remove it only when explicitly resuming the campaign')
     manifest.update(active=True, status='running', authorization='explicit_start', started_utc=now())
+    manifest['last_start_run_limit'] = run_limit
+    newly_completed = 0
     child = None
     handlers = {sig: signal.getsignal(sig) for sig in (signal.SIGINT, signal.SIGTERM)}
     def interrupted(signum, frame):
@@ -386,7 +389,10 @@ def execute(root, manifest):
             run.update(status='completed'); run.pop('pid', None)
             run['attempts'][-1]['completed_utc'] = now(); save(root, manifest)
             refresh_comparisons(root, manifest)
-        manifest['status'] = 'completed'
+            newly_completed += 1
+            if run_limit is not None and newly_completed >= run_limit:
+                break
+        manifest['status'] = 'completed' if all(run['status'] == 'completed' for run in manifest['runs']) else 'ready'
     except KeyboardInterrupt:
         manifest['status'] = 'stopped'
         atomic_text(root / 'STOP', 'Stopped; requires explicit resume.\n')
@@ -406,7 +412,7 @@ def execute(root, manifest):
             # start refuses overlapping work, but must still restore handlers.
             for sig, handler in handlers.items():
                 signal.signal(sig, handler)
-    return 0 if manifest['status'] == 'completed' else 1
+    return 0 if manifest['status'] in ('completed', 'ready') else 1
 
 
 def parser():
@@ -416,12 +422,16 @@ def parser():
     action = p.add_mutually_exclusive_group(required=True)
     action.add_argument('--prepare', action='store_true'); action.add_argument('--dry-run', action='store_true')
     action.add_argument('--start', action='store_true'); action.add_argument('--refresh-only', action='store_true')
+    p.add_argument('--run-limit', type=int,
+        help='With --resume --start, complete at most N new runs, then return ready without a STOP file')
     p.add_argument('--levels', nargs='+', type=int, choices=(0, 1, 2), default=[0, 1])
     p.add_argument('--cases', nargs='+', choices=CASES, default=list(PAIRED_CASES))
     p.add_argument('--models', nargs='+', choices=METHODS, default=list(METHODS))
     p.add_argument('--build', type=Path, default=ROOT / 'cmake-build-hpx2rc-radiation')
     p.add_argument('--results-build', type=Path, default=ROOT / 'radiation_results/.build')
-    p.add_argument('--threads', type=int, default=2); p.add_argument('--snapshots', type=int, default=3)
+    p.add_argument('--threads', type=int, default=2,
+        help='HPX worker count, at most the available CPU count; frozen during preparation')
+    p.add_argument('--snapshots', type=int, default=3)
     p.add_argument('--time', type=float, default=.25); p.add_argument('--hard-dt', type=float, default=.03125)
     p.add_argument('--minimum-free-gib', type=float, default=10); p.add_argument('--memory-limit-gib', type=float, default=8)
     preset = json.loads(Path(__file__).with_name('local-study.json').read_text())
@@ -440,8 +450,10 @@ def main(argv=None):
         p.error('Use --dry-run to verify an existing prepared campaign')
     if args.refresh_only and not args.resume:
         p.error('--refresh-only requires --resume')
+    if args.run_limit is not None and (not args.resume or not args.start or args.run_limit <= 0):
+        p.error('--run-limit must be positive and requires --resume DIR --start')
     if args.resume:
-        allowed = {'--resume', '--dry-run', '--start', '--refresh-only'}
+        allowed = {'--resume', '--dry-run', '--start', '--refresh-only', '--run-limit'}
         if any(a.split('=')[0] not in allowed for a in arguments if a.startswith('--')):
             p.error('Resume uses saved settings; do not override the prepared plan')
     root = (args.resume or args.output).resolve(); manifest = load(root) if args.resume else plan(args)
@@ -471,7 +483,7 @@ def main(argv=None):
             save(root, manifest); return 0
         if args.refresh_only:
             refresh_comparisons(root, manifest); save(root, manifest); return 0
-        return execute(root, manifest)
+        return execute(root, manifest, args.run_limit)
 
 
 if __name__ == '__main__':

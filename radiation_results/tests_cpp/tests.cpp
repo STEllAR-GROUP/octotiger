@@ -81,7 +81,7 @@ void results(const fs::path &p, Json m)
                 "boundary_energy=0 conservation_error=0\n";
             t += dt;
         }
-        log << "RADIATION_FLD_FINISHED " << (m.at("case") == "marshak" ? "" : "RADIATION_") << name << " t=" << time << '\n';
+        log << "RADIATION_FLD_FINISHED " << (m.at("case") == "marshak" ? "" : "RADIATION_") << name << " t=" << time << " requested=" << time << '\n';
         atomic_text(p / "run.log", log.str());
         std::ostringstream csv, gas;
         csv << "t,dx,x,y,z,er,fx,fy,fz,er_ref,fx_ref,fy_ref,fz_ref\n" << std::scientific << std::setprecision(17);
@@ -502,6 +502,17 @@ int main(int argc, char **argv)
             nonconverged.replace(nonconverged.find("nonlinear_residual=1e-12"), std::string("nonlinear_residual=1e-12").size(), "nonlinear_residual=1e-2");
             atomic_text(folder / "run.log", nonconverged);
             rejects([&] { read_fld_diagnostics(folder, fld); }, "nonconverged FLD accepted step rejected");
+            atomic_text(folder / "run.log", original);
+            auto bad_request = original;
+            bad_request.replace(bad_request.find(" requested="), std::string::npos,
+                " requested=" + number(fld.at("time").get<double>() * 2) + "\n");
+            atomic_text(folder / "run.log", bad_request);
+            rejects([&] { read_fld_diagnostics(folder, fld); }, "mismatched FLD requested completion time rejected");
+            auto short_marker = original;
+            short_marker.erase(short_marker.find(" requested="));
+            atomic_text(folder / "run.log", short_marker + "\n");
+            expect(read_fld_diagnostics(folder, fld).at("accepted_steps") == 1,
+                "short-form FLD completion marker remains readable");
             atomic_text(folder / "run.log", original);
             auto wrong = fld;
             wrong["time"] = fld.at("time").get<double>() * 2;
