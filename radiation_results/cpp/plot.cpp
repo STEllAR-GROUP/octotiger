@@ -534,7 +534,7 @@ fs::path render(const fs::path &batch, const Options &o)
         "<p><a href=\"conservation.csv\">Conservation CSV</a>";
     if (!fld_batch) { page += " · <a href=\"errors.csv\">All norms/orders CSV</a>"; }
     if (fs::exists(batch / "movies.html")) { page += " · <a href=\"../movies.html\">Movies</a>"; }
-    page += fld_batch ? "</p><p>Stationary FLD with derived flux. Available analytic references solve qualified linear diffusion-limit problems; their discrepancy norms cover the projected slice, not the full volume. Vacuum streaming cases have no supplied analytic spatial FLD reference and instead check exact periodic energy integrals.</p>" :
+    page += fld_batch ? "</p><p>FLD with derived flux; moving cases include first-order gas/radiation evolution and lab-frame enthalpy transport. Available analytic references solve qualified linear diffusion-limit problems; their discrepancy norms cover the projected slice, not the full volume. Thin positive-opacity streaming cases have no supplied analytic spatial FLD reference and instead check exact periodic energy integrals.</p>" :
         "</p><p>Norms use the full 3D domain: L1 = Σ|e|ΔV/V; L2 = √(Σe²ΔV/V); L∞ = max|e|. Orders compare matching physical times and configurations. Zero errors have no reported order.</p>";
 	for (auto &[name, series] : groups) {
 		std::sort(series.begin(), series.end(), [](auto &a, auto &b) {
@@ -544,7 +544,7 @@ fs::path render(const fs::path &batch, const Options &o)
 		std::set<double> seen;
 		auto case_dir = output / name;
 		fs::create_directories(case_dir);
-        if (fld_model(first)) {
+        if (fld_model(first) && !coupled_case(name)) {
             const bool references = fld_reference_case(name);
             page += "<section><h2>" + html(name) + " — FLD backward Euler</h2><p>" +
                 (references ? std::string("Stationary FLD compared with its analytic linear diffusion-limit reference. The reference is not exact for the nonlinear limiter. ") :

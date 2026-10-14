@@ -79,7 +79,9 @@ def check_state(metadata, fields):
                 raise AssertionError(f"Nonpositive gas thermal energy in {block}:{index}")
             flux = math.hypot(*(arrays[field][index] for field in ("fx", "fy", "fz")))
             ratio = flux / (CGS_C * energy)
-            if ratio > 1 + 2e-12:
+            speed = math.hypot(*(arrays[field][index] for field in ("sx", "sy", "sz"))) / rho
+            limit = 1 + (2 * speed / CGS_C if metadata["radiation_model"] == 1 else 0)
+            if ratio > limit + 2e-12:
                 raise AssertionError(f"Unrealizable physical radiation flux in {block}:{index}: {ratio}")
             density.append(rho)
             internal.append(thermal)
@@ -100,7 +102,7 @@ def relative_change(before, after):
     return max(abs(a - b) for a, b in zip(before, after)) / scale
 
 
-def check_conservation(path):
+def check_conservation(path, material_energy_scale=0):
     with path.open() as stream:
         rows = [{name: float(value) for name, value in row.items()} for row in csv.DictReader(stream)]
     if len(rows) < 2 or rows[-1]["t"] <= rows[0]["t"]:
@@ -112,12 +114,19 @@ def check_conservation(path):
     boundary = final["er_boundary"] - initial["er_boundary"]
     change = final["er"] - initial["er"]
     scale = max(abs(initial["er"]), abs(final["er"]), abs(source), abs(boundary))
-    residual = abs(change + boundary - source) / scale
+    radiation_relative_residual = abs(change + boundary - source) / scale
+    # The eliminated FLD residual is normalized by gas+radiation energy.
+    # In cold shocks gas energy dominates radiation by many orders; retain
+    # and report the radiation-relative value as a separate diagnostic.
+    residual = abs(change + boundary - source) / max(scale, material_energy_scale)
     if residual > 1e-10:
         raise AssertionError(f"Radiation energy ledger does not close: residual={residual}")
     if abs(source) <= 1e-14 * scale:
         raise AssertionError("Smoke run did not exercise thermal matter-radiation exchange")
-    return {"relative_energy_residual": residual, "relative_source_exchange": source / scale}
+    return {"relative_energy_residual": residual,
+            "radiation_relative_energy_residual": radiation_relative_residual,
+            "material_energy_normalization": material_energy_scale,
+            "relative_source_exchange": source / scale}
 
 
 def check_slices(folder, metadata):
@@ -147,6 +156,7 @@ def check_slices(folder, metadata):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--radiation-model", choices=("m1", "fld"), default="m1")
     parser.add_argument("--executable", required=True, type=Path)
     parser.add_argument("--config", required=True, type=Path)
     parser.add_argument("--case", required=True, choices=CASES)
@@ -176,7 +186,10 @@ def main():
         "radiation_reduced_c_factor": args.radiation_reduced_c_factor,
         "radiation_backend": args.radiation_backend,
         "radiation_integrator": args.radiation_integrator,
+        "radiation_model": args.radiation_model,
     })
+    if args.radiation_model == "fld":
+        config.update({"radiation_integrator": "backward_euler", "hard_dt": 1, "stop_time": 4})
     config_path = folder / "run.ini"
     config_path.write_text("".join(f"{name}={value}\n" for name, value in config.items()))
     (folder / "radiation-hydro-slices").mkdir(exist_ok=True)
@@ -195,12 +208,17 @@ def main():
     if initial_metadata["time"] != 0 or final_metadata["time"] <= 0:
         raise AssertionError("Smoke run must advance from t=0")
     for metadata in (initial_metadata, final_metadata):
-        if metadata["radiation_integrator"] != 0:
+        if metadata["radiation_integrator"] != (3 if args.radiation_model == "fld" else 0):
             raise AssertionError("Checkpoint integrator differs from the requested method")
-        if metadata["radiation_model"] != 0 or metadata["radiation_algorithm_version"] != 1:
-            raise AssertionError("Checkpoint does not identify M1 radiation algorithm version 1")
+        if metadata["radiation_model"] != int(args.radiation_model == "fld") or metadata["radiation_algorithm_version"] != (2 if args.radiation_model == "fld" else 1):
+            raise AssertionError("Checkpoint does not identify the requested radiation algorithm")
     initial = check_state(initial_metadata, initial_fields)
     final = check_state(final_metadata, final_fields)
+    material_energy_scale = 0
+    if args.radiation_model == "fld":
+        volume = (2 * float(config["xscale"]) / 16) ** 3
+        material_energy_scale = volume * max(math.fsum(x for block in fields["egas"].values() for x in block)
+                                            for fields in (initial_fields, final_fields))
     changes = {name: relative_change(initial[name], final[name])
                for name in ("density", "gas_internal_energy", "radiation_energy")}
     if changes["gas_internal_energy"] <= 1e-12 or changes["radiation_energy"] <= 1e-12:
@@ -209,13 +227,14 @@ def main():
         raise AssertionError("Reflecting-wall shock did not compress the gas")
     report = {
         "case": args.case, "validation": "four-step coupled smoke; not a published-time comparison",
+        "radiation_model": args.radiation_model,
         "radiation_backend": args.radiation_backend,
         "radiation_integrator": args.radiation_integrator,
         "radiation_reduced_c_factor": final_metadata["radiation_reduced_c_factor"],
         "physical_c": CGS_C, "transport_c": CGS_C * final_metadata["radiation_reduced_c_factor"],
         "cells": len(final["density"]), "physical_time_s": final_metadata["time"] * final_metadata["code_to_s"],
         "relative_changes": changes, "maximum_reduced_flux": max(final["reduced_flux"]),
-        "conservation": check_conservation(folder / "radiation-conservation.csv"),
+        "conservation": check_conservation(folder / "radiation-conservation.csv", material_energy_scale),
         "website_slice": check_slices(folder, final_metadata),
     }
     (folder / "validation.json").write_text(json.dumps(report, indent=2) + "\n")

@@ -38,7 +38,7 @@ std::string validation_notes(const std::vector<Run> &runs)
     }
     const bool fld = std::any_of(runs.begin(), runs.end(), [](const auto &run) { return fld_model(run.second); });
     if (fld) {
-        notes += "<p class=\"note\"><strong>FLD method scope.</strong> Stationary grey radiation at physical light speed, CPU backend, backward Euler in time, and derived flux with the Levermore–Pomraning limiter. Where supplied, analytic diffusion-limit references omit nonlinear-limiter and boundary-model effects. Vacuum streaming cases have no supplied analytic spatial FLD profile and use exact energy integrals instead. Paired M1 RK1 and FLD timings use different stability limits and do not establish performance at matched error.</p>";
+        notes += "<p class=\"note\"><strong>FLD method scope.</strong> Grey radiation at physical light speed on CPU, backward-Euler diffusion/material exchange, and the Levermore–Pomraning limiter. Moving cases include first-order gas transport, radiation force/work, and a derived lab-frame flux with radiation enthalpy advection. Where supplied, analytic diffusion-limit references omit nonlinear-limiter and boundary-model effects. Thin streaming cases have no supplied analytic spatial FLD profile and use exact energy integrals instead. Paired M1 RK1 and FLD timings use different stability limits and do not establish performance at matched error.</p>";
     }
     return notes;
 }
@@ -153,14 +153,15 @@ std::string settings(const Json &m)
     s += row("Radiation model", fld_model(m) ? "FLD" : "M1");
     s += row("Radiation integration", fld_model(m) ? "FLD backward Euler (first order in time)" :
         method == "euler" ? "M1 RK1 (first order in time)" : "Historical method: " + html(method));
-    s += row("Flux semantics", fld_model(m) ? "Derived FLD flux: F = -D grad E" : "Evolved M1 flux moment");
+    s += row("Flux semantics", fld_model(m) ? (coupled_case(m.at("case")) ?
+        "Derived lab-frame FLD flux: F = -D grad E + (E I + P) v" : "Derived FLD flux: F = -D grad E") : "Evolved M1 flux moment");
     if (fld_model(m)) {
         if (fld_reference_case(m.at("case"))) {
             s += row("Analytic reference", html(m.value("reference_model", "")) +
                 "; linear diffusion-limit reference, not exact for the nonlinear FLD limiter");
             s += row("Reference norm scope", "Area-weighted projected positive-side slice; no full-volume norm or convergence order inferred");
         } else {
-            s += row("Analytic reference", "No analytic spatial FLD solution supplied; exact periodic energy integral checked separately");
+            s += row("Analytic reference", coupled_case(m.at("case")) ? "No independent analytic or digitized benchmark profile supplied" : "No analytic spatial FLD solution supplied; exact periodic energy integral checked separately");
             s += row("Reference norm scope", "No analytic-profile norms or convergence orders");
         }
     }
@@ -368,7 +369,7 @@ fs::path report_pages(const fs::path &batch, bool live_update)
 	std::string index =
 		start("Radiation test problems") +
 		"<header><div class=\"brand\">Octo-TIGER / Radiation verification</div><h1>Radiation test "
-		"problems</h1><p class=\"lead\">M1 RK1 and stationary FLD. Open a problem for its "
+		"problems</h1><p class=\"lead\">M1 RK1 and FLD. Open a problem for its "
 		"physical setup, comparison method, sources, and results at every completed resolution.</p>";
 	index += "<div class=\"status\"><strong>" + html(state.value("message", "Saved results")) +
 			 "</strong><span>" + std::to_string(all.size()) + " completed runs</span><span>" +
@@ -450,8 +451,8 @@ fs::path report_pages(const fs::path &batch, bool live_update)
 		if (runs.empty()) {
 			page += "<p>No completed run is available for this problem in this batch. Its description is "
 					"available above; results will appear here as runs finish.</p>";
-            if (fld_batch && !fld) { page += "<p class=\"note\">Unsupported by the stationary FLD backend; no FLD run is planned for this problem.</p>"; }
-        } else if (fld) {
+            if (fld_batch && !fld) { page += "<p class=\"note\">Unsupported FLD problem; no FLD run is planned for this problem.</p>"; }
+        } else if (fld && !coupled) {
             const bool references = fld_reference_case(d.name);
             page += references ?
                 "<p class=\"note\">Analytic diffusion-limit reference comparison. The reference is exact for its stated linear diffusion equations, not for the nonlinear FLD limiter. Flux remains a derived diagnostic; no separate M1 momentum conservation test applies.</p>" :
@@ -539,6 +540,10 @@ fs::path report_pages(const fs::path &batch, bool live_update)
                 page += figure(batch, target / "hydro_slice", "Numerical gas temperature, radiation temperature, and density. " + slice_geometry_note(m));
                 page += figure(batch, target / "profiles", "Numerical profiles; no reference curves are supplied. " + slice_geometry_note(m));
                 page += "<h4>Movies</h4>" + movies(batch, folder);
+                if (fld_model(m)) {
+                    const auto diagnostics = read_fld_diagnostics(folder, m);
+                    page += "<h4>Implicit solve and energy balances</h4><p>Radiation-relative imbalance and the raw accepted-step coupled error are reported separately. A gas-dominated shock can have a much larger radiation-relative imbalance than its residual normalized by gas plus radiation energy.</p><pre>" + html(diagnostics.dump(2)) + "</pre>";
+                }
                 if (m.contains("checkpoint_resume")) {
                     const auto budget = read_conservation(folder, m);
                     require(bool(budget), "Missing checkpoint conservation segment");
@@ -690,18 +695,21 @@ fs::path report_pages(const fs::path &batch, bool live_update)
       }
     }
 		page += "</section>";
-        page += fld ? R"(<section class="section" id="diagnostics"><h2>Reading FLD diagnostics</h2>
-<p>Gaussian, sphere, and Marshak profiles include analytic linear diffusion-limit references; Marshak also includes material energy. Those references omit the nonlinear limiter, and Marshak assumes a semi-infinite domain. Slice discrepancies combine these model differences with discretization and reference-evaluation errors. Vacuum wave/front cases instead have numerical-only profiles and exact periodic energy-integral checks. Numerical flux is derived as F = −D∇E and satisfies |F| ≤ cE; it is not an evolved M1 momentum variable.</p>
+        if (!coupled) {
+            page += "<p class=\"note\">Momentum plots are omitted for this fixed-material problem. The prescribed medium acts as an external momentum reservoir, so radiation momentum exchange does not imply that a compensating gas momentum was evolved.</p>";
+        }
+        page += (fld && !coupled) ? R"(<section class="section" id="diagnostics"><h2>Reading FLD diagnostics</h2>
+<p>Gaussian, sphere, and Marshak profiles include analytic linear diffusion-limit references; Marshak also includes material energy. Those references omit the nonlinear limiter, and Marshak assumes a semi-infinite domain. Slice discrepancies combine these model differences with discretization and reference-evaluation errors. Thin positive-opacity wave/front cases instead have numerical-only profiles and exact periodic energy-integral checks. Numerical flux is derived as F = −D∇E and satisfies |F| ≤ cE; it is not an evolved M1 momentum variable.</p>
 <p>The radiation energy ledger checks R = E(t) − E(t_ref) + B − S, with outward boundary energy B and radiation sources S, including material exchange and any prescribed emitter. Its fixed normalization is initial radiation energy, or bath energy times domain volume for cold Marshak heating. Coupled gas-plus-radiation errors per accepted implicit step are recorded separately in the solver diagnostics.</p>
 <p>Nonlinear residuals, substeps, and retries are measured solver diagnostics. The short pilot checks the implementation and reporting pipeline; comparison of models is distinct from an accuracy benchmark or speedup at matched error.</p></section>)" : coupled ? R"(<section class="section" id="diagnostics"><h2>Reading the numerical profiles</h2>
 <p>Gas and radiation temperatures are distinct diagnostics; the radiation temperature is defined by E = a<sub>r</sub>T<sub>r</sub><sup>4</sup>. The central ray lies at y = z = Δx/2 and is offset from the exact origin by half a cell in each transverse direction. The two-dimensional plane is z = Δx/2.</p>
-<p>Check positivity, radiation realizability |F| ≤ cE, conservation with the appropriate boundary budget, thermal equilibration, shock speed and precursor structure, and sensitivity to resolution and timestep. A finite, positive short run is an implementation check, not evidence that a subcritical or supercritical state has developed. Comparisons to published figures also require matching geometry, opacities, boundaries, and physical time.</p></section>)" : method_notes();
+<p>Check positivity, the recorded-frame radiation flux envelope, conservation with the appropriate boundary budget, thermal equilibration, shock speed and precursor structure, and sensitivity to resolution and timestep. A finite, positive short run is an implementation check, not evidence that a subcritical or supercritical state has developed. Comparisons to published figures also require matching geometry, opacities, boundaries, and physical time.</p></section>)" : method_notes();
 		page += "<section class=\"section\" id=\"sources\"><span class=\"tag\">Sources &amp; "
 				"provenance</span><h2>Where this problem comes from</h2>" +
 				d.source;
 		page +=
-			R"(<h3>Radiation method context</h3><p><strong>M1 RK1</strong> evolves radiation energy and flux moments with the retained first-order radiation update. <strong>FLD</strong> evolves radiation energy and stationary material thermal energy with a coupled backward-Euler solve; its flux F = −D∇E is reconstructed from energy with the Levermore–Pomraning limiter. The scalar implicit transport solve uses composite-grid multigrid and an iterative linear solver. Both time integrators are first order.</p>
-<p>The stationary FLD setup includes the Gaussian scattering pulse, Marshak heating, the prescribed equilibrium-sphere emitter, and vacuum wave/front closure comparisons on the CPU at physical light speed. Moving radiation hydrodynamics remains unsupported. A configured case does not establish that a solve converged; only validated completed runs appear as results. Flux diagnostics in FLD have no separate M1 momentum conservation test. A difference between paired M1 and FLD solutions is a model comparison, not an analytic error. ADER2 has been removed from the current solver; historical result files retain their original provenance.</p>
+			R"(<h3>Radiation method context</h3><p><strong>M1 RK1</strong> evolves radiation energy and flux moments with the retained first-order radiation update. <strong>FLD</strong> uses backward-Euler radiation diffusion/material exchange with the Levermore–Pomraning limiter. Moving cases add first-order conservative gas transport and radiation force/work; their reconstructed lab-frame flux includes (E I+P) v as well as −D∇E. The scalar implicit transport solve uses composite-grid multigrid and an iterative linear solver. Both time integrators are first order.</p>
+<p>The suite includes Gaussian scattering, Marshak heating, a Gaussian emitter, explicit thin positive-opacity wave/front comparisons, and moving-gas shock/blast problems on CPU at physical light speed. A configured case does not establish that a solve converged; only validated completed runs appear as results. Flux diagnostics in FLD have no separate M1 momentum conservation test. A difference between paired M1 and FLD solutions is a model comparison, not an analytic error. ADER2 has been removed from the current solver; historical result files retain their original provenance.</p>
 <p><a href="https://arxiv.org/abs/1306.0010">Skinner &amp; Ostriker (2013)</a> and <a href="https://doi.org/10.1016/j.jqsrt.2014.04.014">Hanawa &amp; Audit (2014)</a> provide context for the M1 equations. The implementation and saved executable/source hashes identify the actual numerical methods used in this batch.</p>
 <h3>Reproducing this batch</h3><p>Descriptions document the reviewed source implementation. Older or edited solver versions can use different profile constants or averaging rules; these are not all encoded in <code>run.ini</code>. Use the run metadata, executable hash, and saved batch source hashes to identify the implementation behind a result. A source path or descriptive formula alone is not proof of the executable's contents.</p>)";
 		page += "<div class=\"downloads\">" +

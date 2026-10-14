@@ -27,17 +27,18 @@ Cases run sequentially: blast (22000 s), supercritical (7500 s),
                       Opt-in RSLA for coupled cases only, 0 < F <= 1 (default 1).
   --radiation-backend cpu|cuda|kokkos
                       Select an execution backend enabled in the application build.
-  --radiation-model m1
-                      Coupled shock/blast tests require M1; stationary FLD is unavailable.
-  --radiation-integrator euler|rk1
-                      M1 RK1 radiation substeps (default euler; rk1 is an alias).
+  --radiation-model m1|fld
+                      M1 RK1 (default), or mixed-frame FLD with moving gas.
+                      FLD requires the CPU backend and physical light speed.
+  --radiation-integrator auto|euler|rk1|backward_euler
+                      auto selects Euler/RK1 for M1, backward Euler for FLD.
   --resume BATCH      Reuse completed runs and start untouched runs. An incomplete
                       simulation is refused; this is not a checkpoint restart.
   --help              Show this help without building helper tools.
 
 Other radiation_results/run.sh options are forwarded. The C++ helper tools may
 build on first use, including dry-run; the application is never run by dry-run.
-Physical-c shock runs require millions of timesteps even at level 2. See ENSMAN.md.
+Physical-c M1 shock runs require millions of timesteps even at level 2. See ENSMAN.md.
 EOF
 }
 
@@ -82,14 +83,14 @@ for ((i=0; i<${#args[@]}; ++i)); do
                 --threads) workers="$value" ;;
                 --jobs) build_jobs="$value" ;;
                 --radiation-model)
-                    if [[ "$value" != m1 ]]; then
-                        echo 'Coupled Ensman cases require --radiation-model=m1; stationary FLD is unavailable.' >&2
+                    if [[ "$value" != m1 && "$value" != fld ]]; then
+                        echo 'Coupled Ensman cases require --radiation-model=m1 or fld.' >&2
                         exit 2
                     fi
                     ;;
                 --radiation-integrator)
-                    if [[ "$value" != euler && "$value" != rk1 ]]; then
-                        echo 'Coupled Ensman cases require the retained M1 Euler/RK1 scheme.' >&2
+                    if [[ "$value" != auto && "$value" != euler && "$value" != rk1 && "$value" != backward_euler ]]; then
+                        echo 'Use auto, Euler/RK1 for M1, or backward_euler for FLD.' >&2
                         exit 2
                     fi
                     ;;
@@ -122,7 +123,9 @@ for count in "$workers" "$build_jobs"; do
 done
 export JOBS="$build_jobs"
 
-defaults=(--threads 2 --jobs 2 --no-open --no-movies --radiation-model m1 --radiation-integrator euler)
+# Let the runner select the model-specific integrator and restore a saved
+# batch's model on resume; injected M1/Euler defaults would override both.
+defaults=(--threads 2 --jobs 2 --no-open --no-movies)
 if "$resume"; then
     if "$explicit_selector" || "$has_levels"; then
         echo '--resume takes its cases and levels from the saved batch; omit positional arguments.' >&2
@@ -134,5 +137,5 @@ else
     if ! "$has_build"; then defaults+=(--build "$ROOT/cmake-build-hpx2rc-radiation"); fi
 fi
 
-echo 'Sequential local Ensman runs; physical-c full shock durations require millions of steps.'
+echo 'Sequential local Ensman runs; physical-c M1 shock durations require millions of steps.'
 exec "$DIR/run.sh" "${defaults[@]}" "${args[@]}"

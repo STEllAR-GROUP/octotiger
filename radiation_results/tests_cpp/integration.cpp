@@ -20,7 +20,8 @@ int main(int argc, char **argv)
 		for (auto name :
 				 {"src/grid.cpp", "src/physcon.cpp", "src/radiation/rad_grid.cpp",
                   "src/radiation/iteration.cpp", "src/radiation/fld.cpp",
-                  "octotiger/radiation/fld.hpp", "octotiger/radiation/fld_runtime.hpp",
+                  "octotiger/radiation/fld.hpp", "octotiger/radiation/fld_hydro.hpp", "octotiger/radiation/fld_runtime.hpp",
+                  "octotiger/radiation/momentum_diagnostics.hpp", "octotiger/radiation/opacities.hpp",
                   "octotiger/radiation/fld_benchmarks.hpp",
                   "octotiger/elliptic/composite.hpp",
                   "octotiger/radiation/ap_flux.hpp", "octotiger/radiation/implicit_source.hpp",
@@ -124,6 +125,11 @@ int main(int argc, char **argv)
             const auto folder = fld_batch / name / "l0";
             const auto m = read_json(folder / "run.json");
             const auto options = read_json(fld_batch / "batch.json").at("options");
+            if (std::string(name) == "streaming_wave" || std::string(name) == "streaming_front") {
+                expect(m.at("config").at("rad_implicit") == "on" &&
+                    close(m.at("streaming_optical_depth"), 1.e-4),
+                    "new FLD streaming cases explicitly enable their positive scattering opacity");
+            }
             expect(m.at("status") == "complete" && m.at("radiation_model") == "fld" &&
                 m.at("radiation_integrator") == "backward_euler" && m.at("radiation_algorithm_version") == 1 &&
                 m.at("radiation_flux_semantics") == "derived_fld_flux" &&
@@ -178,8 +184,17 @@ int main(int argc, char **argv)
                 read_text(tmp / "fld-resume-mismatch.log").find("saved radiation model") != std::string::npos,
                 "FLD resume refuses to reinterpret the batch as M1");
         }
+        for (const auto &name : {"subcritical", "supercritical", "blast"}) {
+            execute({runner.string(), "run", "--radiation-model", "fld", "--dry-run",
+                "--root", root.string(), "--build", build.string(),
+                "--output", (tmp / "moving-fld-plan").string(), name},
+                tmp, tmp / "moving-fld-plan.log");
+            const auto plan = read_text(tmp / "moving-fld-plan.log");
+            expect(plan.find("model=fld integrator=backward_euler") != std::string::npos &&
+                !fs::exists(tmp / "moving-fld-plan"),
+                "moving-gas FLD cases can be planned without creating a batch or launching the solver");
+        }
         for (const auto &bad_options : std::vector<std::vector<std::string>>{
-                {"subcritical"}, {"supercritical"}, {"blast"},
                 {"gaussian", "--radiation-integrator", "euler"},
                 {"gaussian", "--radiation-backend", "cuda"},
                 {"gaussian", "--radiation-reduced-c-factor", ".1"}}) {
@@ -188,7 +203,7 @@ int main(int argc, char **argv)
             cmd.insert(cmd.end(), bad_options.begin(), bad_options.end());
             expect(execute(cmd, tmp, tmp / "invalid-fld-plan.log", {}, false) != 0 &&
                 !fs::exists(tmp / "invalid-fld-plan"),
-                "unsupported FLD case or physics is rejected before creating a batch");
+                "unsupported FLD integrator, backend, or reduced speed of light is rejected before creating a batch");
         }
         // Exercise the launcher against the real planner, without launching any
         // full-duration physics or rebuilding the helper tools inside this fixture.
@@ -223,10 +238,30 @@ int main(int argc, char **argv)
             super_position < sub_position && plan_text.find("streaming_wave level=") == std::string::npos,
             "Ensman launcher selects only three full-duration cases in the intended order");
         expect(!fs::exists(planned_batch), "Ensman dry-run does not create or run a batch");
-        expect(execute({launcher.string(), "--radiation-model", "fld", "--dry-run"}, tmp,
-            tmp / "ensman-fld.log", {}, false) != 0 &&
-            read_text(tmp / "ensman-fld.log").find("stationary FLD is unavailable") != std::string::npos,
-            "Ensman launcher refuses unsupported moving-material FLD cases before invoking the runner");
+        execute({launcher.string(), "--build", build.string(), "--output", planned_batch.string(),
+            "--radiation-model", "fld", "--dry-run"}, tmp, tmp / "ensman-fld.log");
+        const auto fld_plan = read_text(tmp / "ensman-fld.log");
+        expect(fld_plan.find("radiating_blast level=2") != std::string::npos &&
+            fld_plan.find("supercritical_shock level=2") != std::string::npos &&
+            fld_plan.find("subcritical_shock level=2") != std::string::npos &&
+            fld_plan.find("model=fld integrator=backward_euler") != std::string::npos &&
+            !fs::exists(planned_batch),
+            "Ensman launcher accepts moving FLD and selects implicit transport without starting a run");
+        execute({launcher.string(), "--resume", (tmp / "fld-gaussian_pulse").string(), "--dry-run"},
+            tmp, tmp / "ensman-fld-resume.log");
+        expect(read_text(tmp / "ensman-fld-resume.log").find("model=fld integrator=backward_euler") !=
+            std::string::npos,
+            "Ensman wrapper resume restores the recorded model instead of forcing M1 defaults");
+        for (const auto &invalid : std::vector<std::vector<std::string>>{
+                {"--radiation-backend", "cuda"}, {"--radiation-reduced-c-factor", ".1"},
+                {"--radiation-integrator", "euler"}}) {
+            std::vector<std::string> command{launcher.string(), "--build", build.string(),
+                "--output", planned_batch.string(), "--radiation-model", "fld", "--dry-run"};
+            command.insert(command.end(), invalid.begin(), invalid.end());
+            expect(execute(command, tmp, tmp / "ensman-fld-invalid.log", {}, false) != 0 &&
+                !fs::exists(planned_batch),
+                "Ensman FLD retains the CPU, physical-c, and implicit-integrator constraints");
+        }
         expect(execute({launcher.string(), "--radiation-integrator", "ader2", "--dry-run"}, tmp,
             tmp / "ensman-ader.log", {}, false) != 0,
             "Ensman launcher exposes only the retained M1 Euler/RK1 scheme");
@@ -268,6 +303,11 @@ int main(int argc, char **argv)
 		auto saved = read_json(batch / "batch.json");
 		expect(saved.at("options").at("radiation_backend") == "cpu", "runner defaults to the CPU backend");
         const auto new_wave = read_json(batch / "streaming_wave/l0/run.json");
+        expect(new_wave.at("config").at("rad_implicit") == "on" &&
+            close(new_wave.at("streaming_optical_depth"), 1.e-4) &&
+            new_wave.at("reference_kind") == "free-streaming-limit" &&
+            new_wave.at("reference_exact_for_solver") == false,
+            "new M1 streaming cases enable positive scattering and qualify the zero-opacity reference");
         expect(saved.at("options").at("stationary_output_each_step") == true &&
             new_wave.at("movie_capture").at("steps_per_output_check") == 1 &&
             close(numeric(new_wave.at("config").at("hard_dt")), .4) &&
@@ -277,12 +317,22 @@ int main(int argc, char **argv)
         expect(saved.at("source_sha256").contains("src/radiation/iteration.cpp") &&
             saved.at("source_sha256").contains("src/radiation/fld.cpp") &&
             saved.at("source_sha256").contains("octotiger/radiation/fld.hpp") &&
+            saved.at("source_sha256").contains("octotiger/radiation/fld_hydro.hpp") &&
+            saved.at("source_sha256").contains("octotiger/radiation/momentum_diagnostics.hpp") &&
+            saved.at("source_sha256").contains("octotiger/radiation/opacities.hpp") &&
             saved.at("source_sha256").contains("octotiger/radiation/fld_runtime.hpp") &&
             saved.at("source_sha256").contains("octotiger/elliptic/composite.hpp") &&
             !saved.at("source_sha256").contains("src/radiation/ader.cpp") &&
             !saved.at("source_sha256").contains("src/radiation/ader_predictor.cpp") &&
             !saved.at("source_sha256").contains("octotiger/radiation/relaxation_predictor.hpp"),
             "new provenance hashes current runtime sources without depending on removed ADER files");
+        auto missing_opacity_marker = saved;
+        missing_opacity_marker["options"].erase("streaming_optical_depth");
+        write_json(batch / "batch.json", missing_opacity_marker);
+        expect(execute(resume, tmp, tmp / "missing-opacity-marker.log", {}, false) != 0 &&
+            read_text(tmp / "missing-opacity-marker.log").find("Saved run metadata differs: streaming_opacity") !=
+                std::string::npos,
+            "removing a new batch's opacity marker cannot reinterpret its explicit positive scattering as vacuum");
 		saved["workflow"] = "run_live.py";
 		saved.erase("options");
 		write_json(batch / "batch.json", saved);
@@ -295,6 +345,14 @@ int main(int argc, char **argv)
             legacy.erase("radiation_flux_semantics");
             legacy["config"].erase("radiation_backend");
             legacy["config"].erase("radiation_model");
+            const auto legacy_template = read_config(launcher_dir / "configs/streaming_wave.ini");
+            legacy["config"]["rad_test_chi"] = number(numeric(legacy_template.at("rad_test_chi")) *
+                numeric(legacy_template.at("xscale")) / half_width);
+            legacy["config"]["rad_implicit"] = legacy_template.at("rad_implicit");
+            for (const auto *key : {"streaming_opacity", "streaming_optical_depth", "reference_kind",
+                    "reference_model", "reference_exact_for_solver", "reference_sampling", "validation_scope"}) {
+                legacy.erase(key);
+            }
             // This fixture now represents a pre-flag batch: those drivers
             // checked output after a five-step refinement batch. Its timestep
             // cap already matches the old policy and must remain unchanged.
@@ -308,6 +366,9 @@ int main(int argc, char **argv)
             "legacy metadata and configs without a backend resume as CPU");
         expect(read_json(batch / "streaming_wave/l0/run.json").at("movie_capture").at("steps_per_output_check") == 5,
             "legacy resume preserves its recorded batched output cadence");
+        expect(read_json(batch / "streaming_wave/l0/run.json").at("streaming_opacity") == 0. &&
+            read_json(batch / "streaming_wave/l0/run.json").at("config").at("rad_implicit") == "off",
+            "legacy streaming resumes preserve the actual zero scattering despite an unused template opacity");
 		auto radiation_source = source / "src/radiation/rad_grid.cpp";
 		auto original = read_text(radiation_source);
 		atomic_text(radiation_source, original + "// changed\n");

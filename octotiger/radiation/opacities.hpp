@@ -25,6 +25,9 @@ U temperature(U rho, U e, U mmw, Real gamma = 5.0 / 3.0) {
 template<class U>
 U kappa_R(U rho, U e, U mmw, Real X, Real Z, Real gamma = 5.0 / 3.0) {
 	FpeGuard fpeGuard{};
+	if (opts().problem == RADIATION_STREAMING_WAVE || opts().problem == RADIATION_STREAMING_FRONT) {
+		return U(opts().radTestChi); // Explicit scattering extinction, including thin positive-opacity tests.
+	}
 	if (opts().problem == RADIATION_COUPLED_WAVE) {
 		return U(opts().radTestChi);
 	}
@@ -55,6 +58,9 @@ U kappa_R(U rho, U e, U mmw, Real X, Real Z, Real gamma = 5.0 / 3.0) {
 template<class U>
 U kappa_p(U rho, U e, U mmw, Real X, Real Z, Real gamma = 5.0 / 3.0) {
 	FpeGuard fpeGuard{};
+	if (opts().problem == RADIATION_STREAMING_WAVE || opts().problem == RADIATION_STREAMING_FRONT) {
+		return U(0); // Streaming benchmarks scatter without thermal absorption/emission.
+	}
 	if (opts().problem == RADIATION_COUPLED_WAVE) {
 		return U(opts().radTestChi);
 	}

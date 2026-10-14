@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare saved M1 RK1 and stationary FLD backward-Euler output CSVs.
+"""Compare saved M1 RK1 and FLD backward-Euler output CSVs.
 
 No solver, reference generator, network service or deployment is invoked. Each
 level is kept separate. Slice discrepancies use a common Cartesian partition
@@ -23,7 +23,7 @@ CASES = ("streaming_wave", "streaming_front", "gaussian_pulse", "equilibrium_sph
          "subcritical_shock", "supercritical_shock", "radiating_blast", "marshak")
 COUPLED_WITHOUT_REFERENCE = ("subcritical_shock", "supercritical_shock", "radiating_blast")
 METHODS = ("m1", "fld")
-PAIRED_CASES = frozenset({"streaming_wave", "streaming_front", "gaussian_pulse", "equilibrium_sphere", "marshak"})
+PAIRED_CASES = frozenset(CASES)
 INTEGRATORS = {"m1": "euler", "fld": "backward_euler"}
 FLUX_SEMANTICS = {"m1": "evolved_m1_flux", "fld": "derived_fld_flux"}
 LABELS = {"m1": "M1 RK1", "fld": "FLD backward Euler"}
@@ -51,6 +51,10 @@ FLD_REFERENCE = {
         "The semi-infinite Su–Olson solution describes constant diffusion and equal linear radiation/material "
         "heat capacities. It is a diffusion-limit reference for FLD. Flux limiting, the finite-domain far "
         "boundary, cell-center sampling, and discretization can all contribute to its measured discrepancy.")}
+FLD_REFERENCE.update({case: ("no supplied independent reference profile",
+    "Moving gas and radiation evolve together with mixed-frame FLD. The published benchmark curves are not "
+    "embedded; comparisons with M1 measure closure and discretization differences, not exact-solution error.")
+    for case in COUPLED_WITHOUT_REFERENCE})
 RAD_FIELDS = ("er", "fx", "fy", "fz")
 HYDRO_FIELDS = ("rho", "vx", "vy", "vz", "gas_temperature", "radiation_temperature", *RAD_FIELDS)
 FIELD_LABELS = {"er": "Radiation energy density", "fx": "Radiation flux x", "fy": "Radiation flux y",
@@ -62,8 +66,8 @@ REFERENCE = {
                 "the linear thermal-capacity diffusion problem in normalized units. The saved parameter values "
                 "define its match to the source model; diffusion and finite-speed M1 transport can differ. "
                 "Reference values are evaluated at cell centers, without an additional cell-volume average."),
-    "streaming_wave": ("exact analytic solution", "Exact nonlinear M1 periodic-advection cell averages."),
-    "streaming_front": ("exact analytic solution", "Exact translated discontinuous-front cell averages. "
+    "streaming_wave": ("free-streaming analytic profile", "Periodic-advection cell averages are exact at zero opacity. Positive-opacity runs use this as a free-streaming-limit reference."),
+    "streaming_front": ("free-streaming analytic profile", "Translated-front cell averages are exact at zero opacity and are a limit reference at positive opacity. "
                         "A discontinuity need not converge at second order."),
     "gaussian_pulse": ("linearized analytic reference", "Fourier telegraph-equation reference for isotropic, "
                        "linearized radiation moments. Nonlinear M1 can retain a closure-model error at finite amplitude."),
@@ -81,7 +85,8 @@ REFERENCE = {
                         "solution is not an analytic solution of this radiating setup."),
 }
 IGNORED_SIGNATURE = {"radiation_model", "radiation_integrator", "radiation_flux_semantics",
-                     "radiation_limiter", "disable_analytic",
+                     "radiation_limiter", "disable_analytic", "radiation_algorithm_version",
+                     "radiation_frame", "radiation_hydro_scheme",
                      "radiation_backend", "hydro_host_kernel_type", "hydro_device_kernel_type",
                      "hard_dt", "stop_step", "fld_boundary", "fld_nonlinear_tolerance",
                      "fld_linear_tolerance", "fld_max_iterations", "fld_max_linear_iterations"}
@@ -136,7 +141,7 @@ def reference_contract(metadata):
     sampling = "cell-center point values" if case == "marshak" else "cell averages"
     if kind == "unavailable":
         if model == "fld":
-            require(case in {"streaming_wave", "streaming_front"} and metadata.get("reference_model") == "none" and
+            require(case in {"streaming_wave", "streaming_front", *COUPLED_WITHOUT_REFERENCE} and metadata.get("reference_model") == "none" and
                     metadata.get("reference_exact_for_solver") is False and
                     metadata.get("reference_sampling") == "none",
                     "Unavailable FLD references must explicitly declare no reference model or sampling")
@@ -157,8 +162,14 @@ def reference_contract(metadata):
                 "exact_for_solver": False, "sampling": sampling, "label": label, "note": note}
     label, note = REFERENCE[case]
     return {"available": True, "kind": kind, "model": metadata.get("reference_model", "m1-reference"),
-            "exact_for_solver": case in {"streaming_wave", "streaming_front"},
+            "exact_for_solver": case in {"streaming_wave", "streaming_front"} and
+                metadata.get("streaming_optical_depth", 0) == 0 and kind != "free-streaming-limit",
             "sampling": sampling, "label": label, "note": note}
+
+
+def method_identity(model, case):
+    moving = model == "fld" and case in COUPLED_WITHOUT_REFERENCE
+    return (2, "derived_fld_lab_flux") if moving else (1, FLUX_SEMANTICS[model])
 
 
 def load_run(root, run):
@@ -171,18 +182,23 @@ def load_run(root, run):
     if run.get("run_metadata_sha256"):
         require(digest(metadata_path) == run["run_metadata_sha256"], "Completed run metadata hash changed")
     metadata = json.loads(metadata_path.read_text())
+    algorithm_version, flux_semantics = method_identity(model, case)
     batch = json.loads((folder / "batch.json").read_text())
     require(bool(batch.get("source_sha256")), "Missing saved source provenance")
     require(metadata.get("status") == "complete" and metadata.get("case") == case and
             metadata.get("level") == level and metadata.get("radiation_model") == model and
             metadata.get("radiation_integrator") == INTEGRATORS[model] and
-            metadata.get("radiation_algorithm_version") == 1 and
-            metadata.get("radiation_flux_semantics") == FLUX_SEMANTICS[model],
+            metadata.get("radiation_algorithm_version") == algorithm_version and
+            metadata.get("radiation_flux_semantics") == flux_semantics,
             "Saved run identity/completion does not match the campaign")
     require(not metadata.get("radiation_ader_version") and
             metadata.get("runtime_profile", "baseline") == "baseline",
             "Historical ADER/runtime recovery metadata cannot be relabeled as M1/FLD")
     require(bool(metadata.get("comparison_signature")), "Missing saved physical comparison signature")
+    if model == "fld" and case in COUPLED_WITHOUT_REFERENCE:
+        require(metadata.get("radiation_frame") == "mixed" and
+                metadata.get("radiation_hydro_scheme") == "first_order_conservative",
+                "Moving FLD output requires explicit mixed-frame hydro metadata")
     if model == "fld":
         require("reference_kind" in metadata, "FLD output must explicitly declare its reference contract")
     reference = reference_contract(metadata)
@@ -438,7 +454,7 @@ def validate_manifest(manifest):
                 type(run.get("level")) is int and run["level"] >= 0,
                 "Invalid campaign case/model/integrator/level identity")
         require(model != "fld" or run["case"] in PAIRED_CASES,
-                "FLD campaign cases must be supported stationary radiation problems")
+                "FLD campaign case is unsupported")
         require(run.get("runtime_profile", "baseline") == "baseline",
                 "Historical runtime recovery profiles cannot be used for M1/FLD comparisons")
         identities.append((run["case"], run["level"], model))
@@ -479,7 +495,8 @@ def refresh(root, manifest):
                   'in time. A small model discrepancy does not establish accuracy against an exact solution. '
                   'M1 evolves radiation flux; FLD reconstructs diagnostic flux from its energy gradient. '
                   'Flux differences are not errors in a shared radiation-momentum conservation law. '
-                  'FLD here supports stationary ideal gas with physical light speed on the CPU.</p>')
+                  'FLD uses physical light speed on the CPU. Moving cases include gas transport and radiation force/work; '
+                  'their derived lab-frame flux includes radiation enthalpy advection.</p>')
     cards = []
     for case in selected:
         title = case.replace("_", " ").title()
@@ -585,6 +602,27 @@ def refresh(root, manifest):
                                     f'<pre>{escaped(json.dumps(invariants, indent=2, allow_nan=False))}</pre>')
                 section += (f'<p><a href="../{escaped(data["path"].relative_to(root))}">Source slice CSV</a> · '
                             f'<a href="../{escaped(data["metadata_path"].relative_to(root))}">Run metadata</a></p>')
+            if case in COUPLED_WITHOUT_REFERENCE and loaded:
+                from momentum_diagnostics import diagnose_run, write_pair
+                diagnostics = []
+                missing = []
+                for model, data in loaded.items():
+                    try:
+                        diagnostics.append(diagnose_run(data["metadata_path"].parent))
+                    except (OSError, ValueError, KeyError) as error:
+                        missing.append(f"{LABELS[model]}: {error}")
+                if diagnostics:
+                    momentum_folder = folder / "momentum"
+                    record["momentum_diagnostics"] = write_pair(diagnostics, momentum_folder)
+                    section += (f'<h4>Total gas and radiation momentum</h4><p><a href="{case}/l{level}/momentum/index.html">'
+                                'Momentum components, magnitude, and available boundary balances</a></p>')
+                if missing:
+                    record["momentum_unavailable"] = missing
+                    section += '<p>Momentum diagnostics unavailable for ' + escaped('; '.join(missing)) + '.</p>'
+            elif case not in COUPLED_WITHOUT_REFERENCE:
+                section += ('<p>Momentum plots are omitted for this fixed-material problem. The prescribed medium '
+                            'acts as an external momentum reservoir; radiation can exchange momentum with it '
+                            'without evolving a compensating gas momentum.</p>')
             for model, result in record["methods"].items():
                 if "error" in result:
                     record["status"] = "invalid_output"
@@ -616,8 +654,8 @@ def refresh(root, manifest):
         cards.append(f'<tr><th><a href="{case}.html">{escaped(title)}</a></th><td>{escaped(card_reference)}</td>'
                      f'<td>{escaped(statuses)}</td></tr>')
     intro = ('<p><a href="../index.html">Campaign dashboard</a></p><h1>M1 RK1 and FLD: model comparisons</h1>'
-             '<p>Supported stationary cases compare both closures at the same refinement level and physical time. '
-             'Other cases retain M1 results only. Partial pairs remain visible while their partner is pending. '
+             '<p>All eight problems compare both closures at the same refinement level and physical time. '
+             'Partial pairs remain visible while their partner is pending. '
              'References are attached to the model they describe.</p>' + scope_note +
              '<div class="scroll"><table><thead><tr><th>Problem</th><th>Available reference</th>'
              '<th>Comparison status</th></tr></thead><tbody>' + "".join(cards) +

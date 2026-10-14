@@ -1,22 +1,54 @@
 {
   "schema": 2,
   "workflow": "m1-fld-radiation",
-  "description": "All eight benchmark problems; preparation only, with unavailable vacuum and moving-gas FLD entries explicit",
-  "models": {"m1": "euler", "fld": "backward_euler"},
-  "cases": ["streaming_wave", "streaming_front", "gaussian_pulse", "equilibrium_sphere", "subcritical_shock", "supercritical_shock", "radiating_blast", "marshak"],
-  "levels": [2, 3, 4],
+  "description": "All eight benchmark problems, M1 RK1 and mixed-frame FLD, levels 2/3/4; explicit start required",
+  "models": {
+    "m1": "euler",
+    "fld": "backward_euler"
+  },
+  "cases": [
+    "streaming_wave",
+    "streaming_front",
+    "gaussian_pulse",
+    "equilibrium_sphere",
+    "subcritical_shock",
+    "supercritical_shock",
+    "radiating_blast",
+    "marshak"
+  ],
+  "levels": [
+    2,
+    3,
+    4
+  ],
   "threads": 12,
-  "snapshots": 101,
+  "snapshots": 121,
   "stop_time": 0.2,
   "hard_dt": 0.001,
   "case_settings": {
-    "subcritical_shock": {"stop_time": 38300, "hard_dt": 191.5},
-    "supercritical_shock": {"stop_time": 7500, "hard_dt": 37.5},
-    "radiating_blast": {"stop_time": 22000, "hard_dt": 110},
-    "marshak": {"stop_time": 1, "hard_dt": 0.005}
+    "subcritical_shock": {
+      "stop_time": 38300,
+      "hard_dt": 191.5
+    },
+    "supercritical_shock": {
+      "stop_time": 7500,
+      "hard_dt": 37.5
+    },
+    "radiating_blast": {
+      "stop_time": 22000,
+      "hard_dt": 110
+    },
+    "marshak": {
+      "stop_time": 60,
+      "hard_dt": 0.05
+    },
+    "gaussian_pulse": {
+      "stop_time": 1.5,
+      "hard_dt": 0.00625
+    }
   },
   "radiation_reduced_c_factor": 1,
   "minimum_free_gib": 20,
   "memory_limit_gib": 24,
-  "scope": "Uniform levels 2/3/4 correspond to 32/64/128 cells per side. Full configured shock/blast durations, 101 requested snapshots. Timestep and spatial convergence remain to be established; root-gathered FLD may reach its memory ceiling at high resolution."
+  "scope": "48 uniform-grid runs: eight problems, both models, levels 2/3/4 (32/64/128 cells per side). 121 requested physical snapshots and 60-second movies. Positive streaming optical depth 1e-4 for both models. Full shock/blast durations, longer Gaussian/Marshak evolution. Preserve validated samples and initial/final 3D states; retire intermediate 3D files only after verified extraction. First-order moving FLD uses a serial root-gathered composite solve and remains subject to memory limits. Full-resolution runtime and timestep convergence are unverified. Start only on explicit command."
 }

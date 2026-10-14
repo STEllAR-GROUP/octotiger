@@ -374,12 +374,17 @@ void output_stage4(std::string fname, int cycle) {
 			fr(db, "radiation_reduced_c_factor", opts().radiation_reduced_c_factor);
 			fi(db, "radiation_model", fld ? 1 : 0);
 			fi(db, "radiation_integrator", fld ? 3 : 0);
-			fi(db, "radiation_algorithm_version", integer(1));
+			fi(db, "radiation_algorithm_version", integer(fld && opts().hydro ? 2 : 1));
 			fi(db, "radiation_limiter", fld ? 1 : 0); // 0: M1 closure, 1: Levermore-Pomraning.
-			// 0: evolved physical M1 flux, 1: FLD diagnostic -D grad(E).
+			// 0: evolved M1 flux; 1: stationary FLD; 2: mixed-frame FLD lab flux.
 			// The latter is never an independently evolved radiation momentum.
-			fi(db, "radiation_flux_semantics", fld ? 1 : 0);
+			fi(db, "radiation_flux_semantics", fld ? (opts().hydro ? 2 : 1) : 0);
 			if (fld) {
+				if (opts().hydro) {
+					fi(db, "fld_hydro_unigrid", opts().unigrid ? 1 : 0);
+					fi(db, "fld_hydro_reflect_bc", opts().reflect_bc ? 1 : 0);
+					fr(db, "fld_hydro_cfl", opts().cfl);
+				}
 				fi(db, "fld_boundary", opts().fld_boundary == "reflecting" ? 0 : 1);
 				fr(db, "fld_nonlinear_tolerance", opts().fld_nonlinear_tolerance);
 				fr(db, "fld_linear_tolerance", opts().fld_linear_tolerance);

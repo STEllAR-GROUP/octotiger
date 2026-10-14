@@ -149,7 +149,8 @@ Json scaled_config(Json config)
 }
 Json signature(Json cfg)
 {
-    cfg["radiation_algorithm_version"] = 1;
+    cfg["radiation_algorithm_version"] = cfg.value("radiation_model", "m1") == "fld" &&
+        lower(cfg.value("hydro", "off")) == "on" ? 2 : 1;
 	for (auto k : {"max_level", "min_level", "datadir", "rad_reference", "disable_output", "odt", "radiation_backend"}) {
     cfg.erase(k);
   }
@@ -255,21 +256,27 @@ int run(Options o)
         o.radiation_integrator = saved_integrator;
         const auto saved_options = saved.value("options", Json::object());
         if (saved_options.contains("radiation_algorithm_version")) {
-            require(saved_options.at("radiation_algorithm_version") == 1,
+            require(saved_options.at("radiation_algorithm_version") == 1 ||
+                (saved_model == "fld" && saved_options.at("radiation_algorithm_version") == 2),
                 "Unsupported saved radiation algorithm version; use a new batch");
         }
         if (saved_options.contains("radiation_flux_semantics")) {
             require(saved_options.at("radiation_flux_semantics") ==
-                (saved_model == "fld" ? "derived_fld_flux" : "evolved_m1_flux"),
+                (saved_model == "fld" ? "derived_fld_flux" : "evolved_m1_flux") ||
+                (saved_model == "fld" && saved_options.contains("radiation_case_algorithms") &&
+                    saved_options.at("radiation_flux_semantics") == "per-case-derived-flux"),
                 "Saved radiation flux semantics do not match the model");
         }
         if (saved_model == "fld") {
             require(saved_options.value("radiation_limiter", "") == "levermore_pomraning" &&
-                saved_options.value("radiation_flux_semantics", "") == "derived_fld_flux",
+                (saved_options.value("radiation_flux_semantics", "") == "derived_fld_flux" ||
+                    (saved_options.contains("radiation_case_algorithms") &&
+                     saved_options.value("radiation_flux_semantics", "") == "per-case-derived-flux")),
                 "FLD resume requires explicit limiter and derived-flux metadata");
         }
         require((saved_model == "fld" && saved_integrator == "backward_euler" &&
-            saved.value("options", Json::object()).value("radiation_algorithm_version", 0) == 1) ||
+            (saved_options.value("radiation_algorithm_version", 0) == 1 ||
+             saved_options.value("radiation_algorithm_version", 0) == 2)) ||
             (saved_model == "m1" && saved_integrator == "euler"),
             "This batch uses a retired radiation method or invalid model/integrator pair; use a new M1 RK1 or FLD batch");
         if (saved.contains("study_config")) {
@@ -330,7 +337,7 @@ int run(Options o)
         require(o.radiation_backend == "cpu" && o.reduced_c_factor == 1.,
             "FLD requires the CPU backend and physical light speed (radiation-reduced-c-factor=1)");
         for (const auto &name : o.selected_cases) {
-            require(fld_case(name), "This problem requires moving-gas FLD, which is not implemented: " + name);
+            require(fld_case(name), "Unsupported FLD problem: " + name);
         }
     }
 	o.root = rr::absolute(o.root);
@@ -397,11 +404,11 @@ int run(Options o)
                     const auto value = lower(cfg.value(key, "off"));
                     return value == "off" || value == "false" || value == "0";
                 };
-                require(off("hydro") && off("gravity") && numeric(cfg.value("omega", "0")) == 0. &&
+                require(off("gravity") && numeric(cfg.value("omega", "0")) == 0. &&
                     lower(cfg.value("eos", "ideal")) == "ideal",
-                    "FLD templates require stationary gas: hydro/gravity off, omega=0, EOS=IDEAL");
+                    "FLD templates require gravity off, omega=0, EOS=IDEAL");
                 cfg.update({{"radiation_limiter", "levermore_pomraning"}, {"rad_implicit", "on"},
-                    {"eos", "IDEAL"}, {"hydro", "off"}, {"gravity", "off"}, {"omega", "0"}});
+                    {"eos", "IDEAL"}, {"hydro", coupled_case(name) ? "on" : "off"}, {"gravity", "off"}, {"omega", "0"}});
             }
             const bool adaptive = controls.gradient_field != "none";
             const int min_level = controls.min_level >= 0 ? controls.min_level : (adaptive ? level - 1 : level);
@@ -417,6 +424,11 @@ int run(Options o)
             const bool coupled = coupled_case(name);
             if (rsla_metadata) {
                 cfg["radiation_reduced_c_factor"] = number(coupled ? controls.reduced_c_factor : 1.);
+            }
+            if ((!resumed || saved.value("options", Json::object()).contains("streaming_optical_depth")) &&
+                (name == "streaming_wave" || name == "streaming_front")) {
+                cfg["rad_test_chi"] = number(1.e-4 / (2 * numeric(cfg.at("xscale"))));
+                cfg["rad_implicit"] = "on";
             }
             if (!coupled && name != "marshak") {
                 cfg = scaled_config(cfg);
@@ -571,8 +583,9 @@ int run(Options o)
 			for (auto s :
 				 {"src/grid.cpp", "src/physcon.cpp", "src/radiation/rad_grid.cpp",
                   "src/radiation/iteration.cpp", "src/radiation/fld.cpp",
-                  "octotiger/radiation/fld.hpp", "octotiger/radiation/fld_runtime.hpp",
-                  "octotiger/radiation/fld_benchmarks.hpp",
+                  "octotiger/radiation/fld.hpp", "octotiger/radiation/fld_hydro.hpp", "octotiger/radiation/fld_runtime.hpp",
+                  "octotiger/radiation/fld_benchmarks.hpp", "octotiger/radiation/momentum_diagnostics.hpp",
+                  "octotiger/radiation/opacities.hpp",
                   "octotiger/elliptic/composite.hpp",
                   "octotiger/radiation/ap_flux.hpp", "octotiger/radiation/implicit_source.hpp",
                   "octotiger/radiation/marshak_boundary.hpp",
@@ -613,6 +626,7 @@ int run(Options o)
                        {"no_silo_ignores_snapshot_cadence", no_silo_uncapped},
                        {"fld_output_each_step", fld_output_each_step},
                        {"stationary_output_each_step", stationary_output_each_step},
+                       {"streaming_optical_depth", 1.e-4},
 					   {"reconstruction", o.reconstruction},
 					   {"generator", o.generator.string()},
                        {"launcher", o.launcher.string()},
@@ -629,6 +643,18 @@ int run(Options o)
                        {"launcher_sha256", o.launcher.empty() ? "" : sha256(o.launcher)}}}};
             if (fld) {
                 saved["options"]["radiation_limiter"] = "levermore_pomraning";
+                Json identities = Json::object();
+                bool moving = false;
+                for (const auto &name : o.selected_cases) {
+                    identities[name] = {{"version", radiation_algorithm_version("fld", name)},
+                        {"flux_semantics", radiation_flux_semantics("fld", name)}};
+                    moving = moving || coupled_case(name);
+                }
+                saved["options"]["radiation_case_algorithms"] = identities;
+                if (moving) {
+                    saved["options"]["radiation_algorithm_version"] = 2;
+                    saved["options"]["radiation_flux_semantics"] = "per-case-derived-flux";
+                }
             }
             if (!study.is_null()) {
                 saved["study_config"] = study;
@@ -657,11 +683,28 @@ int run(Options o)
                           {"radiation_backend", o.radiation_backend},
                           {"radiation_model", o.radiation_model},
                           {"radiation_integrator", o.radiation_integrator},
-                          {"radiation_algorithm_version", 1},
-                          {"radiation_flux_semantics", fld ? "derived_fld_flux" : "evolved_m1_flux"},
+                          {"radiation_algorithm_version", radiation_algorithm_version(o.radiation_model, name)},
+                          {"radiation_flux_semantics", radiation_flux_semantics(o.radiation_model, name)},
 						  {"background", numeric(cfg.value("rad_test_background", "0"))},
 						  {"executable_sha256", hash},
 						  {"movie_capture", plan["capture"]}};
+            if (fld && coupled_case(name)) {
+                expected["radiation_frame"] = "mixed";
+                expected["radiation_hydro_scheme"] = "first_order_conservative";
+            }
+            if (name == "streaming_wave" || name == "streaming_front") {
+                const double chi = resumed && !saved.value("options", Json::object()).contains("streaming_optical_depth") ?
+                    0. : numeric(cfg.at("rad_test_chi"));
+                expected["streaming_opacity"] = chi;
+                expected["streaming_optical_depth"] = chi * expected.at("length").get<double>();
+                if (!fld && chi > 0) {
+                    expected["reference_kind"] = "free-streaming-limit";
+                    expected["reference_model"] = "zero-opacity-m1-advection";
+                    expected["reference_exact_for_solver"] = false;
+                    expected["reference_sampling"] = "cell averages";
+                    expected["validation_scope"] = "Explicit positive scattering opacity. The zero-opacity M1 advection profile is a free-streaming-limit reference, not an exact solution at finite opacity.";
+                }
+            }
             if (!study.is_null()) {
                 expected["study_config_sha256"] = study_hash;
             }
@@ -670,7 +713,7 @@ int run(Options o)
                 expected["radiation_reduced_c_factor"] = factor;
                 expected["physical_c"] = name == "marshak" ? 1. : c_cgs;
                 expected["transport_c"] = factor * expected["physical_c"].get<double>();
-                expected["radiation_equations"] = fld ? "stationary physical-c FLD" :
+                expected["radiation_equations"] = fld ? (coupled_case(name) ? "mixed-frame physical-c FLD radiation hydrodynamics" : "stationary physical-c FLD") :
                     (factor == 1. ? "physical-c" : "Skinner-Ostriker RSLA");
             }
             if (cfg.value("unigrid", "on") == "off") {
@@ -715,8 +758,13 @@ int run(Options o)
                     expected["reference_kind"] = "unavailable";
                     expected["reference_model"] = "none";
                     expected["reference_sampling"] = "none";
-                    expected["validation_scope"] = "Transparent FLD closure comparison from the same initial energy as M1. FLD derives flux down the energy gradient and does not obey the M1 unidirectional translation solution. No analytic FLD profile or profile-error norm is claimed; use periodic energy conservation, positivity and the flux bound.";
+                    expected["validation_scope"] = "Thin positive-opacity FLD closure comparison from the same initial energy as M1. FLD derives flux down the energy gradient and does not obey the M1 unidirectional translation solution. No analytic FLD profile or profile-error norm is claimed; use periodic energy conservation, positivity and the flux bound.";
                     expected["analytic_mean_energy"] = name == "streaming_wave" ? 1. : (1. + 1.e-10) / 2.;
+                } else if (coupled_case(name)) {
+                    expected["reference_kind"] = "unavailable";
+                    expected["reference_model"] = "none";
+                    expected["reference_sampling"] = "none";
+                    expected["validation_scope"] = "First-order mixed-frame gas/radiation evolution with physical light speed. Derived lab-frame flux includes radiation enthalpy advection. No independent analytic or digitized reference profile is supplied; M1 differences are model discrepancies.";
                 }
             }
 			bool existing = resumed && fs::exists(folder);
@@ -731,6 +779,19 @@ int run(Options o)
                 }
                 if (!candidate.contains("radiation_model")) {
                     candidate["radiation_model"] = "m1";
+                }
+                if ((name == "streaming_wave" || name == "streaming_front") &&
+                    !saved.value("options", Json::object()).contains("streaming_optical_depth")) {
+                    // Historical streaming drivers ignored rad_test_chi. Their
+                    // absent physical-opacity metadata therefore means vacuum,
+                    // even though the unused template parameter was nonzero.
+                    // Explicit metadata is still checked below, never replaced.
+                    if (!candidate.contains("streaming_opacity")) {
+                        candidate["streaming_opacity"] = 0.;
+                    }
+                    if (!candidate.contains("streaming_optical_depth")) {
+                        candidate["streaming_optical_depth"] = 0.;
+                    }
                 }
                 if (candidate.at("radiation_model") == "m1") {
                     if (!candidate.contains("radiation_flux_semantics")) {
@@ -762,7 +823,8 @@ int run(Options o)
                 if (fld) {
                     candidate["fld_diagnostics"] = read_fld_diagnostics(folder, candidate);
                     candidate.erase("norms");
-                    read_slice(folder, candidate);
+                    if (coupled_case(name)) { read_hydro_profile(folder, candidate); }
+                    else { read_slice(folder, candidate); }
                     if (name == "marshak") {
                         read_marshak_material(folder, candidate);
                     }
@@ -861,7 +923,8 @@ int run(Options o)
                 adopt_checkpoint_provenance(folder, meta);
                 if (fld) {
                     meta["fld_diagnostics"] = read_fld_diagnostics(folder, meta);
-                    read_slice(folder, meta);
+                    if (coupled_case(name)) { read_hydro_profile(folder, meta); }
+                    else { read_slice(folder, meta); }
                     if (name == "marshak") {
                         read_marshak_material(folder, meta);
                     }

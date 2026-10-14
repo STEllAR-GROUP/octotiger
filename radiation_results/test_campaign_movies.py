@@ -11,6 +11,46 @@ import campaign_movies as movies
 
 
 class MovieTimingTests(unittest.TestCase):
+    def test_extraction_manifest_round_trips_into_verified_retention(self):
+        import campaign_retention as retention
+        from test_campaign_retention import prepare_outputs
+        with tempfile.TemporaryDirectory(prefix="movie-extract-test-") as temporary:
+            root = Path(temporary)
+            run = {"id": "l0-example-m1", "case": "example", "level": 0,
+                   "directory": "runs/m1", "stop_time": 1.5, "run_metadata_sha256": "placeholder",
+                   "attempts": [{"pid": 100, "process_start_ticks": "123"}]}
+            original = prepare_outputs(root, run)
+            folder = retention.leaf(root, run)
+            (folder / "run.json").write_text("{}")
+            run["run_metadata_sha256"] = movies.sha256(folder / "run.json")
+            destination = folder / movies.MOVIE_SUBDIR
+            movie = json.loads((destination / "campaign-movie.json").read_text())
+            movie.update(run_metadata_sha256=run["run_metadata_sha256"], panels=["radiation"])
+            movies.write_json(destination / "campaign-movie.json", movie)
+            frames = [{"time": time, "profile_data": f"profile-{i}.json", "radiation_image": f"frame-{i}.png"}
+                      for i, time in enumerate(movie["snapshot_times"])]
+            movies.write_json(destination / "frames.json", {"frames": frames})
+            extraction = movies.write_extraction_manifest(folder, destination, movie, original["settings"])
+            self.assertEqual(len(extraction["profiles"]), 3)
+            receipt = retention.make_receipt(root, {"snapshots": 3}, run,
+                {"directory": run["directory"], "claimed_utc": "2026-10-14T12:00:00Z",
+                 "solver_identity": {"pid": 100, "process_start_ticks": "123"}})
+            path = folder / "retention.json"
+            movies.write_json(path, receipt)
+            run["retention"] = {"path": str(path.relative_to(root)), "sha256": retention.digest(path)}
+            retention.prune(root, run)
+            self.assertFalse((folder / "X.1.silo").exists())
+            self.assertEqual(retention.validate_retained_cache(root, run, original["settings"])["source_snapshots"], 3)
+            (destination / "profile-1.json").write_text("{}")
+            with self.assertRaises(ValueError):
+                retention.validate_retained_cache(root, run, original["settings"])
+
+    def test_embedded_extraction_uses_full_volume_and_native_profiles(self):
+        compile(movies.VISIT_SCRIPT, "embedded_visit_script", "exec")
+        self.assertIn('Query("Weighted Variable Sum", use_actual_data=1)', movies.VISIT_SCRIPT)
+        self.assertIn('use_sampling=0', movies.VISIT_SCRIPT)
+        self.assertIn('"integration": "full-volume leaf-cell"', movies.VISIT_SCRIPT)
+
     def test_irregular_recorded_times_use_hold_not_interpolation(self):
         times = [0.0, 0.1, 0.9, 1.0]
         sequence = movies.frame_schedule(times, seconds=7, fps=2, hold=1)
@@ -99,6 +139,21 @@ class MovieInputTests(unittest.TestCase):
         self.assertIn("independently evolved", m1["flux_description"])
         self.assertIn("see the final-time run report", m1["reference_description"])
         self.assertNotIn("no applicable", m1["reference_description"])
+
+    def test_moving_fld_uses_lab_flux_and_v2_identity(self):
+        for case in movies.COUPLED:
+            metadata = dict(self.model_metadata(), case=case, radiation_algorithm_version=2,
+                radiation_flux_semantics="derived_fld_lab_flux", radiation_frame="mixed",
+                radiation_hydro_scheme="first_order_conservative", reference_kind="unavailable",
+                reference_model="none", reference_exact_for_solver=False, reference_sampling="none")
+            result = movies.model_contract(metadata)
+            self.assertEqual(result["radiation_algorithm_version"], 2)
+            self.assertIn("enthalpy", result["flux_description"])
+            self.assertIn("lab-frame", result["flux_label"])
+            for change in ({"radiation_frame": "lab"}, {"radiation_algorithm_version": 1},
+                           {"radiation_flux_semantics": "derived_fld_flux"}):
+                with self.subTest(case=case, change=change), self.assertRaises(ValueError):
+                    movies.model_contract(dict(metadata, **change))
 
     def test_fld_reference_metadata_remains_qualified_and_separate_from_movie_frames(self):
         metadata = dict(self.model_metadata(), reference_kind="linear-diffusion-limit",

@@ -21,6 +21,8 @@ struct Totals {
 	Moments value{};
 	Moments boundary{}; // Signed outward transport integrated over the interval.
 	Moments source{};   // Actual local source increments integrated over volume.
+	Moments gas{};      // Gas total energy, then its three physical momenta.
+	Moments gas_boundary{}; // Cumulative outward gas budgets, not drained intervals.
 
 	Totals &operator+=(const Totals &other) {
 		FpeGuard fpeGuard{};
@@ -29,6 +31,8 @@ struct Totals {
 			value[f] += other.value[f];
 			boundary[f] += other.boundary[f];
 			source[f] += other.source[f];
+			gas[f] += other.gas[f];
+			gas_boundary[f] += other.gas_boundary[f];
 		}
 		return *this;
 	}
@@ -39,6 +43,8 @@ struct Totals {
 			arc & value[f];
 			arc & boundary[f];
 			arc & source[f];
+			arc & gas[f];
+			arc & gas_boundary[f];
 		}
 	}
 };

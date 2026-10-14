@@ -10,7 +10,9 @@ inline bool radiationRegressionProblem() {
 		p==RADIATION_GAUSSIAN_PULSE || p==RADIATION_EQUILIBRIUM_SPHERE;
 }
 inline bool radiationFixedMediumProblem() {
-	return opts().problem==RADIATION_GAUSSIAN_PULSE || opts().problem==RADIATION_EQUILIBRIUM_SPHERE;
+	return opts().problem==RADIATION_GAUSSIAN_PULSE || opts().problem==RADIATION_EQUILIBRIUM_SPHERE ||
+		(opts().radTestChi > 0 && (opts().problem==RADIATION_STREAMING_WAVE ||
+			opts().problem==RADIATION_STREAMING_FRONT));
 }
 inline bool radiationShockProblem() {
 	return opts().problem == RADIATION_SUBCRITICAL_SHOCK || opts().problem == RADIATION_SUPERCRITICAL_SHOCK;

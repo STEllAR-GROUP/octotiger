@@ -40,12 +40,17 @@ class ComparisonTests(unittest.TestCase):
         numerical_only = (model == "fld" and not fld_reference) or case in comparison.COUPLED_WITHOUT_REFERENCE
         metadata = {"status": "complete", "case": case, "level": level, "time": time,
                     "radiation_model": model, "radiation_integrator": run["integrator"],
-                    "radiation_algorithm_version": 1, "radiation_flux_semantics": comparison.FLUX_SEMANTICS[model],
+                    "radiation_algorithm_version": comparison.method_identity(model, case)[0],
+                    "radiation_flux_semantics": comparison.method_identity(model, case)[1],
                     "radiation_reduced_c_factor": 1., "length": 2.,
                     "reference_kind": "numerical-only" if numerical_only else comparison.REFERENCE[case][0],
                     "executable_sha256": "same-executable", "solver_library_sha256": "same-library",
                     "comparison_signature": {"radiation_model": model,
                         "radiation_integrator": run["integrator"], "opacity": "1", "hard_dt": ".03125"}}
+        if model == "fld" and case in comparison.COUPLED_WITHOUT_REFERENCE:
+            metadata.update(radiation_frame="mixed", radiation_hydro_scheme="first_order_conservative",
+                            reference_kind="unavailable", reference_model="none",
+                            reference_exact_for_solver=False, reference_sampling="none")
         if model == "fld" and fld_reference:
             metadata.update(reference_kind="linear-diffusion-limit",
                 reference_model=comparison.FLD_REFERENCE_MODELS[case], reference_exact_for_solver=False)
@@ -175,9 +180,9 @@ class ComparisonTests(unittest.TestCase):
         self.assertTrue(all(row["status"] == "awaiting_matching_method" for row in rows))
         self.assertTrue(all(not row["direct_slice_difference"] for row in rows))
 
-    def test_m1_only_hydro_case_has_no_unsupported_partner(self):
+    def test_unfinished_coupled_pair_waits_for_its_supported_partner(self):
         row = self.refresh([self.add_run("m1", "subcritical_shock")])["cases"]["subcritical_shock"][0]
-        self.assertEqual(row["status"], "m1_only")
+        self.assertEqual(row["status"], "awaiting_matching_method")
         self.assertEqual(set(row["methods"]), {"m1"})
         self.assertFalse(row["direct_slice_difference"])
         self.assertFalse(row["methods"]["m1"]["reference_slice_errors"])
@@ -216,15 +221,27 @@ class ComparisonTests(unittest.TestCase):
                 comparison.refresh(self.root, manifest)
         self.assertFalse((self.root / "comparisons").exists())
 
-    def test_unsupported_fld_case_or_inconsistent_model_identity_is_rejected(self):
+    def test_coupled_fld_requires_v2_lab_flux_and_mixed_frame_identity(self):
         for case in comparison.COUPLED_WITHOUT_REFERENCE:
-            run = self.add_run("fld", case, completed=False)
-            with self.assertRaisesRegex(ValueError, "stationary"):
-                comparison.validate_manifest(self.manifest([run]))
+            runs = [self.add_run("m1", case), self.add_run("fld", case)]
+            with patch.object(comparison, "make_plot", side_effect=self.fake_plot):
+                summary = comparison.refresh(self.root, self.manifest(runs))
+            self.assertEqual(summary["cases"][case][0]["status"], "matched")
+            self.assertEqual(summary["cases"][case][0]["methods"]["fld"]["radiation_algorithm_version"], 2)
+            self.change_metadata(runs[1], radiation_algorithm_version=1)
+            with self.assertRaisesRegex(ValueError, "identity"):
+                comparison.load_run(self.root, runs[1])
         run = self.add_run("m1", completed=False)
         run["integrator"] = "backward_euler"
         with self.assertRaisesRegex(ValueError, "identity"):
             comparison.validate_manifest(self.manifest([run]))
+
+    def test_positive_opacity_m1_streaming_reference_is_a_limit(self):
+        run = self.add_run("m1", "streaming_wave")
+        self.change_metadata(run, streaming_optical_depth=1.e-4, reference_kind="free-streaming-limit")
+        result = comparison.load_run(self.root, run)
+        self.assertTrue(result["reference"]["available"])
+        self.assertFalse(result["reference"]["exact_for_solver"])
 
     def test_streaming_fld_has_only_integral_constraints_and_cross_model_discrepancies(self):
         for case in ("streaming_wave", "streaming_front"):

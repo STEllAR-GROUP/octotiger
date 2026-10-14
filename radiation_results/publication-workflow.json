@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "workflow": "m1-fld-radiation",
+  "movie": {
+    "seconds": 60,
+    "fps": 24,
+    "hold": 1,
+    "width": 900,
+    "height": 800,
+    "vectors": 144,
+    "full_domain": true
+  },
+  "stages": "keep-latest-verified",
+  "sequence": "one-run-render-stage-deploy",
+  "deployment_script": "deploy_campaign.py",
+  "retention": "verified-samples-and-endpoints",
+  "raw_run_budget_gib": {"2": 1, "3": 7, "4": 48}
+}

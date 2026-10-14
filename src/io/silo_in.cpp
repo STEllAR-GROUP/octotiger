@@ -161,14 +161,26 @@ void load_options_from_silo(std::string fname, DBfile *db) {
 								}
 							}
 							const integer model = ri(db, "radiation_model");
-							if ((model != 0 && model != 1) || ri(db, "radiation_algorithm_version") != 1 ||
-								ri(db, "radiation_limiter") != model || ri(db, "radiation_flux_semantics") != model ||
+							const integer algorithm = ri(db, "radiation_algorithm_version");
+							if ((model != 0 && model != 1) || algorithm != (model == 1 && opts().hydro ? 2 : 1) ||
+								ri(db, "radiation_limiter") != model ||
+								ri(db, "radiation_flux_semantics") != (model == 1 && algorithm == 2 ? 2 : model) ||
 								ri(db, "radiation_integrator") != (model == 0 ? 0 : 3)) {
 								throw std::runtime_error("Unsupported or inconsistent radiation restart model metadata");
 							}
 							opts().radiation_model = model == 0 ? "m1" : "fld";
 							opts().radiation_limiter = "levermore_pomraning";
 							if (model == 1) {
+								if (algorithm == 2) {
+									for (const char* name : {"fld_hydro_unigrid", "fld_hydro_reflect_bc", "fld_hydro_cfl"}) {
+										if (!DBInqVarExists(db, name)) {
+											throw std::runtime_error(std::string("Missing moving FLD restart option ") + name);
+										}
+									}
+									opts().unigrid = ri(db, "fld_hydro_unigrid") != 0;
+									opts().reflect_bc = ri(db, "fld_hydro_reflect_bc") != 0;
+									opts().cfl = rr(db, "fld_hydro_cfl");
+								}
 								for (const char *name : {"fld_boundary", "fld_nonlinear_tolerance", "fld_linear_tolerance",
 										"fld_max_iterations", "fld_max_linear_iterations"}) {
 									if (!DBInqVarExists(db, name)) {

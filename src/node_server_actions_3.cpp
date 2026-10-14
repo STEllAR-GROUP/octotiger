@@ -10,6 +10,8 @@
 #include "octotiger/options.hpp"
 #include "octotiger/problem.hpp"
 #include "octotiger/test_problems/radiation.hpp"
+#include "octotiger/radiation/momentum_diagnostics.hpp"
+#include "octotiger/physcon.hpp"
 #include "octotiger/math/Debug.hpp"
 #include "octotiger/real.hpp"
 #include "octotiger/util.hpp"
@@ -402,6 +404,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 	// Each process/restart starts a new baseline; diagnostic counters are not serialized.
 	radiationConservation::Ledger radiationLedger;
 	std::ofstream radiationOutput;
+	std::ofstream momentumOutput;
 	real lastRadiationTime = -std::numeric_limits<real>::infinity();
 	if (opts().radiation) {
 		const auto filename = (std::filesystem::path(opts().data_dir) / "radiation-conservation.csv").string();
@@ -409,6 +412,13 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 		if (!radiationOutput) throw std::runtime_error("Cannot write " + filename);
 		radiationOutput.exceptions(std::ios::badbit | std::ios::failbit);
 		radiationConservation::writeCsvHeader(radiationOutput);
+		const auto momentumFilename = (std::filesystem::path(opts().data_dir) / "momentum-diagnostics.csv").string();
+		momentumOutput.open(momentumFilename, std::ios::out | std::ios::trunc);
+		if (!momentumOutput) {
+			throw std::runtime_error("Cannot write " + momentumFilename);
+		}
+		momentumOutput.exceptions(std::ios::badbit | std::ios::failbit);
+		radiationMomentum::writeCsvHeader(momentumOutput);
 	}
 	auto sampleRadiation = [&]() {
 		if (!opts().radiation) return;
@@ -423,6 +433,13 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 		const auto sample = radiationLedger.consume(interval);
 		radiationConservation::writeCsvRow(radiationOutput, current_time, sample);
 		radiationOutput.flush();
+		const radiationMomentum::Parameters momentumParameters{physcon().c,
+			opts().code_to_g, opts().code_to_cm, opts().code_to_s,
+			opts().radiation_model == "fld", opts().periodic,
+			radiationFixedMediumProblem() || opts().problem == MARSHAK,
+			opts().problem == MARSHAK};
+		radiationMomentum::writeCsvRow(momentumOutput, current_time, sample, momentumParameters);
+		momentumOutput.flush();
 		lastRadiationTime = current_time;
 	};
 	sampleRadiation();
@@ -481,8 +498,8 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 
 		real dt = 0;
 		integer next_step = (std::min)(step_num + refinement_freq(), opts().stop_step + 1);
-        if (opts().radiation && !opts().hydro && !opts().disable_output) {
-            // Check output after each stationary-radiation step so a refinement
+        if (opts().radiation && (!opts().hydro || opts().radiation_model == "fld") && !opts().disable_output) {
+            // Check output after each radiation-only or FLD step so a refinement
             // batch cannot delay a requested snapshot. Timestep limits and the
             // regrid cadence below remain independent of this output check.
             next_step = (std::min)(next_step, step_num + 1);

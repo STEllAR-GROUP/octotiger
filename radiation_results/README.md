@@ -1,7 +1,7 @@
 # M1 RK1 and FLD radiation tests
 
 The current local workflow compares **M1 RK1** (`radiation_model=m1`,
-`radiation_integrator=euler`) with stationary **FLD backward Euler**
+`radiation_integrator=euler`) with **FLD backward Euler**
 (`radiation_model=fld`). ADER2 is removed. Existing historical campaigns keep
 their frozen scripts and results; do not resume them with these entry points.
 
@@ -11,12 +11,12 @@ their frozen scripts and results; do not resume them with these entry points.
 |---|---|---|---|
 | Gaussian pulse | Yes | Yes | M1 linear moment evolution; FLD periodic constant-diffusion solution |
 | Stationary Marshak heating | Yes | Yes | Su–Olson linear half-space diffusion solution for radiation and material energy |
-| Streaming wave and front | Yes | Setup/reporting only; zero-opacity solve does not converge | Exact M1 transport profiles; no analytic FLD profile, with conservation/positivity/flux-bound diagnostics |
+| Streaming wave and front | Yes | Yes, positive optical depth 1e-4 | Transparent-limit M1 profiles; FLD integral invariants, positivity and flux bounds |
 | Equilibrium sphere | Yes | Yes | Analytic constant-diffusion Gaussian-emitter equilibrium |
-| Subcritical/supercritical shocks and radiating blast | Yes | Unsupported | Numerical profiles and conservation diagnostics |
+| Subcritical/supercritical shocks and radiating blast | Yes | Mixed-frame moving gas | Numerical profiles and energy/momentum diagnostics |
 
 FLD references include energy and flux. Its flux is derived from the radiation
-energy gradient. The Gaussian heat-equation, steady Gaussian-emitter and Su–Olson solutions are
+energy gradient, with advected radiation enthalpy added for moving gas. The Gaussian heat-equation, steady Gaussian-emitter and Su–Olson solutions are
 **diffusion-limit references**, not exact solutions of the nonlinear
 Levermore–Pomraning flux-limited equations. The website labels reference
 assumptions and slice-area reference discrepancies. Marshak additionally
@@ -25,10 +25,11 @@ simulation has a finite domain. Gaussian references are cell averages; the
 existing Marshak reference is sampled at cell centers. Cross-model differences
 are reported separately from each model's reference discrepancies.
 
-FLD currently requires physical light speed, CPU, stationary material, and the
-supported ideal-gas/test emission laws. Its composite multigrid/GMRES solve
-collects leaves on the root locality. This is a correctness milestone with a
-serial root solve, not a distributed scaling or moving-gas implementation.
+FLD requires physical light speed, CPU, and the supported ideal-gas/test
+emission laws. Moving gas uses a first-order mixed-frame update on a uniform
+mesh with one species; velocity is frozen inside each implicit diffusion/thermal
+solve. Its multigrid/GMRES solve collects leaves on the root locality.
+High-resolution runtime and distributed scaling are not established.
 
 ## Prepare locally without starting simulations
 
@@ -68,30 +69,52 @@ Custom `--cases`, `--levels`, `--time`, and `--hard-dt` belong at preparation;
 resume cannot change frozen settings. `run_local.py` also accepts
 `--models m1` or `--models fld`. Unsupported FLD selections are listed explicitly.
 
-The full-suite preset selects all eight problems at levels 2, 3 and 4 (32, 64,
-128 cells per side), with 101 requested snapshots and 12 HPX workers. Each
-problem has its own duration: the transport cases use 0.2 s, Marshak uses
-normalized time 1, and the shocks/blast use their full template times
-(38300, 7500 and 22000 s). Maximum outer steps are one two-hundredth of each
-duration. These are starting settings, not a demonstrated timestep convergence
-result. M1 still subcycles for transport stability. New FLD runs check output
-after each physical step, so their capture cap is one output interval instead
-of the M1 driver's five-step batch. Explicit `--time` and `--hard-dt` override
-the preset values for every selected problem.
+The full-suite preset prepares **48 runs**: all eight problems, both models,
+and levels 2/3/4 (32/64/128 cells per side), with 121 requested snapshots and
+12 HPX workers. Gaussian runs to 1.5 s, Marshak to normalized time 60, the
+other transport cases to 0.2 s, and shocks/blast to 38300/7500/22000 s.
+These durations and maximum outer timesteps are frozen in `full-study.json`;
+timestep convergence is not established. M1 subcycles for streaming stability.
+Moving FLD substeps for its radiation-modified gas CFL and implicit retries.
 
 ```sh
 python3 radiation_results/run_both.py --preset full \
   --output output/m1-fld-full --prepare
 ```
 
-This currently prepares 33 runnable cases (eight M1 and three stationary FLD
-problems at three levels). Fifteen FLD combinations remain explicitly
-unavailable: six transparent wave/front cases fail nonlinear convergence at
-exactly zero opacity, and nine shock/blast cases require moving-gas coupling.
-Adding an opacity floor or turning off hydro would change those problems and
-is not a substitute. Preparation performs configuration checks but starts no
-benchmark. High-resolution root-gathered FLD remains subject to the configured
-memory ceiling. Completed pilot campaigns keep their frozen inputs.
+The streaming opacity is explicitly positive and identical for both models,
+with domain optical depth 1e-4. The fixed-medium and coupled configurations
+remain distinct. Preparation performs configuration checks and executable
+startup only; it does not run a benchmark. Existing campaigns retain their
+frozen inputs.
+
+A full 121-snapshot 3D archive is estimated at 710–780 GiB before all derived
+artifacts. The approved retention policy instead preserves every validated
+movie frame, profile, and volume-integral sample, plus initial/final 3D states
+and checkpoints. Intermediate 3D files from newly owned runs are retired only
+after verified extraction, with durable hash inventories. Existing results
+are never adopted for deletion. The full campaign uses persistent NVMe storage;
+resource guards reserve space for the next complete run before starting it.
+
+The explicit-start publication wrapper prepares 60-second movies and updates
+the website after each completed run, before beginning the next one:
+
+```sh
+python3 OUTPUT/.campaign/run_published_campaign.py --campaign OUTPUT --plan
+# Only after the user's launch command:
+python3 OUTPUT/.campaign/run_published_campaign.py --campaign OUTPUT --start
+```
+
+Publishing, rendering, and simulations remain inactive during preparation. Failed extraction,
+resource checks, or publication stop progression before the next solver run.
+
+Total-momentum plots compare M1 and FLD for the two radiative shocks and the
+radiating blast only. They use lab-frame `P=integral(rho*v+F/c^2)dV`, normalized
+by initial gas-plus-radiation energy divided by c. Raw momentum change is
+distinguished from a boundary-corrected balance. The fixed-material transport
+tests omit this plot: holding the material stationary creates an external
+momentum reservoir, so gas-plus-radiation momentum is not a closed-system
+conservation test.
 
 ## Start only after authorization
 

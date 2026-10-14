@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Prepare and explicitly start local M1 RK1 / stationary FLD comparisons.
+"""Prepare and explicitly start local M1 RK1 / FLD comparisons.
 
 Preparation freezes sources, executables, libraries and scripts and writes a
 local website. Only --resume DIR --start starts solver processes. The default
 pilot has Gaussian and Marshak, levels 0/1, two workers and physical light
-speed. Unsupported FLD cases are shown explicitly, never simulated as M1.
+speed. Each problem runs its requested physical model; no method is substituted.
 """
 import argparse
 from datetime import datetime, timezone
@@ -27,14 +27,9 @@ ROOT = Path(__file__).resolve().parent.parent
 CASES = ('streaming_wave', 'streaming_front', 'gaussian_pulse', 'equilibrium_sphere',
          'subcritical_shock', 'supercritical_shock', 'radiating_blast', 'marshak')
 PAIRED_CASES = ('gaussian_pulse', 'marshak')
-FLD_CASES = ('gaussian_pulse', 'equilibrium_sphere', 'marshak')
-FLD_UNAVAILABLE = {
-    'streaming_wave': 'Zero-opacity FLD iteration has not converged; transparent plateau treatment requires a solver extension',
-    'streaming_front': 'Zero-opacity FLD iteration has not converged; transparent plateau treatment requires a solver extension',
-    'subcritical_shock': 'Moving-gas radiation hydrodynamics is required; the current FLD solver is stationary',
-    'supercritical_shock': 'Moving-gas radiation hydrodynamics is required; the current FLD solver is stationary',
-    'radiating_blast': 'Moving-gas radiation hydrodynamics is required; the current FLD solver is stationary',
-}
+FLD_CASES = CASES
+FLD_UNAVAILABLE = {}
+COUPLED_CASES = ('subcritical_shock', 'supercritical_shock', 'radiating_blast')
 METHODS = ('m1', 'fld')
 INTEGRATORS = {'m1': 'euler', 'fld': 'backward_euler'}
 LABELS = {'m1': 'M1 RK1', 'fld': 'FLD backward Euler'}
@@ -151,7 +146,9 @@ def snapshot(root, manifest):
     for name in ('configs', 'cpp'):
         shutil.copytree(ROOT / 'radiation_results' / name, source / 'radiation_results' / name)
     for name in ('run_campaign.py', 'compare_campaign.py', 'campaign_movies.py', 'publish_campaign.py',
-                 'campaign_profile_plots.py', 'local-study.json', 'full-study.json', 'movie-study.json'):
+                 'campaign_profile_plots.py', 'local-study.json', 'full-study.json', 'movie-study.json',
+                 'run_published_campaign.py', 'deploy_campaign.py', 'publication-workflow.json', 'campaign_retention.py',
+                 'momentum_diagnostics.py'):
         shutil.copy2(ROOT / 'radiation_results' / name, frozen / name)
     build = Path(manifest['original_build']); results = Path(manifest['original_results_build'])
     shutil.copy2(build / 'CMakeCache.txt', runtime / 'CMakeCache.txt')
@@ -250,8 +247,8 @@ def render(root, manifest):
 <h1>M1 RK1 and FLD</h1><p class="note">Status: {esc(manifest['status'])}. {esc(manifest['scope'])}</p>
 <p>M1 evolves radiation energy and flux using RK1 with radiation substeps. FLD solves energy and material heating together implicitly; its flux is a derived diagnostic. Cross-model differences are not truncation-error estimates.</p>
 <p>{comparison}</p><div class="scroll"><table><tr><th>Problem</th><th>Model / integrator</th><th>Status</th><th>Final time</th><th>Maximum timestep</th></tr>{''.join(rows)}</table></div>
-<p>Time is in seconds except for normalized Marshak time. Gaussian, equilibrium sphere and Marshak have analytic diffusion-limit references for FLD energy and flux; Marshak also has material energy. These are not exact nonlinear LP FLD solutions. Transparent streaming cases compare closures and conservation without claiming an analytic FLD profile. Reference discrepancies remain separate from cross-model differences. Prepared runs are not validation evidence.</p>
-<h2>Supported scope</h2><p>Gaussian, sphere and Marshak support both models with physical light speed on CPU. The other FLD combinations are excluded from execution for the reasons below; their M1 runs remain available:</p><ul>{unsupported}</ul>
+<p>Time is in seconds except for normalized Marshak time. Gaussian, equilibrium sphere and Marshak have analytic diffusion-limit references for FLD energy and flux; Marshak also has material energy. These are not exact nonlinear LP FLD solutions. Thin positive-opacity streaming cases compare closures and conservation without claiming an analytic FLD profile. Reference discrepancies remain separate from cross-model differences. Prepared runs are not validation evidence.</p>
+<h2>Supported scope</h2><p>All eight problems are planned for both models at physical light speed on CPU. FLD uses a mixed-frame moving-gas update for shocks/blast. Streaming opacity is explicitly positive, and zero-opacity advection curves are limit references. Any legacy exclusions are listed here:</p><ul>{unsupported}</ul>
 <p><a href="campaign.json">Plan and provenance</a> · <a href="commands.txt">Prepared commands</a></p>
 <p>Execution requires a separate explicit start. This workflow does not publish to a remote website.</p></main></html>''')
 
@@ -265,10 +262,14 @@ def save(root, manifest):
 def validate_completed(root, manifest, run):
     folder = root / run['directory'] / run['case'] / f'l{run["level"]}'
     meta = json.loads((folder / 'run.json').read_text())
+    moving = run['model'] == 'fld' and run['case'] in COUPLED_CASES
     expected = {'status': 'complete', 'case': run['case'], 'level': run['level'],
         'radiation_model': run['model'], 'radiation_integrator': run['integrator'],
-        'radiation_algorithm_version': 1, 'radiation_flux_semantics': FLUX[run['model']],
+        'radiation_algorithm_version': 2 if moving else 1,
+        'radiation_flux_semantics': 'derived_fld_lab_flux' if moving else FLUX[run['model']],
         'executable_sha256': manifest['executable_sha256']}
+    if moving:
+        expected.update(radiation_frame='mixed', radiation_hydro_scheme='first_order_conservative')
     if any(meta.get(k) != v for k, v in expected.items()):
         raise ValueError(f'Completed run identity/provenance differs: {run["id"]}')
     if not math.isclose(meta['time'], run['stop_time'], rel_tol=2e-12):
@@ -277,6 +278,9 @@ def validate_completed(root, manifest, run):
     if run.get('run_metadata_sha256', digest) != digest:
         raise ValueError('Previously validated run metadata changed')
     run['run_metadata_sha256'] = digest
+    if run.get('retention') is not None or (folder / 'retention.json').exists():
+        from campaign_retention import validate_retention
+        validate_retention(root, run)
     return meta
 
 

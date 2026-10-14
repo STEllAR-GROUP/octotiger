@@ -452,11 +452,11 @@ std::string radiation_method_note(const Json &m)
     if (fld_model(m)) {
         require(factor == 1., "FLD results require physical light speed");
         const std::string reference = m.value("reference_kind", "") == "unavailable" ?
-            "No analytic FLD profile is supplied for this transparent closure comparison. " :
+            "No independent analytic or digitized FLD reference profile is supplied. " :
             "Analytic references describe the linear diffusion limit and need not solve nonlinear flux-limited diffusion exactly. ";
-        return "FLD backward Euler with the Levermore-Pomraning limiter; stationary material and physical c = " +
+        return std::string(coupled_case(m.at("case")) ? "Mixed-frame FLD with first-order gas transport and backward-Euler diffusion/material exchange; physical c = " : "FLD backward Euler with the Levermore-Pomraning limiter; stationary material and physical c = ") +
             number(physical) + (cgs(m) ? " cm/s. " : " in normalized units. ") +
-            "Radiation flux is derived from the radiation-energy gradient; it is a diagnostic, not an evolved momentum variable. "
+            std::string(coupled_case(m.at("case")) ? "Radiation flux is the derived lab-frame diffusion plus enthalpy-advection flux; it is not an independently evolved momentum variable. " : "Radiation flux is derived from the radiation-energy gradient; it is a diagnostic, not an evolved momentum variable. ")
             + reference +
             "M1 versus FLD differences compare distinct radiation models and are not analytic-reference errors.";
     }

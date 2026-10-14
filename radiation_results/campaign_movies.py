@@ -30,14 +30,14 @@ from campaign_profile_plots import PROFILE_SCRIPT
 
 COUPLED = {"subcritical_shock", "supercritical_shock", "radiating_blast"}
 SHOCKS = {"subcritical_shock", "supercritical_shock"}
-STYLE_VERSION = 3
+STYLE_VERSION = 4
 MOVIE_SUBDIR = Path("movies/radiation-energy-flux")
 MODEL_LABELS = {"m1": "M1 RK1", "fld": "FLD backward Euler"}
 MODEL_INTEGRATORS = {"m1": "euler", "fld": "backward_euler"}
 MODEL_FLUX = {"m1": "evolved_m1_flux", "fld": "derived_fld_flux"}
 FLD_REFERENCE_MODELS = {"gaussian_pulse": "periodic-constant-diffusion", "marshak": "su-olson-linear-halfspace",
                         "equilibrium_sphere": "steady-gaussian-emitter"}
-FLD_CASES = {"streaming_wave", "streaming_front", "gaussian_pulse", "equilibrium_sphere", "marshak"}
+FLD_CASES = {"streaming_wave", "streaming_front", "gaussian_pulse", "equilibrium_sphere", "marshak", *COUPLED}
 CASES = {"streaming_wave", "streaming_front", "gaussian_pulse", "equilibrium_sphere",
          "subcritical_shock", "supercritical_shock", "radiating_blast", "marshak"}
 
@@ -45,17 +45,23 @@ CASES = {"streaming_wave", "streaming_front", "gaussian_pulse", "equilibrium_sph
 def model_contract(metadata: dict, run: dict | None = None) -> dict:
     """Validate model identity before generating plots or reusing a cache."""
     model = metadata.get("radiation_model")
+    moving = model == "fld" and metadata.get("case") in COUPLED
+    version = 2 if moving else 1
+    flux_semantics = "derived_fld_lab_flux" if moving else MODEL_FLUX.get(model)
     if (model not in MODEL_LABELS or metadata.get("radiation_integrator") != MODEL_INTEGRATORS[model]
-            or metadata.get("radiation_algorithm_version") != 1
-            or metadata.get("radiation_flux_semantics") != MODEL_FLUX[model]
+            or metadata.get("radiation_algorithm_version") != version
+            or metadata.get("radiation_flux_semantics") != flux_semantics
             or metadata.get("radiation_ader_version")
             or metadata.get("runtime_profile", "baseline") != "baseline"):
         raise ValueError("Movie input requires explicit current M1/FLD model, integrator, version, and flux semantics")
+    if moving and (metadata.get("radiation_frame") != "mixed" or
+                   metadata.get("radiation_hydro_scheme") != "first_order_conservative"):
+        raise ValueError("Moving FLD movies require explicit mixed-frame hydro metadata")
     if run is not None and (run.get("method") != model or run.get("model") != model
                             or run.get("integrator") != MODEL_INTEGRATORS[model]):
         raise ValueError("Movie run model/integrator does not match its saved metadata")
     if model == "fld" and metadata.get("case") not in FLD_CASES:
-        raise ValueError("FLD campaign movies support stationary radiation problems only")
+        raise ValueError("Unsupported FLD movie problem")
     reference = {"reference_kind": metadata.get("reference_kind", "not recorded"),
                  "reference_model": metadata.get("reference_model"),
                  "reference_exact_for_solver": metadata.get("reference_exact_for_solver"),
@@ -65,7 +71,7 @@ def model_contract(metadata: dict, run: dict | None = None) -> dict:
     if reference["reference_kind"] in {"numerical-only", "unavailable"}:
         reference["reference_description"] = "Movies show saved numerical states; no applicable analytic reference is recorded."
     if model == "fld" and reference["reference_kind"] == "unavailable":
-        if (metadata["case"] not in {"streaming_wave", "streaming_front"} or
+        if (metadata["case"] not in {"streaming_wave", "streaming_front", *COUPLED} or
                 reference["reference_model"] != "none" or reference["reference_exact_for_solver"] is not False or
                 metadata.get("reference_sampling") != "none"):
             raise ValueError("Unavailable FLD references must explicitly declare no reference model or sampling")
@@ -79,11 +85,16 @@ def model_contract(metadata: dict, run: dict | None = None) -> dict:
             raise ValueError("FLD movie references require an applicable, explicitly qualified diffusion-limit model")
         reference["reference_description"] = ("Final-time profiles compare FLD with a linear diffusion-limit analytic reference, "
             "not an exact solution of nonlinear flux-limited diffusion. The movie shows numerical states only.")
+    if moving:
+        reference["reference_description"] = "Movies show numerical mixed-frame radiation hydrodynamics. No independent analytic or digitized benchmark profile is supplied."
+    if model == "m1" and metadata.get("streaming_optical_depth", 0) > 0:
+        reference["reference_description"] = "Movies show numerical states at explicit positive opacity. Final profiles use the zero-opacity analytic solution only as a free-streaming-limit reference."
     return {"radiation_model": model, "radiation_integrator": MODEL_INTEGRATORS[model],
-            "radiation_algorithm_version": 1, "radiation_flux_semantics": MODEL_FLUX[model],
+            "radiation_algorithm_version": version, "radiation_flux_semantics": flux_semantics,
+            "radiation_frame": metadata.get("radiation_frame"), "radiation_hydro_scheme": metadata.get("radiation_hydro_scheme"),
             "model_label": MODEL_LABELS[model], **reference,
-            "flux_label": "Derived FLD flux" if model == "fld" else "Evolved M1 flux",
-            "flux_description": ("Arrows show derived FLD diagnostic flux -D grad(E); radiation momentum is not evolved."
+            "flux_label": "Derived lab-frame FLD flux" if moving else "Derived FLD flux" if model == "fld" else "Evolved M1 flux",
+            "flux_description": ("Arrows show derived lab-frame FLD flux -D grad(E) + (E I + P)·v, including radiation enthalpy advection; radiation momentum is not an independently evolved field." if moving else "Arrows show derived FLD diagnostic flux -D grad(E); radiation momentum is not evolved."
                                  if model == "fld" else "Arrows show the independently evolved M1 radiation flux.")}
 
 
@@ -347,6 +358,98 @@ half = float(metadata["length"]) / 2
 # A tiny positive offset picks the z>=0 zone averages at the mesh interface.
 slice_z = float(metadata["dx"]) * 1.0e-6
 
+def extract_snapshot_data(frames):
+    """Persist native central profiles and full-volume conserved integrals."""
+    if 2 not in GetGlobalAttributes().windows:
+        checked(AddWindow(), "Create extraction window")
+    checked(SetActiveWindow(1), "Select extraction source")
+    checked(DefineScalarExpression("campaign_profile_position_x", 'recenter(coord(quadmesh)[0], "zonal")'),
+            "Define native profile x")
+    checked(DefineScalarExpression("campaign_gas_temperature", "<T>"), "Define gas temperature")
+    checked(DefineScalarExpression("campaign_radiation_temperature", "(er / %.17g)^0.25" % (4.0 * 5.67051e-5 / 2.99792458e10)),
+            "Define radiation temperature")
+    for axis in "xyz":
+        checked(DefineScalarExpression("campaign_gas_momentum_" + axis, "rho*v" + axis), "Define gas momentum")
+    lineout = GetGlobalLineoutAttributes()
+    lineout.Dynamic, lineout.createWindow, lineout.windowId = 0, 0, 2
+    lineout.samplingOn, lineout.createReflineLabels, lineout.freezeInTime = 0, 0, 1
+    checked(SetGlobalLineoutAttributes(lineout), "Set native extraction lineout")
+    names = ["er", "fx", "fy", "fz", "egas"]
+    variables = list(names)
+    if request["coupled"]:
+        names += ["rho", "vx", "vy", "vz", "gas_temperature", "radiation_temperature"]
+        variables += ["rho", "vx", "vy", "vz", "campaign_gas_temperature", "campaign_radiation_temperature"]
+    c = float(metadata["c"])
+    integral_records = []
+    for number, frame in enumerate(frames):
+        check_stop()
+        checked(SetActiveWindow(2), "Select extracted profile window")
+        DeleteAllPlots()
+        checked(SetActiveWindow(1), "Select full-domain extraction source")
+        DeleteAllPlots()
+        checked(AddPlot("Pseudocolor", "er", 1, 0), "Add full-volume source without slice operators")
+        checked(SetTimeSliderState(frame["state"]), "Select extraction state")
+        checked(DrawPlots(), "Draw full-volume extraction source")
+        checked(Query("Time"), "Check extraction time")
+        actual_time = float(GetQueryOutputValue())
+        if not math.isclose(actual_time, frame["time"], rel_tol=1e-10, abs_tol=1e-14):
+            raise RuntimeError("Extraction time differs from numerical snapshot")
+        checked(Query("Volume"), "Measure full-domain volume")
+        volume = float(GetQueryOutputValue())
+        if not math.isfinite(volume) or not math.isclose(volume, (2*half)**3, rel_tol=2e-9):
+            raise RuntimeError("Full-volume extraction has missing/duplicate cells")
+        totals = {}
+        for variable in ["er", "egas", "fx", "fy", "fz"] + ["campaign_gas_momentum_" + axis for axis in "xyz"]:
+            checked(ChangeActivePlotsVar(variable), "Select full-volume integral")
+            checked(DrawPlots(), "Draw full-volume integral")
+            # VisIt 3.4 Query documentation: this weights each zone by its 3D volume.
+            checked(Query("Weighted Variable Sum", use_actual_data=1), "Integrate full-volume field")
+            totals[variable] = float(GetQueryOutputValue())
+            if not math.isfinite(totals[variable]):
+                raise RuntimeError("Nonfinite full-volume integral")
+        integral_records.append({"time": frame["time"], "volume": volume, "physical_c": c,
+            "gas_momentum": [totals["campaign_gas_momentum_" + axis] for axis in "xyz"],
+            "radiation_momentum": [totals["f" + axis]/c**2 for axis in "xyz"],
+            "gas_energy": totals["egas"], "radiation_energy": totals["er"]})
+        checked(ChangeActivePlotsVar("er"), "Select central profile source")
+        checked(DrawPlots(), "Draw central profile source")
+        checked(Lineout(start_point=(-half, slice_z, slice_z), end_point=(half, slice_z, slice_z),
+                        vars=tuple(variables + ["campaign_profile_position_x"]), use_sampling=0),
+                "Extract native central-x numerical fields")
+        checked(SetActiveWindow(2), "Select central-x data")
+        checked(DrawPlots(), "Draw native profile curves")
+        if GetPlotList().GetNumPlots() != len(variables) + 1:
+            raise RuntimeError("Missing numerical profile variables")
+        checked(SetActivePlots(len(variables)), "Select native profile x positions")
+        positions = list(GetPlotInformation()["Curve"])
+        if len(positions) < 4 or len(positions) % 2 or not all(math.isfinite(x) for x in positions):
+            raise RuntimeError("Invalid native profile positions")
+        rows = [[positions[j+1]] for j in range(0, len(positions), 2)]
+        for index, name in enumerate(names):
+            checked(SetActivePlots(index), "Select extracted " + name)
+            pairs = list(GetPlotInformation()["Curve"])
+            if len(pairs) != len(positions) or not all(math.isfinite(x) for x in pairs):
+                raise RuntimeError("Incomplete native numerical profile")
+            for j in range(0, len(pairs), 2):
+                if abs(pairs[j]-positions[j]) > 1e-10*max(1.,2*half):
+                    raise RuntimeError("Profile variables do not share native cell intersections")
+                rows[j//2].append(pairs[j+1])
+        profile = "profile_%06d.json" % number
+        with open(profile, "w") as stream:
+            json.dump({"schema": 1, "time": frame["time"], "columns": ["x"] + names, "rows": rows,
+                "sampling": "Native cell intersections along y=z=dx_finest*1e-6; values are stored cell averages; repeated cell-center samples preserve VisIt line segments",
+                "units": metadata.get("units", {})}, stream, indent=2, allow_nan=False)
+        frame["profile_data"] = profile
+    checked(SetActiveWindow(2), "Clear extraction curves")
+    DeleteAllPlots()
+    checked(SetActiveWindow(1), "Return to movie window")
+    DeleteAllPlots()
+    with open("volume_integrals.json", "w") as stream:
+        json.dump({"schema": 1, "status": "verified", "scope": "full-volume stored numerical states",
+            "radiation_flux_semantics": metadata["radiation_flux_semantics"],
+            "units": "cgs" if metadata.get("units", {}).get("system") == "CGS" else "code",
+            "integration": "full-volume leaf-cell", "field_units": metadata.get("units", {}), "records": integral_records}, stream, indent=2, allow_nan=False)
+
 def check_stop():
     for path in request.get("stop_paths", []):
         if os.path.exists(path):
@@ -596,6 +699,7 @@ try:
         if high > low * (1 + 1e-10):
             density_contours = ([math.exp(math.log(low) + (math.log(high)-math.log(low))*i/5) for i in range(1,5)]
                                 if low > 0 and high/low >= 1000 else [low+(high-low)*i/5 for i in range(1,5)])
+    extract_snapshot_data(frames)
     profiles = scan_temperature_profiles(frames) if request["temperature_profile"] else None
     for panel, style in styles.items():
         labels = configure_panel(panel, style, density_contours)
@@ -726,6 +830,44 @@ def write_visit_job(metadata: dict, files: list[Path], diagnostics: Path,
     return request
 
 
+def write_extraction_manifest(folder: Path, diagnostics: Path, movie: dict, settings: dict) -> dict:
+    rendered = json.loads((diagnostics / "frames.json").read_text())
+    times = movie["snapshot_times"]
+    frames = rendered["frames"]
+    if [frame["time"] for frame in frames] != times:
+        raise ValueError("Extraction and movie snapshot times differ")
+    def artifact(path):
+        path = path.resolve()
+        return {"path": str(path.relative_to(folder)), "sha256": sha256(path)}
+    profiles, images = [], []
+    for frame in frames:
+        profile_path = diagnostics / frame["profile_data"]
+        profile = json.loads(profile_path.read_text())
+        columns, rows = profile.get("columns", []), profile.get("rows", [])
+        if (profile.get("schema") != 1 or profile.get("time") != frame["time"] or
+                not {"x", "er", "fx", "fy", "fz", "egas"}.issubset(columns) or not rows or
+                any(len(row) != len(columns) or any(not math.isfinite(value) for value in row) for row in rows)):
+            raise ValueError("Numerical profile extraction is incomplete or nonfinite")
+        profiles.append({"time": frame["time"], **artifact(profile_path)})
+        for panel in movie["panels"]:
+            images.append({"time": frame["time"], "panel": panel,
+                           **artifact(diagnostics / frame[panel + "_image"])})
+    integrals_path = diagnostics / "volume_integrals.json"
+    integrals = json.loads(integrals_path.read_text())
+    if ([row["time"] for row in integrals.get("records", [])] != times or
+            integrals.get("scope") != "full-volume stored numerical states"):
+        raise ValueError("Full-volume integral extraction is incomplete")
+    destination = folder / MOVIE_SUBDIR
+    result = {"schema": 1, "status": "verified", "settings": settings,
+              "run_metadata_sha256": sha256(folder / "run.json"), "snapshot_times": times,
+              "profiles": profiles, "panels": movie["panels"], "frames": images,
+              "volume_integrals": artifact(integrals_path),
+              "movie": artifact(destination / "movie.mp4"),
+              "movie_metadata": artifact(destination / "campaign-movie.json")}
+    write_json(destination / "extraction.json", result)
+    return result
+
+
 def render_one(campaign: Path, run: dict, args: argparse.Namespace) -> dict:
     stopped(campaign)
     folder = (campaign / run["directory"] / run["case"] / f"l{run['level']}").resolve()
@@ -737,6 +879,15 @@ def render_one(campaign: Path, run: dict, args: argparse.Namespace) -> dict:
         raise ValueError(f"Completed run identity mismatch: {metadata_path}")
     if sha256(metadata_path) != run.get("run_metadata_sha256"):
         raise ValueError(f"Completed metadata hash mismatch: {metadata_path}")
+    from campaign_retention import validate_retained_cache
+    settings = source_signature(folder, [], args, run)
+    settings.pop("inputs")
+    retained = validate_retained_cache(campaign, run, settings)
+    if retained is not None:
+        if args.force:
+            raise ValueError("Cannot force regeneration after intermediate raw snapshots were pruned")
+        print(f"Using verified retained movie: {run['id']}", flush=True)
+        return retained
     files = numerical_silos(folder)
     # Validate requested playback before starting a renderer. Actual Silo times
     # receive the same validation after rendering, including no skipped states.
@@ -903,6 +1054,7 @@ def render_one(campaign: Path, run: dict, args: argparse.Namespace) -> dict:
         shutil.copy2(source, temporary)
         temporary.replace(destination / name)
     write_json(manifest_path, result)
+    write_extraction_manifest(folder, diagnostics, result, settings)
     # Hard links only; original rendered PNGs and all command logs remain intact.
     shutil.rmtree(encode_dir)
     print(f"Completed movie: {run['id']} ({len(frames)} stored states)", flush=True)
@@ -946,7 +1098,7 @@ def main() -> int:
         print(json.dumps([{"run_id": run["id"], "panels": 3 if run["case"] in SHOCKS else 2 if run["case"] in COUPLED else 1,
                            "model": run["model"], "integrator": run["integrator"],
                            "model_label": MODEL_LABELS[run["model"]],
-                           "radiation_flux_semantics": MODEL_FLUX[run["model"]],
+                           "radiation_flux_semantics": "derived_fld_lab_flux" if run["model"] == "fld" and run["case"] in COUPLED else MODEL_FLUX[run["model"]],
                            "movie_timing": run.get("movie_timing"),
                            "movie_view": effective_movie_view(args, run.get("movie_view")),
                            "full_domain_forced": args.full_domain,

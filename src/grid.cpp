@@ -1811,7 +1811,7 @@ std::vector<std::pair<std::string, std::string>> grid::get_vector_expressions() 
 
 void grid::export_radiation_hydro(real t) const {
 	FpeGuard fpeGuard{};
-    if (opts().radiation_model == "fld") {
+    if (opts().radiation_model == "fld" && !opts().hydro) {
         const auto directory = std::filesystem::path(opts().data_dir);
         if (!std::filesystem::is_directory(directory / "radiation-slices") &&
             !std::filesystem::is_directory(directory / "marshak-material-slices")) {

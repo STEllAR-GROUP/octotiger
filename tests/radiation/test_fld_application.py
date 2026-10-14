@@ -236,8 +236,8 @@ def main():
     save_report(report_path, report)
     if not args.skip_options:
         for label, changes, message in (
-            ("hydro", {"hydro": "on"}, "requires stationary matter"),
-            ("gravity", {"gravity": "on"}, "requires stationary matter"),
+            ("hydro-amr", {"hydro": "on", "unigrid": "off"}, "requires unigrid=1 and n_species=1"),
+            ("gravity", {"gravity": "on"}, "requires gravity=0, omega=0, and eos=IDEAL"),
             ("reduced-c", {"radiation_reduced_c_factor": .5}, "requires radiation_reduced_c_factor=1"),
             ("explicit-source", {"rad_implicit": "off"}, "requires rad_implicit=1"),
             ("integrator", {"radiation_integrator": "euler"}, "FLD requires backward_euler"),

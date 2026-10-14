@@ -170,7 +170,8 @@ Json read_fld_diagnostics(const fs::path &folder, const Json &m)
     const std::string reference_model = name == "marshak" ? "su-olson-linear-halfspace" :
         name == "gaussian_pulse" ? "periodic-constant-diffusion" :
         name == "equilibrium_sphere" ? "steady-gaussian-emitter" : "none";
-    require(m.value("radiation_flux_semantics", "") == "derived_fld_flux" &&
+    require(m.value("radiation_flux_semantics", "") == radiation_flux_semantics("fld", name) &&
+        m.value("radiation_algorithm_version", 0) == radiation_algorithm_version("fld", name) &&
         m.value("reference_kind", "") == (references ? "linear-diffusion-limit" : "unavailable") &&
         m.contains("reference_exact_for_solver") && m.at("reference_exact_for_solver") == false &&
         m.value("reference_model", "") == reference_model, "Invalid FLD reference semantics");
@@ -224,7 +225,16 @@ Json read_fld_diagnostics(const fs::path &folder, const Json &m)
         "Missing, duplicate, or incomplete FLD final diagnostics");
     const auto budget = read_conservation(folder, m);
     require(bool(budget), "Missing FLD radiation energy conservation history");
-    const auto slice = read_slice(folder, m);
+    Table slice;
+    if (coupled_case(name)) {
+        const auto hydro = read_hydro_profile(folder, m);
+        slice.columns = {"t", "dx", "x", "y", "z", "er", "fx", "fy", "fz"};
+        for (const auto &row : hydro.rows) {
+            slice.rows.push_back({row[0], row[1], row[2], row[3], row[4], row[11], row[12], row[13], row[14]});
+        }
+    } else {
+        slice = read_slice(folder, m);
+    }
     const auto material = m.at("case") == "marshak" ?
         std::optional<Table>(read_marshak_material(folder, m)) : std::nullopt;
     if (material) {
@@ -252,6 +262,40 @@ Json read_fld_diagnostics(const fs::path &folder, const Json &m)
     }
     result["slice_physical_bounds"] = {{"scope", "projected-positive-side-slice"},
         {"minimum_radiation_energy", minimum_energy}, {"maximum_reduced_flux", maximum_reduced_flux}};
+    if (coupled_case(name)) {
+        // Keep the radiation-relative imbalance visible. Gas-dominated shocks
+        // also need the solver's coupled-energy scale to interpret that number.
+        const auto momentum_path = folder / "momentum-diagnostics.csv";
+        if (fs::is_regular_file(momentum_path)) {
+            std::ifstream ledger(momentum_path);
+            std::string header, first;
+            std::getline(ledger, header);
+            std::getline(ledger, first);
+            require(header.starts_with("time,physical_c,volume,gas_energy,radiation_energy,"),
+                "Unexpected coupled-energy diagnostic columns");
+            std::istringstream values(first);
+            std::array<double, 5> initial{};
+            for (size_t i = 0; i < initial.size(); ++i) {
+                std::string value;
+                require(bool(std::getline(values, value, ',')), "Incomplete initial coupled-energy record");
+                initial[i] = numeric(value);
+            }
+            require(initial[0] == 0 && close(initial[1], m.at("c")) &&
+                initial[2] > 0 && initial[3] >= 0 && initial[4] >= 0,
+                "Invalid initial coupled-energy normalization");
+            const double scale = initial[3] + initial[4];
+            require(scale > 0 && std::isfinite(scale), "Invalid coupled-energy scale");
+            result["coupled_energy_normalization"] = {{"basis", "initial full-volume gas plus radiation energy"},
+                {"value", scale},
+                {"maximum_step_conservation_error_normalized", maximum_conservation_error / scale},
+                {"radiation_equation_maximum_residual_normalized", budget->summary.at(0).at("max_abs_residual").get<double>() / scale},
+                {"note", "Radiation-relative residuals remain in radiation_energy_budget. Scaling a radiation-only residual by total energy is not a separate proof of combined gas-plus-radiation conservation."}};
+        }
+        result["slice_physical_bounds"]["flux_semantics"] = "derived_fld_lab_flux";
+        result["slice_physical_bounds"]["flux_bound_note"] = "Lab-frame flux includes enthalpy advection; its norm can exceed cE. Hydro slice validation uses the conservative (c+2|v|)E envelope.";
+        result["reference_norm_scope"] = "unavailable; numerical radiation hydrodynamics";
+        return result;
+    }
     if (!references) {
         // These source-free periodic tests have an exact integrated-energy
         // invariant, but no supplied analytic solution of the nonlinear FLD PDE.
@@ -398,11 +442,15 @@ Table read_hydro_profile(const fs::path &folder, const Json &m)
 {
     const std::vector<std::string> columns{"t", "dx", "x", "y", "z", "rho", "vx", "vy", "vz",
         "gas_temperature", "radiation_temperature", "er", "fx", "fy", "fz"};
+    const auto flux_bound = [&](const std::vector<double> &row) {
+        const double speed = fld_model(m) ? 2 * std::hypot(row[6], row[7], row[8]) : 0.;
+        return (m.at("c").get<double>() + speed) * row[11] * (1 + 1.e-10);
+    };
     if (m.value("adaptive", false)) {
         auto result = adaptive_slice(folder / "radiation-hydro-slices", m, columns);
         for (const auto &r : result.rows) {
             require(r[5] > 0 && r[9] > 0 && r[10] >= 0 && r[11] >= 0 &&
-                std::hypot(r[12], r[13], r[14]) <= m.at("c").get<double>() * r[11] * (1 + 1.e-10),
+                std::hypot(r[12], r[13], r[14]) <= flux_bound(r),
                 "Nonphysical adaptive hydro slice state");
         }
         return result;
@@ -430,8 +478,8 @@ Table read_hydro_profile(const fs::path &folder, const Json &m)
                 "Hydro slice position mismatch");
             require(r[5] > 0 && r[9] > 0 && r[10] >= 0 && r[11] >= 0,
                 "Nonphysical hydro profile density, temperature or radiation energy");
-            require(std::hypot(r[12], r[13], r[14]) <= m.at("c").get<double>() * r[11] * (1 + 1e-10),
-                "Hydro profile radiation flux exceeds c E");
+            require(std::hypot(r[12], r[13], r[14]) <= flux_bound(r),
+                "Hydro profile radiation flux exceeds its recorded-frame envelope");
             auto &cell = data.rows[size_t(i) * n + j];
             require(cell.empty(), "Duplicate hydro slice cell");
             cell = r;

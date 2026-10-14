@@ -136,7 +136,7 @@ bool options::process_options(int argc, char *argv[]) {
 	("rewrite_silo", po::value<bool>(&(opts().rewrite_silo))->default_value(false), "rewrite silo and exit")    //
 	("rad_implicit", po::value<bool>(&(opts().rad_implicit))->default_value(true), "implicit radiation on/off")    //
 	("radiation_backend", po::value<std::string>(&(opts().radiation_backend))->default_value("cpu"), "Radiation kernels: cpu, cuda or kokkos (M1 Euler only; must be enabled at build time)")
-	("radiation_model", po::value<std::string>(&(opts().radiation_model))->default_value("m1"), "Radiation model: m1 (default) or fld (stationary ideal gas, physical light speed, CPU)")
+	("radiation_model", po::value<std::string>(&(opts().radiation_model))->default_value("m1"), "Radiation model: m1 (default) or fld (ideal gas, physical light speed, CPU)")
 	("radiation_integrator", po::value<std::string>(&(opts().radiation_integrator))->default_value("auto"), "Radiation integration: auto selects euler (RK1) for M1 or backward_euler for FLD; ADER2 has been removed")
 	("radiation_limiter", po::value<std::string>(&(opts().radiation_limiter))->default_value("levermore_pomraning"), "FLD flux limiter: levermore_pomraning")
 	("fld_boundary", po::value<std::string>(&(opts().fld_boundary))->default_value("auto"), "FLD outer boundary: reflecting or vacuum; auto uses reflect_bc (Marshak uses its prescribed bath on x-minus)")
@@ -324,8 +324,14 @@ bool options::process_options(int argc, char *argv[]) {
 		if (opts().driving_rate != 0 || opts().entropy_driving_rate != 0) {
 			throw std::invalid_argument("radiation_model=fld does not support driven source terms");
 		}
-		if (opts().hydro || opts().gravity || opts().eos != IDEAL || opts().omega != 0) {
-			throw std::invalid_argument("radiation_model=fld currently requires stationary matter: hydro=0, gravity=0, omega=0, and eos=IDEAL");
+		if (opts().gravity || opts().eos != IDEAL || opts().omega != 0) {
+			throw std::invalid_argument("radiation_model=fld requires gravity=0, omega=0, and eos=IDEAL");
+		}
+		if (opts().hydro && (!opts().unigrid || opts().n_species != 1)) {
+			throw std::invalid_argument("Moving-gas FLD currently requires unigrid=1 and n_species=1");
+		}
+		if (opts().hydro && (!(opts().cfl > 0) || opts().cfl > .5)) {
+			throw std::invalid_argument("Moving-gas FLD requires 0 < cfl <= 0.5");
 		}
 		if (opts().radiation_reduced_c_factor != 1) {
 			throw std::invalid_argument("radiation_model=fld requires radiation_reduced_c_factor=1 (physical light speed)");

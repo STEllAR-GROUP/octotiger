@@ -20,6 +20,16 @@ target_compile_features(test_fld PRIVATE cxx_std_20)
 target_include_directories(test_fld PRIVATE "${radiation_root}")
 add_test(NAME radiation_fld COMMAND test_fld)
 set_tests_properties(radiation_fld PROPERTIES LABELS "radiation;fld" TIMEOUT 120)
+add_executable(test_fld_hydro test_fld_hydro.cpp)
+target_compile_features(test_fld_hydro PRIVATE cxx_std_20)
+target_include_directories(test_fld_hydro PRIVATE "${radiation_root}")
+add_test(NAME radiation_fld_hydro COMMAND test_fld_hydro)
+set_tests_properties(radiation_fld_hydro PROPERTIES LABELS "radiation;fld;hydro" TIMEOUT 120)
+add_executable(test_momentum_diagnostics test_momentum_diagnostics.cpp)
+target_compile_features(test_momentum_diagnostics PRIVATE cxx_std_20)
+target_include_directories(test_momentum_diagnostics PRIVATE "${radiation_root}")
+add_test(NAME radiation_momentum_diagnostics COMMAND test_momentum_diagnostics)
+set_tests_properties(radiation_momentum_diagnostics PROPERTIES LABELS "radiation;diagnostics" TIMEOUT 60)
 add_executable(radiation_elliptic_test test_elliptic.cpp)
 target_compile_features(radiation_elliptic_test PRIVATE cxx_std_20)
 target_include_directories(radiation_elliptic_test PRIVATE "${radiation_root}")
@@ -73,6 +83,11 @@ if(TARGET octotiger AND OCTOTIGER_WITH_RADIATION)
         --executable $<TARGET_FILE:octotiger> --silo-library "${Silo_LIBRARY}" --threads 2)
     set_tests_properties(radiation.fld.application PROPERTIES
       LABELS "radiation;fld;application" TIMEOUT 1200 PROCESSORS 2 RUN_SERIAL TRUE)
+    add_test(NAME radiation.fld.moving_restart
+      COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_fld_hydro_restart.py"
+        --executable $<TARGET_FILE:octotiger> --silo-library "${Silo_LIBRARY}" --threads 2)
+    set_tests_properties(radiation.fld.moving_restart PROPERTIES
+      LABELS "radiation;fld;application;restart" TIMEOUT 1200 PROCESSORS 2 RUN_SERIAL TRUE)
   endif()
   add_test(NAME radiation.euler.subcycling
     COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_euler_subcycling.py"
@@ -89,6 +104,13 @@ if(TARGET octotiger AND OCTOTIGER_WITH_RADIATION)
       --threads 2 --timeout 240 --silo-library "${Silo_LIBRARY}")
   set(_euler_application_tests radiation.euler.restart radiation.euler.amr)
   foreach(_case IN ITEMS subcritical_shock supercritical_shock radiating_blast)
+    add_test(NAME radiation.fld.${_case}
+      COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_hydro_application.py"
+        --executable $<TARGET_FILE:octotiger> --radiation-model fld --case "${_case}"
+        --config "${radiation_root}/radiation_results/configs/${_case}.ini"
+        --silo-library "${Silo_LIBRARY}")
+    set_tests_properties(radiation.fld.${_case} PROPERTIES
+      LABELS "radiation;fld;application" TIMEOUT 1200 PROCESSORS 2 RUN_SERIAL TRUE)
     add_test(NAME radiation.euler.${_case}
       COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_hydro_application.py"
         --executable $<TARGET_FILE:octotiger> --radiation-integrator euler --case "${_case}"

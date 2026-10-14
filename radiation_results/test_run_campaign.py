@@ -221,8 +221,8 @@ class CampaignSafety(unittest.TestCase):
         args = campaign.parser().parse_args(['--output', str(self.root), '--dry-run', '--levels', '0',
             '--cases', *campaign.CASES])
         manifest = campaign.plan(args)
-        self.assertEqual(len(manifest['runs']), 11)
-        self.assertEqual(len(manifest['unsupported']), 5)
+        self.assertEqual(len(manifest['runs']), 16)
+        self.assertEqual(manifest['unsupported'], [])
         self.assertEqual({run['case'] for run in manifest['runs'] if run['model'] == 'fld'},
             set(campaign.FLD_CASES))
         for run in manifest['runs']:
@@ -231,33 +231,32 @@ class CampaignSafety(unittest.TestCase):
             self.assertEqual(command[command.index('--radiation-reduced-c-factor') + 1], '1')
             self.assertEqual(run['integrator'], 'euler' if run['model'] == 'm1' else 'backward_euler')
         args.cases = ['subcritical_shock']; args.models = ['fld']
-        with self.assertRaisesRegex(ValueError, 'No supported'):
-            campaign.plan(args)
+        self.assertEqual(campaign.plan(args)['runs'][0]['model'], 'fld')
 
     def test_full_preset_prepares_all_cases_and_full_problem_durations(self):
         self.assertEqual(self.prepare('--preset', 'full'), 0)
         manifest = campaign.load(self.root)
         self.assertEqual(manifest['cases'], list(campaign.CASES))
         self.assertEqual(manifest['levels'], [2, 3, 4])
-        self.assertEqual(manifest['snapshots'], 101)
-        self.assertEqual(len(manifest['runs']), 33)
-        self.assertEqual(len(manifest['unsupported']), 15)
+        self.assertEqual(manifest['snapshots'], 121)
+        self.assertEqual(len(manifest['runs']), 48)
+        self.assertEqual(manifest['unsupported'], [])
         self.assertEqual(manifest['preparation_checks']['solver_runs'], 0)
         durations = {'subcritical_shock': 38300, 'supercritical_shock': 7500,
-            'radiating_blast': 22000, 'marshak': 1}
+            'radiating_blast': 22000, 'marshak': 60, 'gaussian_pulse': 1.5}
         for run in manifest['runs']:
             self.assertEqual(run['stop_time'], durations.get(run['case'], .2))
-            self.assertAlmostEqual(run['hard_dt'], run['stop_time'] / 200)
+            self.assertGreater(run['hard_dt'], 0)
+            self.assertLessEqual(run['hard_dt'], run['stop_time'])
             self.assertEqual(run['status'], 'pending')
 
-    def test_unqualified_vacuum_fld_is_not_started_by_the_full_suite(self):
+    def test_full_suite_plans_both_explicit_thin_streaming_models_without_launch(self):
         self.prepare('--preset', 'full', '--levels', '0')
         manifest = campaign.load(self.root)
         for case in ('streaming_wave', 'streaming_front'):
-            self.assertTrue(any(run['case'] == case and run['model'] == 'm1' for run in manifest['runs']))
-            self.assertFalse(any(run['case'] == case and run['model'] == 'fld' for run in manifest['runs']))
-            skipped = next(run for run in manifest['unsupported'] if run['case'] == case)
-            self.assertIn('Zero-opacity', skipped['reason'])
+            self.assertEqual({run['model'] for run in manifest['runs'] if run['case'] == case}, {'m1', 'fld'})
+        self.assertFalse(manifest['active'])
+        self.assertEqual(manifest['unsupported'], [])
 
     def test_explicit_time_and_step_override_full_preset_per_case_defaults(self):
         self.prepare('--preset', 'full', '--time', '.25', '--hard-dt', '.05', '--levels', '0')

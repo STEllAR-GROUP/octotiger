@@ -1,4 +1,4 @@
-# Stationary flux-limited diffusion
+# Mixed-frame flux-limited diffusion
 
 `radiation_model=fld` selects a CPU reference implementation of grey,
 two-temperature flux-limited diffusion (FLD). Radiation energy and material
@@ -6,12 +6,11 @@ heating/cooling are solved together with backward Euler. The existing M1
 model remains the default, with its Euler/RK1 integrator. ADER2 has been
 removed.
 
-This milestone supports stationary ideal gas, physical light speed, and
-Cartesian leaf meshes with dyadic refinement and 2:1 face balance. It is
-first order in time. Moving radiation hydrodynamics, radiation force and
-work, dynamic diffusion, higher-order time integration, gravity, rotation,
-other equations of state, and accelerator execution remain outside this
-implementation's supported scope.
+The CPU implementation uses physical light speed and ideal gas. Stationary
+transport supports Cartesian leaf meshes with dyadic refinement and 2:1 face
+balance. Moving gas currently requires a uniform mesh and one species. Both
+paths are first order in time. Gravity, rotation, other equations of state,
+accelerators, and distributed multigrid remain unsupported.
 
 ## Equations and thermal elimination
 
@@ -67,6 +66,58 @@ before evaluating dimensional fitted constants, and the resulting inverse
 centimeters are converted to inverse code length. Its temperature is in
 kelvin. Dedicated benchmark opacity branches retain their problem-specific
 code-unit normalization.
+
+## Moving gas and frames
+
+Radiation energy is lab-frame energy. Opacity and the FLD closure are evaluated
+in the material frame: this is a mixed-frame formulation. For the LP pressure
+tensor `P=f E`, the lab diagnostic flux is
+
+```text
+Fd = -D grad(E)
+H = E v + P.v
+F_lab = Fd + H
+force = -lambda grad(E)
+```
+
+The explicit first-order finite-volume stage advances gas mass, momentum,
+total energy, and radiation enthalpy transport with shared Rusanov face fluxes.
+Its gas-force impulse uses midpoint velocity for work; the opposite work is
+applied to radiation, preserving combined energy. The signal-speed bound
+includes radiation pressure and enthalpy transport. Both this stage and the
+implicit solve run in scratch; a failed implicit solve retries the entire
+coupled substep, without duplicating gas updates or boundary budgets.
+
+Density and velocity are frozen during each implicit solve. The material
+thermal target is refreshed at every trial radiation energy and opacity:
+
+```text
+h = 1 - v.(I+f).v/c^2
+Eeff = h E - 2 v.Fd/c^2
+du/dt = c chi_P [Eeff - B(u)]
+dE/dt = -du/dt - div(Fd)
+```
+
+The `v.H/c^2` correction retains the leading dynamic-diffusion exchange.
+This follows the nonrelativistic leading-regime mixed-frame equations of
+[Krumholz et al. (2007), equations 38–42](https://arxiv.org/abs/astro-ph/0611003).
+It is not a full relativistic expansion; runtime states require `|v|/c<=0.1`.
+The derivative used to precondition a linear correction lags the gradient and
+closure, but the accepted nonlinear residual does not. Only `Fd` is bounded
+by `c E`; clipping the reconstructed lab flux would remove physical advection.
+
+The shock benchmarks retain their reflecting low-x wall, fixed upstream
+high-x reservoir, and transverse extrapolated gas/zero-diffusion boundaries.
+The blast uses gas outflow and vacuum diffusion boundaries. Their material
+transport and radiation force are active. Algorithm version 2 identifies this
+moving implementation; stationary FLD version 1 and M1 RK1 remain distinct.
+
+The solver normalizes the coupled energy residual by material/radiation energy
+scales and checks its volume-weighted L1 norm against total energy. The latter
+prevents a localized energy peak from hiding a domain-wide imbalance.
+In cold shocks gas energy can exceed radiation energy by many orders
+of magnitude; a small coupled residual need not imply the same relative
+radiation-only residual. Reports retain both, without treating them as equal.
 
 ## Composite operator and multigrid
 
@@ -133,11 +184,12 @@ choose and refine the timestep for the physical problem.
 
 ## Options and example configurations
 
-The implementation requires `hydro=off`, `gravity=off`, `eos=IDEAL`,
-`omega=0`, `radiation_backend=cpu`, `radiation_reduced_c_factor=1`, and
-`rad_implicit=on`. Cell momenta must be zero. Driven source terms and inflow
-boundaries are rejected. Explicitly set a useful positive timestep or stop
-time.
+The implementation requires `gravity=off`, `eos=IDEAL`, `omega=0`,
+`radiation_backend=cpu`, `radiation_reduced_c_factor=1`, and `rad_implicit=on`.
+With `hydro=off`, material momenta must be zero. With `hydro=on`, set
+`unigrid=on`, `n_species=1`, and `0<cfl<=0.5`. Generic driven source terms
+and inflow boundaries remain rejected; the shock benchmark reservoir is a
+problem-specific boundary. Set a useful positive timestep or stop time.
 
 | Option | Meaning/default |
 | --- | --- |
@@ -178,25 +230,17 @@ diffusion-limit reference, not an exact steady solution of nonlinear LP FLD.
 Its finite-box source integral, rather than the all-space luminosity, enters
 the conservation ledger.
 
-Streaming wave and front retain their original radiation energy profiles,
-zero opacity, and periodic domain. FLD derives flux from the energy gradient;
-it does not retain the independently directed initial M1 flux. Consequently
-the translated M1 wave and square-front formulas are not FLD analytic
-references. These cases compare closures and test energy conservation,
-positivity, and the flux bound. Zero-opacity plateaus and extrema also stress
-nonlinear convergence. Bounded standalone tests of the original `8^3`
-profiles rejected all attempted timesteps (`0.025`, `0.0025`, `0.000025`).
-The wave develops enormous frozen diffusion coefficients at roundoff-sized
-gradients. The front also fails without such coefficients: the single-valued
-zero flux on flat vacuum plateaus cannot represent the unsaturated facet
-flux needed by the symmetry-preserving backward-Euler front. These two
-FLD cases remain available for direct solver investigation but are excluded
-from production campaigns. No opacity floor, relaxed acceptance tolerance,
-or replacement diffusion model was introduced. The probe and explanation
-are saved under `output/full-suite-validation-20261013/vacuum-diagnosis/`.
-The two radiative shocks and radiating
-blast remain outside the stationary backend because they require moving gas,
-radiation force, and work.
+Streaming wave and front now use an explicitly configured small positive
+scattering opacity with domain optical depth `chi_R L=1e-4` in both models.
+Their energy profiles and periodic domains are unchanged. FLD derives flux
+from the energy gradient; it cannot preserve the independently directed M1
+flux. The translated zero-opacity M1 formulas are transparent-limit references
+at this finite opacity, and are not FLD spatial analytic solutions. FLD has
+exact periodic energy-integral invariants, plus positivity and flux-bound
+checks. Standalone five-step level-2 probes passed for both cases. An 8-cubed
+wave history needed timestep retries near its flat equilibrium; the front
+completed without retries. These checks do not establish full level-2/3/4
+runtime or convergence. Exact-vacuum nonlinear convergence is not claimed.
 
 For a small uniform Marshak run, save the following as a configuration file.
 These are example inputs; application validation must use the executable
@@ -255,14 +299,23 @@ exchange; the latter is positive when material loses energy.
 The existing radiation CSV ledger uses the opposite boundary convention:
 `er_boundary` is positive outward. Its energy contract is
 `delta(er) + er_boundary - er_source = 0`, apart from the nonlinear tolerance
-and roundoff.
+and roundoff. For moving runs the combined energy balance includes gas total
+(internal plus kinetic) energy and its advective boundary budget. The solver
+also requires a volume-weighted L1 residual, preventing a hot localized cell
+from masking a domain-wide imbalance.
 
 The stored `fx`, `fy`, and `fz` fields are derived physical flux diagnostics
-`-D grad(E)`. They are not evolved radiation momentum, their change imparts
-no material recoil, and the M1 flux-moment conservation columns are not FLD
-momentum invariants. The current stationary model has no advected radiation
-enthalpy contribution. Moving-frame flux semantics require a future moving
-gas formulation.
+`-D grad(E)` for stationary runs and `-D grad(E)+E v+P.v` for moving runs.
+They are not independently evolved radiation momentum. Gas recoil comes from
+the explicitly discretized force, never from a change of the diagnostic flux.
+The M1 flux-moment conservation columns are not FLD momentum invariants.
+
+`momentum-diagnostics.csv` contains full-volume gas/radiation momenta and
+energies, cumulative gas boundary budgets, and available radiation boundary
+budgets. Unknown FLD boundary traction is left unavailable, not interpreted as
+zero. Paired momentum plots cover the two shocks and blast. Fixed-material
+benchmarks omit these plots because their external material reservoir prevents
+a closed gas-plus-radiation momentum test.
 
 New Silo metadata records the model, limiter, integrator, algorithm version,
 flux semantics, and FLD solver options. Saved physics takes precedence over
@@ -345,6 +398,25 @@ saved states and zero retries. The maximum nonlinear residual was
 `output/full-suite-validation-20261013/application-summary.json`. These runs
 verify the source integration and larger output-compatible steps, not temporal
 convergence. Transparent streaming still fails the separate vacuum probes.
+
+On October 14, bounded moving-gas checks advanced both shocks and the blast
+through four one-second FLD steps on a uniform level-one mesh. Combined
+gas-plus-radiation energy balances, including boundary transport, were
+`1.74e-14`, `1.69e-16`, and `5.82e-12` relative to initial total energy.
+These short checks exercise coupling and budgets, not full-duration shock
+structure or moving-diffusion convergence. At levels zero and one, a two-step
+checkpoint followed by two resumed steps reproduced all ten saved gas and
+radiation fields bitwise, including restoration of conflicting CLI settings.
+The stationary application regression also passed nine runs, six rejected
+configurations, and the forced solver-exhaustion check.
+
+The new streaming configurations use domain optical depth `1e-4` in both
+models. Bounded M1 wave/front checks measured the expected implicit scattering
+attenuation while leaving gas fields bitwise unchanged; zero-opacity controls
+retain their previous behavior. Positive-opacity FLD probes covered both
+profiles, positivity, flux bounds, and energy balance. Exact-vacuum probe
+failures do not qualify this positive-opacity case. Evidence is under
+`output/full-readiness-20261014/`. The full 48-run campaign remains unstarted.
 
 Example checks, subject to the shared local worker budget:
 

@@ -162,7 +162,29 @@ future<radiationConservation::Totals> node_client::collectRadiationConservation(
 
 radiationConservation::Totals node_server::collectRadiationConservation() {
 	if (!is_refined) {
-		return rad_grid_ptr->takeConservation();
+		auto result = rad_grid_ptr->takeConservation();
+		FpeGuard guard{};
+		const long double dx = grid_ptr->get_dx();
+		const long double volume = dx * dx * dx;
+		for (integer i = H_BW; i < H_BW + INX; ++i) {
+			for (integer j = H_BW; j < H_BW + INX; ++j) {
+				for (integer k = H_BW; k < H_BW + INX; ++k) {
+					const auto cell = hindex(i, j, k);
+					result.gas[0] += static_cast<long double>(grid_ptr->U[egas_i][cell]) * volume;
+					for (int d = 0; d < NDIM; ++d) {
+						result.gas[d + 1] += static_cast<long double>(grid_ptr->U[sx_i + d][cell]) * volume;
+					}
+				}
+			}
+		}
+		// U_out already holds cumulative outward budgets and survives regrids
+		// and checkpoints. Never drain or accumulate it a second time.
+		const auto outflow = grid_ptr->get_outflows_raw();
+		result.gas_boundary[0] = outflow[egas_i];
+		for (int d = 0; d < NDIM; ++d) {
+			result.gas_boundary[d + 1] = outflow[sx_i + d];
+		}
+		return result;
 	}
 	// Coarse cells cover their children and must not enter this volume integral.
 	std::array<future<radiationConservation::Totals>, NCHILD> pending;

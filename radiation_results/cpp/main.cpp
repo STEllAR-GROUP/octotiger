@@ -45,7 +45,7 @@ Run options: --root PATH --build PATH --exe PATH --generator PATH --output DIR -
  --hard-dt SECONDS --rad-reconstruction plm|ppm --no-build --no-open --dry-run
  --no-silo --no-movies --radiation-reduced-c-factor F (coupled cases only, default 1)
  --radiation-backend cpu|cuda|kokkos (default cpu; accelerator must be enabled in the application build)
- --radiation-model m1|fld (default m1; fld supports gaussian and marshak, stationary CPU physical-c only)
+ --radiation-model m1|fld (default m1; fld supports all eight cases on CPU at physical c; moving gas uses mixed-frame version2)
  --radiation-integrator auto|euler|rk1|backward_euler (default auto: M1 Euler/RK1 or FLD backward Euler)
  --min-level L --gradient-refine-field none|density|radiation_energy
  --gradient-refine-mode absolute|relative --gradient-refine-threshold X

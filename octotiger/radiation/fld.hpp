@@ -15,7 +15,7 @@
 
 namespace radiation { namespace fld {
 
-// Stationary, physical-c, grey two-temperature FLD. The transport and
+// Physical-c, grey two-temperature FLD. The transport and
 // absorption coefficients include density and have units inverse length.
 // No radiation momentum is evolved and diagnostic flux never imparts recoil.
 struct cell {
@@ -25,6 +25,7 @@ struct cell {
     double chi_planck = 0;
     double log_alpha = 0; // B(u)=exp(log_alpha)*u^4.
     bool linear_emission = false; // Marshak verification: B(u)=u.
+    std::array<double, 3> velocity{}; // Frozen during this implicit solve.
 };
 
 using opacity_callback = std::function<bool(size_t, double, double&, double&)>;
@@ -202,12 +203,42 @@ inline double material_derivative(double u, double q, double w, const cell& inpu
     return std::exp(std::log(w) - denominator);
 }
 
+// Mixed-frame thermal target after splitting off the explicit gas work
+// v.f: h*E - 2*v.Fd/c^2, h=1-v.(I+f).v/c^2. Krumholz et al. (2007),
+// equations 38--42. Retain the velocity-squared term for dynamic diffusion.
+// The gradient/opacity/limiter are refreshed for EVERY nonlinear trial.
+inline bool thermal_target(double E, double chi, const std::array<double, 3>& gradient,
+    const std::array<double, 3>& velocity, double c, double& target, double& h) {
+    const double g = norm(gradient);
+    const double beta = norm(velocity) / c;
+    if (!std::isfinite(beta) || beta > .1) {
+        return false;
+    }
+    const long double optical = static_cast<long double>(chi) * E;
+    const double R = g == 0 ? 0 : optical > 0 ? static_cast<double>(g / optical)
+        : std::numeric_limits<double>::infinity();
+    const double lambda = limiter(R);
+    const double flux_factor = limiter_flux_factor(R);
+    const double f = lambda + flux_factor * flux_factor;
+    double projection = 0;
+    if (g > 0) {
+        for (int d = 0; d < 3; ++d) {
+            projection += (velocity[d] / c) * (gradient[d] / g);
+        }
+    }
+    h = 1 - .5 * (3 - f) * beta * beta - .5 * (3 * f - 1) * projection * projection;
+    // Fd/c = -E*(lambda R)*n avoids overflow in c/chi in thin material.
+    target = E * (h + 2 * flux_factor * projection);
+    return std::isfinite(target) && target >= 0 && h > 0;
+}
+
 // Exact local elimination for fixed absorption. For fitted opacity, repeated
 // local solves refresh absorption at the resulting material temperature;
 // failure to converge is a rejected nonlinear evaluation, never a clipped
 // or silently frozen-opacity accepted state.
 inline bool material(size_t i, double E, double dt, double c, const cell& input,
-    const opacity_callback& callback, double seed, cell& output, double& derivative) {
+    const opacity_callback& callback, double seed, cell& output, double& derivative,
+    const std::array<double, 3>& gradient = {}) {
     output = input;
     output.energy = E;
     double u = seed;
@@ -218,7 +249,11 @@ inline bool material(size_t i, double E, double dt, double c, const cell& input,
         }
         double q, w;
         absorption_weights(dt, c, chi_P, q, w);
-        const double rhs = q * input.internal_energy + w * E;
+        double target, h;
+        if (!thermal_target(E, chi_R, gradient, input.velocity, c, target, h)) {
+            return false;
+        }
+        const double rhs = q * input.internal_energy + w * target;
         double next;
         if (!thermal_root(q, w, input.log_alpha, input.linear_emission, rhs, next)) {
             return false;
@@ -229,16 +264,21 @@ inline bool material(size_t i, double E, double dt, double c, const cell& input,
             return false;
         }
         absorption_weights(dt, c, checked_P, q, w);
+        if (!thermal_target(E, checked_R, gradient, input.velocity, c, target, h)) {
+            return false;
+        }
         double checked;
         if (!thermal_root(q, w, input.log_alpha, input.linear_emission,
-                q * input.internal_energy + w * E, checked)) {
+                q * input.internal_energy + w * target, checked)) {
             return false;
         }
         if (!callback || std::abs(checked - next) <= 128 * std::numeric_limits<double>::epsilon() * scale) {
             output.internal_energy = next;
             output.chi_rosseland = checked_R;
             output.chi_planck = checked_P;
-            derivative = material_derivative(next, q, w, input);
+            // Lag closure/gradient derivatives only in the preconditioner.
+            // The accepted residual always uses the full target above.
+            derivative = h * material_derivative(next, q, w, input);
             return std::isfinite(derivative) && derivative >= 0;
         }
         // Underrelax coefficient iteration for temperature-dependent opacity.
@@ -425,7 +465,7 @@ inline bool evaluate(const composite_mesh& mesh, const std::vector<cell>& initia
         }
         double derivative;
         if (!material(i, E[i], dt, c, initial[i], callback, seed[i].internal_energy,
-                output.state[i], derivative)) {
+                output.state[i], derivative, mesh.cell_gradient(i, E))) {
             return false;
         }
         output.reaction[i] = 1 + derivative;
@@ -446,10 +486,19 @@ inline bool evaluate(const composite_mesh& mesh, const std::vector<cell>& initia
         value /= dt;
     }
     output.norm = 0;
+    long double integrated_residual = 0, integrated_energy = 0;
     for (size_t i = 0; i < E.size(); ++i) {
         output.residual[i] += (E[i] - initial[i].energy) +
             (output.state[i].internal_energy - initial[i].internal_energy) - boundary_rhs[i];
         output.norm = std::max(output.norm, std::abs(output.residual[i]) / scale);
+        integrated_residual += std::abs(static_cast<long double>(output.residual[i])) * mesh.volume(i);
+        integrated_energy += std::max(static_cast<long double>(initial[i].energy) + initial[i].internal_energy,
+            static_cast<long double>(E[i]) + output.state[i].internal_energy) * mesh.volume(i);
+    }
+    // A hot localized cell must not hide a whole-domain energy imbalance.
+    // Require both the cellwise residual and its volume-weighted L1 norm.
+    if (integrated_energy > 0) {
+        output.norm = std::max(output.norm, static_cast<double>(integrated_residual / integrated_energy));
     }
     return std::isfinite(output.norm);
 }
@@ -469,7 +518,8 @@ inline bool valid_input(const composite_mesh& mesh, const std::vector<cell>& ini
             !std::isfinite(input.internal_energy) || input.internal_energy < 0 ||
             !std::isfinite(input.chi_planck) || input.chi_planck < 0 ||
             !std::isfinite(input.chi_rosseland) || input.chi_rosseland < 0 ||
-            !std::isfinite(input.log_alpha)) {
+            !std::isfinite(input.log_alpha) || !std::isfinite(norm(input.velocity)) ||
+            norm(input.velocity) / c > .1) {
             return false;
         }
     }
@@ -573,6 +623,11 @@ inline result solve(const composite_mesh& mesh, const std::vector<cell>& initial
                 std::exp(static_cast<long double>(std::log(w)) + input.log_alpha + 4 * std::log(static_cast<long double>(gas)));
         }
         E[i] = static_cast<double>(static_cast<long double>(q) * input.energy + emitted);
+        if (detail::norm(input.velocity) > 0) {
+            // The stationary homogeneous seed is not moving LTE. Starting
+            // from the incoming radiation state preserves boosted equilibrium.
+            E[i] = input.energy;
+        }
         if (!std::isfinite(E[i]) || E[i] < 0) {
             answer.message = "FLD homogeneous source seed is nonfinite";
             return answer;
