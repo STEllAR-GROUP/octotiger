@@ -126,7 +126,7 @@ node_count_type node_server::regrid_gather(bool rebalance_only) {
 future<hpx::id_type> node_server::create_child(hpx::id_type const &locality, integer ci) {
 	return hpx::async(hpx::annotated_function([ci, this](hpx::id_type const locality) {
 
-		return hpx::new_<node_server>(locality, my_location.get_child(ci), me, current_time, rotational_time, step_num, hcycle, rcycle, gcycle).then([this, ci](future<hpx::id_type> &&child_idf) {
+		return hpx::new_<node_server>(locality, my_location.get_child(ci), me, current_time, rotational_time, step_num, hcycle, gcycle).then([this, ci](future<hpx::id_type> &&child_idf) {
 		hpx::id_type child_id = child_idf.get();
 		node_client child = child_id;
 		{
@@ -148,29 +148,15 @@ future<hpx::id_type> node_server::create_child(hpx::id_type const &locality, int
 					std::unique_lock < hpx::spinlock > lk(prolong_mtx);
 					prolong = grid_ptr->get_prolong(lb, ub);
 				}
-				GET(child.set_grid(std::move(prolong), std::move(outflows)));
-			}
-		}
-		if (opts().radiation) {
-			std::array<integer, NDIM> lb = {2 * R_BW, 2 * R_BW, 2 * R_BW};
-			std::array<integer, NDIM> ub;
-			lb[XDIM] += (1 & (ci >> 0)) * (INX);
-			lb[YDIM] += (1 & (ci >> 1)) * (INX);
-			lb[ZDIM] += (1 & (ci >> 2)) * (INX);
-			for (integer d = 0; d != NDIM; ++d) {
-				ub[d] = lb[d] + (INX);
-			}
-			/*	std::vector<real> outflows(NF, ZERO);
-			 if (ci == 0) {
-			 outflows = grid_ptr->get_outflows();
-			 }*/
-			if (current_time > ZERO) {
-				std::vector<real> prolong;
-				{
-					std::unique_lock < hpx::spinlock > lk(prolong_mtx);
-					prolong = rad_grid_ptr->get_prolong(lb, ub);
-				}
-				child.set_rad_grid(std::move(prolong)/*, std::move(outflows)*/).get();
+				std::vector<real> history;
+                if (opts().time_integrator == SSP_MULTISTEP && ssp_previous_dt > ZERO) {
+                    history = grid_ptr->get_ssp_prolong(ci, ssp_previous_fe_dt);
+                    if (history.empty()) {
+                        throw std::runtime_error("Refinement requires complete SSP history");
+                    }
+                }
+                GET(child.set_grid(std::move(prolong), std::move(outflows),
+                    std::move(history), ssp_previous_dt, ssp_previous_fe_dt));
 			}
 		}
 		return child_id;
@@ -294,12 +280,22 @@ void node_server::set_aunt(const hpx::id_type &aunt, const geo::face &face) {
 using set_grid_action_type = node_server::set_grid_action;
 HPX_REGISTER_ACTION(set_grid_action_type);
 
-future<void> node_client::set_grid(std::vector<real> &&g, std::vector<real> &&o) const {
-	return hpx::async<typename node_server::set_grid_action>(get_unmanaged_gid(), std::move(g), std::move(o));
+future<void> node_client::set_grid(std::vector<real> &&g, std::vector<real> &&o,
+        std::vector<real>&& history, real previous_dt, real previous_fe_dt) const {
+    return hpx::async<typename node_server::set_grid_action>(get_unmanaged_gid(),
+        std::move(g), std::move(o), std::move(history), previous_dt, previous_fe_dt);
 }
 
-void node_server::set_grid(const std::vector<real> &data, std::vector<real> &&outflows) {
-	grid_ptr->set_prolong(data, std::move(outflows));
+void node_server::set_grid(const std::vector<real> &data, std::vector<real> &&outflows,
+        const std::vector<real>& history, real previous_dt, real previous_fe_dt) {
+    grid_ptr->set_prolong(data, std::move(outflows));
+    grid_ptr->set_ssp_prolong(history);
+    ssp_previous_dt = previous_dt;
+    ssp_previous_fe_dt = previous_fe_dt;
+    if (opts().time_integrator == SSP_MULTISTEP && ssp_previous_dt > ZERO
+            && (!grid_ptr->has_ssp_history() || !(ssp_previous_fe_dt > ZERO))) {
+        throw std::runtime_error("New AMR child has incomplete SSP history");
+    }
 }
 
 using solve_gravity_action_type = node_server::solve_gravity_action;

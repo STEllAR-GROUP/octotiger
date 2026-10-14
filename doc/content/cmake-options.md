@@ -8,7 +8,6 @@
 * `OCTOTIGER_WITH_GRIDDIM`: Grid size. The default value is `8`.
 * `OCTOTIGER_THETA_MINIMUM`: Minimal allowed theta value - important for optimizations. The default value is `0.34`.
 * `OCTOTIGER_WITH_GRAV_PAR`: Enable parallelism in gravitational solver. The default value is `OFF`.
-* `OCTOTIGER_WITH_RADIATION`: Enable radiation transport solver. The default value is `OFF`.
 
 ## Enable test targets
 * `OCTOTIGER_WITH_TESTS`: Enable test cases. The default value is `ON`.

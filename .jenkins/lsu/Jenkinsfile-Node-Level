@@ -34,9 +34,8 @@ pipeline {
                 dir('octotiger') {
                     checkout scm
                     sh '''
-                        cd octotiger
+                        git submodule sync --recursive
                         git submodule update --init --recursive
-                        cd ..
                     '''
                 }
             }
@@ -49,24 +48,24 @@ pipeline {
                         // List of "tuples" containing the test run infomation
                         // Format: 
                         // spack octotiger spec ; run name ; required modules ; SLURM partition for this test ; additional flags for spack dev-build
-                        values ' +cuda +kokkos cuda_arch=70  %gcc@11 ^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc  %gcc@11 ^cppuddle %gcc@11 ^hpx-kokkos %gcc@11 ^kokkos@4.0.01 %gcc@11 ^silo~mpi ;with-CC-with-cuda-with-kokkos;gcc/11 cuda/12;cuda-V100 --gpus=1 --exclusive;--fresh',\
-                               ' +cuda +kokkos cuda_arch=70 griddim=16  %gcc@11 ^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %gcc@11 ^cppuddle %gcc@11 ^hpx-kokkos %gcc@11^kokkos@4.0.01 %gcc@11 ^silo~mpi ;with-CC-with-cuda-with-kokkos-griddim16;gcc/11 cuda/12;cuda-V100 --gpus=1 --exclusive;--fresh',\
-                               ' ~cuda +kokkos  %gcc@11 ^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %gcc@11 ^cppuddle %gcc@11 ^hpx-kokkos %gcc@11 ^kokkos@4.0.01~cuda %gcc@11 ^silo~mpi ;with-CC-without-cuda-with-kokkos;gcc/11 cuda/12;cuda-V100 --gpus=1 --exclusive;--fresh',\
-                               ' +cuda ~kokkos cuda_arch=70 ^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %gcc@11 ^cppuddle %gcc@11 ^silo~mpi %gcc@11 ;with-CC-with-cuda-without-kokkos;gcc/11 cuda/12;cuda-V100 --gpus=1 --exclusive;--fresh',\
-                               ' ~cuda ~kokkos  %gcc@11 ^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %gcc@11 ^cppuddle %gcc@11 ^silo~mpi ;with-CC-without-cuda-without-kokkos;gcc/11 cuda/12;cuda-V100 --gpus=1 --exclusive;--fresh',\
-                               ' +cuda +kokkos cuda_arch=70  %clang@12 ^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %clang@12 ^cppuddle %clang@12 ^hpx-kokkos %clang@12 ^kokkos %clang@12 ^silo~mpi ;with-CC-clang-with-cuda-with-kokkos;llvm/12 cuda/12;cuda-V100 --gpus=1 --exclusive;--fresh',\
-                               ' +cuda +kokkos cuda_arch=70 griddim=16  %clang@12 ^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %clang@12 ^cppuddle %clang@12 ^hpx-kokkos %clang@12 ^kokkos %clang@12^silo~mpi ;with-CC-clang-with-cuda-with-kokkos-griddim16;llvm/12 cuda/12;cuda-V100 --gpus=1 --exclusive;--fresh',\
-                               ' ~cuda +kokkos  %clang@12^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %clang@12 ^cppuddle %clang@12 ^hpx-kokkos %clang@12 ^kokkos %clang@12 ^silo~mpi ;with-CC-clang-without-cuda-with-kokkos;llvm/12 cuda/12;cuda-V100 --gpus=1 --exclusive;--fresh',\
-                               ' +cuda ~kokkos cuda_arch=70  %clang@12 ^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %clang@12 ^cppuddle %clang@12 ^silo~mpi ;with-CC-clang-with-cuda-without-kokkos;llvm/12 cuda/12;cuda-V100 --gpus=1 --exclusive;--fresh',\
-                               ' ~cuda ~kokkos  %clang@12 ^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %clang@12 ^cppuddle %clang@12 ^silo~mpi ;with-CC-clang-without-cuda-without-kokkos;llvm/12 cuda/12;cuda-V100 --gpus=1 --exclusive;--fresh',\
-                               ' +rocm+kokkos amdgpu_target=gfx908 %rocmcc@5.7.3 ^asio@1.16.0^hpx@1.9.1 max_cpu_count=128 amdgpu_target=gfx908 %rocmcc@5.7.3 ^kokkos@4.1.00 amdgpu_target=gfx908 %rocmcc@5.7.3 ^hip@5.7.3 ^hsa-rocr-dev@5.7.3 ^llvm-amdgpu@5.7.3 ^cppuddle %rocmcc@5.7.3 ^hpx-kokkos %rocmcc@5.7.3 ^silo~mpi %gcc@11 ;with-CC-clang-with-hip-with-kokkos;rocm/5.7.3 gcc/11;jenkins-amdgpu --exclusive -c 16 --threads-per-core=1;--fresh --dirty',\
-                               ' +kokkos simd_extension=SCALAR simd_library=STD  %gcc@11^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %gcc@11 ^kokkos %gcc@11 ^hpx-kokkos %gcc@11 ^cppuddle %gcc@11 ^silo~mpi ;with-CC-with-std-with-scalar;gcc/11;medusa --exclusive;--fresh',\
-                               ' +kokkos simd_extension=AVX512 simd_library=STD  %gcc@11^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %gcc@11 ^kokkos %gcc@11 ^hpx-kokkos %gcc@11 ^cppuddle %gcc@11 ^silo~mpi ;with-CC-with-std-with-avx512;gcc/11;medusa --exclusive;--fresh',\
-                               ' +kokkos +kokkos_hpx_kernels multipole_host_tasks=16 monopole_host_tasks=4 hydro_host_tasks=4 simd_extension=AVX512 simd_library=STD  %gcc@11^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %gcc@11 ^kokkos %gcc@11 ^hpx-kokkos %gcc@11 ^cppuddle %gcc@11 ^silo~mpi ;with-CC-with-std-with-avx512-with-hpx-kokkos-kernels;gcc/11;medusa --exclusive;--fresh',\
-                               ' +kokkos simd_extension=SCALAR simd_library=KOKKOS  %gcc@11^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %gcc@11 ^kokkos %gcc@11 ^hpx-kokkos %gcc@11 ^cppuddle %gcc@11 ^silo~mpi ;with-CC-with-kokkos-with-scalar;gcc/11;medusa --exclusive;--fresh',\
-                               ' +kokkos simd_extension=AVX512 simd_library=KOKKOS  %gcc@11^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %gcc@11 ^kokkos %gcc@11 ^hpx-kokkos %gcc@11 ^cppuddle %gcc@11 ^silo~mpi ;with-CC-with-kokkos-with-avx512;gcc/11;medusa --exclusive;--fresh',\
-                               ' +kokkos +kokkos_hpx_kernels multipole_host_tasks=16 monopole_host_tasks=4 hydro_host_tasks=4 simd_extension=AVX512 simd_library=KOKKOS  %gcc@11^hpx@1.9.1 max_cpu_count=128 malloc=jemalloc %gcc@11 ^kokkos %gcc@11 ^hpx-kokkos %gcc@11 ^cppuddle %gcc@11 ^silo~mpi ;with-CC-with-kokkos-with-avx512-with-hpx-kokkos-kernels;gcc/11;medusa --exclusive;--fresh',\
-                               ' -cuda -rocm +sycl  %gcc@11 ^kokkos@4.0.01 use_unsupported_sycl_arch=70 ^hpx@1.9.1 sycl_target_arch=70;with-CC-with-kokkos-with-sycl;gcc/11 cuda/12;cuda-V100 -w diablo --gpus=1 -c 10 --exclusive;--fresh'
+                        values ' +cuda +kokkos cuda_arch=70  %gcc@13.2.0 ^hpx@2.0.0rc1 cxxstd=20 max_cpu_count=128 malloc=system  %gcc@13.2.0 ^cppuddle %gcc@13.2.0 ^hpx-kokkos %gcc@13.2.0 ^kokkos@5.2.2 std=20 %gcc@13.2.0 ^silo~mpi~fortran ;with-CC-with-cuda-with-kokkos;gcc/11 cuda/12;cuda-V100 --exclusive;--fresh',\
+                               ' +cuda +kokkos cuda_arch=70 griddim=16  %gcc@13.2.0 ^hpx@2.0.0rc1 cxxstd=20 max_cpu_count=128 malloc=system %gcc@13.2.0 ^cppuddle %gcc@13.2.0 ^hpx-kokkos %gcc@13.2.0 ^kokkos@5.2.2 std=20 %gcc@13.2.0 ^silo~mpi~fortran ;with-CC-with-cuda-with-kokkos-griddim16;gcc/11 cuda/12;cuda-V100 --exclusive;--fresh',\
+                               ' ~cuda +kokkos  %gcc@13.2.0 ^hpx@2.0.0rc1 cxxstd=20 max_cpu_count=128 malloc=system %gcc@13.2.0 ^cppuddle %gcc@13.2.0 ^hpx-kokkos %gcc@13.2.0 ^kokkos@5.2.2 std=20 ~cuda %gcc@13.2.0 ^silo~mpi~fortran ;with-CC-without-cuda-with-kokkos;gcc/11 cuda/12;cuda-V100 --exclusive;--fresh',\
+                               ' +cuda ~kokkos cuda_arch=70 %gcc@13.2.0 ^hpx@2.0.0rc1 cxxstd=20 max_cpu_count=128 malloc=system %gcc@13.2.0 ^cppuddle %gcc@13.2.0 ^silo~mpi~fortran %gcc@13.2.0 ;with-CC-with-cuda-without-kokkos;gcc/11 cuda/12;cuda-V100 --exclusive;--fresh',\
+                               ' ~cuda ~kokkos  %gcc@13.2.0 ^hpx@2.0.0rc1 cxxstd=20 max_cpu_count=128 malloc=system %gcc@13.2.0 ^cppuddle %gcc@13.2.0 ^silo~mpi~fortran ;with-CC-without-cuda-without-kokkos;gcc/11 cuda/12;cuda-V100 --exclusive;--fresh',\
+                               ' +cuda +kokkos cuda_arch=70  %clang@20 ^hpx@2.0.0rc1 cxxstd=20 max_cpu_count=128 malloc=system %clang@20 ^cppuddle %clang@20 ^hpx-kokkos %clang@20 ^kokkos@5.2.2 std=20 ~shared %clang@20 ^silo~mpi~fortran ;with-CC-clang-with-cuda-with-kokkos;llvm/20 cuda/12;cuda-V100 --exclusive;--fresh',\
+                               ' +cuda +kokkos cuda_arch=70 griddim=16  %clang@20 ^hpx@2.0.0rc1 cxxstd=20 max_cpu_count=128 malloc=system %clang@20 ^cppuddle %clang@20 ^hpx-kokkos %clang@20 ^kokkos@5.2.2 std=20 ~shared %clang@20 ^silo~mpi~fortran ;with-CC-clang-with-cuda-with-kokkos-griddim16;llvm/20 cuda/12;cuda-V100 --exclusive;--fresh',\
+                               ' ~cuda +kokkos  %clang@20 ^hpx@2.0.0rc1 cxxstd=20 max_cpu_count=128 malloc=system %clang@20 ^cppuddle %clang@20 ^hpx-kokkos %clang@20 ^kokkos@5.2.2 std=20 %clang@20 ^silo~mpi~fortran ;with-CC-clang-without-cuda-with-kokkos;llvm/20 cuda/12;cuda-V100 --exclusive;--fresh',\
+                               ' +cuda ~kokkos cuda_arch=70  %clang@20 ^hpx@2.0.0rc1 cxxstd=20 max_cpu_count=128 malloc=system %clang@20 ^cppuddle %clang@20 ^silo~mpi~fortran ;with-CC-clang-with-cuda-without-kokkos;llvm/20 cuda/12;cuda-V100 --exclusive;--fresh',\
+                               ' ~cuda ~kokkos  %clang@20 ^hpx@2.0.0rc1 cxxstd=20 max_cpu_count=128 malloc=system %clang@20 ^cppuddle %clang@20 ^silo~mpi~fortran ;with-CC-clang-without-cuda-without-kokkos;llvm/20 cuda/12;cuda-V100 --exclusive;--fresh',\
+                               ' +rocm +kokkos amdgpu_target=gfx908 %rocmcc@6.4.1 ^hpx@2.0.0rc1 cxxstd=20 max_cpu_count=128 amdgpu_target=gfx908 %rocmcc@6.4.1 ^kokkos@5.2.2 std=20 amdgpu_target=gfx908 %rocmcc@6.4.1 ^hip@6.4.1 ^hsa-rocr-dev@6.4.1 ^llvm-amdgpu@6.4.1 ^cppuddle %rocmcc@6.4.1 ^hpx-kokkos %rocmcc@6.4.1 ^silo~mpi~fortran %gcc@13.2.0 ;with-CC-clang-with-hip-with-kokkos;rocm/6.4.1;jenkins-amdgpu --exclusive -c 16 --threads-per-core=1;--fresh --dirty',\
+                               ' +kokkos simd_extension=SCALAR simd_library=STD  %gcc@13.2.0 ^hpx@2.0.0rc1 cxxstd=20 max_cpu_count=128 malloc=system %gcc@13.2.0 ^kokkos@5.2.2 std=20 %gcc@13.2.0 ^hpx-kokkos %gcc@13.2.0 ^cppuddle %gcc@13.2.0 ^silo~mpi~fortran ;with-CC-with-std-with-scalar;gcc/11;medusa --exclusive;--fresh',\
+                               ' +kokkos simd_extension=AVX512 simd_library=STD  %gcc@13.2.0 ^hpx@2.0.0rc1 cxxstd=20 max_cpu_count=128 malloc=system %gcc@13.2.0 ^kokkos@5.2.2 std=20 %gcc@13.2.0 ^hpx-kokkos %gcc@13.2.0 ^cppuddle %gcc@13.2.0 ^silo~mpi~fortran ;with-CC-with-std-with-avx512;gcc/11;medusa --exclusive;--fresh',\
+                               ' +kokkos +kokkos_hpx_kernels multipole_host_tasks=16 monopole_host_tasks=4 hydro_host_tasks=4 simd_extension=AVX512 simd_library=STD  %gcc@13.2.0 ^hpx@2.0.0rc1 cxxstd=20 max_cpu_count=128 malloc=system %gcc@13.2.0 ^kokkos@5.2.2 std=20 %gcc@13.2.0 ^hpx-kokkos %gcc@13.2.0 ^cppuddle %gcc@13.2.0 ^silo~mpi~fortran ;with-CC-with-std-with-avx512-with-hpx-kokkos-kernels;gcc/11;medusa --exclusive;--fresh',\
+                               ' +kokkos simd_extension=SCALAR simd_library=KOKKOS  %gcc@13.2.0 ^hpx@2.0.0rc1 cxxstd=20 max_cpu_count=128 malloc=system %gcc@13.2.0 ^kokkos@5.2.2 std=20 %gcc@13.2.0 ^hpx-kokkos %gcc@13.2.0 ^cppuddle %gcc@13.2.0 ^silo~mpi~fortran ;with-CC-with-kokkos-with-scalar;gcc/11;medusa --exclusive;--fresh',\
+                               ' +kokkos simd_extension=AVX512 simd_library=KOKKOS  %gcc@13.2.0 ^hpx@2.0.0rc1 cxxstd=20 max_cpu_count=128 malloc=system %gcc@13.2.0 ^kokkos@5.2.2 std=20 %gcc@13.2.0 ^hpx-kokkos %gcc@13.2.0 ^cppuddle %gcc@13.2.0 ^silo~mpi~fortran ;with-CC-with-kokkos-with-avx512;gcc/11;medusa --exclusive;--fresh',\
+                               ' +kokkos +kokkos_hpx_kernels multipole_host_tasks=16 monopole_host_tasks=4 hydro_host_tasks=4 simd_extension=AVX512 simd_library=KOKKOS  %gcc@13.2.0 ^hpx@2.0.0rc1 cxxstd=20 max_cpu_count=128 malloc=system %gcc@13.2.0 ^kokkos@5.2.2 std=20 %gcc@13.2.0 ^hpx-kokkos %gcc@13.2.0 ^cppuddle %gcc@13.2.0 ^silo~mpi~fortran ;with-CC-with-kokkos-with-avx512-with-hpx-kokkos-kernels;gcc/11;medusa --exclusive;--fresh',\
+                               ' ~cuda ~rocm +kokkos +sycl  %gcc@13.2.0 ^kokkos@5.2.2 std=20 use_unsupported_sycl_arch=70 ^hpx@2.0.0rc1 cxxstd=20 sycl_target_arch=70 ^silo~mpi~fortran;with-CC-with-kokkos-with-sycl;gcc/11 cuda/12;cuda-V100 -w diablo -c 10 --exclusive;--fresh'
                     }
                 }
                 stages {
@@ -96,40 +95,92 @@ pipeline {
                     stage('build-and-test') {
                         steps {
                             dir('octotiger') {
-                                sh '''
-                                #!/bin/bash -l
-                                set -x
+                                sh '''#!/bin/bash -l
+                                set -e -o pipefail
                                 # Unpack tuples:
                                 spack_spec=$(echo "${build_spec}" | cut -d ";" -f 1)
                                 build_description=$(echo "${build_spec}" | cut -d ";" -f 2)
                                 required_modules=$(echo "${build_spec}" | cut -d ";" -f 3)
                                 slurm_partition=$(echo "${build_spec}" | cut -d ";" -f 4)
                                 extra_spack_flags=$(echo "${build_spec}" | cut -d ";" -f 5)
-                                # Setup Spack
-                                # The jenkins_spack_install folder is initialized by a separate, manual jenkisn pipeline
-                                source ${HOME}/jenkins_spack_install/share/spack/setup-env.sh
+                                # Exercise multiple HPX workers while preserving HIP/SYCL requests.
+                                cpu_options=()
+                                case " ${slurm_partition} " in
+                                    *" -c "*|*" --cpus-per-task="*|*" --cpus-per-task "*) ;;
+                                    *) cpu_options=(--cpus-per-task=4) ;;
+                                esac
+                                # Rostam requires an explicit GPU request even with --exclusive.
+                                # https://wiki.rostam.cct.lsu.edu/en/slurm/gpu
+                                gpu_options=()
+                                case " ${spack_spec} " in
+                                    *" +cuda "*|*" +sycl "*) gpu_options=(--gres=gpu:1) ;;
+                                esac
+                                export spack_spec required_modules extra_spack_flags
+                                # Setup src to test; each matrix entry needs its own output files.
                                 cd ..
-                                # Setup src to test
-                                rm -rf octotiger-${build_description}
-                                cp -r octotiger octotiger-${build_description}
-                                cd octotiger-${build_description}
-                                # Runs test on node
-                                # We do not use --fresh builds as these tend to act up and suddenly ignore external packages
-                                # which is a problem in the hip node
-                                srun -p ${slurm_partition} -N 1 -n 1 --time=900 bash -lc "\
-                                  module load ${required_modules} && \
-                                  export TMPDIR=/work/jenkins/spack_tmp && \
-                                  flock --verbose -x -w 600 /work/jenkins/jenkins-spack-config.lock spack external find && \
-                                  flock --verbose -x -w 600 /work/jenkins/jenkins-spack-config.lock spack external find cmake git libffi python && \
-                                  flock --verbose -x -w 600 /work/jenkins/jenkins-spack-config.lock spack external find cuda hip llvm-amdgpu hsa-rocr-dev && \
-                                  flock --verbose -x -w 600 /work/jenkins/jenkins-spack-config.lock spack compiler find  
-                                  spack spec --fresh octotiger@develop ${spack_spec} && \
-                                  export AMD_DIRECT_DISPATCH=0 && \
-                                  export HIP_VISIBLE_DEVICES=1 && \
-                                  spack dev-build -j32 ${extra_spack_flags} --until build --test=root octotiger@develop ${spack_spec} || {
-                                    cat install-time-test-log.txt
-                                    exit 1 # test failed 
-                                  } && cat install-time-test-log.txt"
+                                rm -rf "octotiger-${build_description}"
+                                cp -r octotiger "octotiger-${build_description}"
+                                cd "octotiger-${build_description}"
+                                srun -p ${slurm_partition} "${cpu_options[@]}" "${gpu_options[@]}" -N 1 -n 1 --time=900 bash -ls <<'BUILD_SCRIPT'
+set -e -o pipefail
+trap 'build_status=$?; if [[ -f install-time-test-log.txt ]]; then cat install-time-test-log.txt; fi; exit "$build_status"' EXIT
+echo "Slurm allocation: job=${SLURM_JOB_ID:-unknown} step=${SLURM_STEP_ID:-unknown} host=$(hostname)"
+module load ${required_modules}
+module list
+# Initialized by the separate, manual Spack setup pipeline.
+source "${HOME}/jenkins_spack_install/share/spack/setup-env.sh"
+spack --version
+export TMPDIR=/work/jenkins/spack_tmp
+if [[ " ${required_modules} " == *" rocm/"* ]]; then
+    command -v hipcc
+fi
+flock --verbose -x -w 600 /work/jenkins/jenkins-spack-config.lock spack external find
+flock --verbose -x -w 600 /work/jenkins/jenkins-spack-config.lock spack external find cmake git libffi python
+flock --verbose -x -w 600 /work/jenkins/jenkins-spack-config.lock spack external find cuda hip llvm-amdgpu hsa-rocr-dev
+flock --verbose -x -w 600 /work/jenkins/jenkins-spack-config.lock spack compiler find
+spack compiler list
+# Respect the allocation, including the 16-CPU HIP and 10-CPU SYCL entries.
+build_jobs=${SLURM_CPUS_PER_TASK:-${SLURM_CPUS_ON_NODE:-1}}
+case "${build_jobs}" in
+    ''|*[!0-9]*) echo "Invalid allocated CPU count: ${build_jobs}" >&2; exit 1 ;;
+esac
+available_cpus=$(nproc)
+if (( build_jobs > available_cpus )); then build_jobs=${available_cpus}; fi
+if (( build_jobs > 32 )); then build_jobs=32; fi
+if (( build_jobs < 1 )); then echo "No allocated CPUs" >&2; exit 1; fi
+export AMD_DIRECT_DISPATCH=0
+export HIP_VISIBLE_DEVICES=1
+export HPX_NUM_WORKER_THREADS=${build_jobs}
+export OMP_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+# Cases write shared diagnostic filenames within a matrix entry.
+export CTEST_PARALLEL_LEVEL=1
+# Record allocation visibility without overriding scheduler or runtime filters.
+for octotiger_gpu_variable in SLURM_JOB_GPUS SLURM_STEP_GPUS CUDA_VISIBLE_DEVICES HIP_VISIBLE_DEVICES ROCR_VISIBLE_DEVICES KOKKOS_VISIBLE_DEVICES SYCL_DEVICE_FILTER ONEAPI_DEVICE_SELECTOR; do
+    if [[ -v "${octotiger_gpu_variable}" ]]; then
+        echo "GPU environment: ${octotiger_gpu_variable}=${!octotiger_gpu_variable}"
+    else
+        echo "GPU environment: ${octotiger_gpu_variable}=<unset>"
+    fi
+done
+if [[ " ${spack_spec} " == *" +cuda "* || " ${spack_spec} " == *" +sycl "* ]]; then
+    if command -v nvidia-smi >/dev/null 2>&1; then
+        echo "NVIDIA GPU inventory (15-second limit, 5-second termination grace):"
+        if ! timeout --kill-after=5s 15s nvidia-smi -L; then
+            echo "GPU inventory failed or timed out; continuing to the tests."
+        fi
+    else
+        echo "GPU inventory unavailable: nvidia-smi is not installed; continuing to the tests."
+    fi
+fi
+# PowerTiger supplies the pinned, patched source stack and a GCC bootstrap.
+powertiger_flags=()
+if [[ " ${extra_spack_flags} " == *" --dirty "* ]]; then
+    powertiger_flags+=(--dirty)
+fi
+python3 .jenkins/lsu/hpx2rc/run-powertiger.py \
+    --source "${PWD}" --spec "${spack_spec}" --jobs "${build_jobs}" "${powertiger_flags[@]}"
+BUILD_SCRIPT
                                 '''
                             }
                         }
@@ -192,6 +243,9 @@ pipeline {
         }
     }
     post {
+        always {
+            archiveArtifacts artifacts: 'octotiger-*/install-time-test-log.txt,octotiger-*/spack-build-out.txt,octotiger-*/spack-build/Testing/Temporary/*.log,octotiger-*/spack-build-*/Testing/Temporary/*.log,octotiger-*/spack-build/Testing/Temporary/*.log.tmp,octotiger-*/spack-build-*/Testing/Temporary/*.log.tmp,octotiger-*/spack-build/Testing/Temporary/CTestCheckpoint.txt,octotiger-*/spack-build-*/Testing/Temporary/CTestCheckpoint.txt,octotiger-*/.jenkins-spack-overlay/manifest.json,octotiger-*/.jenkins-powertiger-provenance.json,octotiger-*/.jenkins-spack-overlay/config/*.yaml,octotiger-*/spack-build/test_problems/**/*_log.txt,octotiger-*/.jenkins-spack-overlay/repo/packages/**/*.py,octotiger-*/.jenkins-spack-overlay/repo/packages/**/*.patch', allowEmptyArchive: true
+        }
         success {
             script {
                 buildbadge.setStatus('success')

@@ -19,6 +19,8 @@ using std::async;
 using std::launch;
 #endif
 
+#include <limits>
+
 #include "octotiger/unitiger/cell_geometry.hpp"
 #include "octotiger/unitiger/util.hpp"
 
@@ -28,6 +30,9 @@ struct timestep_t {
 	double a;
 	double x, y, z;
 	double dt;
+    // Reduced independently of the requested step (stop-time/hard_dt caps).
+    double fe_dt = std::numeric_limits<double>::max();
+    bool use_ssp_multistep = false;
 	int dim;
 	std::vector<double> ur;
 	std::vector<double> ul;
@@ -39,6 +44,8 @@ struct timestep_t {
 		arc & z;
 		arc & dim;
 		arc & dt;
+        arc & fe_dt;
+        arc & use_ssp_multistep;
 		arc & ur;
 		arc & ul;
 	}

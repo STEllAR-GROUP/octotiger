@@ -1,0 +1,11 @@
+Backport the assignable first_thread_ member for HPX 1.9.1 with Clang.
+Upstream: https://github.com/TheHPXProject/hpx/commit/ca5e2d0bb4e0546007dd2d21acbe302fd5d6a2cd
+
+diff --git a/libs/core/executors/include/hpx/executors/restricted_thread_pool_executor.hpp b/libs/core/executors/include/hpx/executors/restricted_thread_pool_executor.hpp
+--- a/libs/core/executors/include/hpx/executors/restricted_thread_pool_executor.hpp
++++ b/libs/core/executors/include/hpx/executors/restricted_thread_pool_executor.hpp
+@@ -244,3 +244,3 @@ namespace hpx::parallel::execution {
+     private:
+-        std::uint16_t const first_thread_;
++        std::uint16_t first_thread_;
+         mutable std::atomic<std::size_t> os_thread_;

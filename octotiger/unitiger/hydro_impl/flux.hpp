@@ -99,6 +99,7 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, con
 #pragma ivdep
 				for (int f = 0; f < nf_; f++) {
 #ifdef FACE_ONLY_HYDRO
+#pragma error
 					F[dim][f][i] += this_flux[f];
 #else
 					F[dim][f][i] += weights[fi] * this_flux[f];

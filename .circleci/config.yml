@@ -74,27 +74,6 @@ jobs:
                     - cppuddle/build
                     - cppuddle-install
 
-    test_marshak:
-        <<: *docker_config
-        working_directory: /octotiger/build
-        steps:
-            - checkout:
-                path: /octotiger
-            - attach_workspace:
-                at: /
-            - run:
-                name: Marshak wave test
-                command: ctest --output-on-failure -R test_problems.cpu.marshak.diff
-                no_output_timeout: 100m
-            - run:
-                name: Move artifacts
-                command: |
-                    mkdir /test
-                    mv *.silo *.dat /test/ || :
-                when: always
-            - store_artifacts:
-                path: /test
-
     test_blast:
         <<: *docker_config
         working_directory: /octotiger/build
@@ -211,9 +190,6 @@ workflows:
         jobs:
             - build:
                 <<: *ignore_docs
-            - test_marshak:
-                requires:
-                    - build
             - test_blast:
                 requires:
                     - build

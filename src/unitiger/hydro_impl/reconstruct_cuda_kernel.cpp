@@ -154,7 +154,7 @@ void launch_reconstruct_cuda(
             reconstruct_cuda_kernel_no_amc, grid_spec, threads_per_block, args, 0);
     }
 #elif defined(OCTOTIGER_HAVE_HIP)
-    hpx::apply(executor, reconstruct_hip_kernel_ggl_wrapper, grid_spec,
+    hpx::post(executor, reconstruct_hip_kernel_ggl_wrapper, grid_spec,
         threads_per_block, omega,
         nf_, angmom_index_, smooth_field_, disc_detect_, combined_q, combined_x, combined_u, AM, dx,
         cdiscs, n_species_, ndir, nangmom);
@@ -234,7 +234,7 @@ void launch_find_contact_discs_cuda(
     executor.post(cudaLaunchKernel<decltype(discs_phase1)>, discs_phase1, grid_spec_phase1,
         threads_per_block_phase1, args_phase1, 0);
 #elif defined(OCTOTIGER_HAVE_HIP)
-    hpx::apply(executor, disc1_hip_kernel_ggl_wrapper, grid_spec_phase1, threads_per_block_phase1,
+    hpx::post(executor, disc1_hip_kernel_ggl_wrapper, grid_spec_phase1, threads_per_block_phase1,
         device_P, device_u, A_, B_, fgamma_, de_switch_1, nf);
 #endif
     int ndir = geo.NDIR;
@@ -248,7 +248,7 @@ void launch_find_contact_discs_cuda(
     executor.post(cudaLaunchKernel<decltype(discs_phase2)>, discs_phase2, grid_spec_phase2,
         threads_per_block_phase2, args_phase2, 0);
 #elif defined(OCTOTIGER_HAVE_HIP)
-    hpx::apply(executor, disc2_hip_kernel_ggl_wrapper, grid_spec_phase2, threads_per_block_phase2,
+    hpx::post(executor, disc2_hip_kernel_ggl_wrapper, grid_spec_phase2, threads_per_block_phase2,
         device_disc, device_P, fgamma_, ndir);
 #endif
 }
@@ -295,7 +295,7 @@ void launch_hydro_pre_recon_cuda(
     executor.post(cudaLaunchKernel<decltype(hydro_pre_recon_cuda)>, hydro_pre_recon_cuda, grid_spec,
         threads_per_block, args, 0);
 #elif defined(OCTOTIGER_HAVE_HIP)
-    hpx::apply(executor, pre_recon_hip_kernel_ggl_wrapper, grid_spec, threads_per_block, device_X, omega,
+    hpx::post(executor, pre_recon_hip_kernel_ggl_wrapper, grid_spec, threads_per_block, device_X, omega,
         angmom, device_u, nf, n_species_);
 #endif
 }

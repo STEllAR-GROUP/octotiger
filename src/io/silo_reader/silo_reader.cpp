@@ -94,11 +94,10 @@ int main(int argc, char* argv[]) {
 		field_names.push_back("gz");
 	}
 	if (radiation) {
-		field_names.push_back("er");
-		field_names.push_back("fx");
-		field_names.push_back("fy");
-		field_names.push_back("fz");
-	}
+        std::cerr << "This branch does not support radiation transport files\n";
+        DBClose(db);
+        return EXIT_FAILURE;
+    }
 
 	std::unordered_map<std::string, std::shared_ptr<real>> grid_sum;
 

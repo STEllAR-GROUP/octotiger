@@ -3,8 +3,8 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#ifndef SRC_RADIATION_SAFE_MATH_HPP_
-#define SRC_RADIATION_SAFE_MATH_HPP_
+#ifndef OCTOTIGER_SAFE_MATH_HPP_
+#define OCTOTIGER_SAFE_MATH_HPP_
 
 #include <cmath>
 #include <cstdio>
@@ -58,4 +58,4 @@ inline T safe_sqrt(const T& a, const char* file, const int line) {
 #define SQRT( a ) safe_sqrt(a, __FILE__, __LINE__)
 #define POWER( a, b ) safe_power(a, b, __FILE__, __LINE__)
 
-#endif /* SRC_RADIATION_SAFE_MATH_HPP_ */
+#endif /* OCTOTIGER_SAFE_MATH_HPP_ */

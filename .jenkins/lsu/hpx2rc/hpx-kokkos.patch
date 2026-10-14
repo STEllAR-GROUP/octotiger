@@ -1,0 +1,38 @@
+diff --git a/src/hpx/kokkos/hpx_algorithms_for_each.hpp b/src/hpx/kokkos/hpx_algorithms_for_each.hpp
+index 68f3d8a..ae76757 100644
+--- a/src/hpx/kokkos/hpx_algorithms_for_each.hpp
++++ b/src/hpx/kokkos/hpx_algorithms_for_each.hpp
+@@ -16,6 +16,9 @@
+ 
+ #include <Kokkos_Core.hpp>
+ 
++#if HPX_VERSION_FULL >= 0x020000
++#include <ranges>
++#endif
+ #include <utility>
+ 
+ namespace hpx {
+@@ -95,7 +98,11 @@ template <
+     typename ExecutionSpace, typename Range, typename F,
+     typename std::enable_if<
+         !Kokkos::is_execution_policy<typename std::decay<Range>::type>::value &&
++#if HPX_VERSION_FULL >= 0x020000
++            std::ranges::range<Range>,
++#else
+             hpx::traits::is_range<Range>::value,
++#endif
+         int>::type = 0>
+ hpx::shared_future<void> for_each_range_helper(char const *label,
+                                                ExecutionSpace &&instance,
+diff --git a/src/hpx/kokkos/deep_copy.hpp b/src/hpx/kokkos/deep_copy.hpp
+--- a/src/hpx/kokkos/deep_copy.hpp
++++ b/src/hpx/kokkos/deep_copy.hpp
+@@ -87,7 +87,7 @@
+     throw std::runtime_error(
+         "deep_copy_async: Error, SYCL views are overlapping");
+   }
+-  auto& q = *instance.impl_internal_space_instance()->m_queue;
++  auto& q = instance.sycl_queue();
+   if (!(q.is_in_order())) {
+     throw std::runtime_error(
+         "deep_copy_async: Error, underlying SYCL queue is not in-order");

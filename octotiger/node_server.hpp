@@ -7,7 +7,6 @@
 #define NODE_SERVER_HPP_
 
 #include "octotiger/config/export_definitions.hpp"
-#include "octotiger/radiation/rad_grid.hpp"
 #include "octotiger/interaction_types.hpp"
 #include "octotiger/channel.hpp"
 #include "octotiger/defs.hpp"
@@ -61,13 +60,11 @@ private:
 	std::atomic<integer> refinement_flag;
 	node_location my_location;
 	integer step_num;
-	std::size_t rcycle;
 	std::size_t hcycle;
 	std::size_t gcycle;
 	real current_time;
 	real rotational_time;
 	std::shared_ptr<grid> grid_ptr; //
-	std::shared_ptr<rad_grid> rad_grid_ptr; //
 	std::atomic<bool> is_refined;
 	std::array<integer, NVERTEX> child_descendant_count;
 	std::array<real, NDIM> xmin;
@@ -112,8 +109,17 @@ private:
 	std::array<channel<timestep_t>, NCHILD + 1> local_timestep_channels;
 
 	timestep_t dt_;
+    real ssp_previous_dt = 0.0;
+    real ssp_previous_fe_dt = 0.0;
+    bool exact_checkpoint_restored = false;
 
 public:
+    std::vector<char> save_checkpoint() const;
+    void load_checkpoint(const std::vector<char>& data);
+    bool has_exact_checkpoint() const {
+        return exact_checkpoint_restored;
+    }
+
 	timings timings_;
 
 	real get_time() const {
@@ -145,6 +151,8 @@ private:
 
 	hpx::future<void> nonrefined_step();
 	void refined_step();
+    void multistep_step();
+    void select_ssp_timestep(timestep_t& timestep) const;
 
 	diagnostics_t root_diagnostics(const diagnostics_t& diags);
 	diagnostics_t child_diagnostics(const diagnostics_t& diags);
@@ -155,8 +163,8 @@ public:
 	integer get_step_num() const {
 		return step_num;
 	}
-	void exchange_interlevel_hydro_data();
-	void all_hydro_bounds();
+	void exchange_interlevel_hydro_data(bool include_ssp_history = false);
+	void all_hydro_bounds(bool include_ssp_history = false);
 	void energy_hydro_bounds();
 	static bool child_is_on_face(integer ci, integer face) {
 		return (((ci >> (face / 2)) & 1) == (face & 1));
@@ -174,8 +182,7 @@ public:
 	~node_server();
 	node_server(const node_location&);
 	node_server(const node_location&, silo_load_t load_vars);
-	node_server(const node_location&, const node_client& parent_id, real, real, std::size_t, std::size_t, std::size_t,
-			std::size_t);
+	node_server(const node_location&, const node_client& parent_id, real, real, std::size_t, std::size_t, std::size_t);
 
 	integer get_position() const {
 		return position;
@@ -183,9 +190,9 @@ public:
 
 	void reconstruct_tree();
 
-	/*TODO move radiation to*/
 	node_server(const node_location&, integer, bool, real, real, const std::array<integer, NCHILD>&, grid,
-			const std::vector<hpx::id_type>&, std::size_t, std::size_t, std::size_t, integer position);
+			const std::vector<hpx::id_type>&, std::size_t, std::size_t, integer position,
+            real previous_dt, real previous_fe_dt);
 
 	void report_timing();/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server, report_timing, report_timing_action);
@@ -205,8 +212,6 @@ public:
 	void recv_hydro_amr_boundary(std::vector<real>&&, const geo::direction&, std::size_t cycle);
 	/**/HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_hydro_amr_boundary, send_hydro_amr_boundary_action);
 
-	void recv_rad_amr_boundary(std::vector<real>&&, const geo::direction&, std::size_t cycle);
-	/**/HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_rad_amr_boundary, send_rad_amr_boundary_action);
 
 	void recv_hydro_children(std::vector<real>&&, const geo::octant& ci, std::size_t cycle);
 	/**/HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_hydro_children, send_hydro_children_action);
@@ -235,7 +240,8 @@ public:
 
 	void execute_solver(bool scf, node_count_type);
 
-	void set_grid(const std::vector<real>&, std::vector<real>&&);/**/
+	void set_grid(const std::vector<real>&, std::vector<real>&&,
+        const std::vector<real>& history, real previous_dt, real previous_fe_dt);/**/
 	HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, set_grid, set_grid_action);
 
 	hpx::future<void> timestep_driver_descend();
@@ -304,40 +310,6 @@ public:
 
 	void run_scf(std::string const& data_dir);
 
-private:
-	struct sibling_rad_type {
-		std::vector<real> data;
-		geo::direction direction;
-	};
-
-	std::array<unordered_channel<sibling_rad_type>, geo::direction::count()> sibling_rad_channels;
-	std::array<unordered_channel<std::vector<real>>, NCHILD> child_rad_channels;
-	unordered_channel<expansion_pass_type> parent_rad_channel;
-public:
-	hpx::future<void> exchange_rad_flux_corrections();
-	void compute_radiation(real dt, real omega);
-	hpx::future<void> exchange_interlevel_rad_data();
-	void all_rad_bounds();
-
-	void collect_radiation_bounds();
-	void send_rad_amr_bounds();
-
-	void recv_rad_flux_correct(std::vector<real>&&, const geo::face& face, const geo::octant& ci);/**/
-	HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_rad_flux_correct, send_rad_flux_correct_action);
-
-	void recv_rad_boundary(std::vector<real>&&, const geo::direction&, std::size_t cycle);/**/
-	HPX_DEFINE_COMPONENT_ACTION(node_server, recv_rad_boundary, send_rad_boundary_action);
-
-	void recv_rad_children(std::vector<real>&&, const geo::octant& ci, std::size_t cycle);/**/
-	HPX_DEFINE_COMPONENT_ACTION(node_server, recv_rad_children, send_rad_children_action);
-
-	std::array<std::array<channel<std::vector<real>>, 4>, NFACE> niece_rad_channels;
-
-	void set_rad_grid(const std::vector<real>&/*, std::vector<real>&&*/);/**/
-	HPX_DEFINE_COMPONENT_ACTION(node_server, set_rad_grid, set_rad_grid_action);
-
-	void erad_init();/**/HPX_DEFINE_COMPONENT_ACTION(node_server, erad_init, erad_init_action);
-
 	void kill();
 	HPX_DEFINE_COMPONENT_ACTION(node_server,kill);
 
@@ -368,7 +340,6 @@ HPX_REGISTER_ACTION_DECLARATION(node_server::regrid_scatter_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_flux_check_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_hydro_boundary_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_hydro_amr_boundary_action);
-HPX_REGISTER_ACTION_DECLARATION(node_server::send_rad_amr_boundary_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_gravity_boundary_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_gravity_multipoles_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_gravity_expansions_action);
@@ -380,11 +351,6 @@ HPX_REGISTER_ACTION_DECLARATION(node_server::form_tree_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::diagnostics_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::timestep_driver_ascend_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::scf_params_action);
-HPX_REGISTER_ACTION_DECLARATION(node_server::send_rad_boundary_action);
-HPX_REGISTER_ACTION_DECLARATION(node_server::send_rad_children_action);
-HPX_REGISTER_ACTION_DECLARATION(node_server::send_rad_flux_correct_action);
-HPX_REGISTER_ACTION_DECLARATION(node_server::set_rad_grid_action);
-HPX_REGISTER_ACTION_DECLARATION(node_server::erad_init_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::amr_error_action);
 //HPX_REGISTER_ACTION_DECLARATION(node_server::set_parent_action);
 

@@ -9,8 +9,6 @@
 #include "octotiger/defs.hpp"
 #include "octotiger/real.hpp"
 
-#include <hpx/parallel/traits/vector_pack_type.hpp>
-#include <hpx/runtime/serialization/datapar.hpp>
 #include <hpx/serialization/traits/is_bitwise_serializable.hpp>
 
 
