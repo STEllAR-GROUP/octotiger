@@ -72,18 +72,82 @@ def remote_python(ssh, script):
 
 
 def capture(ssh, migration):
-    script = '''from pathlib import Path
-import json
+    script = r'''from pathlib import Path
+from datetime import datetime, timezone
+import json, math, re
 root=Path(ROOT)
 def read(name):
  p=root/name
  return json.loads(p.read_text()) if p.is_file() else None
+def euler_lower_bound(run):
+ # In the frozen solver this marker precedes the radiation subcycle and
+ # update() advances current_time only afterward. Its t is the prior complete
+ # step boundary, not an RK stage time; do not credit the upcoming hydro_dt.
+ case=run.get('case'); level=run.get('level'); target=run.get('stop_time')
+ if (case not in ('subcritical_shock','supercritical_shock','radiating_blast') or
+     run.get('model')!='m1' or run.get('integrator')!='euler' or
+     type(level) is not int or level not in (2,3,4) or
+     type(target) not in (int,float) or not math.isfinite(target) or target<=0):
+  return None
+ identity=f'l{level}-{case}-m1'
+ if run.get('id')!=identity or run.get('directory')!='runs/'+identity:
+  return None
+ base=(root/'campaign').resolve()
+ path=base/run['directory']/case/f'l{level}'/'run.log'
+ if not path.resolve().is_relative_to(base):
+  return None
+ for entry in (path,*path.parents):
+  if entry==base:
+   break
+  if entry.is_symlink():
+   return None
+ try:
+  with path.open('rb') as stream:
+   size=stream.seek(0,2); offset=max(0,size-65536); stream.seek(offset)
+   raw=stream.read(65536)
+ except OSError:
+  return None
+ tail=raw.decode(errors='replace')
+ if offset:
+  tail=tail.partition('\n')[2] # A clipped first line is not a complete marker.
+ marker=re.compile(r'Radiation Euler substeps ([1-9][0-9]*): t=([^,\s]+), hydro_dt=([^\s]+)')
+ last=None
+ for line in tail.splitlines(keepends=True):
+  if not line.endswith('\n'):
+   continue # Do not interpret a partially written final line.
+  match=marker.fullmatch(line.rstrip('\r\n'))
+  if not match:
+   continue
+  try:
+   count=int(match[1]); stamp=float(match[2]); dt=float(match[3])
+  except ValueError:
+   continue
+  if math.isfinite(stamp) and 0<=stamp<=target and math.isfinite(dt) and dt>0:
+   last=(stamp,dt,count)
+ if last is None:
+  return None
+ stamp,dt,count=last
+ return {'updated_utc':datetime.now(timezone.utc).isoformat(),'simulation_time':stamp,
+         'stop_time':target,'time_units':'s','fraction_of_simulated_duration':stamp/target,
+         'source':'solver run.log Euler subcycle-start marker (coordinator fallback)',
+         'time_semantics':'completed-step lower bound; the current radiation subcycle is not yet complete',
+         'is_lower_bound':True,'hydro_dt':dt,'radiation_substeps':count,
+         'log_bytes':size,'log_tail_bytes':len(raw)}
 worker=read('campaign/worker-state.json')
 receipts={}
 if worker:
+ plans={run.get('id'):run for run in worker.get('plan',[]) if isinstance(run,dict)}
  for run_id,record in worker.get('runs',{}).items():
   if record.get('status')=='complete':
    receipts[run_id]=read('campaign/receipts/'+run_id+'.json')
+  elif record.get('status')=='running':
+   fallback=euler_lower_bound(plans.get(run_id,{}))
+   if fallback:
+    previous=record.get('progress') or {}
+    stamp=previous.get('simulation_time') if isinstance(previous,dict) else None
+    if (type(stamp) not in (int,float) or not math.isfinite(stamp) or
+        not 0<=stamp<=fallback['stop_time'] or stamp<fallback['simulation_time']):
+     record['progress']=fallback
 print(json.dumps({'build':read('build-progress.json'),'worker':worker,'receipts':receipts}))
 '''.replace('ROOT', repr(migration['remote_root']))
     return remote_python(ssh, script)

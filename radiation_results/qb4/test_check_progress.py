@@ -132,6 +132,91 @@ class ProgressSafety(unittest.TestCase):
         self.assertEqual(command[:len(argv)], argv)
         self.assertIn('ProxyCommand=/bin/false', command)
 
+    def capture_fixture(self, log, *, case='subcritical_shock', model='m1', previous=None, changes=None):
+        run_id = 'l2-' + case + '-' + model
+        plan = {'id': run_id, 'case': case, 'level': 2, 'model': model,
+                'integrator': 'euler' if model == 'm1' else 'backward_euler',
+                'directory': 'runs/' + run_id, 'stop_time': 38300}
+        plan.update(changes or {})
+        worker = {'status': 'running', 'active': True, 'plan': [plan],
+                  'runs': {run_id: {'status': 'running'}}}
+        if previous is not None:
+            worker['runs'][run_id]['progress'] = previous
+        campaign = self.remote / 'campaign'
+        campaign.mkdir(exist_ok=True)
+        worker_path = campaign / 'worker-state.json'
+        # Allow intentionally malformed nonfinite fixture values so the capture
+        # reader's own validation is exercised, not the production writer.
+        worker_path.write_text(json.dumps(worker))
+        log_path = campaign / 'runs' / run_id / case / 'l2/run.log'
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        log_path.write_text(log)
+        original_worker = worker_path.read_bytes()
+        original_log = log_path.read_bytes()
+        def execute_generated(ssh, script):
+            with contextlib.redirect_stdout(io.StringIO()) as stream:
+                exec(compile(script, 'generated_capture.py', 'exec'), {'__name__': '__main__'})
+            return json.loads(stream.getvalue())
+        with patch.object(progress, 'remote_python', side_effect=execute_generated) as remote, \
+                patch.object(progress.subprocess, 'run', side_effect=AssertionError('No subprocess or SSH in this test')):
+            snapshot = progress.capture(['fixture-no-network'], self.migration)
+        self.assertEqual(remote.call_count, 1)
+        self.assertEqual(worker_path.read_bytes(), original_worker, 'Capture must not modify the active worker state')
+        self.assertEqual(log_path.read_bytes(), original_log)
+        return snapshot['worker']['runs'][run_id].get('progress')
+
+    def test_capture_reports_coupled_euler_marker_as_start_time_lower_bound(self):
+        value = self.capture_fixture('Radiation Euler substeps 10498: t=0, hydro_dt=63.833333333333336\n'
+            'Radiation Euler substeps 10498: t=829.83333333333348, hydro_dt=63.833333333333336\n')
+        self.assertEqual(value['simulation_time'], 829.83333333333348)
+        self.assertEqual(value['hydro_dt'], 63.833333333333336)
+        self.assertEqual(value['radiation_substeps'], 10498)
+        self.assertTrue(value['is_lower_bound'])
+        self.assertIn('not yet complete', value['time_semantics'])
+        self.assertIn('coordinator fallback', value['source'])
+        self.assertAlmostEqual(value['fraction_of_simulated_duration'], 829.83333333333348 / 38300)
+        self.assertNotEqual(value['simulation_time'], 829.83333333333348 + value['hydro_dt'])
+
+    def test_capture_never_replaces_newer_worker_progress_with_a_lower_bound(self):
+        marker = 'Radiation Euler substeps 10498: t=829.83333333333348, hydro_dt=63.833333333333336\n'
+        previous = {'simulation_time': 900., 'source': 'solver run.log', 'stop_time': 38300}
+        self.assertEqual(self.capture_fixture(marker, previous=previous), previous)
+        self.assertTrue(self.capture_fixture(marker, previous={'simulation_time': 800.})['is_lower_bound'])
+
+    def test_capture_fallback_requires_finite_in_range_time_and_positive_dt(self):
+        for stamp, dt in [('nan', '1'), ('inf', '1'), ('-1', '1'), ('38301', '1'),
+                          ('1', 'nan'), ('1', 'inf'), ('1', '0'), ('1', '-1')]:
+            with self.subTest(stamp=stamp, dt=dt):
+                self.assertIsNone(self.capture_fixture(
+                    f'Radiation Euler substeps 10498: t={stamp}, hydro_dt={dt}\n'))
+        for stamp in ('0', '38300'):
+            with self.subTest(valid_boundary=stamp):
+                value = self.capture_fixture(f'Radiation Euler substeps 1: t={stamp}, hydro_dt=1\n')
+                self.assertEqual(value['simulation_time'], float(stamp))
+
+    def test_capture_ignores_partial_unlabelled_and_non_coupled_markers(self):
+        for text in ('14 829.83333 63.83333 1.0 829.83333\n',
+                     'noise Radiation Euler substeps 10498: t=829, hydro_dt=63\n',
+                     'Radiation Euler substeps 10498: t=829, hydro_dt=63'):
+            with self.subTest(text=text):
+                self.assertIsNone(self.capture_fixture(text))
+        marker = 'Radiation Euler substeps 10498: t=829, hydro_dt=63\n'
+        self.assertIsNone(self.capture_fixture(marker, model='fld'))
+        self.assertIsNone(self.capture_fixture(marker, case='gaussian_pulse'))
+        for changes in ({'directory': '../foreign'}, {'level': 9}, {'stop_time': float('inf')},
+                        {'stop_time': -1}, {'integrator': 'ader2'}):
+            with self.subTest(changes=changes):
+                self.assertIsNone(self.capture_fixture(marker, changes=changes))
+
+    def test_capture_reads_only_last_64kib_and_discards_clipped_lines(self):
+        old = 'Radiation Euler substeps 10498: t=7, hydro_dt=1\n'
+        prefix = old + 'x' * 65536 + '\n'
+        self.assertIsNone(self.capture_fixture(prefix))
+        value = self.capture_fixture(prefix + 'Radiation Euler substeps 10498: t=8, hydro_dt=1\n')
+        self.assertEqual(value['simulation_time'], 8)
+        self.assertEqual(value['log_tail_bytes'], 65536)
+        self.assertGreater(value['log_bytes'], value['log_tail_bytes'])
+
     def test_remote_failure_reports_exit_and_stderr_without_dumping_script(self):
         script = 'PRIVATE_SCRIPT_CONTENT_' * 1000
         error = subprocess.CalledProcessError(27, ['ssh', script], stderr='Traceback:\nRuntimeError: unknown submission\n')
