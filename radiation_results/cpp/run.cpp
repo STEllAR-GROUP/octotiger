@@ -374,6 +374,8 @@ int run(Options o)
         saved.value("options", Json::object()).value("no_silo_ignores_snapshot_cadence", false));
     const bool fld_output_each_step = fld && (!resumed ||
         saved.value("options", Json::object()).value("fld_output_each_step", false));
+    const bool stationary_output_each_step = !resumed ||
+        saved.value("options", Json::object()).value("stationary_output_each_step", false);
 	for (int level : o.levels) {
     for (auto &name : o.selected_cases) {
 			require(level >= 0 && level <= 9 && std::find(cases.begin(), cases.end(), name) != cases.end(),
@@ -432,6 +434,11 @@ int run(Options o)
                 // FLD checks output after each physical step. The output interval
                 // bounds missed snapshots, not diffusion or streaming stability.
                 cap["hard_dt"] = cap.at("odt");
+                cap["steps_per_output_check"] = 1;
+            }
+            if (stationary_output_each_step && !coupled) {
+                // Keep the M1 accuracy cap; only the output-check frequency
+                // changes. Older batches retain their recorded capture metadata.
                 cap["steps_per_output_check"] = 1;
             }
 			double dt = no_silo_uncapped ? 0. : cap.at("hard_dt").get<double>();
@@ -605,6 +612,7 @@ int run(Options o)
 					   {"no_silo", o.no_silo},
                        {"no_silo_ignores_snapshot_cadence", no_silo_uncapped},
                        {"fld_output_each_step", fld_output_each_step},
+                       {"stationary_output_each_step", stationary_output_each_step},
 					   {"reconstruction", o.reconstruction},
 					   {"generator", o.generator.string()},
                        {"launcher", o.launcher.string()},

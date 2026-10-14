@@ -1,0 +1,19 @@
+{
+  "schema": 2,
+  "workflow": "m1-fld-radiation",
+  "description": "Longer physical evolution and dense saved states for Gaussian and Marshak movies",
+  "models": {"m1": "euler", "fld": "backward_euler"},
+  "cases": ["gaussian_pulse", "marshak"],
+  "levels": [0, 1],
+  "threads": 10,
+  "snapshots": 121,
+  "stop_time": 1.5,
+  "hard_dt": 0.00625,
+  "case_settings": {
+    "marshak": {"stop_time": 60, "hard_dt": 0.05}
+  },
+  "radiation_reduced_c_factor": 1,
+  "minimum_free_gib": 20,
+  "memory_limit_gib": 8,
+  "scope": "Eight longer runs at levels 0 and 1, with 121 requested physical snapshots. Gaussian covers relaxation and pulse spreading to 1.5 seconds; Marshak covers substantial penetration to normalized time 60. These coarse runs show evolution, not spatial or temporal convergence. Ten solver workers leave two cores for movie rendering within the shared twelve-core budget."
+}

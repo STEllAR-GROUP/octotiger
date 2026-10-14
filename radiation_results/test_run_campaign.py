@@ -265,6 +265,16 @@ class CampaignSafety(unittest.TestCase):
             self.assertEqual(run['stop_time'], .25)
             self.assertEqual(run['hard_dt'], .05)
 
+    def test_movie_preset_extends_physical_time_and_capture_density(self):
+        self.prepare('--preset', 'movies')
+        manifest = campaign.load(self.root)
+        self.assertEqual(len(manifest['runs']), 8)
+        self.assertEqual(manifest['snapshots'], 121)
+        self.assertEqual(manifest['levels'], [0, 1])
+        for run in manifest['runs']:
+            self.assertEqual(run['stop_time'], 60 if run['case'] == 'marshak' else 1.5)
+            self.assertEqual(run['hard_dt'], .05 if run['case'] == 'marshak' else .00625)
+
     def test_resource_and_timestep_limits_apply_before_preparation(self):
         for arguments in (('--threads', str((os.cpu_count() or 1) + 1)), ('--hard-dt', '1'), ('--time', 'nan'),
                 ('--minimum-free-gib', '0'), ('--memory-limit-gib', 'inf')):

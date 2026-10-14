@@ -122,6 +122,16 @@ interface and does not start or resume an old scheduled study automatically.
 
 ## Local website and movies
 
+Use `--preset movies` to prepare a longer version of the original eight-run
+Gaussian/Marshak pilot: Gaussian evolves to 1.5 seconds, Marshak to normalized
+time 60, with 121 requested snapshots at levels 0 and 1. The physical windows
+show pulse spreading and substantial material heating; they are not a spatial
+or timestep convergence study. Stationary M1 and FLD check output after every
+physical step. M1 retains its existing accuracy cap and streaming restriction.
+The preset uses ten solver workers, leaving two cores for rendering under the
+shared twelve-core limit. Render these saved states with `--seconds 60` for a
+one-minute movie; this changes playback without inventing intermediate states.
+
 The prepared index is a local preview. After results complete, regenerate
 comparisons without starting a solver:
 

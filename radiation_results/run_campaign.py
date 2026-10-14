@@ -151,7 +151,7 @@ def snapshot(root, manifest):
     for name in ('configs', 'cpp'):
         shutil.copytree(ROOT / 'radiation_results' / name, source / 'radiation_results' / name)
     for name in ('run_campaign.py', 'compare_campaign.py', 'campaign_movies.py', 'publish_campaign.py',
-                 'campaign_profile_plots.py', 'local-study.json', 'full-study.json'):
+                 'campaign_profile_plots.py', 'local-study.json', 'full-study.json', 'movie-study.json'):
         shutil.copy2(ROOT / 'radiation_results' / name, frozen / name)
     build = Path(manifest['original_build']); results = Path(manifest['original_results_build'])
     shutil.copy2(build / 'CMakeCache.txt', runtime / 'CMakeCache.txt')
@@ -437,8 +437,8 @@ def parser(arguments=None):
     action.add_argument('--start', action='store_true'); action.add_argument('--refresh-only', action='store_true')
     p.add_argument('--run-limit', type=int,
         help='With --resume --start, complete at most N new runs, then return ready without a STOP file')
-    p.add_argument('--preset', choices=('pilot', 'full'), default='pilot',
-        help='pilot: two short cases; full: all eight benchmarks at levels 2, 3 and 4')
+    p.add_argument('--preset', choices=('pilot', 'full', 'movies'), default='pilot',
+        help='pilot: two short cases; full: eight benchmarks; movies: longer Gaussian/Marshak evolution with 121 states')
     p.add_argument('--levels', nargs='+', type=int, choices=range(6), default=[0, 1])
     p.add_argument('--cases', nargs='+', choices=CASES, default=list(PAIRED_CASES))
     p.add_argument('--models', nargs='+', choices=METHODS, default=list(METHODS))
@@ -450,9 +450,9 @@ def parser(arguments=None):
     p.add_argument('--time', type=float, default=.25); p.add_argument('--hard-dt', type=float, default=.03125)
     p.add_argument('--minimum-free-gib', type=float, default=10); p.add_argument('--memory-limit-gib', type=float, default=8)
     selector = argparse.ArgumentParser(add_help=False)
-    selector.add_argument('--preset', choices=('pilot', 'full'), default='pilot')
+    selector.add_argument('--preset', choices=('pilot', 'full', 'movies'), default='pilot')
     selected, _ = selector.parse_known_args(arguments if arguments is not None else [])
-    preset_file = 'full-study.json' if selected.preset == 'full' else 'local-study.json'
+    preset_file = {'pilot': 'local-study.json', 'full': 'full-study.json', 'movies': 'movie-study.json'}[selected.preset]
     preset = json.loads(Path(__file__).with_name(preset_file).read_text())
     if preset.get('schema') != SCHEMA or preset.get('workflow') != WORKFLOW or preset.get('radiation_reduced_c_factor') != 1:
         raise ValueError(f'{preset_file} must describe the physical-c M1/FLD workflow')
