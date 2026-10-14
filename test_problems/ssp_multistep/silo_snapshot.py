@@ -74,7 +74,7 @@ class SiloSnapshot:
         """Return all node payloads keyed by node id, independent of file grouping."""
         path = Path(path)
         metadata = self.read(path, ("restart_version", "restart_groups", "node_list"))
-        if self.integers(metadata["restart_version"]) != (1,):
+        if self.integers(metadata["restart_version"]) not in ((1,), (2,)):
             raise RuntimeError(f"Unsupported exact restart version in {path}")
         node_ids = self.integers(metadata["node_list"])
         groups = self.integers(metadata["restart_groups"])
@@ -97,8 +97,9 @@ class SiloSnapshot:
         return payloads
 
 
-def compare_checkpoints(reader, left, right):
-    metadata_names = ("restart_layout", "restart_globals")
+def compare_checkpoints(reader, left, right, expected_nodes=9):
+    metadata_names = ("restart_layout", "restart_globals",
+                      "restart_solver_integers", "restart_solver_reals")
     before_metadata = reader.read(left, metadata_names)
     after_metadata = reader.read(right, metadata_names)
     for name in metadata_names:
@@ -116,8 +117,8 @@ def compare_checkpoints(reader, left, right):
         raise AssertionError(f"Restart node inventories differ: {left} vs {right}")
     # Level-one test meshes contain eight leaves and their root. Checking the
     # root as well matters: it owns FMM state and multistep timestep metadata.
-    if len(before) != 9:
-        raise AssertionError(f"Expected all 9 node archives, found {len(before)} in {left}")
+    if expected_nodes is not None and len(before) != expected_nodes:
+        raise AssertionError(f"Expected all {expected_nodes} node archives, found {len(before)} in {left}")
     differences = []
     for node_id in sorted(before):
         a, b = before[node_id], after[node_id]

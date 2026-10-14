@@ -10,6 +10,7 @@
 #include "octotiger/diagnostics.hpp"
 #include "octotiger/future.hpp"
 #include "octotiger/grid.hpp"
+#include "octotiger/ssp_history_amr.hpp"
 #include "octotiger/node_server.hpp"
 #include "octotiger/options.hpp"
 #include "octotiger/problem.hpp"
@@ -790,7 +791,195 @@ std::vector<real> grid::get_prolong(const std::array<integer, NDIM> &lb, const s
 	return data;
 }
 
-std::vector<real> grid::get_restrict() const {
+bool grid::has_ssp_history() const {
+    if (ssp_previous_u.empty() && ssp_previous_rhs.empty()) {
+        return false;
+    }
+    const size_t fields = opts().n_fields;
+    const size_t cells = INX * INX * INX;
+    if (ssp_previous_u.size() != fields || ssp_previous_rhs.size() != fields
+            || ssp_previous_out.size() != fields || ssp_previous_out_rhs.size() != fields) {
+        throw std::runtime_error("Incomplete SSP history fields");
+    }
+    for (size_t field = 0; field < fields; ++field) {
+        if (ssp_previous_u[field].size() != cells || ssp_previous_rhs[field].size() != cells) {
+            throw std::runtime_error("Incomplete SSP history cells");
+        }
+    }
+    return true;
+}
+
+std::vector<real> grid::get_ssp_prolong(integer child, real previous_fe_dt) const {
+    if (!has_ssp_history()) {
+        return {};
+    }
+    const size_t cells = INX * INX * INX;
+    const size_t fields = opts().n_fields;
+    std::vector<real> data(2 * fields * (cells + 1), ZERO);
+    const int i0 = (child & 1) * (INX / 2);
+    const int j0 = ((child >> 1) & 1) * (INX / 2);
+    const int k0 = ((child >> 2) & 1) * (INX / 2);
+    std::vector<ssp_multistep::prolonged_history_cell> values(fields);
+    for (int i = 0; i < INX / 2; ++i) {
+        for (int j = 0; j < INX / 2; ++j) {
+            for (int k = 0; k < INX / 2; ++k) {
+                const std::array<int, 3> coarse = {i + i0, j + j0, k + k0};
+                const int center = h0index(coarse[0], coarse[1], coarse[2]);
+                for (size_t field = 0; field < fields; ++field) {
+                    values[field] = ssp_multistep::prolong_history_cell(
+                        ssp_previous_u[field], ssp_previous_rhs[field], INX, coarse);
+                }
+                // Species use their own historical stencils. Reconstruct the
+                // density increment from their sum, preserving both coarse
+                // means and the rho=sum(species) relation for the whole pair.
+                for (int subcell = 0; subcell < NCHILD; ++subcell) {
+                    values[rho_i].state[subcell] = ssp_previous_u[rho_i][center];
+                    values[rho_i].rhs[subcell] = ssp_previous_rhs[rho_i][center];
+                    for (int species = 0; species < opts().n_species; ++species) {
+                        const int field = spc_i + species;
+                        values[rho_i].state[subcell] += values[field].state[subcell]
+                            - double(ssp_previous_u[field][center]);
+                        values[rho_i].rhs[subcell] += values[field].rhs[subcell]
+                            - double(ssp_previous_rhs[field][center]);
+                    }
+                }
+                double theta = 1.0;
+                for (size_t field = 0; field < fields; ++field) {
+                    if (field == rho_i || field == tau_i || field >= spc_i) {
+                        theta = std::min(theta, ssp_multistep::history_pair_positivity_factor(
+                            values[field], double(ssp_previous_u[field][center]),
+                            double(ssp_previous_rhs[field][center]), double(previous_fe_dt)));
+                    }
+                }
+                // When the coarse ideal-gas state/endpoint has positive
+                // thermal energy, protect that convex admissible set too.
+                // A dual-energy state whose conservative thermal energy is
+                // already negative cannot be repaired by slope scaling.
+                if (opts().eos == IDEAL) {
+                    const auto thermal_ok = [&](int subcell, double fraction, double duration) {
+                        const auto value = [&](int field) {
+                            const double mean = double(ssp_previous_u[field][center])
+                                + duration * double(ssp_previous_rhs[field][center]);
+                            const double fine = values[field].state[subcell]
+                                + duration * values[field].rhs[subcell];
+                            return mean + fraction * (fine - mean);
+                        };
+                        const double rho = value(rho_i);
+                        const double sx = value(sx_i), sy = value(sy_i), sz = value(sz_i);
+                        return ssp_multistep::ideal_gas_history_admissible(
+                            rho, value(egas_i), sx, sy, sz);
+                    };
+                    for (const double duration : {0.0, double(previous_fe_dt)}) {
+                        if (thermal_ok(0, 0.0, duration)) {
+                            for (int subcell = 0; subcell < NCHILD; ++subcell) {
+                                if (!thermal_ok(subcell, theta, duration)) {
+                                    double lower = 0.0, upper = theta;
+                                    for (int iteration = 0; iteration < 48; ++iteration) {
+                                        const double middle = 0.5 * (lower + upper);
+                                        if (thermal_ok(subcell, middle, duration)) {
+                                            lower = middle;
+                                        } else {
+                                            upper = middle;
+                                        }
+                                    }
+                                    theta = lower;
+                                }
+                            }
+                        }
+                    }
+                }
+                // One factor for every field and both histories preserves
+                // parent means, species consistency and the paired map.
+                for (size_t field = 0; field < fields; ++field) {
+                    const double mean = ssp_previous_u[field][center];
+                    const double mean_rhs = ssp_previous_rhs[field][center];
+                    for (int subcell = 0; subcell < NCHILD; ++subcell) {
+                        const size_t index = h0index(2 * i + (subcell & 1),
+                            2 * j + ((subcell >> 1) & 1), 2 * k + ((subcell >> 2) & 1));
+                        data[field * cells + index] = mean
+                            + theta * (values[field].state[subcell] - mean);
+                        data[(fields + field) * cells + index] = mean_rhs
+                            + theta * (values[field].rhs[subcell] - mean_rhs);
+                    }
+                }
+            }
+        }
+    }
+    if (child == 0) {
+        // Outflows are integrated amounts: distribute each ledger once.
+        for (size_t field = 0; field < fields; ++field) {
+            data[2 * fields * cells + field] = ssp_previous_out[field];
+            data[2 * fields * cells + fields + field] = ssp_previous_out_rhs[field];
+        }
+    }
+    return data;
+}
+
+void grid::redistribute_ssp_angular_momentum(std::vector<std::vector<safe_real>>& values) {
+    // The same linear intrinsic-angular-momentum redistribution as set_prolong,
+    // applied to both members of the historical state/derivative pair.
+    for (int i = 0; i < INX; i += 2) {
+        for (int j = 0; j < INX; j += 2) {
+            for (int k = 0; k < INX; k += 2) {
+                std::array<real, NDIM> intrinsic{};
+                for (int child = 0; child < NCHILD; ++child) {
+                    const int x = i + (child & 1);
+                    const int y = j + ((child >> 1) & 1);
+                    const int z = k + ((child >> 2) & 1);
+                    const int c = h0index(x, y, z);
+                    const int h = hindex(x + H_BW, y + H_BW, z + H_BW);
+                    intrinsic[0] += (values[lx_i][c] - X[1][h] * values[sz_i][c]
+                        + X[2][h] * values[sy_i][c]) / real(NCHILD);
+                    intrinsic[1] += (values[ly_i][c] + X[0][h] * values[sz_i][c]
+                        - X[2][h] * values[sx_i][c]) / real(NCHILD);
+                    intrinsic[2] += (values[lz_i][c] - X[0][h] * values[sy_i][c]
+                        + X[1][h] * values[sx_i][c]) / real(NCHILD);
+                }
+                for (int child = 0; child < NCHILD; ++child) {
+                    const int x = i + (child & 1);
+                    const int y = j + ((child >> 1) & 1);
+                    const int z = k + ((child >> 2) & 1);
+                    const int c = h0index(x, y, z);
+                    const int h = hindex(x + H_BW, y + H_BW, z + H_BW);
+                    values[lx_i][c] = intrinsic[0] + X[1][h] * values[sz_i][c] - X[2][h] * values[sy_i][c];
+                    values[ly_i][c] = intrinsic[1] - X[0][h] * values[sz_i][c] + X[2][h] * values[sx_i][c];
+                    values[lz_i][c] = intrinsic[2] + X[0][h] * values[sy_i][c] - X[1][h] * values[sx_i][c];
+                }
+            }
+        }
+    }
+}
+
+void grid::set_ssp_prolong(const std::vector<real>& data) {
+    if (data.empty()) {
+        ssp_previous_u.clear();
+        ssp_previous_rhs.clear();
+        ssp_previous_out.clear();
+        ssp_previous_out_rhs.clear();
+        return;
+    }
+    const size_t cells = INX * INX * INX;
+    const size_t fields = opts().n_fields;
+    if (data.size() != 2 * fields * (cells + 1)) {
+        throw std::runtime_error("Invalid prolonged SSP history size");
+    }
+    ssp_previous_u.assign(fields, std::vector<safe_real>(cells));
+    ssp_previous_rhs.assign(fields, std::vector<safe_real>(cells));
+    ssp_previous_out.resize(fields);
+    ssp_previous_out_rhs.resize(fields);
+    for (size_t field = 0; field < fields; ++field) {
+        for (size_t cell = 0; cell < cells; ++cell) {
+            ssp_previous_u[field][cell] = data[field * cells + cell];
+            ssp_previous_rhs[field][cell] = data[(fields + field) * cells + cell];
+        }
+        ssp_previous_out[field] = data[2 * fields * cells + field];
+        ssp_previous_out_rhs[field] = data[2 * fields * cells + fields + field];
+    }
+    redistribute_ssp_angular_momentum(ssp_previous_u);
+    redistribute_ssp_angular_momentum(ssp_previous_rhs);
+}
+
+std::vector<real> grid::get_restrict(bool include_ssp_history) const {
 	ENABLE_THREAD_DEBUG();
 	integer Size = opts().n_fields * INX * INX * INX / NCHILD + opts().n_fields;
 	std::vector<real> data;
@@ -815,6 +1004,31 @@ std::vector<real> grid::get_restrict() const {
 			}
 		}
 	}
+    if (include_ssp_history) {
+        const bool present = has_ssp_history();
+        data.push_back(present ? ONE : ZERO);
+        if (present) {
+            for (const auto* values : {&ssp_previous_u, &ssp_previous_rhs}) {
+                for (integer field = 0; field < opts().n_fields; ++field) {
+                    for (integer i = 0; i < INX; i += 2) {
+                        for (integer j = 0; j < INX; j += 2) {
+                            for (integer k = 0; k < INX; k += 2) {
+                                real average = ZERO;
+                                for (integer child = 0; child < NCHILD; ++child) {
+                                    average += (*values)[field][h0index(i + (child & 1),
+                                        j + ((child >> 1) & 1), k + ((child >> 2) & 1))];
+                                }
+                                data.push_back(average / real(NCHILD));
+                            }
+                        }
+                    }
+                }
+            }
+            data.insert(data.end(), ssp_previous_out.begin(), ssp_previous_out.end());
+            data.insert(data.end(), ssp_previous_out_rhs.begin(), ssp_previous_out_rhs.end());
+        }
+    }
+    // The existing interlevel exchange reads current outflows from the tail.
 	for (integer field = 0; field != opts().n_fields; ++field) {
 		data.push_back(U_out[field]);
 	}
@@ -839,6 +1053,47 @@ void grid::set_restrict(const std::vector<real> &data, const geo::octant &octant
 			}
 		}
 	}
+    const size_t fields = opts().n_fields;
+    const size_t coarse_cells = INX * INX * INX / NCHILD;
+    const size_t ordinary_size = fields * (coarse_cells + 1);
+    if (data.size() != ordinary_size) {
+        const bool present = data.at(index++) == ONE;
+        const size_t expected_size = ordinary_size + 1
+            + (present ? 2 * fields * (coarse_cells + 1) : 0);
+        if (data.size() != expected_size) {
+            throw std::runtime_error("Invalid restricted SSP history size");
+        }
+        if (!present) {
+            ssp_previous_u.clear();
+            ssp_previous_rhs.clear();
+            ssp_previous_out.clear();
+            ssp_previous_out_rhs.clear();
+        } else {
+            for (auto* values : {&ssp_previous_u, &ssp_previous_rhs}) {
+                values->resize(fields);
+                for (size_t field = 0; field < fields; ++field) {
+                    (*values)[field].resize(INX * INX * INX);
+                    for (integer i = 0; i < INX / 2; ++i) {
+                        for (integer j = 0; j < INX / 2; ++j) {
+                            for (integer k = 0; k < INX / 2; ++k) {
+                                (*values)[field][h0index(i + i0, j + j0, k + k0)] = data[index++];
+                            }
+                        }
+                    }
+                }
+            }
+            // The receiving node zeroes these integrated ledgers once before
+            // collecting its eight children, then each child contributes once.
+            for (auto* out : {&ssp_previous_out, &ssp_previous_out_rhs}) {
+                if (out->size() != fields) {
+                    throw std::runtime_error("Uninitialized restricted SSP outflow ledger");
+                }
+                for (size_t field = 0; field < fields; ++field) {
+                    (*out)[field] += data[index++];
+                }
+            }
+        }
+    }
 }
 
 void grid::set_hydro_boundary(const std::vector<real> &data, const geo::direction &dir, bool energy_only) {
@@ -2269,6 +2524,11 @@ void grid::next_u(integer rk, real t, real dt,
     if (save_ssp_history && rk == 0) {
         ssp_initial_rhs = dUdt;
     }
+    // Evaluate the historical Euler duration once, in extended precision.
+    // v5 can exceed the double range for a very large timestep decrease,
+    // while dt*v5 remains bounded by the historical forward-Euler limit.
+    const real historical_dt = coefficients == nullptr || coefficients->c5 == 0.0 ? 0.0
+        : static_cast<real>(coefficients->v5 * dt);
 
 	std::vector<real> du_out(opts().n_fields, ZERO);
 
@@ -2292,7 +2552,7 @@ void grid::next_u(integer rk, real t, real dt,
                             U[field][iii] = c.c1 * forward + c.c2 * previous;
                         } else {
                             U[field][iii] = c.c3 * u0 + c.c4 * forward
-                                + c.c5 * (previous + c.v5 * dt * ssp_previous_rhs[field][iii0]);
+                                + c.c5 * (previous + historical_dt * ssp_previous_rhs[field][iii0]);
                         }
                     }
 				}
@@ -2360,7 +2620,7 @@ void grid::next_u(integer rk, real t, real dt,
             } else {
                 U_out[field] = c.c3 * out0 + c.c4 * forward
                     + c.c5 * (ssp_previous_out[field]
-                        + c.v5 * dt * ssp_previous_out_rhs[field]);
+                        + historical_dt * ssp_previous_out_rhs[field]);
             }
         }
 	}

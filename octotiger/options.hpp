@@ -32,14 +32,21 @@ enum problem_type : integer {
     MOVING_STAR = 6,
     ROTATING_STAR = 8,
     AMR_TEST = 10,
-    ADVECTION = 11
+    ADVECTION = 11,
+    AMR_ADVECTION = 22
 };
+
+// Early non-radiative AMR pulse checkpoints used 12, which is reserved for
+// RADIATION_DIFFUSION on radiation-capable branches. New files always use 22.
+inline problem_type problem_type_from_checkpoint(integer value, bool radiation) {
+    return value == 12 && !radiation ? AMR_ADVECTION : static_cast<problem_type>(value);
+}
 
 inline constexpr std::pair<problem_type, const char*> problem_names[] = {
     {DWD, "DWD"}, {SOD, "SOD"}, {BLAST, "BLAST"}, {NONE, "NONE"},
     {SOLID_SPHERE, "SOLID_SPHERE"}, {STAR, "STAR"},
     {MOVING_STAR, "MOVING_STAR"}, {ROTATING_STAR, "ROTATING_STAR"},
-    {AMR_TEST, "AMR_TEST"}, {ADVECTION, "ADVECTION"}
+    {AMR_TEST, "AMR_TEST"}, {ADVECTION, "ADVECTION"}, {AMR_ADVECTION, "AMR_ADVECTION"}
 };
 
 inline std::istream& operator>>(std::istream& in, problem_type& problem) {

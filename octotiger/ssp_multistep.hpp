@@ -11,13 +11,16 @@
 namespace ssp_multistep {
 
 struct coefficients {
-    double c1, c2, c3, c4, c5, v, v5;
+    double c1, c2, c3, c4, c5, v;
+    // h*v5 stays finite even when previous_dt/h exceeds the double range.
+    // Form that duration once before applying coefficients to field arrays.
+    long double v5;
 };
 
-// Avoid the singular limit alpha -> 1/2 and excessive timestep decreases.
-// Outside this interval the caller starts fresh with SSPRK3.
-constexpr double minimum_alpha = 0.7;
-constexpr double maximum_alpha = 4.0;
+// Keep a margin from the singular alpha=1/2 boundary. Decreases have no
+// artificial ratio limit; both forward-Euler bounds still apply.
+constexpr double maximum_growth = 1.9;
+constexpr double minimum_alpha = 1.0 / maximum_growth;
 
 namespace detail {
 
@@ -84,29 +87,33 @@ inline bool from_c4(double alpha, double c4, coefficients& result) {
     return true;
 }
 
-// The nonlinear third-order conditions give
-//   c1 = 1 - (v/(alpha+v))^2,
-//   c4 = (alpha+1)^2 (alpha+v)^2 /
-//        (2 alpha^2 v (alpha+2v)^2).
-// The SSP boundary c3=0 has the positive root used below. Zero is a valid
-// convex weight. This evaluates the paper's family exactly instead of using
-// its empirical c4 curve fit, which can produce negative weights.
-inline bool make_coefficients(double alpha, coefficients& result) {
-    if (!std::isfinite(alpha) || alpha < minimum_alpha || alpha > maximum_alpha) {
+// Use z=v/(alpha+v), rather than subtracting c4 from one or evaluating
+// powers of alpha. This retains the small historical weights for large alpha.
+namespace detail {
+
+inline bool make_coefficients_from_ratio(long double alpha, coefficients& result) {
+    if (!std::isfinite(alpha) || alpha < minimum_alpha) {
         return false;
     }
-    const long double a = alpha;
-    const long double v = a / (std::sqrt(a * a + 2) + a - 2);
-    const long double z = v / (a + v);
+    const long double s = 1 / alpha;
+    const long double root = std::sqrt(1 + 2 * s * s);
+    const long double z = s / (root + 1 - s);
+    const long double d = 1 + z * (2 - z);
+    const long double a = 1 + z * (4 + z);
+    const long double b = 2 + z * (1 - z) * (1 - z);
+    const long double p = 5 + z * (15 + z * (-6 + z * (-2 + z * (5 - z))));
+    const long double denominator = (1 + z) * d * d * d;
     coefficients c;
     c.c2 = static_cast<double>(z * z);
     c.c1 = 1 - c.c2;
     c.c3 = 0;
-    c.c4 = static_cast<double>(detail::c4_from_v(a, v));
-    c.c5 = 1 - c.c4;
-    c.v = static_cast<double>(v);
-    c.v5 = static_cast<double>(detail::previous_derivative_weight(a, v) / c.c5);
-    if (!detail::finite(c) || c.c1 < 0 || c.c2 < 0 || c.c4 < 0 || c.c5 <= 0 ||
+    c.c4 = static_cast<double>((1 - z) * a * a / denominator);
+    c.c5 = static_cast<double>(z * z * p / denominator);
+    c.v = static_cast<double>(1 / (root + 1 - 2 * s));
+    c.v5 = alpha * (a * b / p);
+    // c2 and c5 may round to zero at extreme ratios. v5 is evaluated
+    // independently, so this limiting rounding never divides by zero.
+    if (!finite(c) || c.c1 < 0 || c.c2 < 0 || c.c4 < 0 || c.c5 < 0 ||
         c.v <= 0 || c.v5 < 0) {
         return false;
     }
@@ -114,43 +121,76 @@ inline bool make_coefficients(double alpha, coefficients& result) {
     return true;
 }
 
-// Return the largest supported timestep no larger than requested_dt, or zero
-// when history cannot safely be used and the caller must take an SSPRK3 step.
-// The FE limits belong to F(y_n) and the cached F(y_{n-1}), respectively.
-// The stage derivative must satisfy the same current FE limit.
+} // namespace detail
+
+inline bool make_coefficients(double alpha, coefficients& result) {
+    return detail::make_coefficients_from_ratio(alpha, result);
+}
+
+// Taking the ratio in extended precision also supports finite timesteps whose
+// ratio exceeds the double range. The physical growth cap is checked before
+// converting to alpha, including at subnormal timestep scales.
+inline bool make_step_coefficients(double previous_dt, double dt, coefficients& result) {
+    if (!(previous_dt > 0) || !std::isfinite(previous_dt) ||
+        !(dt > 0) || !std::isfinite(dt) ||
+        static_cast<long double>(dt) > static_cast<long double>(previous_dt) * maximum_growth) {
+        return false;
+    }
+    return detail::make_coefficients_from_ratio(
+        static_cast<long double>(previous_dt) / dt, result);
+}
+
+// For the production c3=0 family, c1*v-alpha*c2 = (1+2z-z*z)/(2*(1+z)).
+// This avoids multiplying an overflowing double ratio by a tiny weight.
+inline double stage_abscissa(const coefficients& c) {
+    const double z = std::sqrt(c.c2);
+    return (1 + z * (2 - z)) / (2 * (1 + z));
+}
+
+// Return the largest representable supported timestep no larger than requested.
+// The old Euler duration h*v5 approaches 2*previous_dt/5 as h tends to zero;
+// an insufficient historical FE bound can therefore still require RK3.
 inline double select_step(double previous_dt, double requested_dt,
     double current_fe, double previous_fe) {
     if (!(previous_dt > 0) || !std::isfinite(previous_dt) ||
         !(requested_dt > 0) || !std::isfinite(requested_dt) ||
-        !(current_fe > 0) || !(previous_fe > 0)) {
+        !(current_fe > 0) || !(previous_fe > 0) ||
+        static_cast<long double>(previous_fe) <= 0.4L * previous_dt) {
         return 0;
     }
-    double lower = previous_dt / maximum_alpha;
-    double upper = std::min(requested_dt, previous_dt / minimum_alpha);
-    if (previous_dt / lower > maximum_alpha) {
-        lower = std::nextafter(lower, std::numeric_limits<double>::infinity());
-    }
-    if (previous_dt / upper < minimum_alpha) {
+    // v >= 1/2, so 2*current_fe is also an upper bound. This avoids a search
+    // across the whole exponent range after a sudden reduction in the CFL limit.
+    const long double cap = std::min(static_cast<long double>(requested_dt),
+        std::min(static_cast<long double>(previous_dt) * maximum_growth,
+            2 * static_cast<long double>(current_fe)));
+    double upper = static_cast<double>(cap);
+    if (static_cast<long double>(upper) > cap) {
         upper = std::nextafter(upper, 0.0);
     }
-    if (!(lower > 0) || lower > upper) {
+    if (!(upper > 0)) {
         return 0;
     }
     const auto admissible = [=](double dt) {
         coefficients c;
-        return make_coefficients(previous_dt / dt, c) && dt * c.v <= current_fe &&
-            dt * c.v5 <= previous_fe;
+        return make_step_coefficients(previous_dt, dt, c) &&
+            static_cast<long double>(dt) * c.v <= current_fe &&
+            static_cast<long double>(dt) * c.v5 <= previous_fe;
     };
-    if (!admissible(lower)) {
-        return 0;
-    }
     if (admissible(upper)) {
         return upper;
     }
-    // Both dt*v and dt*v5 increase with dt on the supported branch. For the
-    // latter, put z=v/(alpha+v), which increases with dt. The numerator of
-    // d(v5/alpha)/dz has positive Bernstein coefficients on [0,1]:
-    // 15,23,226/7,282/7,1572/35,316/7,296/7,40,48.
+    // First find a positive admissible point, with no scale-dependent floor.
+    // Each halving removes at least one binary exponent until subnormals end.
+    double lower = upper / 2;
+    while (lower > 0 && !admissible(lower)) {
+        upper = lower;
+        lower /= 2;
+    }
+    if (!(lower > 0)) {
+        return 0;
+    }
+    // Both Euler durations increase with h on 0<h/previous_dt<=1.9. The
+    // bracket now spans a factor of two, so 64 bisections resolve double ulps.
     for (int i = 0; i < 64; ++i) {
         const double middle = lower + (upper - lower) / 2;
         if (middle == lower || middle == upper) {

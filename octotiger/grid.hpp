@@ -133,7 +133,7 @@ private:
 	std::vector<std::vector<safe_real>> U0;
 	std::vector<std::vector<safe_real>> dUdt;
     // Completed-step histories survive migration and exact Silo restart.
-    // Scheduled mesh/batch boundaries still bootstrap collectively.
+    // Conservatively transferred at mesh changes; no batch reset is needed.
     std::vector<std::vector<safe_real>> ssp_previous_u;
     std::vector<std::vector<safe_real>> ssp_previous_rhs;
     std::vector<std::vector<safe_real>> ssp_initial_rhs;
@@ -288,7 +288,11 @@ public:
 	std::pair<std::vector<real>, std::vector<real> > field_range() const;
 	void velocity_inc(const space_vector& dv);
 	void energy_adj();
-	std::vector<real> get_restrict() const;
+	std::vector<real> get_restrict(bool include_ssp_history = false) const;
+    bool has_ssp_history() const;
+    std::vector<real> get_ssp_prolong(integer child, real previous_fe_dt) const;
+    void set_ssp_prolong(const std::vector<real>& data);
+    void redistribute_ssp_angular_momentum(std::vector<std::vector<safe_real>>& values);
 	std::vector<real> get_flux_restrict(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub,
 			const geo::dimension&) const;
 	std::vector<real> get_prolong(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub);

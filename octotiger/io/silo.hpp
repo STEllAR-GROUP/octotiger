@@ -134,7 +134,7 @@ double& silo_output_rotation_time();
 
 // Raw restart records are separate from the CGS visualization variables.
 namespace silo_restart {
-constexpr integer format_version = 1;
+constexpr integer format_version = 2;
 
 struct metadata {
     std::vector<integer> layout;

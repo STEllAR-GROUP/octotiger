@@ -163,8 +163,8 @@ public:
 	integer get_step_num() const {
 		return step_num;
 	}
-	void exchange_interlevel_hydro_data();
-	void all_hydro_bounds();
+	void exchange_interlevel_hydro_data(bool include_ssp_history = false);
+	void all_hydro_bounds(bool include_ssp_history = false);
 	void energy_hydro_bounds();
 	static bool child_is_on_face(integer ci, integer face) {
 		return (((ci >> (face / 2)) & 1) == (face & 1));
@@ -240,7 +240,8 @@ public:
 
 	void execute_solver(bool scf, node_count_type);
 
-	void set_grid(const std::vector<real>&, std::vector<real>&&);/**/
+	void set_grid(const std::vector<real>&, std::vector<real>&&,
+        const std::vector<real>& history, real previous_dt, real previous_fe_dt);/**/
 	HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, set_grid, set_grid_action);
 
 	hpx::future<void> timestep_driver_descend();

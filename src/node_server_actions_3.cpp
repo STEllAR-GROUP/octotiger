@@ -711,9 +711,12 @@ void node_server::multistep_step() {
         throw std::runtime_error("SSP_MULTISTEP requires a finite positive timestep");
     }
 
+    if (dt_.use_ssp_multistep && !is_refined && !grid_ptr->has_ssp_history()) {
+        throw std::runtime_error("Globally selected SSP step has missing leaf history");
+    }
     ssp_multistep::coefficients coefficients{};
     if (dt_.use_ssp_multistep
-            && !ssp_multistep::make_coefficients(ssp_previous_dt / dt_.dt, coefficients)) {
+            && !ssp_multistep::make_step_coefficients(ssp_previous_dt, dt_.dt, coefficients)) {
         throw std::runtime_error("Invalid globally selected SSP_MULTISTEP coefficients");
     }
     const integer stages = dt_.use_ssp_multistep ? 2 : NRK;
@@ -725,8 +728,7 @@ void node_server::multistep_step() {
             }
             real abscissa = 0.0;
             if (dt_.use_ssp_multistep && stage == 1) {
-                abscissa = coefficients.c1 * coefficients.v
-                    - coefficients.c2 * ssp_previous_dt / dt_.dt;
+                abscissa = ssp_multistep::stage_abscissa(coefficients);
             } else if (!dt_.use_ssp_multistep) {
                 constexpr real rk_time[] = {0.0, 1.0, 0.5};
                 abscissa = rk_time[stage];
@@ -856,12 +858,7 @@ future<real> node_server::local_step(integer steps) {
 }
 
 future<real> node_server::step(integer steps) {
-    // Scheduled batch boundaries follow regridding and require fresh history.
-    // A checkpoint inside a batch preserves the preceding state and derivative.
-    if (step_num % refinement_freq() == 0) {
-        ssp_previous_dt = 0.0;
-        ssp_previous_fe_dt = 0.0;
-    }
+    // Regridding transfers completed history, including at batch boundaries.
 	grid_ptr->set_coordinates();
 
 	std::array<future<void>, NCHILD> child_futs;

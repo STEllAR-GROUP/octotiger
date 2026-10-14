@@ -82,7 +82,8 @@ void write_metadata(DBfile* db, const metadata& data) {
 }
 
 void restore_metadata(DBfile* db) {
-    if (read_array<integer>(db, "restart_version", 1)[0] != format_version) {
+    const auto version = read_array<integer>(db, "restart_version", 1)[0];
+    if (version != 1 && version != format_version) {
         throw std::runtime_error("Unsupported exact Silo checkpoint version");
     }
     if (opts().time_integrator != SSP_MULTISTEP) {
@@ -90,8 +91,18 @@ void restore_metadata(DBfile* db) {
     }
     const auto current = snapshot();
     const auto layout = read_array<integer>(db, "restart_layout", current.layout.size());
-    const auto integers = read_array<integer>(db, "restart_solver_integers",
+    auto integers = read_array<integer>(db, "restart_solver_integers",
         current.solver_integers.size());
+    const bool radiation = DBInqVarExists(db, "radiation") > 0
+        && read_array<integer>(db, "radiation", 1)[0] != 0;
+    if (radiation) {
+        throw std::runtime_error("This branch does not support radiation transport restarts");
+    }
+    const integer stored_problem = read_array<integer>(db, "problem", 1)[0];
+    if (integers[4] != stored_problem) {
+        throw std::runtime_error("Exact checkpoint problem metadata is inconsistent");
+    }
+    integers[4] = integer(problem_type_from_checkpoint(stored_problem, radiation));
     const auto reals = read_array<real>(db, "restart_solver_reals", current.solver_reals.size());
     const auto globals = read_array<real>(db, "restart_globals", current.globals.size());
     if (layout != current.layout || integers != current.solver_integers ||

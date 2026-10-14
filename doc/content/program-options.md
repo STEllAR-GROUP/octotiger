@@ -30,20 +30,27 @@ new stage density. It uses the exact nonnegative coefficient boundary (`c3 = 0`)
 of the manuscript's coefficient family in place of its empirical `c4` fit.
 
 With `alpha = previous_dt / current_dt`, the supported multistep range is
-`0.7 <= alpha <= 4`. The timestep selector respects `hard_dt`, the stop time,
+`alpha >= 1/1.9`: timestep growth is capped at 1.9, with no artificial decrease
+limit. The timestep selector respects `hard_dt`, the stop time,
 and the forward-Euler limits from both the current and cached derivatives:
 `current_dt * v <= current_FE_limit` and
 `current_dt * v5 <= previous_FE_limit`. The forward-Euler estimate uses the
 existing `cfl * dx / wavespeed` calculation. As with SSPRK3, the SSP guarantee
 requires that the spatial operator is stable under this forward-Euler bound.
 
-The first step at each scheduled batch boundary uses RK3 to initialize history
-after regridding. Migration preserves histories. Restarting inside a batch
-continues with the saved history and original batch phase; it does not add an
-RK3 startup step. A step whose history or timestep ratio is unsuitable uses RK3. The log reports
+A fresh run uses RK3 once to initialize history. Refinement conservatively
+interpolates the previous state and complete derivative, coarsening averages
+them, and integrated outflow histories are transferred consistently. Migration
+and exact restart preserve this history, including at batch/regrid boundaries.
+A step with missing history or no admissible positive timestep uses RK3. The log reports
 `SSP_MULTISTEP stages=2 alpha=...` for multistep updates and `stages=3` for RK3
 startup or fallback. Two stages reduce right-hand-side evaluations on those
 steps; timestep restrictions and startup frequency determine the total cost.
 
 See [SSP multistep integration](ssp-multistep.md) for the coefficients, gravity
 energy accounting, history lifetime, stability assumptions, and tests.
+The dedicated `--problem=AMR_ADVECTION` verification problem transports a
+smooth compact density pulse at unit x velocity with constant pressure.
+`--refinement_floor` controls its density-based moving refinement region.
+See `test_problems/ssp_multistep/amr_accuracy.py` for the complete validation
+configuration, exact cell-average reference, and checkpoint checks.

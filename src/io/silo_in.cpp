@@ -117,11 +117,11 @@ void load_options_from_silo(std::string fname, DBfile *db, bool restore_integrat
             if (exact) {
                 const auto version = silo_restart::read_array<integer>(db, "restart_version", 1)[0];
                 exact_layout = silo_restart::read_array<integer>(db, "restart_layout", 7);
-                if (restore_integrator && version == silo_restart::format_version) {
+                if (restore_integrator && (version == 1 || version == silo_restart::format_version)) {
                     opts().time_integrator = SSP_MULTISTEP;
                 }
-                if (version != silo_restart::format_version || opts().time_integrator != SSP_MULTISTEP) {
-                    throw std::runtime_error("Exact checkpoint requires format 1 and --time_integrator=SSP_MULTISTEP");
+                if ((version != 1 && version != silo_restart::format_version) || opts().time_integrator != SSP_MULTISTEP) {
+                    throw std::runtime_error("Exact checkpoint requires supported format 1 or 2 and --time_integrator=SSP_MULTISTEP");
                 }
                 if (exact_layout[0] != NDIM || exact_layout[1] != INX || exact_layout[2] != H_NX ||
                         exact_layout[4] <= 0 || exact_layout[4] > 1024 ||
@@ -154,10 +154,11 @@ void load_options_from_silo(std::string fname, DBfile *db, bool restore_integrat
 			opts().hydro = ri(db, "hydro");
 			opts().omega = rr(db, "omega") * opts().code_to_s;
 			opts().output_dt = rr(db, "output_frequency");
-			opts().problem = problem_type(ri(db, "problem"));
-			if (DBInqVarExists(db, "radiation") && ri(db, "radiation") != 0) {
-				throw std::runtime_error("This branch does not support radiation transport restarts");
-			}
+            const bool radiation = DBInqVarExists(db, "radiation") && ri(db, "radiation") != 0;
+            if (radiation) {
+                throw std::runtime_error("This branch does not support radiation transport restarts");
+            }
+            opts().problem = problem_type_from_checkpoint(ri(db, "problem"), radiation);
 			opts().refinement_floor = rr(db, "refinement_floor");
 			opts().xscale = rr(db, "xscale");
 			opts().atomic_number.resize(opts().n_species);

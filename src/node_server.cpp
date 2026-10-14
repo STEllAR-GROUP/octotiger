@@ -157,8 +157,8 @@ future<void> node_server::exchange_flux_corrections() {
 	}, "node_server::exchange_flux_corrections::sync"));
 }
 
-void node_server::all_hydro_bounds() {
-	exchange_interlevel_hydro_data(); // bottom up step
+void node_server::all_hydro_bounds(bool include_ssp_history) {
+	exchange_interlevel_hydro_data(include_ssp_history); // bottom up step
 	collect_hydro_boundaries(); // interlevel step
 	send_hydro_amr_boundaries(); // up-down step
 	++hcycle;
@@ -171,12 +171,29 @@ void node_server::energy_hydro_bounds() {
 	++hcycle;
 }
 
-void node_server::exchange_interlevel_hydro_data() {
+void node_server::exchange_interlevel_hydro_data(bool include_ssp_history) {
   hpx::annotated_function([&]() {
     if (is_refined) {
       std::vector<real> outflow(opts().n_fields, ZERO);
+      bool first_history = true, have_history = false;
+      if (include_ssp_history) {
+          grid_ptr->ssp_previous_out.assign(opts().n_fields, ZERO);
+          grid_ptr->ssp_previous_out_rhs.assign(opts().n_fields, ZERO);
+      }
       for (auto const &ci : geo::octant::full_set()) {
         auto data = GET(child_hydro_channels[ci].get_future(hcycle));
+        if (include_ssp_history) {
+            const size_t marker = size_t(opts().n_fields) * INX * INX * INX / NCHILD;
+            if (data.size() <= marker || (data[marker] != ZERO && data[marker] != ONE)) {
+                throw std::runtime_error("Invalid restricted SSP history marker");
+            }
+            const bool child_history = data[marker] == ONE;
+            if (!first_history && child_history != have_history) {
+                throw std::runtime_error("Inconsistent SSP histories among siblings");
+            }
+            first_history = false;
+            have_history = child_history;
+        }
         grid_ptr->set_restrict(data, ci);
         integer fi = 0;
         for (auto i = data.end() - opts().n_fields; i != data.end(); ++i) {
@@ -186,7 +203,7 @@ void node_server::exchange_interlevel_hydro_data() {
       }
       grid_ptr->set_outflows(std::move(outflow));
     }
-    auto data = grid_ptr->get_restrict();
+    auto data = grid_ptr->get_restrict(include_ssp_history);
     integer ci = my_location.get_child_index();
     if (my_location.level() != 0) {
       parent.send_hydro_children(std::move(data), ci, hcycle);
@@ -595,7 +612,7 @@ node_server::node_server(const node_location &_my_location, integer _step_num, b
 std::vector<char> node_server::save_checkpoint() const {
     std::vector<char> data;
     hpx::serialization::output_archive archive(data);
-    const integer schema = 1;
+    const integer schema = 2;
     const integer cells = INX;
     const integer fields = opts().n_fields;
     const bool refined = is_refined;
@@ -613,12 +630,16 @@ void node_server::load_checkpoint(const std::vector<char>& data) {
     node_location::node_id location = 0;
     bool refined = false;
     archive >> schema >> cells >> fields >> location;
-    if (schema != 1 || cells != INX || fields != opts().n_fields
+    if ((schema != 1 && schema != 2) || cells != INX || fields != opts().n_fields
             || location != my_location.to_id()) {
         throw std::runtime_error("Incompatible exact checkpoint node layout");
     }
     archive >> step_num >> current_time >> rotational_time >> refined;
     archive >> ssp_previous_dt >> ssp_previous_fe_dt;
+    if (schema == 1 && step_num > 0 && step_num % refinement_freq() == 0) {
+        throw std::runtime_error("Format-1 checkpoint at a regrid boundary may lack AMR history; "
+            "restart from an inside-batch checkpoint or use the original executable");
+    }
     archive >> *grid_ptr;
     if (archive.bytes_read() != data.size() || step_num < 0
             || !std::isfinite(current_time) || !std::isfinite(rotational_time)
@@ -643,7 +664,7 @@ void node_server::load_checkpoint(const std::vector<char>& data) {
             || grid_ptr->is_root != (my_location.level() == 0)) {
         throw std::runtime_error("Invalid exact checkpoint grid shape");
     }
-    if (!refined && ssp_previous_dt > 0.0 && step_num % refinement_freq() != 0) {
+    if (!refined && ssp_previous_dt > 0.0) {
         if (!field_shape(grid_ptr->ssp_previous_u, INX * INX * INX)
                 || !field_shape(grid_ptr->ssp_previous_rhs, INX * INX * INX)
                 || grid_ptr->ssp_previous_out.size() != static_cast<size_t>(fields)

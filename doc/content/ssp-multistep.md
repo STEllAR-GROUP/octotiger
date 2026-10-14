@@ -66,16 +66,19 @@ path is preserved.
 
 ## Timestep selection and stability assumptions
 
-The supported ratio interval is
+Timestep growth is capped at 1.9 times the previous accepted step:
 
 \[
-0.7\leq\alpha\leq4.
+0<h\leq1.9h_{n-1},\qquad \alpha\geq1/1.9.
 \]
 
-The lower limit stays away from the singular SSP boundary at \(\alpha=1/2\).
-The upper limit bounds changes in step size and coefficient conditioning. A
-candidate step can grow by at most \(1/0.7\) relative to the previous step; a
-required decrease beyond a factor of four uses an RK3 bootstrap step instead.
+This leaves a margin from the singular SSP boundary at \(\alpha=1/2\).
+There is no artificial limit on timestep decreases. The implementation evaluates
+coefficients using the bounded variable \(z=v/(\alpha+v)\), avoiding powers of
+large \(\alpha\) and cancellation in \(c_5=1-c_4\). The historical Euler duration
+\(hv_5\) is formed in extended precision once per stage before updating fields.
+A very small endpoint timestep therefore does not require RK3 merely because
+its ratio to the previous step exceeds four.
 
 Each leaf estimates its forward-Euler (FE) limit as `cfl * dx / a`, where `a`
 is the maximum wave speed returned by its hydro flux calculation. This limit
@@ -84,7 +87,7 @@ respects `hard_dt` and the existing stop-time/batch cap. The previous global FE
 limit is retained separately from the previous accepted step size.
 
 The selector finds the largest supported step no greater than the requested
-step, subject to both bounds:
+step and the 1.9 growth cap, subject to both bounds:
 
 \[
 hv\leq\Delta t_{\mathrm{FE},n},\qquad
@@ -92,8 +95,10 @@ hv_5\leq\Delta t_{\mathrm{FE},n-1}.
 \]
 
 These are separate bounds because the cached derivative and current derivative
-can have different wave speeds. When no supported step satisfies them, or no
-history exists, the whole tree uses RK3 for that step. The root broadcasts this
+can have different wave speeds. When no positive representable step satisfies
+them, or no history exists, the whole tree uses RK3 for that step. In particular,
+\(hv_5\to2h_{n-1}/5\) as \(h\to0\), so reducing the new step cannot
+repair an arbitrarily small historical FE bound. The root broadcasts this
 choice with the accepted timestep so leaves and internal nodes execute the
 same number of hydro exchanges and gravity passes.
 
@@ -134,19 +139,46 @@ interior state.
 
 ## History lifetime and cost
 
-Scheduled batch boundaries begin with an RK3 bootstrap step on every node.
-Regridding occurs at those boundaries, so histories from a different mesh or
-discrete operator are not reused. Migration serializes the current state,
-multistep histories, previous timestep and FE limit, and gravity caches.
-A checkpoint inside a batch resumes at its saved absolute step and completes
-the remainder of that batch. It neither inserts an RK3 startup step nor shifts
-the original regrid schedule. `--stop_step` still counts steps requested for
-the current invocation.
+A fresh run takes one RK3 startup step. Completed multistep history survives
+scheduled batch boundaries and mesh changes. Refinement conservatively
+interpolates the previous state and complete derivative using historical
+interior values, with second-order one-sided reconstruction at block edges.
+The historical state and derivative share each selected slope stencil. One
+factor per coarse cell limits all eight children and all fields together,
+preserving parent means while protecting admissible density, species, entropy,
+and ideal-gas thermal states and historical Euler endpoints. It cannot repair
+an already inadmissible coarse endpoint, and it is not a gravity positivity
+proof.
+
+Coarsening volume-averages both field histories before deleting the children
+and sums integrated outflow histories. Refinement assigns the outflow ledgers
+once, and new children inherit the previous timestep and FE limit. Historical
+potential and gas energy remain paired; angular-momentum redistribution is
+applied to both the historical state and derivative. Historical restriction
+traffic is added only at refinement checks, not at ordinary stage exchanges.
+
+A [fixed-mesh temporal experiment](ssp-history-remap-accuracy.md) found a
+first-order time defect from direct transfer at fixed old/new mesh resolutions.
+The [joint space/time experiment](ssp-history-joint-convergence.md) retained
+the same convergence order and comparable errors as RK3 restart. The more
+expensive [virtual-history correction](ssp-history-reconstruction.md) is a
+separate research prototype and is not used by production code. Application
+AMR validation uses the dedicated moving `AMR_ADVECTION` problem and
+`test_problems/ssp_multistep/amr_accuracy.py`, with a separate `MOVING_STAR`
+hydro/gravity harness. The [application validation report](ssp-history-amr-validation.md)
+records approximately second-order smooth-flow L1 convergence with errors
+within 0.35% of the matched rebootstrap reference, completed gravity/restart
+coverage, and the remaining accuracy limitations.
+
+Migration serializes the current state, histories, timestep/FE metadata, and
+gravity caches. An exact checkpoint resumes at its saved absolute step and
+batch phase, without inserting an RK3 step or changing the regrid schedule.
+`--stop_step` still counts steps requested for the current invocation.
 
 SSP Silo output includes a versioned lossless restart payload alongside the
 usual visualization fields. The latter are insufficient for exact restart:
 they use unit conversions and reconstructed density, and omit integration
-history. `restart_version=1` and `restart_groups`, aligned with `node_list`,
+history. `restart_version=2` and `restart_groups`, aligned with `node_list`,
 identify the payload in each data group's `restart/<octal node id>/state`.
 Every node, including internal gravity nodes, is saved. Each payload contains
 the raw current hydro fields, gravity fields, outflows, previous state and
@@ -160,8 +192,12 @@ An exact restart reconnects the saved tree without extra gravity solves,
 density reconstruction, normalization, or startup regridding. It restores the
 saved integrator when no explicit selection is supplied. Incompatible solver
 settings, layouts, or malformed claimed-exact payloads produce an error; they
-do not silently discard history. Older Silo files without this payload retain
-the legacy loader and RK3 bootstrap and cannot promise exact continuation.
+do not silently discard history. Format-1 exact checkpoints inside a batch
+remain readable. Format-1 checkpoints at a completed batch/regrid boundary are
+rejected explicitly because newly refined leaves may lack the history needed
+by the new continuation; use an inside-batch checkpoint or the original
+executable. Older Silo files without any exact payload retain the legacy loader
+and RK3 bootstrap and cannot promise exact continuation.
 
 Bitwise continuation is tested with the same executable, CPU backend,
 single-locality configuration, solver settings, and stopping-time policy.
@@ -172,16 +208,14 @@ that result. Extra checkpoint data can exceed twice the old visualization
 file size: it includes raw current state and both historical field arrays,
 plus gravity caches on internal nodes. File size depends on mesh and fields.
 
-The scheduled RK3 bootstrap also occurs when regridding leaves the mesh
-unchanged. The current
-batch length is `refinement_freq()`, approximately `2 / cfl`. At the default
-`cfl=0.4`, a five-step batch uses 11 new hydro RHS evaluations if its four
-post-bootstrap steps all accept multistep coefficients, compared with 15 for
-RK3. With gravity enabled, a steady multistep step uses two RHS evaluations
-and four gravity passes (two `DRHODT`, two `RHO`); an RK3 bootstrap uses three
-and six, respectively.
-Fallbacks and additional timestep restrictions can reduce the benefit. These
-counts do not establish a measured wall-clock speedup.
+A mature multistep step uses two complete RHS evaluations, including the
+first step after regridding. Over \(N\) accepted steps with valid histories,
+the count is \(2N+1\), versus \(3N\) for RK3. History transfer adds interpolation,
+restriction, and communication work, but no new hydro RHS or gravity probes.
+With gravity enabled, a steady multistep step uses four gravity passes (two
+`DRHODT`, two `RHO`), compared with six for RK3. Necessary startup/fallbacks
+remain when usable history or an admissible timestep is unavailable. These
+operation counts do not establish a measured wall-clock speedup.
 
 The selected option allocates three additional interior field arrays per leaf:
 the previous state, previous complete RHS, and current initial RHS awaiting
@@ -203,15 +237,15 @@ c++ -std=c++17 -O2 -I. test_problems/ssp_multistep/coefficients.cpp -o build-ssp
 
 It checks the manuscript's coefficient table, nonnegative production
 coefficients, nonlinear third-order conditions and convergence at constant and
-variable step sizes, evaluation counts, ratio endpoints, and separate current
-and historical FE bounds.
+variable step sizes, evaluation counts, the 1.9 growth cap, decreases beyond a factor of four,
+extreme timestep scales, and separate current and historical FE bounds.
 
 For a normally configured Octo-Tiger build with its required dependencies,
 enable the test suite and run the dedicated tests sequentially:
 
 ```sh
 cmake -S . -B build -DOCTOTIGER_WITH_TESTS=ON
-cmake --build build --target octotiger ssp_multistep_coefficients -j1
+cmake --build build --target octotiger ssp_multistep_coefficients ssp_history_amr -j1
 ctest --test-dir build -R ssp_multistep --output-on-failure -j1
 ```
 
@@ -219,7 +253,7 @@ Retain the dependency and backend settings required by the existing build when
 configuring it. Python 3 enables the CPU runtime tests; the coupled-gravity test
 also requires interaction lists (`OCTOTIGER_DISABLE_ILIST=OFF`). The runtime
 harness compares omitted/default selection against explicit RK3 and exercises
-SSP startup, two-stage updates, and multiple regrid/batch boundaries on small
+one initial SSP startup, two-stage updates through multiple regrid/batch boundaries on small
 Sod problems with and without self-gravity. It checks finite positive states,
 mass/species conservation including outflows, hydro energy conservation, and a
 self-gravity energy-drift bound relative to RK3. Failed runs retain their logs
@@ -230,8 +264,50 @@ steps), at a boundary (5+5), and after a timestep change (11+2). They compare
 every saved node archive byte-for-byte, check raw global metadata, and require
 the restarted stage/ratio sequence to equal the uninterrupted suffix. A
 scaled-unit rotating gravity case also exercises raw clocks and conversions.
-The tests use Python's standard library and the configured Silo shared library.
+Additional restart cases intentionally change the stopping time to force a
+100-fold timestep decrease and 1.9-fold growth inside an active batch; both
+must retain two-stage updates. These cases test timestep transitions separately
+from the identical-stopping-policy exact-continuation comparisons.
+These fixed-mesh runtime tests use Python's standard library and the configured
+Silo shared library. Set `SSP_TEST_HPX_THREADS=1` to run them with one HPX worker
+when needed for a shared local resource budget. The independent `history_amr`
+C++ test checks conservative paired reconstruction, block-edge accuracy,
+admissibility helpers, and extreme thermal-state scales.
 
-The test definitions describe required coverage, not a record of successful
-execution. Passing CPU tests does not establish multilocality, GPU, or
-dynamically changing AMR continuation.
+When NumPy is available, CMake also registers moving-mesh `amr_hydro` and
+`amr_gravity` tests; the latter requires interaction lists. Their harnesses
+use one HPX worker and require actual refinement/coarsening, continued
+multistep updates, conservation checks, and exact restart through later mesh
+changes. The hydro regression uses `AMR_ADVECTION`, levels 1:3, final time 0.35,
+and contact steepening on, with accepted steps required after both directions
+of topology change. These are topology and continuation regressions, not
+resolution studies.
+
+All eight SSP CTests and separate real format-1 compatibility checks passed
+in the recorded validation. Controlled smooth-flow AMR retained approximately
+second-order density L1 convergence, with errors within 0.35% of the matched
+RK3-rebootstrap reference. Moving hydro and coupled gravity passed actual
+refinement/coarsening, continued two-stage evolution, and exact restart.
+See the [application validation report](ssp-history-amr-validation.md) for the
+measured errors and limitations, including slower maximum-cell convergence.
+These CPU results do not establish multilocality or GPU behavior.
+
+## AMR RHS efficiency benchmark
+
+The dedicated [smooth-pulse benchmark](ssp-rhs-efficiency.md) compares this
+method with ordinary RK3 at the same CFL parameter and final time. Density
+above 1.005 tags the moving pulse to level 3; native nesting determines the
+surrounding coarser mesh, with level 1 permitted. It requires refinement and
+coarsening, checks exact-solution errors, and measures both RHS calls and
+interior-cell-weighted RHS work per simulated interval. Run it explicitly with
+the `ssp_rhs_efficiency` build target. Use `--mesh uniform` on its Python runner
+for a fixed-grid control.
+
+The full paired benchmark is separate from the correctness suite. A ninth
+CTest, `rhs_accounting`, checks work accounting across mesh changes and final
+partial batches; the eight-test application validation above predates that
+addition.
+
+The [moving self-gravitating polytrope benchmark](ssp-polytrope-efficiency.md)
+compares the same methods with density-based AMR and coupled gravity. Run it
+explicitly with the `ssp_polytrope_efficiency` build target.
