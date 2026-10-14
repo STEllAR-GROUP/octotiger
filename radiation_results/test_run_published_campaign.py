@@ -140,6 +140,49 @@ class PublishedCampaignTests(unittest.TestCase):
         self.assertEqual(self.main('--start')[0], 0)
         self.assertEqual([name for name, _ in self.events], ['movie', 'stage', 'deploy', 'solver', 'movie', 'stage', 'deploy'])
 
+    def test_postprocess_only_keeps_solver_stop_and_never_launches_pending_run(self):
+        self.mark_complete(0)
+        marker = self.root / 'STOP'
+        marker.write_text('Keep local solvers stopped.\n')
+        before = marker.read_bytes()
+        code, output = self.main('--postprocess-only')
+        self.assertEqual(json.loads(output)['next_solver_command'], None)
+        self.assertEqual(self.events, [])
+        self.assertEqual(self.main('--postprocess-only', '--start')[0], 0)
+        self.assertEqual([name for name, _ in self.events], ['movie', 'stage', 'deploy'])
+        self.assertIn('--postprocess-only', self.events[0][1])
+        self.assertEqual(marker.read_bytes(), before)
+        self.assertEqual(published.load_state(self.root)['status'], 'waiting-for-remote')
+        self.assertEqual(published.runner.load(self.root)['runs'][1]['status'], 'pending')
+        self.events.clear()
+        self.assertEqual(self.main('--postprocess-only', '--start')[0], 0)
+        self.assertEqual(self.events, [])
+        with self.assertRaisesRegex(ValueError, 'STOP'):
+            self.main('--start')
+
+    def test_postprocess_marker_blocks_reporting_even_with_explicit_mode(self):
+        self.mark_complete(0)
+        (self.root / 'POSTPROCESS_STOP').write_text('Pause reporting.\n')
+        with self.assertRaisesRegex(ValueError, 'POSTPROCESS_STOP'):
+            self.main('--postprocess-only', '--start')
+        self.assertEqual(self.events, [])
+
+    def test_postprocess_interrupt_creates_its_own_marker_without_changing_solver_stop(self):
+        self.mark_complete(0)
+        marker = self.root / 'STOP'
+        marker.write_text('Keep solver stopped.\n')
+        with patch.object(published, 'phase', side_effect=KeyboardInterrupt):
+            self.assertEqual(self.main('--postprocess-only', '--start')[0], 1)
+        self.assertEqual(marker.read_text(), 'Keep solver stopped.\n')
+        self.assertTrue((self.root / 'POSTPROCESS_STOP').is_file())
+        self.assertFalse(published.load_state(self.root)['active'])
+
+    def test_postprocess_phase_guard_refuses_solver_even_if_called_directly(self):
+        self.phases.stop()
+        with patch.object(published.subprocess, 'Popen', side_effect=AssertionError('Must never launch')):
+            with self.assertRaisesRegex(ValueError, 'cannot launch a local solver'):
+                published.phase(self.root, self.manifest, {'postprocess_only': True}, 'solver', ['false'])
+
     def test_multiple_completed_unpublished_results_are_rendered_before_one_publish(self):
         self.mark_complete(0); self.mark_complete(1)
         self.assertEqual(self.main('--start')[0], 0)

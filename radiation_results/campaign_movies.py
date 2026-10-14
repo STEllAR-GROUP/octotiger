@@ -775,9 +775,17 @@ def run_logged(command: list[str], cwd: Path, log: Path, *, allow_shutdown_250=F
     return process.returncode
 
 
-def stopped(campaign: Path) -> None:
-    if (campaign / "STOP").exists():
-        raise RuntimeError(f"Campaign STOP marker present: {campaign / 'STOP'}")
+def stop_paths(campaign: Path, args: argparse.Namespace) -> list[Path]:
+    paths = [campaign / "POSTPROCESS_STOP"]
+    if not getattr(args, "postprocess_only", False):
+        paths.append(campaign / "STOP")
+    return paths + args.stop_file
+
+
+def stopped(campaign: Path, args: argparse.Namespace) -> None:
+    for path in stop_paths(campaign, args):
+        if path.exists():
+            raise RuntimeError(f"Campaign cancellation marker present: {path}")
 
 
 def write_visit_job(metadata: dict, files: list[Path], diagnostics: Path,
@@ -870,7 +878,7 @@ def write_extraction_manifest(folder: Path, diagnostics: Path, movie: dict, sett
 
 
 def render_one(campaign: Path, run: dict, args: argparse.Namespace) -> dict:
-    stopped(campaign)
+    stopped(campaign, args)
     folder = (campaign / run["directory"] / run["case"] / f"l{run['level']}").resolve()
     folder.relative_to(campaign)
     metadata_path = folder / "run.json"
@@ -912,7 +920,7 @@ def render_one(campaign: Path, run: dict, args: argparse.Namespace) -> dict:
                               f"{run['case'].replace('_', ' ')} | {contract['model_label']} | level {run['level']} | "
                               + ("AMR" if metadata.get("adaptive") else "uniform mesh"),
                               coupled=run["case"] in COUPLED,
-                              stop_paths=[campaign / "STOP"] + args.stop_file, view=run.get("movie_view"))
+                              stop_paths=stop_paths(campaign, args), view=run.get("movie_view"))
     print(f"Rendering {run['id']} from {len(files)} stored Silo files", flush=True)
     code = run_logged([args.visit, "-cli", "-nowin", "-noconfig", "-s", str(diagnostics / "render.py")],
                       diagnostics, diagnostics / "visit.log", allow_shutdown_250=True)
@@ -978,7 +986,7 @@ def render_one(campaign: Path, run: dict, args: argparse.Namespace) -> dict:
                    diagnostics, diagnostics / "poster.log")
     else:
         shutil.copy2(diagnostics / frames[poster_state]["radiation_image"], poster)
-    stopped(campaign)
+    stopped(campaign, args)
     assets = {name: {"sha256": sha256(path), "bytes": path.stat().st_size}
               for name, path in (("movie.mp4", encoded), ("poster.png", poster))}
     description = ("Central z=0+ radiation energy slice with faint cell mesh and equal-length flux direction arrows. "
@@ -1070,6 +1078,8 @@ def main() -> int:
     selection.add_argument("--all-completed", action="store_true")
     parser.add_argument("--plan", action="store_true", help="List jobs without starting VisIt/FFmpeg")
     parser.add_argument("--force", action="store_true")
+    parser.add_argument("--postprocess-only", action="store_true",
+                        help="Retain solver STOP and use POSTPROCESS_STOP to cancel explicitly authorized reporting")
     parser.add_argument("--full-domain", action="store_true",
                         help="Show the complete simulation domain in maps and profiles, overriding every saved movie_view crop")
     parser.add_argument("--stop-file", type=Path, action="append", default=[], help="Additional cancellation marker to check between frames")

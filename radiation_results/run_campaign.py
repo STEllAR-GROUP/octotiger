@@ -36,6 +36,7 @@ LABELS = {'m1': 'M1 RK1', 'fld': 'FLD backward Euler'}
 FLUX = {'m1': 'evolved_m1_flux', 'fld': 'derived_fld_flux'}
 WORKFLOW = 'm1-fld-radiation'
 SCHEMA = 2
+REMOTE_OWNER = 'octotiger-m1-fld-qb4-20261014'
 
 
 def execution_plan(manifest):
@@ -150,6 +151,9 @@ def snapshot(root, manifest):
                  'run_published_campaign.py', 'deploy_campaign.py', 'publication-workflow.json', 'campaign_retention.py',
                  'momentum_diagnostics.py'):
         shutil.copy2(ROOT / 'radiation_results' / name, frozen / name)
+    (frozen / 'qb4').mkdir()
+    for name in ('import_completed.py', 'check_progress.py'):
+        shutil.copy2(ROOT / 'radiation_results/qb4' / name, frozen / 'qb4' / name)
     build = Path(manifest['original_build']); results = Path(manifest['original_results_build'])
     shutil.copy2(build / 'CMakeCache.txt', runtime / 'CMakeCache.txt')
     manifest['runtime_dependencies'] = {}
@@ -194,7 +198,7 @@ def snapshot(root, manifest):
             path.chmod(path.stat().st_mode & ~0o222)
 
 
-def verify_snapshot(root, manifest):
+def verify_snapshot(root, manifest, *, artifact_only=False):
     if execution_plan(manifest) != json.loads((root / '.campaign/plan.json').read_text()):
         raise ValueError('Prepared execution settings changed; prepare a new campaign')
     for relative, digest in manifest['snapshot_sha256'].items():
@@ -205,9 +209,197 @@ def verify_snapshot(root, manifest):
         alias = root / '.campaign/runtime' / name
         if not alias.is_symlink() or os.readlink(alias) != target:
             raise ValueError('HPX runtime alias changed')
-    for path, digest in manifest.get('host_elf_interpreters', {}).items():
-        if file_hash(path) != digest:
-            raise ValueError('Host ELF interpreter changed; prepare a new campaign')
+    if not artifact_only:
+        for path, digest in manifest.get('host_elf_interpreters', {}).items():
+            if file_hash(path) != digest:
+                raise ValueError('Host ELF interpreter changed; prepare a new campaign')
+
+
+def _remote_require(condition, message):
+    if not condition:
+        raise ValueError('Remote provenance: ' + message)
+
+
+def _sha256(value):
+    return isinstance(value, str) and re.fullmatch(r'[0-9a-f]{64}', value) is not None
+
+
+def _relative_path(value):
+    _remote_require(isinstance(value, str) and value and '\\' not in value,
+                    'invalid inventory path')
+    path = Path(value)
+    _remote_require(not path.is_absolute() and path.as_posix() == value and
+                    all(part not in ('.', '..') for part in path.parts), 'unsafe inventory path')
+    return path
+
+
+def _import_path(root, relative):
+    root = Path(root).resolve()
+    path = root / _relative_path(relative)
+    _remote_require(path.resolve().is_relative_to(root), 'path escapes campaign')
+    for entry in (path, *path.parents):
+        if entry == root:
+            break
+        _remote_require(not entry.is_symlink(), 'imported artifacts must not be symlinks')
+    return path
+
+
+def _hash_mapping(value, label):
+    _remote_require(isinstance(value, dict) and bool(value), 'missing ' + label)
+    for name, digest in value.items():
+        _relative_path(name)
+        _remote_require(_sha256(digest), 'invalid ' + label + ' hash')
+
+
+def _job_identity(record, label):
+    _remote_require(isinstance(record, dict) and
+                    re.fullmatch(r'[1-9][0-9]*(?:_[0-9]+)?', str(record.get('job_id', ''))) is not None and
+                    isinstance(record.get('node'), str) and
+                    re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]*', record['node']) is not None,
+                    'missing or invalid ' + label + ' job/node identity')
+
+
+def validate_remote_receipt(manifest, run, receipt):
+    """Validate a solve receipt's identity before trusting any remote executable."""
+    runtime = manifest.get('remote_runtime', {})
+    for value, label in ((runtime, 'runtime'), (receipt, 'receipt')):
+        _remote_require(isinstance(value, dict) and type(value.get('schema')) is int and value['schema'] == 1 and
+                        value.get('owner') == REMOTE_OWNER and type(value.get('nodes')) is int and
+                        value['nodes'] == 1 and type(value.get('tasks')) is int and value['tasks'] == 1,
+                        'invalid one-node ' + label)
+    _job_identity(runtime.get('build'), 'build')
+    _job_identity(receipt, 'solve')
+    expected = {'status': 'complete', 'run_id': run['id'], 'case': run['case'],
+                'level': run['level'], 'model': run['model'], 'integrator': run['integrator']}
+    _remote_require(all(receipt.get(key) == value for key, value in expected.items()),
+                    'receipt run/model identity differs from plan')
+    _remote_require(type(receipt.get('level')) is int, 'invalid receipt refinement level')
+    for key in ('executable_sha256', 'source_tree_sha256'):
+        _remote_require(_sha256(runtime.get(key)), 'invalid runtime ' + key)
+    _remote_require(isinstance(runtime.get('source_commit'), str) and
+                    re.fullmatch(r'(?:[0-9a-f]{40}|[0-9a-f]{64})', runtime['source_commit']) is not None,
+                    'invalid source commit')
+    _hash_mapping(runtime.get('source_sha256'), 'source')
+    _hash_mapping(runtime.get('solver_library_sha256'), 'library')
+    source_digest = hashlib.sha256(json.dumps(runtime['source_sha256'], sort_keys=True,
+                                             separators=(',', ':')).encode()).hexdigest()
+    _remote_require(source_digest == runtime['source_tree_sha256'], 'source tree digest differs')
+    for key in ('executable_sha256', 'source_commit', 'source_tree_sha256',
+                'source_sha256', 'solver_library_sha256'):
+        _remote_require(receipt.get(key) == runtime[key], 'receipt differs from remote runtime: ' + key)
+    for key in ('worker_sha256', 'results_sha256', 'generator_sha256', 'build_cache_sha256'):
+        if key in runtime:
+            _remote_require(_sha256(runtime[key]) and receipt.get(key) == runtime[key],
+                            'receipt differs from remote runtime: ' + key)
+    if 'build' in receipt:
+        _remote_require(receipt['build'] == runtime['build'], 'receipt build job/node differs from runtime')
+    for key in ('config_sha256', 'run_metadata_sha256'):
+        _remote_require(_sha256(receipt.get(key)), 'missing ' + key)
+    files = receipt.get('files')
+    _remote_require(isinstance(files, dict) and files, 'missing output inventory')
+    for name, record in files.items():
+        _relative_path(name)
+        _remote_require(isinstance(record, dict) and _sha256(record.get('sha256')) and
+                        type(record.get('bytes')) is int and record['bytes'] >= 0,
+                        'invalid output inventory record')
+    leaf = f'{run["case"]}/l{run["level"]}/'
+    mandatory = ['batch.json', *(leaf + name for name in
+                 ('run.json', 'run.ini', 'run.log', 'radiation-conservation.csv'))]
+    _remote_require(all(name in files for name in mandatory), 'missing required output inventory entry')
+    _remote_require(files[leaf + 'run.ini']['sha256'] == receipt['config_sha256'] and
+                    files[leaf + 'run.json']['sha256'] == receipt['run_metadata_sha256'],
+                    'configuration or metadata hash differs from inventory')
+    return receipt
+
+
+def validate_remote_import(root, manifest, run):
+    """Verify the immutable import receipt and each inventoried remote output."""
+    pointer = run.get('remote_import')
+    _remote_require(isinstance(pointer, dict) and pointer.get('path') == f'.imports/{run["id"]}.json' and
+                    _sha256(pointer.get('sha256')), 'missing committed import receipt')
+    wrapper_path = _import_path(root, pointer['path'])
+    _remote_require(file_hash(wrapper_path) == pointer['sha256'], 'import receipt hash changed')
+    wrapper = json.loads(wrapper_path.read_text())
+    _remote_require(wrapper.get('schema') == 1 and wrapper.get('status') == 'verified' and
+                    wrapper.get('owner') == REMOTE_OWNER and wrapper.get('run_id') == run['id'] and
+                    wrapper.get('directory') == run['directory'] and bool(wrapper.get('imported_utc')) and
+                    wrapper.get('plan_sha256') == file_hash(Path(root) / '.campaign/plan.json'),
+                    'import receipt belongs to a different run or plan')
+    receipt = validate_remote_receipt(manifest, run, wrapper.get('receipt'))
+    batch = _import_path(root, run['directory'])
+    leaf = f'{run["case"]}/l{run["level"]}/'
+    removed = {}
+    if run.get('retention') is not None:
+        from campaign_retention import validate_retention
+        retention = validate_retention(root, run)
+        removed = {leaf + item['path']: item for item in retention['removed_raw']}
+    return validate_remote_outputs(batch, manifest, run, receipt, removed=removed)
+
+
+def validate_remote_outputs(batch, manifest, run, receipt, *, removed=None):
+    """Validate a staged batch before importing it; never mutate its metadata."""
+    receipt = validate_remote_receipt(manifest, run, receipt)
+    batch = Path(batch)
+    leaf = f'{run["case"]}/l{run["level"]}/'
+    removed = removed or {}
+    for relative, record in receipt['files'].items():
+        path = _import_path(batch, relative)
+        if not path.exists() and relative in removed:
+            item = removed[relative]
+            _remote_require(item['sha256'] == record['sha256'] and item['bytes'] == record['bytes'],
+                            'removed raw artifact differs from import inventory')
+            continue
+        _remote_require(path.is_file() and path.stat().st_size == record['bytes'] and
+                        file_hash(path) == record['sha256'], 'imported output missing or changed: ' + relative)
+    metadata = json.loads((batch / leaf / 'run.json').read_text())
+    expected = {'status': 'complete', 'case': run['case'], 'level': run['level'],
+                'radiation_model': run['model'], 'radiation_integrator': run['integrator'],
+                'executable_sha256': receipt['executable_sha256'],
+                'radiation_algorithm_version': 2 if run['model'] == 'fld' and run['case'] in COUPLED_CASES else 1,
+                'radiation_flux_semantics': 'derived_fld_lab_flux' if run['model'] == 'fld' and
+                    run['case'] in COUPLED_CASES else FLUX[run['model']]}
+    if run['model'] == 'fld' and run['case'] in COUPLED_CASES:
+        expected.update(radiation_frame='mixed', radiation_hydro_scheme='first_order_conservative')
+    _remote_require(all(metadata.get(key) == value for key, value in expected.items()),
+                    'imported run metadata differs from receipt')
+    if 'solver_library_sha256' in metadata:
+        _remote_require(metadata['solver_library_sha256'] == receipt['solver_library_sha256'],
+                        'metadata library identity differs')
+    saved_batch = json.loads((batch / 'batch.json').read_text())
+    sources = saved_batch.get('source_sha256')
+    _hash_mapping(sources, 'batch source')
+    _remote_require(all(receipt['source_sha256'].get(name) == value for name, value in sources.items()),
+                    'batch source differs from the remote source tree')
+    config = {}
+    for line in (batch / leaf / 'run.ini').read_text().splitlines():
+        line = line.split('#', 1)[0].strip()
+        if line:
+            key, separator, value = line.partition('=')
+            key = key.strip()
+            _remote_require(separator and key and key not in config, 'invalid imported configuration')
+            config[key] = value.strip()
+    _remote_require(config == metadata.get('config'), 'metadata and imported configuration differ')
+    problem = {'marshak': 'MARSHAK', 'radiating_blast': 'RADIATION_BLAST_WAVE'}.get(
+        run['case'], 'RADIATION_' + run['case'].upper())
+    for key, value in {'radiation_model': run['model'], 'radiation_integrator': run['integrator'],
+                       'max_level': str(run['level']), 'min_level': str(run['level']),
+                       'problem': problem, 'radiation_backend': 'cpu'}.items():
+        _remote_require(config.get(key) == value, 'configuration differs from plan: ' + key)
+    _remote_require(float(config.get('radiation_reduced_c_factor', 'nan')) == 1.,
+                    'remote benchmark must use physical light speed')
+    for value in (metadata.get('time'), config.get('stop_time')):
+        _remote_require(value is not None and math.isclose(float(value), run['stop_time'], rel_tol=2e-12),
+                        'imported final time differs from plan')
+    dt = float(config.get('hard_dt', 'nan'))
+    _remote_require(math.isfinite(dt) and 0 < dt <= run['hard_dt'] * (1 + 2e-12),
+                    'imported timestep exceeds the planned cap')
+    return receipt
+
+
+def expected_executable(root, manifest, run):
+    if 'remote_import' in run:
+        return validate_remote_import(root, manifest, run)['executable_sha256']
+    return manifest['executable_sha256']
 
 
 def verify_orchestrator(root):
@@ -267,7 +459,7 @@ def validate_completed(root, manifest, run):
         'radiation_model': run['model'], 'radiation_integrator': run['integrator'],
         'radiation_algorithm_version': 2 if moving else 1,
         'radiation_flux_semantics': 'derived_fld_lab_flux' if moving else FLUX[run['model']],
-        'executable_sha256': manifest['executable_sha256']}
+        'executable_sha256': expected_executable(root, manifest, run)}
     if moving:
         expected.update(radiation_frame='mixed', radiation_hydro_scheme='first_order_conservative')
     if any(meta.get(k) != v for k, v in expected.items()):
