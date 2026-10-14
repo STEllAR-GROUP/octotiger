@@ -42,10 +42,17 @@ def has_metadata(reader, path, name):
         reader.lib.DBClose(handle)
 
 
+def two_step_config(dt):
+    # RK3 divides the time remaining to stop_time across a whole refinement
+    # batch, even if stop_step ends this invocation after two steps. Keep that
+    # cap inactive so hard_dt sets both steps; verify their sum in the checkpoint.
+    return dict(common(0, dt, 100 * dt), stop_step=1)
+
+
 def configuration(model):
     if model == "m1":
         dt = .02
-        config = common(0, dt, 2 * dt)
+        config = two_step_config(dt)
         config.update(problem="RADIATION_COUPLED_WAVE", radiation="on", hydro="on",
                       periodic="on", rad_implicit="on", omega=0, xscale=1,
                       atomic_mass=1, atomic_number=1, code_to_g=1e30,
@@ -56,7 +63,7 @@ def configuration(model):
         dt = 1.
         template = Path(__file__).resolve().parents[2] / "radiation_results/configs/subcritical_shock.ini"
         config = read_config(template)
-        config.update(common(0, dt, 2 * dt))
+        config.update(two_step_config(dt))
         config.update(cfl=.27, reflect_bc="off", fld_boundary="reflecting")
     config.update(radiation_model=model, number_gpus=0, executors_per_gpu=0)
     # Leave the radiation integrator at its model-specific default. Requesting
@@ -118,7 +125,7 @@ def snapshot(reader, record, model, expected_time):
     path = Path(record["directory"]) / "final.silo"
     metadata, fields = reader.snapshot(path, fields=FIELDS, metadata_names=METADATA, block_count=1)
     require(math.isclose(metadata["time"], expected_time, rel_tol=2e-12, abs_tol=2e-14),
-            f"Wrong final time for {record['label']}")
+            f"Wrong final time for {record['label']}: {metadata['time']} != {expected_time}")
     require(metadata["radiation"] == metadata["hydro"] == metadata["n_species"] == 1,
             "Radiation/hydro state was disabled instead of just the SSP integrator")
     require(metadata["radiation_model"] == (0 if model == "m1" else 1) and
@@ -149,7 +156,7 @@ def compare(expected, actual, description):
 
 
 def raw_radiation_rejection(args, root, reader, report):
-    config = common(0, .002, .004)
+    config = two_step_config(.002)
     config.update(problem="SOD", radiation="off", hydro="on", periodic="off", xscale=1,
                   cfl=.4, correct_am_hydro="off", number_gpus=0, executors_per_gpu=0)
     seed = invoke(args, root, "exact-hydro-seed", config, request="cli",
@@ -209,7 +216,8 @@ def main():
                 report["runs"].append(requested)
                 actual = snapshot(reader, requested, model, 2 * dt)
                 report["checks"].append(compare(expected, actual, f"{model}: fresh SSP {request} versus default"))
-            resumed_config = dict(config, stop_time=4 * dt, stop_step=3)
+            # stop_step is relative to each invocation, including restarts.
+            resumed_config = dict(config, stop_step=1)
             checkpoint = Path(baseline["directory"]) / "final.silo"
             resumed = invoke(args, root, model + "-restart-default", resumed_config, restart=checkpoint)
             report["runs"].append(resumed)
