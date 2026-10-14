@@ -114,7 +114,19 @@ binaries and norm downloads remain available. Solver binaries, checkpoints, and
 private caches are excluded; checkpoint download links become labeled local-only
 text. Local page links and asset paths are checked before the complete site is
 placed in its destination; an existing nonempty destination is never overwritten.
-Remote deployment is a separate action. Historical websites are not relabeled.
+Remote deployment is a separate explicitly authorized action. The current
+publisher can upload the checked stage to `https://www.octotiger.org`:
+
+```sh
+python3 radiation_results/deploy_campaign.py output/m1-fld-local \
+  --staged-site output/m1-fld-site --deploy
+```
+
+It verifies all uploaded file hashes, installs an immutable generation, archives
+the previous homepage, and activates the new campaign link under a shared remote
+lock. The homepage and campaign are then checked over HTTPS. `--prepare` performs
+only local staging; `--inspect` reads remote deployment state. Historical campaign
+URLs and results are retained.
 
 Movies are optional, separate work after execution. `campaign_movies.py --campaign
 DIR --plan` lists supported completed runs without rendering. Its metadata and
