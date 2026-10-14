@@ -1,5 +1,45 @@
 # QB4 radiation matrix
 
+## Current one-node M1 RK1 / FLD campaign
+
+The October 14 study uses `one_node_campaign.py` in an existing single-node
+Slurm allocation: one task, 64 HPX workers, CPU, physical light speed, and the
+eight-problem level-2/3/4 plan with 121 states. The two completed local level-2
+streaming-wave runs are preserved, leaving 46 QueenBee runs.
+
+The verified site environment and submissions are recorded under
+`output/qb4-m1-fld-20261014/`. Builds and simulations run on compute nodes.
+Each `--run-limit 1` allocation exits after one validated completed result;
+the workstation then imports the exact output inventory, renders the movie,
+and verifies webpage publication before submitting the next single-node job.
+The collector verifies the preceding job's terminal successful accounting
+before allocating another node and saves idempotent submission receipts.
+
+```sh
+python3 radiation_results/qb4/check_progress.py \
+  --directory output/qb4-m1-fld-20261014 --advance
+```
+
+The 30-minute heartbeat invokes the frozen collector. It reuses only the
+recorded SSH master and disables fallback connections. The shared login ledger
+counts every new attempt against the user's 12-attempt task ceiling. A lost
+connection requires the access owner to reserve a replacement; scheduled
+checks cannot authenticate another connection themselves.
+
+Imported outputs require pinned source, executable, library, configuration,
+job/node and file hashes. Local solver `STOP` remains present. Publication-only
+execution uses `POSTPROCESS_STOP` as its separate cancellation marker, preserves
+all movie/profile samples and endpoints, and removes intermediate local 3D
+states only after verified extraction. QueenBee raw output remains intact.
+
+The single partition permits seven-day allocations. A pre-timeout signal
+preserves incomplete output and marks `needs_checkpoint_continuation`; it does
+not silently restart a long calculation from zero. Automatic multi-segment
+checkpoint continuation is not implemented by this worker. Numerical failures
+and publication failures require inspection before another attempt.
+
+## Historical matrix workflow
+
 This workflow prepares, builds, tests, runs, and renders radiation problems at
 levels 2–5 (finest equivalent 32³, 64³, 128³, 256³ with INX=8). It supports
 the full seven-case matrix and explicitly recorded subsets. Preparation is offline and never

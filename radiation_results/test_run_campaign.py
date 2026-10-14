@@ -217,6 +217,17 @@ class CampaignSafety(unittest.TestCase):
             self.main('--resume', str(self.root), '--start')
         launched.assert_not_called()
 
+    def test_artifact_only_verification_skips_host_loader_but_hashes_every_frozen_file(self):
+        self.prepare()
+        manifest = campaign.load(self.root)
+        manifest['host_elf_interpreters'] = {'/unavailable/remote/loader.so': 'a' * 64}
+        with patch.object(campaign.subprocess, 'run') as external:
+            campaign.verify_snapshot(self.root, manifest, artifact_only=True)
+            external.assert_not_called()
+        (self.root / '.campaign/runtime/octotiger').write_text('tampered frozen bytes')
+        with self.assertRaisesRegex(ValueError, 'Frozen input changed'):
+            campaign.verify_snapshot(self.root, manifest, artifact_only=True)
+
     def test_supported_matrix_does_not_silently_substitute_m1_for_fld(self):
         args = campaign.parser().parse_args(['--output', str(self.root), '--dry-run', '--levels', '0',
             '--cases', *campaign.CASES])

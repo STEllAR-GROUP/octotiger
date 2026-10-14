@@ -172,7 +172,7 @@ def method_identity(model, case):
     return (2, "derived_fld_lab_flux") if moving else (1, FLUX_SEMANTICS[model])
 
 
-def load_run(root, run):
+def load_run(root, run, manifest=None):
     case, level = run["case"], run["level"]
     model = run["method"]
     folder = root / run["directory"]
@@ -182,6 +182,16 @@ def load_run(root, run):
     if run.get("run_metadata_sha256"):
         require(digest(metadata_path) == run["run_metadata_sha256"], "Completed run metadata hash changed")
     metadata = json.loads(metadata_path.read_text())
+    remote_receipt = None
+    if 'remote_import' in run:
+        require(manifest is not None, 'Remote output requires its campaign runtime and import receipt')
+        from run_campaign import validate_remote_import
+        remote_receipt = validate_remote_import(root, manifest, run)
+        require(metadata.get('executable_sha256') == remote_receipt['executable_sha256'],
+                'Remote output does not match its validated executable')
+    elif manifest and manifest.get('executable_sha256'):
+        require(metadata.get('executable_sha256') == manifest['executable_sha256'],
+                "Model output does not match the campaign's frozen executable")
     algorithm_version, flux_semantics = method_identity(model, case)
     batch = json.loads((folder / "batch.json").read_text())
     require(bool(batch.get("source_sha256")), "Missing saved source provenance")
@@ -257,7 +267,7 @@ def load_run(root, run):
             "has_reference": has_reference,
             "reference": reference,
             "metadata_path": metadata_path, "csv_sha256": digest(path), "metadata_sha256": digest(metadata_path),
-            "source_sha256": batch["source_sha256"]}
+            "source_sha256": batch["source_sha256"], "remote_receipt": remote_receipt}
 
 
 def bounds(data):
@@ -294,10 +304,21 @@ def compatible(left, right, root=None, manifest=None):
     require(left["source_sha256"] == right["source_sha256"], "The models have different source provenance")
     require(left["metadata"].get("solver_library_sha256") == right["metadata"].get("solver_library_sha256"),
             "The models have different solver library provenance")
+    remote = left.get('remote_receipt')
+    require(bool(remote) == bool(right.get('remote_receipt')),
+            'The models have different local/remote execution provenance')
     if manifest and manifest.get("executable_sha256"):
-        require(left["metadata"]["executable_sha256"] == manifest["executable_sha256"],
-                "Model output does not match the campaign's frozen executable")
-    if manifest and manifest.get("snapshot_sha256"):
+        if remote:
+            from run_campaign import validate_remote_receipt
+            for data in (left, right):
+                validate_remote_receipt(manifest, data['run'], data['remote_receipt'])
+            expected = manifest['remote_runtime']['executable_sha256']
+        else:
+            expected = manifest['executable_sha256']
+        require(left["metadata"]["executable_sha256"] == expected,
+                "Model output does not match the campaign's " +
+                ("validated remote executable" if remote else "frozen executable"))
+    if manifest and manifest.get("snapshot_sha256") and not remote:
         frozen_sources = manifest["snapshot_sha256"]
         require(all(frozen_sources.get(".campaign/source/" + path) == value
                     for path, value in left["source_sha256"].items()),
@@ -365,6 +386,12 @@ def record_run(root, data):
             "executable_sha256": metadata.get("executable_sha256"),
             "solver_library_sha256": metadata.get("solver_library_sha256"),
             "source_sha256": data["source_sha256"],
+            "execution_provenance": ({"host": "QueenBee", "owner": data['remote_receipt']['owner'],
+                "job_id": data['remote_receipt']['job_id'], "node": data['remote_receipt']['node'],
+                "nodes": 1, "tasks": 1, "source_commit": data['remote_receipt']['source_commit'],
+                "source_tree_sha256": data['remote_receipt']['source_tree_sha256'],
+                "solver_library_sha256": data['remote_receipt']['solver_library_sha256'],
+                "import_receipt": data['run']['remote_import']} if data.get('remote_receipt') else {"host": "local"}),
             "checkpoint_resume": metadata.get("checkpoint_resume")}
 
 
@@ -539,8 +566,14 @@ def refresh(root, manifest):
                 status = run.get("status", "pending") if run else "pending"
                 if status == "completed":
                     try:
-                        loaded[model] = load_run(root, run)
+                        loaded[model] = load_run(root, run, manifest)
                         record["methods"][model] = record_run(root, loaded[model])
+                        provenance = record['methods'][model]['execution_provenance']
+                        if provenance['host'] == 'QueenBee':
+                            section += (f'<p>{escaped(LABELS[model])} ran on one QueenBee node, '
+                                f'{escaped(provenance["node"])}, job {escaped(provenance["job_id"])}. '
+                                'Its executable, source, libraries, configuration, and imported outputs '
+                                'are bound to the verified completion receipt.</p>')
                     except (OSError, ValueError, KeyError) as error:
                         loaded.pop(model, None)
                         record["methods"][model] = {"error": str(error)}

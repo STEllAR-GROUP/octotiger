@@ -55,8 +55,8 @@ def load_policy(root):
     return policy
 
 
-def verify_inputs(root, manifest):
-    runner.verify_snapshot(root, manifest)
+def verify_inputs(root, manifest, postprocess_only=False):
+    runner.verify_snapshot(root, manifest, artifact_only=postprocess_only)
     for name in (*SCRIPTS, POLICY_NAME):
         relative = '.campaign/' + name
         if relative not in manifest['snapshot_sha256']:
@@ -89,10 +89,12 @@ def save_state(root, state):
     runner.write_json(state_path(root), state)
 
 
-def blockers(root, manifest, state):
+def blockers(root, manifest, state, postprocess_only=False):
     result = []
-    if (root / 'STOP').exists():
+    if (root / 'STOP').exists() and not postprocess_only:
         result.append('STOP is present; remove it only after explicit resume authorization')
+    if (root / 'POSTPROCESS_STOP').exists():
+        result.append('POSTPROCESS_STOP is present; explicit postprocessing resume is required')
     if manifest.get('active') or any(run['status'] == 'running' for run in manifest['runs']):
         result.append('Campaign active/running: verify its host PID/start identity before recovery')
     if state.get('active'):
@@ -135,8 +137,10 @@ def run_command(root):
     return script_command(root, 'run_campaign.py', '--resume', root, '--start', '--run-limit', '1')
 
 
-def movie_command(root, run, policy):
+def movie_command(root, run, policy, postprocess_only=False):
     command = script_command(root, 'campaign_movies.py', '--campaign', root, '--run-id', run['id'])
+    if postprocess_only:
+        command.append('--postprocess-only')
     for key, value in policy['movie'].items():
         if key == 'full_domain':
             if value:
@@ -155,9 +159,9 @@ def stage_path(root, attempt):
     return parent / attempt['id']
 
 
-def inspect(root):
+def inspect(root, postprocess_only=False):
     manifest = runner.load(root)
-    verify_inputs(root, manifest)
+    verify_inputs(root, manifest, postprocess_only)
     policy, state = load_policy(root), load_state(root)
     done = completed(root, manifest, state)
     unpublished = [run for run in done if run['id'] not in state['published']]
@@ -169,13 +173,14 @@ def inspect(root):
                'next_run_required_free_gib': None if raw_budget is None else raw_budget + manifest['minimum_free_gib'],
                'policy': 'Retain verified profiles, frames, full-volume integrals, initial/final 3D states and all checkpoints'}
     return {'campaign': str(root), 'read_only': True, 'explicit_start_required': True,
-            'status': state['status'], 'blocked_by': blockers(root, manifest, state),
+            'status': state['status'], 'postprocess_only': postprocess_only,
+            'blocked_by': blockers(root, manifest, state, postprocess_only),
             'completed_unpublished': [run['id'] for run in unpublished], 'pending_runs': pending,
             'published_runs': list(state['published']), 'policy': policy,
             'storage': storage,
-            'next_action': 'publish' if unpublished else 'run' if pending else 'complete',
-            'next_solver_command': run_command(root) if pending else None,
-            'movie_commands': [movie_command(root, run, policy) for run in unpublished],
+            'next_action': 'publish' if unpublished else ('waiting-for-remote' if postprocess_only else 'run') if pending else 'complete',
+            'next_solver_command': run_command(root) if pending and not postprocess_only else None,
+            'movie_commands': [movie_command(root, run, policy, postprocess_only) for run in unpublished],
             'sequence': 'Render and publish all completed unpublished results before the next single-run solver command'}
 
 
@@ -242,15 +247,17 @@ def adopt_orphans():
             raise OSError(ctypes.get_errno(), 'Cannot restore child-subreaper state')
 
 
-def resource_check(root, manifest, extra_path=None):
+def resource_check(root, manifest, extra_path=None, postprocess_only=False):
     paths = (root,) if extra_path is None else (root, extra_path)
     for path in paths:
         while not path.exists():
             path = path.parent
         if shutil.disk_usage(path).free < manifest['minimum_free_gib'] * 2**30:
             raise RuntimeError('Free storage fell below the saved campaign reserve')
-    if (root / 'STOP').exists():
+    if (root / 'STOP').exists() and not postprocess_only:
         raise RuntimeError('Campaign STOP marker present')
+    if (root / 'POSTPROCESS_STOP').exists():
+        raise RuntimeError('Campaign POSTPROCESS_STOP marker present')
 
 
 def drain_child(child, sessions):
@@ -282,8 +289,11 @@ def drain_child(child, sessions):
 
 
 def phase(root, manifest, state, name, command, stage=None):
-    resource_check(root, manifest, stage)
-    verify_inputs(root, manifest)
+    postprocess_only = state.get('postprocess_only', False)
+    if postprocess_only and name == 'solver':
+        raise ValueError('Postprocess-only mode cannot launch a local solver')
+    resource_check(root, manifest, stage, postprocess_only)
+    verify_inputs(root, manifest, postprocess_only)
     state.update(phase=name, phase_started_utc=runner.now())
     state['phase_command'] = command
     save_state(root, state)
@@ -310,7 +320,7 @@ def phase(root, manifest, state, name, command, stage=None):
                 if state['child'].get('sessions') != sorted(sessions):
                     state['child']['sessions'] = sorted(sessions)
                     save_state(root, state)
-                resource_check(root, manifest, stage)
+                resource_check(root, manifest, stage, postprocess_only)
                 if sum(p['rss'] for p in members.values()) > manifest['memory_limit_gib'] * 2**30:
                     raise RuntimeError('Owned phase processes exceeded the saved memory budget')
                 if child.poll() is not None:
@@ -388,15 +398,23 @@ def prune_stages(root, state, keep):
 
 def retain_run(root, manifest, state, run):
     owner = state.get('owned_runs', {}).get(run['id'])
+    if run.get('remote_import'):
+        remote_owner = retention.remote_owner(root, run)
+        if owner is None:
+            owner = remote_owner
+            state.setdefault('owned_runs', {})[run['id']] = owner
+            save_state(root, state)
+        elif any(owner.get(key) != value for key, value in remote_owner.items()):
+            raise ValueError('Remote import ownership changed before retention')
     if owner is None:
         return  # Preexisting campaign outputs are never deletion candidates.
     attempt = run.get('attempts', [{}])[-1] if run.get('attempts') else {}
     identity = {'pid': attempt.get('pid'), 'process_start_ticks': attempt.get('process_start_ticks')}
-    if owner.get('solver_identity') != identity:
+    if not run.get('remote_import') and owner.get('solver_identity') != identity:
         raise ValueError('The completed attempt was not observed in this wrapper\'s owned process tree; raw cleanup requires review')
     if run.get('retention') and owner.get('retention_receipt') == run['retention'] and owner.get('retention_verified_utc'):
         return
-    guard = lambda: resource_check(root, manifest)
+    guard = lambda: resource_check(root, manifest, postprocess_only=state.get('postprocess_only', False))
     if not run.get('retention'):
         receipt = retention.make_receipt(root, manifest, run, owner, guard)
         path = retention.leaf(root, run) / 'retention.json'
@@ -442,7 +460,7 @@ def publish_completed(root, manifest, state, policy, done):
         for run in done:
             if run['id'] not in state['published']:
                 with campaign_guard(root) as current:
-                    phase(root, current, state, 'movie', movie_command(root, run, policy))
+                    phase(root, current, state, 'movie', movie_command(root, run, policy, state.get('postprocess_only', False)))
                     current_run = next(item for item in current['runs'] if item['id'] == run['id'])
                     retain_run(root, current, state, current_run)
         # Retain the last verified stage, reclaim failed/private attempts before
@@ -475,19 +493,19 @@ def publish_completed(root, manifest, state, policy, done):
     save_state(root, state)
 
 
-def start(root):
+def start(root, postprocess_only=False):
     # Separate lock spans solver, renderer, staging and upload. Individual tools
     # retain their existing campaign lock; no nested acquisition around them.
     with (root / '.publication.lock').open('a') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         manifest = runner.load(root)
-        verify_inputs(root, manifest)
+        verify_inputs(root, manifest, postprocess_only)
         policy, state = load_policy(root), load_state(root)
-        reasons = blockers(root, manifest, state)
+        reasons = blockers(root, manifest, state, postprocess_only)
         if reasons:
             raise ValueError('; '.join(reasons))
-        resource_check(root, manifest)
-        state.update(active=True, status='running', owner={'pid': os.getpid(),
+        resource_check(root, manifest, postprocess_only=postprocess_only)
+        state.update(active=True, status='running', postprocess_only=postprocess_only, owner={'pid': os.getpid(),
             'start_ticks': process_table().get(os.getpid(), {}).get('start_ticks')})
         save_state(root, state)
         handlers = {sig: signal.getsignal(sig) for sig in (signal.SIGINT, signal.SIGTERM)}
@@ -498,8 +516,8 @@ def start(root):
         try:
             while True:
                 manifest = runner.load(root)
-                verify_inputs(root, manifest)
-                resource_check(root, manifest)
+                verify_inputs(root, manifest, postprocess_only)
+                resource_check(root, manifest, postprocess_only=postprocess_only)
                 if manifest.get('active') or any(run['status'] == 'running' for run in manifest['runs']):
                     raise ValueError('Campaign became active; verify its host identity before recovery')
                 done = completed(root, manifest, state)
@@ -514,6 +532,9 @@ def start(root):
                 if len(done) == len(manifest['runs']):
                     state['status'] = 'completed'
                     return 0
+                if postprocess_only:
+                    state['status'] = 'waiting-for-remote'
+                    return 0
                 before = {run['id'] for run in done}
                 claim_next_run(root, manifest, state, policy)
                 phase(root, manifest, state, 'solver', run_command(root))
@@ -522,7 +543,8 @@ def start(root):
                 if not before < after or len(after - before) != 1:
                     raise RuntimeError('Single-run solver did not complete exactly one new result')
         except KeyboardInterrupt:
-            runner.atomic_text(root / 'STOP', 'Publication workflow interrupted; requires explicit resume.\n')
+            marker = 'POSTPROCESS_STOP' if postprocess_only else 'STOP'
+            runner.atomic_text(root / marker, 'Publication workflow interrupted; requires explicit resume.\n')
             state.update(status='stopped', error='Interrupted; no additional run started')
             return 1
         except Exception as error:
@@ -539,6 +561,8 @@ def start(root):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--campaign', type=Path, required=True)
+    parser.add_argument('--postprocess-only', action='store_true',
+        help='Publish completed results only; retain solver STOP and use POSTPROCESS_STOP for reporting cancellation')
     action = parser.add_mutually_exclusive_group()
     action.add_argument('--start', action='store_true', help='Explicitly authorize solver, movie and website publication phases')
     action.add_argument('--plan', action='store_true', help='Read-only next actions and frozen policy (default)')
@@ -546,8 +570,8 @@ def main(argv=None):
     args = parser.parse_args(argv)
     root = args.campaign.resolve()
     if args.start:
-        return start(root)
-    print(json.dumps(inspect(root), indent=2))
+        return start(root, args.postprocess_only)
+    print(json.dumps(inspect(root, args.postprocess_only), indent=2))
     return 0
 
 

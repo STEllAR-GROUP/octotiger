@@ -97,6 +97,54 @@ class RetentionTests(unittest.TestCase):
         cached = retention.validate_retained_cache(self.root, self.run, self.extraction['settings'])
         self.assertEqual(cached['source_snapshots'], 3)
 
+    def remote_import(self):
+        plan = self.root / '.campaign/plan.json'
+        write_json(plan, {'synthetic': 'frozen plan'})
+        prefix = self.run['case'] + '/l' + str(self.run['level']) + '/'
+        files = {prefix + str(path.relative_to(self.folder)): {'sha256': retention.digest(path),
+            'bytes': path.stat().st_size} for path in self.folder.rglob('*') if path.is_file()}
+        receipt = {'schema': 1, 'status': 'complete', 'owner': 'octotiger-m1-fld-qb4-20261014',
+            'nodes': 1, 'tasks': 1, 'job_id': '102', 'node': 'qb-compute1', 'run_id': self.run['id'],
+            'run_metadata_sha256': self.run['run_metadata_sha256'], 'files': files}
+        wrapper = {'schema': 1, 'status': 'verified', 'owner': receipt['owner'], 'run_id': self.run['id'],
+            'directory': self.run['directory'], 'plan_sha256': retention.digest(plan),
+            'imported_utc': '2026-10-14T12:00:00Z', 'receipt': receipt}
+        path = self.root / '.imports' / (self.run['id'] + '.json')
+        write_json(path, wrapper)
+        self.run['remote_import'] = {'path': str(path.relative_to(self.root)), 'sha256': retention.digest(path)}
+        self.run['attempts'] = []
+        self.owner = retention.remote_owner(self.root, self.run)
+        return path
+
+    def test_verified_remote_import_owns_raw_without_local_pid(self):
+        self.remote_import()
+        self.assertNotIn('solver_identity', self.owner)
+        self.authorize()
+        retention.prune(self.root, self.run)
+        self.assertFalse((self.folder / 'X.1.silo').exists())
+        self.assertTrue((self.folder / 'X.0.silo').exists())
+        self.assertTrue((self.folder / 'final.silo').exists())
+        self.assertTrue((self.folder / 'checkpoint.final').exists())
+        retention.validate_retention(self.root, self.run)
+
+    def test_remote_receipt_tampering_and_fabricated_pid_never_authorize_removal(self):
+        path = self.remote_import()
+        self.owner['solver_identity'] = {'pid': 100, 'process_start_ticks': '123'}
+        with self.assertRaisesRegex(ValueError, 'not a local solver PID'):
+            self.authorize()
+        self.owner.pop('solver_identity')
+        path.write_text(path.read_text() + '\n')
+        with self.assertRaisesRegex(ValueError, 'receipt changed'):
+            self.authorize()
+        self.assertTrue((self.folder / 'X.1.silo').exists())
+
+    def test_remote_raw_inventory_cannot_adopt_files_added_after_import(self):
+        self.remote_import()
+        (self.folder / 'checkpoint.extra').write_text('Unowned later checkpoint')
+        with self.assertRaisesRegex(ValueError, 'verified imported file inventory'):
+            self.authorize()
+        self.assertTrue((self.folder / 'X.1.silo').exists())
+
     def test_no_receipt_means_no_deletion_and_no_cache_override(self):
         with self.assertRaisesRegex(ValueError, 'committed'):
             retention.prune(self.root, self.run)

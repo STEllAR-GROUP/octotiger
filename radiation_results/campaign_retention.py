@@ -165,13 +165,56 @@ def raw_inventory(folder, guard=lambda: None):
     return keep, remove
 
 
-def make_receipt(root, manifest, run, owner, guard=lambda: None):
+def remote_owner(root, run):
+    """Bind cleanup to a committed verified import, without inventing a PID.
+
+    This checks the immutable import identity only. Full source/runtime and file
+    validation belongs to the importer/runner; calling it here would recurse
+    when that validator consults a retention receipt for removed raw files.
+    """
+    pointer = run.get('remote_import', {})
+    expected = '.imports/' + run['id'] + '.json'
+    if pointer.get('path') != expected:
+        raise ValueError('Remote retention requires a committed import receipt')
+    path = safe_path(root, expected)
+    if not path.is_file() or digest(path) != pointer.get('sha256'):
+        raise ValueError('Remote import receipt changed')
+    imported = json.loads(path.read_text())
+    receipt = imported.get('receipt', {})
+    if (imported.get('schema') != 1 or imported.get('status') != 'verified' or
+            imported.get('owner') != 'octotiger-m1-fld-qb4-20261014' or
+            imported.get('run_id') != run['id'] or imported.get('directory') != run['directory'] or
+            imported.get('plan_sha256') != digest(root / '.campaign/plan.json') or
+            not imported.get('imported_utc') or receipt.get('schema') != 1 or
+            receipt.get('status') != 'complete' or receipt.get('owner') != imported['owner'] or
+            receipt.get('run_id') != run['id'] or receipt.get('nodes') != 1 or receipt.get('tasks') != 1 or
+            not re.fullmatch(r'[1-9][0-9]*', str(receipt.get('job_id', ''))) or
+            not isinstance(receipt.get('node'), str) or not re.fullmatch(r'[A-Za-z0-9_.-]+', receipt['node']) or
+            receipt.get('run_metadata_sha256') != run['run_metadata_sha256']):
+        raise ValueError('Remote import ownership does not match completed run')
+    return {'kind': 'verified-remote-import', 'directory': run['directory'],
+            'claimed_utc': imported['imported_utc'], 'remote_import': pointer,
+            'job_id': receipt['job_id'], 'node': receipt['node']}
+
+
+def validate_owner(root, run, owner):
     if owner.get('directory') != run['directory'] or not owner.get('claimed_utc'):
         raise ValueError('Raw cleanup is limited to a run newly owned by this wrapper')
+    if run.get('remote_import'):
+        expected = remote_owner(root, run)
+        if any(owner.get(key) != value for key, value in expected.items()) or 'solver_identity' in owner:
+            raise ValueError('Remote retention requires verified import ownership, not a local solver PID')
+        return
+    if owner.get('kind') == 'verified-remote-import' or owner.get('remote_import'):
+        raise ValueError('Remote retention requires a committed import receipt')
     attempt = run.get('attempts', [{}])[-1] if run.get('attempts') else {}
     identity = {'pid': attempt.get('pid'), 'process_start_ticks': attempt.get('process_start_ticks')}
     if not all(identity.values()) or owner.get('solver_identity') != identity:
         raise ValueError('Raw cleanup requires verified solver process ownership')
+
+
+def make_receipt(root, manifest, run, owner, guard=lambda: None):
+    validate_owner(root, run, owner)
     folder = leaf(root, run)
     extraction, artifacts = validate_extraction(folder, run, manifest['snapshots'], guard)
     movie = json.loads(safe_path(folder, extraction['movie_metadata']['path']).read_text())
@@ -182,6 +225,14 @@ def make_receipt(root, manifest, run, owner, guard=lambda: None):
         if stat.st_size != record['size'] or stat.st_mtime_ns != record['mtime_ns']:
             raise ValueError('Raw Silo input changed after extraction')
     preserved, removed = raw_inventory(folder, guard)
+    if run.get('remote_import'):
+        imported = json.loads(safe_path(root, run['remote_import']['path']).read_text())
+        inventory = imported['receipt']['files']
+        prefix = run['case'] + '/l' + str(run['level']) + '/'
+        for record in (*preserved, *removed):
+            saved = inventory.get(prefix + record['path'], {})
+            if saved.get('sha256') != record['sha256'] or saved.get('bytes') != record['bytes']:
+                raise ValueError('Raw cleanup is limited to the verified imported file inventory')
     raw_paths = {record['path'] for record in (*preserved, *removed)
                  if re.fullmatch(r'(X\.\d+|final)\.silo(?:\.data)?', Path(record['path']).parts[0])}
     if raw_paths != {record['path'] for record in movie['signature'].get('inputs', [])}:
@@ -208,10 +259,7 @@ def validate_retention(root, run, guard=lambda: None):
     if (receipt.get('schema') != 1 or receipt.get('status') != 'verified-extraction-removal-authorized' or
             receipt.get('run_id') != run['id'] or receipt.get('run_metadata_sha256') != run['run_metadata_sha256']):
         raise ValueError('Retention receipt belongs to different run metadata')
-    attempt = run.get('attempts', [{}])[-1] if run.get('attempts') else {}
-    identity = {'pid': attempt.get('pid'), 'process_start_ticks': attempt.get('process_start_ticks')}
-    if receipt.get('owner', {}).get('solver_identity') != identity:
-        raise ValueError('Retention receipt belongs to a different solver attempt')
+    validate_owner(root, run, receipt.get('owner', {}))
     protected = receipt.get('preserved_raw', [])
     removed = receipt.get('removed_raw', [])
     if not protected or not any(r['path'] == 'final.silo' for r in protected):

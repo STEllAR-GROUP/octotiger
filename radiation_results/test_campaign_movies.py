@@ -11,6 +11,22 @@ import campaign_movies as movies
 
 
 class MovieTimingTests(unittest.TestCase):
+    def test_postprocess_only_uses_separate_marker_and_preserves_solver_stop(self):
+        with tempfile.TemporaryDirectory(prefix="movie-stop-test-") as temporary:
+            root = Path(temporary)
+            stop = root / "STOP"
+            stop.write_text("Keep local solver stopped.\n")
+            args = argparse.Namespace(postprocess_only=False, stop_file=[])
+            with self.assertRaisesRegex(RuntimeError, "STOP"):
+                movies.stopped(root, args)
+            args.postprocess_only = True
+            movies.stopped(root, args)
+            self.assertEqual(movies.stop_paths(root, args), [root / "POSTPROCESS_STOP"])
+            self.assertEqual(stop.read_text(), "Keep local solver stopped.\n")
+            (root / "POSTPROCESS_STOP").touch()
+            with self.assertRaisesRegex(RuntimeError, "POSTPROCESS_STOP"):
+                movies.stopped(root, args)
+
     def test_extraction_manifest_round_trips_into_verified_retention(self):
         import campaign_retention as retention
         from test_campaign_retention import prepare_outputs
