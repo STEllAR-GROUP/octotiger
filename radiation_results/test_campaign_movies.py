@@ -97,6 +97,8 @@ class MovieInputTests(unittest.TestCase):
         self.assertEqual(fld["radiation_flux_semantics"], "derived_fld_flux")
         self.assertIn("radiation momentum is not evolved", fld["flux_description"])
         self.assertIn("independently evolved", m1["flux_description"])
+        self.assertIn("see the final-time run report", m1["reference_description"])
+        self.assertNotIn("no applicable", m1["reference_description"])
 
     def test_fld_reference_metadata_remains_qualified_and_separate_from_movie_frames(self):
         metadata = dict(self.model_metadata(), reference_kind="linear-diffusion-limit",
@@ -126,11 +128,31 @@ class MovieInputTests(unittest.TestCase):
                               "integrator": "backward_euler"}]}
         movies.validate_movie_manifest(manifest)
         movies.validate_movie_manifest(dict(manifest, methods=["fld"]))
+        for case in movies.FLD_CASES:
+            movies.validate_movie_manifest(dict(manifest, runs=[dict(manifest["runs"][0], case=case)]))
         for change in ({"schema": 1}, {"workflow": "level-major-radiation"},
                        {"runtime_profiles": {"baseline": {}}}, {"methods": ["euler", "ader2"]},
                        {"methods": []}, {"methods": ["m1"]}, {"methods": ["fld", "m1"]}):
             with self.subTest(change=change), self.assertRaises(ValueError):
                 movies.validate_movie_manifest(dict(manifest, **change))
+
+    def test_five_stationary_fld_cases_keep_reference_contracts_separate(self):
+        for case in ("streaming_wave", "streaming_front"):
+            metadata = dict(self.model_metadata(), case=case, reference_kind="unavailable", reference_model="none",
+                            reference_exact_for_solver=False, reference_sampling="none")
+            contract = movies.model_contract(metadata)
+            self.assertIn('M1 streaming profile is not an FLD reference', contract['reference_description'])
+            self.assertFalse(contract['reference_exact_for_solver'])
+            for updates in ({'reference_model': 'm1-advection'}, {'reference_exact_for_solver': True},
+                            {'reference_sampling': 'cell averages'}, {'reference_kind': 'linear-diffusion-limit'}):
+                with self.subTest(case=case, updates=updates), self.assertRaises(ValueError):
+                    movies.model_contract(dict(metadata, **updates))
+        sphere = dict(self.model_metadata(), case='equilibrium_sphere', reference_kind='linear-diffusion-limit',
+                      reference_model='steady-gaussian-emitter', reference_exact_for_solver=False,
+                      reference_sampling='cell averages')
+        contract = movies.model_contract(sphere)
+        self.assertEqual(contract['reference_model'], 'steady-gaussian-emitter')
+        self.assertIn('not an exact solution', contract['reference_description'])
 
     def test_full_domain_policy_invalidates_cropped_cache_and_ignores_saved_crop(self):
         with tempfile.TemporaryDirectory() as directory:

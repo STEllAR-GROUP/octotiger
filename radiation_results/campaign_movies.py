@@ -35,7 +35,9 @@ MOVIE_SUBDIR = Path("movies/radiation-energy-flux")
 MODEL_LABELS = {"m1": "M1 RK1", "fld": "FLD backward Euler"}
 MODEL_INTEGRATORS = {"m1": "euler", "fld": "backward_euler"}
 MODEL_FLUX = {"m1": "evolved_m1_flux", "fld": "derived_fld_flux"}
-FLD_REFERENCE_MODELS = {"gaussian_pulse": "periodic-constant-diffusion", "marshak": "su-olson-linear-halfspace"}
+FLD_REFERENCE_MODELS = {"gaussian_pulse": "periodic-constant-diffusion", "marshak": "su-olson-linear-halfspace",
+                        "equilibrium_sphere": "steady-gaussian-emitter"}
+FLD_CASES = {"streaming_wave", "streaming_front", "gaussian_pulse", "equilibrium_sphere", "marshak"}
 CASES = {"streaming_wave", "streaming_front", "gaussian_pulse", "equilibrium_sphere",
          "subcritical_shock", "supercritical_shock", "radiating_blast", "marshak"}
 
@@ -52,16 +54,26 @@ def model_contract(metadata: dict, run: dict | None = None) -> dict:
     if run is not None and (run.get("method") != model or run.get("model") != model
                             or run.get("integrator") != MODEL_INTEGRATORS[model]):
         raise ValueError("Movie run model/integrator does not match its saved metadata")
-    if model == "fld" and metadata.get("case") not in {"gaussian_pulse", "marshak"}:
-        raise ValueError("FLD campaign movies support stationary Gaussian pulse and Marshak only")
+    if model == "fld" and metadata.get("case") not in FLD_CASES:
+        raise ValueError("FLD campaign movies support stationary radiation problems only")
     reference = {"reference_kind": metadata.get("reference_kind", "not recorded"),
                  "reference_model": metadata.get("reference_model"),
                  "reference_exact_for_solver": metadata.get("reference_exact_for_solver"),
                  "reference_description": "Movies show saved numerical states; model-specific analytic comparisons are in the final-time profiles."}
-    if reference["reference_kind"] in {"numerical-only", "not recorded"}:
+    if reference["reference_kind"] == "not recorded":
+        reference["reference_description"] = "Movies show saved numerical states; see the final-time run report for analytic-reference applicability."
+    if reference["reference_kind"] in {"numerical-only", "unavailable"}:
         reference["reference_description"] = "Movies show saved numerical states; no applicable analytic reference is recorded."
-    if model == "fld" and reference["reference_kind"] not in {"numerical-only", "not recorded"}:
-        if (reference["reference_kind"] != "linear-diffusion-limit" or
+    if model == "fld" and reference["reference_kind"] == "unavailable":
+        if (metadata["case"] not in {"streaming_wave", "streaming_front"} or
+                reference["reference_model"] != "none" or reference["reference_exact_for_solver"] is not False or
+                metadata.get("reference_sampling") != "none"):
+            raise ValueError("Unavailable FLD references must explicitly declare no reference model or sampling")
+        reference["reference_description"] = ("Movies show saved numerical states. No nonlinear FLD spatial analytic "
+            "reference is supplied for this benchmark; the M1 streaming profile is not an FLD reference. "
+            "The final-time report includes exact invariant checks.")
+    if model == "fld" and reference["reference_kind"] not in {"numerical-only", "not recorded", "unavailable"}:
+        if (metadata["case"] not in FLD_REFERENCE_MODELS or reference["reference_kind"] != "linear-diffusion-limit" or
                 reference["reference_model"] != FLD_REFERENCE_MODELS[metadata["case"]] or
                 reference["reference_exact_for_solver"] is not False):
             raise ValueError("FLD movie references require an applicable, explicitly qualified diffusion-limit model")
@@ -92,7 +104,7 @@ def validate_movie_manifest(manifest: dict) -> None:
                 or run.get("integrator") != MODEL_INTEGRATORS[model]
                 or type(run.get("level")) is not int or run["level"] < 0
                 or run.get("runtime_profile", "baseline") != "baseline" or identity in identities
-                or (model == "fld" and run.get("case") not in {"gaussian_pulse", "marshak"})):
+                or (model == "fld" and run.get("case") not in FLD_CASES)):
             raise ValueError("Invalid movie campaign model/case identity")
         identities.add(identity)
 
