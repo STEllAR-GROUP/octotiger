@@ -50,6 +50,19 @@ class DeploymentTests(unittest.TestCase):
         return self.remote('activate', previous_generation=prepared['previous_generation'],
             manifest_sha256=deploy.file_hash(self.stage / 'publication-manifest.json'))
 
+    def verified_pilot(self):
+        self.generation = deploy.PILOT_GENERATION
+        path = self.stage / 'site-manifest.json'
+        receipt = json.loads(path.read_text())
+        receipt['completed_runs'] = 8
+        deploy.write_json(path, receipt)
+        _, prepared = self.upload()
+        self.activate(prepared)
+        return self.remote('verified', verified_utc='fixture')
+
+    def archive_pilot(self):
+        return self.remote('archive-pilot', pilot_generation=deploy.PILOT_GENERATION)
+
     def test_activation_preserves_old_campaign_and_archives_previous_homepage(self):
         manifest, prepared = self.upload()
         result = self.activate(prepared)
@@ -119,6 +132,78 @@ class DeploymentTests(unittest.TestCase):
             manifest = deploy.prepare_staged(self.stage, self.generation)
         remote.assert_not_called(); command.assert_not_called()
         self.assertEqual(manifest['completed_runs'], 2)
+
+    def test_pilot_archive_is_exact_idempotent_and_does_not_change_current_homepage(self):
+        pilot = self.verified_pilot()
+        current = (self.root / 'index.html').read_bytes()
+        receipt_path = self.root / 'campaigns' / ('.' + deploy.SLUG + '-receipt.json')
+        saved_receipt = receipt_path.read_bytes()
+        first = self.archive_pilot()
+        second = self.archive_pilot()
+        self.assertEqual(first['status'], 'archived')
+        self.assertEqual(second['status'], 'already_archived')
+        self.assertEqual((self.root / 'campaigns' / deploy.PILOT_SLUG).resolve(), Path(pilot['generation_path']))
+        self.assertEqual((self.root / 'index.html').read_bytes(), current)
+        self.assertEqual(receipt_path.read_bytes(), saved_receipt)
+        self.assertEqual(deploy.file_hash(Path(first['archive_path']) / 'index.html'), first['index_sha256'])
+        self.assertIn('/campaigns/' + deploy.PILOT_SLUG + '/', (self.stage / 'index.html').read_text())
+
+    def test_pilot_archive_never_overwrites_foreign_directory_or_symlink(self):
+        self.verified_pilot()
+        alias = self.root / 'campaigns' / deploy.PILOT_SLUG
+        alias.mkdir(); (alias / 'keep.txt').write_text('Unrelated user data')
+        with self.assertRaisesRegex(ValueError, 'Refusing to overwrite'):
+            self.archive_pilot()
+        self.assertEqual((alias / 'keep.txt').read_text(), 'Unrelated user data')
+        (alias / 'keep.txt').unlink(); alias.rmdir()
+        alias.symlink_to('.generations/old')
+        with self.assertRaisesRegex(ValueError, 'Refusing to overwrite'):
+            self.archive_pilot()
+        self.assertEqual((alias / 'index.html').read_text(), 'Historical campaign')
+
+    def test_pilot_archive_rejects_changed_content_homepage_and_unexpected_generation(self):
+        self.verified_pilot()
+        with self.assertRaisesRegex(ValueError, 'Unexpected pilot generation'):
+            self.remote('archive-pilot', pilot_generation=deploy.SLUG + '-unexpected')
+        homepage = (self.root / 'index.html').read_bytes()
+        (self.root / 'index.html').write_text('User homepage change')
+        with self.assertRaisesRegex(ValueError, 'no longer matches'):
+            self.archive_pilot()
+        (self.root / 'index.html').write_bytes(homepage)
+        (self.root / 'campaigns' / deploy.SLUG / 'profiles.csv').write_text('changed output')
+        with self.assertRaisesRegex(ValueError, 'Pilot file changed'):
+            self.archive_pilot()
+        self.assertFalse((self.root / 'campaigns' / deploy.PILOT_SLUG).exists())
+
+    def test_pilot_archive_respects_shared_publication_lock(self):
+        self.verified_pilot()
+        with (self.root / 'campaigns/.publish.lock').open('a') as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            with self.assertRaises(BlockingIOError):
+                self.archive_pilot()
+        self.assertFalse((self.root / 'campaigns' / deploy.PILOT_SLUG).exists())
+
+    def test_new_campaign_replacement_keeps_pilot_alias_and_original_receipt(self):
+        pilot = self.verified_pilot()
+        self.archive_pilot()
+        pilot_receipt_path = Path(pilot['generation_path']) / 'publication-receipt.json'
+        pilot_receipt = pilot_receipt_path.read_bytes()
+        pilot_index = deploy.file_hash(Path(pilot['generation_path']) / 'index.html')
+        self.stage = self.base / 'longer-campaign-site'
+        self.stage.mkdir()
+        (self.stage / 'index.html').write_text('<html><head></head><main><h1>Longer evolution</h1></main></html>')
+        deploy.write_json(self.stage / 'site-manifest.json', {'schema': 2, 'workflow': 'm1-fld-radiation',
+            'status': 'staged_locally', 'completed_runs': 2, 'local_links_verified': True,
+            'source': str(self.base / 'new-campaign'), 'file_sha256': {'index.html': deploy.file_hash(self.stage / 'index.html')}})
+        self.generation = deploy.SLUG + '-20261014T080000Z-abcddcba'
+        _, prepared = self.upload()
+        self.assertEqual(prepared['previous_generation'], pilot['generation_path'])
+        next_receipt = self.activate(prepared)
+        self.assertEqual(next_receipt['previous_generation_path'], pilot['generation_path'])
+        self.assertIn('Longer evolution', (self.root / 'index.html').read_text())
+        self.assertEqual(deploy.file_hash(self.root / 'campaigns' / deploy.PILOT_SLUG / 'index.html'), pilot_index)
+        self.assertEqual(pilot_receipt_path.read_bytes(), pilot_receipt)
+        self.assertEqual(self.archive_pilot()['status'], 'already_archived')
 
 
 if __name__ == '__main__':

@@ -3,6 +3,7 @@
 
 --prepare stages locally without a network call. --inspect is remote read-only.
 --deploy is the explicit upload/activation action and requires completed output.
+--archive-pilot preserves the verified initial pilot at a separate public URL.
 No mode starts a solver or movie renderer.
 """
 import argparse
@@ -24,6 +25,8 @@ HOST = 'dmarce1@129.212.177.35'
 WEBROOT = '/var/www/octotiger'
 SITE = 'https://www.octotiger.org'
 SLUG = 'm1-fld-20261013'
+PILOT_SLUG = 'm1-fld-pilot-20261013'
+PILOT_GENERATION = 'm1-fld-20261013-20261014T032248Z-3877e90e'
 ORIGINAL_HOMEPAGE_SHA256 = 'a9bd1d8e0dacc787938e6e15416bdb4873cf6538079570c7dc028d2cb9543aad'
 RESERVE_BYTES = 2 * 1024**3
 
@@ -58,8 +61,49 @@ def run(p, root):
         return {'homepage_sha256': sha(root / 'index.html'),
             'receipt': json.loads(receipt_path.read_text()) if receipt_path.exists() else None,
             'stable': str(stable.resolve()) if stable.is_symlink() else None,
+            'pilot_archive': str((base / 'm1-fld-pilot-20261013').resolve())
+                if (base / 'm1-fld-pilot-20261013').is_symlink() else None,
             'campaign_exists': stable.exists() or stable.is_symlink(),
             'free_bytes': shutil.disk_usage(root).free}
+    if p['action'] == 'archive-pilot':
+        pilot_generation = 'm1-fld-20261013-20261014T032248Z-3877e90e'
+        require(p.get('pilot_generation') == pilot_generation, 'Unexpected pilot generation')
+        target = base / '.generations' / pilot_generation
+        alias = base / 'm1-fld-pilot-20261013'
+        with (base / '.publish.lock').open('a') as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            require(target.is_dir() and not target.is_symlink(), 'Verified pilot generation is missing')
+            pilot = json.loads((target / 'publication-receipt.json').read_text())
+            require(pilot.get('status') == 'verified' and pilot.get('generation') == pilot_generation and
+                    pilot.get('generation_path') == str(target) and pilot.get('completed_runs') == 8,
+                    'Pilot receipt does not identify the verified eight-run generation')
+            require(sha(target / 'publication-manifest.json') == pilot['manifest_sha256'] and
+                    sha(target / '.homepage.html') == pilot['homepage_sha256'], 'Pilot publication changed')
+            manifest = json.loads((target / 'publication-manifest.json').read_text())
+            require(manifest.get('generation') == pilot_generation and manifest.get('campaign') == slug,
+                    'Pilot publication identity changed')
+            for relative, info in manifest['files'].items():
+                path = target / relative
+                require(path.is_file() and not path.is_symlink() and path.resolve().is_relative_to(target.resolve()) and
+                        path.stat().st_size == info['bytes'] and sha(path) == info['sha256'],
+                        'Pilot file changed: ' + relative)
+            exists = alias.exists() or alias.is_symlink()
+            if exists:
+                require(alias.is_symlink() and alias.resolve() == target, 'Refusing to overwrite an existing pilot archive')
+            else:
+                current = json.loads(receipt_path.read_text())
+                require(current.get('status') == 'verified' and current.get('generation') == pilot_generation and
+                        stable.is_symlink() and stable.resolve() == target and
+                        sha(root / 'index.html') == pilot['homepage_sha256'],
+                        'Current website no longer matches the verified pilot; archive was not created')
+                # symlink creation is atomic and fails if another writer created
+                # this name; it never replaces a directory, file, or foreign link.
+                os.symlink(os.path.relpath(target, base), alias)
+            return {'status': 'already_archived' if exists else 'archived',
+                    'generation': pilot_generation, 'generation_path': str(target), 'archive_path': str(alias),
+                    'index_sha256': manifest['files']['index.html']['sha256'],
+                    'manifest_sha256': pilot['manifest_sha256'],
+                    'url': 'https://www.octotiger.org/campaigns/m1-fld-pilot-20261013/'}
     generation = p['generation']
     require(re.fullmatch(slug + r'-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8}', generation), 'Invalid generation')
     incoming = base / '.incoming' / generation
@@ -189,6 +233,7 @@ def prepare_staged(stage, generation):
             raise ValueError('Staged file changed: ' + relative)
     history = ('<aside class="note"><strong>Current M1 RK1 and FLD results</strong><p>'
         'Results appear as runs complete; pending cases are not claimed as validated. '
+        f'<a href="{SITE}/campaigns/{PILOT_SLUG}/">Initial M1/FLD pilot (three stored states per run)</a> · '
         f'<a href="{SITE}/campaigns/local-20261011/">Historical Euler/ADER2 campaign</a> · '
         f'<a href="{SITE}/archive/pre-{SLUG}/">Previous homepage</a></p></aside>')
     index = (stage / 'index.html').read_text()
@@ -260,12 +305,19 @@ def main(argv=None):
     action.add_argument('--prepare', action='store_true')
     action.add_argument('--deploy', action='store_true')
     action.add_argument('--inspect', action='store_true')
+    action.add_argument('--archive-pilot', action='store_true',
+        help='Create or verify the public archive alias for the exact initial eight-run pilot generation')
     staging = parser.add_mutually_exclusive_group()
     staging.add_argument('--stage', type=Path)
     staging.add_argument('--staged-site', type=Path, help='Use an already checked local website without accessing live campaign results')
     args = parser.parse_args(argv)
     if args.inspect:
         print(json.dumps(remote('inspect'), indent=2)); return 0
+    if args.archive_pilot:
+        result = remote('archive-pilot', pilot_generation=PILOT_GENERATION)
+        result['https'] = [verify_https('/campaigns/' + PILOT_SLUG + '/', result['index_sha256'], PILOT_GENERATION),
+            verify_https('/campaigns/' + PILOT_SLUG + '/publication-manifest.json', result['manifest_sha256'], PILOT_GENERATION)]
+        print(json.dumps(result, indent=2)); return 0
     if args.campaign is None:
         parser.error('A completed campaign is required for preparation/deployment')
     root = args.campaign.resolve()

@@ -163,6 +163,21 @@ lock. The homepage and campaign are then checked over HTTPS. `--prepare` perform
 only local staging; `--inspect` reads remote deployment state. Historical campaign
 URLs and results are retained.
 
+Before replacing the initial eight-run pilot with a longer campaign, preserve
+its public URL with the guarded one-time archive operation:
+
+```sh
+python3 radiation_results/deploy_campaign.py --archive-pilot
+```
+
+This checks the exact verified pilot generation and every saved file under the
+publication lock, then creates `/campaigns/m1-fld-pilot-20261013/`. It leaves the
+current homepage and campaign pointer unchanged and refuses to overwrite an
+unrelated archive path. Repeating it validates the existing alias. Future staged
+homepages link to this initial pilot. Each campaign update uses a fresh local
+website stage; previous immutable generations and their publication receipts
+remain available after the current campaign link advances.
+
 Movies are optional, separate work after execution. `campaign_movies.py --campaign
 DIR --plan` lists supported completed runs without rendering. Its metadata and
 labels distinguish M1's evolved flux from FLD's derived flux. Rendering requires

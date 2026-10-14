@@ -267,6 +267,13 @@ int main(int argc, char **argv)
 		// Older Python batches use this workflow name and omit the new options object.
 		auto saved = read_json(batch / "batch.json");
 		expect(saved.at("options").at("radiation_backend") == "cpu", "runner defaults to the CPU backend");
+        const auto new_wave = read_json(batch / "streaming_wave/l0/run.json");
+        expect(saved.at("options").at("stationary_output_each_step") == true &&
+            new_wave.at("movie_capture").at("steps_per_output_check") == 1 &&
+            close(numeric(new_wave.at("config").at("hard_dt")), .4) &&
+            close(new_wave.at("movie_capture").at("hard_dt"), .4) &&
+            close(new_wave.at("movie_capture").at("odt"), 2.),
+            "new stationary M1 checks output each step while retaining the historical odt/5 timestep cap");
         expect(saved.at("source_sha256").contains("src/radiation/iteration.cpp") &&
             saved.at("source_sha256").contains("src/radiation/fld.cpp") &&
             saved.at("source_sha256").contains("octotiger/radiation/fld.hpp") &&
@@ -288,6 +295,10 @@ int main(int argc, char **argv)
             legacy.erase("radiation_flux_semantics");
             legacy["config"].erase("radiation_backend");
             legacy["config"].erase("radiation_model");
+            // This fixture now represents a pre-flag batch: those drivers
+            // checked output after a five-step refinement batch. Its timestep
+            // cap already matches the old policy and must remain unchanged.
+            legacy["movie_capture"]["steps_per_output_check"] = 5;
             write_config(folder / "run.ini", legacy.at("config"));
             write_json(folder / "run.json", legacy);
         }
@@ -295,6 +306,8 @@ int main(int argc, char **argv)
 		executions();
         expect(read_json(batch / "streaming_wave/l0/run.json").at("radiation_backend") == "cpu",
             "legacy metadata and configs without a backend resume as CPU");
+        expect(read_json(batch / "streaming_wave/l0/run.json").at("movie_capture").at("steps_per_output_check") == 5,
+            "legacy resume preserves its recorded batched output cadence");
 		auto radiation_source = source / "src/radiation/rad_grid.cpp";
 		auto original = read_text(radiation_source);
 		atomic_text(radiation_source, original + "// changed\n");
