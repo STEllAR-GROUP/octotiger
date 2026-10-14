@@ -14,6 +14,7 @@ import json
 import math
 import os
 from pathlib import Path
+import resource
 import shutil
 import subprocess
 import tempfile
@@ -34,7 +35,7 @@ EXPECTED = {
     "radiation_reduced_c_factor": 1.0,
     "radiation": 1,
     "periodic": 1,
-    "rad_implicit": 0,
+    "rad_implicit": 1,
     "rad_test_chi": 3.5,
     "rad_test_width": 0.23,
     "rad_test_background": 1.7,
@@ -207,7 +208,7 @@ def run(executable, folder, final_time, threads, timeout, restart=None, expected
     folder.mkdir(parents=True)
     config = {
         "problem": "RADIATION_STREAMING_WAVE", "radiation": "on", "hydro": "off",
-        "gravity": "off", "omega": 0, "periodic": "on", "rad_implicit": "off",
+        "gravity": "off", "omega": 0, "periodic": "on", "rad_implicit": "on",
         "unigrid": "on", "min_level": level, "max_level": level, "xscale": 1,
         "n_species": 5, "cfl": 0.25, "hard_dt": 0.001, "stop_time": final_time,
         "stop_step": 100000, "odt": 1, "disable_output": "off",
@@ -221,7 +222,7 @@ def run(executable, folder, final_time, threads, timeout, restart=None, expected
                    if name.startswith("rad_test_") or name in ("rad_reference", "radiation_reduced_c_factor", "code_to_g", "code_to_cm", "code_to_s")})
     if restart:
         config.update({
-            "restart_filename": str(restart), "periodic": "off", "rad_implicit": "on",
+            "restart_filename": str(restart), "periodic": "off", "rad_implicit": "off",
             "radiation_model": "fld", "radiation_integrator": "backward_euler",
             "rad_test_chi": 0.75, "rad_test_width": 0.19, "rad_test_background": 5,
             "rad_test_amplitude": 0.2, "rad_test_luminosity": 0.9,
@@ -296,6 +297,8 @@ def main():
     executable = args.executable.resolve()
     if not executable.is_file():
         parser.error(f"Executable does not exist: {executable}")
+    # Invalid metadata intentionally aborts; retain logs instead of core dumps.
+    resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
     # Retain failed runs, and print the location so application diagnostics are inspectable.
     folder = args.work_dir.resolve() if args.work_dir else Path(tempfile.mkdtemp(prefix="octotiger-radiation-restart-"))
     folder.mkdir(parents=True, exist_ok=True)
