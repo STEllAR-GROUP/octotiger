@@ -1811,6 +1811,45 @@ std::vector<std::pair<std::string, std::string>> grid::get_vector_expressions() 
 
 void grid::export_radiation_hydro(real t) const {
 	FpeGuard fpeGuard{};
+    if (opts().radiation_model == "fld") {
+        const auto directory = std::filesystem::path(opts().data_dir);
+        if (!std::filesystem::is_directory(directory / "radiation-slices") &&
+            !std::filesystem::is_directory(directory / "marshak-material-slices")) {
+            return;
+        }
+        const int level = opts().unigrid ? -1 : int(std::llround(std::log2(2 * opts().xscale / (INX * dx))));
+        const bool references = opts().problem == RADIATION_GAUSSIAN_PULSE || opts().problem == MARSHAK;
+        radiationTests::SliceOutput radiation(true, opts().data_dir, t, dx, 2 * opts().xscale, level, references);
+        radiationTests::MaterialSliceOutput material(opts().problem == MARSHAK,
+            opts().data_dir, t, dx, 2 * opts().xscale, level, references);
+        // These are linear diffusion-limit comparisons for nonlinear LP FLD.
+        // Preserve the accepted state; compute_analytic replaces evolved fields.
+        for (integer i = H_BW; i < H_NX - H_BW; ++i) {
+            for (integer j = H_BW; j < H_NX - H_BW; ++j) {
+                for (integer k = H_BW; k < H_NX - H_BW; ++k) {
+                    const auto h = hindex(i, j, k);
+                    if (std::abs(X[ZDIM][h] - dx / 2) >
+                        128 * std::numeric_limits<double>::epsilon() * 2 * opts().xscale) {
+                        continue;
+                    }
+                    std::vector<real> reference;
+                    if (opts().problem == RADIATION_GAUSSIAN_PULSE) {
+                        reference = radiationRegressionAnalyticCell(X[XDIM][h], X[YDIM][h], X[ZDIM][h], t, dx);
+                    } else if (opts().problem == MARSHAK) {
+                        reference = marshak_wave_analytic(X[XDIM][h], X[YDIM][h], X[ZDIM][h], t);
+                    }
+                    radiation.capture(X[XDIM][h], X[YDIM][h], X[ZDIM][h], reference, opts().n_fields,
+                        [&](int f) { return rad_grid_ptr->get_field(f,
+                            i - H_BW + R_BW, j - H_BW + R_BW, k - H_BW + R_BW); });
+                    material.capture(X[XDIM][h], X[YDIM][h], X[ZDIM][h], U[egas_i][h],
+                        opts().problem == MARSHAK ? reference[egas_i] : 0);
+                }
+            }
+        }
+        radiation.finish();
+        material.finish();
+        return;
+    }
 	radiationHydroTests::SliceOutput output(opts().data_dir, t, dx, 2 * opts().xscale,
 		opts().unigrid ? -1 : int(std::llround(std::log2(2 * opts().xscale / (INX * dx)))));
 	const real radiationConstant = 4 * physcon().sigma / physcon().c;

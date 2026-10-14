@@ -25,6 +25,12 @@ Cases run sequentially: blast (22000 s), supercritical (7500 s),
   --time SECONDS      Override all selected durations; shorter runs are labeled.
   --radiation-reduced-c-factor F
                       Opt-in RSLA for coupled cases only, 0 < F <= 1 (default 1).
+  --radiation-backend cpu|cuda|kokkos
+                      Select an execution backend enabled in the application build.
+  --radiation-model m1
+                      Coupled shock/blast tests require M1; stationary FLD is unavailable.
+  --radiation-integrator euler|rk1
+                      M1 RK1 radiation substeps (default euler; rk1 is an alias).
   --resume BATCH      Reuse completed runs and start untouched runs. An incomplete
                       simulation is refused; this is not a checkpoint restart.
   --help              Show this help without building helper tools.
@@ -59,7 +65,7 @@ for ((i=0; i<${#args[@]}; ++i)); do
             echo 'run_ensman.sh uses its own checkout; use run.sh for --root.' >&2
             exit 2
             ;;
-        --build|--resume|--threads|--jobs|--output|--exe|--generator|--launcher|--time|--radiation-reduced-c-factor|--min-level|--gradient-refine-field|--gradient-refine-mode|--gradient-refine-threshold|--gradient-refine-floor|--gradient-refine-buffer|--gradient-refine-coarsen-factor|--snapshots|--odt|--hard-dt|--rad-reconstruction|--gnuplot|--visit|--ffmpeg|--cxx|--seconds|--fps|--hold|--field|--view|--axis|--position|--width|--height|--color|--minimum|--maximum|--session-dir)
+        --build|--resume|--threads|--jobs|--output|--exe|--generator|--launcher|--time|--radiation-reduced-c-factor|--radiation-backend|--radiation-model|--radiation-integrator|--min-level|--gradient-refine-field|--gradient-refine-mode|--gradient-refine-threshold|--gradient-refine-floor|--gradient-refine-buffer|--gradient-refine-coarsen-factor|--snapshots|--odt|--hard-dt|--rad-reconstruction|--gnuplot|--visit|--ffmpeg|--cxx|--seconds|--fps|--hold|--field|--view|--axis|--position|--width|--height|--color|--minimum|--maximum|--session-dir)
             if [[ "$arg" == *=* ]]; then
                 value="${arg#*=}"
             else
@@ -75,6 +81,18 @@ for ((i=0; i<${#args[@]}; ++i)); do
                 --resume) resume=true ;;
                 --threads) workers="$value" ;;
                 --jobs) build_jobs="$value" ;;
+                --radiation-model)
+                    if [[ "$value" != m1 ]]; then
+                        echo 'Coupled Ensman cases require --radiation-model=m1; stationary FLD is unavailable.' >&2
+                        exit 2
+                    fi
+                    ;;
+                --radiation-integrator)
+                    if [[ "$value" != euler && "$value" != rk1 ]]; then
+                        echo 'Coupled Ensman cases require the retained M1 Euler/RK1 scheme.' >&2
+                        exit 2
+                    fi
+                    ;;
             esac
             ;;
         --*) ;; # The C++ parser validates forwarded flags.
@@ -104,7 +122,7 @@ for count in "$workers" "$build_jobs"; do
 done
 export JOBS="$build_jobs"
 
-defaults=(--threads 2 --jobs 2 --no-open --no-movies)
+defaults=(--threads 2 --jobs 2 --no-open --no-movies --radiation-model m1 --radiation-integrator euler)
 if "$resume"; then
     if "$explicit_selector" || "$has_levels"; then
         echo '--resume takes its cases and levels from the saved batch; omit positional arguments.' >&2

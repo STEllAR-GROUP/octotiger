@@ -1,523 +1,82 @@
-# C++ radiation results tools
+# C++ radiation result tools
 
-## QB4 levels 2–5
+Build `radiation_results` with CMake; it requires C++20, Silo, OpenSSL,
+nlohmann-json and gnuplot for plots. `results.sh` manages a cached tool build.
+`run.sh`/`run_live.sh` forward to the C++ runner. `--dry-run` prints/checks the
+configuration without running a solver. For paired local work, use the frozen
+campaign workflow in [README.md](README.md).
 
-The offline-first cluster workflow builds Octo-TIGER, runs all seven problems at
-levels 2–5, and collects their plots and webpages. Start with
-[`qb4/README.md`](qb4/README.md); `workflow.py prepare` creates the plan without
-contacting Slurm. Submission requires a separate explicit `--submit` command.
-
-## Coupled shocks and blast wave
-
-Full-duration launcher (from the repository root):
+## Individual runs
 
 ```sh
-radiation_results/run_ensman.sh 2 --dry-run
-radiation_results/run_ensman.sh 2 --output radiation_results/results/ensman-full-l2
+radiation_results/run.sh gaussian 0 --build cmake-build-hpx2rc-radiation \
+  --radiation-model fld --time .25 --hard-dt .03125 --threads 2 --jobs 2 \
+  --snapshots 3 --no-build --no-open --no-movies --dry-run
+radiation_results/run.sh marshak 0 --build cmake-build-hpx2rc-radiation \
+  --radiation-model m1 --radiation-integrator rk1 --threads 2 --jobs 2 \
+  --snapshots 3 --no-build --no-open --no-movies --dry-run
 ```
 
-The second command runs the real simulations: blast → supercritical →
-subcritical, sequentially, using their full configured durations, two workers,
-two build jobs, and 21 Silo snapshots. It updates the batch website after each
-completed case. Level 2 is a coarse first run. The shock cases require roughly
-1.23 million and 6.30 million steps at this resolution with the physical light
-speed; no long runs were launched while setting up the scripts.
-See [ENSMAN.md](ENSMAN.md#full-duration-local-runs) for individual cases,
-resolutions, result locations, and the limits of batch resume.
+Removing `--dry-run` starts a simulation; do so only after authorization.
+`--radiation-model` accepts `m1` and `fld`. `--radiation-integrator auto` selects
+`euler` for M1 and `backward_euler` for FLD; `rk1` is an alias for `euler`.
+ADER2 is rejected. The Gaussian and Marshak model comparisons use CPU, physical
+light speed and the same stationary medium. The six remaining problems are
+M1-only. `run_ensman.sh` retains the M1 RK1 shock/blast launcher.
 
+A C++ batch contains one model. Resume restores saved model, algorithm version,
+flux semantics and physical settings and verifies source/executable provenance.
+Use a new batch to change them. `--resume` checks finished outputs and runs only
+unfinished cases. Historical ADER batches/checkpoints are not continued.
 
-The local suite also includes `subcritical` (`subcritical_shock`), `supercritical`
-(`supercritical_shock`), and `blast` (`radiating_blast`). `all` now selects all seven
-problems. The three additions enable radiation hydrodynamics and retain their
-physical CGS configuration directly; they are not rescaled to the radiation-only
-6 × 10¹⁰ cm box. Their template final times are 38300, 7500, and 22000 s.
-`--time` explicitly overrides the duration for each selected case.
-`--radiation-reduced-c-factor F` opts the coupled cases into the
-Skinner-Ostriker reduced-speed-of-light approximation, with 0 < F ≤ 1 and
-default F=1. The four analytic cases retain F=1 even in an `all` batch. The
-runner saves both speeds and the factor, preserves it on batch resume, and
-labels modified-equation conservation budgets in the generated pages. Factor
-convergence must be checked before drawing physical conclusions. The QB
-configuration supports separate factors for the three coupled cases.
+## References and output
 
-These are Cartesian adaptations of the problems in [Ensman (1994), *Test Problems
-for Radiation and Radiation-Hydrodynamics Codes*](https://doi.org/10.1086/173889),
-§§5.1–5.3. The original paper uses a spherical moving piston for the shocks and a
-hollow, stratified shell with innermost-zone energy deposition for the blast.
-The local shocks use a stationary reflecting planar wall and incoming gas. The
-blast uses spherically symmetric initial profiles on the Cartesian mesh, a
-filled core, Gaussian deposition width, and approximate LTE diffusion radiation
-field with a realizability floor. The new web pages document these differences,
-the original numerical targets, and each local run's actual parameters.
+`gen_radiation_reference` generates periodic, filtered Gaussian cell averages.
+The M1 branch evolves the linear moment equations; its FLD branch evolves the
+constant-coefficient diffusion equation and derives flux from its analytic
+gradient. The initial energy is shared. A nonlinear LP FLD result is compared
+against the diffusion-limit reference with an explicit qualification.
 
-There is no supplied exact analytic profile for these coupled problems. Reports
-show gas and radiation temperatures, density, velocity, radiation energy, signed radiation flux, and reduced flux as
-numerical profiles, without invented reference curves, error norms, or convergence
-orders. A run ending before its template final time is visibly labeled an
-**early-time implementation check**. Such a run does not establish a developed
-subcritical/supercritical structure or quantitative agreement with the paper.
+Marshak compares radiation energy, flux and material energy against the existing
+Su–Olson linear two-temperature half-space solution. Its sample locations are
+cell centers. LP limiter effects and the finite simulation boundary can produce
+reference discrepancies even with fine spatial/time resolution.
 
-For a deliberately short local preview, after building Octo-TIGER with radiation:
+FLD export reads accepted states without replacing them with reference values.
+Radiation slices have `t,dx,x,y,z,er,fx,fy,fz,er_ref,fx_ref,fy_ref,fz_ref`; material
+slices add `egas,egas_ref` after the geometry columns. Reference-free problems
+omit reference columns. Plots/exported CSV retain units and native leaf widths.
+FLD norms describe the sampled slice area, not a full-volume solver reduction.
+
+FLD diagnostics validate accepted timestep coverage, iteration counts and
+nonlinear/linear residual tolerances. Radiation energy uses its boundary/source
+ledger; the accepted-step diagnostics also retain material+radiation energy
+balance. FLD flux is derived and does not carry M1's evolved-momentum budget.
+Comparisons retain distinct analytic-reference and cross-model discrepancies.
+
+`run.json` includes `radiation_model`, `radiation_integrator`,
+`radiation_algorithm_version`, `radiation_flux_semantics`, executable hashes,
+reference model/qualification, and physical/configuration settings. FLD
+reference metadata uses `reference_kind=linear-diffusion-limit` and
+`reference_exact_for_solver=false`. Gaussian uses
+`reference_model=periodic-constant-diffusion`; Marshak uses
+`reference_model=su-olson-linear-halfspace`.
+
+## Checks and auxiliary commands
 
 ```sh
-radiation_results/run.sh subcritical 1 --build cmake-build-hpx2rc-radiation \
-  --time 0.01 --snapshots 3 --threads 2 --jobs 2 --no-build --no-open --no-movies --no-silo
+ctest --test-dir radiation_results/.build --output-on-failure --parallel 1
+python3 -m unittest discover -s radiation_results -p 'test_*.py'
 ```
 
-The runner creates `radiation-hydro-slices/`, which opts the application into final
-numerical CSV output independently of analytic comparisons. The CSV schema is
-`t,dx,x,y,z,rho,vx,vy,vz,gas_temperature,radiation_temperature,er,fx,fy,fz`.
-The full central plane is validated for cell coverage, time, spacing, positivity,
-and radiation realizability. Temperature units are K; the default configurations
-use CGS for the other fields. Plots use the plane at z=Δx/2 and the ray at
-y=z=Δx/2. Both are half-cell offsets, not exact central-axis samples.
-
-The C++ reader and integration tests exercise the new data validation, seven-page
-navigation, preserved physical time/domain, and absence of fabricated accuracy
-norms. Their synthetic fixtures test the reporting pipeline, not solver physics.
-All generated pages remain local until separately published.
-
-
-> **hpx2rc-radiation restoration:** These tools and the complete workflow reference
-> below are restored from `dominic-wip2` onto `7485b798`. See
-> [tests/README.md](../tests/README.md) for solver provenance and validation.
-> The current tools use C++20. Default build jobs and HPX workers are **2**;
-> concurrent work shares the local resource budget. FFmpeg decoder/filter/
-> encoder worker counts are explicitly limited to one. No QB4 access is needed.
->
-> This flat checkout and the older `PROJECT/src/octotiger` layout are both
-> supported. Older directory examples below describe the latter layout.
-> From this checkout, build and test without copying an archive:
->
-> ```sh
-> cmake -S radiation_results -B /tmp/octotiger-radiation-results -DBUILD_TESTING=ON
-> cmake --build /tmp/octotiger-radiation-results --parallel 2
-> ctest --test-dir /tmp/octotiger-radiation-results --output-on-failure --parallel 1
-> radiation_results/run.sh wave 2 --build /path/to/application/build --threads 2 --jobs 2 --no-build --dry-run
-> ```
->
-> The normal shell launchers build `radiation_results/.build` on demand. The
-> standalone Python solver-validation scripts remain available alongside the
-> C++ results interface. Reference generation is also integrated into the
-> application and standalone CTest suites through `reference.cmake`.
-
-The radiation-results workflow is implemented in C++20. It invokes gnuplot
-for still PNG/PDF plots. C++ reads Silo through its C API, writes native VisIt
-XML sessions, and invokes VisIt's `-movie -sessionfile` command to render frames.
-FFmpeg encodes browser-compatible H.264 MP4s with the recorded simulation timing.
-The C++ results workflow has no Python package dependencies; standalone solver
-validation uses Python 3, and VisIt uses its bundled movie utility and runtime.
-The small shell launchers build and execute the C++ program.
-
-This update targets the September 17, 2026 M1 refactor **with the restored
-conservation update**: camelCase regression methods, internal F/c, physical F
-in the subgrid and output files. This section describes the results tools; the branch also restores the solver
-sources and configurations. Reference data and results are generated separately.
-Use the `.sh` commands below for the C++ results interface.
-
-## Install and build
-
-The archive installation commands below are retained for the older nested
-layout. For this restored checkout, use the current build commands above.
-
-```bash
-cd ~
-sudo apt install build-essential cmake gnuplot-nox ffmpeg libsilo-dev nlohmann-json3-dev libssl-dev libfftw3-dev
-unzip ~/Downloads/radiation_results.zip -d ~/octotiger/src/octotiger
-~/octotiger/src/octotiger/radiation_results/build_cpp.sh release
-```
-
-Build names accept Debug, Release, or RelWithDebInfo with any capitalization.
-`CXX` selects the compiler on the first CMake configure; `JOBS` controls build
-parallelism. For a custom Silo installation, export `SILO_ROOT` before building.
-Still plots use gnuplot's Cairo terminals; gnuplot 6.0 was tested.
-Movie rendering uses VisIt 3.4.2. The bundled reference generator and serial solver harness use
-C++20 and the checkout's shared radiation headers. FFTW3 is required to build
-the generator.
-
-For movies, the tools find `visit` on PATH or use
-`~/visit3_4_2.linux-x86_64/bin/visit`. Set `VISIT` or pass
-`--visit /absolute/path/to/bin/visit` to choose another installation.
-`bin/frontendlauncher` is also accepted. Still plots and session generation do
-not require a running VisIt installation.
-
-The project root is `~/octotiger`, the source checkout is
-`~/octotiger/src/octotiger`, and application builds are under
-`~/octotiger/build/octotiger/$TYPE`. The runner reads INX from the selected
-CMake cache. It rebuilds
-the application unless `--no-build` is supplied. It does not configure HPX,
-CUDA, Kokkos, or the application build itself.
-
-The restored solver update already has the slice-export hook. If it is absent,
-inspect and install the hook with:
-
-```bash
-cd ~
-~/octotiger/src/octotiger/radiation_results/results.sh install --check
-~/octotiger/src/octotiger/radiation_results/results.sh install
-```
-
-The installer backs up `src/grid.cpp` before adding the hook. It keeps an existing
-complete hook and its header. A changed source layout is reported instead of
-being patched by guesswork. Rebuild Octo-TIGER after installing a new hook.
-
-## Run
-
-All four tests, level 2 first, then level 3, then level 4:
-
-```bash
-cd ~
-~/octotiger/src/octotiger/radiation_results/run_live.sh all 2 3 4 release --threads 2
-```
-
-Single test and resolution, using the existing executable:
-
-```bash
-cd ~
-~/octotiger/src/octotiger/radiation_results/run_live.sh wave 2 release --threads 2 --no-build
-```
-
-Radiation-only aliases: `wave`, `front` / `streaming`, `gaussian` / `diffusion`, and `sphere`.
-Coupled cases add `subcritical`, `supercritical`, and `blast` (see above).
-The full names streaming_wave, streaming_front, gaussian_pulse, and
-equilibrium_sphere are also accepted. `run.sh` runs the same CGS workflow with
-plots and without automatic movies. `--no-silo` disables snapshots as well.
-
-The four radiation-only cases default to a domain of [−3×10¹⁰,+3×10¹⁰] cm on every axis, t=0–4 s,
-c=2.99792458×10¹⁰ cm/s, 2 threads, and 61 requested snapshots. `run_live.sh`
-defaults to levels 2,3,4 in Debug; `run.sh` defaults to levels 2,3 in Release.
-The timestep cap accounts for Octo-TIGER's output-check interval.
-
-The runner reads `~/octotiger/src/octotiger/radiation_results/configs/*.ini`, scales those
-radiation-only templates to CGS, preserves the coupled CGS templates, and writes each run's effective configuration as
-`run.ini`. Do not replace a template with a generated `run.ini`.
-`--rad-reconstruction plm|ppm` passes the choice to a solver that supports that
-option; this package adds no reconstruction method to the solver.
-
-The Gaussian test uses the bundled `gen_radiation_reference` C++ generator and
-its `OTRAD001` reference format. `build_cpp.sh` builds it next to
-`.build/radiation-results`; the runner selects that copy automatically. The
-application build is asked to build only `octotiger`, so it does not need a
-`gen_radiation_reference` target. An explicit
-`--generator /absolute/path/gen_radiation_reference` still overrides the default.
-The generator was recovered from the September 13 source patch and adapted to
-the current camelCase reference interfaces. It retains the original FFTW
-telegraph solution, periodized Gaussian cell averages, Nyquist-plane filtering,
-and physical flux units.
-
-If an earlier run stopped with `No rule to make target 'gen_radiation_reference'`,
-install this updated archive and `libfftw3-dev`, rebuild the results tools, then
-start a fresh batch with `--no-build` to reuse the Octo-TIGER executable that
-already compiled. That failure occurred before simulations started and before
-`batch.json` was written, so `--resume` does not apply to that failed batch.
-
-By default, each batch is written under
-`~/octotiger/radiation_results/results/`. Each batch prints its `index.html`
-path and normally opens it. `--no-open`
-suppresses opening the browser. Reports and movies appear after each completed
-simulation. The batch page refreshes every ten seconds, pauses while a video is
-playing, and stops refreshing at completion. This generates static files for
-your existing results hosting; it does not upload or deploy them.
-
-## Problem pages
-
-The batch's `index.html` is a responsive two-column index with one card per test,
-a preview from the highest completed resolution with a plot, and a link to:
-
-- `streaming_wave.html`: periodic exact M1 transport of a sinusoid.
-- `streaming_front.html`: periodic exact transport of a discontinuous front.
-- `gaussian_pulse.html`: a Fourier **telegraph-equation** reference for a small
-  perturbation in a fixed scattering medium.
-- `equilibrium_sphere.html`: the steady diffusion reference for a smooth
-  Gaussian emitter.
-
-Each problem page includes its setup, equations and averaging procedure,
-reference limitations, provenance and literature links, all completed
-resolutions, all four field norms and orders, field maps, profiles, every
-available movie variant, conservation budgets, and downloadable data.
-The original combined report remains at `plots/index.html`; `movies.html`
-remains the combined movie gallery. Live updates refresh the index and problem
-pages together. Missing runs and missing diagnostics are explicitly identified.
-Pages are static and work offline; literature links require a connection.
-
-Descriptions document the reviewed September 17 source. Saved run settings
-take precedence over example values. Profile constants such as the streaming
-mode are compiled into the solver and are not always recorded in `run.ini`;
-the pages distinguish the reviewed definition from recorded run metadata.
-
-To update only the HTML of an existing batch, without running the solver,
-gnuplot, or FFmpeg:
-
-```bash
-cd ~
-BATCH=~/octotiger/radiation_results/results/live-20260917-084723-426280
-~/octotiger/src/octotiger/radiation_results/results.sh pages "$BATCH"
-```
-
-`plot` and `movies` also refresh the problem pages automatically. The `pages`
-command uses existing images and movies; use `plot` to apply a changed plot
-style, and `movies` to apply a changed movie style. An already running process
-keeps its old reporter until restarted; apply the commands above after it
-finishes, or resume after stopping it cleanly.
-
-## Resume
-
-Use the saved batch path, without repeating the case, levels, or build:
-
-```bash
-cd ~
-~/octotiger/src/octotiger/radiation_results/run_live.sh \
-  --resume ~/octotiger/radiation_results/results/live-YYYYMMDD-HHMMSS-XXXXXX \
-  --threads 2
-```
-
-Completed simulations are validated and reused. The runner checks executable
-and recorded source hashes, settings, final time, full-volume norms, slices,
-and available conservation records before reusing data. It can read compatible
-CGS batches created by `run_live.py`. Changed solver binaries or sources require
-a new batch, including when the conservation update changed those sources.
-
-Resume continues a batch, not a partially completed solver simulation. Incomplete
-run directories remain untouched and require a new batch. Batches still marked
-active are rejected; stop the original runner cleanly before resuming. Ctrl+C
-retains completed results and marks the batch inactive.
-
-### Fix for FFmpeg appearing frozen
-
-An earlier version placed subprocesses in separate process groups while leaving
-their input attached to the foreground terminal. FFmpeg could then be stopped by
-terminal job control. This version redirects subprocess stdin to `/dev/null`,
-passes `-nostdin` to FFmpeg, and displays frame-count/percentage progress during
-encoding. The full machine-readable FFmpeg progress is saved in `encode.log`.
-
-A tested VisIt 3.4.2 binary sometimes exits with code 250 during shutdown after
-successfully saving its frames (also reproduced with a trivial VisIt script).
-Only for that exit code, the runner can proceed after VisIt reports completion,
-no rendering error is logged, every expected frame exists, and FFmpeg decodes
-all frames successfully. It prints the exception and records the exit code in
-movie metadata. Missing frames, rendering errors, failed image decoding, and
-other nonzero exits stop the movie step.
-
-If encoding is stopped in the previous version, press Ctrl+C and wait for the
-shell prompt, install this update, rebuild the results tools, and use `--resume`
-with that batch's path. Completed simulations are reused. An updated renderer
-may regenerate movie frames; the numerical simulation does not need to repeat.
-
-## Existing results and movies
-
-```bash
-cd ~
-BATCH=~/octotiger/radiation_results/results/live-YYYYMMDD-HHMMSS-XXXXXX
-~/octotiger/src/octotiger/radiation_results/results.sh check "$BATCH"
-~/octotiger/src/octotiger/radiation_results/results.sh plot "$BATCH"
-~/octotiger/src/octotiger/radiation_results/results.sh movies "$BATCH" --seconds 20 --fps 30
-```
-
-`plot`, `check`, and `movies` also accept a single completed run directory.
-Plots include all four radiation fields, numerical/reference/error slices,
-profiles, full-volume norm convergence, and conservation histories. CSV and JSON
-summaries are retained. Convergence requires at least two completed, comparable
-resolutions; mixed settings and duplicate resolutions are rejected. Old results
-without conservation CSVs can still be plotted, with conservation marked missing.
-New simulations require conservation output.
-
-Gaussian energy maps, energy profiles, and `er` movies now display **E − Ebg
-on a logarithmic scale**. Subtracting the uniform background makes the spreading
-pulse visible. The automatic display spans six decades below the largest
-positive excess (numerical/reference slice peak for a plot, all recorded movie
-frames for a movie). Movie color limits stay fixed through time. If no positive
-excess exists, a finite fallback range is used and every sample stays at the
-floor. Values at or below the floor, including zero and negative excesses, are
-drawn at the floor and labeled accordingly. Raw CSV/Silo data, norms,
-conservation, signed errors, and signed flux displays are unchanged.
-For Gaussian `er` movies, `--minimum` and `--maximum` refer to positive **energy
-excess**, in physical energy-density units. The display transform and limits
-are recorded in the plot/movie metadata. Other tests retain their prior scales.
-
-To update existing plots and movies with this style (no solver rerun):
-
-```bash
-~/octotiger/src/octotiger/radiation_results/results.sh plot "$BATCH"
-~/octotiger/src/octotiger/radiation_results/results.sh movies "$BATCH"
-```
-
-Conservation uses physical E, Fx, Fy, Fz and the residual
-
-    current integral − initial integral + outward boundary budget − source budget.
-
-Every conservation plot is now dimensionless. For a field integral Q, both the
-measured total and predicted total `(Q0 - boundary + source)` are divided by
-`abs(Q0)`. The residual panel shows the **signed** corrected residual divided
-by the same fixed initial scale. No later source growth or boundary transport
-can dilute the reported error. Negative initial flux components start at −1.
-
-For zero or roundoff-level initial net flux, dividing by that component is not
-meaningful. Those panels instead use `c * abs(initial radiation energy)`, with
-the fallback written in the axis labels and report tables. The threshold is
-`abs(initial component)/(c*abs(initial energy)) <= 64*double_epsilon`.
-A zero initial energy is reported as an undefined normalization.
-
-`conservation-fractions.csv` and its units file contain the dimensionless total,
-prediction, residual, boundary, and source histories. Original physical-unit
-CSV data and raw summary fields remain available. Explicit axis padding avoids
-gnuplot warnings for nearly constant totals; zero residuals are labeled.
-A valid ledger is not itself proof that its measured error is acceptably small.
-
-Movie options include:
-
-| Option | Meaning |
-|---|---|
-| `--field er|fx|fy|fz|fluxmag` | Physical field or flux magnitude |
-| `--view slice --axis z --position 0` | Central slice, default |
-| `--view 3d` | Field on the domain's exterior surface; no volume rendering |
-| `--color hot|viridis|gray|diverging` | Colormap |
-| `--minimum X --maximum X` | Fixed color limits; automatic limits span all snapshots |
-| `--seconds 20 --fps 30 --hold 1` | Duration, frame rate, endpoint holds |
-| `--width 1280 --height 960` | Frame dimensions |
-| `--reuse-frames` | Re-encode cached frames after checking their render signature |
-| `--allow-sparse` | Explicitly permit fewer snapshots than the saved capture request |
-| `--visit PATH --ffmpeg PATH` | Movie executable overrides |
-| `--session-dir DIR` | Override the flat session folder |
-
-Movies read numerical `X.*.silo` and `final.silo`; they never substitute
-`analytic.silo` for the final solution. Irregular simulation-time gaps are
-preserved by holding recorded states. No interpolated states are invented.
-The Silo reader supports the rectilinear, zone-centered uniform-grid output of
-these regression tests. The C++ reader scans times and global color limits;
-VisIt renders the Silo data using those fixed limits. A changed renderer or
-movie style requires fresh frames; omit `--reuse-frames` for the first run of
-this version. This does not rerun the solver.
-
-## VisIt sessions
-
-All generated sessions live together in one flat directory:
-
-```
-radiation_results/visit_sessions/
-```
-
-A typical filename is:
-
-```
-live-20260917-084723-426280--gaussian_pulse--l2-n32--er-slice-z-at0--6be79c426ace.session
-```
-
-The name identifies batch, problem, resolution, field, view, and slice position.
-A short hash distinguishes data paths and display settings. The matching `.visit`
-file lists the numerical snapshots and `.json` records times, limits, units,
-and display settings; these companions are in the same folder, with no nested
-batch or problem directories. Identical inputs/settings reuse the same name.
-Session references are absolute paths on the machine where they are generated.
-Keep the Silo data in place, or regenerate sessions after moving the results.
-
-Every `movies` invocation creates its session before rendering. To create only
-the sessions, without rendering frames or encoding movies:
-
-```bash
-cd ~
-BATCH=~/octotiger/radiation_results/results/live-YYYYMMDD-HHMMSS-XXXXXX
-~/octotiger/src/octotiger/radiation_results/results.sh sessions "$BATCH"
-```
-
-The same field/view/color options apply to `sessions` and `movies`. To inspect,
-open VisIt, choose File → Restore session, and select a file in that folder.
-Or pass its exact filename:
-
-```bash
-cd ~
-SESSION=~/octotiger/radiation_results/visit_sessions/NAME.session
-~/visit3_4_2.linux-x86_64/bin/visit -sessionfile "$SESSION"
-```
-
-The session contains the complete time series, selected variable, slice or 3D
-camera, fixed color range, annotations, and Gaussian logarithmic energy-excess
-expression. Use Save session as with a new name to preserve manual edits;
-regeneration replaces the tool's generated file for that same name.
-
-For a 3D inspection session without making a movie:
-
-```bash
-~/octotiger/src/octotiger/radiation_results/results.sh sessions "$BATCH" --view 3d
-```
-
-The generated 3D view is a Pseudocolor exterior surface. VisIt's GUI lets you
-change operators, slices, views, or plot types interactively.
-
-## Validation
-
-```bash
-cd ~
-cmake -S ~/octotiger/src/octotiger/radiation_results \
-  -B ~/octotiger/src/octotiger/radiation_results/.build -DBUILD_TESTING=ON
-cmake --build ~/octotiger/src/octotiger/radiation_results/.build -j 4
-ctest --test-dir ~/octotiger/src/octotiger/radiation_results/.build --output-on-failure
-```
-
-Verified with GCC 13.3, CMake 3.28, Silo 4.11, and gnuplot 6.0:
-
-- 97 reader, fixed-initial conservation, scheduling, SHA256, multiblock Silo,
-  and flat session naming/content checks.
-- 29 integration checks: real gnuplot output, batch completion, resume without
-  rerunning completed simulations, legacy workflow metadata, and changed
-  source/executable/settings rejection; an all-case batch in an application
-  build with only the `octotiger` target also invokes the real bundled FFTW
-  generator. The solver is a test fixture here.
-- Dedicated pages cover all problems and completed resolutions, and HTML-only
-  regeneration reuses images without requiring gnuplot or FFmpeg. Gaussian
-  log plots handle nonpositive excess values with a finite, labeled floor.
-- The index and problem pages were checked in a headless browser at desktop
-  and mobile widths, including navigation, local links, and image loading.
-  A Gaussian energy-excess MP4 was encoded with a fixed logarithmic color scale
-  and mixed positive/nonpositive samples; the all-nonpositive plot fallback
-  also rendered successfully. These checks use synthetic fixtures.
-- PNG/PDF still output, plus native VisIt session restore and movie rendering
-  on synthetic multiblock data: all three slice axes, logarithmic Gaussian
-  energy excess, and 3D flux magnitude. Paths with spaces are included.
-- The bundled generator's complete 32³, t=4 s CGS reference file matched the
-  recovered original generator byte for byte.
-- A real controlling-terminal regression verifies noninteractive child stdin,
-  successful FFmpeg encoding, visible 100% completion, and the saved MP4. A
-  near-constant CGS conservation fixture also renders without gnuplot warnings.
-  This automated terminal test uses a VisIt test double; real VisIt rendering
-  is checked separately.
-- The serial launcher compiled extracted production methods from the restored
-  conservation update and ran all four branches on an 8³ grid in CGS. The
-  Gaussian branch used a uniform-background reference fixture, testing execution
-  and conservation I/O rather than Gaussian-pulse accuracy.
-  The C++ readers accepted its norms, slices, and conservation histories; the
-  reported residuals were at floating-point roundoff scale under the previous
-  normalization. The updated fixed-initial normalization has dedicated fixtures.
-
-For this HPX 2RC restoration, the CPU application passed all four analytic
-radiation regressions, the checkpoint/resume comparison and the Sod checks.
-Multi-locality MPI and GPU execution remain unverified.
-
-To use the serial launcher with a real matching reference file:
-
-```bash
-cd ~
-~/octotiger/src/octotiger/radiation_results/results.sh validate-serial \
-  --reference /absolute/path/reference.bin --output ~/radiation-serial-results \
-  --cells 32
-```
-
-Use `--cxx g++` to select its compiler and `--sanitize` for ASan/UBSan. This
-extracts selected solver methods and uses fixtures for options and geometry;
-it does not replace a distributed application test.
-
-## Script mapping
-
-| Previous Python script | C++ entry point |
-|---|---|
-| `run_live.py` | `run_live.sh`, or `results.sh live` |
-| `run.py` | `run.sh`, or `results.sh run` |
-| `plot.py` | `results.sh plot` |
-| HTML-only regeneration | `results.sh pages` |
-| `results.py` | `cpp/data.cpp`, `results.sh check` |
-| `movies.py`, `visit_movie.py`, `movie_support.py` | `results.sh movies`, `cpp/movie.cpp` |
-| VisIt session generation | `results.sh sessions`, `cpp/visit_session.cpp` |
-| `install.py` | `results.sh install` |
-| `validate_serial.py` | `results.sh validate-serial` |
-
-`results.sh --help` prints the full command summary. The launcher rebuilds when
-C++ sources or CMakeLists change and otherwise uses the cached executable.
+The current runner/comparison/publication unit tests use synthetic metadata or
+mocked subprocesses. The C++ integration tests use a synthetic solver executable;
+passing them is not physical benchmark validation. Application regression tests
+in `tests/radiation` run real OctoTiger and require execution authorization.
+
+`results.sh --help` lists `check`, `plot`, `pages`, `movies`, `sessions` and
+`validate-serial`. Existing M1 adaptive-grid controls remain available through
+`--gradient-refine-field`, `--gradient-refine-mode`, and the related threshold
+options. FLD's initial paired pilot is uniform-grid; mixed-grid physics and
+performance need separate validation. QB-specific scripts remain separate and
+must not be used without a user-provided login budget.

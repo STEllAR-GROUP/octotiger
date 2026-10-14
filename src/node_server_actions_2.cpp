@@ -204,7 +204,8 @@ void node_server::export_radiation_hydro() {
 		grid_ptr->export_radiation_hydro(current_time);
 	}
 	if (my_location.level() == 0) {
-		printf("RADIATION_HYDRO_FINISHED %s t=%.17e requested=%.17e\n",
+		printf("%s %s t=%.17e requested=%.17e\n",
+            opts().radiation_model == "fld" ? "RADIATION_FLD_FINISHED" : "RADIATION_HYDRO_FINISHED",
 			to_string(opts().problem).c_str(), double(current_time), double(opts().stop_time));
 	}
 }

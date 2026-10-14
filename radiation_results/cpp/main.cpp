@@ -31,7 +31,7 @@ Options arguments(int argc, char **argv)
 		std::string arg = argv[i];
 		if (arg == "--help" || arg == "-h") {
 			std::cout
-				<< R"(radiation-results [live|run] [all|ensman|wave|front|gaussian|sphere|subcritical|supercritical|blast] [levels...] [build] [options]
+				<< R"(radiation-results [live|run] [all|ensman|wave|front|gaussian|sphere|subcritical|supercritical|blast|marshak] [levels...] [build] [options]
 radiation-results plot BATCH [--gnuplot PATH]
 radiation-results pages BATCH_OR_RUN  (refresh HTML only; reuse existing plots and movies)
 radiation-results movies BATCH_OR_RUN [options]
@@ -44,17 +44,21 @@ Run options: --root PATH --build PATH --exe PATH --generator PATH --output DIR -
  --resume BATCH --threads N --jobs N --time SECONDS --snapshots N --odt SECONDS
  --hard-dt SECONDS --rad-reconstruction plm|ppm --no-build --no-open --dry-run
  --no-silo --no-movies --radiation-reduced-c-factor F (coupled cases only, default 1)
+ --radiation-backend cpu|cuda|kokkos (default cpu; accelerator must be enabled in the application build)
+ --radiation-model m1|fld (default m1; fld supports gaussian and marshak, stationary CPU physical-c only)
+ --radiation-integrator auto|euler|rk1|backward_euler (default auto: M1 Euler/RK1 or FLD backward Euler)
  --min-level L --gradient-refine-field none|density|radiation_energy
  --gradient-refine-mode absolute|relative --gradient-refine-threshold X
  --gradient-refine-floor X --gradient-refine-buffer 0|1|2 --gradient-refine-coarsen-factor X
+ --study-config PATH (per-case/level gradient AMR and per-case RSLA; frozen on resume)
 Movie options: --seconds 20 --fps 30 --hold 1 --field er|fx|fy|fz|fluxmag
  --view slice|3d --axis x|y|z --position 0 --width 1280 --height 960
  --color hot|viridis|gray|diverging --minimum X --maximum X --reuse-frames --allow-sparse
  --session-dir DIR (default: PROJECT/radiation_results/visit_sessions)
 Tools: --gnuplot PATH --visit PATH --ffmpeg PATH --cxx PATH
 Defaults: live = all 2 3 4 debug, 2 threads, 61 snapshots.
-         Radiation-only duration 4 s; coupled durations use their CGS templates.
-         run = all 2 3 release, same CGS units, plots only.
+         Transport duration 4 s; coupled durations use CGS templates; Marshak uses normalized time1.
+         run = all 2 3 release, per-case units, plots only.
          ensman selects blast, supercritical, subcritical, in that order.
 Resume uses saved simulation settings; specify only playback/thread options.
 --launcher wraps only the solver command; executable provenance remains the solver's.
@@ -89,6 +93,8 @@ Resume uses saved simulation settings; specify only playback/thread options.
       o.generator = value();
     } else if (key == "--launcher") {
       o.launcher = value();
+    } else if (key == "--study-config") {
+      o.study_config = value();
     } else if (key == "--output") {
       o.output = value();
     } else if (key == "--resume") {
@@ -113,6 +119,12 @@ Resume uses saved simulation settings; specify only playback/thread options.
       o.time = numeric(value());
     } else if (key == "--radiation-reduced-c-factor") {
       o.reduced_c_factor = numeric(value());
+    } else if (key == "--radiation-backend") {
+      o.radiation_backend = value();
+    } else if (key == "--radiation-model") {
+      o.radiation_model = value();
+    } else if (key == "--radiation-integrator") {
+      o.radiation_integrator = value();
     } else if (key == "--min-level") {
       o.min_level = integer(value());
     } else if (key == "--gradient-refine-field") {
@@ -184,12 +196,31 @@ Resume uses saved simulation settings; specify only playback/thread options.
     }
   }
 	o.root = rr::absolute(o.root);
+	if (o.explicit_options.contains("--study-config")) {
+        require(!o.study_config.empty(), "--study-config requires a nonempty path");
+        require(o.command == "run" || o.command == "live", "--study-config is a run/live option");
+        for (auto key : {"--radiation-reduced-c-factor", "--min-level", "--gradient-refine-field",
+                "--gradient-refine-mode", "--gradient-refine-threshold", "--gradient-refine-floor",
+                "--gradient-refine-buffer", "--gradient-refine-coarsen-factor"}) {
+            require(!o.explicit_options.contains(key),
+                "--study-config cannot be combined with direct AMR or radiation-reduced-c-factor controls");
+        }
+    }
 	require(o.time > 0 && o.threads > 0 && o.jobs > 0 && o.snapshots >= 3 && o.fps > 0 && o.width >= 128 &&
 				o.height >= 128,
 			"Invalid time, thread count, capture count or movie dimensions");
 	require(o.odt >= 0 && o.hard_dt >= 0, "Negative timestep/interval");
     require(o.reduced_c_factor > 0 && o.reduced_c_factor <= 1,
         "--radiation-reduced-c-factor must be in (0, 1]");
+    require(std::set<std::string>{"cpu", "cuda", "kokkos"}.contains(o.radiation_backend),
+        "--radiation-backend must be cpu, cuda, or kokkos");
+    if (o.radiation_integrator == "rk1") {
+        o.radiation_integrator = "euler";
+    }
+    require(o.radiation_model == "m1" || o.radiation_model == "fld",
+        "--radiation-model must be m1 or fld");
+    require(std::set<std::string>{"auto", "euler", "backward_euler"}.contains(o.radiation_integrator),
+        "--radiation-integrator must be auto, euler, rk1, or backward_euler; ADER2 has been removed");
 	require(std::set<std::string>{"none", "density", "radiation_energy"}.contains(o.gradient_field) &&
 		std::set<std::string>{"absolute", "relative"}.contains(o.gradient_mode), "Invalid gradient field or mode");
 	require(o.gradient_threshold > 0 && o.gradient_floor > 0 && o.gradient_buffer <= 2 &&
@@ -222,7 +253,11 @@ Resume uses saved simulation settings; specify only playback/thread options.
       name = aliases[name];
     }
     if (name == "all") {
-      o.selected_cases.assign(cases.begin(), cases.end());
+      if (o.radiation_model == "fld") {
+        o.selected_cases = {"gaussian_pulse", "marshak"};
+      } else {
+        o.selected_cases.assign(cases.begin(), cases.end());
+      }
     } else if (name == "ensman") {
       o.selected_cases = {"radiating_blast", "supercritical_shock", "subcritical_shock"};
     } else {
@@ -319,7 +354,13 @@ int main(int argc, char **argv)
 			auto runs = rr::completed_runs(o.input);
 			rr::require(!runs.empty(), "No completed runs");
 			for (auto &[p, m] : runs) {
-				if (rr::coupled_case(m.at("case"))) {
+                if (rr::fld_model(m)) {
+                    rr::read_fld_diagnostics(p, m);
+                    rr::read_slice(p, m);
+                    if (m.at("case") == "marshak") {
+                        rr::read_marshak_material(p, m);
+                    }
+                } else if (rr::coupled_case(m.at("case"))) {
                     rr::read_hydro_profile(p, m);
                 } else {
                     rr::read_norms(p, m);

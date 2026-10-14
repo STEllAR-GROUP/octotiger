@@ -50,12 +50,16 @@ int main(int argc, char **argv)
 		using namespace radiationTests;
 		ReferenceData ref;
 		ref.n = 32;
-		std::string output = "gaussian_pulse.bin";
+		std::string output = "gaussian_pulse.bin", model = "m1";
 		for (int a = 1; a < argc; ++a) {
 			std::string const key = argv[a];
 			if (key == "--help") {
 				std::cout << "gen_radiation_reference --output FILE --cells N --length L --c C "
-							 "--chi CHI --width W --background E --amplitude A --time T\n";
+							 "--chi CHI --width W --background E --amplitude A --time T --model m1|fld\n"
+                             "m1: linearized moment/telegraph reference (default).\n"
+                             "fld: periodic constant-D diffusion reference, D=c/(3*chi); chi>0.\n"
+                             "The diffusion reference is exact for the represented heat equation,\n"
+                             "and is a diffusion-limit reference for nonlinear flux-limited diffusion.\n";
 				return 0;
 			}
 			if (++a == argc) {
@@ -65,6 +69,13 @@ int main(int argc, char **argv)
 				output = argv[a];
 				continue;
 			}
+            if (key == "--model") {
+                model = argv[a];
+                if (model != "m1" && model != "fld") {
+                    throw std::runtime_error("--model must be m1 or fld");
+                }
+                continue;
+            }
 			double const v = number(argv[a]);
 			if (key == "--cells") {
 				if (v < 4 || v > 512 || std::floor(v) != v || int(v) % 2) {
@@ -90,6 +101,10 @@ int main(int argc, char **argv)
       }
     }
 		ref.p.validate();
+        if (model == "fld" && !(ref.p.chi > 0 && ref.p.c / ref.p.chi / 3 > 0 &&
+            std::isfinite(ref.p.c / ref.p.chi / 3))) {
+            throw std::runtime_error("FLD diffusion reference requires chi>0 and finite D=c/(3*chi)");
+        }
 		int const n = ref.n;
 		auto const N3 = ref.cells();
 		auto const &p = ref.p;
@@ -146,12 +161,21 @@ int main(int argc, char **argv)
 							Point const wave{freq(i), freq(j), freq(k)};
 							double const k2 =
 								wave[0] * wave[0] + wave[1] * wave[1] + wave[2] * wave[2];
-							auto const mode = telegraphMode(k2, t, p.c, p.chi);
-							// Fhat = i k Ehat_dot/k^2 = -i (c^2/3) k B Ehat0.
-							std::complex<double> const factor =
-								field == 0 ? std::complex<double>(mode[0], 0)
-										   : std::complex<double>(0, -p.c * p.c / 3 *
-																		 wave[field - 1] * mode[1]);
+                            std::complex<double> factor;
+                            if (model == "fld") {
+                                // The same represented initial energy evolves by the
+                                // periodic heat equation. Flux is a derived gradient,
+                                // including at t=0; it is not a telegraph moment.
+                                const double diffusion = p.c / p.chi / 3;
+                                const double decay = std::exp(-diffusion * k2 * t);
+                                factor = field == 0 ? std::complex<double>(decay, 0) :
+                                    std::complex<double>(0, -diffusion * wave[field - 1] * decay);
+                            } else {
+                                auto const mode = telegraphMode(k2, t, p.c, p.chi);
+                                // Fhat = i k Ehat_dot/k^2 = -i (c^2/3) k B Ehat0.
+                                factor = field == 0 ? std::complex<double>(mode[0], 0) :
+                                    std::complex<double>(0, -p.c * p.c / 3 * wave[field - 1] * mode[1]);
+                            }
 							auto const value = initial[r] * factor;
 							spectral.data[r][0] = value.real();
 							spectral.data[r][1] = value.imag();
@@ -178,14 +202,15 @@ int main(int argc, char **argv)
 					std::hypot(ref.values[(s * 4 + 1) * N3 + r], ref.values[(s * 4 + 2) * N3 + r],
 							   ref.values[(s * 4 + 3) * N3 + r]);
 				if (!(E > 0 && F <= p.c * E)) {
-          throw std::runtime_error("Reference is outside the M1 cone; increase "
-											 "background or reduce amplitude");
+          throw std::runtime_error("Reference requires positive E and |F|<=cE; increase "
+                                  "background or opacity, or reduce amplitude");
         }
       }
     }
     ref.write(output);
 		std::cout << "Wrote " << output << ": " << n << "^3 cells, physical E/F at t=0 and "
-				  << std::setprecision(16) << p.time << "\n";
+				  << std::setprecision(16) << p.time << "; " << (model == "fld" ?
+                      "periodic constant-D diffusion-limit reference" : "linearized M1 telegraph reference") << "\n";
 		return 0;
 	} catch (std::exception const &e) {
 		std::cerr << e.what() << '\n';

@@ -20,6 +20,15 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/reference.cmake")
 add_dependencies(radiation-results gen_radiation_reference)
 include(CTest)
 if(BUILD_TESTING)
+  find_package(Python3 QUIET COMPONENTS Interpreter)
+  if(Python3_Interpreter_FOUND)
+    add_test(NAME radiation-results-fld-reference
+      COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_fld_reference.py
+              --generator $<TARGET_FILE:gen_radiation_reference>)
+    set_tests_properties(radiation-results-fld-reference PROPERTIES
+      ENVIRONMENT "OMP_NUM_THREADS=1;OPENBLAS_NUM_THREADS=1;MKL_NUM_THREADS=1"
+      PROCESSORS 1)
+  endif()
   add_executable(rr-tests tests_cpp/tests.cpp)
   target_link_libraries(rr-tests PRIVATE rr_core)
   add_test(NAME radiation-results-readers COMMAND rr-tests)

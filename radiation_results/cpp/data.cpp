@@ -102,22 +102,27 @@ Table read_csv(const fs::path &p, const std::vector<std::string> &columns)
 }
 Json read_norms(const fs::path &folder, const Json &m)
 {
+	require(!fld_model(m), "FLD has no M1 analytic error norms");
 	Json rows = Json::object();
 	std::istringstream log(read_text(folder / "run.log"));
 	std::string line;
 	int finished = 0;
 	std::regex marker(R"(^RADIATION_TEST_FINISHED\s+(\w+)\s+t=(\S+)\s*$)"),
-		norm(R"(^\s*(er|fx|fy|fz)\s+(\S+)\s+(\S+)\s+(\S+)\s*$)");
+		norm(R"(^\s*(er|fx|fy|fz|egas)\s+(\S+)\s+(\S+)\s+(\S+)\s*$)");
 	std::smatch match;
 	while (std::getline(log, line)) {
 		if (std::regex_match(line, match, marker)) {
 			++finished;
-			require(lower(match[1]) == "radiation_" + m.at("case").get<std::string>() &&
+			require(lower(match[1]) == (m.at("case") == "marshak" ? "marshak" : "radiation_" + m.at("case").get<std::string>()) &&
 						close(numeric(match[2]), m.at("time")),
 					"Wrong comparison marker/time");
 		}
 		if (std::regex_match(line, match, norm)) {
 			auto f = match[1].str();
+            if (f == "egas") {
+                if (m.at("case") != "marshak") { continue; }
+                f = "material_egas";
+            }
 			require(!rows.contains(f), "Duplicate norm: " + f);
 			for (int i = 0; i < 3; ++i) {
 				double x = numeric(match[i + 2]);
@@ -126,7 +131,7 @@ Json read_norms(const fs::path &folder, const Json &m)
 			}
 		}
 	}
-	require(finished == 1 && rows.size() == 4,
+	require(finished == 1 && rows.size() == (m.at("case") == "marshak" ? 5 : 4),
 			"Missing/duplicate final comparison or norms in " + folder.string());
 	for (auto &n : norms) {
 		std::istringstream in(read_text(folder / (n + ".dat")));
@@ -149,8 +154,105 @@ Json read_norms(const fs::path &folder, const Json &m)
 		for (int f = 0; f < 4; ++f) {
       require(close(vals[vals.size() - 4 + f], rows[fields[f]][n], 2e-6), "Log and norm file disagree");
     }
+    if (m.at("case") == "marshak") {
+        // egas is conservative hydro field1, after dx and level in the norm file.
+        require(vals.size() >= 8 && close(vals[3], rows["material_egas"][n], 2e-6),
+            "Marshak material-energy norm file and log disagree");
+    }
   }
 	return rows;
+}
+Json read_fld_diagnostics(const fs::path &folder, const Json &m)
+{
+    require(fld_model(m) && fld_case(m.at("case")), "Unsupported FLD result model/problem");
+    require(m.value("radiation_flux_semantics", "") == "derived_fld_flux" &&
+        m.value("reference_kind", "") == "linear-diffusion-limit" &&
+        m.contains("reference_exact_for_solver") && m.at("reference_exact_for_solver") == false &&
+        m.value("reference_model", "") == (m.at("case") == "marshak" ?
+            "su-olson-linear-halfspace" : "periodic-constant-diffusion"), "Invalid FLD reference semantics");
+    const auto cfg = m.value("config", Json::object());
+    const double tolerance = numeric(cfg.value("fld_nonlinear_tolerance", "1e-10"));
+    require(tolerance > 0, "Invalid FLD nonlinear tolerance");
+    std::istringstream input(read_text(folder / "run.log"));
+    std::string line;
+    std::smatch match;
+    const std::regex marker(R"(^RADIATION_FLD_FINISHED\s+(\w+)\s+t=(\S+)\s*$)");
+    const std::regex accepted(R"(^FLD accepted t=(\S+) dt=(\S+) substeps=(\d+) retries=(\d+) nonlinear_iterations=(\d+) linear_iterations=(\d+) vcycles=(\d+) nonlinear_residual=(\S+) linear_residual=(\S+) boundary_energy=(\S+) conservation_error=(\S+)\s*$)");
+    const double start = m.contains("checkpoint_resume") ?
+        m.at("checkpoint_resume").at("checkpoint_time").get<double>() : 0.;
+    double end = start, maximum_residual = 0, maximum_conservation_error = 0;
+    size_t finished = 0, substeps = 0, retries = 0;
+    Json steps = Json::array();
+    while (std::getline(input, line)) {
+        if (std::regex_match(line, match, marker)) {
+            ++finished;
+            const std::string expected = m.at("case") == "marshak" ? "marshak" :
+                "radiation_" + m.at("case").get<std::string>();
+            require(lower(match[1]) == expected && close(numeric(match[2]), m.at("time")),
+                "Wrong FLD completion marker/time");
+        } else if (std::regex_match(line, match, accepted)) {
+            require(finished == 0, "FLD step after completion marker");
+            const double time = numeric(match[1]), dt = numeric(match[2]);
+            const double nonlinear = numeric(match[8]), linear = numeric(match[9]);
+            const double boundary = numeric(match[10]), conservation = numeric(match[11]);
+            const size_t count = std::stoull(match[3]), retry = std::stoull(match[4]);
+            require(dt > 0 && close(time, end, 1.e-10) && count > 0 && retry <= 16 &&
+                nonlinear >= 0 && nonlinear <= tolerance * (1 + 1.e-6) && linear >= 0,
+                "Invalid or nonconverged FLD accepted step");
+            end = time + dt;
+            require(std::isfinite(end) && end > time, "Invalid FLD step endpoint");
+            substeps += count;
+            retries += retry;
+            maximum_residual = std::max(maximum_residual, nonlinear);
+            maximum_conservation_error = std::max(maximum_conservation_error, std::abs(conservation));
+            steps.push_back({{"t", time}, {"dt", dt}, {"substeps", count}, {"retries", retry},
+                {"nonlinear_iterations", std::stoull(match[5])}, {"linear_iterations", std::stoull(match[6])},
+                {"vcycles", std::stoull(match[7])}, {"nonlinear_residual", nonlinear},
+                {"linear_residual", linear}, {"boundary_energy", boundary}, {"conservation_error", conservation}});
+        } else {
+            require(!line.starts_with("FLD accepted") && !line.starts_with("RADIATION_FLD_FINISHED"),
+                "Malformed FLD diagnostic record");
+        }
+    }
+    require(finished == 1 && !steps.empty() && close(end, m.at("time")),
+        "Missing, duplicate, or incomplete FLD final diagnostics");
+    const auto budget = read_conservation(folder, m);
+    require(bool(budget), "Missing FLD radiation energy conservation history");
+    const auto slice = read_slice(folder, m);
+    const auto material = m.at("case") == "marshak" ?
+        std::optional<Table>(read_marshak_material(folder, m)) : std::nullopt;
+    if (material) {
+        for (size_t i = 0; i < slice.rows.size(); ++i) {
+            for (size_t k = 0; k < 5; ++k) {
+                require(close(slice.rows[i][k], material->rows[i][k]),
+                    "FLD material/radiation reference slice geometry differs");
+            }
+        }
+    }
+    Json differences;
+    for (int f = 0; f < (material ? 5 : 4); ++f) {
+        double l1 = 0, l2 = 0, maximum = 0;
+        for (size_t i = 0; i < slice.rows.size(); ++i) {
+            const double difference = f == 4 ? material->rows[i][5] - material->rows[i][6] :
+                slice.rows[i][5 + f] - slice.rows[i][9 + f];
+            // Coarse leaves are repeated over their finest display footprint.
+            // Equal pixel-area weights therefore recover the native leaf areas.
+            const double weight = 1. / slice.rows.size();
+            l1 += weight * std::abs(difference);
+            l2 = std::hypot(l2, std::sqrt(weight) * difference);
+            maximum = std::max(maximum, std::abs(difference));
+        }
+        require(std::isfinite(l1) && std::isfinite(l2) && std::isfinite(maximum),
+            "Nonfinite FLD reference difference");
+        differences[f == 4 ? "material_egas" : fields[f]] = {{"L1", l1}, {"L2", l2}, {"Linf", maximum}};
+    }
+    return {{"accepted_steps", steps.size()}, {"substeps", substeps}, {"retries", retries},
+        {"history_start_time", start}, {"history_end_time", end},
+        {"maximum_nonlinear_residual", maximum_residual},
+        {"maximum_step_coupled_conservation_error", maximum_conservation_error},
+        {"radiation_energy_budget", budget->summary.at(0)}, {"steps", steps},
+        {"reference_kind", "linear-diffusion-limit"}, {"reference_exact_for_solver", false},
+        {"reference_norm_scope", "projected-positive-side-slice"}, {"slice_reference_norms", differences}};
 }
 namespace {
 Table adaptive_slice(const fs::path &directory, const Json &m, const std::vector<std::string> &columns)
@@ -199,8 +301,18 @@ Table read_slice(const fs::path &folder, const Json &m)
 {
 	std::vector<std::string> cols{"t",	"dx", "x",		"y",	  "z",		"er",	 "fx",
 								  "fy", "fz", "er_ref", "fx_ref", "fy_ref", "fz_ref"};
+    auto validate = [&](const Table &data) {
+        if (fld_model(m)) {
+            for (const auto &row : data.rows) {
+                require(row[5] >= 0 && std::hypot(row[6], row[7], row[8]) <=
+                    m.at("c").get<double>() * row[5] * (1 + 1.e-10),
+                    "Nonphysical FLD energy or derived flux");
+            }
+        }
+        return data;
+    };
     if (m.value("adaptive", false)) {
-        return adaptive_slice(folder / "radiation-slices", m, cols);
+        return validate(adaptive_slice(folder / "radiation-slices", m, cols));
     }
 	Table t{cols, {}};
 	auto dir = folder / "radiation-slices";
@@ -230,7 +342,19 @@ Table read_slice(const fs::path &folder, const Json &m)
     }
   }
   require(count == size_t(n) * n, "Missing slice cells");
-	return t;
+	return validate(t);
+}
+Table read_marshak_material(const fs::path &folder, const Json &m)
+{
+    auto mesh = m;
+    if (!mesh.contains("min_level")) { mesh["min_level"] = mesh.at("level"); }
+    std::vector<std::string> columns{"t", "dx", "x", "y", "z", "egas"};
+    columns.push_back("egas_ref");
+    auto data = adaptive_slice(folder / "marshak-material-slices", mesh, columns);
+    for (const auto &row : data.rows) {
+        require(row[5] >= 0, "Negative Marshak material energy");
+    }
+    return data;
 }
 Table read_hydro_profile(const fs::path &folder, const Json &m)
 {
@@ -279,6 +403,99 @@ Table read_hydro_profile(const fs::path &folder, const Json &m)
     require(count == size_t(n) * n, "Missing hydro slice cells");
     return data;
 }
+namespace {
+Json checkpoint_provenance(const fs::path &folder, const Json &m)
+{
+    const auto path = folder / "restart-provenance.json";
+    if (!fs::exists(path)) {
+        require(!m.contains("checkpoint_resume"), "Missing declared checkpoint provenance");
+        return {};
+    }
+    require(fs::is_regular_file(path) && !fs::is_symlink(path), "Invalid checkpoint provenance file");
+    const auto p = read_json(path);
+    require(p.at("schema") == 1, "Unsupported checkpoint provenance schema");
+    const auto &spec = p.at("checkpoint_resume");
+    const double start = spec.at("checkpoint_time"), end = m.at("time");
+    require(std::isfinite(start) && start > 0 && start < end,
+        "Checkpoint time must be inside the completed physical interval");
+    const std::regex digest("[0-9a-f]{64}"), main_name(R"(X\.([0-9]+)\.silo)");
+    std::smatch match;
+    const auto checkpoint = spec.at("checkpoint").get<std::string>();
+    require(std::regex_match(checkpoint, match, main_name), "Invalid checkpoint snapshot name");
+    const size_t last = std::stoull(match[1]);
+    require(!spec.at("source_attempt_started_utc").get<std::string>().empty() &&
+        !spec.at("source_runtime_profile").get<std::string>().empty() &&
+        !spec.at("source_data_directory").get<std::string>().empty() &&
+        !p.at("runtime_profile").get<std::string>().empty() &&
+        std::regex_match(p.at("solver_library_sha256").get<std::string>(), digest),
+        "Missing checkpoint runtime/attempt identity");
+    const auto &hashes = spec.at("snapshot_sha256");
+    require(hashes.is_object() && !hashes.empty() && last < hashes.size(), "Missing retained checkpoint hashes");
+    for (size_t i = 0; i <= last; ++i) {
+        const std::string name = "X." + std::to_string(i) + ".silo";
+        require(hashes.contains(name), "Incomplete retained checkpoint sequence");
+        const auto shards = folder / (name + ".data");
+        require(fs::is_directory(shards) && !fs::is_symlink(shards), "Missing retained checkpoint shards");
+        size_t count = 0;
+        for (const auto &entry : fs::directory_iterator(shards)) {
+            require(entry.is_regular_file() && !entry.is_symlink() &&
+                hashes.contains(name + ".data/" + entry.path().filename().string()),
+                "Unrecorded retained checkpoint shard");
+            ++count;
+        }
+        require(count > 0, "Empty retained checkpoint shards");
+    }
+    for (auto it = hashes.begin(); it != hashes.end(); ++it) {
+        require(std::regex_match(it.key(), match, std::regex(R"(X\.([0-9]+)\.silo(?:\.data/[^/]+\.silo)?)")) &&
+            std::stoull(match[1]) <= last && std::regex_match(it.value().get<std::string>(), digest),
+            "Invalid retained checkpoint file/hash");
+        const auto file = folder / it.key();
+        require(fs::is_regular_file(file) && !fs::is_symlink(file) && fs::file_size(file) > 0 &&
+            sha256(file) == it.value().get<std::string>(), "Retained checkpoint hash differs");
+    }
+    const auto &segments = p.at("conservation_segments");
+    require(segments.is_array() && segments.size() == 2 &&
+        segments[0].at("file") == "conservation-segments/original-attempt.csv" &&
+        segments[1].at("file") == "radiation-conservation.csv" &&
+        segments[0].at("used_until_checkpoint_time") == start &&
+        segments[1].at("expected_start_time") == start &&
+        segments[1].at("diagnostic_counters_reset") == true,
+        "Invalid checkpoint conservation segment declaration");
+    const auto old = folder / "conservation-segments/original-attempt.csv";
+    require(!fs::is_symlink(old.parent_path()) && fs::is_regular_file(old) && !fs::is_symlink(old) &&
+        std::regex_match(spec.at("conservation_sha256").get<std::string>(), digest) &&
+        sha256(old) == spec.at("conservation_sha256").get<std::string>(), "Original conservation segment hash differs");
+    if (m.contains("checkpoint_resume")) {
+        require(m.at("checkpoint_resume") == spec &&
+            m.at("restart_provenance_sha256") == sha256(path), "Recorded checkpoint provenance differs");
+    }
+    return p;
+}
+} // namespace
+
+void adopt_checkpoint_provenance(const fs::path &folder, Json &m)
+{
+    const auto p = checkpoint_provenance(folder, m);
+    if (!p.is_null()) {
+        m["checkpoint_resume"] = p.at("checkpoint_resume");
+        m["restart_provenance_sha256"] = sha256(folder / "restart-provenance.json");
+        m["performance_eligible"] = false;
+        m["queue_calibration_eligible"] = false;
+    }
+}
+
+std::string conservation_scope_note(const Budget &b, const Json &m)
+{
+    if (b.history.rows.front()[0] == 0) { return ""; }
+    return "<p class=\"note\"><strong>Checkpoint continuation conservation segment:</strong> t = " +
+        html(number(b.history.rows.front()[0])) + " to " + html(number(b.history.rows.back()[0])) +
+        (cgs(m) ? " s. " : " in normalized time. ") +
+        "The reference time t_ref and fixed normalization are the checkpoint state. Boundary/source "
+        "counters restart at zero; residuals describe this segment only. The original ledger is retained "
+        "separately; its rows after the checkpoint belong to the abandoned attempt and are not joined "
+        "to this history. Whole-run conservation is not inferred from this segment.</p>";
+}
+
 std::optional<Budget> read_conservation(const fs::path &folder, const Json &m)
 {
 	auto p = folder / "radiation-conservation.csv";
@@ -300,17 +517,32 @@ std::optional<Budget> read_conservation(const fs::path &folder, const Json &m)
 	auto &rows = b.history.rows;
 	double len = m.at("length"), c = m.at("c"), vol = len * len * len;
 	require(len > 0 && c > 0 && std::isfinite(vol) && std::isfinite(c), "Invalid conservation metadata");
-	require(rows[0][0] == 0 && close(rows.back()[0], m.at("time")),
-			"Conservation must span t=0 through final time");
+    const auto restart = checkpoint_provenance(folder, m);
+    const bool resumed = !restart.is_null();
+    require(!resumed || m.contains("checkpoint_resume"), "Checkpoint provenance must be adopted before reporting");
+    const double start = resumed ? restart.at("checkpoint_resume").at("checkpoint_time").get<double>() : 0;
+    if (resumed) {
+        const auto old = read_csv(folder / "conservation-segments/original-attempt.csv", cols);
+        require(old.rows.front()[0] == 0 && old.rows.back()[0] >= start,
+            "Original conservation segment does not cover checkpoint time");
+        for (size_t i = 1; i < old.rows.size(); ++i) {
+            require(old.rows[i][0] > old.rows[i - 1][0], "Original conservation times must increase");
+        }
+    }
+    require((resumed ? close(rows[0][0], start, 1e-12) : rows[0][0] == 0) &&
+        close(rows.back()[0], m.at("time")), "Conservation must span its declared initial time through final time");
 	for (int j = 6; j < 14; ++j) {
     require(rows[0][j] == 0, "Nonzero initial boundary/source ledger");
   }
   b.residual.resize(rows.size());
 	b.scale.resize(rows.size());
 	b.normalized.resize(rows.size());
-	// Fix the normalization at t=0: growth of a source or boundary budget must
+	// Fix normalization at the declared initial time: growing source/boundary budgets must
 	// not reduce the apparent fractional conservation error later in the run.
-	const double initial_energy = std::abs(rows[0][2]);
+	const bool marshak = m.value("case", "") == "marshak";
+    // The cold Marshak domain starts with zero radiation. Its prescribed bath
+    // provides a fixed, physically meaningful scale independent of the run.
+	const double initial_energy = marshak ? 4 * vol / c : std::abs(rows[0][2]);
 	const double initial_flux_scale = c * initial_energy;
 	constexpr double zero_tolerance = 64 * std::numeric_limits<double>::epsilon();
 	require(initial_energy > 0 && std::isfinite(initial_flux_scale) && initial_flux_scale > 0,
@@ -318,18 +550,20 @@ std::optional<Budget> read_conservation(const fs::path &folder, const Json &m)
 	std::array<double, 4> initial_scale;
 	std::array<std::string, 4> basis;
 	initial_scale[0] = initial_energy;
-	basis[0] = "abs(initial_energy)";
+	basis[0] = marshak ? "bath_energy * volume" : resumed ? "abs(segment_initial_energy)" : "abs(initial_energy)";
 	for (int f = 1; f < 4; ++f) {
 		const double initial = std::abs(rows[0][2 + f]);
-		const bool zero_net_flux = initial / initial_flux_scale <= zero_tolerance;
+		const bool zero_net_flux = marshak || initial / initial_flux_scale <= zero_tolerance;
 		initial_scale[f] = zero_net_flux ? initial_flux_scale : initial;
-		basis[f] = zero_net_flux ? "c * abs(initial_energy)" : "abs(initial_component)";
+		basis[f] = marshak ? "c * bath_energy * volume" : zero_net_flux ?
+            (resumed ? "c * abs(segment_initial_energy)" : "c * abs(initial_energy)") :
+            (resumed ? "abs(segment_initial_component)" : "abs(initial_component)");
 	}
 	for (size_t i = 0; i < rows.size(); ++i) {
 		auto &r = rows[i];
 		require(close(r[1], vol), "Conservation domain-volume mismatch");
 		require(!i || r[0] > rows[i - 1][0], "Conservation times must increase");
-		for (int f = 0; f < 4; ++f) {
+		for (int f = 0; f < (fld_model(m) ? 1 : 4); ++f) {
 			double residual = r[2 + f] - rows[0][2 + f] + r[6 + f] - r[10 + f];
 			double scale = initial_scale[f];
 			require(std::isfinite(residual) && std::isfinite(residual / scale),
@@ -339,13 +573,16 @@ std::optional<Budget> read_conservation(const fs::path &folder, const Json &m)
 			b.normalized[i][f] = residual / scale;
 		}
 	}
-	for (int f = 0; f < 4; ++f) {
+	for (int f = 0; f < (fld_model(m) ? 1 : 4); ++f) {
 		double maxr = 0, maxn = 0;
 		for (size_t i = 0; i < rows.size(); ++i) {
 			maxr = std::max(maxr, std::abs(b.residual[i][f]));
 			maxn = std::max(maxn, std::abs(b.normalized[i][f]));
 		}
 		b.summary.push_back({{"field", fields[f]},
+                             {"history_scope", resumed ? "checkpoint_continuation_segment" : "full_run"},
+                             {"history_start_time", rows.front()[0]}, {"history_end_time", rows.back()[0]},
+                             {"normalization_time", start},
 							 {"initial", rows[0][2 + f]},
 							 {"final", rows.back()[2 + f]},
 							 {"raw_change", rows.back()[2 + f] - rows[0][2 + f]},
@@ -391,7 +628,7 @@ void CGSCheck::feed(const std::string &line)
 		}
 	}
 	if (std::regex_search(line, m, std::regex(R"(\|\s*c\s*=\s*(\S+)\s*\|)"))) {
-		require(close(numeric(m[1]), c_cgs, 5e-7), "Wrong solver light speed; rebuild for CGS");
+		require(close(numeric(m[1]), expected_c, 5e-7), "Wrong solver light speed for recorded units; rebuild");
 		if (pending && factors) {
 			++blocks;
 			pending = false;
@@ -402,9 +639,10 @@ void CGSCheck::finish()
 {
 	require(blocks && !pending, "Could not verify the running solver's CGS units and light speed;");
 }
-void verify_cgs_log(const fs::path &p)
+void verify_cgs_log(const fs::path &p, double expected_c)
 {
 	CGSCheck c;
+    c.expected_c = expected_c;
 	std::istringstream s(read_text(p));
 	std::string line;
 	while (std::getline(s, line)) {

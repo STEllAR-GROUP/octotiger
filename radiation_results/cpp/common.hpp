@@ -25,11 +25,19 @@ using Json = nlohmann::json;
 inline constexpr double c_cgs = 2.99792458e10, half_width = 3e10;
 inline const std::array<std::string, 4> fields{"er", "fx", "fy", "fz"};
 inline const std::array<std::string, 3> norms{"L1", "L2", "Linf"};
-inline const std::array<std::string, 7> cases{"streaming_wave", "streaming_front", "gaussian_pulse",
-											  "equilibrium_sphere", "subcritical_shock", "supercritical_shock", "radiating_blast"};
+inline const std::array<std::string, 8> cases{"streaming_wave", "streaming_front", "gaussian_pulse",
+											  "equilibrium_sphere", "subcritical_shock", "supercritical_shock", "radiating_blast", "marshak"};
 inline bool coupled_case(const std::string &name)
 {
     return name == "subcritical_shock" || name == "supercritical_shock" || name == "radiating_blast";
+}
+inline bool fld_case(const std::string &name)
+{
+    return name == "gaussian_pulse" || name == "marshak";
+}
+inline bool fld_model(const Json &metadata)
+{
+    return metadata.value("radiation_model", "m1") == "fld";
 }
 inline const Json cgs_units{{"system", "CGS"},
 							{"length", "cm"},
@@ -40,6 +48,9 @@ inline const Json cgs_units{{"system", "CGS"},
 							{"chi", "1/cm"},
 							{"luminosity", "erg/s"},
 							{"source", "erg/(cm^3 s)"}};
+inline const Json marshak_units{{"system", "dimensionless"}, {"length", "normalized length"},
+    {"time", "normalized time"}, {"energy_density", "normalized energy density"},
+    {"flux", "normalized flux"}, {"c", 1.0}};
 void require(bool, const std::string &);
 std::string read_text(const fs::path &);
 void atomic_text(const fs::path &, const std::string &);
@@ -76,8 +87,10 @@ struct Table {
 };
 Table read_csv(const fs::path &, const std::vector<std::string> &);
 Json read_norms(const fs::path &, const Json &);
+Json read_fld_diagnostics(const fs::path &, const Json &);
 Table read_slice(const fs::path &, const Json &);
 Table read_hydro_profile(const fs::path &, const Json &);
+Table read_marshak_material(const fs::path &, const Json &);
 Json slice_mesh_summary(const fs::path &, const Json &);
 std::string mesh_label(const Json &);
 std::string slice_geometry_note(const Json &);
@@ -87,10 +100,13 @@ struct Budget {
 	std::vector<std::array<double, 4>> residual, scale, normalized;
 };
 std::optional<Budget> read_conservation(const fs::path &, const Json &);
-void verify_cgs_log(const fs::path &);
+void adopt_checkpoint_provenance(const fs::path &, Json &);
+std::string conservation_scope_note(const Budget &, const Json &);
+void verify_cgs_log(const fs::path &, double expected_c = c_cgs);
 struct CGSCheck {
 	bool pending = false, factors = false;
 	int blocks = 0;
+    double expected_c = c_cgs;
 	void feed(const std::string &);
 	void finish();
 };
@@ -100,7 +116,7 @@ std::vector<fs::path> numerical_silos(const fs::path &);
 struct Options {
 	std::string command = "live", gnuplot = "gnuplot", ffmpeg = "ffmpeg", field = "er", view = "slice",
 				axis = "z", color = "hot", cxx = "g++", visit = "visit";
-	fs::path root, build, exe, generator, output, resume, input, reference, session_dir, launcher;
+	fs::path root, build, exe, generator, output, resume, input, reference, session_dir, launcher, study_config;
 	std::vector<std::string> selected_cases;
 	std::vector<int> levels;
 	double time = 4, seconds = 20, hold = 1, position = 0, odt = 0, hard_dt = 0,
@@ -108,6 +124,8 @@ struct Options {
 	int min_level = -1, gradient_buffer = 0;
 	double gradient_threshold = 1, gradient_floor = 1.e-30, gradient_coarsen_factor = .8;
 	std::string gradient_field = "none", gradient_mode = "relative";
+	std::string radiation_backend = "cpu";
+	std::string radiation_model = "m1", radiation_integrator = "auto";
 	int threads = 2, jobs = 2, snapshots = 61, fps = 30, width = 1280, height = 960, cells = 32;
 	bool no_build = false, no_open = false, dry_run = false, no_silo = false, no_movies = false,
 		 reuse_frames = false, allow_sparse = false, check = false, sanitize = false;

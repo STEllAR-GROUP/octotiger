@@ -23,16 +23,16 @@ template <class F> void rejects(F f, const std::string &what)
 Json metadata(std::string name, int level = 0)
 {
 	int n = 4 * (1 << level);
-	double length = 6e10;
+	double length = name == "marshak" ? 2. : 6e10;
 	return {{"case", name},
 			{"level", level},
 			{"inx", 4},
 			{"cells", n},
 			{"length", length},
 			{"dx", length / n},
-			{"time", 4.},
-			{"c", c_cgs},
-			{"units", cgs_units},
+			{"time", name == "marshak" ? 1. : 4.},
+			{"c", name == "marshak" ? 1. : c_cgs},
+			{"units", name == "marshak" ? marshak_units : cgs_units},
 			{"background", 1.},
 			{"status", "complete"},
 			{"origin", "synthetic validation fixture"},
@@ -50,7 +50,7 @@ void results(const fs::path &p, Json m)
 	std::transform(name.begin(), name.end(), name.begin(), [](unsigned char c) { return std::toupper(c); });
 	std::ostringstream log;
 	log << std::setprecision(17) << "normalized constants\n1 1 1 1\n| c = " << m.at("c").get<double>()
-		<< " |\nRADIATION_TEST_FINISHED RADIATION_" << name << " t=" << time << '\n';
+		<< " |\nRADIATION_TEST_FINISHED " << (m.at("case") == "marshak" ? "" : "RADIATION_") << name << " t=" << time << '\n';
     if (coupled_case(m.at("case"))) {
         atomic_text(p / "run.log", log.str());
         std::ostringstream csv;
@@ -68,15 +68,58 @@ void results(const fs::path &p, Json m)
         atomic_text(p / "radiation-hydro-slices/slice-000.csv", csv.str());
         return;
     }
+    if (fld_model(m)) {
+        log.str("");
+        log.clear();
+        log << std::setprecision(17) << "normalized constants\n1 1 1 1\n| c = " << m.at("c").get<double>() << " |\n";
+        const auto cfg = m.value("config", Json::object());
+        const double cap = numeric(cfg.value("hard_dt", number(time)));
+        for (double t = 0.; t < time;) {
+            const double dt = std::min(cap, time - t);
+            log << "FLD accepted t=" << t << " dt=" << dt << " substeps=1 retries=0 nonlinear_iterations=3 "
+                "linear_iterations=9 vcycles=9 nonlinear_residual=1e-12 linear_residual=1e-13 "
+                "boundary_energy=0 conservation_error=0\n";
+            t += dt;
+        }
+        log << "RADIATION_FLD_FINISHED " << (m.at("case") == "marshak" ? "" : "RADIATION_") << name << " t=" << time << '\n';
+        atomic_text(p / "run.log", log.str());
+        std::ostringstream csv, gas;
+        csv << "t,dx,x,y,z,er,fx,fy,fz,er_ref,fx_ref,fy_ref,fz_ref\n" << std::scientific << std::setprecision(17);
+        gas << "t,dx,x,y,z,egas,egas_ref\n" << std::scientific << std::setprecision(17);
+        for (int i = 0; i < n; ++i) {
+            for (int j = 0; j < n; ++j) {
+                const double x = -len / 2 + (i + .5) * dx, y = -len / 2 + (j + .5) * dx;
+                const double energy = 1 + .5 * std::cos(2 * 3.141592653589793 * x / len);
+                csv << time << ',' << dx << ',' << x << ',' << y << ',' << dx / 2 << ',' << energy + 1.e-3 / n << ",0,0,0," << energy << ",0,0,0\n";
+                gas << time << ',' << dx << ',' << x << ',' << y << ',' << dx / 2 << ',' << energy / 2 + 2.e-3 / n << ',' << energy / 2 << '\n';
+            }
+        }
+        atomic_text(p / "radiation-slices/slice-000.csv", csv.str());
+        if (m.at("case") == "marshak") { atomic_text(p / "marshak-material-slices/slice-000.csv", gas.str()); }
+        const double volume = len * len * len;
+        std::ostringstream budget;
+        budget << "t,volume,er,fx,fy,fz,er_boundary,fx_boundary,fy_boundary,fz_boundary,er_source,fx_source,fy_source,fz_source\n"
+            << std::scientific << std::setprecision(17);
+        for (double t : {0., time / 4, time}) {
+            // Flux diagnostic integrals deliberately change without a moment ledger.
+            // FLD must assess only its evolved radiation energy equation.
+            budget << t << ',' << volume << ',' << volume * (1 + t) << ',' << t << ",0,0,0,0,0,0," << volume * t << ",0,0,0\n";
+        }
+        atomic_text(p / "radiation-conservation.csv", budget.str());
+        return;
+    }
 	double error = 1e-3 / n;
 	for (int f = 0; f < 4; ++f) {
     log << fields[f] << ' ' << (f == 0 ? error : 0) << ' ' << (f == 0 ? 2 * error : 0) << ' '
 			<< (f == 0 ? 4 * error : 0) << '\n';
   }
+  if (m.at("case") == "marshak") {
+        log << "egas " << 2 * error << ' ' << 4 * error << ' ' << 8 * error << '\n';
+    }
   atomic_text(p / "run.log", log.str());
 	for (int k = 0; k < 3; ++k) {
     atomic_text(p / (norms[k] + ".dat"), number(dx) + " " + std::to_string(m.at("level").get<int>()) +
-												 " " + number(error * (1 << k)) + " 0 0 0\n");
+												 (m.at("case") == "marshak" ? " 0 " + number(2 * error * (1 << k)) : "") + " " + number(error * (1 << k)) + " 0 0 0\n");
   }
   std::ostringstream csv;
 	csv << "t,dx,x,y,z,er,fx,fy,fz,er_ref,fx_ref,fy_ref,fz_ref\n" << std::scientific << std::setprecision(17);
@@ -89,6 +132,18 @@ void results(const fs::path &p, Json m)
 		}
   }
   atomic_text(p / "radiation-slices/slice-000.csv", csv.str());
+    if (m.at("case") == "marshak") {
+        std::ostringstream gas;
+        gas << "t,dx,x,y,z,egas,egas_ref\n" << std::scientific << std::setprecision(17);
+        for (int i = 0; i < n; ++i) {
+            for (int j = 0; j < n; ++j) {
+                const double x=-len/2+(i+.5)*dx,y=-len/2+(j+.5)*dx;
+                const double value=.5+.25*std::cos(2*3.141592653589793*x/len);
+                gas << time << ',' << dx << ',' << x << ',' << y << ',' << dx/2 << ',' << value+2*error << ',' << value << '\n';
+            }
+        }
+        atomic_text(p / "marshak-material-slices/slice-000.csv", gas.str());
+    }
 	double volume = len * len * len;
 	std::ostringstream budget;
 	budget << "t,volume,er,fx,fy,fz,er_boundary,fx_boundary,fy_boundary,fz_boundary,er_source,fx_source,fy_"
@@ -99,6 +154,36 @@ void results(const fs::path &p, Json m)
 			   << ",0,0,0\n";
   }
   atomic_text(p / "radiation-conservation.csv", budget.str());
+}
+void checkpoint_results(const fs::path &folder, const Json &m)
+{
+    const double end = m.at("time"), start = end / 2, volume = std::pow(m.at("length").get<double>(), 3);
+    const std::string header = "t,volume,er,fx,fy,fz,er_boundary,fx_boundary,fy_boundary,fz_boundary,er_source,fx_source,fy_source,fz_source\n";
+    auto history = [&](double initial, const std::vector<double> &times) {
+        std::ostringstream text;
+        text << header << std::scientific << std::setprecision(17);
+        for (double t : times) {
+            text << t << ',' << volume << ',' << volume * (1 + t - initial)
+                << ",0,0,0,0,0,0,0," << volume * (t - initial) << ",0,0,0\n";
+        }
+        return text.str();
+    };
+    atomic_text(folder / "conservation-segments/original-attempt.csv", history(0, {0, start, end}));
+    atomic_text(folder / "radiation-conservation.csv", history(start, {start, (start + end) / 2, end}));
+    Json hashes = Json::object();
+    for (const auto &name : {"X.0.silo", "X.0.silo.data/0.silo", "X.1.silo", "X.1.silo.data/0.silo"}) {
+        atomic_text(folder / name, std::string("synthetic checkpoint fixture ") + name);
+        hashes[name] = sha256(folder / name);
+    }
+    write_json(folder / "restart-provenance.json", {{"schema", 1}, {"runtime_profile", "fixture-recovery"},
+        {"solver_library_sha256", std::string(64, 'a')}, {"checkpoint_resume", {
+            {"source_attempt_started_utc", "2026-10-12T00:00:00Z"}, {"source_runtime_profile", "baseline"},
+            {"source_data_directory", "attempts/fixture"}, {"checkpoint", "X.1.silo"},
+            {"checkpoint_time", start}, {"snapshot_sha256", hashes},
+            {"conservation_sha256", sha256(folder / "conservation-segments/original-attempt.csv")}}},
+        {"conservation_segments", Json::array({{{"file", "conservation-segments/original-attempt.csv"},
+            {"used_until_checkpoint_time", start}}, {{"file", "radiation-conservation.csv"},
+            {"expected_start_time", start}, {"diagnostic_counters_reset", true}}})}});
 }
 void adaptive_results(const fs::path &folder, const Json &m)
 {
@@ -258,6 +343,9 @@ int main(int argc, char **argv)
 			const auto p = fs::current_path();
 			auto m = read_json(p / "run.json");
 			results(p, m);
+            if (std::getenv("RR_TEST_CHECKPOINT")) {
+                checkpoint_results(p, m);
+            }
             if (m.value("adaptive", false)) {
                 adaptive_results(p, m);
             }
@@ -295,6 +383,38 @@ int main(int argc, char **argv)
 		expect(b && b->summary[0]["max_normalized_error"].get<double>() < 1e-15,
 			   "physical source budget cancellation");
 		expect(b->summary[1]["normalized_error"] == 0, "zero net flux normalization");
+        {
+            auto resumed_meta = m;
+            const auto resumed = tmp / "checkpoint";
+            results(resumed, resumed_meta);
+            checkpoint_results(resumed, resumed_meta);
+            const auto original = read_text(resumed / "conservation-segments/original-attempt.csv");
+            rejects([&] { read_conservation(resumed, resumed_meta); }, "undeclared nonzero history start rejected");
+            adopt_checkpoint_provenance(resumed, resumed_meta);
+            const auto segment = *read_conservation(resumed, resumed_meta);
+            expect(segment.history.rows.front()[0] == 2 && segment.history.rows.back()[0] == 4 &&
+                segment.summary[0]["normalization_time"] == 2 &&
+                segment.summary[0]["normalization_basis"] == "abs(segment_initial_energy)",
+                "resumed segment has physical checkpoint times and fixed checkpoint normalization");
+            expect(segment.scale.front() == segment.scale.back() &&
+                segment.summary[0]["max_normalized_error"].get<double>() < 1e-15,
+                "resumed segment budget closes without rebasing timestamps or joining old tail");
+            expect(conservation_scope_note(segment, resumed_meta).find("abandoned attempt") != std::string::npos &&
+                conservation_scope_note(segment, resumed_meta).find("t = 2 to 4 s") != std::string::npos,
+                "visible continuation note states time, normalization and abandoned-tail scope");
+            expect(read_text(resumed / "conservation-segments/original-attempt.csv") == original,
+                "original full raw ledger remains byte-identical");
+            auto wrong = resumed_meta;
+            wrong["checkpoint_resume"]["checkpoint_time"] = 1.;
+            rejects([&] { read_conservation(resumed, wrong); }, "changed metadata checkpoint rejected");
+            const auto ledger = read_text(resumed / "radiation-conservation.csv");
+            atomic_text(resumed / "radiation-conservation.csv", ledger.substr(0, ledger.find('\n') + 1) +
+                "1,1,1,0,0,0,0,0,0,0,0,0,0,0\n4,1,1,0,0,0,0,0,0,0,0,0,0,0\n");
+            rejects([&] { read_conservation(resumed, resumed_meta); }, "wrong actual checkpoint ledger start rejected");
+            atomic_text(resumed / "radiation-conservation.csv", ledger);
+            atomic_text(resumed / "X.1.silo.data/0.silo", "changed checkpoint shard");
+            rejects([&] { read_conservation(resumed, resumed_meta); }, "changed retained snapshot rejected");
+        }
 		{
 			auto original = read_text(p / "radiation-conservation.csv");
 			auto small = m;
@@ -320,6 +440,83 @@ int main(int argc, char **argv)
 			atomic_text(p / "radiation-conservation.csv", original);
 		}
 		verify_cgs_log(p / "run.log");
+        {
+            const auto marshak = metadata("marshak");
+            const auto path = tmp / "marshak";
+            results(path, marshak);
+            verify_cgs_log(path / "run.log", 1.);
+            const auto values = read_norms(path, marshak);
+            expect(values.size() == 5 && close(values.at("material_egas").at("L1"), 5e-4),
+                "Marshak material and radiation full-volume norms use normalized units");
+            expect(read_marshak_material(path, marshak).rows.size() == 16,
+                "Marshak material slice has complete cell coverage");
+            const auto original = read_text(path / "radiation-conservation.csv");
+            atomic_text(path / "radiation-conservation.csv", original.substr(0, original.find('\n') + 1) +
+                "0,8,0,0,0,0,0,0,0,0,0,0,0,0\n"
+                "1,8,2,1,0,0,-3,-2,0,0,-1,-1,0,0\n");
+            const auto budget = *read_conservation(path, marshak);
+            expect(budget.summary[0]["normalization_basis"] == "bath_energy * volume" &&
+                budget.summary[1]["normalization_basis"] == "c * bath_energy * volume" &&
+                budget.scale.front() == budget.scale.back() && budget.scale.front()[0] == 32 &&
+                budget.normalized.back()[0] == 0 && budget.normalized.back()[1] == 0,
+                "cold Marshak conservation uses fixed prescribed bath scales");
+            atomic_text(path / "radiation-conservation.csv", original);
+        }
+        for (const auto &name : {"gaussian_pulse", "marshak"}) {
+            auto fld = metadata(name);
+            fld.update({{"radiation_model", "fld"}, {"radiation_algorithm_version", 1},
+                {"radiation_integrator", "backward_euler"}, {"radiation_flux_semantics", "derived_fld_flux"},
+                {"reference_kind", "linear-diffusion-limit"}, {"reference_exact_for_solver", false},
+                {"reference_model", std::string(name) == "marshak" ? "su-olson-linear-halfspace" : "periodic-constant-diffusion"}});
+            const auto folder = tmp / (std::string("fld-") + name);
+            results(folder, fld);
+            expect(read_slice(folder, fld).columns.size() == 13, "FLD slices include analytic diffusion reference columns");
+            if (std::string(name) == "marshak") {
+                expect(read_marshak_material(folder, fld).columns.size() == 7, "FLD material slice includes its diffusion reference");
+            }
+            const auto diagnostics = read_fld_diagnostics(folder, fld);
+            expect(diagnostics.at("accepted_steps") == 1 && diagnostics.at("maximum_nonlinear_residual") == 1.e-12,
+                "FLD accepted solver diagnostics parsed");
+            expect(diagnostics.at("reference_norm_scope") == "projected-positive-side-slice" &&
+                close(diagnostics.at("slice_reference_norms").at("er").at("L1"), 2.5e-4) &&
+                diagnostics.at("reference_exact_for_solver") == false,
+                "FLD reference discrepancy norms have explicit slice scope and qualified exactness");
+            if (std::string(name) == "marshak") {
+                expect(close(diagnostics.at("slice_reference_norms").at("material_egas").at("L1"), 5.e-4),
+                    "FLD material energy receives its own analytic reference discrepancy");
+            }
+            auto false_exactness = fld;
+            false_exactness["reference_exact_for_solver"] = true;
+            rejects([&] { read_fld_diagnostics(folder, false_exactness); },
+                "linear diffusion reference cannot be marked exact for nonlinear FLD");
+            const auto budget = *read_conservation(folder, fld);
+            expect(budget.summary.size() == 1 && budget.summary.at(0).at("field") == "er" &&
+                budget.normalized.back()[0] == 0, "FLD only assesses the radiation energy ledger");
+            rejects([&] { read_norms(folder, fld); }, "FLD cannot reuse M1 analytic norms");
+            const auto original = read_text(folder / "run.log");
+            atomic_text(folder / "run.log", original + "RADIATION_FLD_FINISHED " +
+                (std::string(name) == "marshak" ? "MARSHAK" : "RADIATION_GAUSSIAN_PULSE") +
+                " t=" + number(fld.at("time")) + "\n");
+            rejects([&] { read_fld_diagnostics(folder, fld); }, "duplicate FLD final marker rejected");
+            auto nonconverged = original;
+            nonconverged.replace(nonconverged.find("nonlinear_residual=1e-12"), std::string("nonlinear_residual=1e-12").size(), "nonlinear_residual=1e-2");
+            atomic_text(folder / "run.log", nonconverged);
+            rejects([&] { read_fld_diagnostics(folder, fld); }, "nonconverged FLD accepted step rejected");
+            atomic_text(folder / "run.log", original);
+            auto wrong = fld;
+            wrong["time"] = fld.at("time").get<double>() * 2;
+            rejects([&] { read_fld_diagnostics(folder, wrong); }, "incomplete FLD interval rejected");
+            const auto text = read_text(folder / "radiation-slices/slice-000.csv");
+            atomic_text(folder / "radiation-slices/slice-000.csv", text + text.substr(text.find('\n') + 1));
+            rejects([&] { read_slice(folder, fld); }, "duplicate FLD slice cells rejected");
+            atomic_text(folder / "radiation-slices/slice-000.csv", text);
+            report_pages(folder);
+            const auto report = read_text(folder / (std::string(name) + ".html"));
+            expect(report.find("Analytic diffusion-limit reference") != std::string::npos &&
+                report.find("Full-volume norms and orders") == std::string::npos &&
+                report.find("Derived FLD flux") != std::string::npos,
+                "FLD page labels qualified analytic reference and derived flux without M1 full-volume norms");
+        }
 		auto cap = cadence(4, 61, .4);
 		expect(cap["steps_per_output_check"] == 5 && close(cap["hard_dt"], 4. / 300),
 			   "capture output-check timestep cap");

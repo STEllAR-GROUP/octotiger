@@ -441,6 +441,7 @@ bool cgs(const Json &m)
 std::string field_label(const Json &m, int f)
 {
 	return std::array<std::string, 4>{"E", "Fx", "Fy", "Fz"}[f] +
+		   (fld_model(m) && f != 0 ? " (derived)" : "") +
 		   (cgs(m) ? (f == 0 ? " (erg/cm^3)" : " (erg/(cm^2 s))") : " (code units)");
 }
 std::string radiation_method_note(const Json &m)
@@ -448,11 +449,21 @@ std::string radiation_method_note(const Json &m)
     const double factor = m.value("radiation_reduced_c_factor", 1.);
     require(factor > 0 && factor <= 1, "Invalid recorded reduced light-speed factor");
     const double physical = m.value("physical_c", m.value("c", c_cgs));
-    if (factor == 1.) {
-        return "Physical-light-speed radiation equations (alpha = 1); c = " +
-            number(physical) + " cm/s.";
+    if (fld_model(m)) {
+        require(factor == 1., "FLD results require physical light speed");
+        return "FLD backward Euler with the Levermore-Pomraning limiter; stationary material and physical c = " +
+            number(physical) + (cgs(m) ? " cm/s. " : " in normalized units. ") +
+            "Radiation flux is derived from the radiation-energy gradient; it is a diagnostic, not an evolved momentum variable. "
+            "Analytic references describe the linear diffusion limit and need not solve nonlinear flux-limited diffusion exactly. "
+            "M1 versus FLD differences compare distinct radiation models and are not analytic-reference errors.";
     }
-    return "Skinner-Ostriker reduced-speed-of-light approximation (RSLA): alpha = " +
+    const std::string method = m.value("radiation_integrator", "euler") == "ader2" ?
+        "Historical ADER2 M1. " : "M1 RK1 (Euler). ";
+    if (factor == 1.) {
+        return method + (m.value("case", "") == "marshak" ? "Normalized full-speed Marshak radiation equations (alpha = 1); c = " : "Physical-light-speed radiation equations (alpha = 1); c = ") +
+            number(physical) + (cgs(m) ? " cm/s." : " in normalized units.");
+    }
+    return method + "Skinner-Ostriker reduced-speed-of-light approximation (RSLA): alpha = " +
         number(factor) + ", transport speed = " + number(factor * physical) +
         " cm/s; physical c = " + number(physical) +
         " cm/s. Radiation time derivatives use alpha times the physical right-hand side; "

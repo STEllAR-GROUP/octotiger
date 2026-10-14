@@ -90,6 +90,9 @@ Json input_signature(const std::vector<fs::path> &files, const Options &o, const
 	}
 	return {
 		{"inputs", entries},
+		{"radiation_model", m.value("radiation_model", "m1")},
+		{"radiation_integrator", m.value("radiation_integrator", "euler")},
+		{"radiation_flux_semantics", fld_model(m) ? "derived_fld_flux" : "evolved_m1_flux"},
 		{"renderer", sha256("/proc/self/exe")},
 		{"backend", "VisIt-session-3.4.2"},
 		{"visit", visit_executable(o).string()},
@@ -274,7 +277,10 @@ Json make_session(const fs::path &folder, const Options &o)
 {
 	auto m = read_json(folder / "run.json");
 	require(m.at("status") == "complete", "Simulation is incomplete");
-    if (coupled_case(m.at("case"))) {
+    if (fld_model(m)) {
+        read_fld_diagnostics(folder, m);
+        read_slice(folder, m);
+    } else if (coupled_case(m.at("case"))) {
         read_hydro_profile(folder, m);
     } else {
         read_norms(folder, m);
@@ -335,6 +341,10 @@ Json make_session(const fs::path &folder, const Options &o)
 	require(!logarithmic || low > 0, "Gaussian log display requires positive energy-excess color limits");
 	auto units = cgs(m) ? (o.field == "er" ? "erg/cm^3" : "erg/(cm^2 s)") : "Silo units";
 	Json rendered{{"backend", "VisIt"},
+				  {"radiation_model", m.value("radiation_model", "m1")},
+				  {"radiation_integrator", m.value("radiation_integrator", "euler")},
+				  {"radiation_flux_semantics", fld_model(m) ? "derived_fld_flux" : "evolved_m1_flux"},
+				  {"radiation_method", radiation_method_note(m)},
 				  {"color_scale", logarithmic ? "log" : "linear"},
 				  {"background_subtracted", background},
 				  {"frames", frames},

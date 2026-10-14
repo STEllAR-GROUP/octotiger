@@ -20,13 +20,14 @@ class SliceOutput {
 	std::ofstream stream_;
 	double time_, dx_, length_;
 	bool enabled_;
+    bool references_;
 	int level_;
 public:
 	SliceOutput(bool regression, std::string const& dataDir, double time,
-			double dx, double length, int level = -1) :
+			double dx, double length, int level = -1, bool references = true) :
 		directory_(std::filesystem::path(dataDir) / "radiation-slices"),
 		time_(time), dx_(dx), length_(length),
-		enabled_(regression && std::filesystem::is_directory(directory_)), level_(level) {}
+		enabled_(regression && std::filesystem::is_directory(directory_)), references_(references), level_(level) {}
 	template<class Reference, class ReadField>
 	void capture(double x, double y, double z, Reference const& reference,
 			int offset, ReadField read) {
@@ -43,15 +44,20 @@ public:
 			const auto prefix = level_ < 0 ? std::string("slice-") : "slice-level-" + std::to_string(level_) + "-";
 			stream_.open(directory_ / (prefix + std::to_string(i) + "-" +
 				std::to_string(j) + ".csv"), std::ios::out | std::ios::trunc);
-			stream_ << "t,dx,x,y,z,er,fx,fy,fz,er_ref,fx_ref,fy_ref,fz_ref\n"
-				<< std::scientific << std::setprecision(17);
+			stream_ << "t,dx,x,y,z,er,fx,fy,fz";
+            if (references_) {
+                stream_ << ",er_ref,fx_ref,fy_ref,fz_ref";
+            }
+            stream_ << '\n' << std::scientific << std::setprecision(17);
 		}
 		stream_ << time_ << ',' << dx_ << ',' << x << ',' << y << ',' << z;
 		for (int f = 0; f < 4; ++f) {
       stream_ << ',' << read(f);
     }
-    for (int f = 0; f < 4; ++f) {
-      stream_ << ',' << double(reference[offset + f]);
+    if (references_) {
+        for (int f = 0; f < 4; ++f) {
+            stream_ << ',' << double(reference[offset + f]);
+        }
     }
     stream_ << '\n';
 	}
@@ -68,13 +74,14 @@ class MaterialSliceOutput {
     std::ofstream stream_;
     double time_, dx_, length_;
     bool enabled_;
+    bool references_;
     int level_;
 public:
     MaterialSliceOutput(bool marshak, std::string const& dataDir, double time,
-        double dx, double length, int level = -1) :
+        double dx, double length, int level = -1, bool references = true) :
         directory_(std::filesystem::path(dataDir) / "marshak-material-slices"),
         time_(time), dx_(dx), length_(length),
-        enabled_(marshak && std::filesystem::is_directory(directory_)), level_(level) {}
+        enabled_(marshak && std::filesystem::is_directory(directory_)), references_(references), level_(level) {}
     void capture(double x, double y, double z, double energy, double reference) {
         if (!enabled_ || std::abs(z - dx_ / 2) >
             128 * std::numeric_limits<double>::epsilon() * length_) {
@@ -89,10 +96,18 @@ public:
             stream_.imbue(std::locale::classic());
             stream_.open(directory_ / (prefix + std::to_string(i) + "-" +
                 std::to_string(j) + ".csv"), std::ios::out | std::ios::trunc);
-            stream_ << "t,dx,x,y,z,egas,egas_ref\n" << std::scientific << std::setprecision(17);
+            stream_ << "t,dx,x,y,z,egas";
+            if (references_) {
+                stream_ << ",egas_ref";
+            }
+            stream_ << '\n' << std::scientific << std::setprecision(17);
         }
         stream_ << time_ << ',' << dx_ << ',' << x << ',' << y << ',' << z << ','
-            << energy << ',' << reference << '\n';
+            << energy;
+        if (references_) {
+            stream_ << ',' << reference;
+        }
+        stream_ << '\n';
     }
     void finish() {
         if (stream_.is_open()) {

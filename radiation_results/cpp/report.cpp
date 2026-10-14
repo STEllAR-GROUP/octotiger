@@ -5,6 +5,43 @@ namespace rr
 namespace
 {
 using Run = std::pair<fs::path, Json>;
+std::string validation_notes(const std::vector<Run> &runs)
+{
+    size_t short_runs = 0;
+    std::set<double> times;
+    std::set<int> cells;
+    for (const auto &[path, m] : runs) {
+        if (coupled_case(m.at("case")) && cgs(m) && m.value("time", 4.0) < m.value("benchmark_time", 4.0)) {
+            ++short_runs;
+        }
+        if (m.contains("time")) {
+            times.insert(m.at("time").get<double>());
+        }
+        if (m.contains("cells")) {
+            cells.insert(m.at("cells").get<int>());
+        }
+    }
+    std::string notes;
+    if (short_runs != 0) {
+        const bool preview = short_runs == runs.size() && !cells.empty() && *cells.rbegin() <= 8;
+        notes = "<p class=\"note\"><strong>" + std::string(preview ?
+            "Short-run implementation preview." : "Includes short-duration runs.") + "</strong>";
+        if (times.size() == 1 && cells.size() == 1) {
+            notes += " These saved results use " + std::to_string(*cells.begin()) +
+                "³ cells and end at " + html(number(*times.begin())) + " s.";
+        }
+        if (cells.size() == 1) {
+            notes += " Only one spatial resolution is shown, so these results do not measure a convergence order.";
+        }
+        notes += " Runs shorter than the benchmark duration do not establish developed shock or blast "
+            "structure. Full-duration benchmark validation remains separate.</p>";
+    }
+    const bool fld = std::any_of(runs.begin(), runs.end(), [](const auto &run) { return fld_model(run.second); });
+    if (fld) {
+        notes += "<p class=\"note\"><strong>FLD method scope.</strong> Stationary grey radiation at physical light speed, CPU backend, backward Euler in time, and derived flux with the Levermore–Pomraning limiter. Analytic diffusion-limit references are supplied, but their differences include nonlinear-limiter and boundary-model effects; they are not exact solutions of this nonlinear FLD solver. Paired M1 RK1 and FLD timings use different stability limits and do not establish performance at matched error.</p>";
+    }
+    return notes;
+}
 std::string show(const Json &v)
 {
 	if (v.is_null()) {
@@ -112,6 +149,17 @@ std::string settings(const Json &m)
 		s += row("Slice geometry", html(slice_geometry_note(m)));
 	}
 	s += row("Final comparison time", show(m.at("time")) + tu);
+    const auto method = cfg.value("radiation_integrator", "euler");
+    s += row("Radiation model", fld_model(m) ? "FLD" : "M1");
+    s += row("Radiation integration", fld_model(m) ? "FLD backward Euler (first order in time)" :
+        method == "euler" ? "M1 RK1 (first order in time)" : "Historical method: " + html(method));
+    s += row("Flux semantics", fld_model(m) ? "Derived FLD flux: F = -D grad E" : "Evolved M1 flux moment");
+    if (fld_model(m)) {
+        s += row("Analytic reference", html(m.value("reference_model", "")) +
+            "; linear diffusion-limit reference, not exact for the nonlinear FLD limiter");
+        s += row("Reference norm scope", "Area-weighted projected positive-side slice; no full-volume norm or convergence order inferred");
+    }
+    s += row("Radiation backend", html(cfg.value("radiation_backend", "cpu")));
 	s += row("Physical light speed", show(m.at("c")) + (cgs(m) ? " cm/s" : " (code speed)"));
     if (m.contains("radiation_reduced_c_factor")) {
         s += row("Reduced-speed factor α", show(m.at("radiation_reduced_c_factor")));
@@ -156,13 +204,15 @@ std::string norms_table(const std::vector<Run> &runs, bool compare, Json &errors
 					"th><th>Order</th><th>Error units</th></tr></thead><tbody>";
 	Json previous;
 	for (auto &[p, m] : runs) {
-		for (int f = 0; f < 4; ++f) {
+		std::vector<std::string> measured_fields(fields.begin(), fields.end());
+        if (m.at("norms").contains("material_egas")) { measured_fields.push_back("material_egas"); }
+        for (size_t f = 0; f < measured_fields.size(); ++f) {
       for (auto &n : norms) {
-				const double error = m.at("norms").at(fields[f]).at(n);
+				const double error = m.at("norms").at(measured_fields[f]).at(n);
 				Json order;
 				if (compare && !previous.is_null() && error > 0 &&
-					previous["norms"][fields[f]][n].get<double>() > 0) {
-          order = std::log(previous["norms"][fields[f]][n].get<double>() / error) /
+					previous["norms"][measured_fields[f]][n].get<double>() > 0) {
+          order = std::log(previous["norms"][measured_fields[f]][n].get<double>() / error) /
 							std::log(previous.at("dx").get<double>() / m.at("dx").get<double>());
         }
         const std::string units = cgs(m) ? (f == 0 ? "erg/cm³" : "erg/(cm² s)") : "code units";
@@ -171,13 +221,13 @@ std::string norms_table(const std::vector<Run> &runs, bool compare, Json &errors
 								  {"cells_per_side", m.at("cells")},
 								  {"dx", m.at("dx")},
 								  {"time", m.at("time")},
-								  {"field", fields[f]},
+								  {"field", measured_fields[f]},
 								  {"norm", n},
 								  {"error", error},
 								  {"order", order},
 								  {"error_units", units},
 								  {"origin", m.value("origin", "")}});
-				s += "<tr><td>" + html(mesh_label(m)) + "</td><td>" + fields[f] + "</td><td>" + n +
+				s += "<tr><td>" + html(mesh_label(m)) + "</td><td>" + measured_fields[f] + "</td><td>" + n +
 					 "</td><td>" + show(error) + "</td><td>" + show(order) + "</td><td>" + units +
 					 "</td></tr>";
 			}
@@ -224,19 +274,24 @@ std::string movies(const fs::path &batch, const fs::path &folder)
 	}
 	return s.empty() ? "<p class=\"muted\">No completed movie is available for this resolution.</p>" : s;
 }
-std::string budget_table(const Budget &b)
+std::string budget_table(const Budget &b, const Json &m)
 {
-	std::string s = "<p>All values below are dimensionless fractions of the fixed initial scale.</p>"
+	std::string s = conservation_scope_note(b, m) +
+        "<p>All values below are dimensionless fractions of the fixed normalization scale at t_ref = " +
+        html(number(b.history.rows.front()[0])) + (cgs(m) ? " s.</p>" : ".</p>") +
 					"<div "
-					"class=\"scroll\"><table><thead><tr><th>Field</th><th>Scale</th><th>Q(0)/scale</"
+					"class=\"scroll\"><table><thead><tr><th>Field</th><th>Scale</th><th>Q(t_ref)/scale</"
 					"th><th>Q(t)/scale</th><th>Boundary "
 					"B/scale</th><th>Source S/scale</th><th>Residual R/scale</th><th>Maximum "
 					"|R|/scale</th></tr></thead><tbody>";
 	for (auto &r : b.summary) {
 		s += "<tr><th scope=\"row\">" + show(r.at("field")) + "</th><td>" +
-			 (r.at("normalization_basis") == "c * abs(initial_energy)"
-				  ? "c |E₀| (zero/negligible initial flux)"
-				  : "|Q(0)|") +
+			 (r.at("normalization_basis") == "bath_energy * volume" ? "E<sub>bath</sub> V" :
+              r.at("normalization_basis") == "c * bath_energy * volume" ? "c E<sub>bath</sub> V" :
+              (r.at("normalization_basis") == "c * abs(initial_energy)" ||
+               r.at("normalization_basis") == "c * abs(segment_initial_energy)")
+				  ? "c |E(t_ref)| (zero/negligible reference flux)"
+				  : "|Q(t_ref)|") +
 			 "</td>";
 		for (auto key : {"initial_fraction", "final_fraction", "boundary_fraction", "source_fraction",
 						 "normalized_residual", "max_normalized_error"}) {
@@ -253,9 +308,10 @@ std::string method_notes()
 <div class="equation">L1 = Σ |e| ΔV / V, &nbsp; L2 = √(Σ e² ΔV / V), &nbsp; L∞ = max |e|<br>p = ln(error<sub>coarse</sub> / error<sub>fine</sub>) / ln(Δx<sub>coarse</sub> / Δx<sub>fine</sub>)</div>
 <p>Orders require two completed runs with matching physical time, configuration, units, executable, and origin. An exact zero error has no logarithmic order. The central slice and line profiles are visual diagnostics: the report slice is the cell layer at <var>z</var> = Δ<var>x</var>/2, and its line profile is at <var>y</var> = <var>z</var> = Δ<var>x</var>/2.</p>
 <p>Conservation is assessed using the measured domain integrals and the signed cumulative boundary and source budgets:</p>
+<p>A labeled checkpoint continuation uses its checkpoint as t_ref, with counters and fixed normalization starting there. Its reported residuals cover that resumed segment only; original histories remain separate.</p>
 <div class="equation">R(t) = Q(t) − Q(0) + B(t) − S(t)</div>
 <p><var>B</var> is outward transport and <var>S</var> is the source change. Conservation plots and this page's budget tables show <strong>fractions of the initial totals</strong>: Q(t)/D, [Q(0) − B(t) + S(t)]/D, and the signed residual R(t)/D. The denominator D = |Q(0)| is fixed for the entire history. It never grows with the current total or accumulated transport/source budgets. A negative initial flux therefore starts at −1, and the plotted fraction retains its sign.</p>
-<p>A component whose initial net flux is zero or negligible cannot be divided by its own initial total. It instead uses the fixed scale D = c |E₀|, where E₀ is the initial integrated radiation energy. This fallback is labeled on its panels and in the table. “Negligible” means |Q(0)|/(c |E₀|) ≤ 64ε ≈ 1.421085 × 10<sup>−14</sup>, with ε the double-precision machine epsilon. This prevents roundoff left by cancellation in a symmetric field from becoming the denominator. A nonzero initial radiation energy is required.</p>
+<p>A component whose initial net flux is zero or negligible cannot be divided by its own initial total. It instead uses the fixed scale D = c |E₀|, where E₀ is the initial integrated radiation energy. This fallback is labeled on its panels and in the table. “Negligible” means |Q(0)|/(c |E₀|) ≤ 64ε ≈ 1.421085 × 10<sup>−14</sup>, with ε the double-precision machine epsilon. This prevents roundoff left by cancellation in a symmetric field from becoming the denominator. For the initially cold Marshak case, the prescribed bath sets D = E<sub>bath</sub> V for energy and D = c E<sub>bath</sub> V for flux, with E<sub>bath</sub> = 4/c. These scales remain fixed even though radiation enters the initially empty domain.</p>
 <p>Raw histories and dimensional summary columns remain in physical units: energy integrals in erg, physical-flux integrals in erg cm/s for CGS runs. Dividing a flux integral by c² gives radiation momentum. Fraction-history CSV files are dimensionless except for their time column; summary files record each denominator and its basis. Maximum fractional residuals use the same fixed denominator as the final residual.</p>
 <p>For runs labeled RSLA, these budgets check the modified radiation equations. They do not establish conservation of physical gas-plus-radiation energy. With reduced-speed factor α, the closed-system coupled invariants are Egas + Er/α and gas momentum + F/(αc²), with physical c in the closure. Compare multiple α values before interpreting an RSLA result as an approximation to physical-c evolution.</p>
 <p>Movies show the numerical Silo states with a fixed color range for each movie. Recorded states are held for their actual simulation-time gaps; intermediate solutions are not interpolated. The 3D option shows the domain's exterior surface. Movies and plots retain their recorded physical units.</p></section>)";
@@ -272,7 +328,11 @@ fs::path report_pages(const fs::path &batch, bool live_update)
 	std::map<std::string, std::string> unreadable;
 	for (auto &[p, m] : all) {
 		try {
-			if (coupled_case(m.at("case"))) {
+			if (fld_model(m)) {
+                m["fld_diagnostics"] = read_fld_diagnostics(p, m);
+                read_slice(p, m);
+                if (m.at("case") == "marshak") { read_marshak_material(p, m); }
+            } else if (coupled_case(m.at("case"))) {
                 read_hydro_profile(p, m);
             } else {
                 m["norms"] = read_norms(p, m);
@@ -303,7 +363,7 @@ fs::path report_pages(const fs::path &batch, bool live_update)
 	std::string index =
 		start("Radiation test problems") +
 		"<header><div class=\"brand\">Octo-TIGER / Radiation verification</div><h1>Radiation test "
-		"problems</h1><p class=\"lead\">Transport, equilibrium, and radiation hydrodynamics. Open a problem for its "
+		"problems</h1><p class=\"lead\">M1 RK1 and stationary FLD. Open a problem for its "
 		"physical setup, comparison method, sources, and results at every completed resolution.</p>";
 	index += "<div class=\"status\"><strong>" + html(state.value("message", "Saved results")) +
 			 "</strong><span>" + std::to_string(all.size()) + " completed runs</span><span>" +
@@ -315,8 +375,12 @@ fs::path report_pages(const fs::path &batch, bool live_update)
     index += "<p class=\"error\">Some saved results could not be validated. Their problem pages identify "
 				 "the affected runs.</p>";
   }
-  index += fixture_note + "</header><main><div class=\"cards\">";
-	for (auto &d : problem_descriptions) {
+  index += fixture_note + validation_notes(all) + "</header><main><div class=\"cards\">";
+    const bool fld_batch = !all.empty() && fld_model(all.front().second);
+    for (const auto &[path, m] : all) { require(fld_model(m) == fld_batch, "Use separate M1 and FLD batches"); }
+	for (const auto &base_description : problem_descriptions) {
+        const auto d = fld_batch ? fld_problem_description(base_description) : base_description;
+        const bool fld = fld_batch && fld_case(d.name);
         const bool coupled = coupled_case(d.name);
 		auto &runs = groups[d.name];
 		std::sort(runs.begin(), runs.end(), [](auto &a, auto &b) {
@@ -333,7 +397,7 @@ fs::path report_pages(const fs::path &batch, bool live_update)
       preview = "<figure class=\"preview\"><a href=\"" + d.name +
 					  ".html\"><img loading=\"lazy\" src=\"" +
 					  url(fs::relative(img, batch).generic_string()) + "\" alt=\"" + d.title +
-					  (coupled ? " numerical hydro fields\"></a><figcaption>Numerical fields · " : " energy comparison\"></a><figcaption>Energy comparison · ") +
+					  (coupled ? " numerical fields\"></a><figcaption>Numerical fields · " : " energy comparison\"></a><figcaption>Energy comparison · ") +
 					  html(mesh_label(it->second)) + " · t = " + show(it->second.at("time")) +
 					  (cgs(it->second) ? " s" : " code time") + "</figcaption></figure>";
 			break;
@@ -356,14 +420,15 @@ fs::path report_pages(const fs::path &batch, bool live_update)
 					(d.name == other.name ? " aria-current=\"page\"" : "") + ">" + other.title + "</a>";
     }
     page += "</nav><span class=\"tag\">" + d.regime + "</span><h1>" + d.title +
-				"</h1><p class=\"lead\">" + d.summary + "</p>" + fixture_note +
+				"</h1><p class=\"lead\">" + d.summary + "</p>" + fixture_note + validation_notes(runs) +
 				"</header><main><nav class=\"contents\" aria-label=\"On this page\"><a "
 				"href=\"#setup\">Setup</a><a href=\"#reference\">Comparison method</a><a "
 				"href=\"#results\">Results</a><a href=\"#diagnostics\">Diagnostics</a><a "
 				"href=\"#sources\">Sources &amp; provenance</a></nav>";
         page += "<section class=\"section\" id=\"setup\"><span class=\"tag\">The experiment</span>"
             "<h2>Physical setup</h2>" + d.setup;
-        page += coupled ?
+        page += d.name == "marshak" ?
+            "<p>This case uses normalized units with c = 1, opacity 100, and equal material/radiation energy capacities. Hydrodynamics and gravity are disabled. The default cube spans −1 to +1, and the default final time is 1. Adaptive runs retain their actual leaf spacing in exported data.</p></section>" : coupled ?
             "<p>These cases enable gas dynamics and radiation coupling on a Cartesian grid; gravity is disabled. Uniform runs are the default; adaptive runs are identified in their recorded setup. "
             "Each completed run records its actual configuration, time, units, and executable hash below. "
             "The configured finest equivalent cells per side are N = INX × 2<sup>level</sup>.</p></section>" :
@@ -380,6 +445,55 @@ fs::path report_pages(const fs::path &batch, bool live_update)
 		if (runs.empty()) {
 			page += "<p>No completed run is available for this problem in this batch. Its description is "
 					"available above; results will appear here as runs finish.</p>";
+            if (fld_batch && !fld) { page += "<p class=\"note\">Unsupported by the stationary FLD backend; no FLD run is planned for this problem.</p>"; }
+        } else if (fld) {
+            page += "<p class=\"note\">Analytic diffusion-limit reference comparison. The reference is exact for its stated linear diffusion equations, not for the nonlinear FLD limiter. Flux remains a derived diagnostic; no separate M1 momentum conservation test applies.</p>";
+            for (const auto &[folder, m] : runs) {
+                const auto target = case_dir / ("l" + std::to_string(m.at("level").get<int>()));
+                const auto diagnostics = read_fld_diagnostics(folder, m);
+                page += "<article class=\"run\"><h3>FLD backward Euler · " + html(mesh_label(m)) + "</h3><p>" +
+                    html(slice_geometry_note(m)) + "</p><p>" + html(radiation_method_note(m)) +
+                    "</p><details><summary>Recorded setup and run provenance</summary>" + settings(m) +
+                    "<pre>" + html(m.dump(2)) + "</pre></details>";
+                page += figure(batch, target / "slice_er", "FLD radiation energy, analytic diffusion-limit reference, and signed difference. " + slice_geometry_note(m));
+                page += figure(batch, target / "profiles", "Radiation energy and derived FLD flux against analytic diffusion-limit profiles, with signed differences. The reference does not include the nonlinear flux limiter.");
+                if (d.name == "marshak") {
+                    page += figure(batch, target / "material_profiles", "Radiation and material energy relative to bath energy, compared with the Su–Olson analytic linear diffusion reference.");
+                }
+                page += "<details><summary>Derived FLD flux maps</summary>";
+                for (int f = 1; f < 4; ++f) {
+                    page += figure(batch, target / ("slice_" + fields[f]), "Derived FLD " + fields[f] + ": numerical flux, analytic diffusion-reference flux, and signed difference.");
+                }
+                page += "</details><h4>Accepted implicit solves</h4><p>Accepted steps: " + show(diagnostics.at("accepted_steps")) +
+                    "; substeps: " + show(diagnostics.at("substeps")) + "; timestep retries: " + show(diagnostics.at("retries")) +
+                    "; maximum nonlinear residual: " + show(diagnostics.at("maximum_nonlinear_residual")) +
+                    "; maximum absolute coupled energy error per accepted step: " +
+                    show(diagnostics.at("maximum_step_coupled_conservation_error")) + ".</p>";
+                page += "<h4>Projected-slice differences from the analytic reference</h4><p>Area-weighted L1, L2, and maximum differences on the exported positive-side slice; these are not full-volume norms or a pure discretization error. No convergence order is inferred. Energy-density and flux units are those recorded in the slice-units download.</p><div class=\"scroll\"><table><tr><th>Field</th><th>L1 difference</th><th>L2 difference</th><th>Maximum difference</th></tr>";
+                const auto &differences = diagnostics.at("slice_reference_norms");
+                for (auto field = differences.begin(); field != differences.end(); ++field) {
+                    page += "<tr><th>" + html(field.key()) + "</th><td>" + show(field.value().at("L1")) +
+                        "</td><td>" + show(field.value().at("L2")) + "</td><td>" + show(field.value().at("Linf")) + "</td></tr>";
+                }
+                page += "</table></div>";
+                const auto budget = *read_conservation(folder, m);
+                page += "<h4>Radiation energy conservation</h4>" + budget_table(budget, m) +
+                    figure(batch, target / "conservation", "Radiation energy after signed boundary transport and material exchange. Flux moments are not conserved variables in FLD.");
+                page += "<h4>Movies</h4>" + movies(batch, folder) + "<h4>Data and reproducibility</h4><div class=\"downloads\">";
+                for (const auto &[file, label] : std::vector<std::pair<fs::path, std::string>>{
+                    {folder / "run.ini", "Effective configuration"}, {folder / "run.json", "Run metadata"},
+                    {folder / "run.log", "Solver log"}, {target / "slice.csv", "Numerical/reference/difference slice CSV"},
+                    {target / "slice.units.json", "Slice units"}, {target / "fld-diagnostics.json", "FLD diagnostics"},
+                    {target / "fld-steps.csv", "Accepted solve history CSV"},
+                    {target / "reference-differences.csv", "Slice reference-difference norms CSV"},
+                    {target / "conservation.csv", "Radiation energy history CSV"},
+                    {target / "conservation-summary.csv", "Energy budget summary CSV"},
+                    {folder / "reference.bin", "Gaussian analytic diffusion-limit reference binary"},
+                    {folder / "final.silo", "Final numerical Silo"}}) {
+                    page += link(batch, file, label);
+                }
+                page += "</div></article>";
+            }
         } else if (coupled) {
             page += "<p class=\"note\">These are numerical solutions without a supplied analytic reference. "
                 "No error norms or convergence orders are inferred from the profiles. "
@@ -398,9 +512,16 @@ fs::path report_pages(const fs::path &batch, bool live_update)
                 page += figure(batch, target / "hydro_slice", "Numerical gas temperature, radiation temperature, and density. " + slice_geometry_note(m));
                 page += figure(batch, target / "profiles", "Numerical profiles; no reference curves are supplied. " + slice_geometry_note(m));
                 page += "<h4>Movies</h4>" + movies(batch, folder);
+                if (m.contains("checkpoint_resume")) {
+                    const auto budget = read_conservation(folder, m);
+                    require(bool(budget), "Missing checkpoint conservation segment");
+                    page += "<h4>Conservation of the resumed segment</h4>" + budget_table(*budget, m);
+                }
                 page += "<h4>Data and reproducibility</h4><div class=\"downloads\">";
                 for (const auto &[file, label] : std::vector<std::pair<fs::path, std::string>>{
                     {folder / "run.ini", "Effective configuration"}, {folder / "run.json", "Run metadata"},
+                    {folder / "radiation-conservation.csv", "Raw conservation segment"},
+                    {folder / "conservation-segments/original-attempt.csv", "Original raw ledger (tail after checkpoint is abandoned)"},
                     {folder / "run.log", "Solver log"}, {target / "hydro-slice.csv", "Numerical slice CSV"},
                     {target / "hydro-slice.units.json", "Data units"}, {folder / "final.silo", "Final numerical Silo"}}) {
                     page += link(batch, file, label);
@@ -464,6 +585,9 @@ fs::path report_pages(const fs::path &batch, bool live_update)
 				page += figure(
 					batch, target / "profiles",
 					"Numerical/reference line profiles and signed errors for all four radiation fields");
+                if (d.name == "marshak") {
+                    page += figure(batch, target / "material_profiles", "Normalized radiation and material energies with their semi-analytic diffusion references");
+                }
 				page += "<details><summary>All three flux maps</summary>";
 				for (int f = 1; f < 4; ++f) {
           page += figure(batch, target / ("slice_" + fields[f]),
@@ -472,7 +596,7 @@ fs::path report_pages(const fs::path &batch, bool live_update)
         page += "</details><h4>Movies</h4>" + movies(batch, folder) + "<h4>Conservation</h4>";
 				if (auto b = read_conservation(folder, m)) {
 					page +=
-						budget_table(*b) +
+						budget_table(*b, m) +
 						figure(batch, target / "conservation",
 							   "Integrated radiation budgets and their transport/source-corrected residuals");
 					for (auto r : b->summary) {
@@ -494,6 +618,7 @@ fs::path report_pages(const fs::path &batch, bool live_update)
 						 {target / "slice.csv", "Paired slice values CSV"},
 						 {target / "slice.units.json", "Slice units"},
 						 {folder / "radiation-conservation.csv", "Raw conservation history"},
+                         {folder / "conservation-segments/original-attempt.csv", "Original raw ledger (tail after checkpoint is abandoned)"},
 						 {target / "conservation-summary.csv", "Budget summary CSV"},
 						 {target / "conservation-fractions.csv", "Conservation fractions CSV"},
 						 {target / "conservation-fractions.units.json", "Fraction units"},
@@ -538,15 +663,19 @@ fs::path report_pages(const fs::path &batch, bool live_update)
       }
     }
 		page += "</section>";
-        page += coupled ? R"(<section class="section" id="diagnostics"><h2>Reading the numerical profiles</h2>
+        page += fld ? R"(<section class="section" id="diagnostics"><h2>Reading FLD diagnostics</h2>
+<p>The profiles include an analytic linear diffusion-limit reference for radiation energy and flux, plus material energy in Marshak. The reference omits the nonlinear limiter; the Marshak reference also assumes a semi-infinite domain. Reported slice discrepancies combine these model differences with discretization and reference-evaluation errors. Numerical flux is derived as F = −D∇E and satisfies |F| ≤ cE; it is not an evolved M1 momentum variable.</p>
+<p>The radiation energy ledger checks R = E(t) − E(t_ref) + B − S, with outward boundary energy B and material-to-radiation exchange S. Its fixed normalization is initial radiation energy, or bath energy times domain volume for cold Marshak heating. Coupled gas-plus-radiation errors per accepted implicit step are recorded separately in the solver diagnostics.</p>
+<p>Nonlinear residuals, substeps, and retries are measured solver diagnostics. The short pilot checks the implementation and reporting pipeline; comparison of models is distinct from an accuracy benchmark or speedup at matched error.</p></section>)" : coupled ? R"(<section class="section" id="diagnostics"><h2>Reading the numerical profiles</h2>
 <p>Gas and radiation temperatures are distinct diagnostics; the radiation temperature is defined by E = a<sub>r</sub>T<sub>r</sub><sup>4</sup>. The central ray lies at y = z = Δx/2 and is offset from the exact origin by half a cell in each transverse direction. The two-dimensional plane is z = Δx/2.</p>
 <p>Check positivity, radiation realizability |F| ≤ cE, conservation with the appropriate boundary budget, thermal equilibration, shock speed and precursor structure, and sensitivity to resolution and timestep. A finite, positive short run is an implementation check, not evidence that a subcritical or supercritical state has developed. Comparisons to published figures also require matching geometry, opacities, boundaries, and physical time.</p></section>)" : method_notes();
 		page += "<section class=\"section\" id=\"sources\"><span class=\"tag\">Sources &amp; "
 				"provenance</span><h2>Where this problem comes from</h2>" +
 				d.source;
 		page +=
-			R"(<h3>Radiation method context</h3><p><a href="https://arxiv.org/abs/1306.0010">Skinner &amp; Ostriker (2013), “A Two-moment Radiation Hydrodynamics Module in Athena Using a Time-explicit Godunov Method,” ApJS 206, 21</a>, provides context for the two-moment M1 system and source integration. For the radiation-only Gaussian and sphere cases, the fixed-medium damping uses the algebra of their equations (42b)–(43) with θ = 1 and prescribed χ. Their paper neglects scattering; the suite reuses that damping formula for its prescribed scattering medium.</p>
-<p>The solver's M1 implementation also cites <a href="https://doi.org/10.1016/j.jqsrt.2014.04.014">Hanawa &amp; Audit (2014), “Reformulation of the M1 model of radiative transfer,” JQSRT 145, 9–16</a>. These references describe the numerical/physical framework; the exact test definitions are the source functions identified above.</p>
+			R"(<h3>Radiation method context</h3><p><strong>M1 RK1</strong> evolves radiation energy and flux moments with the retained first-order radiation update. <strong>FLD</strong> evolves radiation energy and stationary material thermal energy with a coupled backward-Euler solve; its flux F = −D∇E is reconstructed from energy with the Levermore–Pomraning limiter. The scalar implicit transport solve uses composite-grid multigrid and an iterative linear solver. Both time integrators are first order.</p>
+<p>The FLD runner currently supports the stationary Gaussian scattering pulse and Marshak heating test on the CPU at physical light speed. Streaming wave/front, equilibrium sphere, and moving radiation hydrodynamics are unsupported for FLD. Flux diagnostics in FLD are not independently evolved M1 moments and have no separate M1 momentum conservation test. A difference between paired M1 and FLD solutions is a model comparison, not an analytic error. ADER2 has been removed from the current solver; historical result files retain their original provenance.</p>
+<p><a href="https://arxiv.org/abs/1306.0010">Skinner &amp; Ostriker (2013)</a> and <a href="https://doi.org/10.1016/j.jqsrt.2014.04.014">Hanawa &amp; Audit (2014)</a> provide context for the M1 equations. The implementation and saved executable/source hashes identify the actual numerical methods used in this batch.</p>
 <h3>Reproducing this batch</h3><p>Descriptions document the reviewed source implementation. Older or edited solver versions can use different profile constants or averaging rules; these are not all encoded in <code>run.ini</code>. Use the run metadata, executable hash, and saved batch source hashes to identify the implementation behind a result. A source path or descriptive formula alone is not proof of the executable's contents.</p>)";
 		page += "<div class=\"downloads\">" +
 				link(batch, batch / "batch.json", "Batch settings and source hashes") +
@@ -556,7 +685,7 @@ fs::path report_pages(const fs::path &batch, bool live_update)
 	index += "</div><div class=\"downloads\">" +
 			 link(batch, batch / "plots/index.html", "Combined plot report") +
 			 link(batch, batch / "movies.html", "Movie gallery") +
-			 link(batch, batch / "plots/errors.csv", "All norms CSV") +
+			 (fld_batch ? std::string() : link(batch, batch / "plots/errors.csv", "All norms CSV")) +
 			 link(batch, batch / "batch.json", "Batch metadata") + "</div>" + finish(state);
 	atomic_text(batch / "index.html", index);
 	return batch / "index.html";

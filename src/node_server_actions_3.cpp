@@ -603,7 +603,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 	}
 	// Final numerical sample precedes analytic comparison, which replaces fields.
 	sampleRadiation();
-	if (radiationHydroProblem()) {
+	if (radiationHydroProblem() || (opts().radiation && opts().radiation_model == "fld")) {
 		export_radiation_hydro();
 	}
 	auto diags = diagnostics();

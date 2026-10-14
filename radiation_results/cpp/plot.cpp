@@ -149,12 +149,17 @@ void render_run(const fs::path &folder, const Json &m, const fs::path &target,
 				const std::optional<Budget> &budget, const Options &o)
 {
 	auto data = read_slice(folder, m);
+    const bool marshak = m.at("case") == "marshak";
+    const auto material = marshak ? std::optional<Table>(read_marshak_material(folder, m)) : std::nullopt;
 	int n = m.at("cells");
 	double dx = m.at("dx"), length = m.at("length");
 	fs::create_directories(target);
 	bool excess = m.at("case") == "gaussian_pulse" || m.at("case") == "equilibrium_sphere";
+    const auto method = m.value("radiation_integrator", "euler");
 	std::string title = m.at("case").get<std::string>() + " | " + mesh_label(m) +
-						" | t=" + number(m.at("time")) + (cgs(m) ? " s" : "");
+						(fld_model(m) ? " | FLD; linear diffusion-limit reference" :
+                            method == "euler" ? " | M1 RK1" : " | Historical M1 " + method) +
+                        " | t=" + number(m.at("time")) + (cgs(m) ? " s" : "");
 	std::ostringstream grid, row;
 	grid << std::scientific << std::setprecision(17);
 	row << std::scientific << std::setprecision(17);
@@ -169,6 +174,15 @@ void render_run(const fs::path &folder, const Json &m, const fs::path &target,
       for (int f = 0; f < 4; ++f) {
         rec[fields[f] + "_error"] = r[5 + f] - r[9 + f];
       }
+      if (material) {
+                const auto& gas = material->rows[size_t(i) * n + j];
+                for (size_t k = 0; k < 5; ++k) {
+                    require(close(gas[k], r[k]), "Marshak radiation/material slice geometry differs");
+                }
+                rec["material_egas"] = gas[5];
+                rec["material_egas_ref"] = gas[6];
+                rec["material_egas_error"] = gas[5] - gas[6];
+            }
       records.push_back(rec);
 			auto emit = [&](std::ostream &s) {
 				for (double x : r) {
@@ -177,6 +191,10 @@ void render_run(const fs::path &folder, const Json &m, const fs::path &target,
         for (int f = 0; f < 4; ++f) {
           s << r[5 + f] - r[9 + f] << ' ';
         }
+        if (material) {
+                    const auto& gas = material->rows[size_t(i) * n + j];
+                    s << gas[5] << ' ' << gas[6] << ' ' << gas[5] - gas[6] << ' ';
+                }
         s << '\n';
 			};
 			emit(grid);
@@ -190,6 +208,11 @@ void render_run(const fs::path &folder, const Json &m, const fs::path &target,
 	for (auto &f : fields) {
     cols.push_back(f + "_error");
   }
+  if (material) {
+        for (auto name : {"material_egas", "material_egas_ref", "material_egas_error"}) {
+            cols.push_back(name);
+        }
+    }
   records_csv(target / "slice.csv", records, cols);
 	atomic_text(target / "slice.dat", grid.str());
 	atomic_text(target / "profiles.dat", row.str());
@@ -202,6 +225,20 @@ void render_run(const fs::path &folder, const Json &m, const fs::path &target,
       units[fields[f] + suffix] = cgs(m) ? (f == 0 ? "erg/cm^3" : "erg/(cm^2 s)") : "code units";
     }
   }
+  if (material) {
+        units["t"] = "normalized time";
+        for (auto name : {"dx", "x", "y", "z"}) {
+            units[name] = "normalized length";
+        }
+        for (int f = 0; f < 4; ++f) {
+            for (auto suffix : {"", "_ref", "_error"}) {
+                units[fields[f] + suffix] = f == 0 ? "normalized energy density" : "normalized flux";
+            }
+        }
+        for (auto name : {"material_egas", "material_egas_ref", "material_egas_error"}) {
+            units[name] = "normalized energy density";
+        }
+    }
   write_json(target / "slice.units.json", units);
 	std::string profiles = "set multiplot layout 4,2 rowsfirst title " +
 						   gp_quote(title + (m.value("adaptive", false) ? " | projected positive-side leaf averages" : " | y=z=dx/2=" + sci(dx / 2))) +
@@ -301,6 +338,17 @@ void render_run(const fs::path &folder, const Json &m, const fs::path &target,
 	}
 	profiles += "unset multiplot\n";
 	plot_pair(target / "profiles", profiles, 1400, 1500, o);
+    if (material) {
+        std::string thermal = "set multiplot layout 1,2 title " + gp_quote(title + " | radiation and material heating") +
+            "\nset xlabel 'Distance from illuminated boundary (normalized)'\nset xrange [0:" + number(length) + "]\nset autoscale y\nset key top right\n";
+        for (const auto& field : std::vector<std::tuple<std::string, int, int>>{{"Radiation energy E/4", 6, 10}, {"Material energy e/4", 18, 19}}) {
+            thermal += "set ylabel " + gp_quote(std::get<0>(field)) + "\nplot " + data_path(target / "profiles.dat") +
+                " using ($3+" + number(length / 2) + "):($" + std::to_string(std::get<2>(field)) + "/4) with lines dt 2 lc rgb '#111111' title 'Diffusion reference', '' using ($3+" + number(length / 2) + "):($" +
+                std::to_string(std::get<1>(field)) + "/4) with linespoints pt 7 ps 0.5 lc rgb '#2873b9' title 'Numerical'\n";
+        }
+        thermal += "unset multiplot\n";
+        plot_pair(target / "material_profiles", thermal, 1400, 600, o);
+    }
 	if (!budget) {
 		for (auto name : {"conservation.png", "conservation.pdf", "conservation.csv",
 						  "conservation-summary.csv", "conservation-summary.json", "conservation.units.json",
@@ -310,12 +358,15 @@ void render_run(const fs::path &folder, const Json &m, const fs::path &target,
     return;
 	}
 	auto &b = *budget;
+    const int conserved_fields = fld_model(m) ? 1 : 4;
+    const bool resumed_budget = b.history.rows.front()[0] > 0;
+    const std::string reference_time = resumed_budget ? "t_ref" : "0";
 	Json fractions = Json::array();
 	std::vector<std::string> fraction_columns{"t"};
 	for (auto suffix :
 		 {"_fraction", "_expected_fraction", "_residual_fraction", "_boundary_fraction", "_source_fraction"}) {
-    for (auto &f : fields) {
-      fraction_columns.push_back(f + suffix);
+    for (int f = 0; f < conserved_fields; ++f) {
+      fraction_columns.push_back(fields[f] + suffix);
     }
   }
   std::ostringstream history;
@@ -323,7 +374,7 @@ void render_run(const fs::path &folder, const Json &m, const fs::path &target,
 	for (size_t i = 0; i < b.history.rows.size(); ++i) {
 		const auto &r = b.history.rows[i];
 		Json record{{"t", r[0]}};
-		for (int f = 0; f < 4; ++f) {
+		for (int f = 0; f < conserved_fields; ++f) {
 			const double scale = b.scale[i][f];
 			record[fields[f] + "_fraction"] = r[2 + f] / scale;
 			record[fields[f] + "_expected_fraction"] =
@@ -347,14 +398,18 @@ void render_run(const fs::path &folder, const Json &m, const fs::path &target,
     fraction_units[fraction_columns[i]] = "dimensionless";
   }
   write_json(target / "conservation-fractions.units.json", fraction_units);
-	std::string plots = "set multiplot layout 4,2 rowsfirst title " +
-						gp_quote(title + " | fractions of fixed initial totals") +
+	std::string plots = "set multiplot layout " + std::to_string(conserved_fields) + ",2 rowsfirst title " +
+						gp_quote(title + (resumed_budget ? " | resumed segment; t_ref=" +
+                            number(b.history.rows.front()[0]) + (cgs(m) ? " s" : "") : "") +
+                            " | fractions of fixed normalization scales") +
 						"\nset autoscale\nset grid\nset key top right\nset xlabel " +
 						gp_quote(cgs(m) ? "Time (s)" : "Time") + "\n";
-	for (int f = 0; f < 4; ++f) {
+	for (int f = 0; f < conserved_fields; ++f) {
 		auto q = data_path(target / "conservation.dat");
-		const bool fallback = b.summary[f].at("normalization_basis") == "c * abs(initial_energy)";
-		auto denominator = fallback ? "(c |er(0)|)" : "|" + fields[f] + "(0)|";
+		const bool fallback = b.summary[f].at("normalization_basis") == "c * abs(initial_energy)" ||
+            b.summary[f].at("normalization_basis") == "c * abs(segment_initial_energy)";
+		auto denominator = m.at("case") == "marshak" ? (f == 0 ? "(Ebath V)" : "(c Ebath V)") :
+            fallback ? "(c |er(" + reference_time + ")|)" : "|" + fields[f] + "(" + reference_time + ")|";
 		double lo = INFINITY, hi = -INFINITY, residual_max = 0;
 		for (size_t i = 0; i < b.history.rows.size(); ++i) {
 			double measured = fractions[i].at(fields[f] + "_fraction");
@@ -370,42 +425,74 @@ void render_run(const fs::path &folder, const Json &m, const fs::path &target,
 		double residual_limit = residual_max > 0 ? 1.1 * residual_max : 1e-16;
 		plots +=
 			"set title " +
-			gp_quote(fallback ? "Zero/negligible initial flux: fixed c E0 scale"
+			gp_quote(fallback ? "Zero/negligible reference flux: fixed c E(t_ref) scale"
 							  : "Fixed scale = " + denominator) +
 			"\nset yrange [" + number(lo - pad) + ":" + number(hi + pad) + "]\nset ylabel " +
 			gp_quote(fields[f] + " / " + denominator) + "\nplot " + q + " using 1:" + std::to_string(2 + f) +
-			" with lines title 'Measured / scale', '' using 1:" + std::to_string(6 + f) +
+			" with lines title 'Measured / scale', '' using 1:" + std::to_string(2 + conserved_fields + f) +
 			" with lines dt 2 title '(Initial - boundary + source) / scale'\nset yrange [" +
 			number(-residual_limit) + ":" + number(residual_limit) + "]\nset ylabel " +
 			gp_quote("R_" + fields[f] + " / " + denominator) + "\n" +
 			(residual_max == 0 ? "set label 1 'All recorded residuals are zero' at graph 0.5,0.8 center\n"
 							   : "") +
-			"plot " + q + " using 1:" + std::to_string(10 + f) +
+			"plot " + q + " using 1:" + std::to_string(2 + 2 * conserved_fields + f) +
 			" with lines lc rgb '#b4422e' notitle\nunset label 1\n";
 	}
 	plots += "unset multiplot\nunset title\n";
-	plot_pair(target / "conservation", plots, 1400, 1500, o);
-	atomic_text(target / "conservation.csv", read_text(folder / "radiation-conservation.csv"));
+	plot_pair(target / "conservation", plots, 1400, fld_model(m) ? 600 : 1500, o);
+	if (fld_model(m)) {
+        Json energy = Json::array();
+        for (const auto &r : b.history.rows) {
+            energy.push_back({{"t", r[0]}, {"volume", r[1]}, {"er", r[2]}, {"er_boundary", r[6]}, {"er_source", r[10]}});
+        }
+        records_csv(target / "conservation.csv", energy, {"t", "volume", "er", "er_boundary", "er_source"});
+    } else {
+        atomic_text(target / "conservation.csv", read_text(folder / "radiation-conservation.csv"));
+    }
 	records_csv(target / "conservation-summary.csv", b.summary);
 	write_json(target / "conservation-summary.json", b.summary);
 	Json u{{"t", cgs(m) ? "s" : "code time"}, {"volume", cgs(m) ? "cm^3" : "code volume"}};
-	for (int f = 0; f < 4; ++f) {
+	for (int f = 0; f < conserved_fields; ++f) {
     for (auto s : {"", "_boundary", "_source"}) {
       u[fields[f] + s] = cgs(m) ? (f == 0 ? "erg" : "erg cm/s") : "code units";
     }
   }
   write_json(target / "conservation.units.json", u);
 }
+void render_fld(const fs::path &folder, const Json &m, const fs::path &target, const Options &o)
+{
+    const auto diagnostics = read_fld_diagnostics(folder, m);
+    render_run(folder, m, target, read_conservation(folder, m), o);
+    write_json(target / "fld-diagnostics.json", diagnostics);
+    records_csv(target / "fld-steps.csv", diagnostics.at("steps"));
+    Json errors = Json::array();
+    const auto &norms = diagnostics.at("slice_reference_norms");
+    for (auto field = norms.begin(); field != norms.end(); ++field) {
+        for (auto norm = field.value().begin(); norm != field.value().end(); ++norm) {
+            errors.push_back({{"field", field.key()}, {"norm", norm.key()}, {"difference", norm.value()},
+                {"scope", "projected-positive-side-slice"}, {"reference_kind", "linear-diffusion-limit"},
+                {"reference_exact_for_solver", false}, {"units", cgs(m) ?
+                    (field.key() == "er" || field.key() == "material_egas" ? "erg/cm^3" : "erg/(cm^2 s)") :
+                    (field.key() == "er" || field.key() == "material_egas" ? "normalized energy density" : "normalized flux")}});
+        }
+    }
+    records_csv(target / "reference-differences.csv", errors);
+}
+
 } // namespace
 fs::path render(const fs::path &batch, const Options &o)
 {
 	auto runs = completed_runs(batch);
 	require(!runs.empty(), "No completed runs in " + batch.string());
+    const bool fld_batch = fld_model(runs.front().second);
+    for (const auto &[path, m] : runs) { require(fld_model(m) == fld_batch, "Use separate M1 and FLD batches"); }
 	auto output = batch / "plots";
 	fs::create_directories(output);
 	std::map<std::string, std::vector<std::pair<fs::path, Json>>> groups;
 	for (auto &[p, m] : runs) {
-		if (coupled_case(m.at("case"))) {
+		if (fld_model(m)) {
+            m["fld_diagnostics"] = read_fld_diagnostics(p, m);
+        } else if (coupled_case(m.at("case"))) {
             read_hydro_profile(p, m);
         } else {
             m["norms"] = read_norms(p, m);
@@ -413,17 +500,12 @@ fs::path render(const fs::path &batch, const Options &o)
         groups[m.at("case")].emplace_back(p, m);
 	}
 	Json errors = Json::array(), budgets = Json::array();
-	std::string page = page_start("Octo-TIGER radiation results") +
-					   "<p><a href=\"errors.csv\">All norms/orders CSV</a> · <a "
-					   "href=\"conservation.csv\">Conservation CSV</a>";
-    if (fs::exists(batch / "movies.html")) {
-        page += " · <a href=\"../movies.html\">Movies</a>";
-    }
-    page += "</p><p>Norms use the full "
-					   "3D domain: L1 = Σ|e|ΔV/V; "
-					   "L2 = √(Σe²ΔV/V); L∞ = max|e|. Orders compare matching physical times and "
-					   "configurations. Zero "
-					   "errors have no reported order.</p>";
+    std::string page = page_start(fld_batch ? "Octo-TIGER FLD results" : "Octo-TIGER M1 RK1 results") +
+        "<p><a href=\"conservation.csv\">Conservation CSV</a>";
+    if (!fld_batch) { page += " · <a href=\"errors.csv\">All norms/orders CSV</a>"; }
+    if (fs::exists(batch / "movies.html")) { page += " · <a href=\"../movies.html\">Movies</a>"; }
+    page += fld_batch ? "</p><p>Stationary FLD with derived flux and analytic linear diffusion-limit references. Differences include nonlinear-limiter and boundary-model effects; reported norms cover the projected slice, not the full volume.</p>" :
+        "</p><p>Norms use the full 3D domain: L1 = Σ|e|ΔV/V; L2 = √(Σe²ΔV/V); L∞ = max|e|. Orders compare matching physical times and configurations. Zero errors have no reported order.</p>";
 	for (auto &[name, series] : groups) {
 		std::sort(series.begin(), series.end(), [](auto &a, auto &b) {
 			return a.second.at("dx").template get<double>() > b.second.at("dx").template get<double>();
@@ -432,6 +514,29 @@ fs::path render(const fs::path &batch, const Options &o)
 		std::set<double> seen;
 		auto case_dir = output / name;
 		fs::create_directories(case_dir);
+        if (fld_model(first)) {
+            page += "<section><h2>" + html(name) + " — FLD backward Euler</h2><p>Stationary FLD compared with its analytic linear diffusion-limit reference. The reference is not exact for the nonlinear limiter. Flux remains derived; no separate momentum conservation test applies.</p>";
+            for (const auto &[folder, m] : series) {
+                require(fld_model(m), "Use separate M1 and FLD batches");
+                const auto rel = name + "/l" + std::to_string(m.at("level").get<int>());
+                const auto target = output / rel;
+                render_fld(folder, m, target, o);
+                page += "<h3>" + html(mesh_label(m)) + "</h3><p>" + html(slice_geometry_note(m)) + "</p>" +
+                    image_tag(rel + "/slice_er.png", "FLD radiation energy and analytic diffusion-limit reference") +
+                    image_tag(rel + "/profiles.png", "FLD energy and derived flux compared with analytic diffusion-limit profiles") +
+                    image_tag(rel + "/conservation.png", "FLD radiation energy conservation") +
+                    "<p><a href=\"" + rel + "/slice.csv\">Numerical slice CSV</a> · <a href=\"" + rel +
+                    "/fld-diagnostics.json\">FLD solver diagnostics</a></p>";
+                const auto budget = read_conservation(folder, m);
+                for (auto record : budget->summary) {
+                    record.update({{"case", name}, {"level", m.at("level")}, {"cells_per_side", m.at("cells")},
+                        {"time", m.at("time")}, {"origin", m.at("origin")}});
+                    budgets.push_back(record);
+                }
+            }
+            page += "</section>";
+            continue;
+        }
         if (coupled_case(name)) {
             page += "<section><h2>" + html(name) + "</h2><p>Coupled radiation hydrodynamics. "
                 "These numerical profiles have no supplied analytic reference or accuracy norms.</p>";
@@ -446,6 +551,15 @@ fs::path render(const fs::path &batch, const Options &o)
                     image_tag(rel + "/hydro_slice.png", "Gas and radiation temperature and density") +
                     image_tag(rel + "/profiles.png", "Numerical gas and radiation profiles") +
                     "<p><a href=\"" + rel + "/hydro-slice.csv\">Profile data CSV</a></p>";
+                if (m.contains("checkpoint_resume")) {
+                    const auto budget = read_conservation(folder, m);
+                    require(bool(budget), "Missing checkpoint conservation segment");
+                    page += conservation_scope_note(*budget, m) +
+                        "<p><a href=\"" + html(fs::relative(folder / "radiation-conservation.csv", output).generic_string()) +
+                        "\">Raw resumed conservation segment</a> · <a href=\"" +
+                        html(fs::relative(folder / "conservation-segments/original-attempt.csv", output).generic_string()) +
+                        "\">Original raw ledger (tail after checkpoint is abandoned)</a></p>";
+                }
             }
             page += "</section>";
             continue;
@@ -631,11 +745,13 @@ fs::path render(const fs::path &batch, const Options &o)
       }
       details += "</details><h3>Radiation conservation</h3>";
 			if (b) {
+				details += conservation_scope_note(*b, m);
 				details +=
-					"<p>R = Q(t) − Q(0) + B(t) − S(t). B is cumulative outward transport; S is the "
+					"<p>R = Q(t) − Q(t_ref) + B(t) − S(t). B is cumulative outward transport; S is the "
 					"signed source change. Flux integrals divided by c² give radiation momentum. "
-					"All plotted totals and residuals are fractions of the fixed initial magnitude |Q(0)|. "
-					"Zero/negligible initial flux (|Q(0)| ≤ 64ε c|E₀|) uses the labeled fallback c|E₀|. "
+					"The reference is the first recorded time (zero unless labeled as a resumed segment). "
+					"All plotted totals and residuals use its fixed reference magnitude |Q(t_ref)|. "
+					"Zero/negligible reference flux uses the labeled fixed scale c|E(t_ref)|. "
 					"Neither denominator changes during the run.</p><div "
 					"class=\"scroll\"><table><tr><th>Field</th><th>Scale</th><th>Final "
 					"R/scale</th><th>Final |R|/scale</th><th>Maximum |R|/scale</th></tr>";
@@ -665,8 +781,10 @@ fs::path render(const fs::path &batch, const Options &o)
 		}
 		page += "</table></div>" + details + "</section>";
 	}
-	records_csv(output / "errors.csv", errors);
-	write_json(output / "errors.json", errors);
+    if (!fld_batch) {
+        records_csv(output / "errors.csv", errors);
+        write_json(output / "errors.json", errors);
+    }
 	records_csv(output / "conservation.csv", budgets,
 				{"case",
 				 "level",
