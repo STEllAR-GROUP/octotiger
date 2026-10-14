@@ -336,7 +336,8 @@ fs::path report_pages(const fs::path &batch, bool live_update)
 		try {
 			if (fld_model(m)) {
                 m["fld_diagnostics"] = read_fld_diagnostics(p, m);
-                read_slice(p, m);
+                if (coupled_case(m.at("case"))) { read_hydro_profile(p, m); }
+                else { read_slice(p, m); }
                 if (m.at("case") == "marshak") { read_marshak_material(p, m); }
             } else if (coupled_case(m.at("case"))) {
                 read_hydro_profile(p, m);

@@ -52,6 +52,23 @@ void results(const fs::path &p, Json m)
 	log << std::setprecision(17) << "normalized constants\n1 1 1 1\n| c = " << m.at("c").get<double>()
 		<< " |\nRADIATION_TEST_FINISHED " << (m.at("case") == "marshak" ? "" : "RADIATION_") << name << " t=" << time << '\n';
     if (coupled_case(m.at("case"))) {
+        if (fld_model(m)) {
+            log.str("");
+            log.clear();
+            log << std::setprecision(17) << "normalized constants\n1 1 1 1\n| c = " << m.at("c").get<double>() << " |\n"
+                << "FLD accepted t=0 dt=" << time << " substeps=1 retries=0 nonlinear_iterations=3 "
+                "linear_iterations=9 vcycles=9 nonlinear_residual=1e-12 linear_residual=1e-13 "
+                "boundary_energy=0 conservation_error=0\nRADIATION_FLD_FINISHED RADIATION_" << name
+                << " t=" << time << " requested=" << time << '\n';
+            const double volume = len * len * len;
+            std::ostringstream budget;
+            budget << "t,volume,er,fx,fy,fz,er_boundary,fx_boundary,fy_boundary,fz_boundary,er_source,fx_source,fy_source,fz_source\n"
+                << std::scientific << std::setprecision(17);
+            for (double t : {0., time}) {
+                budget << t << ',' << volume << ',' << volume << ",0,0,0,0,0,0,0,0,0,0,0\n";
+            }
+            atomic_text(p / "radiation-conservation.csv", budget.str());
+        }
         atomic_text(p / "run.log", log.str());
         std::ostringstream csv;
         csv << "t,dx,x,y,z,rho,vx,vy,vz,gas_temperature,radiation_temperature,er,fx,fy,fz\n"
@@ -62,7 +79,7 @@ void results(const fs::path &p, Json m)
                 const double temperature = 100 + 10 * std::cos(6.283185307179586 * x / len);
                 csv << time << ',' << dx << ',' << x << ',' << y << ',' << dx / 2 <<
                     ",7.78e-10,-600000,0,0," << temperature << ',' << temperature / 2 <<
-                    ",1,0,0,0\n";
+                    ",1," << (fld_model(m) ? m.at("c").get<double>() + 600000. : 0.) << ",0,0\n";
             }
         }
         atomic_text(p / "radiation-hydro-slices/slice-000.csv", csv.str());
@@ -696,6 +713,37 @@ int main(int argc, char **argv)
         const auto coupled_session = make_session(coupled_folder, sessions);
         expect(coupled_session.at("frames").size() == 3,
             "coupled movie session accepts numerical profiles without analytic norms");
+        for (const auto &name : {"subcritical_shock", "supercritical_shock", "radiating_blast"}) {
+            auto moving = metadata(name);
+            moving.update({{"radiation_model", "fld"}, {"radiation_algorithm_version", 2},
+                {"radiation_integrator", "backward_euler"}, {"radiation_flux_semantics", "derived_fld_lab_flux"},
+                {"radiation_frame", "mixed"}, {"radiation_hydro_scheme", "first_order_conservative"},
+                {"reference_kind", "unavailable"}, {"reference_model", "none"},
+                {"reference_exact_for_solver", false}, {"reference_sampling", "none"}});
+            const auto folder = tmp / (std::string("moving-fld-") + name);
+            results(folder, moving);
+            // Moving exports contain only hydro slices. Their lab flux may
+            // exceed cE because radiation enthalpy travels with the gas.
+            fs::remove(folder / "radiation-slices");
+            const auto diagnostics = read_fld_diagnostics(folder, moving);
+            expect(diagnostics.at("slice_physical_bounds").at("maximum_reduced_flux").get<double>() > 1,
+                "moving FLD accepts its lab-frame flux envelope rather than the stationary cE bound");
+            report_pages(folder);
+            const auto page = read_text(folder / (std::string(name) + ".html"));
+            expect(page.find("Implicit solve and energy balances") != std::string::npos &&
+                page.find("derived_fld_lab_flux") != std::string::npos,
+                "moving FLD report retains the completed hydro-only result and its flux semantics");
+            silos(folder, moving);
+            const auto session = make_session(folder, sessions);
+            expect(session.at("frames").size() == 3 && session.at("radiation_flux_semantics") == "derived_fld_lab_flux",
+                "moving FLD movie session uses hydro slices and retains lab-flux semantics");
+            if (argc == 2) {
+                const auto check_log = folder / "reader-check.log";
+                execute({rr::absolute(argv[1]).string(), "check", folder.string()}, tmp, check_log);
+                expect(read_text(check_log).find("Verified ") != std::string::npos,
+                    "CLI check accepts moving FLD hydro-only exports");
+            }
+        }
 		auto gaussian_meta = m;
 		gaussian_meta["case"] = "gaussian_pulse";
 		results(p, gaussian_meta);

@@ -279,7 +279,8 @@ Json make_session(const fs::path &folder, const Options &o)
 	require(m.at("status") == "complete", "Simulation is incomplete");
     if (fld_model(m)) {
         read_fld_diagnostics(folder, m);
-        read_slice(folder, m);
+        if (coupled_case(m.at("case"))) { read_hydro_profile(folder, m); }
+        else { read_slice(folder, m); }
     } else if (coupled_case(m.at("case"))) {
         read_hydro_profile(folder, m);
     } else {

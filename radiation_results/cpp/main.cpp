@@ -356,7 +356,8 @@ int main(int argc, char **argv)
 			for (auto &[p, m] : runs) {
                 if (rr::fld_model(m)) {
                     rr::read_fld_diagnostics(p, m);
-                    rr::read_slice(p, m);
+                    if (rr::coupled_case(m.at("case"))) { rr::read_hydro_profile(p, m); }
+                    else { rr::read_slice(p, m); }
                     if (m.at("case") == "marshak") {
                         rr::read_marshak_material(p, m);
                     }
