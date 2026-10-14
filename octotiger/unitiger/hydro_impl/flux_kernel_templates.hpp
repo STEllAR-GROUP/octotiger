@@ -124,14 +124,16 @@ CUDA_GLOBAL_METHOD inline simd_t cell_inner_flux_loop_simd(const double omega, c
     const auto dp_drho = dpdeg_drho + (fgamma - 1.0) * ein * rhoinv;
     const auto dp_deps = (fgamma - 1.0) * rho;
     const auto v0 = local_q[(sx_i + dim)] * rhoinv;
-    const auto p = (fgamma - 1.0) * ein + pdeg;
+    const auto pthermal = (fgamma - 1.0) * ein;
+    const auto p = pthermal + pdeg;
+    // The cold contribution is already in dpdeg_drho: c^2 = dPdeg/drho + gamma * Pthermal/rho.
 #if defined(KOKKOS_ENABLE_SYCL) && defined( __SYCL_DEVICE_ONLY__)
-    const auto input_tmp = p * rhoinv * rhoinv * dp_deps + dp_drho;
+    const auto input_tmp = pthermal * rhoinv * rhoinv * dp_deps + dp_drho;
     double input_tmp_double;
     input_tmp.copy_to(&input_tmp_double, SIMD_NAMESPACE::element_aligned_tag{});
     const auto c = sycl::sqrt(input_tmp_double);
 #else
-    const auto c = simd_fallbacks::sqrt_with_serial_fallback(p * rhoinv * rhoinv * dp_deps + dp_drho);
+    const auto c = simd_fallbacks::sqrt_with_serial_fallback(pthermal * rhoinv * rhoinv * dp_deps + dp_drho);
 #endif
     const auto v = v0 - vg[dim];
     amr = v - c;
@@ -192,14 +194,15 @@ CUDA_GLOBAL_METHOD inline simd_t cell_inner_flux_loop_simd(const double omega, c
     const auto dp_drho2 = dpdeg_drho + (fgamma - 1.0) * ein * rhoinv;
     const auto dp_deps2 = (fgamma - 1.0) * rho;
     const auto v02 = local_q_flipped[(sx_i + dim)] * rhoinv;
-    const auto p2 = (fgamma - 1.0) * ein + pdeg;
+    const auto pthermal2 = (fgamma - 1.0) * ein;
+    const auto p2 = pthermal2 + pdeg;
 #if defined(KOKKOS_ENABLE_SYCL) && defined( __SYCL_DEVICE_ONLY__)
-    const auto input_tmp2 = p2 * rhoinv * rhoinv * dp_deps2 + dp_drho2;
+    const auto input_tmp2 = pthermal2 * rhoinv * rhoinv * dp_deps2 + dp_drho2;
     double input_tmp_double2;
     input_tmp2.copy_to(&input_tmp_double2, SIMD_NAMESPACE::element_aligned_tag{});
     const auto c2 = sycl::sqrt(input_tmp_double2);
 #else
-    const auto c2 = simd_fallbacks::sqrt_with_serial_fallback(p2 * rhoinv * rhoinv * dp_deps2 + dp_drho2);
+    const auto c2 = simd_fallbacks::sqrt_with_serial_fallback(pthermal2 * rhoinv * rhoinv * dp_deps2 + dp_drho2);
 #endif
     const auto v2 = v02 - vg[dim];
     aml = v2 - c2;
