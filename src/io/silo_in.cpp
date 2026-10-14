@@ -24,10 +24,14 @@
 #include <stddef.h>
 #include <cmath>
 #include <future>
+#include <memory>
+#include <cstring>
 #include <stdexcept>
 #include <mutex>
 #include <map>
 #include <vector>
+#include <algorithm>
+#include <set>
 
 static int version_;
 
@@ -41,10 +45,12 @@ static std::mutex silo_mtx_;
 template<class T>
 struct read_silo_var {
 	T operator()(DBfile *db, const char *name) const {
-		int one = 1;
-		T var;
+        if (silo_restart::present(db)) {
+            return silo_restart::read_array<T>(db, name, 1)[0];
+        }
+		T var{};
 		if (DBReadVar(db, name, &var) != 0) {
-			std::cout << "Unable to read " << name << " \n";
+            throw std::runtime_error(std::string("Unable to read Silo variable ") + name);
 		}
 		return var;
 	}
@@ -52,12 +58,14 @@ struct read_silo_var {
 
 struct node_entry_t {
 	bool load;
+    bool exact = false;
 	integer position;
 	integer locality_id;
 	std::string filename;
 	template<class Arc>
 	void serialize(Arc &arc, unsigned) {
 		arc & load;
+        arc & exact;
 		arc & position;
 		arc & locality_id;
 		arc & filename;
@@ -72,23 +80,66 @@ static int timestamp;
 static int steps_elapsed;
 static DBfile *db_;
 static dir_map_type node_dir_;
+static bool exact_restart_ = false;
+
+static std::vector<char> read_node_checkpoint(const node_location& location,
+        const node_entry_t& entry) {
+    return hpx::threads::run_as_os_thread([&]() {
+        std::lock_guard<std::mutex> lock(silo_mtx_);
+        DBfile* db = DBOpenReal(entry.filename.c_str(), DB_UNKNOWN, DB_READ);
+        if (db == nullptr) {
+            throw std::runtime_error("Unable to open checkpoint data file " + entry.filename);
+        }
+        std::vector<char> state;
+        try {
+            state = silo_restart::read_state(db, location.to_id());
+        } catch (...) {
+            DBClose(db);
+            throw;
+        }
+        silo_restart::check(DBClose(db), "unable to close checkpoint data file");
+        return state;
+    }).get();
+}
 
 #define SILO_TEST(i) \
 	if( i != 0 ) printf( "SILO call failed at %i\n", __LINE__ );
 
-void load_options_from_silo(std::string fname, DBfile *db) {
-	const auto func = [&fname, &db]() {
-		bool leaveopen;
-		if (db == nullptr) {
-			db = DBOpenReal(fname.c_str(), DB_UNKNOWN, DB_READ);
-			leaveopen = false;
-		} else {
-			leaveopen = true;
-		}
+void load_options_from_silo(std::string fname, DBfile *db, bool restore_integrator) {
+	const auto func = [&fname, &db, restore_integrator]() {
+        const bool leaveopen = db != nullptr;
+        std::unique_ptr<DBfile, decltype(&DBClose)> owned(nullptr, &DBClose);
+        if (!leaveopen) {
+            db = DBOpenReal(fname.c_str(), DB_UNKNOWN, DB_READ);
+            owned.reset(db);
+        }
 		if (db != nullptr) {
 
-			read_silo_var<integer> ri;
-			read_silo_var<real> rr;
+            const bool exact = silo_restart::present(db);
+            read_silo_var<integer> ri;
+            read_silo_var<real> rr;
+            opts().radiation = DBInqVarExists(db, "radiation") > 0 && ri(db, "radiation") != 0;
+            if (exact && opts().radiation) {
+                throw std::runtime_error("SSP_MULTISTEP exact checkpoints do not support radiation");
+            }
+            std::vector<integer> exact_layout;
+            if (exact) {
+                const auto version = silo_restart::read_array<integer>(db, "restart_version", 1)[0];
+                exact_layout = silo_restart::read_array<integer>(db, "restart_layout", 7);
+                if (restore_integrator && (version == 1 || version == silo_restart::format_version)) {
+                    opts().time_integrator = SSP_MULTISTEP;
+                }
+                if ((version != 1 && version != silo_restart::format_version) || opts().time_integrator != SSP_MULTISTEP) {
+                    throw std::runtime_error("Exact checkpoint requires supported format 1 or 2 and --time_integrator=SSP_MULTISTEP");
+                }
+                if (exact_layout[0] != NDIM || exact_layout[1] != INX || exact_layout[2] != H_NX ||
+                        exact_layout[4] <= 0 || exact_layout[4] > 1024 ||
+                        exact_layout[3] != exact_layout[4] + 10 ||
+                        exact_layout[5] != integer(sizeof(real)) || exact_layout[6] != SSP_MULTISTEP) {
+                    throw std::runtime_error("Exact checkpoint has an incompatible field layout");
+                }
+            }
+
 			integer version = ri(db, "version");
 			if (version > SILO_VERSION) {
 				printf("WARNING: Attempting to load a version %i SILO file, maximum version allowed for this Octo-tiger is %i\n", int(version), SILO_VERSION);
@@ -101,13 +152,16 @@ void load_options_from_silo(std::string fname, DBfile *db) {
 			opts().code_to_s = rr(db, "code_to_s");
 			opts().code_to_cm = rr(db, "code_to_cm");
 			opts().n_species = ri(db, "n_species");
+            if (exact && opts().n_species != exact_layout[4]) {
+                throw std::runtime_error("Exact checkpoint species metadata is inconsistent");
+            }
+            opts().n_fields = opts().n_species + 10;
 			opts().eos = eos_type(ri(db, "eos"));
 			opts().gravity = ri(db, "gravity");
 			opts().hydro = ri(db, "hydro");
 			opts().omega = rr(db, "omega") * opts().code_to_s;
 			opts().output_dt = rr(db, "output_frequency");
-			opts().problem = problem_type(ri(db, "problem"));
-			opts().radiation = DBInqVarExists(db, "radiation") && ri(db, "radiation") != 0;
+            opts().problem = problem_type_from_checkpoint(ri(db, "problem"), opts().radiation);
 			// Checkpoints predating the opt-in reduced-speed model used full c.
 			// Saved physics takes precedence over a conflicting restart command line.
 			opts().radiation_reduced_c_factor = 1;
@@ -117,9 +171,6 @@ void load_options_from_silo(std::string fname, DBfile *db) {
 			if (DBInqVarExists(db, "radiation_integrator")) {
 				const integer method = ri(db, "radiation_integrator");
 				if (method != 0 && method != 3) {
-					if (!leaveopen) {
-						DBClose(db);
-					}
 					throw std::runtime_error("Unsupported radiation restart integrator identifier");
 				}
 				opts().radiation_integrator = method == 0 ? "euler" : "backward_euler";
@@ -131,23 +182,14 @@ void load_options_from_silo(std::string fname, DBfile *db) {
 				if (DBInqVarExists(db, "radiation_options_version")) {
 					const integer radiation_version = ri(db, "radiation_options_version");
 					if (radiation_version < 1 || radiation_version > 3) {
-						if (!leaveopen) {
-							DBClose(db);
-						}
 						throw std::runtime_error("Unsupported radiation restart metadata version");
 					}
 					if (radiation_version >= 2) {
 						if (!DBInqVarExists(db, "radiation_reduced_c_factor")) {
-							if (!leaveopen) {
-								DBClose(db);
-							}
 							throw std::runtime_error("Missing radiation restart option radiation_reduced_c_factor");
 						}
 						const real factor = rr(db, "radiation_reduced_c_factor");
 						if (!std::isfinite(factor) || !(factor > 0 && factor <= 1)) {
-							if (!leaveopen) {
-								DBClose(db);
-							}
 							throw std::runtime_error("Invalid radiation restart option radiation_reduced_c_factor: expected finite 0 < factor <= 1");
 						}
 						opts().radiation_reduced_c_factor = factor;
@@ -198,9 +240,6 @@ void load_options_from_silo(std::string fname, DBfile *db) {
 								opts().fld_max_linear_iterations = ri(db, "fld_max_linear_iterations");
 							}
 						} catch (...) {
-							if (!leaveopen) {
-								DBClose(db);
-							}
 							throw;
 						}
 					}
@@ -209,9 +248,6 @@ void load_options_from_silo(std::string fname, DBfile *db) {
 							"rad_test_width", "rad_test_background", "rad_test_amplitude",
 							"rad_test_luminosity", "rad_reference"}) {
 						if (!DBInqVarExists(db, name)) {
-							if (!leaveopen) {
-								DBClose(db);
-							}
 							throw std::runtime_error(std::string("Missing radiation restart option ") + name);
 						}
 					}
@@ -223,16 +259,10 @@ void load_options_from_silo(std::string fname, DBfile *db) {
 					opts().radTestLuminosity = rr(db, "rad_test_luminosity");
 					const int reference_length = DBGetVarLength(db, "rad_reference");
 					if (reference_length <= 0) {
-						if (!leaveopen) {
-							DBClose(db);
-						}
 						throw std::runtime_error("Invalid radiation restart reference filename");
 					}
 					std::vector<char> reference(reference_length);
 					if (DBReadVar(db, "rad_reference", reference.data()) != 0 || reference.back() != '\0') {
-						if (!leaveopen) {
-							DBClose(db);
-						}
 						throw std::runtime_error("Cannot read radiation restart reference filename");
 					}
 					opts().radReference.assign(reference.data(), reference.size() - 1);
@@ -269,9 +299,6 @@ void load_options_from_silo(std::string fname, DBfile *db) {
 					opts().unigrid = false;
 					opts().validateGradientRefinement();
 				} catch (...) {
-					if (!leaveopen) {
-						DBClose(db);
-					}
 					throw;
 				}
 			}
@@ -280,17 +307,23 @@ void load_options_from_silo(std::string fname, DBfile *db) {
 			opts().atomic_mass.resize(opts().n_species);
 			opts().X.resize(opts().n_species);
 			opts().Z.resize(opts().n_species);
-			SILO_TEST(DBReadVar(db, "atomic_number", opts().atomic_number.data()));
-			SILO_TEST(DBReadVar(db, "atomic_mass", opts().atomic_mass.data()));
-			SILO_TEST(DBReadVar(db, "X", opts().X.data()));
-			SILO_TEST(DBReadVar(db, "Z", opts().Z.data()));
-			if (!leaveopen) {
-				DBClose(db);
-			}
-		} else {
-			std::cout << "Could not load " << fname;
-			throw;
-		}
+            if (exact) {
+                opts().atomic_number = silo_restart::read_array<real>(db, "atomic_number", opts().n_species);
+                opts().atomic_mass = silo_restart::read_array<real>(db, "atomic_mass", opts().n_species);
+                opts().X = silo_restart::read_array<real>(db, "X", opts().n_species);
+                opts().Z = silo_restart::read_array<real>(db, "Z", opts().n_species);
+            } else {
+                SILO_TEST(DBReadVar(db, "atomic_number", opts().atomic_number.data()));
+                SILO_TEST(DBReadVar(db, "atomic_mass", opts().atomic_mass.data()));
+                SILO_TEST(DBReadVar(db, "X", opts().X.data()));
+                SILO_TEST(DBReadVar(db, "Z", opts().Z.data()));
+            }
+            if (!leaveopen) {
+                silo_restart::check(DBClose(owned.release()), "unable to close Silo option file");
+            }
+        } else {
+            throw std::runtime_error("Could not load " + fname);
+        }
 	};
 	if (db == nullptr) {
 		GET(hpx::threads::run_as_os_thread(func));
@@ -304,9 +337,18 @@ void load_options_from_silo(std::string fname, DBfile *db) {
 
 void load_open(std::string fname, dir_map_type map) {
 //	printf("LOAD OPENED on proc %i\n", hpx::get_locality_id());
-	load_options_from_silo(fname, db_); /**/
+	load_options_from_silo(fname); /**/
 	hpx::threads::run_as_os_thread([&]() {
 		db_ = DBOpenReal(fname.c_str(), DB_UNKNOWN, DB_READ);
+        if (db_ == nullptr) {
+            throw std::runtime_error("Unable to open checkpoint master file " + fname);
+        }
+        exact_restart_ = silo_restart::present(db_);
+        if (exact_restart_) {
+            silo_restart::restore_metadata(db_);
+            node_dir_ = std::move(map);
+            return;
+        }
 		read_silo_var<real> rr;
 		silo_output_time() = rr(db_, "cgs_time"); /**/
 		silo_output_rotation_time() = 2 * M_PI * rr(db_, "rotational_time"); /**/
@@ -319,7 +361,8 @@ void load_open(std::string fname, dir_map_type map) {
 }
 
 void load_close() {
-	DBClose(db_);
+    silo_restart::check(DBClose(db_), "unable to close checkpoint master file");
+    db_ = nullptr;
 }
 
 HPX_PLAIN_ACTION(load_close, load_close_action);
@@ -384,7 +427,33 @@ node_server::node_server(const node_location &loc) :
 	step_num = gcycle = hcycle = rcycle = 0;
 
 	auto iter = node_dir_.find(loc.to_id());
-	assert(iter != node_dir_.end());
+    if (iter == node_dir_.end()) {
+        throw std::runtime_error("Checkpoint is missing node " + oct_to_str(loc.to_id()));
+    }
+    if (iter->second.exact) {
+        load_checkpoint(read_node_checkpoint(loc, iter->second));
+        if (bool(is_refined) == iter->second.load) {
+            throw std::runtime_error("Checkpoint node refinement flag disagrees with its mesh topology");
+        }
+        if (is_refined) {
+            std::vector<hpx::future<void>> children_ready;
+            for (integer ci = 0; ci < NCHILD; ++ci) {
+                children_ready.push_back(hpx::async([this, ci, loc]() {
+                    const auto child_location = loc.get_child(ci);
+                    const auto child_entry = node_dir_.find(child_location.to_id());
+                    if (child_entry == node_dir_.end()) {
+                        throw std::runtime_error("Checkpoint refined node has a missing child");
+                    }
+                    children[ci] = hpx::new_<node_server>(
+                        opts().all_localities[child_entry->second.locality_id], child_location);
+                }));
+            }
+            for (auto& ready : children_ready) {
+                ready.get();
+            }
+        }
+        return;
+    }
 
 	if (!iter->second.load) {
 //		printf("Creating %s on %i\n", loc.to_str().c_str(), int(hpx::get_locality_id()));
@@ -432,116 +501,188 @@ node_server::node_server(const node_location &loc, silo_load_t load) :
 	assert(nc == 0 || nc == NCHILD);
 }
 
-auto split_mesh_id(const std::string id) {
-	std::pair<node_location::node_id, std::string> rc;
-	int i = 0;
-	for (i = 0; id[i] != ':'; i++) {
-		rc.second.push_back(id[i]);
-	}
-	i += 2;
-	std::string tmp;
-	for (; i != id.size(); i++) {
-		tmp.push_back(id[i]);
-	}
-	rc.first = std::strtoll(tmp.c_str(), nullptr, 8);
-//	printf("%li %s\n", rc.first, rc.second.c_str());
-	return rc;
+auto split_mesh_id(const std::string& id) {
+    const auto separator = id.find(":/");
+    const auto slash = separator == std::string::npos ? std::string::npos : id.find('/', separator + 2);
+    if (separator == std::string::npos || slash == std::string::npos || slash == separator + 2) {
+        throw std::runtime_error("Malformed Silo mesh reference: " + id);
+    }
+    const std::string digits = id.substr(separator + 2, slash - separator - 2);
+    if (digits.find_first_not_of("01234567") != std::string::npos) {
+        throw std::runtime_error("Malformed Silo node identifier: " + digits);
+    }
+    const auto node = static_cast<node_location::node_id>(std::stoull(digits, nullptr, 8));
+    return std::make_pair(node, id.substr(0, separator));
 }
 
 void load_data_from_silo(std::string fname, std::shared_ptr<node_server> root_ptr, hpx::id_type root) {
-	timings::scope ts(root_ptr->timings_, timings::time_io);
-	printf( "Reading %s\n", fname.c_str());
-	const auto tstart = time(NULL);
+    timings::scope ts(root_ptr->timings_, timings::time_io);
+    printf("Reading %s\n", fname.c_str());
+    const auto tstart = time(NULL);
+    const integer nprocs = opts().all_localities.size();
+    struct index_data {
+        bool exact;
+        std::vector<node_location::node_id> nodes;
+        std::vector<integer> positions;
+        std::vector<integer> groups;
+        std::map<node_location::node_id, std::string> leaves;
+    };
+    const auto index = hpx::threads::run_as_os_thread([&]() {
+        std::unique_ptr<DBfile, decltype(&DBClose)> db(
+            DBOpenReal(fname.c_str(), DB_UNKNOWN, DB_READ), &DBClose);
+        if (!db) {
+            throw std::runtime_error("Unable to open Silo master file " + fname);
+        }
+        index_data data;
+        data.exact = silo_restart::present(db.get());
+        const integer count = data.exact
+            ? silo_restart::read_array<integer>(db.get(), "node_count", 1)[0]
+            : read_silo_var<integer>()(db.get(), "node_count");
+        if (count <= 0 || count > 10000000) {
+            throw std::runtime_error("Invalid checkpoint node count");
+        }
+        const size_t size = static_cast<size_t>(count);
+        data.nodes.resize(size);
+        if (data.exact) {
+            // node_id is unsigned but the existing Silo field uses DB_LONG_LONG.
+            static_assert(sizeof(node_location::node_id) == sizeof(integer), "node identifier size");
+            const auto ids = silo_restart::read_array<integer>(db.get(), "node_list", size);
+            std::memcpy(data.nodes.data(), ids.data(), size * sizeof(integer));
+            data.positions = silo_restart::read_array<integer>(db.get(), "node_positions", size);
+            data.groups = silo_restart::read_array<integer>(db.get(), "restart_groups", size);
+        } else {
+            data.positions.resize(size);
+            silo_restart::check(DBReadVar(db.get(), "node_list", data.nodes.data()), "unable to read node_list");
+            silo_restart::check(DBReadVar(db.get(), "node_positions", data.positions.data()), "unable to read node_positions");
+        }
+        std::set<node_location::node_id> unique_nodes(data.nodes.begin(), data.nodes.end());
+        std::set<integer> unique_positions(data.positions.begin(), data.positions.end());
+        if (unique_nodes.size() != size || unique_positions.size() != size ||
+                *unique_positions.begin() != 0 || *unique_positions.rbegin() != count - 1) {
+            throw std::runtime_error("Invalid checkpoint node/position mapping");
+        }
+        for (const auto node : unique_nodes) {
+            auto encoded = node;
+            integer level = 0;
+            while (encoded > 1) {
+                encoded >>= NDIM;
+                ++level;
+            }
+            if (encoded != 1 || (data.exact && level > opts().max_level)) {
+                throw std::runtime_error("Invalid checkpoint node identifier or refinement level");
+            }
+        }
+        std::unique_ptr<DBmultimesh, decltype(&DBFreeMultimesh)> mesh(
+            DBGetMultimesh(db.get(), "quadmesh"), &DBFreeMultimesh);
+        if (!mesh || mesh->nblocks <= 0 || mesh->nblocks > count || mesh->meshnames == nullptr) {
+            throw std::runtime_error("Invalid checkpoint mesh index");
+        }
+        for (int i = 0; i < mesh->nblocks; ++i) {
+            if (mesh->meshnames[i] == nullptr) {
+                throw std::runtime_error("Missing checkpoint mesh reference");
+            }
+            const auto entry = split_mesh_id(mesh->meshnames[i]);
+            if (unique_nodes.count(entry.first) == 0 || !data.leaves.insert(entry).second) {
+                throw std::runtime_error("Invalid checkpoint leaf mapping");
+            }
+        }
+        silo_epoch() = data.exact
+            ? silo_restart::read_array<integer>(db.get(), "epoch", 1)[0] + 1
+            : read_silo_var<integer>()(db.get(), "epoch") + 1;
+        return data;
+    }).get();
 
-	const integer nprocs = opts().all_localities.size();
-	static int sz = localities.size();
-	DBfile *db = GET(hpx::threads::run_as_os_thread(DBOpenReal, fname.c_str(), DB_UNKNOWN, DB_READ));
-	silo_epoch() = GET(hpx::threads::run_as_os_thread(read_silo_var<integer>(), db, "epoch"));
-	silo_epoch()++;std
-	::vector<node_location::node_id> node_list;
-	std::vector<integer> positions;
-	std::vector<hpx::future<void>> futs;
-	int node_count;
-	if (db != nullptr) {
-		DBmultimesh *master_mesh = GET(hpx::threads::run_as_os_thread([&]() {
-			return DBGetMultimesh(db, "quadmesh");
-		}));
-		const int chunk_size = std::ceil(real(master_mesh->nblocks) / real(sz));
-		hpx::threads::run_as_os_thread([&]() {
-			const read_silo_var<integer> ri;
-			node_count = ri(db, "node_count");
-			node_list.resize(node_count);
-			positions.resize(node_count);
-			DBReadVar(db, "node_list", node_list.data());
-			DBReadVar(db, "node_positions", positions.data());
-		}).get();
-		GET(hpx::threads::run_as_os_thread(DBClose, db));
-		std::map<node_location::node_id, std::string> load_locs;
-		for (int i = 0; i < master_mesh->nblocks; i++) {
-			load_locs.insert(split_mesh_id(master_mesh->meshnames[i]));
-		}
-		for (int i = 0; i < node_list.size(); i++) {
-			node_entry_t entry;
-			entry.position = positions[i];
-			const auto tmp = load_locs.find(node_list[i]);
-			entry.load = bool(tmp != load_locs.end());
-			entry.locality_id = positions[i] * nprocs / positions.size();
-			if (entry.load) {
-				entry.filename = tmp->second;
-			} else {
-				entry.filename = "";
-			}
-			node_dir_[node_list[i]] = entry;
-		}
-		auto this_dir = std::move(node_dir_);
-		for (int i = 0; i < nprocs; i++) {
-	//		printf("Sending LOAD OPEN to %i\n", i);
-			futs.push_back(hpx::async < load_open_action > (opts().all_localities[i], fname, this_dir));
-		}
-		GET(hpx::threads::run_as_os_thread(DBFreeMultimesh, master_mesh));
-		for (auto &f : futs) {
-			GET(f);
-		}
-	} else {
-		std::cout << "Could not load " << fname;
-		throw;
-	}
-	root_ptr->reconstruct_tree();
-	node_registry::clear();
-	futs.clear();
-	for (int i = 0; i < nprocs; i++) {
-		futs.push_back(hpx::async < load_close_action > (opts().all_localities[i]));
-	}
-	for (auto &f : futs) {
-		GET(f);
-	}
-
-	const auto tstop = time(NULL);
-	printf( "Read took %li seconds\n", tstop - tstart);
+    node_dir_.clear();
+    for (size_t i = 0; i < index.nodes.size(); ++i) {
+        node_entry_t entry;
+        entry.position = index.positions[i];
+        const auto leaf = index.leaves.find(index.nodes[i]);
+        entry.load = leaf != index.leaves.end();
+        entry.exact = index.exact;
+        entry.locality_id = entry.position * nprocs / index.nodes.size();
+        if (entry.exact) {
+            if (index.groups[i] < 0 || index.groups[i] > std::numeric_limits<int>::max()) {
+                throw std::runtime_error("Invalid checkpoint data group");
+            }
+            entry.filename = fname + ".data/" + std::to_string(index.groups[i]) + ".silo";
+        } else if (entry.load) {
+            entry.filename = leaf->second;
+        }
+        node_dir_.emplace(index.nodes[i], std::move(entry));
+    }
+    // Validate the full tree before creating any distributed components.
+    const node_location root_location;
+    if (node_dir_.count(root_location.to_id()) == 0) {
+        throw std::runtime_error("Checkpoint has no root node");
+    }
+    for (const auto& item : node_dir_) {
+        node_location location(item.first);
+        if (location.level() != 0 && node_dir_.count(location.get_parent().to_id()) == 0) {
+            throw std::runtime_error("Checkpoint has an orphan node");
+        }
+        for (integer ci = 0; ci < NCHILD; ++ci) {
+            const bool has_child = node_dir_.count(location.get_child(ci).to_id()) != 0;
+            if (has_child == item.second.load) {
+                throw std::runtime_error("Checkpoint has inconsistent leaf/child topology");
+            }
+        }
+    }
+    const auto directory = std::move(node_dir_);
+    std::vector<hpx::future<void>> futs;
+    for (integer i = 0; i < nprocs; ++i) {
+        futs.push_back(hpx::async<load_open_action>(opts().all_localities[i], fname, directory));
+    }
+    for (auto& future : futs) {
+        future.get();
+    }
+    root_ptr->reconstruct_tree();
+    node_registry::clear();
+    futs.clear();
+    for (integer i = 0; i < nprocs; ++i) {
+        futs.push_back(hpx::async<load_close_action>(opts().all_localities[i]));
+    }
+    for (auto& future : futs) {
+        future.get();
+    }
+    printf("Read took %li seconds\n", time(NULL) - tstart);
 }
 
 void node_server::reconstruct_tree() {
     const auto root_entry = node_dir_.find(my_location.to_id());
     if (root_entry == node_dir_.end()) {
-        throw std::runtime_error("Restart tree does not contain its root");
+        throw std::runtime_error("Checkpoint is missing its root");
     }
-    if (root_entry->second.load) {
+    if (exact_restart_) {
+        load_checkpoint(read_node_checkpoint(my_location, root_entry->second));
+        if (bool(is_refined) == root_entry->second.load) {
+            throw std::runtime_error("Checkpoint root refinement flag disagrees with mesh topology");
+        }
+    } else if (root_entry->second.load) {
         load_silo_leaf(*grid_ptr, my_location, root_entry->second.filename);
         is_refined = false;
     } else {
-        std::vector<hpx::future<void>> futs;
         is_refined = true;
-        for (integer ci = 0; ci < NCHILD; ci++) {
+    }
+    if (is_refined) {
+        std::vector<hpx::future<void>> futs;
+        for (integer ci = 0; ci < NCHILD; ++ci) {
             futs.push_back(hpx::async([this, ci]() {
-                auto cloc = my_location.get_child(ci);
-                auto iter = node_dir_.find(cloc.to_id());
-                children[ci] = hpx::new_<node_server>(localities[iter->second.locality_id], cloc);
+                const auto location = my_location.get_child(ci);
+                const auto entry = node_dir_.find(location.to_id());
+                if (entry == node_dir_.end()) {
+                    throw std::runtime_error("Checkpoint root has a missing child");
+                }
+                children[ci] = hpx::new_<node_server>(localities[entry->second.locality_id], location);
             }));
         }
-        hpx::when_all(futs).get();
+        for (auto& future : futs) {
+            future.get();
+        }
     }
-    current_time = silo_output_time();
-    rotational_time = silo_output_rotation_time();
+    if (!exact_restart_) {
+        current_time = silo_output_time();
+        rotational_time = silo_output_rotation_time();
+    }
 }
 
 silo_var_t::silo_var_t(const std::string &name, std::size_t nx) :

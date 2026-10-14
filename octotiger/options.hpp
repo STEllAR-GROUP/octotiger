@@ -46,8 +46,15 @@ enum problem_type : integer {
     RADIATION_SUBCRITICAL_SHOCK = 18,
     RADIATION_SUPERCRITICAL_SHOCK = 19,
     RADIATION_BLAST_WAVE = 20,
-    RADIATION_COUPLED_WAVE = 21
+    RADIATION_COUPLED_WAVE = 21,
+    AMR_ADVECTION = 22
 };
+
+// Early non-radiative AMR pulse checkpoints used 12, which is reserved for
+// RADIATION_DIFFUSION on radiation-capable branches. New files always use 22.
+inline problem_type problem_type_from_checkpoint(integer value, bool radiation) {
+    return value == 12 && !radiation ? AMR_ADVECTION : static_cast<problem_type>(value);
+}
 
 inline constexpr std::pair<problem_type, const char*> problem_names[] = {
     {DWD, "DWD"}, {SOD, "SOD"}, {BLAST, "BLAST"}, {NONE, "NONE"},
@@ -64,7 +71,8 @@ inline constexpr std::pair<problem_type, const char*> problem_names[] = {
     {RADIATION_SUBCRITICAL_SHOCK, "RADIATION_SUBCRITICAL_SHOCK"},
     {RADIATION_SUPERCRITICAL_SHOCK, "RADIATION_SUPERCRITICAL_SHOCK"},
     {RADIATION_BLAST_WAVE, "RADIATION_BLAST_WAVE"},
-    {RADIATION_COUPLED_WAVE, "RADIATION_COUPLED_WAVE"}
+    {RADIATION_COUPLED_WAVE, "RADIATION_COUPLED_WAVE"},
+    {AMR_ADVECTION, "AMR_ADVECTION"}
 };
 
 inline std::istream& operator>>(std::istream& in, problem_type& problem) {
@@ -91,6 +99,7 @@ inline std::string to_string(problem_type problem) {
 }
 
 COMMAND_LINE_ENUM(eos_type, IDEAL, WD, IPR);
+COMMAND_LINE_ENUM(time_integrator_type, RK3, SSP_MULTISTEP);
 
 class options {
 public:
@@ -259,6 +268,7 @@ public:
 	integer n_fields;
 
 	eos_type eos;
+	time_integrator_type time_integrator = RK3;
 
 	problem_type problem;
 
@@ -389,6 +399,9 @@ public:
 		tmp = eos;
 		arc & tmp;
 		eos = static_cast<eos_type>(tmp);
+		tmp = time_integrator;
+		arc & tmp;
+		time_integrator = static_cast<time_integrator_type>(tmp);
 		arc & data_dir;
 		arc & number_gpus;
 		arc & executors_per_gpu;

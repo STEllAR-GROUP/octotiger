@@ -16,7 +16,8 @@ template<class T>
 struct write_silo_var {
 	void operator()(DBfile *db, const char *name, T var) const {
 		int one = 1;
-		DBWrite(db, name, &var, &one, 1, db_type<T>::d);
+        silo_restart::check(DBWrite(db, name, &var, &one, 1, db_type<T>::d),
+            std::string("unable to write ") + name);
 	}
 };
 
@@ -36,6 +37,7 @@ struct node_list_t {
 	std::vector<int> group_num;
 	std::vector<node_location::node_id> all;
 	std::vector<integer> positions;
+    std::vector<integer> restart_groups;
 	std::vector<std::vector<double>> extents;
 	std::vector<int> zone_count;
 	template<class Arc>
@@ -81,6 +83,9 @@ struct mesh_vars_t;
 static std::vector<mesh_vars_t> all_mesh_vars;
 static std::vector<hpx::future<mesh_vars_t>> futs_;
 static node_list_t node_list_;
+static std::vector<std::pair<node_location::node_id, std::vector<char>>> restart_states;
+static silo_restart::metadata restart_metadata;
+static bool write_exact_restart = false;
 static int nsteps;
 static int time_elapsed;
 
@@ -97,11 +102,20 @@ void output_stage1(std::string fname, int cycle) {
   }
 	std::vector<node_location::node_id> ids;
 	futs_.clear();
+    restart_states.clear();
+    write_exact_restart = opts().time_integrator == SSP_MULTISTEP;
+    if (write_exact_restart) {
+        restart_metadata = silo_restart::snapshot();
+        restart_states.reserve(node_registry::size());
+    }
 	const auto node_ptr_ = node_registry::begin()->second.get_ptr().get();
 	silo_output_time() = node_ptr_->get_time() * opts().code_to_s;
 	silo_output_rotation_time() = node_ptr_->get_rotation_count();
 	for (auto i = node_registry::begin(); i != node_registry::end(); ++i) {
 		const auto node_ptr_ = GET(i->second.get_ptr());
+        if (write_exact_restart) {
+            restart_states.emplace_back(i->first.to_id(), node_ptr_->save_checkpoint());
+        }
 		if (!node_ptr_->refined()) {
 			futs_.push_back(hpx::async(hpx::launch::async_policy(hpx::threads::thread_priority::boost), [](node_location loc, node_registry::node_ptr ptr) {
 				const auto this_ptr = ptr.get_ptr().get();
@@ -177,6 +191,23 @@ void output_stage3(std::string fname, int cycle, int gn, int gb, int ge) {
 //			printf( "Open %s %i %i %i %i\n", this_fname.c_str(), this_id, gn, gb, ge);
 			db = DBOpenReal(this_fname.c_str(), SILO_DRIVER, DB_APPEND);
 		}
+        if (db == nullptr) {
+            throw std::runtime_error("Unable to open Silo data file " + this_fname);
+        }
+        if (write_exact_restart) {
+            if (this_id == gb) {
+                silo_restart::check(DBMkDir(db, "restart"), "unable to create restart directory");
+            }
+            silo_restart::check(DBSetDir(db, "restart"), "unable to enter restart directory");
+            for (const auto& state : restart_states) {
+                const std::string name = oct_to_str(state.first);
+                silo_restart::check(DBMkDir(db, name.c_str()), "unable to create restart/" + name);
+                silo_restart::check(DBSetDir(db, name.c_str()), "unable to enter restart/" + name);
+                silo_restart::write_array(db, "state", state.second);
+                silo_restart::check(DBSetDir(db, ".."), "unable to leave node restart directory");
+            }
+            silo_restart::check(DBSetDir(db, "/"), "unable to leave restart directory");
+        }
 		float ftime = dtime;
 		int one = 1;
 		int opt1 = DB_CARTESIAN;
@@ -243,7 +274,7 @@ void output_stage3(std::string fname, int cycle, int gn, int gb, int ge) {
 			DBSetDir(db, "/");
 		}
 		DBFreeOptlist(optlist_mesh);
-		DBClose(db);
+        silo_restart::check(DBClose(db), "unable to close Silo data file");
 	}, cycle).get();
 	if (this_id < ge - 1) {
 		auto f = hpx::async<output_stage3_action>(hpx::launch::async_policy(hpx::threads::thread_priority::boost), localities[this_id + 1], fname, cycle, gn, gb, ge);
@@ -261,6 +292,9 @@ void output_stage4(std::string fname, int cycle) {
 	double rtime = opts().problem == DWD ? silo_output_rotation_time() : silo_output_time();
 	hpx::threads::run_as_os_thread([&this_fname, fname, nfields, &rtime](int cycle) {
 		auto *db = DBCreateReal(this_fname.c_str(), DB_CLOBBER, DB_LOCAL, "Octo-tiger", SILO_DRIVER);
+        if (db == nullptr) {
+            throw std::runtime_error("Unable to create Silo master file " + this_fname);
+        }
 		double dtime = silo_output_time();
 		float ftime = dtime;
 		std::vector<std::pair<int, node_location>> node_locs;
@@ -333,7 +367,8 @@ void output_stage4(std::string fname, int cycle) {
 		DBAddOption(optlist, DBOPT_TOPO_DIM, &three);
 		DBAddOption(optlist, DBOPT_MB_BLOCK_TYPE, &mesh_type);
 		printf("Writing %i total sub-grids\n", n_total_domains);
-		DBPutMultimesh(db, "quadmesh", n_total_domains, mesh_names.data(), nullptr, optlist);
+        silo_restart::check(DBPutMultimesh(db, "quadmesh", n_total_domains,
+            mesh_names.data(), nullptr, optlist), "unable to write checkpoint mesh index");
 		DBFreeOptlist(optlist);
 		char mmesh[] = "quadmesh";
 		for (int f = 0; f < nfields; f++) {
@@ -419,13 +454,17 @@ void output_stage4(std::string fname, int cycle) {
 		gethostname(hostname, HOST_NAME_LEN);
 		DBWrite(db, "hostname", hostname, &HOST_NAME_LEN, 1, DB_CHAR);
 		int nnodes = node_list_.all.size();
-		DBWrite(db, "node_list", node_list_.all.data(), &nnodes, 1, DB_LONG_LONG);
-		DBWrite(db, "node_positions", node_list_.positions.data(), &nnodes, 1, db_type<integer>::d);
-		int nspc = opts().n_species;
-		DBWrite(db, "X", opts().X.data(), &nspc, 1, db_type<real>::d);
-		DBWrite(db, "Z", opts().Z.data(), &nspc, 1, db_type<real>::d);
-		DBWrite(db, "atomic_mass", opts().atomic_mass.data(), &nspc, 1, db_type<real>::d);
-		DBWrite(db, "atomic_number", opts().atomic_number.data(), &nspc, 1, db_type<real>::d);
+        silo_restart::check(DBWrite(db, "node_list", node_list_.all.data(), &nnodes, 1, DB_LONG_LONG),
+            "unable to write node_list");
+        silo_restart::write_array(db, "node_positions", node_list_.positions);
+        if (write_exact_restart) {
+            silo_restart::write_metadata(db, restart_metadata);
+            silo_restart::write_array(db, "restart_groups", node_list_.restart_groups);
+        }
+        silo_restart::write_array(db, "X", opts().X);
+        silo_restart::write_array(db, "Z", opts().Z);
+        silo_restart::write_array(db, "atomic_mass", opts().atomic_mass);
+        silo_restart::write_array(db, "atomic_number", opts().atomic_number);
 		fi(db, "node_count", integer(nnodes));
 		fi(db, "leaf_count", integer(node_list_.silo_leaves.size()));
 		write_silo_var<integer>()(db, "timestamp", timestamp);
@@ -538,7 +577,7 @@ void output_stage4(std::string fname, int cycle) {
 //				fprintf( fp, "%e %e\n", physcon().mh, opts().code_to_g);
 //				fclose(fp);
 		DBPutDefvars(db, "expressions", types.size(), names.data(), types.data(), defs.data(), nullptr);
-		DBClose(db);
+        silo_restart::check(DBClose(db), "unable to close Silo master file");
 		for (auto ptr : mesh_names) {
 			delete[] ptr;
 		}
@@ -583,7 +622,9 @@ void output_all(node_server *root_ptr, std::string fname, int cycle, bool block)
 	for (auto &id : localities) {
 		futs1.push_back(hpx::async<output_stage1_action>(hpx::launch::async_policy(hpx::threads::thread_priority::boost), id, fname, cycle));
 	}
-	GET(hpx::when_all(futs1));
+    for (auto& future : futs1) {
+        future.get();
+    }
 
 	std::vector<hpx::future<node_list_t>> id_futs;
 	for (auto &id : localities) {
@@ -593,6 +634,8 @@ void output_all(node_server *root_ptr, std::string fname, int cycle, bool block)
 	node_list_.group_num.clear();
 	node_list_.all.clear();
 	node_list_.positions.clear();
+    node_list_.restart_groups.clear();
+	node_list_.zone_count.clear();
 	node_list_.extents.clear();
 	int id = 0;
 	for (auto &f : id_futs) {
@@ -605,6 +648,7 @@ void output_all(node_server *root_ptr, std::string fname, int cycle, bool block)
 		}
 		node_list_.silo_leaves.insert(node_list_.silo_leaves.end(), this_list.silo_leaves.begin(), this_list.silo_leaves.end());
 		node_list_.all.insert(node_list_.all.end(), this_list.all.begin(), this_list.all.end());
+        node_list_.restart_groups.insert(node_list_.restart_groups.end(), this_list.all.size(), gn);
 		node_list_.positions.insert(node_list_.positions.end(), this_list.positions.begin(), this_list.positions.end());
 		node_list_.zone_count.insert(node_list_.zone_count.end(), this_list.zone_count.begin(), this_list.zone_count.end());
 		const int nfields = grid::get_field_names().size();

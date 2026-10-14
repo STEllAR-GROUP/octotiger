@@ -35,6 +35,56 @@ OCTOTIGER_EXPORT std::vector<real> advection_test_analytic(real x, real y, real 
 	return U;
 }
 
+namespace {
+
+// Compact C3 bump with an elementary primitive, so initialization and the
+// validation reference use exact finite-volume averages rather than samples.
+real amr_advection_bump_primitive(real s) {
+    s = std::max(real(-1.0), std::min(real(1.0), s));
+    const real s2 = s * s;
+    return s * (1.0 + s2 * (-4.0 / 3.0 + s2 * (6.0 / 5.0
+        + s2 * (-4.0 / 7.0 + s2 / 9.0))));
+}
+
+real amr_advection_bump_average(real coordinate, real center, real dx) {
+    constexpr real radius = 0.25;
+    if (dx > 0.0) {
+        return radius / dx * (amr_advection_bump_primitive((coordinate + dx / 2.0 - center) / radius)
+            - amr_advection_bump_primitive((coordinate - dx / 2.0 - center) / radius));
+    }
+    const real s = (coordinate - center) / radius;
+    const real value = std::max(real(0.0), 1.0 - s * s);
+    return value * value * value * value;
+}
+
+std::vector<real> amr_advection_state(real x, real y, real z, real t, real dx) {
+    std::vector<real> state(opts().n_fields, 0.0);
+    const real density = 1.0 + 0.2 * amr_advection_bump_average(x, -0.4 + t, dx)
+        * amr_advection_bump_average(y, 0.0, dx) * amr_advection_bump_average(z, 0.0, dx);
+    const real thermal = 0.01 / (grid::get_fgamma() - 1.0);
+    state[rho_i] = density;
+    state[spc_i] = density;
+    state[sx_i] = density; // Unit translation speed; the exact pressure is constant.
+    state[egas_i] = thermal + 0.5 * density;
+    state[tau_i] = std::pow(thermal, 1.0 / grid::get_fgamma());
+    return state;
+}
+
+} // namespace
+
+std::vector<real> amr_advection_init(real x, real y, real z, real dx) {
+    return amr_advection_state(x, y, z, 0.0, dx);
+}
+
+std::vector<real> amr_advection_analytic(real x, real y, real z, real t) {
+    return amr_advection_state(x, y, z, t, 0.0);
+}
+
+bool refine_amr_advection(integer level, integer max_level, real, real, real,
+        std::vector<real> const& state, std::array<std::vector<real>, NDIM> const&) {
+    return level < max_level && state[rho_i] > opts().refinement_floor;
+}
+
 std::vector<real> sod_shock_tube_init(real x, real y, real z, real dx) {
 	return sod_shock_tube_analytic(x,y,z,-dx);
 }

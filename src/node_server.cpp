@@ -25,6 +25,10 @@
 
 #include <array>
 #include <fstream>
+#include <cmath>
+#include <stdexcept>
+#include <hpx/serialization/input_archive.hpp>
+#include <hpx/serialization/output_archive.hpp>
 #include <iostream>
 #include <streambuf>
 #include <sys/stat.h>
@@ -153,9 +157,9 @@ future<void> node_server::exchange_flux_corrections() {
 	}, "node_server::exchange_flux_corrections::sync"));
 }
 
-void node_server::all_hydro_bounds(real boundary_time) {
+void node_server::all_hydro_bounds(real boundary_time, bool include_ssp_history) {
 	hydro_boundary_time = boundary_time < 0 ? current_time : boundary_time;
-	exchange_interlevel_hydro_data(); // bottom up step
+	exchange_interlevel_hydro_data(include_ssp_history); // bottom up step
 	collect_hydro_boundaries(); // interlevel step
 	send_hydro_amr_boundaries(); // up-down step
 	++hcycle;
@@ -169,12 +173,29 @@ void node_server::energy_hydro_bounds() {
 	++hcycle;
 }
 
-void node_server::exchange_interlevel_hydro_data() {
+void node_server::exchange_interlevel_hydro_data(bool include_ssp_history) {
   hpx::annotated_function([&]() {
     if (is_refined) {
       std::vector<real> outflow(opts().n_fields, ZERO);
+      bool first_history = true, have_history = false;
+      if (include_ssp_history) {
+          grid_ptr->ssp_previous_out.assign(opts().n_fields, ZERO);
+          grid_ptr->ssp_previous_out_rhs.assign(opts().n_fields, ZERO);
+      }
       for (auto const &ci : geo::octant::full_set()) {
         auto data = GET(child_hydro_channels[ci].get_future(hcycle));
+        if (include_ssp_history) {
+            const size_t marker = size_t(opts().n_fields) * INX * INX * INX / NCHILD;
+            if (data.size() <= marker || (data[marker] != ZERO && data[marker] != ONE)) {
+                throw std::runtime_error("Invalid restricted SSP history marker");
+            }
+            const bool child_history = data[marker] == ONE;
+            if (!first_history && child_history != have_history) {
+                throw std::runtime_error("Inconsistent SSP histories among siblings");
+            }
+            first_history = false;
+            have_history = child_history;
+        }
         grid_ptr->set_restrict(data, ci);
         integer fi = 0;
         for (auto i = data.end() - opts().n_fields; i != data.end(); ++i) {
@@ -184,7 +205,7 @@ void node_server::exchange_interlevel_hydro_data() {
       }
       grid_ptr->set_outflows(std::move(outflow));
     }
-    auto data = grid_ptr->get_restrict();
+    auto data = grid_ptr->get_restrict(include_ssp_history);
     integer ci = my_location.get_child_index();
     if (my_location.level() != 0) {
       parent.send_hydro_children(std::move(data), ci, hcycle);
@@ -512,6 +533,8 @@ void node_server::initialize(real t, real rt) {
 	}
 	gcycle = hcycle = rcycle = 0;
 	step_num = 0;
+    position = 0;
+    child_descendant_count.fill(0);
 	refinement_flag = 0;
 	static_initialize();
 	is_refined = false;
@@ -578,10 +601,12 @@ node_server::node_server(const node_location &loc, const node_client &parent_id,
 
 node_server::node_server(const node_location &_my_location, integer _step_num, bool _is_refined, real _current_time, real _rotational_time,
 		const std::array<integer, NCHILD> &_child_d, grid _grid, const std::vector<hpx::id_type> &_c, std::size_t _hcycle, std::size_t _rcycle,
-		std::size_t _gcycle, integer position_) {
+		std::size_t _gcycle, integer position_, real previous_dt, real previous_fe_dt) {
 	my_location = _my_location;
 	initialize(_current_time, _rotational_time);
 	position = position_;
+    ssp_previous_dt = previous_dt;
+    ssp_previous_fe_dt = previous_fe_dt;
 	hcycle = _hcycle;
 	gcycle = _gcycle;
 	rcycle = _rcycle;
@@ -599,6 +624,89 @@ node_server::node_server(const node_location &_my_location, integer _step_num, b
 		std::copy(_c.begin(), _c.end(), children.begin());
 	}
 	child_descendant_count = _child_d;
+}
+
+
+// These archives contain completed-step physical state only. Communication
+// epochs and promises are rebuilt uniformly on restart; scratch RHS/stage
+// buffers are overwritten before use. No code-unit conversion is performed.
+std::vector<char> node_server::save_checkpoint() const {
+    std::vector<char> data;
+    hpx::serialization::output_archive archive(data);
+    const integer schema = 2;
+    const integer cells = INX;
+    const integer fields = opts().n_fields;
+    const bool refined = is_refined;
+    const auto location = my_location.to_id();
+    archive << schema << cells << fields << location;
+    archive << step_num << current_time << rotational_time << refined;
+    archive << ssp_previous_dt << ssp_previous_fe_dt;
+    archive << *grid_ptr;
+    return data;
+}
+
+void node_server::load_checkpoint(const std::vector<char>& data) {
+    hpx::serialization::input_archive archive(data, data.size());
+    integer schema = 0, cells = 0, fields = 0;
+    node_location::node_id location = 0;
+    bool refined = false;
+    archive >> schema >> cells >> fields >> location;
+    if ((schema != 1 && schema != 2) || cells != INX || fields != opts().n_fields
+            || location != my_location.to_id()) {
+        throw std::runtime_error("Incompatible exact checkpoint node layout");
+    }
+    archive >> step_num >> current_time >> rotational_time >> refined;
+    archive >> ssp_previous_dt >> ssp_previous_fe_dt;
+    if (schema == 1 && step_num > 0 && step_num % refinement_freq() == 0) {
+        throw std::runtime_error("Format-1 checkpoint at a regrid boundary may lack AMR history; "
+            "restart from an inside-batch checkpoint or use the original executable");
+    }
+    archive >> *grid_ptr;
+    if (archive.bytes_read() != data.size() || step_num < 0
+            || !std::isfinite(current_time) || !std::isfinite(rotational_time)
+            || !(ssp_previous_dt >= 0.0) || !std::isfinite(ssp_previous_dt)
+            || !(ssp_previous_fe_dt >= 0.0) || !std::isfinite(ssp_previous_fe_dt)) {
+        throw std::runtime_error("Invalid exact checkpoint node state");
+    }
+    const auto field_shape = [fields](const auto& values, size_t cells) {
+        if (values.size() != static_cast<size_t>(fields)) {
+            return false;
+        }
+        for (const auto& field : values) {
+            if (field.size() != cells) {
+                return false;
+            }
+        }
+        return true;
+    };
+    if (!field_shape(grid_ptr->U, H_N3)
+            || grid_ptr->U_out.size() != static_cast<size_t>(fields)
+            || grid_ptr->is_leaf == refined
+            || grid_ptr->is_root != (my_location.level() == 0)) {
+        throw std::runtime_error("Invalid exact checkpoint grid shape");
+    }
+    if (!refined && ssp_previous_dt > 0.0) {
+        if (!field_shape(grid_ptr->ssp_previous_u, INX * INX * INX)
+                || !field_shape(grid_ptr->ssp_previous_rhs, INX * INX * INX)
+                || grid_ptr->ssp_previous_out.size() != static_cast<size_t>(fields)
+                || grid_ptr->ssp_previous_out_rhs.size() != static_cast<size_t>(fields)
+                || !(ssp_previous_fe_dt > 0.0)) {
+            throw std::runtime_error("Missing exact checkpoint multistep history");
+        }
+    }
+    if (opts().gravity
+            && (!grid_ptr->com_ptr[0] || !grid_ptr->com_ptr[1]
+                || !grid_ptr->M_ptr || !grid_ptr->mon_ptr
+                || grid_ptr->M_ptr->size() != (refined ? G_N3 : 0)
+                || grid_ptr->mon_ptr->size() != (refined ? 0 : G_N3))) {
+        throw std::runtime_error("Missing or invalid exact checkpoint gravity state");
+    }
+    is_refined = refined;
+    dx = grid_ptr->dx;
+    xmin = grid_ptr->xmin;
+    // All nodes have fresh channels after checkpoint reconstruction.
+    hcycle = gcycle = rcycle = 0;
+    exact_checkpoint_restored = true;
 }
 
 void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly) {

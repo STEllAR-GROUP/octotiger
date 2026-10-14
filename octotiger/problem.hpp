@@ -29,6 +29,10 @@ OCTOTIGER_EXPORT std::vector<real> blast_wave_analytic(
 #endif
 OCTOTIGER_EXPORT std::vector<real> advection_test_init(real,real,real,real);
 OCTOTIGER_EXPORT std::vector<real> advection_test_analytic(real,real,real,real);
+OCTOTIGER_EXPORT std::vector<real> amr_advection_init(real, real, real, real);
+OCTOTIGER_EXPORT std::vector<real> amr_advection_analytic(real, real, real, real);
+OCTOTIGER_EXPORT bool refine_amr_advection(integer, integer, real, real, real,
+    std::vector<real> const&, std::array<std::vector<real>, NDIM> const&);
 
 OCTOTIGER_EXPORT std::vector<real> sod_shock_tube_init(real, real, real, real);
 OCTOTIGER_EXPORT std::vector<real> sod_shock_tube_analytic(

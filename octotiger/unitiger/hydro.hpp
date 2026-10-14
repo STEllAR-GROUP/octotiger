@@ -19,6 +19,8 @@ using std::async;
 using std::launch;
 #endif
 
+#include <limits>
+
 #include "octotiger/unitiger/cell_geometry.hpp"
 #include "octotiger/unitiger/util.hpp"
 

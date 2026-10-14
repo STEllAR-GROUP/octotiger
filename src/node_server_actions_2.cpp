@@ -57,7 +57,7 @@ void node_server::check_for_refinement(real omega, real new_floor) {
 		}
 	}
 	if (opts().hydro || opts().problem == AMR_TEST || opts().gradient_refine_field == "density") {
-		all_hydro_bounds();
+		all_hydro_bounds(-1, opts().time_integrator == SSP_MULTISTEP);
 	}
 	if (opts().gradient_refine_field == "radiation_energy") {
 		// Refresh restricted parent values and all ghost stencils before tagging.
@@ -138,7 +138,8 @@ future<hpx::id_type> node_server::copy_to_locality(const hpx::id_type &id) {
 		}
 	}
 	auto rc = hpx::new_<node_server>(id, my_location, step_num, bool(is_refined), current_time, rotational_time, child_descendant_count, std::move(*grid_ptr),
-			cids, std::size_t(hcycle), std::size_t(rcycle), std::size_t(gcycle), position);
+			cids, std::size_t(hcycle), std::size_t(rcycle), std::size_t(gcycle), position,
+            ssp_previous_dt, ssp_previous_fe_dt);
 	clear_family();
 	parent = hpx::invalid_id;
 	std::fill(neighbors.begin(), neighbors.end(), hpx::invalid_id);

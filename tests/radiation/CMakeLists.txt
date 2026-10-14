@@ -78,6 +78,11 @@ endif()
 
 if(TARGET octotiger AND OCTOTIGER_WITH_RADIATION)
   if(OCTOTIGER_WITH_GRIDDIM EQUAL 8)
+    add_test(NAME radiation.ssp_disabled
+      COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_ssp_disabled.py"
+        --executable $<TARGET_FILE:octotiger> --silo-library "${Silo_LIBRARY}")
+    set_tests_properties(radiation.ssp_disabled PROPERTIES
+      LABELS "radiation;ssp_multistep;application;restart" TIMEOUT 1200 PROCESSORS 1 RUN_SERIAL TRUE)
     add_test(NAME radiation.fld.application
       COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_fld_application.py"
         --executable $<TARGET_FILE:octotiger> --silo-library "${Silo_LIBRARY}" --threads 2)

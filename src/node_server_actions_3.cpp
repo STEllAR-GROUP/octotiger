@@ -31,6 +31,7 @@
 #include <filesystem>
 #include <fstream>
 #include <limits>
+#include <cmath>
 #include <stdexcept>
 
 #if !defined(HPX_COMPUTE_DEVICE_CODE)
@@ -349,12 +350,14 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 	}
 	if (!opts().output_filename.empty()) {
 		diagnostics();
-		solve_gravity(false, false);
+        if (!has_exact_checkpoint()) {
+            solve_gravity(false, false);
+        }
 		output_all(this, opts().output_filename, output_cnt, false);
 		return;
 	}
 
-	if (opts().stop_step != 0) {
+	if (opts().stop_step != 0 && !has_exact_checkpoint()) {
 		printf("Solving gravity\n");
 		solve_gravity(false, false);
 		ngrids = regrid(me.get_gid(), grid::get_omega(), -1, false);
@@ -497,7 +500,13 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 		}
 
 		real dt = 0;
-		integer next_step = (std::min)(step_num + refinement_freq(), opts().stop_step + 1);
+        // Keep the stop-step counter relative to this invocation, but resume
+        // SSP batches at their saved absolute phase after a checkpoint.
+        const integer batch_phase = (opts().time_integrator == SSP_MULTISTEP
+            ? this->step_num : step_num) % refinement_freq();
+        const integer batch_steps = opts().time_integrator == SSP_MULTISTEP
+            ? refinement_freq() - batch_phase : refinement_freq();
+		integer next_step = (std::min)(step_num + batch_steps, opts().stop_step + 1);
         if (opts().radiation && (!opts().hydro || opts().radiation_model == "fld") && !opts().disable_output) {
             // Check output after each radiation-only or FLD step so a refinement
             // batch cannot delay a requested snapshot. Timestep limits and the
@@ -518,7 +527,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
         }
 		real omega_dot = 0.0, omega = 0.0, theta = 0.0, theta_dot = 0.0;
 
-		if ((opts().problem == DWD) && (step_num % refinement_freq() == 0)) {
+		if ((opts().problem == DWD) && (batch_phase == 0)) {
 			printf("dwd step...\n");
 			auto dt = GET(step(next_step - step_num));
 			if (!opts().disable_diagnostics) {
@@ -580,7 +589,8 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 
 		step_num = next_step;
 
-		if (step_num % refinement_freq() == 0) {
+		if ((opts().time_integrator == SSP_MULTISTEP ? this->step_num : step_num)
+                % refinement_freq() == 0) {
 			real new_floor = opts().refinement_floor;
 			if (opts().ngrids > 0) {
 				new_floor *= std::pow(real(ngrids.total) / real(opts().ngrids), 2);
@@ -824,6 +834,106 @@ future<void> node_server::nonrefined_step() {
 	);
 }
 
+void node_server::select_ssp_timestep(timestep_t& timestep) const {
+    if (opts().time_integrator != SSP_MULTISTEP || opts().radiation) {
+        return;
+    }
+    timestep.use_ssp_multistep = false;
+    const real selected = ssp_multistep::select_step(ssp_previous_dt,
+        timestep.dt, timestep.fe_dt, ssp_previous_fe_dt);
+    if (selected > 0.0) {
+        timestep.dt = selected;
+        timestep.use_ssp_multistep = true;
+    }
+}
+
+void node_server::multistep_step() {
+    if (opts().radiation) {
+        throw std::runtime_error("SSP_MULTISTEP does not support radiation");
+    }
+    timings::scope ts(timings_, timings::time_computation);
+    all_hydro_bounds();
+    auto dt_fut = global_timestep_channel.get_future();
+    timestep_t proposed{};
+    proposed.dt = std::numeric_limits<real>::max();
+    if (!is_refined) {
+        grid_ptr->store();
+        proposed = grid_ptr->compute_fluxes();
+        exchange_flux_corrections().get();
+        const real dx = TWO * grid::get_scaling_factor() / real(INX << my_location.level());
+        proposed.fe_dt = opts().cfl * dx / proposed.a;
+        proposed.dt = proposed.fe_dt;
+        if (opts().hard_dt > 0.0) {
+            proposed.dt = std::min(proposed.dt, opts().hard_dt);
+        }
+        if (opts().stop_time > 0.0) {
+            const real remaining = (opts().stop_time - current_time)
+                / (refinement_freq() - (step_num % refinement_freq()));
+            proposed.dt = std::min(proposed.dt, remaining);
+        }
+    }
+    local_timestep_channels[NCHILD].set_value(proposed);
+    dt_ = GET(dt_fut);
+    if (!(dt_.dt > 0.0) || !std::isfinite(dt_.dt)) {
+        throw std::runtime_error("SSP_MULTISTEP requires a finite positive timestep");
+    }
+
+    if (dt_.use_ssp_multistep && !is_refined && !grid_ptr->has_ssp_history()) {
+        throw std::runtime_error("Globally selected SSP step has missing leaf history");
+    }
+    ssp_multistep::coefficients coefficients{};
+    if (dt_.use_ssp_multistep
+            && !ssp_multistep::make_step_coefficients(ssp_previous_dt, dt_.dt, coefficients)) {
+        throw std::runtime_error("Invalid globally selected SSP_MULTISTEP coefficients");
+    }
+    const integer stages = dt_.use_ssp_multistep ? 2 : NRK;
+    for (integer stage = 0; stage < stages; ++stage) {
+        if (!is_refined) {
+            if (stage != 0) {
+                grid_ptr->compute_fluxes();
+                exchange_flux_corrections().get();
+            }
+            real abscissa = 0.0;
+            if (dt_.use_ssp_multistep && stage == 1) {
+                abscissa = ssp_multistep::stage_abscissa(coefficients);
+            } else if (!dt_.use_ssp_multistep) {
+                constexpr real rk_time[] = {0.0, 1.0, 0.5};
+                abscissa = rk_time[stage];
+            }
+            const real offset = abscissa * dt_.dt;
+            const real rotation_rate = grid::get_omega() != 0.0 ? grid::get_omega() : 1.0;
+            grid_ptr->compute_sources(current_time + offset, rotational_time + rotation_rate * offset);
+            grid_ptr->compute_dudt();
+        }
+        // Both leaves and internal nodes must take the same sequence of FMM
+        // and boundary exchanges, including when the whole tree bootstraps.
+        compute_fmm(DRHODT, false);
+        if (!is_refined) {
+            if (!opts().gravity && opts().optimize_local_communication) {
+                all_neighbors_got_hydro[(hcycle - 1) % number_hydro_exchange_promises].get();
+            }
+            grid_ptr->next_u(stage, current_time, dt_.dt,
+                dt_.use_ssp_multistep ? &coefficients : nullptr, true);
+        }
+        compute_fmm(RHO, true);
+        if (stage == stages - 1) {
+            energy_hydro_bounds();
+        } else {
+            all_hydro_bounds();
+        }
+    }
+    if (!is_refined) {
+        grid_ptr->finish_ssp_step();
+    }
+    if (my_location.level() == 0) {
+        printf("SSP_MULTISTEP stages=%i alpha=%e\n", int(stages),
+            ssp_previous_dt > 0.0 ? ssp_previous_dt / dt_.dt : 0.0);
+    }
+    ssp_previous_dt = dt_.dt;
+    ssp_previous_fe_dt = dt_.fe_dt;
+    update();
+}
+
 void node_server::update() {
 	grid_ptr->dual_energy_update();
 	current_time += dt_.dt;
@@ -868,6 +978,8 @@ future<real> node_server::local_step(integer steps) {
         if (opts().radiation && opts().radiation_model == "fld") {
           // FLD selects a shared accuracy timestep without the M1 streaming bound.
           radiation_fld_step(steps - i);
+        } else if (opts().time_integrator == SSP_MULTISTEP) {
+          multistep_step();
         } else if (is_refined) {
           refined_step();
         } else {
@@ -925,6 +1037,7 @@ future<real> node_server::local_step(integer steps) {
 }
 
 future<real> node_server::step(integer steps) {
+    // Regridding transfers completed history, including at batch boundaries.
 	grid_ptr->set_coordinates();
 
 	std::array<future<void>, NCHILD> child_futs;
@@ -990,13 +1103,17 @@ future<void> node_server::timestep_driver_descend() {
 			auto dts = hpx::unwrap(dts_fut);
 			timestep_t dt;
 			dt.dt = 1.0e+99;
+            real fe_dt = std::numeric_limits<real>::max();
 			for (const auto &this_dt : dts) {
+                fe_dt = std::min(fe_dt, this_dt.fe_dt);
 				if (this_dt.dt < dt.dt) {
 					dt = this_dt;
 				}
 			}
+            dt.fe_dt = fe_dt;
 
 			if (my_location.level() == 0) {
+                select_ssp_timestep(dt);
 				timestep_driver_ascend(dt);
 			} else {
 				parent.set_local_timestep(my_location.get_child_index(), dt);
@@ -1007,9 +1124,12 @@ future<void> node_server::timestep_driver_descend() {
 	} else {
 		return local_timestep_channels[NCHILD].get_future().then(hpx::launch::sync, hpx::annotated_function([this](future<timestep_t> &&f) {
 			timestep_t dt = GET(f);
-            // A level-zero leaf has no parent to return its timestep to.
-            if (my_location.level() == 0) timestep_driver_ascend(dt);
-            else parent.set_local_timestep(my_location.get_child_index(), dt);
+            if (my_location.level() == 0) {
+                select_ssp_timestep(dt);
+                timestep_driver_ascend(dt);
+            } else {
+			    parent.set_local_timestep(my_location.get_child_index(), dt);
+            }
 			return;
 		}, "timestep_driver_descend::set_local_timestep")
 		);

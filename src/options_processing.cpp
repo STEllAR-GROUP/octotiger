@@ -65,6 +65,7 @@ bool options::process_options(int argc, char *argv[]) {
 	("help", "produce help message")("xscale", po::value<real>(&(opts().xscale))->default_value(1.0), "grid scale")           //
 	("dt_max", po::value<real>(&(opts().dt_max))->default_value(0.333333), "max allowed pct change for positive fields in a timestep")           //
 	("cfl", po::value<real>(&(opts().cfl))->default_value(0.4), "cfl factor")           //
+	("time_integrator", po::value<time_integrator_type>(&(opts().time_integrator))->default_value(RK3, "RK3"), "time integrator for hydro and coupled gravity: RK3 or SSP_MULTISTEP") //
 	("omega", po::value<real>(&(opts().omega))->default_value(0.0), "(initial) angular frequency")                          //
 	("v1309", po::value<bool>(&(opts().v1309))->default_value(false), "V1309 subproblem of DWD")                   //
 	("idle_rates", po::value<bool>(&(opts().idle_rates))->default_value(false), "show idle rates and locality info in SILO")                 //
@@ -279,8 +280,14 @@ bool options::process_options(int argc, char *argv[]) {
 		} else {
 			fclose(fp);
 		}
-		load_options_from_silo(opts().restart_filename);
+		load_options_from_silo(opts().restart_filename, nullptr, vm["time_integrator"].defaulted());
 	}
+    // Saved physics determines the effective radiation flag on restart. Keep
+    // its existing radiation integrator and use the ordinary hydro RK3 path.
+    if (opts().radiation && opts().time_integrator == SSP_MULTISTEP) {
+        std::cerr << "WARNING: SSP_MULTISTEP is disabled when radiation is enabled; using RK3\n";
+        opts().time_integrator = RK3;
+    }
 	validateReducedRadiationSpeed();
 	opts().validateGradientRefinement();
 	if (opts().radiation_model != "m1" && opts().radiation_model != "fld") {
@@ -469,6 +476,7 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(stop_step);
 		SHOW(stop_time);
 		SHOW(theta);
+		SHOW(time_integrator);
 		SHOW(unigrid);
 		SHOW(v1309);
 		SHOW(idle_rates);
