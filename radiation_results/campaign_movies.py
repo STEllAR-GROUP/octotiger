@@ -790,7 +790,8 @@ def write_visit_job(metadata: dict, files: list[Path], diagnostics: Path,
     Production publication always goes through render_one's completed-run checks.
     """
     contract = model_contract(metadata)
-    if contract["radiation_model"] == "fld" and coupled:
+    if (contract["radiation_model"] == "fld" and coupled and
+            contract["radiation_algorithm_version"] != 2):
         raise ValueError("Stationary FLD movies cannot display a coupled gas-velocity panel")
     diagnostics.mkdir(parents=True, exist_ok=True)
     units = metadata.get("units", {})

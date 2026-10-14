@@ -320,6 +320,45 @@ class MovieInputTests(unittest.TestCase):
             self.assertTrue(full_request["profile_full_domain"])
             ast.parse((folder/"full/render.py").read_text())
 
+    def test_moving_fld_job_generation_preserves_coupled_panels_and_lab_flux(self):
+        with tempfile.TemporaryDirectory() as directory:
+            folder = Path(directory)
+            visit = folder / "bin/visit"
+            visit.parent.mkdir()
+            visit.touch()
+            palette = folder / "3.4.2/linux-x86_64/resources/colortables/viridis.ct"
+            palette.parent.mkdir(parents=True)
+            palette.write_text('<Object name="ColorTable">'
+                               '<Object name="ColorControlPoint"><Field name="position">0</Field>'
+                               '<Field name="colors">68 1 84 255</Field></Object>'
+                               '<Object name="ColorControlPoint"><Field name="position">1</Field>'
+                               '<Field name="colors">253 231 37 255</Field></Object></Object>')
+            args = argparse.Namespace(width=900, height=800, vectors=144, arrow_stride=0,
+                                      visit=str(visit), full_domain=True)
+            for case in movies.COUPLED:
+                with self.subTest(case=case):
+                    metadata = dict(self.model_metadata(), case=case, radiation_algorithm_version=2,
+                        radiation_flux_semantics="derived_fld_lab_flux", radiation_frame="mixed",
+                        radiation_hydro_scheme="first_order_conservative", reference_kind="unavailable",
+                        reference_model="none", reference_exact_for_solver=False, reference_sampling="none",
+                        dx=1/32, length=1, time=1,
+                        units={"system": "CGS", "energy_density": "erg/cm^3", "length": "cm", "time": "s"})
+                    request = movies.write_visit_job(metadata, [folder/"X.0.silo", folder/"final.silo"],
+                        folder/case, args, "moving FLD source-only test", coupled=True)
+                    self.assertTrue(request["coupled"])
+                    self.assertEqual(request["temperature_profile"], case in movies.SHOCKS)
+                    self.assertEqual(request["radiation_algorithm_version"], 2)
+                    self.assertEqual(request["radiation_flux_semantics"], "derived_fld_lab_flux")
+                    self.assertEqual(request["flux_label"], "Derived lab-frame FLD flux")
+                    self.assertEqual(request["radiation_frame"], "mixed")
+                    self.assertEqual(request["time_units"], "s")
+                    ast.parse((folder/case/"render.py").read_text())
+                    self.assertFalse((folder/case/"movie.mp4").exists())
+            with self.assertRaisesRegex(ValueError, "Stationary FLD"):
+                movies.write_visit_job(self.model_metadata(), [], folder/"invalid", args,
+                                       "invalid stationary coupled panel", coupled=True)
+            self.assertFalse((folder/"invalid").exists())
+
 
 if __name__ == "__main__":
     unittest.main()
