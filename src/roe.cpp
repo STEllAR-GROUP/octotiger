@@ -29,8 +29,9 @@ real ztwd_sound_speed(real d, real ei) {
 	x = pow(d / B, 1.0 / 3.0);
 	dp_drho = ((8.0 * A) / (3.0 * B)) * sqr(x) / sqrt(sqr(x) + 1.0) + (fgamma - 1.0) * ei / d;
 	dp_depsilon = (fgamma - 1.0) * d;
-	const real p = ztwd_pressure(d) + (fgamma - 1.0) * ei;
-	cs2 = std::max((p / sqr(d)) * dp_depsilon + dp_drho, real(0));
+	const real pthermal = (fgamma - 1.0) * ei;
+	// The cold pressure derivative is already included in dp_drho.
+	cs2 = std::max((pthermal / sqr(d)) * dp_depsilon + dp_drho, real(0));
 	return sqrt(cs2);
 }
 
