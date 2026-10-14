@@ -51,6 +51,8 @@ binaries and shared libraries; checks all generated configurations with
 `--dry-run`; and checks executable startup with `--help`. It does **not** start
 any problem simulation. The HPX versioned library and `libhpx.so` alias refer
 to the same saved file.
+The kernel still loads the host ELF interpreter; its hash is pinned and checked
+before execution, so a changed system loader requires preparing a new campaign.
 
 The default [local-study.json](local-study.json) pilot has eight sequential runs:
 Gaussian and Marshak, levels 0 and 1, both models, two CPU workers, three

@@ -163,11 +163,21 @@ def snapshot(root, manifest):
     manifest['executable_sha256'] = file_hash(runtime / 'octotiger')
     manifest['snapshot_sha256'] = {str(p.relative_to(root)): file_hash(p)
                                    for p in sorted(frozen.rglob('*')) if p.is_file()}
+    manifest['host_elf_interpreters'] = {}
     for binary in ('octotiger', 'radiation-results', 'gen_radiation_reference'):
         resolved = libraries(runtime / binary, environment(root))
         original_names = manifest['runtime_dependencies']
-        if any(p.name in original_names and p.parent.resolve() != runtime.resolve() for p in resolved):
-            raise ValueError(f'Frozen {binary} resolves outside its saved runtime')
+        for path in resolved:
+            if path.parent.resolve() == runtime.resolve():
+                continue
+            # The kernel resolves PT_INTERP before LD_LIBRARY_PATH applies.
+            # Preserve the executable bytes and pin this one host dependency.
+            if re.fullmatch(r'ld-(?:linux|musl)[\w.-]*\.so(?:\.\d+)*', path.name) and path.name in original_names:
+                digest = file_hash(path)
+                if digest == original_names[path.name]['sha256']:
+                    manifest['host_elf_interpreters'][str(path)] = digest
+                    continue
+            raise ValueError(f'Frozen {binary} resolves outside its saved runtime: {path}')
     for path in frozen.rglob('*'):
         if path.is_file() and not path.is_symlink():
             path.chmod(path.stat().st_mode & ~0o222)
@@ -184,6 +194,9 @@ def verify_snapshot(root, manifest):
         alias = root / '.campaign/runtime' / name
         if not alias.is_symlink() or os.readlink(alias) != target:
             raise ValueError('HPX runtime alias changed')
+    for path, digest in manifest.get('host_elf_interpreters', {}).items():
+        if file_hash(path) != digest:
+            raise ValueError('Host ELF interpreter changed; prepare a new campaign')
 
 
 def verify_orchestrator(root):

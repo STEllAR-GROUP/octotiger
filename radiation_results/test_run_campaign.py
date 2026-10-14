@@ -201,6 +201,19 @@ class CampaignSafety(unittest.TestCase):
             campaign.verify_orchestrator(self.root)
         launched.assert_not_called()
 
+    def test_host_interpreter_change_is_rejected_before_start(self):
+        self.prepare()
+        interpreter = self.root.parent / 'host-elf-loader'
+        interpreter.write_text('original loader')
+        manifest = campaign.load(self.root)
+        manifest['host_elf_interpreters'] = {str(interpreter): campaign.file_hash(interpreter)}
+        self.write_manifest(manifest)
+        campaign.verify_snapshot(self.root, manifest)
+        interpreter.write_text('upgraded loader')
+        with patch.object(campaign.subprocess, 'Popen') as launched, self.assertRaisesRegex(ValueError, 'ELF interpreter changed'):
+            self.main('--resume', str(self.root), '--start')
+        launched.assert_not_called()
+
     def test_supported_matrix_does_not_silently_substitute_m1_for_fld(self):
         args = campaign.parser().parse_args(['--output', str(self.root), '--dry-run', '--levels', '0',
             '--cases', *campaign.CASES])
