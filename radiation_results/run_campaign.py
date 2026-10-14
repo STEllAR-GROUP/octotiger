@@ -27,6 +27,14 @@ ROOT = Path(__file__).resolve().parent.parent
 CASES = ('streaming_wave', 'streaming_front', 'gaussian_pulse', 'equilibrium_sphere',
          'subcritical_shock', 'supercritical_shock', 'radiating_blast', 'marshak')
 PAIRED_CASES = ('gaussian_pulse', 'marshak')
+FLD_CASES = ('gaussian_pulse', 'equilibrium_sphere', 'marshak')
+FLD_UNAVAILABLE = {
+    'streaming_wave': 'Zero-opacity FLD iteration has not converged; transparent plateau treatment requires a solver extension',
+    'streaming_front': 'Zero-opacity FLD iteration has not converged; transparent plateau treatment requires a solver extension',
+    'subcritical_shock': 'Moving-gas radiation hydrodynamics is required; the current FLD solver is stationary',
+    'supercritical_shock': 'Moving-gas radiation hydrodynamics is required; the current FLD solver is stationary',
+    'radiating_blast': 'Moving-gas radiation hydrodynamics is required; the current FLD solver is stationary',
+}
 METHODS = ('m1', 'fld')
 INTEGRATORS = {'m1': 'euler', 'fld': 'backward_euler'}
 LABELS = {'m1': 'M1 RK1', 'fld': 'FLD backward Euler'}
@@ -91,14 +99,19 @@ def plan(args):
     for level in levels:
         for case in cases:
             for model in models:
-                if model == 'fld' and case not in PAIRED_CASES:
+                if model == 'fld' and case not in FLD_CASES:
                     unsupported.append({'case': case, 'level': level, 'model': model,
-                        'reason': 'The stationary FLD runtime does not support this problem'})
+                        'reason': FLD_UNAVAILABLE[case]})
                     continue
+                settings = args.case_settings.get(case, {})
+                stop_time = settings.get('stop_time', args.time)
+                hard_dt = settings.get('hard_dt', args.hard_dt)
+                if not all(math.isfinite(value) and value > 0 for value in (stop_time, hard_dt)) or hard_dt > stop_time:
+                    raise ValueError(f'Invalid time/timestep settings for {case}')
                 runs.append({'id': f'l{level}-{case}-{model}', 'case': case, 'level': level,
                     'method': model, 'model': model, 'integrator': INTEGRATORS[model], 'backend': 'cpu',
                     'directory': f'runs/l{level}/{case}/{model}', 'status': 'pending', 'attempts': [],
-                    'stop_time': args.time, 'hard_dt': args.hard_dt})
+                    'stop_time': stop_time, 'hard_dt': hard_dt})
     if not runs:
         raise ValueError('No supported model/problem combinations selected')
     return {'schema': SCHEMA, 'workflow': WORKFLOW, 'created_utc': now(), 'status': 'prepared',
@@ -107,7 +120,7 @@ def plan(args):
         'threads': args.threads, 'snapshots': args.snapshots, 'minimum_free_gib': args.minimum_free_gib,
         'memory_limit_gib': args.memory_limit_gib, 'original_build': str(args.build.resolve()),
         'original_results_build': str(args.results_build.resolve()), 'original_source': str(ROOT),
-        'scope': 'Initial stationary comparison; model discrepancies are not FLD error estimates. '
+        'scope': args.study_scope + ' Model discrepancies are not FLD error estimates. '
                  'FLD uses a serial root-gathered multigrid solve. No moving-gas or scaling claim.',
         'publication': {'status': 'local_only'}, 'require_comparisons': True}
 
@@ -138,7 +151,7 @@ def snapshot(root, manifest):
     for name in ('configs', 'cpp'):
         shutil.copytree(ROOT / 'radiation_results' / name, source / 'radiation_results' / name)
     for name in ('run_campaign.py', 'compare_campaign.py', 'campaign_movies.py', 'publish_campaign.py',
-                 'campaign_profile_plots.py', 'local-study.json'):
+                 'campaign_profile_plots.py', 'local-study.json', 'full-study.json'):
         shutil.copy2(ROOT / 'radiation_results' / name, frozen / name)
     build = Path(manifest['original_build']); results = Path(manifest['original_results_build'])
     shutil.copy2(build / 'CMakeCache.txt', runtime / 'CMakeCache.txt')
@@ -228,8 +241,8 @@ def render(root, manifest):
         title = f'<a href="{esc(url)}">{esc(label)}</a>' if (root / url).is_file() else esc(label)
         rows.append(f'<tr><td>{title}</td><td>{LABELS[run["model"]]}</td><td>{esc(run["status"])}</td>'
                     f'<td>{run["stop_time"]:g}</td><td>{run["hard_dt"]:g}</td></tr>')
-    unsupported = ''.join(f'<li>{esc(case)}: M1 RK1 only; unsupported by stationary FLD.</li>'
-                          for case in CASES if case not in PAIRED_CASES)
+    unsupported = ''.join(f'<li>{esc(case)}: {esc(FLD_UNAVAILABLE[case])}.</li>'
+                          for case in manifest['cases'] if case not in FLD_CASES)
     comparison = '<a href="comparisons/index.html">Model comparison plots</a>' if (root / 'comparisons/index.html').is_file() else 'Comparison plots will appear after matching runs complete.'
     atomic_text(root / 'index.html', f'''<!doctype html><html lang="en"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>M1 RK1 and FLD radiation tests</title>
@@ -237,8 +250,8 @@ def render(root, manifest):
 <h1>M1 RK1 and FLD</h1><p class="note">Status: {esc(manifest['status'])}. {esc(manifest['scope'])}</p>
 <p>M1 evolves radiation energy and flux using RK1 with radiation substeps. FLD solves energy and material heating together implicitly; its flux is a derived diagnostic. Cross-model differences are not truncation-error estimates.</p>
 <p>{comparison}</p><div class="scroll"><table><tr><th>Problem</th><th>Model / integrator</th><th>Status</th><th>Final time</th><th>Maximum timestep</th></tr>{''.join(rows)}</table></div>
-<p>Time is in seconds for the scaled Gaussian problem and normalized units for Marshak. FLD includes periodic Gaussian and Su–Olson analytic diffusion-limit references for energy and flux, plus Marshak material energy. These references are not exact nonlinear LP FLD solutions. Reference discrepancies remain separate from cross-model differences. The initial plan is a short implementation comparison, not a full-duration production qualification.</p>
-<h2>Supported scope</h2><p>Gaussian pulse and stationary Marshak heating support both models, with physical light speed on CPU.</p><ul>{unsupported}</ul>
+<p>Time is in seconds except for normalized Marshak time. Gaussian, equilibrium sphere and Marshak have analytic diffusion-limit references for FLD energy and flux; Marshak also has material energy. These are not exact nonlinear LP FLD solutions. Transparent streaming cases compare closures and conservation without claiming an analytic FLD profile. Reference discrepancies remain separate from cross-model differences. Prepared runs are not validation evidence.</p>
+<h2>Supported scope</h2><p>Gaussian, sphere and Marshak support both models with physical light speed on CPU. The other FLD combinations are excluded from execution for the reasons below; their M1 runs remain available:</p><ul>{unsupported}</ul>
 <p><a href="campaign.json">Plan and provenance</a> · <a href="commands.txt">Prepared commands</a></p>
 <p>Execution requires a separate explicit start. This workflow does not publish to a remote website.</p></main></html>''')
 
@@ -415,7 +428,7 @@ def execute(root, manifest, run_limit=None):
     return 0 if manifest['status'] in ('completed', 'ready') else 1
 
 
-def parser():
+def parser(arguments=None):
     p = argparse.ArgumentParser(description=__doc__)
     target = p.add_mutually_exclusive_group(required=True)
     target.add_argument('--output', type=Path); target.add_argument('--resume', type=Path)
@@ -424,7 +437,9 @@ def parser():
     action.add_argument('--start', action='store_true'); action.add_argument('--refresh-only', action='store_true')
     p.add_argument('--run-limit', type=int,
         help='With --resume --start, complete at most N new runs, then return ready without a STOP file')
-    p.add_argument('--levels', nargs='+', type=int, choices=(0, 1, 2), default=[0, 1])
+    p.add_argument('--preset', choices=('pilot', 'full'), default='pilot',
+        help='pilot: two short cases; full: all eight benchmarks at levels 2, 3 and 4')
+    p.add_argument('--levels', nargs='+', type=int, choices=range(6), default=[0, 1])
     p.add_argument('--cases', nargs='+', choices=CASES, default=list(PAIRED_CASES))
     p.add_argument('--models', nargs='+', choices=METHODS, default=list(METHODS))
     p.add_argument('--build', type=Path, default=ROOT / 'cmake-build-hpx2rc-radiation')
@@ -434,16 +449,25 @@ def parser():
     p.add_argument('--snapshots', type=int, default=3)
     p.add_argument('--time', type=float, default=.25); p.add_argument('--hard-dt', type=float, default=.03125)
     p.add_argument('--minimum-free-gib', type=float, default=10); p.add_argument('--memory-limit-gib', type=float, default=8)
-    preset = json.loads(Path(__file__).with_name('local-study.json').read_text())
+    selector = argparse.ArgumentParser(add_help=False)
+    selector.add_argument('--preset', choices=('pilot', 'full'), default='pilot')
+    selected, _ = selector.parse_known_args(arguments if arguments is not None else [])
+    preset_file = 'full-study.json' if selected.preset == 'full' else 'local-study.json'
+    preset = json.loads(Path(__file__).with_name(preset_file).read_text())
     if preset.get('schema') != SCHEMA or preset.get('workflow') != WORKFLOW or preset.get('radiation_reduced_c_factor') != 1:
-        raise ValueError('local-study.json must describe the physical-c M1/FLD workflow')
+        raise ValueError(f'{preset_file} must describe the physical-c M1/FLD workflow')
     p.set_defaults(**{key: preset[key] for key in ('cases', 'levels', 'threads', 'snapshots',
-        'hard_dt', 'minimum_free_gib', 'memory_limit_gib')}, time=preset['stop_time'], models=list(preset['models']))
+        'hard_dt', 'minimum_free_gib', 'memory_limit_gib')}, time=preset['stop_time'], models=list(preset['models']),
+        case_settings=preset.get('case_settings', {}), study_scope=preset['scope'])
     return p
 
 
 def main(argv=None):
-    arguments = list(sys.argv[1:] if argv is None else argv); p = parser(); args = p.parse_args(arguments)
+    arguments = list(sys.argv[1:] if argv is None else argv); p = parser(arguments); args = p.parse_args(arguments)
+    explicit = {argument.split('=')[0] for argument in arguments if argument.startswith('--')}
+    args.case_settings = {case: {key: value for key, value in settings.items()
+        if not ((key == 'stop_time' and '--time' in explicit) or (key == 'hard_dt' and '--hard-dt' in explicit))}
+        for case, settings in args.case_settings.items()}
     if args.start and not args.resume:
         p.error('--start requires an already prepared --resume directory')
     if args.resume and args.prepare:

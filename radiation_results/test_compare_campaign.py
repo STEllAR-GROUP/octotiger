@@ -114,7 +114,7 @@ class ComparisonTests(unittest.TestCase):
         self.assertFalse(row["methods"]["fld"]["reference_slice_errors"])
 
     def test_fld_analytic_errors_are_separate_from_m1_reference_and_model_discrepancy(self):
-        for case in ("gaussian_pulse", "marshak"):
+        for case in ("gaussian_pulse", "marshak", "equilibrium_sphere"):
             runs = [self.add_run("m1", case, offset=.25),
                     self.add_run("fld", case, offset=.125, fld_reference=True, reference_offset=.0625)]
             self.change_metadata(runs[1], norms={"er": {"L1": 999, "L2": 999, "Linf": 999}},
@@ -182,6 +182,31 @@ class ComparisonTests(unittest.TestCase):
         self.assertFalse(row["direct_slice_difference"])
         self.assertFalse(row["methods"]["m1"]["reference_slice_errors"])
 
+    def test_full_suite_explicitly_unavailable_fld_cases_do_not_await_a_partner(self):
+        runs = [self.add_run('m1', case) for case in comparison.CASES]
+        runs += [self.add_run('fld', case, fld_reference=True)
+                 for case in ('gaussian_pulse', 'equilibrium_sphere', 'marshak')]
+        blocked = [dict(case=case, level=0, model='fld', reason='Known vacuum or moving-gas limitation')
+                   for case in comparison.CASES if case not in comparison.FLD_REFERENCE_MODELS]
+        manifest = self.manifest(runs, unsupported=blocked)
+        with patch.object(comparison, 'make_plot', side_effect=self.fake_plot):
+            summary = comparison.refresh(self.root, manifest)
+        for case, rows in summary['cases'].items():
+            self.assertEqual(rows[0]['status'], 'matched' if case in comparison.FLD_REFERENCE_MODELS else 'm1_only')
+            if case not in comparison.FLD_REFERENCE_MODELS:
+                self.assertEqual(set(rows[0]['methods']), {'m1'})
+                self.assertFalse(rows[0]['direct_slice_difference'])
+        page = (self.root / 'comparisons/streaming_wave.html').read_text()
+        self.assertIn('Known vacuum or moving-gas limitation', page)
+        self.assertIn('No excluded matching partner is assumed', page)
+        self.assertNotIn('awaiting matching method', page)
+
+    def test_scheduled_run_cannot_also_be_marked_unsupported(self):
+        run = self.add_run('fld', completed=False)
+        manifest = self.manifest([run], unsupported=[dict(case=run['case'], level=0, model='fld', reason='blocked')])
+        with self.assertRaisesRegex(ValueError, 'both scheduled and unsupported'):
+            comparison.validate_manifest(manifest)
+
     def test_legacy_campaign_and_runtime_profiles_are_rejected_before_writes(self):
         for manifest in ({"schema": 1, "workflow": "level-major-radiation", "runs": []},
                          self.manifest([], runtime_profiles={"baseline": {}}),
@@ -192,7 +217,7 @@ class ComparisonTests(unittest.TestCase):
         self.assertFalse((self.root / "comparisons").exists())
 
     def test_unsupported_fld_case_or_inconsistent_model_identity_is_rejected(self):
-        for case in ("streaming_wave", "equilibrium_sphere", "subcritical_shock"):
+        for case in comparison.COUPLED_WITHOUT_REFERENCE:
             run = self.add_run("fld", case, completed=False)
             with self.assertRaisesRegex(ValueError, "stationary"):
                 comparison.validate_manifest(self.manifest([run]))
@@ -200,6 +225,41 @@ class ComparisonTests(unittest.TestCase):
         run["integrator"] = "backward_euler"
         with self.assertRaisesRegex(ValueError, "identity"):
             comparison.validate_manifest(self.manifest([run]))
+
+    def test_streaming_fld_has_only_integral_constraints_and_cross_model_discrepancies(self):
+        for case in ("streaming_wave", "streaming_front"):
+            runs = [self.add_run("m1", case, offset=.25), self.add_run("fld", case, offset=.125)]
+            mean = 1. if case == "streaming_wave" else .50000000005
+            invariants = {"scope": "full-volume-energy-history", "expected_mean_radiation_energy": mean,
+                          "maximum_relative_integrated_energy_error": 1.e-12}
+            self.change_metadata(runs[1], reference_kind="unavailable", reference_model="none",
+                reference_exact_for_solver=False, reference_sampling="none", analytic_mean_energy=mean,
+                fld_diagnostics={"analytic_invariants": invariants})
+            row = self.refresh(runs)["cases"][case][0]
+            self.assertEqual(row["status"], "matched")
+            self.assertAlmostEqual(row["direct_slice_difference"]["er"]["L1"], .125)
+            self.assertTrue(row["methods"]["m1"]["reference_exact_for_solver"])
+            fld = row["methods"]["fld"]
+            self.assertFalse(fld["reference_slice_errors"])
+            self.assertFalse(fld["solver_full_volume_reference_errors"])
+            self.assertFalse(fld["reference_exact_for_solver"])
+            self.assertEqual(fld["reference_sampling"], "none")
+            self.assertEqual(fld["analytic_invariants"], invariants)
+            page = (self.root / "comparisons" / (case + ".html")).read_text()
+            self.assertIn('no supplied FLD spatial analytic reference', page)
+            self.assertIn('Exact integral invariant', page)
+            self.assertNotIn('retained for M1 only', page)
+
+    def test_streaming_fld_cannot_claim_diffusion_or_m1_spatial_reference(self):
+        run = self.add_run("fld", "streaming_wave")
+        for updates in ({"reference_kind": "linear-diffusion-limit", "reference_exact_for_solver": False},
+                {"reference_kind": "unavailable", "reference_model": "m1-advection", "reference_exact_for_solver": False,
+                 "reference_sampling": "none"},
+                {"reference_kind": "unavailable", "reference_model": "none", "reference_exact_for_solver": True,
+                 "reference_sampling": "none"}):
+            self.change_metadata(run, **updates)
+            with self.subTest(updates=updates), self.assertRaises(ValueError):
+                comparison.load_run(self.root, run)
 
     def test_duplicate_identity_is_rejected(self):
         run = self.add_run("m1", completed=False)

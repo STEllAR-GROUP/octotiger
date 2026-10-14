@@ -5,9 +5,11 @@
 #include "octotiger/options.hpp"
 #include "octotiger/physcon.hpp"
 #include "octotiger/radiation/fld.hpp"
+#include "octotiger/radiation/fld_benchmarks.hpp"
 #include "octotiger/radiation/opacities.hpp"
 #include "octotiger/radiation/physical_opacity.hpp"
 #include "octotiger/util.hpp"
+#include "octotiger/test_problems/radiation.hpp"
 
 #include <hpx/include/actions.hpp>
 #include <hpx/include/async.hpp>
@@ -69,12 +71,11 @@ std::array<double, 2> extinction(const radiation::fld_runtime_cell& cell, double
         return {{kappa_R(cell.density, internal, cell.mmw, cell.hydrogen, cell.metals, grid::get_fgamma()),
             kappa_p(cell.density, internal, cell.mmw, cell.hydrogen, cell.metals, grid::get_fgamma())}};
     case RADIATION_GAUSSIAN_PULSE:
+    case RADIATION_EQUILIBRIUM_SPHERE:
         return {{opts().radTestChi, 0}}; // Fixed scattering medium.
     case RADIATION_STREAMING_WAVE:
     case RADIATION_STREAMING_FRONT:
         return {{0, 0}};
-    case RADIATION_EQUILIBRIUM_SPHERE:
-        throw std::invalid_argument("The prescribed M1 sphere emission test is not an FLD reference");
     default:
         return radiation::fitted_extinction(cell.density,
             temperature(cell.density, internal, cell.mmw, grid::get_fgamma()),
@@ -111,6 +112,16 @@ void solve_packet(radiation::fld_packet& packet, double dt, double time) {
         boundary[0] = {c / 2, 1, 2};
         boundary[1] = {c / 2, 1, 0};
     }
+    std::vector<double> prescribed_source;
+    if (opts().problem == RADIATION_EQUILIBRIUM_SPHERE) {
+        const auto parameters = radiationTestParameters();
+        boundary = FLD::sphere_boundary(mesh, parameters);
+        prescribed_source.reserve(state.size());
+        for (const auto& cell : mesh.cells()) {
+            prescribed_source.push_back(radiationTests::bulbSourceAverage(
+                cell.center, cell.width, parameters));
+        }
+    }
     const FLD::settings settings{opts().fld_nonlinear_tolerance, opts().fld_linear_tolerance,
         static_cast<int>(opts().fld_max_iterations), static_cast<int>(opts().fld_max_linear_iterations)};
     const FLD::opacity_callback opacity = [&](size_t i, double u, double& rosseland, double& planck) {
@@ -146,7 +157,10 @@ void solve_packet(radiation::fld_packet& packet, double dt, double time) {
             if (!(trial_dt > 0) || time + elapsed + trial_dt == time + elapsed) {
                 throw std::runtime_error("FLD timestep underflow during collective retry");
             }
-            next = FLD::solve(mesh, state, trial_dt, c, boundary, settings, opacity);
+            next = prescribed_source.empty()
+                ? FLD::solve(mesh, state, trial_dt, c, boundary, settings, opacity)
+                : FLD::solve_with_source(mesh, state, prescribed_source, trial_dt, c,
+                    boundary, settings, opacity);
             if (!next.success) {
                 if (++retries > 16) {
                     throw std::runtime_error("FLD failed after 16 timestep halvings: " + next.message);

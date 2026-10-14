@@ -481,6 +481,12 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 
 		real dt = 0;
 		integer next_step = (std::min)(step_num + refinement_freq(), opts().stop_step + 1);
+        if (opts().radiation && opts().radiation_model == "fld" && !opts().disable_output) {
+            // Implicit steps can be much longer than the M1 streaming step.
+            // Check output after every physical step instead of imposing the
+            // explicit driver's refinement-batch cadence on FLD accuracy dt.
+            next_step = (std::min)(next_step, step_num + 1);
+        }
         if (opts().radiation && opts().radiation_model == "fld" && opts().hard_dt > 0) {
             // Do not subdivide the last physical timestep to fill an arbitrary
             // tree batch, including after a completed-step restart.

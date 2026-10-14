@@ -19,7 +19,7 @@ Let `E` be radiation energy density and `u` material internal-energy density.
 The stationary equations advanced over a step are
 
 ```text
-(E - E_old)/dt - div(D grad E) = c chi_P [B(u) - E]
+(E - E_old)/dt - div(D grad E) = c chi_P [B(u) - E] + q
 (u - u_old)/dt                = -c chi_P [B(u) - E]
 
 D = c lambda(R) / chi_R
@@ -31,6 +31,14 @@ For the ideal-gas thermal law, `B(u)=a_r T(u)^4`, with
 `a_r=4 sigma_SB/c`. The `MARSHAK` verification problem instead retains its
 separate linear emission law `B(u)=u` and its normalized constants. It is
 not an ideal-gas LTE reference problem.
+
+The optional prescribed emissivity `q` is independent of material energy.
+It is zero except for the stationary Gaussian-emitter sphere benchmark.
+`solve_with_source` adds `dt*q` to the radiation right-hand side in scratch;
+the material equation retains its original energy. This is the coupled
+backward-Euler source term, not a committed source split. A failed attempt
+returns the original state and zero budgets; a smaller retry accounts only
+for its own accepted interval. A diagnostic refresh (`dt=0`) injects nothing.
 
 The material equation is eliminated locally through its positive thermal
 root. Each modified-Newton linear solve freezes diffusion and opacity while
@@ -79,8 +87,11 @@ across an opacity jump.
 The correction hierarchy uses volume-weighted residual restriction, signed
 linear prolongation, and Galerkin coarse operators. Virtual levels continue
 below an eight-cell-wide root, including `8^3 -> 4^3 -> 2^3`, followed by a
-small direct solve. Damped Gauss-Seidel smoothing and geometric V-cycles
-precondition restarted GMRES. Coarse/fine reconstruction can make the
+small pivoted-LU direct solve. Each V-cycle applies three forward and three
+reverse Gauss-Seidel sweeps with relaxation weight 0.7. These geometric
+V-cycles precondition right-preconditioned GMRES, restarted after 30 Krylov
+iterations. This is a linear correction multigrid hierarchy inside the
+nonlinear iteration, rather than nonlinear FAS multigrid. Coarse/fine reconstruction can make the
 operator nonsymmetric, so the implementation makes no CG assumption.
 Pure periodic/Neumann Poisson tests check compatibility and remove the
 constant nullspace. The FLD time term normally removes that nullspace.
@@ -142,7 +153,8 @@ time.
 The scalar library supports Dirichlet, prescribed outward flux/Neumann,
 reflecting, Robin, and periodic boundaries. General per-face data are a
 library API; the runtime configuration exposes reflecting, vacuum, periodic,
-and the prescribed Marshak problem. Its Robin convention is
+the prescribed Marshak problem, and the sphere's analytic Dirichlet bath.
+Its Robin convention is
 
 ```text
 alpha E_boundary + gamma D dE/dn = value
@@ -154,6 +166,37 @@ Thus reflecting is `{alpha=0,gamma=1,value=0}`, prescribed outward flux is
 boundary: the low-x face is `{c/2,1,2}`, the high-x face is vacuum, and the
 transverse faces reflect. The incoming half-space flux is one in its
 normalized units.
+
+The equilibrium sphere uses the same initial energy cell averages and
+Gaussian emissivity as the existing fixed-medium benchmark. Its Rosseland
+extinction is `rad_test_chi`, its absorption extinction is zero, and the gas
+remains unchanged. Each composite boundary subface is assigned the
+four-by-four Gauss average of the analytic sphere energy over the face;
+ghost-cell volume averages are not used as boundary traces. The error-function
+profile solves constant-coefficient linear diffusion. It is a qualified
+diffusion-limit reference, not an exact steady solution of nonlinear LP FLD.
+Its finite-box source integral, rather than the all-space luminosity, enters
+the conservation ledger.
+
+Streaming wave and front retain their original radiation energy profiles,
+zero opacity, and periodic domain. FLD derives flux from the energy gradient;
+it does not retain the independently directed initial M1 flux. Consequently
+the translated M1 wave and square-front formulas are not FLD analytic
+references. These cases compare closures and test energy conservation,
+positivity, and the flux bound. Zero-opacity plateaus and extrema also stress
+nonlinear convergence. Bounded standalone tests of the original `8^3`
+profiles rejected all attempted timesteps (`0.025`, `0.0025`, `0.000025`).
+The wave develops enormous frozen diffusion coefficients at roundoff-sized
+gradients. The front also fails without such coefficients: the single-valued
+zero flux on flat vacuum plateaus cannot represent the unsaturated facet
+flux needed by the symmetry-preserving backward-Euler front. These two
+FLD cases remain available for direct solver investigation but are excluded
+from production campaigns. No opacity floor, relaxed acceptance tolerance,
+or replacement diffusion model was introduced. The probe and explanation
+are saved under `output/full-suite-validation-20261013/vacuum-diagnosis/`.
+The two radiative shocks and radiating
+blast remain outside the stationary backend because they require moving gas,
+radiation force, and work.
 
 For a small uniform Marshak run, save the following as a configuration file.
 These are example inputs; application validation must use the executable
@@ -204,10 +247,11 @@ linear/nonlinear residuals, boundary energy, and conservation error.
 `boundary_energy` is positive **into** the domain. The conservation error is
 
 ```text
-sum_leaves volume * [(E_new + u_new) - (E_old + u_old)] - boundary_energy
+sum_leaves volume * [(E_new + u_new) - (E_old + u_old) - dt*q] - boundary_energy
 ```
 
-Material-to-radiation source energy is positive when material loses energy.
+Radiation source energy includes prescribed emission and material-to-radiation
+exchange; the latter is positive when material loses energy.
 The existing radiation CSV ledger uses the opposite boundary convention:
 `er_boundary` is positive outward. Its energy contract is
 `delta(er) + er_boundary - er_source = 0`, apart from the nonlinear tolerance
@@ -288,6 +332,19 @@ momentum, consistent thermal tracers, and accepted boundary budgets.
 These short runs do not establish moving-gas accuracy or production
 scalability. `linear_residual` records the Krylov solve before any local
 Newton-direction safeguard; acceptance uses `nonlinear_residual`.
+
+The subsequent stationary sphere extension passed 12,744 standalone checks,
+including exact homogeneous coupled source injection, finite-box emitter
+integration, face-only boundary quadrature, source/boundary energy balance,
+diagnostic refresh without injection, and rollback/retry without repeated
+emission. Application checks then completed the sphere, Gaussian and Marshak
+at uniform level 0 through `t=0.25`, each in two `dt=0.125` steps with three
+saved states and zero retries. The maximum nonlinear residual was
+`9.37405e-11`; the largest normalized radiation energy ledger residual was
+`5.86963e-13`. Evidence is in
+`output/full-suite-validation-20261013/application-summary.json`. These runs
+verify the source integration and larger output-compatible steps, not temporal
+convergence. Transparent streaming still fails the separate vacuum probes.
 
 Example checks, subject to the shared local worker budget:
 

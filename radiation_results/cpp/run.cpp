@@ -330,7 +330,7 @@ int run(Options o)
         require(o.radiation_backend == "cpu" && o.reduced_c_factor == 1.,
             "FLD requires the CPU backend and physical light speed (radiation-reduced-c-factor=1)");
         for (const auto &name : o.selected_cases) {
-            require(fld_case(name), "FLD is available only for gaussian_pulse and marshak; unsupported case: " + name);
+            require(fld_case(name), "This problem requires moving-gas FLD, which is not implemented: " + name);
         }
     }
 	o.root = rr::absolute(o.root);
@@ -372,6 +372,8 @@ int run(Options o)
     // Old batches retain their recorded snapshot-derived cap when resumed.
     const bool no_silo_uncapped = o.no_silo && (!resumed ||
         saved.value("options", Json::object()).value("no_silo_ignores_snapshot_cadence", false));
+    const bool fld_output_each_step = fld && (!resumed ||
+        saved.value("options", Json::object()).value("fld_output_each_step", false));
 	for (int level : o.levels) {
     for (auto &name : o.selected_cases) {
 			require(level >= 0 && level <= 9 && std::find(cases.begin(), cases.end(), name) != cases.end(),
@@ -426,6 +428,12 @@ int run(Options o)
             const double run_time = (coupled || name == "marshak") && !custom_time ? numeric(cfg.at("stop_time")) : o.time;
 			auto cap = cadence(run_time, o.snapshots, numeric(cfg.at("cfl")),
 							   o.odt > 0 ? std::optional<double>(o.odt) : std::nullopt);
+            if (fld_output_each_step) {
+                // FLD checks output after each physical step. The output interval
+                // bounds missed snapshots, not diffusion or streaming stability.
+                cap["hard_dt"] = cap.at("odt");
+                cap["steps_per_output_check"] = 1;
+            }
 			double dt = no_silo_uncapped ? 0. : cap.at("hard_dt").get<double>();
 			if (cfg.contains("hard_dt") && numeric(cfg["hard_dt"]) > 0) {
         const double bound = numeric(cfg["hard_dt"]);
@@ -557,6 +565,7 @@ int run(Options o)
 				 {"src/grid.cpp", "src/physcon.cpp", "src/radiation/rad_grid.cpp",
                   "src/radiation/iteration.cpp", "src/radiation/fld.cpp",
                   "octotiger/radiation/fld.hpp", "octotiger/radiation/fld_runtime.hpp",
+                  "octotiger/radiation/fld_benchmarks.hpp",
                   "octotiger/elliptic/composite.hpp",
                   "octotiger/radiation/ap_flux.hpp", "octotiger/radiation/implicit_source.hpp",
                   "octotiger/radiation/marshak_boundary.hpp",
@@ -595,6 +604,7 @@ int run(Options o)
 					   {"hard_dt", o.hard_dt},
 					   {"no_silo", o.no_silo},
                        {"no_silo_ignores_snapshot_cadence", no_silo_uncapped},
+                       {"fld_output_each_step", fld_output_each_step},
 					   {"reconstruction", o.reconstruction},
 					   {"generator", o.generator.string()},
                        {"launcher", o.launcher.string()},
@@ -690,6 +700,15 @@ int run(Options o)
                     expected["reference_generator_sha256"] = sha256(o.generator);
                     expected["reference_diffusion_coefficient"] = expected.at("c").get<double>() /
                         numeric(cfg.at("rad_test_chi")) / 3.;
+                } else if (name == "equilibrium_sphere") {
+                    expected["reference_model"] = "steady-gaussian-emitter";
+                    expected["validation_scope"] = "Analytic steady constant-D Gaussian-emitter reference. Nonlinear FLD limiter, boundary sampling and discretization can cause equilibrium drift; these are slice discrepancies, not exact nonlinear-FLD error norms.";
+                } else if (name == "streaming_wave" || name == "streaming_front") {
+                    expected["reference_kind"] = "unavailable";
+                    expected["reference_model"] = "none";
+                    expected["reference_sampling"] = "none";
+                    expected["validation_scope"] = "Transparent FLD closure comparison from the same initial energy as M1. FLD derives flux down the energy gradient and does not obey the M1 unidirectional translation solution. No analytic FLD profile or profile-error norm is claimed; use periodic energy conservation, positivity and the flux bound.";
+                    expected["analytic_mean_energy"] = name == "streaming_wave" ? 1. : (1. + 1.e-10) / 2.;
                 }
             }
 			bool existing = resumed && fs::exists(folder);

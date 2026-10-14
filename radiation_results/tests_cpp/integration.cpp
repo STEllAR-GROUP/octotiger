@@ -21,6 +21,7 @@ int main(int argc, char **argv)
 				 {"src/grid.cpp", "src/physcon.cpp", "src/radiation/rad_grid.cpp",
                   "src/radiation/iteration.cpp", "src/radiation/fld.cpp",
                   "octotiger/radiation/fld.hpp", "octotiger/radiation/fld_runtime.hpp",
+                  "octotiger/radiation/fld_benchmarks.hpp",
                   "octotiger/elliptic/composite.hpp",
                   "octotiger/radiation/ap_flux.hpp", "octotiger/radiation/implicit_source.hpp",
                   "octotiger/radiation/marshak_boundary.hpp",
@@ -113,11 +114,12 @@ int main(int argc, char **argv)
                 tmp / (std::string("marshak-resume-") + method + ".log"));
             expect(read_text(marshak_batch / "marshak/l0/solver-executions") == "run\n", "Marshak resume reuses completed results");
         }
-        for (const auto &name : {"gaussian_pulse", "marshak"}) {
+        for (const auto &name : {"gaussian_pulse", "marshak", "equilibrium_sphere", "streaming_wave", "streaming_front"}) {
+            const bool references = fld_reference_case(name);
             const auto fld_batch = tmp / (std::string("fld-") + name);
             execute({runner.string(), "run", name, "0", "--root", root.string(), "--build", build.string(),
                 "--output", fld_batch.string(), "--radiation-model", "fld", "--time", ".25", "--hard-dt", ".03125",
-                "--threads", "2", "--snapshots", "3", "--no-build", "--no-open", "--no-movies", "--no-silo",
+                "--threads", "2", "--snapshots", "3", "--no-build", "--no-open", "--no-movies",
                 "--gnuplot", argv[4]}, tmp, tmp / (std::string("fld-") + name + ".log"));
             const auto folder = fld_batch / name / "l0";
             const auto m = read_json(folder / "run.json");
@@ -133,15 +135,33 @@ int main(int argc, char **argv)
                 m.at("config").at("disable_analytic") == "on" &&
                 m.at("comparison_signature").at("radiation_model") == "fld" &&
                 m.at("comparison_signature").at("radiation_algorithm_version") == 1 &&
-                m.at("reference_kind") == "linear-diffusion-limit" && !m.contains("norms") &&
+                m.at("reference_kind") == (references ? "linear-diffusion-limit" : "unavailable") && !m.contains("norms") &&
                 m.at("reference_exact_for_solver") == false &&
-                m.at("fld_diagnostics").contains("slice_reference_norms"),
-                "FLD verifies implicit diagnostics and records qualified slice reference differences");
+                m.at("fld_diagnostics").contains(references ? "slice_reference_norms" : "analytic_invariants"),
+                "FLD verifies implicit diagnostics and uses only scientifically applicable references");
+            expect(close(numeric(m.at("config").at("hard_dt")), .03125) &&
+                m.at("config").at("disable_output") == "off" &&
+                options.at("fld_output_each_step") == true &&
+                m.at("movie_capture").at("steps_per_output_check") == 1,
+                "FLD with snapshots retains the requested timestep without an implicit five-step output cap");
             const auto page = read_text(fld_batch / (std::string(name) + ".html"));
             expect(page.find("FLD") != std::string::npos &&
                 page.find("Full-volume norms and orders") == std::string::npos &&
-                read_text(fld_batch / "plots" / name / "l0/slice.csv").find("er_ref") != std::string::npos,
-                "FLD report exports analytic diffusion-limit references without inventing full-volume norms");
+                (read_text(fld_batch / "plots" / name / "l0/slice.csv").find("er_ref") != std::string::npos) == references,
+                "FLD report includes analytic columns only when a valid qualified reference is supplied");
+            if (!references) {
+                expect(page.find("No analytic spatial FLD solution is supplied") != std::string::npos &&
+                    page.find("Projected-slice differences from the analytic reference") == std::string::npos &&
+                    !fs::exists(fld_batch / "plots" / name / "l0/reference-differences.csv") &&
+                    fs::is_regular_file(fld_batch / "plots" / name / "l0/analytic-invariants.json"),
+                    "vacuum FLD reports analytic energy integrals without fabricated profile errors");
+            }
+            if (std::string(name) == "equilibrium_sphere") {
+                expect(m.at("reference_model") == "steady-gaussian-emitter" &&
+                    m.at("reference_sampling") == "cell averages" &&
+                    page.find("Dirichlet") != std::string::npos,
+                    "FLD sphere records its steady diffusion-limit reference and imposed energy boundary");
+            }
             if (std::string(name) == "gaussian_pulse") {
                 expect(fs::is_regular_file(folder / "reference.bin") && m.contains("reference_sha256") &&
                     m.contains("reference_generator_sha256") &&
@@ -159,7 +179,7 @@ int main(int argc, char **argv)
                 "FLD resume refuses to reinterpret the batch as M1");
         }
         for (const auto &bad_options : std::vector<std::vector<std::string>>{
-                {"sphere"}, {"wave"}, {"subcritical"},
+                {"subcritical"}, {"supercritical"}, {"blast"},
                 {"gaussian", "--radiation-integrator", "euler"},
                 {"gaussian", "--radiation-backend", "cuda"},
                 {"gaussian", "--radiation-reduced-c-factor", ".1"}}) {

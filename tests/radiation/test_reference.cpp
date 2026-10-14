@@ -25,7 +25,9 @@ int main(int argc,char** argv) {
 			Point x{.12,-.43,.2}, y=x; y[d]+=p.length;
 			auto a=streamingWave(x,.37,h,p), b=streamingWave(y,.37,h,p);
 			for (int f=0;f<4;++f) {
-        near(a[f],b[f],2e-14,"oblique wave periodicity");
+        // Compare E and F/c in the same energy-density units.
+        near(a[f] / (f == 0 ? 1. : p.c), b[f] / (f == 0 ? 1. : p.c), 2e-14,
+            "oblique wave periodicity");
       }
     }
 		Parameters units=p; units.c=17;
@@ -46,6 +48,31 @@ int main(int argc,char** argv) {
 		}
 		double const r2=x[0]*x[0]+x[1]*x[1]+x[2]*x[2];
 		near(div,p.luminosity*std::exp(-r2/(p.width*p.width))/std::pow(std::sqrt(pi)*p.width,3),1e-9,"matching bulb source");
+        // The shared streaming initial energies give exact periodic invariants
+        // for both closures, even though their evolved spatial profiles differ.
+        for (double time : {0., .17, 2.3}) {
+            long double wave_mean = 0, front_mean = 0, source = 0;
+            const int cells = 16;
+            const double spacing = p.length / cells;
+            for (int i = 0; i < cells; ++i) {
+                for (int j = 0; j < cells; ++j) {
+                    for (int k = 0; k < cells; ++k) {
+                        Point point{-p.length / 2 + (i + .5) * spacing,
+                            -p.length / 2 + (j + .5) * spacing,
+                            -p.length / 2 + (k + .5) * spacing};
+                        wave_mean += streamingWave(point, time, spacing, p)[0];
+                        front_mean += streamingFront(point, time, spacing, p)[0];
+                        source += bulbSourceAverage(point, spacing, p);
+                    }
+                }
+            }
+            near(double(wave_mean / (cells * cells * cells)), 1., 2.e-14, "periodic wave exact mean energy");
+            near(double(front_mean / (cells * cells * cells)), .5 * (1. + 1.e-10), 2.e-14,
+                "periodic front exact mean energy");
+            near(double(source * spacing * spacing * spacing),
+                p.luminosity * std::pow(std::erf(p.length / (2 * p.width)), 3),
+                2.e-14 * p.luminosity, "finite-cube emitter luminosity is the integrated source");
+        }
 		long double e0=0,e1=0;
 		for(size_t r=0;r<ref.cells();++r) {
 			e0+=ref.values[r]; e1+=ref.values[4*ref.cells()+r];
@@ -102,7 +129,8 @@ int main(int argc,char** argv) {
         }
       }
 			for(int f=0;f<4;++f) {
-        require(std::abs(final[f]-u[f])<1e-10*std::max(1.L,std::abs(initial[0])),"FFT telegraph mode disagrees with independent ODE");
+        require(std::abs(final[f]-u[f]) / (f == 0 ? 1.L : (long double)p.c) <
+            1e-10*std::max(1.L,std::abs(initial[0])),"FFT telegraph mode disagrees with independent ODE");
       }
     }
 		// Coarse-grid initialization conservatively averages the finest binary cells.

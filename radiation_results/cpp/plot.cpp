@@ -149,6 +149,7 @@ void render_run(const fs::path &folder, const Json &m, const fs::path &target,
 				const std::optional<Budget> &budget, const Options &o)
 {
 	auto data = read_slice(folder, m);
+    const bool references = !fld_model(m) || fld_reference_case(m.at("case"));
     const bool marshak = m.at("case") == "marshak";
     const auto material = marshak ? std::optional<Table>(read_marshak_material(folder, m)) : std::nullopt;
 	int n = m.at("cells");
@@ -157,7 +158,8 @@ void render_run(const fs::path &folder, const Json &m, const fs::path &target,
 	bool excess = m.at("case") == "gaussian_pulse" || m.at("case") == "equilibrium_sphere";
     const auto method = m.value("radiation_integrator", "euler");
 	std::string title = m.at("case").get<std::string>() + " | " + mesh_label(m) +
-						(fld_model(m) ? " | FLD; linear diffusion-limit reference" :
+						(fld_model(m) ? (references ? " | FLD; linear diffusion-limit reference" :
+                            " | FLD; no analytic spatial reference") :
                             method == "euler" ? " | M1 RK1" : " | Historical M1 " + method) +
                         " | t=" + number(m.at("time")) + (cgs(m) ? " s" : "");
 	std::ostringstream grid, row;
@@ -171,9 +173,11 @@ void render_run(const fs::path &folder, const Json &m, const fs::path &target,
 			for (size_t k = 0; k < r.size(); ++k) {
         rec[data.columns[k]] = r[k];
       }
-      for (int f = 0; f < 4; ++f) {
-        rec[fields[f] + "_error"] = r[5 + f] - r[9 + f];
-      }
+            if (references) {
+                for (int f = 0; f < 4; ++f) {
+                    rec[fields[f] + "_error"] = r[5 + f] - r[9 + f];
+                }
+            }
       if (material) {
                 const auto& gas = material->rows[size_t(i) * n + j];
                 for (size_t k = 0; k < 5; ++k) {
@@ -188,9 +192,11 @@ void render_run(const fs::path &folder, const Json &m, const fs::path &target,
 				for (double x : r) {
           s << x << ' ';
         }
-        for (int f = 0; f < 4; ++f) {
-          s << r[5 + f] - r[9 + f] << ' ';
-        }
+                if (references) {
+                    for (int f = 0; f < 4; ++f) {
+                        s << r[5 + f] - r[9 + f] << ' ';
+                    }
+                }
         if (material) {
                     const auto& gas = material->rows[size_t(i) * n + j];
                     s << gas[5] << ' ' << gas[6] << ' ' << gas[5] - gas[6] << ' ';
@@ -205,9 +211,11 @@ void render_run(const fs::path &folder, const Json &m, const fs::path &target,
 		grid << '\n';
 	}
 	auto cols = data.columns;
-	for (auto &f : fields) {
-    cols.push_back(f + "_error");
-  }
+    if (references) {
+        for (auto &f : fields) {
+            cols.push_back(f + "_error");
+        }
+    }
   if (material) {
         for (auto name : {"material_egas", "material_egas_ref", "material_egas_error"}) {
             cols.push_back(name);
@@ -222,7 +230,9 @@ void render_run(const fs::path &folder, const Json &m, const fs::path &target,
   }
   for (int f = 0; f < 4; ++f) {
     for (auto suffix : {"", "_ref", "_error"}) {
-      units[fields[f] + suffix] = cgs(m) ? (f == 0 ? "erg/cm^3" : "erg/(cm^2 s)") : "code units";
+      if (references || std::string(suffix).empty()) {
+          units[fields[f] + suffix] = cgs(m) ? (f == 0 ? "erg/cm^3" : "erg/(cm^2 s)") : "code units";
+      }
     }
   }
   if (material) {
@@ -240,12 +250,28 @@ void render_run(const fs::path &folder, const Json &m, const fs::path &target,
         }
     }
   write_json(target / "slice.units.json", units);
-	std::string profiles = "set multiplot layout 4,2 rowsfirst title " +
+	std::string profiles = std::string("set multiplot layout ") + (references ? "4,2" : "4,1") + " rowsfirst title " +
 						   gp_quote(title + (m.value("adaptive", false) ? " | projected positive-side leaf averages" : " | y=z=dx/2=" + sci(dx / 2))) +
 						   "\nset key top right\nset xlabel " + gp_quote(cgs(m) ? "x (cm)" : "x") +
 						   "\nset autoscale\nset xrange [" + number(-length / 2) + ":" + number(length / 2) +
 						   "]\nset xtics " + number(length / 4) + "\n";
 	for (int f = 0; f < 4; ++f) {
+		if (!references) {
+            const auto label = field_label(m, f);
+            profiles += "set autoscale y\nset ylabel " + gp_quote(label) + "\nplot " +
+                data_path(target / "profiles.dat") + " using 3:" + std::to_string(6 + f) +
+                " with linespoints pt 7 ps .4 lc rgb '#2873b9' title 'Numerical FLD'\n";
+            std::string map = "set title " + gp_quote(title + " | " + label) +
+                "\nunset key\nunset grid\nset size ratio -1\nset autoscale cb\nset xrange [" +
+                number(-length / 2) + ":" + number(length / 2) + "]\nset yrange [" +
+                number(-length / 2) + ":" + number(length / 2) + "]\nset xlabel " +
+                gp_quote(cgs(m) ? "x (cm)" : "x") + "\nset ylabel " + gp_quote(cgs(m) ? "y (cm)" : "y") +
+                "\nset palette defined (0 '#440154', .25 '#3b528b', .5 '#21918c', .75 '#5ec962', 1 '#fde725')\nplot " +
+                data_path(target / "slice.dat") + " using 3:4:" + std::to_string(6 + f) +
+                " with image\nset size noratio\nset autoscale\nset grid\n";
+            plot_pair(target / ("slice_" + fields[f]), map, 750, 650, o);
+            continue;
+        }
 		double bg = excess && f == 0 ? m.at("background").get<double>() : 0;
 		bool logarithmic = m.at("case") == "gaussian_pulse" && f == 0;
 		double peak = 0;
@@ -465,6 +491,10 @@ void render_fld(const fs::path &folder, const Json &m, const fs::path &target, c
     render_run(folder, m, target, read_conservation(folder, m), o);
     write_json(target / "fld-diagnostics.json", diagnostics);
     records_csv(target / "fld-steps.csv", diagnostics.at("steps"));
+    if (!diagnostics.contains("slice_reference_norms")) {
+        write_json(target / "analytic-invariants.json", diagnostics.at("analytic_invariants"));
+        return;
+    }
     Json errors = Json::array();
     const auto &norms = diagnostics.at("slice_reference_norms");
     for (auto field = norms.begin(); field != norms.end(); ++field) {
@@ -504,7 +534,7 @@ fs::path render(const fs::path &batch, const Options &o)
         "<p><a href=\"conservation.csv\">Conservation CSV</a>";
     if (!fld_batch) { page += " · <a href=\"errors.csv\">All norms/orders CSV</a>"; }
     if (fs::exists(batch / "movies.html")) { page += " · <a href=\"../movies.html\">Movies</a>"; }
-    page += fld_batch ? "</p><p>Stationary FLD with derived flux and analytic linear diffusion-limit references. Differences include nonlinear-limiter and boundary-model effects; reported norms cover the projected slice, not the full volume.</p>" :
+    page += fld_batch ? "</p><p>Stationary FLD with derived flux. Available analytic references solve qualified linear diffusion-limit problems; their discrepancy norms cover the projected slice, not the full volume. Vacuum streaming cases have no supplied analytic spatial FLD reference and instead check exact periodic energy integrals.</p>" :
         "</p><p>Norms use the full 3D domain: L1 = Σ|e|ΔV/V; L2 = √(Σe²ΔV/V); L∞ = max|e|. Orders compare matching physical times and configurations. Zero errors have no reported order.</p>";
 	for (auto &[name, series] : groups) {
 		std::sort(series.begin(), series.end(), [](auto &a, auto &b) {
@@ -515,15 +545,19 @@ fs::path render(const fs::path &batch, const Options &o)
 		auto case_dir = output / name;
 		fs::create_directories(case_dir);
         if (fld_model(first)) {
-            page += "<section><h2>" + html(name) + " — FLD backward Euler</h2><p>Stationary FLD compared with its analytic linear diffusion-limit reference. The reference is not exact for the nonlinear limiter. Flux remains derived; no separate momentum conservation test applies.</p>";
+            const bool references = fld_reference_case(name);
+            page += "<section><h2>" + html(name) + " — FLD backward Euler</h2><p>" +
+                (references ? std::string("Stationary FLD compared with its analytic linear diffusion-limit reference. The reference is not exact for the nonlinear limiter. ") :
+                    std::string("No analytic spatial FLD reference is supplied; exact periodic energy integrals and physical bounds are checked. ")) +
+                "Flux remains derived; no separate momentum conservation test applies.</p>";
             for (const auto &[folder, m] : series) {
                 require(fld_model(m), "Use separate M1 and FLD batches");
                 const auto rel = name + "/l" + std::to_string(m.at("level").get<int>());
                 const auto target = output / rel;
                 render_fld(folder, m, target, o);
                 page += "<h3>" + html(mesh_label(m)) + "</h3><p>" + html(slice_geometry_note(m)) + "</p>" +
-                    image_tag(rel + "/slice_er.png", "FLD radiation energy and analytic diffusion-limit reference") +
-                    image_tag(rel + "/profiles.png", "FLD energy and derived flux compared with analytic diffusion-limit profiles") +
+                    image_tag(rel + "/slice_er.png", references ? "FLD radiation energy and analytic diffusion-limit reference" : "Numerical FLD radiation energy") +
+                    image_tag(rel + "/profiles.png", references ? "FLD energy and derived flux compared with analytic diffusion-limit profiles" : "Numerical FLD energy and derived flux") +
                     image_tag(rel + "/conservation.png", "FLD radiation energy conservation") +
                     "<p><a href=\"" + rel + "/slice.csv\">Numerical slice CSV</a> · <a href=\"" + rel +
                     "/fld-diagnostics.json\">FLD solver diagnostics</a></p>";

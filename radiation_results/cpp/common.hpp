@@ -33,11 +33,16 @@ inline bool coupled_case(const std::string &name)
 }
 inline bool fld_case(const std::string &name)
 {
-    return name == "gaussian_pulse" || name == "marshak";
+    return name == "streaming_wave" || name == "streaming_front" ||
+        name == "gaussian_pulse" || name == "equilibrium_sphere" || name == "marshak";
 }
 inline bool fld_model(const Json &metadata)
 {
     return metadata.value("radiation_model", "m1") == "fld";
+}
+inline bool fld_reference_case(const std::string &name)
+{
+    return name == "gaussian_pulse" || name == "marshak" || name == "equilibrium_sphere";
 }
 inline const Json cgs_units{{"system", "CGS"},
 							{"length", "cm"},

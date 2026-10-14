@@ -11,12 +11,12 @@ their frozen scripts and results; do not resume them with these entry points.
 |---|---|---|---|
 | Gaussian pulse | Yes | Yes | M1 linear moment evolution; FLD periodic constant-diffusion solution |
 | Stationary Marshak heating | Yes | Yes | Su–Olson linear half-space diffusion solution for radiation and material energy |
-| Streaming wave and front | Yes | Unsupported | Existing streaming references |
-| Equilibrium sphere | Yes | Unsupported | Existing equilibrium reference |
+| Streaming wave and front | Yes | Setup/reporting only; zero-opacity solve does not converge | Exact M1 transport profiles; no analytic FLD profile, with conservation/positivity/flux-bound diagnostics |
+| Equilibrium sphere | Yes | Yes | Analytic constant-diffusion Gaussian-emitter equilibrium |
 | Subcritical/supercritical shocks and radiating blast | Yes | Unsupported | Numerical profiles and conservation diagnostics |
 
 FLD references include energy and flux. Its flux is derived from the radiation
-energy gradient. The Gaussian heat-equation solution and Su–Olson solution are
+energy gradient. The Gaussian heat-equation, steady Gaussian-emitter and Su–Olson solutions are
 **diffusion-limit references**, not exact solutions of the nonlinear
 Levermore–Pomraning flux-limited equations. The website labels reference
 assumptions and slice-area reference discrepancies. Marshak additionally
@@ -67,6 +67,31 @@ To print a plan without creating output, replace `--prepare` with `--dry-run`.
 Custom `--cases`, `--levels`, `--time`, and `--hard-dt` belong at preparation;
 resume cannot change frozen settings. `run_local.py` also accepts
 `--models m1` or `--models fld`. Unsupported FLD selections are listed explicitly.
+
+The full-suite preset selects all eight problems at levels 2, 3 and 4 (32, 64,
+128 cells per side), with 101 requested snapshots and 12 HPX workers. Each
+problem has its own duration: the transport cases use 0.2 s, Marshak uses
+normalized time 1, and the shocks/blast use their full template times
+(38300, 7500 and 22000 s). Maximum outer steps are one two-hundredth of each
+duration. These are starting settings, not a demonstrated timestep convergence
+result. M1 still subcycles for transport stability. New FLD runs check output
+after each physical step, so their capture cap is one output interval instead
+of the M1 driver's five-step batch. Explicit `--time` and `--hard-dt` override
+the preset values for every selected problem.
+
+```sh
+python3 radiation_results/run_both.py --preset full \
+  --output output/m1-fld-full --prepare
+```
+
+This currently prepares 33 runnable cases (eight M1 and three stationary FLD
+problems at three levels). Fifteen FLD combinations remain explicitly
+unavailable: six transparent wave/front cases fail nonlinear convergence at
+exactly zero opacity, and nine shock/blast cases require moving-gas coupling.
+Adding an opacity floor or turning off hydro would change those problems and
+is not a substitute. Preparation performs configuration checks but starts no
+benchmark. High-resolution root-gathered FLD remains subject to the configured
+memory ceiling. Completed pilot campaigns keep their frozen inputs.
 
 ## Start only after authorization
 
@@ -132,6 +157,19 @@ Movies are optional, separate work after execution. `campaign_movies.py --campai
 DIR --plan` lists supported completed runs without rendering. Its metadata and
 labels distinguish M1's evolved flux from FLD's derived flux. Rendering requires
 VisIt/FFmpeg, must fit the shared CPU budget, and is not enabled by preparation.
+After rendering, use the current publisher to create a new stage with a movie
+gallery and embedded players in the run reports:
+
+```sh
+python3 radiation_results/publish_campaign.py output/m1-fld-local \
+  --output output/m1-fld-site-movies
+```
+
+Only complete movies whose metadata and asset hashes match the saved run are
+included. Rendering caches stay local. The gallery reports the available movie
+count and stored snapshot times; playback holds saved states without solution
+interpolation. The initial pilot saved three states per run. Adding the gallery
+does not change solver inputs, saved run metadata, or prior website generations.
 
 See [README_CPP.md](README_CPP.md) for individual runs and data contracts,
 [../doc/radiation-fld.md](../doc/radiation-fld.md) for solver limitations, and

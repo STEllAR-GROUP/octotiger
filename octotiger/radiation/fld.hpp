@@ -691,6 +691,58 @@ inline result solve(const composite_mesh& mesh, const std::vector<cell>& initial
     return answer;
 }
 
+// A prescribed, time-independent emissivity enters the backward-Euler RHS.
+// Shifting only incoming E by dt*q is exact: the material equation still uses
+// its original u, and the coupled residual contains E_new-E_old+u_new-u_old+
+// dt*div(F)-dt*q. The shifted state is scratch, never a committed source split.
+inline result solve_with_source(const composite_mesh& mesh, const std::vector<cell>& initial,
+    const std::vector<double>& emissivity, double dt, double c,
+    const std::vector<boundary_condition>& bc, const settings& options = {},
+    const opacity_callback& callback = {}) {
+    result rejected;
+    rejected.state = initial;
+    rejected.source_energy_by_cell.assign(initial.size(), 0);
+    rejected.boundary_energy_by_cell.assign(initial.size(), 0);
+    rejected.message = "Invalid prescribed FLD emissivity or source interval";
+    if (emissivity.size() != initial.size() || !std::isfinite(dt) || dt < 0 ||
+        !detail::valid_input(mesh, initial, dt, c, bc, options)) {
+        return rejected;
+    }
+    auto shifted = initial;
+    std::vector<double> injected(initial.size());
+    for (size_t i = 0; i < initial.size(); ++i) {
+        if (!std::isfinite(emissivity[i]) || emissivity[i] < 0) {
+            return rejected;
+        }
+        const long double energy = static_cast<long double>(initial[i].energy) +
+            static_cast<long double>(dt) * emissivity[i];
+        const long double budget = static_cast<long double>(dt) * emissivity[i] * mesh.volume(i);
+        if (!std::isfinite(energy) || energy > std::numeric_limits<double>::max() ||
+            !std::isfinite(budget) || budget > std::numeric_limits<double>::max()) {
+            return rejected;
+        }
+        shifted[i].energy = static_cast<double>(energy);
+        injected[i] = static_cast<double>(budget);
+    }
+    auto answer = solve(mesh, shifted, dt, c, bc, options, callback);
+    if (!answer.success) {
+        // A retry starts from the physical state, not this failed RHS shift.
+        answer.state = initial;
+        return answer;
+    }
+    long double balance = -static_cast<long double>(answer.boundary_energy);
+    for (size_t i = 0; i < initial.size(); ++i) {
+        answer.source_energy_by_cell[i] += injected[i];
+        answer.source_energy += injected[i];
+        balance += ((static_cast<long double>(answer.state[i].energy) - initial[i].energy) +
+            (static_cast<long double>(answer.state[i].internal_energy) - initial[i].internal_energy)) *
+            mesh.volume(i) - injected[i];
+    }
+    // Account for rounding of the shifted RHS in the physical energy ledger.
+    answer.conservation_error = static_cast<double>(balance);
+    return answer;
+}
+
 inline result refresh(const composite_mesh& mesh, const std::vector<cell>& state,
     double c, const std::vector<boundary_condition>& bc, const opacity_callback& callback = {}) {
     return solve(mesh, state, 0, c, bc, settings{}, callback);

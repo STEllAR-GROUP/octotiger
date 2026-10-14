@@ -23,16 +23,30 @@ CASES = ("streaming_wave", "streaming_front", "gaussian_pulse", "equilibrium_sph
          "subcritical_shock", "supercritical_shock", "radiating_blast", "marshak")
 COUPLED_WITHOUT_REFERENCE = ("subcritical_shock", "supercritical_shock", "radiating_blast")
 METHODS = ("m1", "fld")
-PAIRED_CASES = frozenset({"gaussian_pulse", "marshak"})
+PAIRED_CASES = frozenset({"streaming_wave", "streaming_front", "gaussian_pulse", "equilibrium_sphere", "marshak"})
 INTEGRATORS = {"m1": "euler", "fld": "backward_euler"}
 FLUX_SEMANTICS = {"m1": "evolved_m1_flux", "fld": "derived_fld_flux"}
 LABELS = {"m1": "M1 RK1", "fld": "FLD backward Euler"}
-FLD_REFERENCE_MODELS = {"gaussian_pulse": "periodic-constant-diffusion", "marshak": "su-olson-linear-halfspace"}
+FLD_REFERENCE_MODELS = {"gaussian_pulse": "periodic-constant-diffusion", "marshak": "su-olson-linear-halfspace",
+                        "equilibrium_sphere": "steady-gaussian-emitter"}
 FLD_REFERENCE = {
+    "streaming_wave": ("no supplied FLD spatial analytic reference",
+        "The exact M1 periodic-advection profile does not solve nonlinear FLD. The periodic radiation-energy "
+        "integral is an exact invariant, but it does not specify the evolving spatial profile. Cross-model "
+        "differences measure closure and discretization differences, not FLD error against that M1 solution."),
+    "streaming_front": ("no supplied FLD spatial analytic reference",
+        "The exact M1 translated-front profile does not solve nonlinear FLD. The periodic radiation-energy "
+        "integral is an exact invariant, but it does not specify the evolving spatial profile. Cross-model "
+        "differences measure closure and discretization differences, not FLD error against that M1 solution."),
     "gaussian_pulse": ("periodic constant-diffusion analytic reference",
         "Each retained Fourier mode decays as exp[-D |k|² t], with D = c/(3χ) and reference flux -D grad(E). "
         "It uses the same filtered initial energy as the M1 run, while M1 has its separate telegraph reference. "
         "This is an analytic diffusion-limit reference, not an exact solution of nonlinear flux-limited diffusion."),
+    "equilibrium_sphere": ("steady Gaussian-emitter diffusion-limit analytic reference",
+        "The steady Gaussian-emitter solution assumes constant linear diffusion. Saved reference values are "
+        "cell averages evaluated with four Gauss points per axis. Nonlinear flux limiting, finite-domain "
+        "boundary treatment, quadrature, and discretization can contribute to departures from this reference; "
+        "it is not an exact stationary solution of nonlinear FLD."),
     "marshak": ("Su–Olson linear diffusion analytic reference",
         "The semi-infinite Su–Olson solution describes constant diffusion and equal linear radiation/material "
         "heat capacities. It is a diffusion-limit reference for FLD. Flux limiting, the finite-domain far "
@@ -120,11 +134,20 @@ def reference_contract(metadata):
     model, case = metadata["radiation_model"], metadata["case"]
     kind = metadata.get("reference_kind", REFERENCE[case][0])
     sampling = "cell-center point values" if case == "marshak" else "cell averages"
+    if kind == "unavailable":
+        if model == "fld":
+            require(case in {"streaming_wave", "streaming_front"} and metadata.get("reference_model") == "none" and
+                    metadata.get("reference_exact_for_solver") is False and
+                    metadata.get("reference_sampling") == "none",
+                    "Unavailable FLD references must explicitly declare no reference model or sampling")
+        label, note = FLD_REFERENCE[case] if model == "fld" else ("no supplied analytic reference", "No applicable saved analytic reference.")
+        return {"available": False, "kind": kind, "model": None, "exact_for_solver": False,
+                "sampling": "none", "label": label, "note": note}
     if kind == "numerical-only" or case in COUPLED_WITHOUT_REFERENCE:
         return {"available": False, "kind": kind, "model": None, "exact_for_solver": False,
                 "sampling": sampling, "label": "numerical-only", "note": "No applicable saved analytic reference."}
     if model == "fld":
-        require(kind == "linear-diffusion-limit" and
+        require(case in FLD_REFERENCE_MODELS and kind == "linear-diffusion-limit" and
                 metadata.get("reference_model") == FLD_REFERENCE_MODELS.get(case) and
                 metadata.get("reference_exact_for_solver") is False and
                 metadata.get("reference_sampling", sampling) == sampling,
@@ -210,7 +233,7 @@ def load_run(root, run):
     else:
         # Numerical-only records may originate from a generic CSV writer. Do
         # not render any stale/reference-shaped columns as an FLD solution.
-        values = {name: value for name, value in values.items() if not name.endswith("_ref")}
+        values = {name: value for name, value in values.items() if not name.endswith(("_ref", "_error"))}
     require(all(name in units and isinstance(units[name], str) for name in ("t", "x", "y", "z", "dx", *fields)),
             "Saved physical-field units are missing")
     return {"run": run, "metadata": metadata, "values": values, "fields": fields, "units": units,
@@ -313,6 +336,9 @@ def record_run(root, data):
             "reference_sha256": metadata.get("reference_sha256"),
             "reference_generator_sha256": metadata.get("reference_generator_sha256"),
             "reference_diffusion_coefficient": metadata.get("reference_diffusion_coefficient"),
+            "analytic_mean_energy": metadata.get("analytic_mean_energy"),
+            "analytic_invariants": metadata.get("fld_diagnostics", {}).get("analytic_invariants", {}),
+            "slice_physical_bounds": metadata.get("fld_diagnostics", {}).get("slice_physical_bounds", {}),
             "reference_kind": metadata.get("reference_kind", REFERENCE[data["run"]["case"]][0]),
             "radiation_model": metadata["radiation_model"],
             "radiation_integrator": metadata["radiation_integrator"],
@@ -412,11 +438,19 @@ def validate_manifest(manifest):
                 type(run.get("level")) is int and run["level"] >= 0,
                 "Invalid campaign case/model/integrator/level identity")
         require(model != "fld" or run["case"] in PAIRED_CASES,
-                "FLD campaign cases must be stationary Gaussian pulse or Marshak")
+                "FLD campaign cases must be supported stationary radiation problems")
         require(run.get("runtime_profile", "baseline") == "baseline",
                 "Historical runtime recovery profiles cannot be used for M1/FLD comparisons")
         identities.append((run["case"], run["level"], model))
     require(len(identities) == len(set(identities)), "Duplicate comparison identity")
+    unsupported = manifest.get("unsupported", [])
+    require(isinstance(unsupported, list), "Unsupported combinations must be a list")
+    for item in unsupported:
+        require(isinstance(item, dict) and item.get("case") in CASES and item.get("model") in models and
+                type(item.get("level")) is int and item["level"] >= 0 and bool(item.get("reason")),
+                "Invalid unsupported model/problem entry")
+        require((item['case'], item['level'], item['model']) not in identities,
+                "A model/problem cannot be both scheduled and unsupported")
     selected = manifest.get("cases", [case for case in CASES if any(run["case"] == case for run in runs)])
     require(isinstance(selected, list) and all(case in CASES for case in selected) and
             len(selected) == len(set(selected)) and all(run["case"] in selected for run in runs),
@@ -435,6 +469,8 @@ def refresh(root, manifest):
     import matplotlib.pyplot as pyplot
     runs = manifest.get("runs", [])
     indexed = {(run["case"], run["level"], run["method"]): run for run in runs}
+    unavailable = {(item['case'], item['level'], item['model']): item['reason']
+                   for item in manifest.get('unsupported', [])}
     models = manifest["methods"]
     summary = {"schema": 2, "workflow": "m1-fld-radiation", "methods": models,
                "scope": "M1/FLD model discrepancies and separate model-specific reference errors",
@@ -449,6 +485,9 @@ def refresh(root, manifest):
         title = case.replace("_", " ").title()
         reference_kind, reference_note = REFERENCE[case]
         planned_models = [model for model in models if model == "m1" or case in PAIRED_CASES]
+        planned_models = [model for model in planned_models if
+            any(run['case'] == case and run['method'] == model for run in runs) or
+            not any(identity[0] == case and identity[2] == model for identity in unavailable)]
         paired = len(planned_models) == 2
         body = (f'<p><a href="index.html">All problem comparisons</a> · <a href="../index.html">Campaign</a></p>'
                 f'<h1>{escaped(title)}: ' + ' and '.join(LABELS[model] for model in planned_models) + '</h1>')
@@ -457,7 +496,11 @@ def refresh(root, manifest):
         if "fld" in planned_models:
             label, note = FLD_REFERENCE[case]
             body += f'<p><strong>FLD reference:</strong> {escaped(label)}. {escaped(note)}</p>'
-        if case not in PAIRED_CASES:
+        reasons = sorted({reason for identity, reason in unavailable.items() if identity[0] == case})
+        if reasons:
+            body += ('<p class="note">Unavailable model/problem combinations: ' +
+                     escaped('; '.join(reasons)) + '. No excluded matching partner is assumed.</p>')
+        elif case not in PAIRED_CASES:
             body += '<p class="note">This case is retained for M1 only. No unsupported FLD run or matching partner is planned.</p>'
         elif not paired:
             body += '<p class="note">Only the selected model is planned; no cross-model discrepancy is computed.</p>'
@@ -465,6 +508,8 @@ def refresh(root, manifest):
         case_report = []
         levels = sorted({run["level"] for run in runs if run["case"] == case})
         for level in levels:
+            level_models = [model for model in planned_models if (case, level, model) not in unavailable]
+            paired = len(level_models) == 2
             record = {"case": case, "level": level, "reference_kind": "model-specific", "methods": {},
                       "status": "pending", "direct_slice_difference": {}, "difference_kind": "model discrepancy",
                       "difference_direction": "fld minus m1",
@@ -472,7 +517,7 @@ def refresh(root, manifest):
             record["reference_sampling"] = "cell-center point values" if case == "marshak" else "cell averages"
             loaded = {}
             section = f'<section id="l{level}"><h2>Level {level}</h2>'
-            for model in planned_models:
+            for model in level_models:
                 run = indexed.get((case, level, model))
                 status = run.get("status", "pending") if run else "pending"
                 if status == "completed":
@@ -533,6 +578,11 @@ def refresh(root, manifest):
                                     metric_table(volume, data["units"]) + '</details>')
                 else:
                     section += '<p>Numerical-only output: no applicable embedded reference curve or analytic error norm.</p>'
+                    invariants = record["methods"][model]["analytic_invariants"]
+                    if invariants:
+                        section += ('<h4>Exact integral invariant</h4><p>Saved full-volume energy-history diagnostics. '
+                                    'These check the radiation-energy integral, not an analytic spatial profile.</p>'
+                                    f'<pre>{escaped(json.dumps(invariants, indent=2, allow_nan=False))}</pre>')
                 section += (f'<p><a href="../{escaped(data["path"].relative_to(root))}">Source slice CSV</a> · '
                             f'<a href="../{escaped(data["metadata_path"].relative_to(root))}">Run metadata</a></p>')
             for model, result in record["methods"].items():
@@ -561,7 +611,8 @@ def refresh(root, manifest):
         summary["cases"][case] = case_report
         statuses = "; ".join(f'L{item["level"]}: {item["status"].replace("_", " ")}' for item in case_report)
         card_reference = "; ".join(reference_kind + " (M1)" if model == "m1" else
-                                  FLD_REFERENCE[case][0] + " (FLD limit)" for model in planned_models)
+                                  FLD_REFERENCE[case][0] + (" (FLD limit)" if case in FLD_REFERENCE_MODELS else " (FLD)")
+                                  for model in planned_models)
         cards.append(f'<tr><th><a href="{case}.html">{escaped(title)}</a></th><td>{escaped(card_reference)}</td>'
                      f'<td>{escaped(statuses)}</td></tr>')
     intro = ('<p><a href="../index.html">Campaign dashboard</a></p><h1>M1 RK1 and FLD: model comparisons</h1>'

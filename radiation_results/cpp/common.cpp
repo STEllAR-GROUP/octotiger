@@ -451,10 +451,13 @@ std::string radiation_method_note(const Json &m)
     const double physical = m.value("physical_c", m.value("c", c_cgs));
     if (fld_model(m)) {
         require(factor == 1., "FLD results require physical light speed");
+        const std::string reference = m.value("reference_kind", "") == "unavailable" ?
+            "No analytic FLD profile is supplied for this transparent closure comparison. " :
+            "Analytic references describe the linear diffusion limit and need not solve nonlinear flux-limited diffusion exactly. ";
         return "FLD backward Euler with the Levermore-Pomraning limiter; stationary material and physical c = " +
             number(physical) + (cgs(m) ? " cm/s. " : " in normalized units. ") +
             "Radiation flux is derived from the radiation-energy gradient; it is a diagnostic, not an evolved momentum variable. "
-            "Analytic references describe the linear diffusion limit and need not solve nonlinear flux-limited diffusion exactly. "
+            + reference +
             "M1 versus FLD differences compare distinct radiation models and are not analytic-reference errors.";
     }
     const std::string method = m.value("radiation_integrator", "euler") == "ader2" ?

@@ -1,7 +1,8 @@
 // Copyright (c) 2026 AUTHORS
 // Distributed under the Boost Software License, Version 1.0.
-// Standalone: c++ -std=c++17 -O2 -I. tests/radiation/test_fld.cpp -o /tmp/test_fld
+// Standalone: c++ -std=c++20 -O2 -I. tests/radiation/test_fld.cpp -o /tmp/test_fld
 #include "octotiger/radiation/fld.hpp"
+#include "octotiger/radiation/fld_benchmarks.hpp"
 #include "octotiger/radiation/physical_opacity.hpp"
 
 #include <cfenv>
@@ -380,6 +381,109 @@ void diagnostic_and_failure_tests() {
     invalid[0].energy = -1;
     require(!FLD::solve(mesh, invalid, 1, 10, reflecting()).success, "negative input rejected, never clipped");
 }
+void prescribed_source_tests() {
+    const auto mesh = uniform(4, true);
+    const std::vector<FLD::cell> initial(mesh.cells().size(), {1, 2, 10, .2, 0, true});
+    std::vector<double> emissivity(initial.size(), 4);
+    const double dt = .3, c = 3, rate = c * .2;
+    const auto heated = FLD::solve_with_source(mesh, initial, emissivity, dt, c, reflecting());
+    require(heated.success, "prescribed emission and thermal coupling: " + heated.message);
+    const double expected = (1 + dt * 4 + dt * rate * (3 + dt * 4)) / (1 + 2 * dt * rate);
+    for (size_t i = 0; i < initial.size(); ++i) {
+        near(heated.state[i].energy, expected, 1.e-13, "emission enters coupled BE radiation RHS");
+        near(heated.state[i].energy + heated.state[i].internal_energy, 3 + dt * 4, 1.e-13,
+            "prescribed source changes total energy exactly once");
+    }
+    near(heated.source_energy, expected - 1, 2.e-13, "radiation ledger includes emission and material exchange");
+    near(heated.conservation_error, 0, 2.e-13, "emission-adjusted total energy balance");
+    const auto diagnostic = FLD::solve_with_source(mesh, initial, emissivity, 0, c, reflecting());
+    require(diagnostic.success, "source diagnostic refresh accepted");
+    near(diagnostic.source_energy, 0, 0, "dt0 injects no prescribed emission");
+    for (size_t i = 0; i < initial.size(); ++i) {
+        near(diagnostic.state[i].energy, initial[i].energy, 0, "dt0 preserves source state");
+    }
+    auto nonuniform = initial;
+    for (size_t i = 0; i < initial.size(); ++i) {
+        nonuniform[i] = {1.e-6 + mesh.cells()[i].center[0], 1, 1.e-8, 0, 0, true};
+        emissivity[i] = 1 + mesh.cells()[i].center[0];
+    }
+    FLD::settings short_solve;
+    short_solve.max_iterations = 1;
+    short_solve.nonlinear_tolerance = 1.e-15;
+    const auto rejected = FLD::solve_with_source(mesh, nonuniform, emissivity, 1, c,
+        reflecting(), short_solve);
+    require(!rejected.success, "forced sourced nonlinear failure rejected");
+    near(rejected.source_energy, 0, 0, "failed source attempt commits no emission budget");
+    for (size_t i = 0; i < initial.size(); ++i) {
+        near(rejected.state[i].energy, nonuniform[i].energy, 0, "failed attempt returns unshifted source state");
+    }
+    const double retry_dt = .001;
+    const auto retry = FLD::solve_with_source(mesh, rejected.state, emissivity, retry_dt, c, reflecting());
+    require(retry.success, "short sourced retry accepted: " + retry.message);
+    double expected_budget = 0;
+    for (size_t i = 0; i < initial.size(); ++i) {
+        expected_budget += retry_dt * emissivity[i] * mesh.volume(i);
+    }
+    near(retry.source_energy, expected_budget, 2.e-15, "retry adds only successful interval emission");
+    near(retry.conservation_error, 0, 2.e-10, "sourced retry energy ledger");
+    emissivity[0] = -1;
+    require(!FLD::solve_with_source(mesh, initial, emissivity, dt, c, reflecting()).success,
+        "negative prescribed emissivity rejected");
+}
+
+void sphere_tests() {
+    auto cells = uniform(4).cells();
+    for (auto& cell : cells) {
+        for (auto& coordinate : cell.center) {
+            coordinate -= .5;
+        }
+    }
+    const MG::composite_mesh mesh(std::move(cells), {{-.5, -.5, -.5}}, {{.5, .5, .5}});
+    radiationTests::Parameters parameters;
+    parameters.length = 1;
+    parameters.c = 3;
+    parameters.chi = 5;
+    parameters.width = .15;
+    parameters.luminosity = .02;
+    const auto boundary = FLD::sphere_boundary(mesh, parameters);
+    for (size_t f = 0; f < mesh.faces().size(); ++f) {
+        const auto& face = mesh.faces()[f];
+        if (face.boundary_side != 0) {
+            near(boundary[f].alpha, 1, 0, "sphere boundary is Dirichlet");
+            near(boundary[f].gamma, 0, 0, "sphere boundary prescribes no extra flux");
+            const double quadratic = FLD::boundary_face_average(face, [](const auto& x) {
+                return x[0] * x[0] + x[1] * x[1] + x[2] * x[2];
+            });
+            const auto& x = face.center;
+            near(quadratic, x[0] * x[0] + x[1] * x[1] + x[2] * x[2] + face.area / 6,
+                2.e-15, "face quadrature averages tangential dimensions only");
+        }
+    }
+    std::vector<FLD::cell> initial;
+    std::vector<double> emissivity;
+    double source_integral = 0;
+    for (size_t i = 0; i < mesh.cells().size(); ++i) {
+        const auto& cell = mesh.cells()[i];
+        const double E = radiationTests::sphereAverage(cell.center, cell.width, parameters)[0];
+        initial.push_back({E, 1, parameters.chi, 0, 0, true});
+        emissivity.push_back(radiationTests::bulbSourceAverage(cell.center, cell.width, parameters));
+        source_integral += emissivity.back() * mesh.volume(i);
+    }
+    near(source_integral, parameters.luminosity * std::pow(std::erf(.5 / parameters.width), 3),
+        2.e-16, "sphere finite-box source integral");
+    const double dt = .2;
+    const auto result = FLD::solve_with_source(mesh, initial, emissivity, dt, parameters.c, boundary);
+    require(result.success, "sphere sourced diffusion solve: " + result.message);
+    near(result.source_energy, dt * source_integral, 2.e-15, "sphere source ledger");
+    near(result.conservation_error, 0, 2.e-10, "sphere emission and boundary energy balance");
+    require(result.boundary_energy < 0, "sphere emits through prescribed boundary");
+    for (size_t i = 0; i < initial.size(); ++i) {
+        near(result.state[i].internal_energy, initial[i].internal_energy, 0,
+            "prescribed sphere emitter does not cool the gas");
+        require(FLD::detail::norm(result.flux[i]) <= parameters.c * result.state[i].energy * (1 + 1.e-13),
+            "sphere diagnostic flux bound");
+    }
+}
 } // namespace
 
 int main() {
@@ -397,6 +501,8 @@ int main() {
         thin_boundary_tests();
         runtime_marshak_cold_tail_test();
         diagnostic_and_failure_tests();
+        prescribed_source_tests();
+        sphere_tests();
         std::cout << "FLD checks passed: " << checks << '\n';
         return 0;
     } catch (const std::exception& error) {

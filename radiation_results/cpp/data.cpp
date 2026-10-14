@@ -165,11 +165,15 @@ Json read_norms(const fs::path &folder, const Json &m)
 Json read_fld_diagnostics(const fs::path &folder, const Json &m)
 {
     require(fld_model(m) && fld_case(m.at("case")), "Unsupported FLD result model/problem");
+    const auto name = m.at("case").get<std::string>();
+    const bool references = fld_reference_case(name);
+    const std::string reference_model = name == "marshak" ? "su-olson-linear-halfspace" :
+        name == "gaussian_pulse" ? "periodic-constant-diffusion" :
+        name == "equilibrium_sphere" ? "steady-gaussian-emitter" : "none";
     require(m.value("radiation_flux_semantics", "") == "derived_fld_flux" &&
-        m.value("reference_kind", "") == "linear-diffusion-limit" &&
+        m.value("reference_kind", "") == (references ? "linear-diffusion-limit" : "unavailable") &&
         m.contains("reference_exact_for_solver") && m.at("reference_exact_for_solver") == false &&
-        m.value("reference_model", "") == (m.at("case") == "marshak" ?
-            "su-olson-linear-halfspace" : "periodic-constant-diffusion"), "Invalid FLD reference semantics");
+        m.value("reference_model", "") == reference_model, "Invalid FLD reference semantics");
     const auto cfg = m.value("config", Json::object());
     const double tolerance = numeric(cfg.value("fld_nonlinear_tolerance", "1e-10"));
     require(tolerance > 0, "Invalid FLD nonlinear tolerance");
@@ -231,6 +235,39 @@ Json read_fld_diagnostics(const fs::path &folder, const Json &m)
             }
         }
     }
+    Json result{{"accepted_steps", steps.size()}, {"substeps", substeps}, {"retries", retries},
+        {"history_start_time", start}, {"history_end_time", end},
+        {"maximum_nonlinear_residual", maximum_residual},
+        {"maximum_step_coupled_conservation_error", maximum_conservation_error},
+        {"radiation_energy_budget", budget->summary.at(0)}, {"steps", steps},
+        {"reference_kind", m.at("reference_kind")}, {"reference_model", reference_model},
+        {"reference_exact_for_solver", false}};
+    double minimum_energy = INFINITY, maximum_reduced_flux = 0;
+    for (const auto &row : slice.rows) {
+        minimum_energy = std::min(minimum_energy, row[5]);
+        if (row[5] > 0) {
+            maximum_reduced_flux = std::max(maximum_reduced_flux,
+                std::hypot(row[6], row[7], row[8]) / m.at("c").get<double>() / row[5]);
+        }
+    }
+    result["slice_physical_bounds"] = {{"scope", "projected-positive-side-slice"},
+        {"minimum_radiation_energy", minimum_energy}, {"maximum_reduced_flux", maximum_reduced_flux}};
+    if (!references) {
+        // These source-free periodic tests have an exact integrated-energy
+        // invariant, but no supplied analytic solution of the nonlinear FLD PDE.
+        const double mean = name == "streaming_wave" ? 1. : .5 * (1. + 1.e-10);
+        double maximum_relative_energy_error = 0;
+        for (const auto &row : budget->history.rows) {
+            const double expected = mean * row[1];
+            maximum_relative_energy_error = std::max(maximum_relative_energy_error,
+                std::abs(row[2] - expected) / expected);
+        }
+        result["analytic_invariants"] = {{"scope", "full-volume-energy-history"},
+            {"expected_mean_radiation_energy", mean},
+            {"maximum_relative_integrated_energy_error", maximum_relative_energy_error},
+            {"reference_description", "Exact source-free periodic energy integral; no analytic spatial FLD profile is supplied"}};
+        return result;
+    }
     Json differences;
     for (int f = 0; f < (material ? 5 : 4); ++f) {
         double l1 = 0, l2 = 0, maximum = 0;
@@ -248,13 +285,9 @@ Json read_fld_diagnostics(const fs::path &folder, const Json &m)
             "Nonfinite FLD reference difference");
         differences[f == 4 ? "material_egas" : fields[f]] = {{"L1", l1}, {"L2", l2}, {"Linf", maximum}};
     }
-    return {{"accepted_steps", steps.size()}, {"substeps", substeps}, {"retries", retries},
-        {"history_start_time", start}, {"history_end_time", end},
-        {"maximum_nonlinear_residual", maximum_residual},
-        {"maximum_step_coupled_conservation_error", maximum_conservation_error},
-        {"radiation_energy_budget", budget->summary.at(0)}, {"steps", steps},
-        {"reference_kind", "linear-diffusion-limit"}, {"reference_exact_for_solver", false},
-        {"reference_norm_scope", "projected-positive-side-slice"}, {"slice_reference_norms", differences}};
+    result["reference_norm_scope"] = "projected-positive-side-slice";
+    result["slice_reference_norms"] = differences;
+    return result;
 }
 namespace {
 Table adaptive_slice(const fs::path &directory, const Json &m, const std::vector<std::string> &columns)
@@ -303,6 +336,9 @@ Table read_slice(const fs::path &folder, const Json &m)
 {
 	std::vector<std::string> cols{"t",	"dx", "x",		"y",	  "z",		"er",	 "fx",
 								  "fy", "fz", "er_ref", "fx_ref", "fy_ref", "fz_ref"};
+    if (fld_model(m) && !fld_reference_case(m.at("case"))) {
+        cols.resize(9);
+    }
     auto validate = [&](const Table &data) {
         if (fld_model(m)) {
             for (const auto &row : data.rows) {

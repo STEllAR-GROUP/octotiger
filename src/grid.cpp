@@ -1818,7 +1818,8 @@ void grid::export_radiation_hydro(real t) const {
             return;
         }
         const int level = opts().unigrid ? -1 : int(std::llround(std::log2(2 * opts().xscale / (INX * dx))));
-        const bool references = opts().problem == RADIATION_GAUSSIAN_PULSE || opts().problem == MARSHAK;
+        const bool references = opts().problem == RADIATION_GAUSSIAN_PULSE ||
+            opts().problem == RADIATION_EQUILIBRIUM_SPHERE || opts().problem == MARSHAK;
         radiationTests::SliceOutput radiation(true, opts().data_dir, t, dx, 2 * opts().xscale, level, references);
         radiationTests::MaterialSliceOutput material(opts().problem == MARSHAK,
             opts().data_dir, t, dx, 2 * opts().xscale, level, references);
@@ -1833,7 +1834,8 @@ void grid::export_radiation_hydro(real t) const {
                         continue;
                     }
                     std::vector<real> reference;
-                    if (opts().problem == RADIATION_GAUSSIAN_PULSE) {
+                    if (opts().problem == RADIATION_GAUSSIAN_PULSE ||
+                        opts().problem == RADIATION_EQUILIBRIUM_SPHERE) {
                         reference = radiationRegressionAnalyticCell(X[XDIM][h], X[YDIM][h], X[ZDIM][h], t, dx);
                     } else if (opts().problem == MARSHAK) {
                         reference = marshak_wave_analytic(X[XDIM][h], X[YDIM][h], X[ZDIM][h], t);

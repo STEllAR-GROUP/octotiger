@@ -20,9 +20,13 @@ radiation_results/run.sh marshak 0 --build cmake-build-hpx2rc-radiation \
 Removing `--dry-run` starts a simulation; do so only after authorization.
 `--radiation-model` accepts `m1` and `fld`. `--radiation-integrator auto` selects
 `euler` for M1 and `backward_euler` for FLD; `rk1` is an alias for `euler`.
-ADER2 is rejected. The Gaussian and Marshak model comparisons use CPU, physical
-light speed and the same stationary medium. The six remaining problems are
-M1-only. `run_ensman.sh` retains the M1 RK1 shock/blast launcher.
+ADER2 is rejected. Gaussian, Marshak, streaming wave/front and equilibrium
+sphere comparisons use CPU, physical light speed and stationary material.
+Transparent streaming setup/reporting is available for diagnosis, but the
+zero-opacity iteration does not converge; the campaign scheduler excludes
+those FLD runs. It does not insert an artificial opacity to make them run.
+The two shocks and blast remain M1-only until moving-gas FLD is implemented.
+`run_ensman.sh` retains the M1 RK1 shock/blast launcher.
 
 A C++ batch contains one model. Resume restores saved model, algorithm version,
 flux semantics and physical settings and verifies source/executable provenance.
@@ -42,6 +46,13 @@ Su–Olson linear two-temperature half-space solution. Its sample locations are
 cell centers. LP limiter effects and the finite simulation boundary can produce
 reference discrepancies even with fine spatial/time resolution.
 
+The sphere uses its analytic Gaussian-emitter equilibrium in the linear
+diffusion limit. Its source is integrated over each cell, and FLD prescribes
+the analytic energy averaged over each boundary face. Transparent streaming
+cases have no analytic FLD profile: their M1 translated wave/front references
+do not solve the gradient-directed FLD closure. These runs export numerical
+fields only and retain conservation, positivity and flux-bound diagnostics.
+
 FLD export reads accepted states without replacing them with reference values.
 Radiation slices have `t,dx,x,y,z,er,fx,fy,fz,er_ref,fx_ref,fy_ref,fz_ref`; material
 slices add `egas,egas_ref` after the geometry columns. Reference-free problems
@@ -58,9 +69,17 @@ Comparisons retain distinct analytic-reference and cross-model discrepancies.
 `radiation_algorithm_version`, `radiation_flux_semantics`, executable hashes,
 reference model/qualification, and physical/configuration settings. FLD
 reference metadata uses `reference_kind=linear-diffusion-limit` and
-`reference_exact_for_solver=false`. Gaussian uses
+`reference_exact_for_solver=false` where a diffusion reference exists. Gaussian uses
 `reference_model=periodic-constant-diffusion`; Marshak uses
-`reference_model=su-olson-linear-halfspace`.
+`reference_model=su-olson-linear-halfspace`; sphere uses
+`reference_model=steady-gaussian-emitter`. Streaming uses
+`reference_kind=unavailable`, `reference_model=none`, and no reference norms.
+
+For new FLD batches with Silo output, the timestep is limited by `--hard-dt`
+and one output interval. Output is checked after every FLD physical step;
+the M1 five-step output-batch cap does not apply. Saved older batches preserve
+their recorded timestep settings. Neither this capture bound nor nonlinear
+convergence establishes temporal accuracy; refine the timestep separately.
 
 ## Checks and auxiliary commands
 

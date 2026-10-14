@@ -69,6 +69,7 @@ void results(const fs::path &p, Json m)
         return;
     }
     if (fld_model(m)) {
+        const bool references = fld_reference_case(m.at("case"));
         log.str("");
         log.clear();
         log << std::setprecision(17) << "normalized constants\n1 1 1 1\n| c = " << m.at("c").get<double>() << " |\n";
@@ -84,13 +85,18 @@ void results(const fs::path &p, Json m)
         log << "RADIATION_FLD_FINISHED " << (m.at("case") == "marshak" ? "" : "RADIATION_") << name << " t=" << time << " requested=" << time << '\n';
         atomic_text(p / "run.log", log.str());
         std::ostringstream csv, gas;
-        csv << "t,dx,x,y,z,er,fx,fy,fz,er_ref,fx_ref,fy_ref,fz_ref\n" << std::scientific << std::setprecision(17);
+        csv << "t,dx,x,y,z,er,fx,fy,fz" << (references ? ",er_ref,fx_ref,fy_ref,fz_ref\n" : "\n")
+            << std::scientific << std::setprecision(17);
         gas << "t,dx,x,y,z,egas,egas_ref\n" << std::scientific << std::setprecision(17);
         for (int i = 0; i < n; ++i) {
             for (int j = 0; j < n; ++j) {
                 const double x = -len / 2 + (i + .5) * dx, y = -len / 2 + (j + .5) * dx;
-                const double energy = 1 + .5 * std::cos(2 * 3.141592653589793 * x / len);
-                csv << time << ',' << dx << ',' << x << ',' << y << ',' << dx / 2 << ',' << energy + 1.e-3 / n << ",0,0,0," << energy << ",0,0,0\n";
+                const double energy = m.at("case") == "streaming_front" ? .5 * (1. + 1.e-10) :
+                    1 + .5 * std::cos(2 * 3.141592653589793 * x / len);
+                csv << time << ',' << dx << ',' << x << ',' << y << ',' << dx / 2 << ',' <<
+                    energy + (references ? 1.e-3 / n : 0.) << ",0,0,0";
+                if (references) { csv << ',' << energy << ",0,0,0"; }
+                csv << '\n';
                 gas << time << ',' << dx << ',' << x << ',' << y << ',' << dx / 2 << ',' << energy / 2 + 2.e-3 / n << ',' << energy / 2 << '\n';
             }
         }
@@ -103,7 +109,9 @@ void results(const fs::path &p, Json m)
         for (double t : {0., time / 4, time}) {
             // Flux diagnostic integrals deliberately change without a moment ledger.
             // FLD must assess only its evolved radiation energy equation.
-            budget << t << ',' << volume << ',' << volume * (1 + t) << ',' << t << ",0,0,0,0,0,0," << volume * t << ",0,0,0\n";
+            const double mean = m.at("case") == "streaming_front" ? .5 * (1. + 1.e-10) : 1.;
+            budget << t << ',' << volume << ',' << volume * (references ? 1 + t : mean) << ',' << t <<
+                ",0,0,0,0,0,0," << (references ? volume * t : 0.) << ",0,0,0\n";
         }
         atomic_text(p / "radiation-conservation.csv", budget.str());
         return;
@@ -462,12 +470,13 @@ int main(int argc, char **argv)
                 "cold Marshak conservation uses fixed prescribed bath scales");
             atomic_text(path / "radiation-conservation.csv", original);
         }
-        for (const auto &name : {"gaussian_pulse", "marshak"}) {
+        for (const auto &name : {"gaussian_pulse", "marshak", "equilibrium_sphere"}) {
             auto fld = metadata(name);
             fld.update({{"radiation_model", "fld"}, {"radiation_algorithm_version", 1},
                 {"radiation_integrator", "backward_euler"}, {"radiation_flux_semantics", "derived_fld_flux"},
                 {"reference_kind", "linear-diffusion-limit"}, {"reference_exact_for_solver", false},
-                {"reference_model", std::string(name) == "marshak" ? "su-olson-linear-halfspace" : "periodic-constant-diffusion"}});
+                {"reference_model", std::string(name) == "marshak" ? "su-olson-linear-halfspace" :
+                    std::string(name) == "equilibrium_sphere" ? "steady-gaussian-emitter" : "periodic-constant-diffusion"}});
             const auto folder = tmp / (std::string("fld-") + name);
             results(folder, fld);
             expect(read_slice(folder, fld).columns.size() == 13, "FLD slices include analytic diffusion reference columns");
@@ -527,6 +536,41 @@ int main(int argc, char **argv)
                 report.find("Full-volume norms and orders") == std::string::npos &&
                 report.find("Derived FLD flux") != std::string::npos,
                 "FLD page labels qualified analytic reference and derived flux without M1 full-volume norms");
+        }
+        for (const auto &name : {"streaming_wave", "streaming_front"}) {
+            auto fld = metadata(name);
+            fld.update({{"radiation_model", "fld"}, {"radiation_algorithm_version", 1},
+                {"radiation_integrator", "backward_euler"}, {"radiation_flux_semantics", "derived_fld_flux"},
+                {"reference_kind", "unavailable"}, {"reference_model", "none"}, {"reference_exact_for_solver", false}});
+            const auto folder = tmp / (std::string("fld-") + name);
+            results(folder, fld);
+            expect(read_slice(folder, fld).columns.size() == 9, "vacuum FLD slices contain only numerical fields");
+            const auto diagnostics = read_fld_diagnostics(folder, fld);
+            expect(!diagnostics.contains("slice_reference_norms") && !diagnostics.contains("reference_norm_scope") &&
+                diagnostics.at("analytic_invariants").at("maximum_relative_integrated_energy_error") == 0 &&
+                diagnostics.at("slice_physical_bounds").at("maximum_reduced_flux") == 0,
+                "vacuum FLD checks exact energy integral and flux bound without spatial reference norms");
+            expect(close(diagnostics.at("analytic_invariants").at("expected_mean_radiation_energy"),
+                std::string(name) == "streaming_wave" ? 1. : .5 * (1. + 1.e-10)),
+                "each periodic initial state uses its exact conserved mean");
+            auto disguised = fld;
+            disguised["reference_kind"] = "linear-diffusion-limit";
+            disguised["reference_model"] = "periodic-constant-diffusion";
+            rejects([&] { read_fld_diagnostics(folder, disguised); },
+                "zero-extinction FLD cannot substitute a constant-diffusion reference");
+            auto csv = read_text(folder / "radiation-slices/slice-000.csv");
+            auto forbidden = csv;
+            forbidden.insert(forbidden.find('\n'), ",er_ref,fx_ref,fy_ref,fz_ref");
+            atomic_text(folder / "radiation-slices/slice-000.csv", forbidden);
+            rejects([&] { read_slice(folder, fld); }, "vacuum FLD rejects fabricated spatial-reference columns");
+            atomic_text(folder / "radiation-slices/slice-000.csv", csv);
+            report_pages(folder);
+            const auto page = read_text(folder / (std::string(name) + ".html"));
+            expect(page.find("No analytic spatial FLD solution is supplied") != std::string::npos &&
+                page.find("Analytic integral and physical bounds") != std::string::npos &&
+                page.find("Projected-slice differences from the analytic reference") == std::string::npos &&
+                page.find("Full-volume norms and orders") == std::string::npos,
+                "vacuum FLD report distinguishes exact integral checks from unavailable spatial solutions");
         }
 		auto cap = cadence(4, 61, .4);
 		expect(cap["steps_per_output_check"] == 5 && close(cap["hard_dt"], 4. / 300),

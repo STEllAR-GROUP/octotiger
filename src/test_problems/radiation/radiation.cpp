@@ -53,7 +53,8 @@ void validateRadiationTest() {
     throw std::runtime_error("Radiation regression tests require radiation=on, hydro=off, gravity=off, omega=0");
   }
   bool const sphere=opts().problem==RADIATION_EQUILIBRIUM_SPHERE;
-	if (opts().periodic==sphere || opts().rad_implicit!=radiationFixedMediumProblem()) {
+	const bool implicit = opts().radiation_model == "fld" || radiationFixedMediumProblem();
+	if (opts().periodic==sphere || opts().rad_implicit!=implicit) {
     throw std::runtime_error("Radiation regression boundary/source flags disagree with the selected problem");
   }
   if (opts().problem==RADIATION_GAUSSIAN_PULSE) {
@@ -74,7 +75,15 @@ void validateRadiationTest() {
 }
 std::vector<Real> radiationRegressionInit(Real x,Real y,Real z,Real dx) {
 	FpeGuard fpeGuard{};
-	return sample(x,y,z,dx,0);
+	auto state = sample(x,y,z,dx,0);
+	if (opts().radiation_model == "fld") {
+		// Reconstructed collectively after initialization; the directed M1
+		// flux is not an independent initial condition for FLD.
+		for (int f = 1; f < 4; ++f) {
+			state[opts().n_fields + f] = 0;
+		}
+	}
+	return state;
 }
 std::vector<Real> radiationRegressionAnalytic(Real x,Real y,Real z,Real t) {
 	FpeGuard fpeGuard{};
