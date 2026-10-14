@@ -89,18 +89,26 @@ def movie_card(movie, page):
     report = escape(relative_url(Path(run['directory']) / (run['case'] + '.html'), page), quote=True)
     title = f"{run['case'].replace('_', ' ').title()} · L{run['level']} · {contract['model_label']}"
     times = ', '.join(f'{value:.9g}' for value in metadata['snapshot_times'])
+    time_units = escape(str(metadata.get('time_units', 'saved simulation units')))
+    first, last = metadata['snapshot_times'][0], metadata['snapshot_times'][-1]
+    seconds = metadata.get('seconds')
+    if type(seconds) not in (int, float) or not math.isfinite(seconds) or seconds <= 0:
+        raise ValueError(f"Invalid movie playback duration: {run['id']}")
     description = str(metadata.get('description', ''))
     if metadata.get('reference_description'):
         description = description.replace(metadata['reference_description'], contract['reference_description'])
     return (f'<article class="campaign-movie" id="movie-{escape(run["id"], quote=True)}">'
-        f'<h3>{escape(title)}</h3><video controls preload="none" playsinline poster="{url("poster.png")}" '
+        f'<h3>{escape(title)}</h3>'
+        f'<p><strong>{metadata["source_snapshots"]} stored states; {metadata["displayed_snapshots"]} shown.</strong> '
+        f'Physical time: {first:.9g}–{last:.9g} {time_units}. Playback: {seconds:.9g} s.</p>'
+        f'<video controls preload="none" playsinline poster="{url("poster.png")}" '
         f'style="display:block;width:100%;max-height:720px;background:#0c1820">'
         f'<source src="{url("movie.mp4")}" type="video/mp4">'
         f'<a href="{url("movie.mp4")}">Download MP4</a></video>'
-        f'<p><strong>{metadata["source_snapshots"]} stored states; {metadata["displayed_snapshots"]} shown. '
-        'Zero-order hold; no solution interpolation.</strong> Playback holds each saved numerical state '
+        '<p><strong>Zero-order hold; no solution interpolation.</strong> Playback holds each saved numerical state '
         'over its time interval and includes endpoint holds.</p>'
-        f'<p>Snapshot times: {escape(times)} {escape(str(metadata.get("time_units", "saved simulation units")))}.</p>'
+        f'<details><summary>All {metadata["source_snapshots"]} snapshot times</summary>'
+        f'<p>Snapshot times: {escape(times)} {time_units}.</p></details>'
         f'<p>{escape(contract["flux_description"])} Arrows have equal length and show direction only.</p>'
         f'<p>{escape(contract["reference_description"])}</p>'
         f'<p>{escape(description)}</p>'

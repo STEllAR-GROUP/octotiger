@@ -71,6 +71,7 @@ class LocalWebsiteTests(unittest.TestCase):
                     'run_metadata_sha256': self.run['run_metadata_sha256'],
                     'assets': assets, 'frames': 3, 'source_snapshots': 3,
                     'displayed_snapshots': 3, 'snapshot_times': [0, .125, .25], 'time_units': 's',
+                    'seconds': 12,
                     'timing': 'Actual Silo time gaps; stored states held without solution interpolation; endpoint holds included',
                     'description': 'Numerical radiation energy & flux',
                     **publisher.model_contract(metadata, self.run)}
@@ -212,6 +213,7 @@ class LocalWebsiteTests(unittest.TestCase):
         gallery = (self.destination / 'movies/index.html').read_text()
         self.assertIn('1 movies available from 1 completed runs', gallery)
         self.assertIn('3 stored states; 3 shown', gallery)
+        self.assertIn('Physical time: 0–0.25 s. Playback: 12 s.', gallery)
         self.assertIn('Zero-order hold; no solution interpolation', gallery)
         self.assertIn('0, 0.125, 0.25 s', gallery)
         self.assertIn('derived FLD diagnostic flux', gallery)
@@ -228,6 +230,36 @@ class LocalWebsiteTests(unittest.TestCase):
         self.assertTrue(receipt['local_links_verified'])
         for path, contents in before.items():
             self.assertEqual(path.read_bytes(), contents)
+
+    def test_dense_movie_card_leads_with_span_and_duration_and_collapses_timestamp_list(self):
+        movie = self.make_movie()
+        movie.update(frames=121, source_snapshots=121, displayed_snapshots=121,
+                     snapshot_times=[i / 80 for i in range(121)], seconds=60)
+        publisher.write_json(self.movie_folder / 'campaign-movie.json', movie)
+        self.stage()
+        gallery = (self.destination / 'movies/index.html').read_text()
+        card = gallery[gallery.index('<article class="campaign-movie"'):]
+        lead, remainder = card.split('<video ', 1)
+        self.assertIn('121 stored states; 121 shown', lead)
+        self.assertIn('Physical time: 0–1.5 s. Playback: 60 s.', lead)
+        self.assertNotIn('Snapshot times:', lead)
+        before, disclosure = remainder.split('<details>', 1)
+        self.assertNotIn('Snapshot times:', before)
+        self.assertIn('<summary>All 121 snapshot times</summary>', disclosure)
+        timestamp_list, following = disclosure.split('</details>', 1)
+        self.assertIn('Snapshot times: 0, 0.0125, 0.025', timestamp_list)
+        self.assertIn('1.475, 1.4875, 1.5 s.', timestamp_list)
+        self.assertNotIn('Snapshot times:', following.split('</article>', 1)[0])
+        self.assertIn('derived FLD diagnostic flux', following)
+        self.assertIn('not an exact solution of nonlinear', following)
+
+    def test_movie_card_rejects_invalid_playback_duration(self):
+        original = self.make_movie()
+        for seconds in (None, 0, -1, '60', True):
+            publisher.write_json(self.movie_folder / 'campaign-movie.json', {**original, 'seconds': seconds})
+            with self.subTest(seconds=seconds), self.assertRaisesRegex(ValueError, 'playback duration'):
+                self.stage()
+            self.assertFalse(self.destination.exists())
 
     def test_movie_asset_and_metadata_hash_mismatches_prevent_staging(self):
         original = self.make_movie()
