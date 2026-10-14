@@ -181,11 +181,22 @@ void start_octotiger(int argc, char* argv[]) {
             if (!opts().restart_filename.empty()) {
                 std::cerr << "Loading from " << opts().restart_filename << " ...\n";
                 load_data_from_silo(opts().restart_filename, root, root_client.get_unmanaged_gid());
-                std::cerr << "Re-grid" << std::endl;
-                ngrids = root->regrid(root_client.get_unmanaged_gid(), ZERO, -1, true, false);
+                if (root->has_exact_checkpoint()) {
+                    // Reconnect the saved mesh without changing its state or
+                    // recomputing the gravity data used by the cached history.
+                    std::cerr << "Reconnect checkpoint tree" << std::endl;
+                    ngrids = root->regrid_gather(true);
+                    root->regrid_scatter(0, ngrids.total);
+                    ngrids.amr_bnd = root->form_tree(root_client.get_unmanaged_gid());
+                } else {
+                    std::cerr << "Re-grid" << std::endl;
+                    ngrids = root->regrid(root_client.get_unmanaged_gid(), ZERO, -1, true, false);
+                }
                 std::cerr << "Done!" << std::endl;
 
-                set_AB(physcon().A, physcon().B);
+                if (!root->has_exact_checkpoint()) {
+                    set_AB(physcon().A, physcon().B);
+                }
 
             } else {
                 std::cerr << "Starting refinement" << std::endl;
@@ -201,13 +212,15 @@ void start_octotiger(int argc, char* argv[]) {
                           << "---------------\n"
                           << std::endl;
             }
-            for (integer l = 0; l < opts().extra_regrid; ++l) {
-                std::cerr << "Starting extra regridding step..." << std::endl;
-                ngrids = root->regrid(root_client.get_gid(), grid::get_omega(), -1, false, false);
-                std::cerr << "Finished extra regridding step..." << std::endl;
+            if (!root->has_exact_checkpoint()) {
+                for (integer l = 0; l < opts().extra_regrid; ++l) {
+                    std::cerr << "Starting extra regridding step..." << std::endl;
+                    ngrids = root->regrid(root_client.get_gid(), grid::get_omega(), -1, false, false);
+                    std::cerr << "Finished extra regridding step..." << std::endl;
+                }
             }
 
-            if (opts().gravity && opts().stop_step != 0) {
+            if (opts().gravity && opts().stop_step != 0 && !root->has_exact_checkpoint()) {
                 std::cerr << "solving gravity------------" << std::endl;
                 root->solve_gravity(false, false);
                 std::cerr << "...done" << std::endl;

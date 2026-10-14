@@ -14,6 +14,8 @@
 #include <hpx/include/naming.hpp>
 
 #include <cstddef>
+#include <limits>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -84,7 +86,7 @@ struct  silo_load_t {
 
 void output_all(node_server* root_ptr, std::string fname, int cycle, bool);
 
-void load_options_from_silo(std::string fname, DBfile* = nullptr);
+void load_options_from_silo(std::string fname, DBfile* = nullptr, bool restore_integrator = false);
 
 OCTOTIGER_EXPORT void load_data_from_silo(std::string fname, std::shared_ptr<node_server>, hpx::id_type);
 
@@ -129,6 +131,58 @@ static inline std::string outflow_name(const std::string& varname) {
 int& silo_epoch();
 double& silo_output_time();
 double& silo_output_rotation_time();
+
+// Raw restart records are separate from the CGS visualization variables.
+namespace silo_restart {
+constexpr integer format_version = 2;
+
+struct metadata {
+    std::vector<integer> layout;
+    std::vector<integer> solver_integers;
+    std::vector<real> solver_reals;
+    std::vector<real> globals;
+};
+
+inline void check(int status, const std::string& operation) {
+    if (status != 0) {
+        throw std::runtime_error("Silo checkpoint: " + operation);
+    }
+}
+
+template<class T>
+void write_array(DBfile* db, const std::string& name, const std::vector<T>& values) {
+    if (values.empty() || values.size() > size_t(std::numeric_limits<int>::max())) {
+        throw std::runtime_error("Silo checkpoint: invalid array length for " + name);
+    }
+    const int count = static_cast<int>(values.size());
+    check(DBWrite(db, name.c_str(), values.data(), &count, 1, db_type<T>::d),
+        "unable to write " + name);
+}
+
+template<class T>
+std::vector<T> read_array(DBfile* db, const std::string& name, size_t count) {
+    const int type = DBGetVarType(db, name.c_str());
+    // HDF5 can report a written DB_LONG_LONG as DB_LONG when both native
+    // types have the same width. Preserve strict width and byte-count checks.
+    const bool compatible_type = type == db_type<T>::d ||
+        (db_type<T>::d == DB_LONG_LONG && type == DB_LONG && sizeof(long) == sizeof(T));
+    if (count == 0 || count > size_t(std::numeric_limits<int>::max()) / sizeof(T) ||
+            !compatible_type ||
+            DBGetVarByteLength(db, name.c_str()) != static_cast<int>(count * sizeof(T)) ||
+            DBGetVarLength(db, name.c_str()) != static_cast<int>(count)) {
+        throw std::runtime_error("Silo checkpoint: invalid type/length for " + name);
+    }
+    std::vector<T> values(count);
+    check(DBReadVar(db, name.c_str(), values.data()), "unable to read " + name);
+    return values;
+}
+
+metadata snapshot();
+void write_metadata(DBfile*, const metadata&);
+void restore_metadata(DBfile*);
+bool present(DBfile*);
+std::vector<char> read_state(DBfile*, node_location::node_id);
+} // namespace silo_restart
 
 
 #endif /* SRC_SILO_HPP_ */

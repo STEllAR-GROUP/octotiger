@@ -111,7 +111,8 @@ public:
     future<real> step(integer) const;
     future<void> solve_gravity(bool ene, bool aonly) const;
     future<hpx::id_type> copy_to_locality(const hpx::id_type&) const;
-    future<void> set_grid(std::vector<real>&&, std::vector<real>&&) const;
+    future<void> set_grid(std::vector<real>&&, std::vector<real>&&,
+        std::vector<real>&& history, real previous_dt, real previous_fe_dt) const;
     void timestep_driver_ascend(timestep_t) const;
     void set_local_timestep(integer, timestep_t) const;
     future<void> velocity_inc(const space_vector&) const;

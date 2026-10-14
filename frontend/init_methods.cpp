@@ -435,6 +435,11 @@ void init_problem(void) {
         set_analytic(advection_test_analytic);
         set_problem(advection_test_init);
         set_refine_test(refine_test_moving_star);
+    } else if (opts().problem == AMR_ADVECTION) {
+        grid::set_fgamma(5.0 / 3.0);
+        set_analytic(amr_advection_analytic);
+        set_problem(amr_advection_init);
+        set_refine_test(refine_amr_advection);
     } else if (opts().problem == AMR_TEST) {
         grid::set_fgamma(5.0 / 3.0);
         //		grid::set_analytic_func(moving_star_analytic);

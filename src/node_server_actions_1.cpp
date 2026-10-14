@@ -148,7 +148,15 @@ future<hpx::id_type> node_server::create_child(hpx::id_type const &locality, int
 					std::unique_lock < hpx::spinlock > lk(prolong_mtx);
 					prolong = grid_ptr->get_prolong(lb, ub);
 				}
-				GET(child.set_grid(std::move(prolong), std::move(outflows)));
+				std::vector<real> history;
+                if (opts().time_integrator == SSP_MULTISTEP && ssp_previous_dt > ZERO) {
+                    history = grid_ptr->get_ssp_prolong(ci, ssp_previous_fe_dt);
+                    if (history.empty()) {
+                        throw std::runtime_error("Refinement requires complete SSP history");
+                    }
+                }
+                GET(child.set_grid(std::move(prolong), std::move(outflows),
+                    std::move(history), ssp_previous_dt, ssp_previous_fe_dt));
 			}
 		}
 		return child_id;
@@ -272,12 +280,22 @@ void node_server::set_aunt(const hpx::id_type &aunt, const geo::face &face) {
 using set_grid_action_type = node_server::set_grid_action;
 HPX_REGISTER_ACTION(set_grid_action_type);
 
-future<void> node_client::set_grid(std::vector<real> &&g, std::vector<real> &&o) const {
-	return hpx::async<typename node_server::set_grid_action>(get_unmanaged_gid(), std::move(g), std::move(o));
+future<void> node_client::set_grid(std::vector<real> &&g, std::vector<real> &&o,
+        std::vector<real>&& history, real previous_dt, real previous_fe_dt) const {
+    return hpx::async<typename node_server::set_grid_action>(get_unmanaged_gid(),
+        std::move(g), std::move(o), std::move(history), previous_dt, previous_fe_dt);
 }
 
-void node_server::set_grid(const std::vector<real> &data, std::vector<real> &&outflows) {
-	grid_ptr->set_prolong(data, std::move(outflows));
+void node_server::set_grid(const std::vector<real> &data, std::vector<real> &&outflows,
+        const std::vector<real>& history, real previous_dt, real previous_fe_dt) {
+    grid_ptr->set_prolong(data, std::move(outflows));
+    grid_ptr->set_ssp_prolong(history);
+    ssp_previous_dt = previous_dt;
+    ssp_previous_fe_dt = previous_fe_dt;
+    if (opts().time_integrator == SSP_MULTISTEP && ssp_previous_dt > ZERO
+            && (!grid_ptr->has_ssp_history() || !(ssp_previous_fe_dt > ZERO))) {
+        throw std::runtime_error("New AMR child has incomplete SSP history");
+    }
 }
 
 using solve_gravity_action_type = node_server::solve_gravity_action;

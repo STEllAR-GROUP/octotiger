@@ -1069,5 +1069,6 @@ add_subdirectory(tools)
 if(OCTOTIGER_WITH_TESTS)
     enable_testing()
 
+  add_subdirectory(test_problems/ssp_multistep)
   add_subdirectory(test_problems)
 endif()

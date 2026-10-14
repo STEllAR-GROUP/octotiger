@@ -109,8 +109,17 @@ private:
 	std::array<channel<timestep_t>, NCHILD + 1> local_timestep_channels;
 
 	timestep_t dt_;
+    real ssp_previous_dt = 0.0;
+    real ssp_previous_fe_dt = 0.0;
+    bool exact_checkpoint_restored = false;
 
 public:
+    std::vector<char> save_checkpoint() const;
+    void load_checkpoint(const std::vector<char>& data);
+    bool has_exact_checkpoint() const {
+        return exact_checkpoint_restored;
+    }
+
 	timings timings_;
 
 	real get_time() const {
@@ -142,6 +151,8 @@ private:
 
 	hpx::future<void> nonrefined_step();
 	void refined_step();
+    void multistep_step();
+    void select_ssp_timestep(timestep_t& timestep) const;
 
 	diagnostics_t root_diagnostics(const diagnostics_t& diags);
 	diagnostics_t child_diagnostics(const diagnostics_t& diags);
@@ -152,8 +163,8 @@ public:
 	integer get_step_num() const {
 		return step_num;
 	}
-	void exchange_interlevel_hydro_data();
-	void all_hydro_bounds();
+	void exchange_interlevel_hydro_data(bool include_ssp_history = false);
+	void all_hydro_bounds(bool include_ssp_history = false);
 	void energy_hydro_bounds();
 	static bool child_is_on_face(integer ci, integer face) {
 		return (((ci >> (face / 2)) & 1) == (face & 1));
@@ -180,7 +191,8 @@ public:
 	void reconstruct_tree();
 
 	node_server(const node_location&, integer, bool, real, real, const std::array<integer, NCHILD>&, grid,
-			const std::vector<hpx::id_type>&, std::size_t, std::size_t, integer position);
+			const std::vector<hpx::id_type>&, std::size_t, std::size_t, integer position,
+            real previous_dt, real previous_fe_dt);
 
 	void report_timing();/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server, report_timing, report_timing_action);
@@ -228,7 +240,8 @@ public:
 
 	void execute_solver(bool scf, node_count_type);
 
-	void set_grid(const std::vector<real>&, std::vector<real>&&);/**/
+	void set_grid(const std::vector<real>&, std::vector<real>&&,
+        const std::vector<real>& history, real previous_dt, real previous_fe_dt);/**/
 	HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, set_grid, set_grid_action);
 
 	hpx::future<void> timestep_driver_descend();

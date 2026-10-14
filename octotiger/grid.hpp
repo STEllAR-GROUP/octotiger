@@ -21,6 +21,7 @@
 #include "octotiger/io/silo.hpp"
 // #include "octotiger/simd_legacy.hpp"
 #include "octotiger/space_vector.hpp"
+#include "octotiger/ssp_multistep.hpp"
 //#include "octotiger/taylor.hpp"
 #include "octotiger/unitiger/safe_real.hpp"
 #include "octotiger/unitiger/hydro.hpp"
@@ -30,8 +31,11 @@
 #include <hpx/serialization/serialize.hpp>
 #include <hpx/serialization/traits/is_bitwise_serializable.hpp>
 
+#include <cmath>
+#include <cstddef>
 #include <functional>
 #include <memory>
+#include <stdexcept>
 #include <utility>
 #include <vector>
 //#include "octotiger/unitiger/hydro.hpp"
@@ -128,6 +132,14 @@ private:
 	std::vector<std::vector<safe_real>> U;
 	std::vector<std::vector<safe_real>> U0;
 	std::vector<std::vector<safe_real>> dUdt;
+    // Completed-step histories survive migration and exact Silo restart.
+    // Conservatively transferred at mesh changes; no batch reset is needed.
+    std::vector<std::vector<safe_real>> ssp_previous_u;
+    std::vector<std::vector<safe_real>> ssp_previous_rhs;
+    std::vector<std::vector<safe_real>> ssp_initial_rhs;
+    std::vector<real> ssp_previous_out;
+    std::vector<real> ssp_previous_out_rhs;
+    std::vector<real> ssp_initial_out_rhs;
 	std::vector<hydro_state_t<std::vector<safe_real>>> F;
 	std::vector<std::vector<safe_real>> X;
 #if defined(__AVX2__) && defined(OCTOTIGER_LEGACY_VC)
@@ -276,7 +288,11 @@ public:
 	std::pair<std::vector<real>, std::vector<real> > field_range() const;
 	void velocity_inc(const space_vector& dv);
 	void energy_adj();
-	std::vector<real> get_restrict() const;
+	std::vector<real> get_restrict(bool include_ssp_history = false) const;
+    bool has_ssp_history() const;
+    std::vector<real> get_ssp_prolong(integer child, real previous_fe_dt) const;
+    void set_ssp_prolong(const std::vector<real>& data);
+    void redistribute_ssp_angular_momentum(std::vector<std::vector<safe_real>>& values);
 	std::vector<real> get_flux_restrict(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub,
 			const geo::dimension&) const;
 	std::vector<real> get_prolong(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub);
@@ -343,7 +359,10 @@ public:
 	real compute_positivity_speed_limit() const;
 	void compute_sources(real t, real);
 	void set_physical_boundaries(const geo::face&, real t);
-	void next_u(integer rk, real t, real dt);
+	void next_u(integer rk, real t, real dt,
+        const ssp_multistep::coefficients* coefficients = nullptr,
+        bool save_ssp_history = false);
+    void finish_ssp_step();
 	template<class Archive>
 	void load(Archive &arc, const unsigned);
 	static real convert_gravity_units(int);
@@ -401,6 +420,75 @@ void grid::load(Archive &arc, const unsigned) {
 #endif
 	}
 	arc >> U_out;
+    arc >> ssp_previous_u >> ssp_previous_rhs;
+    arc >> ssp_previous_out >> ssp_previous_out_rhs;
+    // Serialize values rather than pointer identities. The DRHODT solve must
+    // reuse the centers of the last RHO solve, including on internal nodes.
+    for (size_t level = 0; level < 2; ++level) {
+        bool present = false;
+        arc >> present;
+        if (present) {
+            size_t count = 0;
+            arc >> count;
+            const size_t expected = level == 0 ? G_N3 : G_N3 / 8;
+            if (count != expected) {
+                throw std::runtime_error("Invalid serialized gravity centers");
+            }
+            com_ptr[level] = std::make_shared<std::vector<space_vector>>(count);
+            for (auto& center : *com_ptr[level]) {
+                for (integer dimension = 0; dimension < NDIM; ++dimension) {
+                    real value = 0.0;
+                    arc >> value;
+                    center[dimension] = value;
+                }
+            }
+        } else {
+            com_ptr[level].reset();
+        }
+    }
+    // Initial diagnostics need the mass cache before the next FMM solve.
+    // Regridding can migrate a grid after changing its leaf flag but before
+    // rebuilding its caches, so validate their active shapes at checkpoint load.
+    bool multipoles_present = false;
+    arc >> multipoles_present;
+    if (multipoles_present) {
+        size_t count = 0;
+        arc >> count;
+        if (count != 0 && count != G_N3) {
+            throw std::runtime_error("Invalid serialized gravity multipole count");
+        }
+        M_ptr = std::make_shared<std::vector<multipole>>(count);
+        for (auto& pole : *M_ptr) {
+            for (integer coefficient = 0; coefficient < multipole::size(); ++coefficient) {
+                real value = 0.0;
+                arc >> value;
+                if (!std::isfinite(value)) {
+                    throw std::runtime_error("Invalid serialized gravity multipole");
+                }
+                pole[coefficient] = value;
+            }
+        }
+    } else {
+        M_ptr.reset();
+    }
+    bool monopoles_present = false;
+    arc >> monopoles_present;
+    if (monopoles_present) {
+        size_t count = 0;
+        arc >> count;
+        if (count != 0 && count != G_N3) {
+            throw std::runtime_error("Invalid serialized gravity monopole count");
+        }
+        mon_ptr = std::make_shared<std::vector<real>>(count);
+        for (auto& value : *mon_ptr) {
+            arc >> value;
+            if (!std::isfinite(value)) {
+                throw std::runtime_error("Invalid serialized gravity monopole");
+            }
+        }
+    } else {
+        mon_ptr.reset();
+    }
 }
 
 template<class Archive>
@@ -422,6 +510,40 @@ void grid::save(Archive &arc, const unsigned) const {
 #endif
 	}
 	arc << U_out;
+    arc << ssp_previous_u << ssp_previous_rhs;
+    arc << ssp_previous_out << ssp_previous_out_rhs;
+    for (size_t level = 0; level < 2; ++level) {
+        const bool present = com_ptr[level] != nullptr;
+        arc << present;
+        if (present) {
+            arc << com_ptr[level]->size();
+            for (const auto& center : *com_ptr[level]) {
+                for (integer dimension = 0; dimension < NDIM; ++dimension) {
+                    const real value = center[dimension];
+                    arc << value;
+                }
+            }
+        }
+    }
+    const bool multipoles_present = M_ptr != nullptr;
+    arc << multipoles_present;
+    if (multipoles_present) {
+        arc << M_ptr->size();
+        for (const auto& pole : *M_ptr) {
+            for (integer coefficient = 0; coefficient < multipole::size(); ++coefficient) {
+                const real value = pole[coefficient];
+                arc << value;
+            }
+        }
+    }
+    const bool monopoles_present = mon_ptr != nullptr;
+    arc << monopoles_present;
+    if (monopoles_present) {
+        arc << mon_ptr->size();
+        for (const real value : *mon_ptr) {
+            arc << value;
+        }
+    }
 }
 
 #endif /* GRID_HPP_ */
