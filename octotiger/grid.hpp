@@ -385,6 +385,7 @@ public:
 	std::vector<silo_var_t> var_data() const;
 	void set(const std::string name, real *data, int);
 	friend class node_server;
+	friend class rad_grid;
 };
 
 struct grid::node_point {

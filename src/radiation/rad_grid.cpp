@@ -18,19 +18,45 @@
 #include <hpx/include/future.hpp>
 
 #include "octotiger/radiation/m1.hpp"
+#include "octotiger/radiation/ap_flux.hpp"
+#include "octotiger/radiation/implicit_source.hpp"
+#include "octotiger/radiation/marshak_boundary.hpp"
+#ifdef OCTOTIGER_HAVE_RADIATION_ACCELERATORS
+#include "octotiger/radiation/accelerator.hpp"
+#endif
 
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdio>
 #include <iostream>
 #include <limits>
 #include <string>
+#include <sstream>
+#include <stdexcept>
 #include <unordered_map>
 #include <vector>
 
 #if !defined(HPX_COMPUTE_DEVICE_CODE)
 
 using M1 = RadiationM1<Real, NDIM>;
+
+#ifdef OCTOTIGER_HAVE_RADIATION_ACCELERATORS
+namespace {
+namespace accelerator = radiation_accelerator;
+accelerator::Grid acceleratorGrid(Real dx, Real dt, Real omega) {
+    return {RAD_NX, RAD_BW, dx, physcon().c, opts().radiation_reduced_c_factor, dt, omega};
+}
+std::vector<double> flattenRadiation(const std::vector<std::vector<Real>>& fields) {
+    std::vector<double> result(fields.size() * RAD_N3);
+    for (size_t f = 0; f < fields.size(); ++f) {
+        std::copy(fields[f].begin(), fields[f].end(), result.begin() + f * RAD_N3);
+    }
+    return result;
+}
+} // namespace
+#endif
+
 
 std::unordered_map<std::string, int> rad_grid::str_to_index;
 std::unordered_map<int, std::string> rad_grid::index_to_str;
@@ -232,6 +258,65 @@ Real radiationGasInternal(Real egas, Real tau, Real sx, Real sy, Real sz, Real r
 void rad_grid::rad_imp(std::vector<Real>& egas, std::vector<Real>& tau, std::vector<Real>& sx,
     std::vector<Real>& sy, std::vector<Real>& sz, const std::vector<Real>& rho, Real dt) {
     PROFILE();
+#ifdef OCTOTIGER_HAVE_RADIATION_ACCELERATORS
+    // The stationary Marshak material uses the exact linear CPU coupling;
+    // its transport may still use an existing accelerator backend.
+    if (opts().radiation_backend != "cpu" && opts().problem != MARSHAK) {
+        const Real c = physcon().c, gamma = grid::get_fgamma();
+        const bool marshak = opts().problem == MARSHAK;
+        constexpr integer offset = H_BW - RAD_BW;
+        std::vector<accelerator::CouplingInput> input;
+        input.reserve(INX * INX * INX);
+        // EOS and composition-dependent opacity evaluation retain the host
+        // implementation. No FpeGuard spans a device call or a runtime wait.
+        {
+            FpeGuard guard;
+            const Real logAr = marshak ? 0 : std::log(expectPositive(4 * physcon().sigma / c));
+            const Real temperatureFactor = (gamma - 1) * physcon().mh / physcon().kb;
+            for (integer i = RAD_BW; i < RAD_NX - RAD_BW; ++i) {
+                for (integer j = RAD_BW; j < RAD_NX - RAD_BW; ++j) {
+                    for (integer k = RAD_BW; k < RAD_NX - RAD_BW; ++k) {
+                        const integer r = rindex(i, j, k);
+                        const integer h = hindex(i + offset, j + offset, k + offset);
+                        const Real e = radiationGasInternal(egas[h], tau[h], sx[h], sy[h], sz[h], rho[h]);
+                        input.push_back({{U[0][r], U[1][r] / c, U[2][r] / c, U[3][r] / c},
+                            {sx[h], sy[h], sz[h]}, egas[h], e, rho[h],
+                            kappa_p(rho[h], e, mmw[r], X_spc[r], Z_spc[r], gamma),
+                            kappa_R(rho[h], e, mmw[r], X_spc[r], Z_spc[r], gamma),
+                            marshak ? 0 : logAr + 4 * std::log(
+                                expectPositive(temperatureFactor * mmw[r] / rho[h]))});
+                    }
+                }
+            }
+        }
+        std::vector<accelerator::CouplingOutput> output;
+        accelerator::couple(accelerator::backend(opts().radiation_backend), input, dt, c,
+            opts().radiation_reduced_c_factor, marshak, output);
+        FpeGuard guard;
+        long double const cellVolume = static_cast<long double>(dx) * dx * dx;
+        size_t cell = 0;
+        for (integer i = RAD_BW; i < RAD_NX - RAD_BW; ++i) {
+            for (integer j = RAD_BW; j < RAD_NX - RAD_BW; ++j) {
+                for (integer k = RAD_BW; k < RAD_NX - RAD_BW; ++k, ++cell) {
+                    const integer r = rindex(i, j, k);
+                    const integer h = hindex(i + offset, j + offset, k + offset);
+                    const auto& next = output[cell];
+                    for (int f = 0; f < NRF; ++f) {
+                        const Real updated = f == 0 ? next.radiation[f] : c * next.radiation[f];
+                        conservationSource[f] += (static_cast<long double>(updated) - U[f][r]) * cellVolume;
+                        U[f][r] = updated;
+                    }
+                    sx[h] = next.momentum[0];
+                    sy[h] = next.momentum[1];
+                    sz[h] = next.momentum[2];
+                    egas[h] = next.gas_energy;
+                    tau[h] = std::pow(next.internal_energy, 1 / gamma);
+                }
+            }
+        }
+        return;
+    }
+#endif
     FpeGuard fpeGuard;
     long double const cellVolume = static_cast<long double>(dx) * dx * dx;
     Real const c = expectPositive(physcon().c);
@@ -261,9 +346,30 @@ void rad_grid::rad_imp(std::vector<Real>& egas, std::vector<Real>& tau, std::vec
                 // Grid/checkpoint fields are physical F; the M1 state uses Q=F/c.
                 const M1::ConservedState old{
                     U[er_i][r], U[fx_i][r] / c, U[fy_i][r] / c, U[fz_i][r] / c};
-                const auto next = old.couple({sx[h], sy[h], sz[h]}, egas[h], e,
-                    rho[h], chiAbsorption, chiTotal, dt, c, logAlpha, marshak,
-                    opts().radiation_reduced_c_factor);
+                M1::CoupledState next;
+                if (marshak) {
+                    namespace Source = radiation::implicit_source;
+                    const Source::State<Real> initial{{old[0], old[1], old[2], old[3]},
+                        {sx[h], sy[h], sz[h]}, egas[h], e};
+                    const Source::Parameters<Real> parameters{rho[h], chiAbsorption, chiTotal,
+                        logAlpha, c, opts().radiation_reduced_c_factor, true, true};
+                    Source::State<Real> result;
+                    if (!Source::solve(initial, parameters, dt, result)) {
+                        throw std::runtime_error("Stationary Marshak coupling failed");
+                    }
+                    for (int f = 0; f < NRF; ++f) {
+                        next.radiation[f] = result.radiation[f];
+                    }
+                    for (int d = 0; d < NDIM; ++d) {
+                        next.momentum[d] = result.momentum[d];
+                    }
+                    next.gasEnergy = result.gas_energy;
+                    next.internalEnergy = result.internal_energy;
+                } else {
+                    next = old.couple({sx[h], sy[h], sz[h]}, egas[h], e,
+                        rho[h], chiAbsorption, chiTotal, dt, c, logAlpha, false,
+                        opts().radiation_reduced_c_factor);
+                }
                 // Commit all four components together, after checking a complete state.
                 for (int f = 0; f < NRF; f++) {
                     Real const updated = f == er_i ? next.radiation[f] : c * next.radiation[f];
@@ -351,44 +457,75 @@ void rad_grid::compute_mmw(const std::vector<std::vector<Real>>& U) {
 }
 
 void node_server::compute_radiation(Real dt, Real omega) {
+    if (opts().radiation_model == "fld") {
+        compute_fld(dt);
+        return;
+    }
     auto& rgrid = *rad_grid_ptr;
     rgrid.set_dx(grid_ptr->get_dx());
     rgrid.set_X(grid_ptr->get_X());
+    real local_ratio = 0;
     {
         // FP state belongs to the OS thread. End the guard before HPX waits.
         FpeGuard fpeGuard;
-        (void) expectNonNegative(dt);
-        // The global hydro timestep reduction includes this same light-speed bound.
-        // Do not silently repair a bad timestep by taking extra radiation steps.
-        if (dt > rgrid.maxTimestep(omega) * (1 + M1::roundoff)) {
-            throw std::runtime_error("Shared timestep exceeds the radiation CFL limit");
+        const Real limit = rgrid.maxTimestep(omega);
+        if (!(dt >= 0) || !std::isfinite(dt) || !(limit > 0) || !std::isfinite(limit)) {
+            local_ratio = std::numeric_limits<real>::max();
+        } else if (!is_refined) {
+            const long double ratio = static_cast<long double>(dt) / limit;
+            local_ratio = static_cast<real>(std::min(ratio,
+                static_cast<long double>(std::numeric_limits<real>::max())));
         }
     }
-
-    // One forward-Euler transport stage; AMR face fluxes are synchronized before
-    // the conservative update. Refined nodes participate in communication only.
-    all_rad_bounds(current_time);
-    rgrid.compute_flux(omega);
-    GET(exchange_rad_flux_corrections());
-    if (!is_refined) {
-        for (auto face : geo::face::full_set()) {
-            if (!opts().periodic && my_location.is_physical_boundary(face)) {
-        rgrid.accountBoundaryFlux(dt, face);
-      }
+    // Every node must enter the same number of AMR exchanges, regardless of
+    // refinement level. Radiation subcycling is confined to the legacy Euler
+    // driver. FLD has its own implicit composite timestep path.
+    const real maximum_ratio = radiation_iteration_max(local_ratio);
+    if (!std::isfinite(maximum_ratio)
+        || maximum_ratio > static_cast<real>(std::numeric_limits<int>::max())) {
+        throw std::runtime_error("Invalid or excessive Euler radiation substep count");
     }
-        rgrid.advance(dt, omega);
-        if (radiationFixedMediumProblem()) {
-            rgrid.applyRegressionSource(dt);
-        } else if (opts().rad_implicit) {
-            rgrid.compute_mmw(grid_ptr->U);
-            // First-order operator split, S&O (2013), section 3.1/3.4.
-            rgrid.rad_imp(grid_ptr->get_field(egas_i), grid_ptr->get_field(tau_i),
-                grid_ptr->get_field(sx_i), grid_ptr->get_field(sy_i), grid_ptr->get_field(sz_i),
-                grid_ptr->get_field(rho_i), dt);
+    const int substeps = std::max(1, static_cast<int>(std::ceil(maximum_ratio)));
+    if (substeps > 1 && my_location.level() == 0) {
+        std::fprintf(stderr, "Radiation Euler substeps %d: t=%.17g, hydro_dt=%.17g\n",
+            substeps, double(current_time), double(dt));
+    }
+    const Real nominal_step = dt / substeps;
+    Real elapsed = 0;
+    for (int substep = 0; substep < substeps; ++substep) {
+        const Real step = substep + 1 == substeps ? dt - elapsed : nominal_step;
+        if (!(step >= 0) || (dt > 0 && (step == 0 || elapsed + step == elapsed))) {
+            throw std::runtime_error("Euler radiation substep underflow");
         }
+        // Gas transport has reached its endpoint. Material boundary time stays
+        // there while full exchanges refresh local source backreaction. The
+        // radiation boundary follows each actual radiation substep time.
+        all_hydro_bounds(current_time + dt);
+        all_rad_bounds(current_time + elapsed);
+        rgrid.compute_flux(omega);
+        GET(exchange_rad_flux_corrections());
+        if (!is_refined) {
+            for (auto face : geo::face::full_set()) {
+                if (!opts().periodic && my_location.is_physical_boundary(face)) {
+                    rgrid.accountBoundaryFlux(step, face);
+                }
+            }
+            rgrid.advance(step, omega);
+            if (radiationFixedMediumProblem()) {
+                rgrid.applyRegressionSource(step);
+            } else if (opts().rad_implicit) {
+                rgrid.compute_mmw(grid_ptr->U);
+                // The original first-order transport/source sequence is
+                // unchanged within each radiation-CFL-safe substep.
+                rgrid.rad_imp(grid_ptr->get_field(egas_i), grid_ptr->get_field(tau_i),
+                    grid_ptr->get_field(sx_i), grid_ptr->get_field(sy_i), grid_ptr->get_field(sz_i),
+                    grid_ptr->get_field(rho_i), step);
+            }
+        }
+        elapsed += step;
     }
     // Restrict the updated leaf solution to parents, and apply time-dependent
-    // physical boundaries at the end of this SAME shared timestep.
+    // physical boundaries at the common gas/radiation endpoint.
     Real boundaryTime;
     {
         FpeGuard fpeGuard;
@@ -460,6 +597,9 @@ void rad_grid::sanity_check() {
 }
 
 Real rad_grid::maxTimestep(Real omega) const {
+    if (opts().radiation_model == "fld") {
+        return std::numeric_limits<Real>::max();
+    }
     FpeGuard fpeGuard;
     Real gridSpeed = 0;
     if (omega != 0) {
@@ -476,6 +616,21 @@ Real rad_grid::maxTimestep(Real omega) const {
 
 void rad_grid::compute_flux(Real omega) {
     PROFILE();
+#ifdef OCTOTIGER_HAVE_RADIATION_ACCELERATORS
+    if (opts().radiation_backend != "cpu") {
+        std::vector<double> deviceFlux;
+        accelerator::compute_flux(accelerator::backend(opts().radiation_backend),
+            acceleratorGrid(dx, 0, omega), flattenRadiation(U), flattenRadiation(X), deviceFlux);
+        for (int d = 0; d < NDIM; ++d) {
+            for (int f = 0; f < NRF; ++f) {
+                std::copy_n(deviceFlux.begin() + (d * NRF + f) * RAD_N3,
+                    RAD_N3, flux[d][f].begin());
+            }
+        }
+        // Exchange and AMR reflux operate on these host fluxes before advance.
+        return;
+    }
+#endif
     FpeGuard fpeGuard;
     static_assert(NDIM == 3 && NRF == 4);
     static_assert(RAD_BW >= 2 && H_BW >= RAD_BW);
@@ -573,6 +728,40 @@ void rad_grid::change_units(Real m, Real l, Real t, Real k) {
 }
 
 void rad_grid::advance(Real dt, Real omega) {
+#ifdef OCTOTIGER_HAVE_RADIATION_ACCELERATORS
+    if (opts().radiation_backend != "cpu") {
+        auto state = flattenRadiation(U);
+        std::vector<double> correctedFlux(NDIM * NRF * RAD_N3), beforeRotation;
+        for (int d = 0; d < NDIM; ++d) {
+            for (int f = 0; f < NRF; ++f) {
+                std::copy(flux[d][f].begin(), flux[d][f].end(),
+                    correctedFlux.begin() + (d * NRF + f) * RAD_N3);
+            }
+        }
+        accelerator::advance(accelerator::backend(opts().radiation_backend),
+            acceleratorGrid(dx, dt, omega), state, correctedFlux, beforeRotation);
+        FpeGuard guard;
+        long double const cellVolume = static_cast<long double>(dx) * dx * dx;
+        for (integer i = RAD_BW; i < RAD_NX - RAD_BW; ++i) {
+            for (integer j = RAD_BW; j < RAD_NX - RAD_BW; ++j) {
+                for (integer k = RAD_BW; k < RAD_NX - RAD_BW; ++k) {
+                    const integer r = rindex(i, j, k);
+                    if (omega != 0) {
+                        conservationSource[fx_i] += (static_cast<long double>(state[fx_i * RAD_N3 + r])
+                            - beforeRotation[r]) * cellVolume;
+                        conservationSource[fy_i] += (static_cast<long double>(state[fy_i * RAD_N3 + r])
+                            - beforeRotation[RAD_N3 + r]) * cellVolume;
+                    }
+                    for (int f = 0; f < NRF; ++f) {
+                        U[f][r] = state[f * RAD_N3 + r];
+                    }
+                }
+            }
+        }
+        sanity_check();
+        return;
+    }
+#endif
     FpeGuard fpeGuard;
     Real const factor = dt / expectPositive(dx);
     for (int f = 0; f < NRF; ++f) {
@@ -686,17 +875,26 @@ void rad_grid::set_physical_boundaries(geo::face face, Real t) {
                 for (integer f = 0; f != NRF; ++f) {
                     U[f][iii1] = U[f][iii0];
                 }
+                if (opts().radiation_model == "fld") {
+                    // Ghost values are only for diagnostics/refinement. Physical FLD
+                    // boundary forcing belongs to the composite diffusion operator.
+                    continue;
+                }
                 switch (face) {
                 case 0:
                     if (opts().problem == MARSHAK) {
-                        if (t > 0) {
-                            auto u = marshak_wave_analytic(-opts().xscale, 0, 0, t);
-                            U[fx_i][iii1] = u[opts().n_fields + fx_i];
-                            U[er_i][iii1] = std::max(u[opts().n_fields + er_i], 1.0e-10);
-                        } else {
-                            U[fx_i][iii1] = 0.0;
-                            U[er_i][iii1] = 1.0e-10;
-                        }
+                        // The normalized bath has incident physical flux one,
+                        // including the first face evaluation at t=0. Its
+                        // incoming hemisphere is combined with the outgoing
+                        // interior M1 hemisphere; this slab test has no
+                        // transverse incoming or outgoing radiation flux.
+                        static_cast<void>(t);
+                        const Real c = physcon().c;
+                        const auto state = radiation::marshakHalfSpaceGhost(
+                            U[er_i][iii0], U[fx_i][iii0] / c, Real(4) / c);
+                        U[er_i][iii1] = state[0];
+                        U[fx_i][iii1] = c * state[1];
+                        U[fy_i][iii1] = U[fz_i][iii1] = 0;
                     } else {
                         U[fx_i][iii1] = std::min(U[fx_i][iii1], 0.0);
                     }

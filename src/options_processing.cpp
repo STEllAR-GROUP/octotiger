@@ -18,6 +18,7 @@
 
 #include <cmath>
 #include <iosfwd>
+#include <limits>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -134,6 +135,15 @@ bool options::process_options(int argc, char *argv[]) {
 	("correct_am_grav", po::value<bool>(&(opts().correct_am_grav))->default_value(true), "Angular momentum correction switch for gravity")    //
 	("rewrite_silo", po::value<bool>(&(opts().rewrite_silo))->default_value(false), "rewrite silo and exit")    //
 	("rad_implicit", po::value<bool>(&(opts().rad_implicit))->default_value(true), "implicit radiation on/off")    //
+	("radiation_backend", po::value<std::string>(&(opts().radiation_backend))->default_value("cpu"), "Radiation kernels: cpu, cuda or kokkos (M1 Euler only; must be enabled at build time)")
+	("radiation_model", po::value<std::string>(&(opts().radiation_model))->default_value("m1"), "Radiation model: m1 (default) or fld (stationary ideal gas, physical light speed, CPU)")
+	("radiation_integrator", po::value<std::string>(&(opts().radiation_integrator))->default_value("auto"), "Radiation integration: auto selects euler (RK1) for M1 or backward_euler for FLD; ADER2 has been removed")
+	("radiation_limiter", po::value<std::string>(&(opts().radiation_limiter))->default_value("levermore_pomraning"), "FLD flux limiter: levermore_pomraning")
+	("fld_boundary", po::value<std::string>(&(opts().fld_boundary))->default_value("auto"), "FLD outer boundary: reflecting or vacuum; auto uses reflect_bc (Marshak uses its prescribed bath on x-minus)")
+	("fld_nonlinear_tolerance", po::value<real>(&(opts().fld_nonlinear_tolerance))->default_value(1e-10), "FLD coupled nonlinear relative residual tolerance")
+	("fld_linear_tolerance", po::value<real>(&(opts().fld_linear_tolerance))->default_value(1e-10), "FLD scalar elliptic relative residual tolerance")
+	("fld_max_iterations", po::value<integer>(&(opts().fld_max_iterations))->default_value(50), "Maximum FLD nonlinear iterations per attempted step")
+	("fld_max_linear_iterations", po::value<integer>(&(opts().fld_max_linear_iterations))->default_value(200), "Maximum multigrid iterations per FLD linear solve")
 	("radiation_reduced_c_factor", po::value<real>(&(opts().radiation_reduced_c_factor))->default_value(1), "Reduced radiation light speed / physical c (finite, 0 < factor <= 1; default 1 keeps full c)")
 	("gravity", po::value<bool>(&(opts().gravity))->default_value(true), "gravity on/off")    //
 	("bench", po::value<bool>(&(opts().bench))->default_value(false), "run benchmark") //
@@ -233,6 +243,21 @@ bool options::process_options(int argc, char *argv[]) {
 		}
 	};
 	validateReducedRadiationSpeed();
+	if (opts().radiation_backend != "cpu" && opts().radiation_backend != "cuda" &&
+		opts().radiation_backend != "kokkos") {
+		throw std::invalid_argument("radiation_backend must be cpu, cuda, or kokkos");
+	}
+#ifndef OCTOTIGER_HAVE_RADIATION_CUDA
+	if (opts().radiation_backend == "cuda") {
+		throw std::invalid_argument("radiation_backend=cuda requires OCTOTIGER_WITH_RADIATION_CUDA");
+	}
+#endif
+#ifndef OCTOTIGER_HAVE_RADIATION_KOKKOS
+	if (opts().radiation_backend == "kokkos") {
+		throw std::invalid_argument("radiation_backend=kokkos requires OCTOTIGER_WITH_RADIATION_KOKKOS");
+	}
+#endif
+
 	opts().validateGradientRefinement();
 	if (opts().silo_num_groups == -1) {
 		opts().silo_num_groups = hpx::find_all_localities().size();
@@ -258,6 +283,62 @@ bool options::process_options(int argc, char *argv[]) {
 	}
 	validateReducedRadiationSpeed();
 	opts().validateGradientRefinement();
+	if (opts().radiation_model != "m1" && opts().radiation_model != "fld") {
+		throw std::invalid_argument("radiation_model must be m1 or fld");
+	}
+	if (opts().radiation_integrator == "auto") {
+		opts().radiation_integrator = opts().radiation_model == "fld" ? "backward_euler" : "euler";
+	} else if (opts().radiation_integrator == "rk1") {
+		opts().radiation_integrator = "euler";
+	}
+	if ((opts().radiation_model == "m1" && opts().radiation_integrator != "euler") ||
+		(opts().radiation_model == "fld" && opts().radiation_integrator != "backward_euler")) {
+		throw std::invalid_argument("M1 requires radiation_integrator=euler (or rk1); FLD requires backward_euler; ADER2, PD-ARS, and IMEX2 have been removed");
+	}
+	if (opts().radiation_limiter != "levermore_pomraning") {
+		throw std::invalid_argument("radiation_limiter must be levermore_pomraning");
+	}
+	if (opts().fld_boundary == "auto") {
+		opts().fld_boundary = opts().reflect_bc ? "reflecting" : "vacuum";
+	}
+	if (opts().fld_boundary != "reflecting" && opts().fld_boundary != "vacuum") {
+		throw std::invalid_argument("fld_boundary must be reflecting or vacuum");
+	}
+	if (!std::isfinite(opts().fld_nonlinear_tolerance) || opts().fld_nonlinear_tolerance <= 0 ||
+		opts().fld_nonlinear_tolerance >= 1 || !std::isfinite(opts().fld_linear_tolerance) ||
+		opts().fld_linear_tolerance <= 0 || opts().fld_linear_tolerance >= 1 ||
+		opts().fld_max_iterations <= 0 || opts().fld_max_linear_iterations <= 0 ||
+		opts().fld_max_iterations > std::numeric_limits<int>::max() ||
+		opts().fld_max_linear_iterations > std::numeric_limits<int>::max()) {
+		throw std::invalid_argument("FLD requires finite tolerances between zero and one and iteration limits in [1, INT_MAX]");
+	}
+	if (opts().radiation && opts().radiation_model == "fld") {
+        if (!std::isfinite(opts().hard_dt) || !std::isfinite(opts().stop_time) ||
+            (!(opts().hard_dt > 0) && !(opts().stop_time > 0 &&
+                opts().stop_time < std::numeric_limits<real>::max()))) {
+            throw std::invalid_argument("FLD requires a finite positive hard_dt or an explicit finite positive stop_time");
+        }
+		if (opts().radiation_backend != "cpu") {
+			throw std::invalid_argument("radiation_model=fld requires radiation_backend=cpu");
+		}
+		if (opts().driving_rate != 0 || opts().entropy_driving_rate != 0) {
+			throw std::invalid_argument("radiation_model=fld does not support driven source terms");
+		}
+		if (opts().hydro || opts().gravity || opts().eos != IDEAL || opts().omega != 0) {
+			throw std::invalid_argument("radiation_model=fld currently requires stationary matter: hydro=0, gravity=0, omega=0, and eos=IDEAL");
+		}
+		if (opts().radiation_reduced_c_factor != 1) {
+			throw std::invalid_argument("radiation_model=fld requires radiation_reduced_c_factor=1 (physical light speed)");
+		}
+		if (!opts().rad_implicit || opts().inflow_bc) {
+			throw std::invalid_argument("radiation_model=fld requires rad_implicit=1 and inflow_bc=0");
+		}
+	}
+	if (opts().radiation) {
+		// Implicit retries and Euler radiation substeps have variable exchange
+		// counts. The pointer optimization assumes fixed RK3 one-shot promises.
+		opts().optimize_local_communication = false;
+	}
     if (opts().executors_per_gpu > 0 && opts().number_gpus == 0) {
         opts().number_gpus = 1;
 	}
@@ -355,6 +436,15 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(output_filename);
 		SHOW(problem);
 		SHOW(rad_implicit);
+		SHOW(radiation_backend);
+		SHOW(radiation_model);
+		SHOW(radiation_integrator);
+		SHOW(radiation_limiter);
+		SHOW(fld_boundary);
+		SHOW(fld_nonlinear_tolerance);
+		SHOW(fld_linear_tolerance);
+		SHOW(fld_max_iterations);
+		SHOW(fld_max_linear_iterations);
 		SHOW(radiation_reduced_c_factor);
 		SHOW(radReference);
 		SHOW(radTestChi);
@@ -420,9 +510,14 @@ bool options::process_options(int argc, char *argv[]) {
     }
 #endif
     const bool radiationProblem = opts().problem == RADIATION_TEST || opts().problem == MARSHAK ||
-        (opts().problem >= RADIATION_DIFFUSION && opts().problem <= RADIATION_BLAST_WAVE);
+        (opts().problem >= RADIATION_DIFFUSION && opts().problem <= RADIATION_COUPLED_WAVE);
     if (radiationProblem && !opts().radiation) {
         throw std::invalid_argument("The selected radiation problem requires --radiation=on");
+    }
+    if (opts().problem == MARSHAK && (opts().hydro || opts().gravity || !opts().rad_implicit ||
+            opts().periodic || opts().omega != 0 || opts().radiation_reduced_c_factor != 1)) {
+        throw std::invalid_argument("The dimensionless stationary Marshak test requires hydro=off, "
+            "gravity=off, rad_implicit=on, periodic=off, omega=0, radiation_reduced_c_factor=1");
     }
     if (opts().periodic && opts().gravity) {
         std::cerr << "ERROR! Periodic hydro boundaries require gravity to be disabled (--gravity=0)." << std::endl;

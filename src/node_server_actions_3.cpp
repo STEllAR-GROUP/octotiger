@@ -342,6 +342,9 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 	printf("Starting run...\n");
 	auto fut_ptr = me.get_ptr();
 	auto root_ptr = GET(fut_ptr);
+	if (opts().radiation && opts().radiation_model == "fld") {
+		refresh_fld();
+	}
 	if (!opts().output_filename.empty()) {
 		diagnostics();
 		solve_gravity(false, false);
@@ -353,6 +356,9 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 		printf("Solving gravity\n");
 		solve_gravity(false, false);
 		ngrids = regrid(me.get_gid(), grid::get_omega(), -1, false);
+		if (opts().radiation && opts().radiation_model == "fld") {
+			refresh_fld();
+		}
 	}
 
 	real output_dt = opts().output_dt;
@@ -475,6 +481,18 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 
 		real dt = 0;
 		integer next_step = (std::min)(step_num + refinement_freq(), opts().stop_step + 1);
+        if (opts().radiation && opts().radiation_model == "fld" && opts().hard_dt > 0) {
+            // Do not subdivide the last physical timestep to fill an arbitrary
+            // tree batch, including after a completed-step restart.
+            const integer batch = next_step - step_num;
+            const real remaining = opts().stop_time - current_time;
+            // stop_time defaults to the largest finite real. Divide by the
+            // bounded batch first so an ordinary hard_dt cannot overflow.
+            if (batch > 0 && remaining > 0 && remaining / batch < opts().hard_dt) {
+                const integer needed = static_cast<integer>(std::ceil(remaining / opts().hard_dt));
+                next_step = step_num + needed;
+            }
+        }
 		real omega_dot = 0.0, omega = 0.0, theta = 0.0, theta_dot = 0.0;
 
 		if ((opts().problem == DWD) && (step_num % refinement_freq() == 0)) {
@@ -554,6 +572,9 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 				radiationLedger.consume(interval);
 			}
 			ngrids = regrid(me.get_gid(), omega, new_floor, false);
+			if (opts().radiation && opts().radiation_model == "fld") {
+				refresh_fld();
+			}
 			sampleGradientMesh();
 
 			// run output on separate thread
@@ -731,11 +752,11 @@ future<void> node_server::nonrefined_step() {
 							}
 							dt_ = a;
 							(void) expectNonNegative(a.a);
-							dt_.dt = a.a > 0 ? cfl0 * dx / a.a : std::numeric_limits<real>::max();
-							// Radiation and hydro advance once over the SAME global step.
-							// Reduce the light-speed CFL on every leaf, including pure
-							// radiation states where the hydro signal speed can be zero.
-							if (opts().radiation) {
+							dt_.dt = (!opts().radiation || opts().hydro) && a.a > 0
+								? cfl0 * dx / a.a : std::numeric_limits<real>::max();
+							// Euler radiation subcycles inside a gas timestep. Without
+							// gas transport its streaming bound selects the global step.
+							if (opts().radiation && opts().radiation_model == "m1" && !opts().hydro) {
 								rad_grid_ptr->set_dx(dx);
 								rad_grid_ptr->set_X(grid_ptr->get_X());
 								dt_.dt = std::min(dt_.dt, rad_grid_ptr->maxTimestep(grid_ptr->get_omega()));
@@ -821,7 +842,10 @@ future<real> node_server::local_step(integer steps) {
         auto time_start = std::chrono::high_resolution_clock::now();
         auto next_dt = timestep_driver_descend();
 
-        if (is_refined) {
+        if (opts().radiation && opts().radiation_model == "fld") {
+          // FLD selects a shared accuracy timestep without the M1 streaming bound.
+          radiation_fld_step(steps - i);
+        } else if (is_refined) {
           refined_step();
         } else {
           GET(nonrefined_step());
@@ -852,15 +876,24 @@ future<real> node_server::local_step(integer steps) {
           std::cerr << "{file}: " << hpx::get_error_file_name(e) << "\n";
           std::cerr << "{line}: " << hpx::get_error_line_number(e) << "\n";
           std::cerr << "Aborting now...\n";
+          if (opts().radiation && opts().radiation_model == "fld") {
+              throw; // Tree futures drain all participants before reporting failure.
+          }
           abort();
       } catch (std::exception const& e) {
           std::cerr << "ERROR: Caught std::exception during local_step!\n";
           std::cerr << "{what}: " << e.what() << "\n";
           std::cerr << "Aborting now...\n";
+          if (opts().radiation && opts().radiation_model == "fld") {
+              throw; // Tree futures drain all participants before reporting failure.
+          }
           abort();
       } catch (...) {
           std::cerr << "ERROR: Caught unknown exception during local_step!\n";
           std::cerr << "Aborting now...\n";
+          if (opts().radiation && opts().radiation_model == "fld") {
+              throw; // Tree futures drain all participants before reporting failure.
+          }
           abort();
       }
 		}, "local_step::execute_step"));

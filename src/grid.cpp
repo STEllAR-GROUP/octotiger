@@ -30,9 +30,13 @@
 #include <hpx/collectives/broadcast_direct.hpp>
 #include <hpx/synchronization/once.hpp>
 
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <cmath>
+#include <cstddef>
+#include <limits>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
 
@@ -1747,8 +1751,8 @@ std::vector<std::pair<std::string, std::string>> grid::get_scalar_expressions() 
 	rc.push_back(std::make_pair(std::string("sigma_xf"), std::string("4e+25*(1+X)*(Z+0.001)*rho*(T^(-3.5))")));
 	rc.push_back(std::make_pair(std::string("mfp"), std::string("1 / kappa_R")));
 	if (opts().problem == MARSHAK) {
-		rc.push_back(std::make_pair(std::string("kappa_R"), std::string("rho")));
-		rc.push_back(std::make_pair(std::string("kappa_P"), std::string("rho")));
+		rc.push_back(std::make_pair(std::string("kappa_R"), hpx::util::format("{:e}", MARSHAK_OPAC)));
+		rc.push_back(std::make_pair(std::string("kappa_P"), hpx::util::format("{:e}", MARSHAK_OPAC)));
 	} else {
 		rc.push_back(std::make_pair(std::string("kappa_R"), std::string("rho * (sigma_xf + sigma_T)")));
 		rc.push_back(std::make_pair(std::string("kappa_P"), std::string("rho * 30.262 * sigma_xf")));
@@ -1774,7 +1778,9 @@ std::vector<std::pair<std::string, std::string>> grid::get_scalar_expressions() 
 		rc.push_back(std::make_pair(std::string("Edeg"), "if( gt(x, 0.001), rho*hdeg - Pdeg, 2.4*A*x^5"));
 	}
 	if (opts().problem == MARSHAK) {
-		rc.push_back(std::make_pair(std::string("T"), std::string("(ei/rho)^(1.0/3.0)")));
+		// The supported stationary material has zero kinetic energy.
+		rc.push_back(std::make_pair(std::string("ei"), std::string("egas")));
+		rc.push_back(std::make_pair(std::string("T"), std::string("ei^(1.0/4.0)")));
 	} else if (opts().eos == IPR) {
                 rc.push_back(std::make_pair(std::string("T"), std::string("tau")));
                 rc.push_back(std::make_pair(std::string("P"), hpx::util::format("n * {:e} * tau + {:e} * tau^4", kb,  (4.0 * physcon().sigma * opts().code_to_g / std::pow(opts().code_to_s, 3)) / (3.0 * physcon().c * opts().code_to_cm / opts().code_to_s))));
@@ -1844,7 +1850,10 @@ analytic_t grid::compute_analytic(real t) {
 	const auto func = get_analytic();
 	const real dv = dx * dx * dx;
 	// RADIATION_PLOT_EXPORT_BEGIN: opt in by creating datadir/radiation-slices.
-	radiationTests::SliceOutput radiationSlice(radiationRegressionProblem(),
+	radiationTests::SliceOutput radiationSlice(radiationRegressionProblem() || opts().problem == MARSHAK,
+		opts().data_dir, double(t), double(dx), 2 * double(opts().xscale),
+		opts().unigrid ? -1 : int(std::llround(std::log2(2 * opts().xscale / (INX * dx)))));
+	radiationTests::MaterialSliceOutput materialSlice(opts().problem == MARSHAK,
 		opts().data_dir, double(t), double(dx), 2 * double(opts().xscale),
 		opts().unigrid ? -1 : int(std::llround(std::log2(2 * opts().xscale / (INX * dx)))));
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
@@ -1890,6 +1899,8 @@ analytic_t grid::compute_analytic(real t) {
 						return double(rad_grid_ptr->get_field(f, i - H_BW + R_BW,
 							j - H_BW + R_BW, k - H_BW + R_BW));
 					});
+				materialSlice.capture(double(X[XDIM][iii]), double(X[YDIM][iii]),
+					double(X[ZDIM][iii]), double(U[egas_i][iii]), double(A[egas_i]));
 				for (integer field = 0; field != opts().n_fields; ++field) {
 					real dif = std::abs(A[field] - U[field][iii]);
 					a.l1[field] += dif * dv;
@@ -1920,6 +1931,7 @@ analytic_t grid::compute_analytic(real t) {
 		}
 	}
 	radiationSlice.finish();
+	materialSlice.finish();
 	return a;
 }
 

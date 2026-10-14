@@ -1,10 +1,59 @@
-# Radiation restoration and validation
+# Radiation validation
 
-Branch `hpx2rc-radiation` starts at `7485b798` (the HPX 2.0 release-candidate
-port) and restores the radiation solver, diagnostics, regression problems and
-results tools from `dominic-wip2` at
-`2e7e57b7e91fb3cbeec2bf80b364d774e700f650`. Application integration uses C++20
-and retains the base branch's `real` and `integer` types and HPX interfaces.
+`radiation_model=m1` is the default and uses the original first-order Euler
+(RK1) method. `radiation_model=fld` selects stationary two-temperature flux
+limited diffusion with implicit backward Euler and scalar multigrid. FLD
+requires CPU execution, physical light speed, ideal gas, and hydro/gravity/rotation
+disabled. Its stored flux is a derived diagnostic, so the M1 momentum ledger
+is not an FLD invariant.
+
+## Stationary FLD checks
+
+`radiation_elliptic` and `radiation_fld` exercise the standalone composite
+operator/multigrid and nonlinear FLD physics. `radiation.fld.application`
+checks homogeneous thermal exchange on levels 0 and 1, physical total-energy
+balance, derived flux bounds, timesteps above the M1 streaming restriction,
+and checkpoint continuation with deliberately conflicting model options. A
+Marshak case exercises spatial transport and injected boundary energy using
+the verification problem's dimensionless units and linear emission law.
+Successful timestep retry checks accepted-substep conservation, and forced
+solver exhaustion checks bounded collective failure without a completed
+checkpoint. The optional adaptive case evolves further after refinement.
+
+```sh
+ctest --test-dir build -L fld --output-on-failure --parallel 1
+python3 tests/radiation/test_fld_application.py \
+  --executable build/octotiger --threads 2 --mixed
+```
+
+The optional adaptive run requires both level-1 and level-2 leaves. These
+application smoke checks do not establish convergence or moving-gas support.
+Each run keeps its configuration, log, and validation report in the printed
+output directory.
+
+The October 13, 2026 validation passed all 17 standalone tests and the
+[ten-run FLD application suite](../output/fld-validation/20261013/accepted-thread2/validation.json),
+including six unsupported configurations and one exhausted-solver check.
+See [the method scope and measured results](../doc/radiation-fld.md) for
+conservation, restart, thread-count comparison, and remaining limitations.
+
+## Euler radiation subcycling
+
+The focused check forces hydro timesteps above the radiation CFL and verifies
+that the original method performs radiation substeps:
+
+```sh
+python3 tests/radiation/test_euler_subcycling.py \
+  --executable cmake-build-hpx2rc-radiation/octotiger \
+  --threads 2 --work-dir output/euler-subcycling-rerun
+```
+
+The [completed eight-run report](../output/ader2-validation/euler-subcycling/validation.json)
+checks smooth coupled configurations at levels 0 and 1 with four and eight
+radiation substeps. Stop/restart errors were `9.95e-15` and `5.10e-15`; the
+largest total-energy drift was `3.03e-16`. Homogeneous repeated Euler substeps
+agreed with the matching global `dt=0.02` update to `2.99e-16`. Level 1 exercises
+parent nodes and halos, but this is not mixed-level AMR or a temporal-order test.
 
 ## Application build
 
@@ -31,8 +80,10 @@ checkpoint/resumed runs and checks restored radiation metadata.
 configuration. `radiation.application.reduced_c_options` rejects zero,
 negative, greater-than-one and nonfinite values through both CLI and config,
 checks help/metadata, and compares omitted-factor output with explicit factor
-1. Radiation metadata version 2 stores the factor; version 1 and legacy
-checkpoints restore factor 1 rather than taking a conflicting restart value.
+1. Radiation metadata version 3 stores the model, integrator, algorithm version,
+limiter, flux interpretation, and reduced light speed. FLD checkpoints also
+store boundary and solver settings. Version 1 and legacy M1 checkpoints
+restore factor 1 rather than taking a conflicting restart value.
 
 ## Coupled shock and blast benchmarks
 

@@ -9,6 +9,7 @@
 #include "octotiger/config/export_definitions.hpp"
 #include "octotiger/radiation/rad_grid.hpp"
 #include "octotiger/radiation/conservation.hpp"
+#include "octotiger/radiation/fld_runtime.hpp"
 #include "octotiger/interaction_types.hpp"
 #include "octotiger/channel.hpp"
 #include "octotiger/defs.hpp"
@@ -69,6 +70,7 @@ private:
 	std::size_t hcycle;
 	std::size_t gcycle;
 	real current_time;
+	real hydro_boundary_time = 0;
 	real rotational_time;
 	std::shared_ptr<grid> grid_ptr; //
 	std::shared_ptr<rad_grid> rad_grid_ptr; //
@@ -114,6 +116,13 @@ private:
 	std::array<std::array<channel<std::vector<real>>, 4>, NFACE> niece_hydro_channels;
 	channel<timestep_t> global_timestep_channel;
 	std::array<channel<timestep_t>, NCHILD + 1> local_timestep_channels;
+	std::array<channel<real>, NCHILD> radiation_iteration_children;
+	channel<real> radiation_iteration_global;
+	real radiation_iteration_max(real);
+	void radiation_fld_step(integer remaining_steps);
+	void compute_fld(real dt);
+	std::array<unordered_channel<radiation::fld_packet>, NCHILD> fld_children;
+	unordered_channel<radiation::fld_packet> fld_parent;
 
 	timestep_t dt_;
 
@@ -160,7 +169,17 @@ public:
 		return step_num;
 	}
 	void exchange_interlevel_hydro_data();
-	void all_hydro_bounds();
+	void all_hydro_bounds(real boundary_time = -1);
+	void receive_radiation_iteration(integer child, real value);
+	HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, receive_radiation_iteration, receive_radiation_iteration_action);
+	void broadcast_radiation_iteration(real value);
+	HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, broadcast_radiation_iteration, broadcast_radiation_iteration_action);
+	void receive_fld(integer child, radiation::fld_packet packet, size_t cycle);
+	HPX_DEFINE_COMPONENT_ACTION(node_server, receive_fld, receive_fld_action);
+	void deliver_fld(radiation::fld_packet packet, size_t cycle);
+	HPX_DEFINE_COMPONENT_ACTION(node_server, deliver_fld, deliver_fld_action);
+	void refresh_fld();
+	HPX_DEFINE_COMPONENT_ACTION(node_server, refresh_fld, refresh_fld_action);
 	void energy_hydro_bounds();
 	static bool child_is_on_face(integer ci, integer face) {
 		return (((ci >> (face / 2)) & 1) == (face & 1));
@@ -394,8 +413,15 @@ HPX_REGISTER_ACTION_DECLARATION(node_server::send_rad_flux_correct_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::set_rad_grid_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::erad_init_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::collectRadiationConservationAction);
+HPX_REGISTER_ACTION_DECLARATION(node_server::receive_radiation_iteration_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::broadcast_radiation_iteration_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::amr_error_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::export_radiation_hydro_action);
 //HPX_REGISTER_ACTION_DECLARATION(node_server::set_parent_action);
+
+
+HPX_REGISTER_ACTION_DECLARATION(node_server::receive_fld_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::deliver_fld_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::refresh_fld_action);
 
 #endif /* NODE_SERVER_HPP_ */

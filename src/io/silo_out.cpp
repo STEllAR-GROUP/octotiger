@@ -369,8 +369,23 @@ void output_stage4(std::string fname, int cycle) {
 		fi(db, "periodic", integer(opts().periodic));
 		if (opts().radiation) {
 			// Preserve the transport/source model together with the evolved fields.
-			fi(db, "radiation_options_version", integer(2));
+			const bool fld = opts().radiation_model == "fld";
+			fi(db, "radiation_options_version", integer(3));
 			fr(db, "radiation_reduced_c_factor", opts().radiation_reduced_c_factor);
+			fi(db, "radiation_model", fld ? 1 : 0);
+			fi(db, "radiation_integrator", fld ? 3 : 0);
+			fi(db, "radiation_algorithm_version", integer(1));
+			fi(db, "radiation_limiter", fld ? 1 : 0); // 0: M1 closure, 1: Levermore-Pomraning.
+			// 0: evolved physical M1 flux, 1: FLD diagnostic -D grad(E).
+			// The latter is never an independently evolved radiation momentum.
+			fi(db, "radiation_flux_semantics", fld ? 1 : 0);
+			if (fld) {
+				fi(db, "fld_boundary", opts().fld_boundary == "reflecting" ? 0 : 1);
+				fr(db, "fld_nonlinear_tolerance", opts().fld_nonlinear_tolerance);
+				fr(db, "fld_linear_tolerance", opts().fld_linear_tolerance);
+				fi(db, "fld_max_iterations", opts().fld_max_iterations);
+				fi(db, "fld_max_linear_iterations", opts().fld_max_linear_iterations);
+			}
 			fi(db, "rad_implicit", integer(opts().rad_implicit));
 			fr(db, "rad_test_chi", opts().radTestChi);
 			fr(db, "rad_test_width", opts().radTestWidth);

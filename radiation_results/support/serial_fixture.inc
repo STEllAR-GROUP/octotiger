@@ -1,6 +1,7 @@
 
 #include "octotiger/math/Debug.hpp"
 #include "octotiger/radiation/m1.hpp"
+#include "octotiger/radiation/marshak_boundary.hpp"
 #include "octotiger/radiation/conservation.hpp"
 #include "octotiger/test_problems/radiation/reference.hpp"
 #include "test_problems/radiation/hydro_benchmarks.hpp"
@@ -30,15 +31,17 @@ struct options_fixture {
     Real cfl=.4,xscale=1,stop_time=.2,omega=0,radiation_reduced_c_factor=1;
     Real code_to_g=1,code_to_cm=1,code_to_s=1;
     Real radTestChi=5,radTestWidth=.2,radTestBackground=1,radTestAmplitude=.01,radTestLuminosity=.01;
-    int problem=0,n_fields=15,max_level=0,eos=IDEAL;
+    int problem=0,n_fields=15,n_species=1,max_level=0,eos=IDEAL;
     bool radiation=true,hydro=false,gravity=false,unigrid=true,periodic=true,rad_implicit=false;
     bool reflect_bc=false,inflow_bc=false;
     std::vector<Real> atomic_mass{1},atomic_number{1};
     std::string radReference;
+    std::string radiation_model="m1";
 };
 options_fixture& opts(){static options_fixture o;return o;}
-struct constants_fixture {Real c=1;};
+struct constants_fixture {Real c=1,kb=1.380658e-16,mh=1.6733e-24,sigma=5.67051e-5;};
 constants_fixture& physcon(){static constants_fixture p;return p;}
+struct grid { static constexpr Real get_fgamma() { return 5.0/3.0; } };
 
 std::vector<Real> marshak_wave_analytic(Real,Real,Real,Real){throw std::runtime_error("Unused Marshak fixture");}
 struct silo_var_t{};

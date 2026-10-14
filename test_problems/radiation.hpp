@@ -26,3 +26,5 @@ OCTOTIGER_EXPORT std::vector<Real> radiationRegressionAnalyticCell(Real x,Real y
 OCTOTIGER_EXPORT radiationHydroTests::Case radiationHydroCase();
 OCTOTIGER_EXPORT void validateRadiationHydroTest();
 OCTOTIGER_EXPORT std::vector<Real> radiationHydroInit(Real x, Real y, Real z, Real dx);
+OCTOTIGER_EXPORT void validateRadiationCoupledWave();
+OCTOTIGER_EXPORT std::vector<Real> radiationCoupledWaveInit(Real x, Real y, Real z, Real dx);

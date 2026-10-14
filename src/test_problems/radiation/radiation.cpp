@@ -130,3 +130,74 @@ std::vector<Real> radiationHydroInit(Real x, Real y, Real z, Real dx) {
 	}
 	return u;
 }
+
+void validateRadiationCoupledWave() {
+	if (!opts().radiation || !opts().hydro || !opts().rad_implicit || opts().gravity ||
+		!opts().periodic || opts().omega != 0 || opts().eos != IDEAL ||
+		opts().radiation_reduced_c_factor != 1) {
+		throw std::invalid_argument("RADIATION_COUPLED_WAVE requires radiation=on, hydro=on, rad_implicit=on, gravity=off, periodic=on, omega=0, eos=IDEAL and radiation_reduced_c_factor=1");
+	}
+	if (opts().n_species != 1 || opts().atomic_mass[0] != 1 || opts().atomic_number[0] != 1) {
+		throw std::invalid_argument("RADIATION_COUPLED_WAVE requires one fully ionized hydrogen species (n_species=1, atomic_mass=1, atomic_number=1)");
+	}
+	if (!std::isfinite(opts().xscale) || !(opts().xscale > 0) ||
+		!std::isfinite(opts().radTestChi) || opts().radTestChi < 0 ||
+		!std::isfinite(opts().radTestAmplitude) || opts().radTestAmplitude < 0 ||
+		!(opts().radTestAmplitude < Real(.25))) {
+		throw std::invalid_argument("RADIATION_COUPLED_WAVE requires xscale>0, rad_test_chi>=0 and 0<=rad_test_amplitude<0.25");
+	}
+	const radiationHydroTests::Units units{opts().code_to_g, opts().code_to_cm, opts().code_to_s};
+	units.validate();
+}
+
+std::vector<Real> radiationCoupledWaveInit(Real x, Real y, Real z, Real dx) {
+	FpeGuard fpeGuard{};
+	// A smooth, compressible, periodic material/radiation wave. At the
+	// background temperature 10^7 K, e_gas=4*a_rad*T^4 gives equal gas and
+	// radiation heat capacities. The velocity is at most 0.01c; the gas is
+	// nonrelativistically hot. No analytic time evolution is assumed: temporal
+	// convergence uses an independently refined solution on the same mesh.
+	constexpr Real background_temperature = 1.e7;
+	constexpr Real mean_molecular_weight = Real(.5);
+	const Real gamma = grid::get_fgamma();
+	const Real radiation_constant = 4*physcon().sigma/physcon().c;
+	const Real background_radiation = radiation_constant*std::pow(background_temperature,4);
+	const Real background_density = 4*background_radiation*(gamma-1)*mean_molecular_weight
+		*physcon().mh/(physcon().kb*background_temperature);
+	const Real wave_number = std::acos(Real(-1))/opts().xscale;
+	const Real half_cell_phase = Real(.5)*wave_number*dx;
+	const Real average_factor = half_cell_phase == 0 ? Real(1)
+		: std::sin(half_cell_phase)/half_cell_phase;
+	const Real cosine = average_factor*std::cos(wave_number*x);
+	const Real sine = average_factor*std::sin(wave_number*x);
+	const Real perturbation = 1+opts().radTestAmplitude*cosine;
+	// Average only the sinusoidal mode before constructing the thermodynamics.
+	// The nonlinear products below enforce equilibrium of the discrete cell
+	// state; they are not exact cell averages of a continuum LTE profile.
+	const Real rho = background_density*perturbation;
+	const Real temperature = background_temperature*perturbation;
+	const Real internal = rho*physcon().kb*temperature/
+		(mean_molecular_weight*physcon().mh*(gamma-1));
+	const Real beta = Real(.01)*sine;
+	const Real velocity = beta*physcon().c;
+
+	// Exact equilibrium of the implemented mixed-frame M1 source with equal
+	// absorption and extinction. If b is M1's boost parameter, Q/E=4b/(3+b^2)
+	// and beta=b/(1+b^2) make cQ=(E+P_xx)v. The energy source then vanishes
+	// for E=a_rad*T^4/(1-beta*Q/E). Starting from these conservative cell
+	// values avoids injecting an artificial stiff initial relaxation layer.
+	const Real boost = 2*beta/(1+std::sqrt(1-4*beta*beta));
+	const Real reduced_flux = 4*boost/(3+boost*boost);
+	const Real radiation_energy = radiation_constant*std::pow(temperature,4)
+		/(1-beta*reduced_flux);
+	std::vector<Real> u(opts().n_fields+NRF,0);
+	u[rho_i] = u[spc_i] = rho;
+	u[sx_i] = rho*velocity;
+	u[egas_i] = internal+Real(.5)*rho*velocity*velocity;
+	u[tau_i] = std::pow(internal,1/gamma);
+	u[ly_i] = z*u[sx_i];
+	u[lz_i] = -y*u[sx_i];
+	u[opts().n_fields] = radiation_energy;
+	u[opts().n_fields+1] = physcon().c*reduced_flux*radiation_energy;
+	return u;
+}

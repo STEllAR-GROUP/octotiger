@@ -21,6 +21,7 @@
 #include <hpx/io_service/io_service_pool.hpp>
 
 #include <cstddef>
+#include <stddef.h>
 #include <cmath>
 #include <future>
 #include <stdexcept>
@@ -110,19 +111,32 @@ void load_options_from_silo(std::string fname, DBfile *db) {
 			// Checkpoints predating the opt-in reduced-speed model used full c.
 			// Saved physics takes precedence over a conflicting restart command line.
 			opts().radiation_reduced_c_factor = 1;
+			// Missing model metadata denotes the original M1 Euler scheme.
+			opts().radiation_model = "m1";
+			opts().radiation_integrator = "euler";
+			if (DBInqVarExists(db, "radiation_integrator")) {
+				const integer method = ri(db, "radiation_integrator");
+				if (method != 0 && method != 3) {
+					if (!leaveopen) {
+						DBClose(db);
+					}
+					throw std::runtime_error("Unsupported radiation restart integrator identifier");
+				}
+				opts().radiation_integrator = method == 0 ? "euler" : "backward_euler";
+			}
 			if (DBInqVarExists(db, "periodic")) {
 				opts().periodic = ri(db, "periodic") != 0;
 			}
 			if (opts().radiation) {
 				if (DBInqVarExists(db, "radiation_options_version")) {
 					const integer radiation_version = ri(db, "radiation_options_version");
-					if (radiation_version != 1 && radiation_version != 2) {
+					if (radiation_version < 1 || radiation_version > 3) {
 						if (!leaveopen) {
 							DBClose(db);
 						}
 						throw std::runtime_error("Unsupported radiation restart metadata version");
 					}
-					if (radiation_version == 2) {
+					if (radiation_version >= 2) {
 						if (!DBInqVarExists(db, "radiation_reduced_c_factor")) {
 							if (!leaveopen) {
 								DBClose(db);
@@ -137,6 +151,46 @@ void load_options_from_silo(std::string fname, DBfile *db) {
 							throw std::runtime_error("Invalid radiation restart option radiation_reduced_c_factor: expected finite 0 < factor <= 1");
 						}
 						opts().radiation_reduced_c_factor = factor;
+					}
+					if (radiation_version == 3) {
+						try {
+							for (const char *name : {"radiation_model", "radiation_integrator",
+									"radiation_algorithm_version", "radiation_limiter", "radiation_flux_semantics"}) {
+								if (!DBInqVarExists(db, name)) {
+									throw std::runtime_error(std::string("Missing radiation restart option ") + name);
+								}
+							}
+							const integer model = ri(db, "radiation_model");
+							if ((model != 0 && model != 1) || ri(db, "radiation_algorithm_version") != 1 ||
+								ri(db, "radiation_limiter") != model || ri(db, "radiation_flux_semantics") != model ||
+								ri(db, "radiation_integrator") != (model == 0 ? 0 : 3)) {
+								throw std::runtime_error("Unsupported or inconsistent radiation restart model metadata");
+							}
+							opts().radiation_model = model == 0 ? "m1" : "fld";
+							opts().radiation_limiter = "levermore_pomraning";
+							if (model == 1) {
+								for (const char *name : {"fld_boundary", "fld_nonlinear_tolerance", "fld_linear_tolerance",
+										"fld_max_iterations", "fld_max_linear_iterations"}) {
+									if (!DBInqVarExists(db, name)) {
+										throw std::runtime_error(std::string("Missing FLD restart option ") + name);
+									}
+								}
+								const integer boundary = ri(db, "fld_boundary");
+								if (boundary != 0 && boundary != 1) {
+									throw std::runtime_error("Unsupported FLD restart boundary");
+								}
+								opts().fld_boundary = boundary == 0 ? "reflecting" : "vacuum";
+								opts().fld_nonlinear_tolerance = rr(db, "fld_nonlinear_tolerance");
+								opts().fld_linear_tolerance = rr(db, "fld_linear_tolerance");
+								opts().fld_max_iterations = ri(db, "fld_max_iterations");
+								opts().fld_max_linear_iterations = ri(db, "fld_max_linear_iterations");
+							}
+						} catch (...) {
+							if (!leaveopen) {
+								DBClose(db);
+							}
+							throw;
+						}
 					}
 					// A partial new-format checkpoint must not silently alter the model.
 					for (const char *name : {"periodic", "rad_implicit", "rad_test_chi",
@@ -259,6 +313,58 @@ void load_close() {
 HPX_PLAIN_ACTION(load_close, load_close_action);
 HPX_PLAIN_ACTION(load_open, load_open_action);
 
+// The root can itself be a saved leaf. Use exactly the same field/unit and
+// outflow restoration for it as for leaves created while rebuilding a tree.
+static void load_silo_leaf(grid& target, const node_location& loc, const std::string& filename) {
+	silo_load_t load;
+	const auto hydro_names = grid::get_hydro_field_names();
+	auto field_names = hydro_names;
+	if (opts().radiation) {
+		const auto radiation_names = rad_grid::get_field_names();
+		field_names.insert(field_names.end(), radiation_names.begin(), radiation_names.end());
+	}
+	load.vars.resize(field_names.size());
+	load.outflows.resize(hydro_names.size());
+	hpx::threads::run_as_os_thread([&]() {
+		static std::mutex mtx;
+		std::lock_guard<std::mutex> lock(mtx);
+		const auto& this_file = filename;
+		DBfile *db = DBOpenReal(this_file.c_str(), DB_UNKNOWN, DB_READ);
+		if (db == NULL) {
+			printf("Unable to open SILO file %s\n", this_file.c_str());
+			abort();
+		}
+		const std::string suffix = oct_to_str(loc.to_id());
+		for (size_t f = 0; f != field_names.size(); f++) {
+			const auto this_name = suffix + std::string("/") + field_names[f];
+			auto var = DBGetQuadvar(db, this_name.c_str());
+			if (var == nullptr) {
+				DBClose(db);
+				throw std::runtime_error("Missing restart field " + this_name);
+			}
+			load.nx = var->dims[0];
+			const int nvar = load.nx * load.nx * load.nx;
+			load.vars[f].first = field_names[f];
+			load.vars[f].second.resize(nvar);
+			if (f < hydro_names.size()) {
+				read_silo_var<real> rd;
+				load.outflows[f].first = field_names[f];
+				load.outflows[f].second = rd(db, outflow_name(this_name).c_str());
+			}
+			std::memcpy(load.vars[f].second.data(), var->vals[0], sizeof(real) * nvar);
+			DBFreeQuadvar(var);
+		}
+		DBClose(db);
+	}).get();
+	for (auto &field : load.vars) {
+		target.set(field.first, field.second.data(), version_);
+	}
+	for (auto &outflow : load.outflows) {
+		target.set_outflow(std::move(outflow));
+	}
+	target.rho_from_species();
+}
+
 node_server::node_server(const node_location &loc) :
 		my_location(loc) {
 	const auto &localities = opts().all_localities;
@@ -287,54 +393,8 @@ node_server::node_server(const node_location &loc) :
 		assert(nc == 0 || nc == NCHILD);
 	} else {
 	//	printf("Loading %s on %i\n", loc.to_str().c_str(), int(hpx::get_locality_id()));
-		silo_load_t load;
-		const auto hydro_names = grid::get_hydro_field_names();
-		auto field_names = hydro_names;
-		if (opts().radiation) {
-			const auto radiation_names = rad_grid::get_field_names();
-			field_names.insert(field_names.end(), radiation_names.begin(), radiation_names.end());
-		}
-		load.vars.resize(field_names.size());
-		load.outflows.resize(hydro_names.size());
-		hpx::threads::run_as_os_thread([&]() {
-			static std::mutex mtx;
-			std::lock_guard<std::mutex> lock(mtx);
-			const auto this_file = iter->second.filename;
-			DBfile *db = DBOpenReal(this_file.c_str(), DB_UNKNOWN, DB_READ);
-			if (db == NULL) {
-				printf("Unable to open SILO file %s\n", this_file.c_str());
-				abort();
-			}
-			const std::string suffix = oct_to_str(loc.to_id());
-			for (size_t f = 0; f != field_names.size(); f++) {
-				const auto this_name = suffix + std::string("/") + field_names[f];
-				auto var = DBGetQuadvar(db, this_name.c_str());
-				if (var == nullptr) {
-					DBClose(db);
-					throw std::runtime_error("Missing restart field " + this_name);
-				}
-				load.nx = var->dims[0];
-				const int nvar = load.nx * load.nx * load.nx;
-				load.vars[f].first = field_names[f];
-				load.vars[f].second.resize(nvar);
-				if (f < hydro_names.size()) {
-					read_silo_var<real> rd;
-					load.outflows[f].first = field_names[f];
-					load.outflows[f].second = rd(db, outflow_name(this_name).c_str());
-				}
-				std::memcpy(load.vars[f].second.data(), var->vals[0], sizeof(real) * nvar);
-				DBFreeQuadvar(var);
-			}
-			DBClose(db);
-		}).get();
+		load_silo_leaf(*grid_ptr, loc, iter->second.filename);
 		is_refined = false;
-		for (auto &field : load.vars) {
-			grid_ptr->set(field.first, field.second.data(), version_);
-		}
-		for (auto &outflow : load.outflows) {
-			grid_ptr->set_outflow(std::move(outflow));
-		}
-		grid_ptr->rho_from_species();
 	}
 	current_time = silo_output_time();
 	rotational_time = silo_output_rotation_time();
@@ -449,19 +509,27 @@ void load_data_from_silo(std::string fname, std::shared_ptr<node_server> root_pt
 }
 
 void node_server::reconstruct_tree() {
-	std::vector<hpx::future<void>> futs;
-	is_refined = true;
-	for (integer ci = 0; ci < NCHILD; ci++) {
-		futs.push_back(hpx::async([this, ci]() {
-			auto cloc = my_location.get_child(ci);
-			auto iter = node_dir_.find(cloc.to_id());
-			children[ci] = hpx::new_<node_server>(localities[iter->second.locality_id], cloc);
-		})
-		);
-	}
-	hpx::when_all(futs).get();
-	current_time = silo_output_time();
-	rotational_time = silo_output_rotation_time();
+    const auto root_entry = node_dir_.find(my_location.to_id());
+    if (root_entry == node_dir_.end()) {
+        throw std::runtime_error("Restart tree does not contain its root");
+    }
+    if (root_entry->second.load) {
+        load_silo_leaf(*grid_ptr, my_location, root_entry->second.filename);
+        is_refined = false;
+    } else {
+        std::vector<hpx::future<void>> futs;
+        is_refined = true;
+        for (integer ci = 0; ci < NCHILD; ci++) {
+            futs.push_back(hpx::async([this, ci]() {
+                auto cloc = my_location.get_child(ci);
+                auto iter = node_dir_.find(cloc.to_id());
+                children[ci] = hpx::new_<node_server>(localities[iter->second.locality_id], cloc);
+            }));
+        }
+        hpx::when_all(futs).get();
+    }
+    current_time = silo_output_time();
+    rotational_time = silo_output_rotation_time();
 }
 
 silo_var_t::silo_var_t(const std::string &name, std::size_t nx) :

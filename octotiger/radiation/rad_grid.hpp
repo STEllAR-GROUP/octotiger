@@ -21,6 +21,8 @@
 #include <unordered_map>
 #include <vector>
 
+class grid;
+
 class rad_grid {
 public:
 	static constexpr integer er_i = 0;
@@ -38,7 +40,8 @@ private:
 	std::vector<std::atomic<int>> is_coarse;
 	std::vector<std::atomic<int>> has_coarse;
 	std::vector<std::vector<Real>> Ushad;
-	// Structure of arrays; only E and physical Fx,Fy,Fz are evolved/serialized.
+	// Structure of arrays; E and physical Fx,Fy,Fz are serialized.
+	// FLD evolves only E; Fx,Fy,Fz are reconstructed diagnostics.
 	// Divide flux components by c when creating an M1 ConservedState=(E,Q).
 	std::vector<std::vector<Real>> U;
 	// Finite-volume fluxes/reflux messages retain the same physical storage units.

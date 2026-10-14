@@ -22,7 +22,9 @@
 constexpr int MAX_DEPTH = 30;
 constexpr int MIN_DEPTH = 10;
 
-static constexpr double eps = 16.0;
+// The implemented linear emission law E_eq=e has equal radiation/material
+// heat capacities: Su--Olson epsilon=1 (distinct from the RSLA factor).
+static constexpr double eps = 1.0;
 static constexpr double kappa = MARSHAK_OPAC;
 static constexpr double c = 1.0;
 static constexpr double toler = 1.0e-10;
@@ -137,6 +139,10 @@ static hpx::mutex mtx_;
 // NOTE: Why are y0 and z0 are unused?
 std::vector<double> marshak_wave_analytic(double x0, double y0, double z0, double t) {
 	std::vector<double> U(opts().n_fields + NRF, 0.0);
+	if (t <= 0) {
+		U[rho_i] = U[spc_i] = 1.0;
+		return U;
+	}
 	double z = x0 + opts().xscale;
 	z *= std::sqrt(3)*kappa;
 	t *= eps * kappa * c;
@@ -182,11 +188,12 @@ std::vector<double> marshak_wave_analytic(double x0, double y0, double z0, doubl
 
 // NOTE: Why are x, y, and z unused?
 std::vector<double> marshak_wave(double x, double y, double z, double dx) {
-	std::vector<double> u(opts().n_fields);
+	// grid initialization reads all hydro and radiation components together.
+	std::vector<double> u(opts().n_fields + NRF, 0.0);
 	double e = 1.0e-20;
 	u[rho_i] = u[spc_i] = 1.0;
 	u[egas_i] = e;
-	u[tau_i] = std::pow(e, grid::get_fgamma());
+	u[tau_i] = std::pow(e, 1.0 / grid::get_fgamma());
 	return u;
 
 }

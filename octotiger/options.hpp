@@ -45,7 +45,8 @@ enum problem_type : integer {
     RADIATION_EQUILIBRIUM_SPHERE = 17,
     RADIATION_SUBCRITICAL_SHOCK = 18,
     RADIATION_SUPERCRITICAL_SHOCK = 19,
-    RADIATION_BLAST_WAVE = 20
+    RADIATION_BLAST_WAVE = 20,
+    RADIATION_COUPLED_WAVE = 21
 };
 
 inline constexpr std::pair<problem_type, const char*> problem_names[] = {
@@ -62,7 +63,8 @@ inline constexpr std::pair<problem_type, const char*> problem_names[] = {
     {RADIATION_EQUILIBRIUM_SPHERE, "RADIATION_EQUILIBRIUM_SPHERE"},
     {RADIATION_SUBCRITICAL_SHOCK, "RADIATION_SUBCRITICAL_SHOCK"},
     {RADIATION_SUPERCRITICAL_SHOCK, "RADIATION_SUPERCRITICAL_SHOCK"},
-    {RADIATION_BLAST_WAVE, "RADIATION_BLAST_WAVE"}
+    {RADIATION_BLAST_WAVE, "RADIATION_BLAST_WAVE"},
+    {RADIATION_COUPLED_WAVE, "RADIATION_COUPLED_WAVE"}
 };
 
 inline std::istream& operator>>(std::istream& in, problem_type& problem) {
@@ -107,6 +109,17 @@ public:
 	bool periodic;
 	bool radiation;
 	bool rad_implicit;
+	// Execution policy only; CPU preserves the historical radiation path.
+	std::string radiation_backend = "cpu";
+	// M1 retains the original first-order explicit transport/source splitting.
+	std::string radiation_model = "m1";
+	std::string radiation_integrator = "euler";
+	std::string radiation_limiter = "levermore_pomraning";
+	std::string fld_boundary = "vacuum";
+	real fld_nonlinear_tolerance = 1e-10;
+	real fld_linear_tolerance = 1e-10;
+	integer fld_max_iterations = 50;
+	integer fld_max_linear_iterations = 200;
 	// Opt-in reduced transport light speed; physical constants retain full c.
 	real radiation_reduced_c_factor = 1;
 	// Prescribed-medium radiation regression parameters in physical code units.
@@ -326,6 +339,12 @@ public:
 		arc & periodic;
 		arc & radiation;
 		arc & rad_implicit;
+		arc & radiation_backend;
+		arc & radiation_model;
+		arc & radiation_integrator;
+		arc & radiation_limiter & fld_boundary;
+		arc & fld_nonlinear_tolerance & fld_linear_tolerance;
+		arc & fld_max_iterations & fld_max_linear_iterations;
 		arc & radiation_reduced_c_factor;
 		arc & radReference & radTestChi & radTestWidth;
 		arc & radTestBackground & radTestAmplitude & radTestLuminosity;

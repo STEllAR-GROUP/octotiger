@@ -8,8 +8,97 @@ if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
   add_test(NAME radiationM1 COMMAND radiationM1Tests)
 endif()
 get_filename_component(radiation_root "${CMAKE_CURRENT_SOURCE_DIR}/../.." ABSOLUTE)
+foreach(_radiation_test IN ITEMS implicit_source ap_flux marshak_boundary)
+  add_executable(test_radiation_${_radiation_test} test_${_radiation_test}.cpp)
+  target_compile_features(test_radiation_${_radiation_test} PRIVATE cxx_std_20)
+  target_include_directories(test_radiation_${_radiation_test} PRIVATE "${radiation_root}")
+  add_test(NAME radiation.unit.${_radiation_test} COMMAND test_radiation_${_radiation_test})
+  set_tests_properties(radiation.unit.${_radiation_test} PROPERTIES LABELS "radiation;unit" TIMEOUT 120)
+endforeach()
+add_executable(test_fld test_fld.cpp)
+target_compile_features(test_fld PRIVATE cxx_std_20)
+target_include_directories(test_fld PRIVATE "${radiation_root}")
+add_test(NAME radiation_fld COMMAND test_fld)
+set_tests_properties(radiation_fld PROPERTIES LABELS "radiation;fld" TIMEOUT 120)
+add_executable(radiation_elliptic_test test_elliptic.cpp)
+target_compile_features(radiation_elliptic_test PRIVATE cxx_std_20)
+target_include_directories(radiation_elliptic_test PRIVATE "${radiation_root}")
+add_test(NAME radiation_elliptic COMMAND radiation_elliptic_test)
+set_tests_properties(radiation_elliptic PROPERTIES LABELS "radiation;elliptic" TIMEOUT 120)
+if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
+  include("${radiation_root}/cmake/RadiationAccelerators.cmake")
+  octotiger_add_radiation_accelerators()
+endif()
+add_executable(test_positive_quartic test_positive_quartic.cpp)
+target_compile_features(test_positive_quartic PRIVATE cxx_std_20)
+target_include_directories(test_positive_quartic PRIVATE "${radiation_root}")
+add_test(NAME radiation.unit.positive_quartic COMMAND test_positive_quartic)
+set_tests_properties(radiation.unit.positive_quartic PROPERTIES LABELS radiation TIMEOUT 120)
+if(TARGET radiation_accelerators)
+  add_executable(test_radiation_accelerator test_accelerator.cpp)
+  target_link_libraries(test_radiation_accelerator PRIVATE radiation_accelerators)
+  foreach(_backend IN ITEMS cpu cuda kokkos)
+    string(TOUPPER "${_backend}" _upper_backend)
+    if(_backend STREQUAL "cpu" OR OCTOTIGER_WITH_RADIATION_${_upper_backend})
+      add_test(NAME radiation.accelerator.${_backend} COMMAND test_radiation_accelerator ${_backend})
+      set_tests_properties(radiation.accelerator.${_backend} PROPERTIES
+        LABELS "radiation;accelerator" TIMEOUT 120 RUN_SERIAL TRUE)
+    endif()
+  endforeach()
+endif()
 include("${radiation_root}/radiation_results/reference.cmake")
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
+
+if(TARGET octotiger AND OCTOTIGER_WITH_RADIATION AND
+    (OCTOTIGER_WITH_RADIATION_CUDA OR OCTOTIGER_WITH_RADIATION_KOKKOS))
+  set(_radiation_device_backends)
+  if(OCTOTIGER_WITH_RADIATION_CUDA)
+    list(APPEND _radiation_device_backends cuda)
+  endif()
+  if(OCTOTIGER_WITH_RADIATION_KOKKOS)
+    list(APPEND _radiation_device_backends kokkos)
+  endif()
+  add_test(NAME radiation.accelerator.application
+    COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_accelerator_application.py"
+      --executable $<TARGET_FILE:octotiger> --silo-library "${Silo_LIBRARY}"
+      --backends ${_radiation_device_backends})
+  set_tests_properties(radiation.accelerator.application PROPERTIES
+    LABELS "radiation;accelerator;application" TIMEOUT 1200 PROCESSORS 2 RUN_SERIAL TRUE)
+endif()
+
+if(TARGET octotiger AND OCTOTIGER_WITH_RADIATION)
+  if(OCTOTIGER_WITH_GRIDDIM EQUAL 8)
+    add_test(NAME radiation.fld.application
+      COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_fld_application.py"
+        --executable $<TARGET_FILE:octotiger> --silo-library "${Silo_LIBRARY}" --threads 2)
+    set_tests_properties(radiation.fld.application PROPERTIES
+      LABELS "radiation;fld;application" TIMEOUT 1200 PROCESSORS 2 RUN_SERIAL TRUE)
+  endif()
+  add_test(NAME radiation.euler.subcycling
+    COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_euler_subcycling.py"
+      --executable $<TARGET_FILE:octotiger> --silo-library "${Silo_LIBRARY}" --threads 2)
+  set_tests_properties(radiation.euler.subcycling PROPERTIES
+    LABELS "radiation;euler;application" TIMEOUT 1200 PROCESSORS 2 RUN_SERIAL TRUE)
+  add_test(NAME radiation.euler.restart
+    COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_restart.py"
+      --executable $<TARGET_FILE:octotiger> --radiation-integrator euler --factor 0.1
+      --silo-library "${Silo_LIBRARY}")
+  add_test(NAME radiation.euler.amr
+    COMMAND "${Python3_EXECUTABLE}" "${radiation_root}/tests/test_gradient_radiation.py"
+      --executable $<TARGET_FILE:octotiger> --radiation-integrator euler --finest-level 3
+      --threads 2 --timeout 240 --silo-library "${Silo_LIBRARY}")
+  set(_euler_application_tests radiation.euler.restart radiation.euler.amr)
+  foreach(_case IN ITEMS subcritical_shock supercritical_shock radiating_blast)
+    add_test(NAME radiation.euler.${_case}
+      COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_hydro_application.py"
+        --executable $<TARGET_FILE:octotiger> --radiation-integrator euler --case "${_case}"
+        --config "${radiation_root}/radiation_results/configs/${_case}.ini"
+        --silo-library "${Silo_LIBRARY}")
+    list(APPEND _euler_application_tests radiation.euler.${_case})
+  endforeach()
+  set_tests_properties(${_euler_application_tests} PROPERTIES
+    LABELS "radiation;euler;application" TIMEOUT 1200 PROCESSORS 2 RUN_SERIAL TRUE)
+endif()
 
 add_executable(test_radiation_hydro_benchmarks test_hydro_benchmarks.cpp)
 target_compile_features(test_radiation_hydro_benchmarks PRIVATE cxx_std_20)

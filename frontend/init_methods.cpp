@@ -1,4 +1,7 @@
 #include "frontend-helper.hpp"
+#ifdef OCTOTIGER_HAVE_RADIATION_ACCELERATORS
+#include "octotiger/radiation/accelerator.hpp"
+#endif
 #include "octotiger/test_problems/radiation.hpp"
 #ifdef OCTOTIGER_HAVE_KOKKOS
 #include "octotiger/common_kernel/kokkos_util.hpp"
@@ -88,6 +91,9 @@ namespace {
 #endif
 
 void cleanup_puddle_on_this_locality(void) {
+#ifdef OCTOTIGER_HAVE_RADIATION_ACCELERATORS
+    radiation_accelerator::finalize();
+#endif
 #ifdef OCTOTIGER_HAVE_KOKKOS
     Kokkos::fence();
 #endif
@@ -229,6 +235,12 @@ void init_executors(void) {
 
     get_flux_host_masks<host_buffer<bool>>();
 #endif
+#ifdef OCTOTIGER_HAVE_RADIATION_ACCELERATORS
+    if (opts().radiation) {
+        radiation_accelerator::initialize(radiation_accelerator::backend(opts().radiation_backend));
+    }
+#endif
+
 
 #if HPX_KOKKOS_CUDA_FUTURE_TYPE == 0
 #if (defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP) || defined(KOKKOS_ENABLE_CUDA) || defined(KOKKOS_ENABLE_HIP))  
@@ -394,7 +406,13 @@ void init_problem(void) {
     grid::set_scaling_factor(opts().xscale);
     grid::set_min_level(opts().min_level);
     grid::set_max_level(opts().max_level);
-    if (radiationHydroProblem()) {
+    if (opts().problem == RADIATION_COUPLED_WAVE) {
+        grid::set_fgamma(5.0 / 3.0);
+        validateRadiationCoupledWave();
+        set_problem(radiationCoupledWaveInit);
+        set_analytic(nullptr);
+        set_refine_test(radiation_test_refine);
+    } else if (radiationHydroProblem()) {
         grid::set_fgamma(radiationHydroTests::gamma);
         set_problem(radiationHydroInit);
         set_analytic(nullptr);
@@ -402,14 +420,14 @@ void init_problem(void) {
     } else if (radiationRegressionProblem()) {
         grid::set_fgamma(5.0 / 3.0);
         set_problem(radiationRegressionInit);
-        set_analytic(radiationRegressionAnalytic);
+        set_analytic(opts().radiation_model == "fld" ? nullptr : radiationRegressionAnalytic);
         set_refine_test(radiation_test_refine);
     } else if (opts().problem == RADIATION_TEST) {
         set_problem(radiation_test_problem);
         set_refine_test(radiation_test_refine);
     } else if (opts().problem == RADIATION_DIFFUSION) {
         set_problem(radiation_diffusion_test_problem);
-        set_analytic(radiation_diffusion_analytic);
+        set_analytic(opts().radiation_model == "fld" ? nullptr : radiation_diffusion_analytic);
         set_refine_test(radiation_test_refine);
     } else if (opts().problem == RADIATION_COUPLING) {
         set_problem(radiation_coupling_test_problem);
@@ -464,7 +482,7 @@ void init_problem(void) {
         set_refine_test(refine_test_amr);
     } else if (opts().problem == MARSHAK) {
         grid::set_fgamma(5.0 / 3.0);
-        set_analytic(marshak_wave_analytic);
+        set_analytic(opts().radiation_model == "fld" ? nullptr : marshak_wave_analytic);
         set_problem(marshak_wave);
         set_refine_test(refine_test_marshak);
     } else if (opts().problem == SOLID_SPHERE) {

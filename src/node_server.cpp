@@ -153,7 +153,8 @@ future<void> node_server::exchange_flux_corrections() {
 	}, "node_server::exchange_flux_corrections::sync"));
 }
 
-void node_server::all_hydro_bounds() {
+void node_server::all_hydro_bounds(real boundary_time) {
+	hydro_boundary_time = boundary_time < 0 ? current_time : boundary_time;
 	exchange_interlevel_hydro_data(); // bottom up step
 	collect_hydro_boundaries(); // interlevel step
 	send_hydro_amr_boundaries(); // up-down step
@@ -161,6 +162,7 @@ void node_server::all_hydro_bounds() {
 }
 
 void node_server::energy_hydro_bounds() {
+	hydro_boundary_time = current_time;
 	exchange_interlevel_hydro_data();
 	collect_hydro_boundaries(true);
 	send_hydro_amr_boundaries(true);
@@ -350,9 +352,12 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
 	std::array<future<void>, geo::direction::count()> results; 
 	integer index = 0;
 	for (auto const &dir : geo::direction::full_set()) {
-    // receive data from neighbor via sibling_hydro_channels
-    if (my_location.level() != 0) {
-    bool is_local = !neighbors[dir].empty() && neighbors[dir].is_local() || neighbors[dir].empty() && parent.is_local();
+		// The periodic root has itself as a neighbor, so its non-optimized
+		// sends above must also be received. A nonperiodic root has no parent
+		// or sibling messages; never wait for its physical boundary directions.
+    if (my_location.level() != 0 || (opts().periodic && !neighbors[dir].empty())) {
+    const bool is_local = (!neighbors[dir].empty() && neighbors[dir].is_local())
+        || (neighbors[dir].empty() && parent.is_local());
     if (!is_local || (neighbors[dir].empty() && !use_local_amr_optimization) ||
         (!neighbors[dir].empty() && !use_local_optimization)) {
       results[index++] = sibling_hydro_channels[dir].get_future(hcycle).then( // 3s?
@@ -417,7 +422,7 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
 	if (!opts().periodic) {
 		for (auto &face : geo::face::full_set()) {
 			if (my_location.is_physical_boundary(face)) {
-				grid_ptr->set_physical_boundaries(face, current_time);
+				grid_ptr->set_physical_boundaries(face, hydro_boundary_time);
 			}
 		}
 	}

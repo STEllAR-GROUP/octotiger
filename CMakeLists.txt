@@ -201,6 +201,8 @@ FetchContent_MakeAvailable(svesimd)
 # Octo-Tiger library sources
 set(source_files
     src/radiation/rad_grid.cpp
+    src/radiation/iteration.cpp
+    src/radiation/fld.cpp
     src/test_problems/radiation/radiation.cpp
     src/test_problems/marshak/marshak.cpp
     src/compute_factor.cpp
@@ -585,6 +587,8 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/io/silo_out.cpp
     src/io/silo_in.cpp
     src/radiation/rad_grid.cpp
+    src/radiation/iteration.cpp
+    src/radiation/fld.cpp
     src/test_problems/radiation/radiation.cpp
     frontend/frontend-helper.cpp
 
@@ -636,6 +640,16 @@ target_include_directories(debuglib PUBLIC ${PROJECT_SOURCE_DIR})
 target_include_directories(optionslib PUBLIC ${PROJECT_SOURCE_DIR})
 target_include_directories(octolib PUBLIC ${PROJECT_SOURCE_DIR})
 target_include_directories(hydrolib PUBLIC ${PROJECT_SOURCE_DIR})
+
+# Radiation devices can be built independently of the hydro/gravity devices.
+include(RadiationAccelerators)
+octotiger_add_radiation_accelerators()
+if(TARGET radiation_accelerators)
+  target_link_libraries(octolib PUBLIC radiation_accelerators)
+  # options_processing.cpp belongs to optionslib and validates availability.
+  target_compile_definitions(optionslib PUBLIC
+    $<TARGET_PROPERTY:radiation_accelerators,INTERFACE_COMPILE_DEFINITIONS>)
+endif()
 
 # Octo-Tiger executable
 add_hpx_executable(

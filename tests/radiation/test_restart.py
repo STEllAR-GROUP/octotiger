@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare an actual level-one radiation checkpoint/resume with an uninterrupted run.
+"""Compare a radiation checkpoint/resume with an uninterrupted run on level zero or one.
 
 Uses the installed Silo shared library through its public C API; no Python Silo,
 NumPy, or HDF5 package is required. All four full-volume radiation fields must
@@ -14,6 +14,7 @@ import json
 import math
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import tempfile
 
@@ -24,7 +25,12 @@ CGS_C = 2.99792458e10
 SILO_TYPES = {16: ct.c_int, 17: ct.c_short, 18: ct.c_long,
               19: ct.c_float, 20: ct.c_double, 21: ct.c_char, 22: ct.c_longlong}
 EXPECTED = {
-    "radiation_options_version": 2,
+    "radiation_options_version": 3,
+    "radiation_model": 0,
+    "radiation_integrator": 0,
+    "radiation_algorithm_version": 1,
+    "radiation_limiter": 0,
+    "radiation_flux_semantics": 0,
     "radiation_reduced_c_factor": 1.0,
     "radiation": 1,
     "periodic": 1,
@@ -74,6 +80,9 @@ class Silo:
             "DBGetVarType": ([ct.c_void_p, ct.c_char_p], ct.c_int),
             "DBGetVarLength": ([ct.c_void_p, ct.c_char_p], ct.c_int),
             "DBReadVar": ([ct.c_void_p, ct.c_char_p, ct.c_void_p], ct.c_int),
+            "DBWrite": ([ct.c_void_p, ct.c_char_p, ct.c_void_p,
+                          ct.POINTER(ct.c_int), ct.c_int, ct.c_int], ct.c_int),
+            "DBSetAllowOverwrites": ([ct.c_int], ct.c_int),
             "DBGetMultivar": ([ct.c_void_p, ct.c_char_p], ct.POINTER(Multivar)),
             "DBFreeMultivar": ([ct.POINTER(Multivar)], None),
             "DBGetQuadvar": ([ct.c_void_p, ct.c_char_p], ct.POINTER(Quadvar)),
@@ -104,6 +113,30 @@ class Silo:
         if length != 1:
             raise AssertionError(f"Expected scalar Silo metadata {name}")
         return buffer[0]
+
+    def altered_checkpoint(self, path, label, metadata):
+        # Keep the top-level copy beside the original so relative shard paths
+        # remain valid if a rejected checkpoint accidentally proceeds to load.
+        target = path.with_name(f"{path.stem}-{label}{path.suffix}")
+        shutil.copy2(path, target)
+        handle = self.lib.DBOpenReal(os.fsencode(target), 5, 2)  # DB_UNKNOWN, DB_APPEND
+        if not handle:
+            raise AssertionError(f"Cannot open Silo checkpoint for alteration {target}")
+        previous = self.lib.DBSetAllowOverwrites(1)
+        try:
+            for name, value in metadata.items():
+                encoded = name.encode()
+                datatype = self.lib.DBGetVarType(handle, encoded)
+                if datatype not in (16, 17, 18, 22):
+                    raise AssertionError(f"Expected integer checkpoint metadata {name}")
+                data = SILO_TYPES[datatype](value)
+                length = ct.c_int(1)
+                if self.lib.DBWrite(handle, encoded, ct.byref(data), ct.byref(length), 1, datatype) != 0:
+                    raise AssertionError(f"Cannot alter checkpoint metadata {name}")
+        finally:
+            self.lib.DBClose(handle)
+            self.lib.DBSetAllowOverwrites(previous)
+        return target
 
     def snapshot(self, path, fields=FIELDS, metadata_names=EXPECTED, block_count=8):
         handle = self.open(path)
@@ -169,24 +202,27 @@ def check_metadata(metadata, time):
     close(metadata["time"], time, "checkpoint time")
 
 
-def run(executable, folder, final_time, threads, timeout, restart=None):
+def run(executable, folder, final_time, threads, timeout, restart=None, expected_error=None, level=1,
+        integrator="euler"):
     folder.mkdir(parents=True)
     config = {
         "problem": "RADIATION_STREAMING_WAVE", "radiation": "on", "hydro": "off",
         "gravity": "off", "omega": 0, "periodic": "on", "rad_implicit": "off",
-        "unigrid": "on", "min_level": 1, "max_level": 1, "xscale": 1,
+        "unigrid": "on", "min_level": level, "max_level": level, "xscale": 1,
         "n_species": 5, "cfl": 0.25, "hard_dt": 0.001, "stop_time": final_time,
         "stop_step": 100000, "odt": 1, "disable_output": "off",
         "disable_diagnostics": "on", "disable_analytic": "on",
         "hydro_host_kernel_type": "LEGACY", "hydro_device_kernel_type": "OFF",
         "monopole_device_kernel_type": "OFF", "multipole_device_kernel_type": "OFF",
         "silo_num_groups": 1, "datadir": str(folder) + os.sep,
+        "radiation_model": "m1", "radiation_integrator": integrator,
     }
     config.update({name: value for name, value in EXPECTED.items()
                    if name.startswith("rad_test_") or name in ("rad_reference", "radiation_reduced_c_factor", "code_to_g", "code_to_cm", "code_to_s")})
     if restart:
         config.update({
             "restart_filename": str(restart), "periodic": "off", "rad_implicit": "on",
+            "radiation_model": "fld", "radiation_integrator": "backward_euler",
             "rad_test_chi": 0.75, "rad_test_width": 0.19, "rad_test_background": 5,
             "rad_test_amplitude": 0.2, "rad_test_luminosity": 0.9,
             "rad_reference": "deliberately-wrong-reference.bin",
@@ -202,6 +238,12 @@ def run(executable, folder, final_time, threads, timeout, restart=None):
         # places every resumed checkpoint in its separate output directory.
         run_directory = restart.parent if restart else folder
         process = subprocess.run(command, cwd=run_directory, stdout=log, stderr=subprocess.STDOUT, timeout=timeout)
+    if expected_error is not None:
+        output = (folder / "run.log").read_text(errors="replace")
+        if process.returncode == 0 or expected_error not in output:
+            raise AssertionError(f"Expected rejected restart containing {expected_error!r}; "
+                                 f"exit={process.returncode}, output:\n{output[-6000:]}")
+        return None
     if process.returncode:
         tail = (folder / "run.log").read_text(errors="replace")[-6000:]
         raise AssertionError(f"Application failed ({process.returncode}) in {folder}:\n{tail}")
@@ -239,9 +281,12 @@ def main():
     parser.add_argument("--executable", required=True, type=Path)
     parser.add_argument("--silo-library")
     parser.add_argument("--threads", type=int, default=2)
+    parser.add_argument("--level", type=int, choices=(0, 1), default=1,
+                        help="Uniform mesh level; one block at 0 or eight at 1")
     parser.add_argument("--timeout", type=float, default=180)
     parser.add_argument("--work-dir", type=Path, help="Optional empty output directory; kept for inspection")
     parser.add_argument("--factor", type=float, default=1.0, help="Radiation reduced-c factor to preserve across restart")
+    parser.add_argument("--radiation-integrator", choices=("euler", "rk1"), default="euler")
     args = parser.parse_args()
     if not 1 <= args.threads <= 2:
         parser.error("--threads must be 1 or 2; runs share the local resource budget")
@@ -256,13 +301,15 @@ def main():
     folder.mkdir(parents=True, exist_ok=True)
     print(f"Radiation restart artifacts: {folder}", flush=True)
     silo = Silo(args.silo_library)
-    uninterrupted = run(executable, folder / "direct", 0.016, args.threads, args.timeout)
-    checkpoint = run(executable, folder / "checkpoint", 0.008, args.threads, args.timeout)
-    metadata, initial_fields = silo.snapshot(checkpoint)
+    uninterrupted = run(executable, folder / "direct", 0.016, args.threads, args.timeout, level=args.level,
+                        integrator=args.radiation_integrator)
+    checkpoint = run(executable, folder / "checkpoint", 0.008, args.threads, args.timeout, level=args.level,
+                     integrator=args.radiation_integrator)
+    metadata, initial_fields = silo.snapshot(checkpoint, block_count=8 ** args.level)
     check_metadata(metadata, 0.008)
-    resumed_path = run(executable, folder / "resumed", 0.016, args.threads, args.timeout, checkpoint)
-    direct_metadata, direct_fields = silo.snapshot(uninterrupted)
-    resumed_metadata, resumed_fields = silo.snapshot(resumed_path)
+    resumed_path = run(executable, folder / "resumed", 0.016, args.threads, args.timeout, checkpoint, level=args.level)
+    direct_metadata, direct_fields = silo.snapshot(uninterrupted, block_count=8 ** args.level)
+    resumed_metadata, resumed_fields = silo.snapshot(resumed_path, block_count=8 ** args.level)
     check_metadata(direct_metadata, 0.016)
     check_metadata(resumed_metadata, 0.016)
     # Ensure the compared continuation actually evolved after loading its checkpoint.
@@ -271,9 +318,19 @@ def main():
     if change <= 1e-8 * max(abs(value) for values in initial_fields["er"].values() for value in values):
         raise AssertionError("Restart comparison did not evolve the checkpoint")
     errors = compare_fields(direct_fields, resumed_fields)
+    # Unknown identities must fail before restoring evolved state.
+    rejected = (
+        ("unknown-method", {"radiation_integrator": 99}, "Unsupported radiation restart integrator identifier"),
+        ("unknown-model", {"radiation_model": 99}, "Unsupported or inconsistent radiation restart model metadata"),
+        ("unknown-version", {"radiation_algorithm_version": 99}, "Unsupported or inconsistent radiation restart model metadata"),
+        ("inconsistent-flux", {"radiation_flux_semantics": 1}, "Unsupported or inconsistent radiation restart model metadata"),
+    )
+    for label, changes, message in rejected:
+        altered = silo.altered_checkpoint(checkpoint, label, changes)
+        run(executable, folder / label, 0.016, args.threads, args.timeout, altered, message, level=args.level)
     (folder / "comparison.json").write_text(json.dumps(errors, indent=2) + "\n")
     print(json.dumps(errors, indent=2))
-    print("Radiation restart field and physical-parameter checks passed")
+    print("Radiation restart field, physical-parameter, and incompatible-metadata checks passed")
 
 
 if __name__ == "__main__":

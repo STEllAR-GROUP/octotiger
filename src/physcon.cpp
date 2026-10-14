@@ -115,6 +115,21 @@ void these_units(real &m, real &l, real &t, real &k) {
 }
 
 void normalize_constants() {
+	if (opts().problem == MARSHAK) {
+		// This verification problem is dimensionless: c = a_r = 1 and
+		// material energy equals a_r*T^4. It does not use the ideal-gas EOS.
+		opts().code_to_g = opts().code_to_cm = opts().code_to_s = 1.0;
+		physcon().c = physcon().kb = physcon().mh = physcon().h = 1.0;
+		physcon().sigma = 0.25;
+		if (hpx::get_locality_id() == 0) {
+			printf("Normalized constants (dimensionless Marshak)\n");
+			printf("%e %e %e %e\n", 1.0, 1.0, 1.0, 1.0);
+			printf("A = %e | B = %e | G = %e | kb = %e | c = %e | mh = %e | sigma = %e | h = %e\n",
+				physcon().A, physcon().B, physcon().G, physcon().kb, physcon().c,
+				physcon().mh, physcon().sigma, physcon().h);
+		}
+		return;
+	}
 	real m, l, t, k;
 	these_units(m, l, t, k);
 	m = 1.0 / m;

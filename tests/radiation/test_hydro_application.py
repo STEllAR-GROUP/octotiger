@@ -25,7 +25,7 @@ from test_restart import CGS_C, Silo
 
 CASES = ("subcritical_shock", "supercritical_shock", "radiating_blast")
 METADATA = ("code_to_g", "code_to_cm", "code_to_s", "n_species", "problem",
-            "hydro", "radiation", "rad_implicit", "periodic", "radiation_reduced_c_factor")
+            "hydro", "radiation", "rad_implicit", "periodic", "gravity", "radiation_reduced_c_factor", "radiation_integrator", "radiation_model", "radiation_algorithm_version")
 
 
 def read_config(path):
@@ -150,6 +150,8 @@ def main():
     parser.add_argument("--executable", required=True, type=Path)
     parser.add_argument("--config", required=True, type=Path)
     parser.add_argument("--case", required=True, choices=CASES)
+    parser.add_argument("--radiation-backend", choices=("cpu", "cuda", "kokkos"), default="cpu")
+    parser.add_argument("--radiation-integrator", choices=("euler", "rk1"), default="euler")
     parser.add_argument("--silo-library")
     parser.add_argument("--threads", type=int, default=2, choices=(1, 2))
     parser.add_argument("--timeout", type=float, default=180)
@@ -172,6 +174,8 @@ def main():
         "monopole_device_kernel_type": "OFF", "multipole_device_kernel_type": "OFF",
         "silo_num_groups": 1, "odt": "1e99", "datadir": str(folder) + os.sep,
         "radiation_reduced_c_factor": args.radiation_reduced_c_factor,
+        "radiation_backend": args.radiation_backend,
+        "radiation_integrator": args.radiation_integrator,
     })
     config_path = folder / "run.ini"
     config_path.write_text("".join(f"{name}={value}\n" for name, value in config.items()))
@@ -190,6 +194,11 @@ def main():
     check_light_speed_factor(final_metadata, args.radiation_reduced_c_factor)
     if initial_metadata["time"] != 0 or final_metadata["time"] <= 0:
         raise AssertionError("Smoke run must advance from t=0")
+    for metadata in (initial_metadata, final_metadata):
+        if metadata["radiation_integrator"] != 0:
+            raise AssertionError("Checkpoint integrator differs from the requested method")
+        if metadata["radiation_model"] != 0 or metadata["radiation_algorithm_version"] != 1:
+            raise AssertionError("Checkpoint does not identify M1 radiation algorithm version 1")
     initial = check_state(initial_metadata, initial_fields)
     final = check_state(final_metadata, final_fields)
     changes = {name: relative_change(initial[name], final[name])
@@ -199,7 +208,9 @@ def main():
     if args.case.endswith("shock") and max(final["density"]) <= max(initial["density"]) * (1 + 1e-10):
         raise AssertionError("Reflecting-wall shock did not compress the gas")
     report = {
-        "case": args.case, "validation": "four-step coupled CPU smoke; not a published-time comparison",
+        "case": args.case, "validation": "four-step coupled smoke; not a published-time comparison",
+        "radiation_backend": args.radiation_backend,
+        "radiation_integrator": args.radiation_integrator,
         "radiation_reduced_c_factor": final_metadata["radiation_reduced_c_factor"],
         "physical_c": CGS_C, "transport_c": CGS_C * final_metadata["radiation_reduced_c_factor"],
         "cells": len(final["density"]), "physical_time_s": final_metadata["time"] * final_metadata["code_to_s"],

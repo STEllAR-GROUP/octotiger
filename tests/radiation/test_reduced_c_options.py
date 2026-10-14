@@ -72,7 +72,7 @@ def main():
             raise AssertionError(f"Valid option failed in {output}: {(output / 'run.log').read_text()[-4000:]}")
         metadata, fields = silo.snapshot(output / "final.silo", metadata_names=metadata_names)
         expected = 1.0 if factor is None else float(factor)
-        if metadata["radiation_options_version"] != 2 or metadata["radiation_reduced_c_factor"] != expected:
+        if metadata["radiation_options_version"] != 3 or metadata["radiation_reduced_c_factor"] != expected:
             raise AssertionError(f"Checkpoint did not preserve the factor: {metadata}")
         outputs[name] = (metadata, fields)
     if outputs["default"] != outputs["full"]:
@@ -81,7 +81,7 @@ def main():
         raise AssertionError("The opt-in reduced factor did not change transport")
     report = {"rejected_values": failures, "default_equals_explicit_full_c": True,
               "accepted_reduced_factor": outputs["reduced"][0]["radiation_reduced_c_factor"],
-              "checkpoint_metadata_version": 2}
+              "checkpoint_metadata_version": 3}
     (folder / "validation.json").write_text(json.dumps(report, indent=2) + "\n")
     print(json.dumps(report, indent=2))
 

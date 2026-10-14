@@ -229,7 +229,7 @@ analytic_t node_server::compare_analytic() {
 	}
 	if (my_location.level() == 0) {
 		FpeGuard fpeGuard{};
-		if (radiationRegressionProblem()) {
+		if (radiationRegressionProblem() || opts().problem == MARSHAK) {
 			// The comparator rejects runs that stop before the requested final time.
 			printf("RADIATION_TEST_FINISHED %s t=%.17e\n", to_string(opts().problem).c_str(), double(current_time));
 		}

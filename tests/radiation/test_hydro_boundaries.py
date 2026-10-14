@@ -36,6 +36,7 @@ FIXTURE = r'''
 #include <cstddef>
 #include <iostream>
 #include <stdexcept>
+#include <string>
 #include <vector>
 #define ENABLE_THREAD_DEBUG()
 using integer = long long;
@@ -44,6 +45,7 @@ constexpr int H_DNX=196,H_DNY=14,H_DNZ=1,H_DN[3]={196,14,1};
 constexpr int XDIM=0,YDIM=1,ZDIM=2,NRF=4,er_i=0,fx_i=1,fy_i=2,fz_i=3;
 constexpr int rho_i=0,egas_i=1,sx_i=2,sy_i=3,sz_i=4,tau_i=5,lx_i=6,ly_i=7,lz_i=8;
 constexpr int RADIATION_SUBCRITICAL_SHOCK=18,RADIATION_SUPERCRITICAL_SHOCK=19,RADIATION_BLAST_WAVE=20;
+constexpr int RADIATION_COUPLED_WAVE=21;
 constexpr int MARSHAK=7,RADIATION_TEST=9,RADIATION_DIFFUSION=12,RADIATION_COUPLING=13;
 constexpr Real MARSHAK_OPAC=1;
 namespace geo {
@@ -59,7 +61,8 @@ int index(int i,int j,int k) { return 196*i+14*j+k; }
 integer rindex(integer i,integer j,integer k) { return index(i,j,k); }
 struct Options {
     int n_fields=11, problem=RADIATION_SUBCRITICAL_SHOCK;
-    Real xscale=3.5e10,code_to_g=1,code_to_cm=1;
+    Real xscale=3.5e10,code_to_g=1,code_to_cm=1,radTestChi=1;
+    std::string radiation_model="m1";
 };
 Options& opts() { static Options value; return value; }
 struct Constants { Real c=2.99792458e10,kb=1.380658e-16,mh=1.6733e-24,sigma=5.67051e-5; };
