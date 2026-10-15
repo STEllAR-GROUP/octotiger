@@ -3,6 +3,7 @@
 import argparse
 import ast
 import json
+import math
 from pathlib import Path
 import tempfile
 import unittest
@@ -80,6 +81,62 @@ class MovieTimingTests(unittest.TestCase):
         self.assertEqual(sequence[:10], [0] * 10)
         self.assertEqual(sequence[-10:], [2] * 10)
         self.assertEqual(set(sequence), {0, 1, 2})
+
+    def test_observed_shock_roundoff_endpoint_keeps_every_state_and_full_holds(self):
+        # The rendered QB subcritical-shock series contains 121 stored states:
+        # X.119 is five ULPs below final.silo, so uniform sampling misses X.119.
+        times = [index * (38300. / 120) for index in range(119)]
+        times += [38299.99999999996, 38300.]
+        original = times[:]
+        sequence, playback = movies.playback_schedule(times, 60, 24, 1)
+        self.assertEqual(times, original)
+        self.assertEqual(len(sequence), 1440)
+        self.assertEqual(sequence[:24], [0] * 24)
+        self.assertEqual(sequence[-24:], [120] * 24)
+        self.assertEqual(sequence[-25], 119)
+        self.assertEqual(set(sequence), set(range(121)))
+        self.assertEqual(sequence, sorted(sequence))
+        self.assertEqual(playback['seconds'], 60)
+        self.assertEqual(playback['fps'], 24)
+        self.assertEqual(playback['endpoint_hold_seconds'], 1)
+        self.assertEqual(playback['active_seconds'], 58)
+        adjustment = playback['endpoint_roundoff_adjustment']
+        self.assertEqual(adjustment['stored_state_indices'], [119])
+        self.assertEqual(adjustment['stored_times'], [38299.99999999996])
+        self.assertEqual(adjustment['first_video_frame'], 1415)
+        self.assertEqual(adjustment['end_video_frame_exclusive'], 1416)
+
+    def test_roundoff_cluster_is_ordered_and_does_not_shorten_zero_hold_movie(self):
+        times = [0., .5, 1. - 4 * math.ulp(1.), 1. - math.ulp(1.), 1.]
+        sequence, playback = movies.playback_schedule(times, 6, 4, 0)
+        self.assertEqual(len(sequence), 24)
+        self.assertEqual(sequence[-3:], [2, 3, 4])
+        self.assertEqual(sequence, sorted(sequence))
+        self.assertEqual(set(sequence), set(range(len(times))))
+        self.assertEqual(playback['seconds'], 6)
+        self.assertEqual(playback['endpoint_hold_seconds'], 0)
+        self.assertEqual(playback['endpoint_roundoff_adjustment']['stored_times'], times[-3:-1])
+
+    def test_roundoff_adjustment_needs_room_without_displacing_other_states(self):
+        times = [0., math.nextafter(1., 0.), 1.]
+        sequence, _ = movies.playback_schedule(times, 1.5, 2, 0)
+        self.assertEqual(sequence, [0, 1, 2])
+        with self.assertRaisesRegex(ValueError, 'skip .* recorded states'):
+            movies.playback_schedule(times, 1, 2, 0)
+
+    def test_only_terminal_roundoff_can_adjust_not_real_undersampling(self):
+        for times in ([0., .5, 1. - 16 * math.ulp(1.), 1.],
+                      [0., .5, 1. - 1e-10, 1.],
+                      [0., .5 + math.ulp(.5), .5 + 2 * math.ulp(.5), 1.]):
+            with self.subTest(times=times), self.assertRaisesRegex(ValueError, 'skip .* recorded states'):
+                movies.playback_schedule(times, 60, 24, 1)
+        # The cluster belongs before the last segment; do not move its pictures
+        # across that segment boundary merely to make the coverage check pass.
+        times = [0., .5, 1. - 6 * math.ulp(1.), 1. - 4 * math.ulp(1.), 1.]
+        timing = {'segments': [{'end_time': 1. - math.ulp(1.), 'seconds': 5},
+                               {'end_time': 1., 'seconds': 1}]}
+        with self.assertRaisesRegex(ValueError, 'skip .* recorded states'):
+            movies.playback_schedule(times, 8, 4, 1, timing)
 
     def test_invalid_times_are_rejected(self):
         for times in ([0.], [0., 0.], [1., 0.], [0., float("nan")]):

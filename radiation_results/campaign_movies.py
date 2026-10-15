@@ -152,9 +152,10 @@ def playback_schedule(times: list[float], seconds: float, fps: int, hold: float,
                       movie_timing: dict | None = None) -> tuple[list[int], dict]:
     """Sample a continuous (optionally piecewise) simulation clock at video FPS.
 
-    Each picture is an existing state held until the next recorded state. If
-    video sampling would omit even one stored state, reject the schedule rather
-    than silently discard it or fabricate an interpolated picture.
+    Each picture is an existing state held until the next recorded state.
+    Roundoff-separated terminal states may use the last active frames without
+    changing their timestamps or the endpoint hold. Other missing states cause
+    rejection rather than silent omission or interpolated pictures.
     """
     if len(times) < 2 or any(not math.isfinite(t) for t in times):
         raise ValueError("Need at least two finite snapshot times")
@@ -217,16 +218,43 @@ def playback_schedule(times: list[float], seconds: float, fps: int, hold: float,
         # With no endpoint hold, show the endpoint on the last output frame.
         sequence[-1] = len(times) - 1
     missing = sorted(set(range(len(times))) - set(sequence))
+    endpoint_adjustment = None
+    if missing:
+        # A checkpoint just before stop_time can be a few ULPs earlier than
+        # final.silo. Keep both stored states: quantize only this terminal
+        # roundoff cluster to consecutive tail frames, leaving the final hold
+        # and all physical timestamps intact. Do not repair general undersampling.
+        tolerance = 8 * math.ulp(times[-1])
+        cluster = [index for index in range(1, len(times) - 1)
+                   if times[-1] - times[index] <= tolerance]
+        end = len(sequence) - (pause if pause else 1)
+        begin = end - len(cluster)
+        if (set(missing).issubset(cluster) and begin >= segments[-1]["first_video_frame"] and
+                all(times[index] >= segments[-1]["start_time"] for index in cluster)):
+            candidate = sequence[:]
+            candidate[begin:end] = cluster
+            if (all(a <= b for a, b in zip(candidate, candidate[1:])) and
+                    set(sequence).issubset(candidate)):
+                sequence = candidate
+                endpoint_adjustment = {"policy": "Roundoff-separated terminal states occupy consecutive final active frames",
+                    "max_endpoint_ulps": 8, "time_tolerance": tolerance,
+                    "stored_state_indices": cluster, "stored_times": [times[index] for index in cluster],
+                    "first_video_frame": begin, "end_video_frame_exclusive": end}
+                missing = sorted(set(range(len(times))) - set(sequence))
     if missing:
         missing_times = ", ".join(f"{times[index]:.9g}" for index in missing[:8])
         raise ValueError(f"Playback would skip {len(missing)} recorded states (times {missing_times}); increase segment seconds or FPS")
-    return sequence, {"mode": "piecewise_actual_time" if movie_timing else "uniform_actual_time",
+    playback = {"mode": "piecewise_actual_time" if movie_timing else "uniform_actual_time",
                       "reason": reason, "segments": segments, "fps": fps,
                       "endpoint_hold_seconds": pause / fps, "active_seconds": sum(s["seconds"] for s in segments),
                       "seconds": len(sequence) / fps, "video_frames": len(sequence),
                       "all_recorded_states_displayed": True,
                       "interpolation": "none; zero-order hold of stored states",
                       "frame_sampling": "Each segment samples its starting time and excludes its ending time; final state is shown during the endpoint hold or last frame"}
+    if endpoint_adjustment is not None:
+        playback["endpoint_roundoff_adjustment"] = endpoint_adjustment
+        playback["frame_sampling"] += "; roundoff-separated terminal states use the final active frames recorded in endpoint_roundoff_adjustment"
+    return sequence, playback
 
 
 def frame_schedule(times: list[float], seconds: float, fps: int, hold: float,
