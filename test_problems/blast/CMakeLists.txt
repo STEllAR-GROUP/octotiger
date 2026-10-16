@@ -7,51 +7,6 @@
 # Blast
 ##############################################################################
 
-# Reference output to compare againsts:
-# Collected with the blast.ini scenario!
-# Adapt in case of physic changes (note, replace special symbols like + with .)  
-
-if (OCTOTIGER_WITH_GRIDDIM EQUAL 8)
-  set(rho_regex "rho 1.015611e-03 1.918630e-02")
-  set(egas_regex "egas 3.813222e-02 7.135766e-01")
-  set(tau_regex "tau 5.179120e-03 1.096847e-01")
-  set(pot_regex "pot 0.000000e.00 0.000000e.00")
-  set(sx_regex "sx 2.945534e-03 6.536674e-02")
-  set(sy_regex "sy 2.945534e-03 6.536674e-02")
-  set(sz_regex "sz 2.945534e-03 6.536674e-02")
-  set(zx_regex "zx 4.706839e-05 1.144265e-03")
-  set(zy_regex "zy 4.706839e-05 1.144265e-03")
-  set(zz_regex "zz 4.706839e-05 1.144265e-03")
-  set(spc1_regex "spc_1 1.015611e-03 1.918630e-02")
-  set(spc2_regex "spc_3 0.000000e.00 0.000000e.00")
-  set(spc3_regex "spc_3 0.000000e.00 0.000000e.00")
-  set(spc4_regex "spc_4 0.000000e.00 0.000000e.00")
-  set(spc5_regex "spc_5 0.000000e.00 0.000000e.00")
-  set(silo_scenario_filename "blast_with_am.silo")
-elseif (OCTOTIGER_WITH_GRIDDIM EQUAL 16)
-  set(rho_regex "rho 7.443236e-04 1.876318e-02")
-  set(egas_regex "egas 2.724814e-02 6.853660e-01")
-  set(tau_regex "tau 3.572754e-03 8.383210e-02")
-  set(pot_regex "pot 0.000000e.00 0.000000e.00")
-  set(sx_regex "sx 2.365151e-03 7.155404e-02")
-  set(sy_regex "sy 2.365151e-03 7.155404e-02")
-  set(sz_regex "sz 2.365151e-03 7.155404e-02")
-  set(zx_regex "zx 2.080924e-05 6.791078e-04")
-  set(zy_regex "zy 2.080924e-05 6.791078e-04")
-  set(zz_regex "zz 2.080924e-05 6.791078e-04")
-  set(spc1_regex "7.443236e-04 1.876318e-02")
-  set(spc2_regex "spc_3 0.000000e.00 0.000000e.00")
-  set(spc3_regex "spc_3 0.000000e.00 0.000000e.00")
-  set(spc4_regex "spc_4 0.000000e.00 0.000000e.00")
-  set(spc5_regex "spc_5 0.000000e.00 0.000000e.00")
-  set(silo_scenario_filename "none")
-else()
-  message(FATAL_ERROR "Octo-Tiger Tests will not work with this OCTOTIGER_WTIH_GRIDDIM."
-  " Compile Octotiger without tests (OCTOTIGER_WITH_TESTS=OFF) to proceed."
-  " Your configuration of Octo-Tiger is not verified to work by any tests in this case, so take care!")
-endif()
-
-  
 function(test_blast_scenario test_name test_log_file reference_filename kernel_parameters)
   add_test(NAME ${test_name}
     COMMAND sh -c "${PROJECT_BINARY_DIR}/octotiger --config_file=${PROJECT_SOURCE_DIR}/test_problems/blast/blast.ini ${kernel_parameters} > ${test_log_file}")
@@ -135,38 +90,6 @@ function(test_blast_scenario test_name test_log_file reference_filename kernel_p
       FIXTURES_CLEANUP ${test_name}
   )
 endfunction()
-
-test_blast_scenario(test_problems.cpu.am_hydro_on.blast_legacy blast_with_am_hydro_old_log.txt ${silo_scenario_filename} 
-"  --correct_am_hydro=1 --hydro_device_kernel_type=OFF --hydro_host_kernel_type=LEGACY")
-if(OCTOTIGER_WITH_CUDA)
-  test_blast_scenario(test_problems.gpu.am_hydro_on.blast_cuda blast_with_am_hydro_cuda_log.txt ${silo_scenario_filename}
-    "  --correct_am_hydro=1 --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=DEVICE_ONLY")
-#if(NOT OCTOTIGER_WITH_FAST_FP_CONTRACT)
-#   test_blast_scenario(test_problems.cpu_gpu.am_hydro_on.blast_cuda blast_without_am_hydro_cuda_log.txt ${silo_scenario_filename}
-#     " --correct_am_hydro=1 --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1 --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=LEGACY")
-# endif()
-endif()
-if(OCTOTIGER_WITH_HIP)
-  test_blast_scenario(test_problems.gpu.am_hydro_off.blast_hip blast_without_am_hydro_hip_log.txt ${silo_scenario_filename}
-  " --correct_am_hydro=1 --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --hydro_device_kernel_type=HIP --hydro_host_kernel_type=LEGACY")
-endif()
-
-if(OCTOTIGER_WITH_KOKKOS)
-  test_blast_scenario(test_problems.cpu.am_hydro_on.blast_kokkos blast_with_am_hydro_kokkos_log.txt ${silo_scenario_filename}
-  "  --correct_am_hydro=1 --hydro_device_kernel_type=OFF --hydro_host_kernel_type=KOKKOS")
-  if(OCTOTIGER_WITH_CUDA)
-    test_blast_scenario(test_problems.gpu.am_hydro_on.blast_kokkos blast_without_am_hydro_kokkos_cuda_log.txt ${silo_scenario_filename}
-    " --correct_am_hydro=1 --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --hydro_device_kernel_type=KOKKOS_CUDA --hydro_host_kernel_type=DEVICE_ONLY")
-  #   if(NOT OCTOTIGER_WITH_FAST_FP_CONTRACT)
-  #   test_blast_scenario(test_problems.cpu_gpu.am_hydro_on.blast_kokkos blast_with_am_hydro_kokkos_cuda_log.txt ${silo_scenario_filename}
-  #   "  --correct_am_hydro=1 --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1 --hydro_device_kernel_type=KOKKOS_CUDA --hydro_host_kernel_type=KOKKOS")
-  # endif()
-  endif()
-  if(OCTOTIGER_WITH_HIP)
-    test_blast_scenario(test_problems.gpu.am_hydro_on.blast_kokkos blast_with_am_hydro_kokkos_hip_log.txt ${silo_scenario_filename}
-    "  --correct_am_hydro=1 --number_gpus=1 --executors_per_gpu=32 --max_gpu_executor_queue_length=1024 --hydro_device_kernel_type=KOKKOS_HIP --hydro_host_kernel_type=KOKKOS")
-  endif()
-endif()
 
 ## TESTS with correct_am_hydro=off
 

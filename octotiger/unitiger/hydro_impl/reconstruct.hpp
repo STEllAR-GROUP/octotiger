@@ -188,29 +188,15 @@ template<int NDIM, int INX, class PHYS>
 const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(const hydro::state_type &U_,
 		const hydro::x_type &X, safe_real omega) {
 	PROFILE();
-	static thread_local std::vector<std::vector<safe_real>> AM(geo::NANGMOM, std::vector < safe_real > (geo::H_N3));
 	static thread_local std::vector<std::vector<std::vector<safe_real>> > Q(nf_,
 			std::vector < std::vector < safe_real >> (geo::NDIR, std::vector < safe_real > (geo::H_N3)));
 
-	static constexpr auto xloc = geo::xloc();
-	static constexpr auto levi_civita = geo::levi_civita();
-	static constexpr auto vw = geo::volume_weight();
 	static constexpr auto dir = geo::direction();
 
-	const auto dx = X[0][geo::H_DNX] - X[0][0];
-	const auto &U = PHYS::template pre_recon<INX>(U_, X, omega, angmom_index_ != -1);
+	auto const &U = PHYS::template pre_recon<INX>(U_, X, omega);
 	const auto &cdiscs = PHYS::template find_contact_discs<INX>(U_);
-	if (angmom_index_ == -1 || NDIM == 1) {
-		for (int f = 0; f < nf_; f++) {
-//			if (f < lx_i || f > lx_i + geo::NANGMOM || NDIM == 1) {
-			reconstruct_ppm(Q[f], U[f], smooth_field_[f], disc_detect_[f], cdiscs);
-//			reconstruct_ppm(Q[f], U[f], smooth_field_[f], disc_detect_[f], cdiscs);
-//			} else {
-//				reconstruct_minmod<NDIM, INX>(Q[f], U[f]);
-//			}
-//			reconstruct_minmod<NDIM, INX>(Q[f], U[f]);
-		}
-
+	for (int f = 0; f < nf_; f++) {
+		reconstruct_ppm(Q[f], U[f], smooth_field_[f], disc_detect_[f], cdiscs);
 	}
 
 
@@ -276,7 +262,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 	}
 
 #endif
-	PHYS::template post_recon<INX>(Q, X, omega, angmom_index_ != -1);
+	PHYS::template post_recon<INX>(Q, X, omega);
 
 	return Q;
 }

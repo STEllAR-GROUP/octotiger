@@ -175,8 +175,6 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
           (hydro.get_nf()) * max_slices, alloc_device_int);
       aggregated_device_buffer_t<int, decltype(alloc_device_int)> device_smooth_field(
           (hydro.get_nf()) * max_slices, alloc_device_int);
-      aggregated_device_buffer_t<double, decltype(alloc_device_double)> device_AM(
-          (NDIM * q_inx * q_inx * q_inx + 128) * max_slices, alloc_device_double);
 
 
       // Host buffers
@@ -245,7 +243,7 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
           cudaMemcpyHostToDevice);
 
       launch_hydro_pre_recon_cuda(exec_slice, device_large_x.device_side_buffer, omega,
-          hydro.get_angmom_index() != -1, device_u.device_side_buffer, hydro.get_nf(),
+          device_u.device_side_buffer, hydro.get_nf(),
           opts().n_species);
 
       const double dx = X[0][geo.H_DNX] - X[0][0];
@@ -258,10 +256,10 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
       hpx::apply(exec_slice, cudaMemcpyAsync, dx_device.device_side_buffer, dx_host.data(),
           number_slices * sizeof(double), cudaMemcpyHostToDevice);
 
-      launch_reconstruct_cuda(exec_slice, omega, hydro.get_nf(), hydro.get_angmom_index(),
+      launch_reconstruct_cuda(exec_slice, omega, hydro.get_nf(),
           device_smooth_field.device_side_buffer, device_disc_detect.device_side_buffer,
           device_q.device_side_buffer, device_x.device_side_buffer, device_u.device_side_buffer,
-          device_AM.device_side_buffer, dx_device.device_side_buffer,
+          dx_device.device_side_buffer,
           device_unified_discs.device_side_buffer, opts().n_species);
 
       // Call Flux kernel
