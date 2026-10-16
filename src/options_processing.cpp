@@ -532,5 +532,3 @@ bool options::process_options(int argc, char *argv[]) {
 
     return true;
 }
-
-std::vector<hpx::id_type> options::all_localities = { };
