@@ -55,10 +55,12 @@ void results(const fs::path &p, Json m)
         if (fld_model(m)) {
             log.str("");
             log.clear();
+            std::string const problem = m.at("case") == "radiating_blast" ?
+                "RADIATION_BLAST_WAVE" : "RADIATION_" + name;
             log << std::setprecision(17) << "normalized constants\n1 1 1 1\n| c = " << m.at("c").get<double>() << " |\n"
                 << "FLD accepted t=0 dt=" << time << " substeps=1 retries=0 nonlinear_iterations=3 "
                 "linear_iterations=9 vcycles=9 nonlinear_residual=1e-12 linear_residual=1e-13 "
-                "boundary_energy=0 conservation_error=0\nRADIATION_FLD_FINISHED RADIATION_" << name
+                "boundary_energy=0 conservation_error=0\nRADIATION_FLD_FINISHED " << problem
                 << " t=" << time << " requested=" << time << '\n';
             const double volume = len * len * len;
             std::ostringstream budget;
@@ -728,6 +730,27 @@ int main(int argc, char **argv)
             const auto diagnostics = read_fld_diagnostics(folder, moving);
             expect(diagnostics.at("slice_physical_bounds").at("maximum_reduced_flux").get<double>() > 1,
                 "moving FLD accepts its lab-frame flux envelope rather than the stationary cE bound");
+            if (std::string(name) == "radiating_blast") {
+                auto const original = read_text(folder / "run.log");
+                std::string const marker =
+                    "RADIATION_FLD_FINISHED RADIATION_BLAST_WAVE t=4 requested=4\n";
+                auto const position = original.find(marker);
+                expect(position != std::string::npos && diagnostics.at("history_end_time") == 4.,
+                    "FLD blast accepts the production problem token and final time");
+                auto fabricated = original;
+                fabricated.replace(position, marker.size(),
+                    "RADIATION_FLD_FINISHED RADIATION_RADIATING_BLAST t=4 requested=4\n");
+                atomic_text(folder / "run.log", fabricated);
+                rejects([&] { read_fld_diagnostics(folder, moving); },
+                    "FLD blast rejects the fabricated case-derived problem token");
+                auto wrong_time = original;
+                wrong_time.replace(position, marker.size(),
+                    "RADIATION_FLD_FINISHED RADIATION_BLAST_WAVE t=3 requested=4\n");
+                atomic_text(folder / "run.log", wrong_time);
+                rejects([&] { read_fld_diagnostics(folder, moving); },
+                    "FLD blast rejects a completion marker at the wrong physical time");
+                atomic_text(folder / "run.log", original);
+            }
             report_pages(folder);
             const auto page = read_text(folder / (std::string(name) + ".html"));
             expect(page.find("Implicit solve and energy balances") != std::string::npos &&

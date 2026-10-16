@@ -191,8 +191,8 @@ Json read_fld_diagnostics(const fs::path &folder, const Json &m)
     while (std::getline(input, line)) {
         if (std::regex_match(line, match, marker)) {
             ++finished;
-            const std::string expected = m.at("case") == "marshak" ? "marshak" :
-                "radiation_" + m.at("case").get<std::string>();
+            std::string const expected = name == "marshak" ? "marshak" :
+                name == "radiating_blast" ? "radiation_blast_wave" : "radiation_" + name;
             require(lower(match[1]) == expected && close(numeric(match[2]), m.at("time")),
                 "Wrong FLD completion marker/time");
             require(!match[3].matched || close(numeric(match[3]), m.at("time")),
