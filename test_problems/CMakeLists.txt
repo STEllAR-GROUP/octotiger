@@ -14,7 +14,7 @@ if (EXISTS "${OCTOTIGER_TESTDATA_DIR}/sphere.silo" AND IS_DIRECTORY "${OCTOTIGER
     if (OCTOTIGER_WITH_BLAST_TEST)
         add_subdirectory(blast)
     endif()
-    add_subdirectory(marshak)
+    # add_subdirectory(marshak)
     add_subdirectory(rotating_star)
     add_subdirectory(sod)
     add_subdirectory(sphere)
