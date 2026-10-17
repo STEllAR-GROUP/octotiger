@@ -952,11 +952,10 @@ target_compile_definitions(hydrolib PUBLIC OCTOTIGER_THETA_MINIMUM=${OCTOTIGER_T
 
 # Blast test problem quad-precision float support
 if(OCTOTIGER_WITH_BLAST_TEST)
-  if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-    message(FATAL_ERROR "Trying to build BLAST test with clang. The test requires quadmath which is not "
-    "bundled with clang. If you really need the blast test scenario compile "
-    "with a different compiler (gcc). If do not need this test (or aren't sure about it) "
-    " try the cmake variable OCTOTIGER_WITH_BLAST_TEST=OFF")
+  if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" AND NOT OCTOTIGER_WITH_BOOST_MULTIPRECISION)
+    message(FATAL_ERROR "The BLAST test with Clang requires "
+      "OCTOTIGER_WITH_BOOST_MULTIPRECISION=ON because quadmath is not bundled "
+      "with Clang. Alternatively, set OCTOTIGER_WITH_BLAST_TEST=OFF.")
   endif()
   target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_BLAST_TEST)
   set(blast_sources
