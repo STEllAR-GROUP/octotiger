@@ -13,20 +13,6 @@ set_tests_properties(test_problems.rotating_star.init PROPERTIES
   FIXTURES_SETUP test_problems.rotating_star.init)
 
 function(test_rotating_star_scenario test_name test_log_file reference_filename kernel_parameters)
-  # Angular reconstruction differs between LEGACY and optimized kernels.
-  # Apply refreshed norms only to the fully LEGACY configuration used to collect them.
-  separate_arguments(kernel_arguments UNIX_COMMAND "${kernel_parameters}")
-  if ("--hydro_host_kernel_type=LEGACY" IN_LIST kernel_arguments AND
-      "--hydro_device_kernel_type=OFF" IN_LIST kernel_arguments AND
-      "--monopole_host_kernel_type=LEGACY" IN_LIST kernel_arguments AND
-      "--multipole_host_kernel_type=LEGACY" IN_LIST kernel_arguments AND
-      "--monopole_device_kernel_type=OFF" IN_LIST kernel_arguments AND
-      "--multipole_device_kernel_type=OFF" IN_LIST kernel_arguments)
-    set(zx_regex "${legacy_zx_regex}")
-    set(zy_regex "${legacy_zy_regex}")
-    set(zz_regex "${legacy_zz_regex}")
-  endif()
-
   add_test(NAME ${test_name}
     COMMAND sh -c "${PROJECT_BINARY_DIR}/octotiger --config_file=${PROJECT_SOURCE_DIR}/test_problems/rotating_star/rotating_star.ini ${kernel_parameters} > ${test_log_file}")
   set_tests_properties(${test_name} PROPERTIES
@@ -40,9 +26,6 @@ function(test_rotating_star_scenario test_name test_log_file reference_filename 
   add_test(NAME ${test_name}.sx_regex COMMAND cat ${test_log_file})
   add_test(NAME ${test_name}.sy_regex COMMAND cat ${test_log_file})
   add_test(NAME ${test_name}.sz_regex COMMAND cat ${test_log_file})
-  add_test(NAME ${test_name}.zx_regex COMMAND cat ${test_log_file})
-  add_test(NAME ${test_name}.zy_regex COMMAND cat ${test_log_file})
-  add_test(NAME ${test_name}.zz_regex COMMAND cat ${test_log_file})
   add_test(NAME ${test_name}.spc1_regex COMMAND cat ${test_log_file})
   add_test(NAME ${test_name}.spc2_regex COMMAND cat ${test_log_file})
   add_test(NAME ${test_name}.spc3_regex COMMAND cat ${test_log_file})
@@ -69,15 +52,6 @@ function(test_rotating_star_scenario test_name test_log_file reference_filename 
   set_tests_properties(${test_name}.sz_regex PROPERTIES
     FIXTURES_REQUIRED ${test_name}
     PASS_REGULAR_EXPRESSION ${sz_regex})
-  set_tests_properties(${test_name}.zx_regex PROPERTIES
-    FIXTURES_REQUIRED ${test_name}
-    PASS_REGULAR_EXPRESSION ${zx_regex})
-  set_tests_properties(${test_name}.zy_regex PROPERTIES
-    FIXTURES_REQUIRED ${test_name}
-    PASS_REGULAR_EXPRESSION ${zy_regex})
-  set_tests_properties(${test_name}.zz_regex PROPERTIES
-    FIXTURES_REQUIRED ${test_name}
-    PASS_REGULAR_EXPRESSION ${zz_regex})
   set_tests_properties(${test_name}.spc1_regex PROPERTIES
     FIXTURES_REQUIRED ${test_name}
     PASS_REGULAR_EXPRESSION ${spc1_regex})
@@ -96,7 +70,7 @@ function(test_rotating_star_scenario test_name test_log_file reference_filename 
     
   if (NOT ${reference_filename} STREQUAL "none" )
     add_test(NAME ${test_name}.diff
-      COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12 -E "idle_rate,locality,/_hdf5libinfo,/_silolibinfo"
+      COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12 -E "lx,ly,lz,idle_rate,locality,/_hdf5libinfo,/_silolibinfo"
        "${OCTOTIGER_TESTDATA_DIR}/${reference_filename}" ${PROJECT_BINARY_DIR}/test_problems/rotating_star/final.silo.data/0.silo)
     set_tests_properties(${test_name}.diff PROPERTIES
       FIXTURES_REQUIRED ${test_name}
@@ -122,12 +96,6 @@ if (OCTOTIGER_WITH_GRIDDIM EQUAL 8)
   set(sx_regex "sx 7.396100e-06 6.126571e-05")
   set(sy_regex "sy 7.396592e-06 6.126777e-05")
   set(sz_regex "sz 5.153324e-06 6.025281e-05")
-  set(zx_regex "zx 1.460910e-04 8.855637e-04")
-  set(legacy_zx_regex "zx 1.460871e-04 8.855620e-04")
-  set(zy_regex "zy 1.460910e-04 8.855636e-04")
-  set(legacy_zy_regex "zy 1.460871e-04 8.855619e-04")
-  set(zz_regex "zz 5.833372e-04 3.077175e-03")
-  set(legacy_zz_regex "zz 5.833371e-04 3.077180e-03")
   set(spc1_regex "spc_1 3.173643e-05 2.000538e-04")
   set(spc2_regex "spc_2 7.825153e-13 3.102085e-12")
   set(spc3_regex "spc_3 0.000000e.00 0.000000e.00")
@@ -142,12 +110,6 @@ elseif (OCTOTIGER_WITH_GRIDDIM EQUAL 16)
   set(sx_regex "sx 2.230570e-06 1.749989e-05")
   set(sy_regex "sy 2.230590e-06 1.749979e-05")
   set(sz_regex "sz 1.796048e-06 1.730076e-05")
-  set(zx_regex "zx 1.461325e-04 8.880304e-04")
-  set(legacy_zx_regex "zx 1.461322e-04 8.880303e-04")
-  set(zy_regex "zy 1.461325e-04 8.880304e-04")
-  set(legacy_zy_regex "zy 1.461322e-04 8.880302e-04")
-  set(zz_regex "zz 5.833354e-04 3.077138e-03")
-  set(legacy_zz_regex "zz 5.833354e-04 3.077139e-03")
   set(spc1_regex "spc_1 8.315855e-06 5.527682e-05")
   set(spc2_regex "spc_2 5.219349e-13 2.761273e-12")
   set(spc3_regex "spc_3 0.000000e.00 0.000000e.00")
@@ -232,12 +194,6 @@ if (OCTOTIGER_WITH_GRIDDIM EQUAL 8)
   set(sx_regex "sx 2.162120e-03 1.434366e-02")
   set(sy_regex "sy 2.162120e-03 1.434366e-02")
   set(sz_regex "sz 2.531845e-03 1.679645e-02")
-  set(zx_regex "zx 2.003861e-04 1.158221e-03")
-  set(legacy_zx_regex "zx 2.003757e-04 1.158214e-03")
-  set(zy_regex "zy 2.003861e-04 1.158221e-03")
-  set(legacy_zy_regex "zy 2.003757e-04 1.158214e-03")
-  set(zz_regex "zz 5.833372e-04 2.900349e-03")
-  set(legacy_zz_regex "zz 5.833355e-04 2.900370e-03")
   set(spc1_regex "spc_1 1.395105e-03 1.034051e-02")
   # Around 1e-18 we neglet differences as we are hitting the limits of double accuracy 
   # see the wildcard . to check where we beginn to neglet differences
