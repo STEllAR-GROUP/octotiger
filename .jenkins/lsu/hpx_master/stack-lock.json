@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "description": "HPX master as resolved on 2026-10-17; exact commits and patch checksums prevent dependency drift between matrix rows.",
+  "sources": {
+    "hpx": {
+      "url": "https://github.com/TheHPXProject/hpx.git",
+      "commit": "dc521c20f9d2a8b9de3b9ea53f634c6afa3ea258",
+      "branch_at_resolution": "master",
+      "patches": [
+        {
+          "file": "hpx-sycl.patch",
+          "sha256": "b6e39f79615741ef4e8f2a13859572c3b2c82001daf1a17acf434738cc477de6",
+          "when": "+sycl"
+        }
+      ],
+      "archive_fingerprints": {
+        "CMakeLists.txt": "e1e7fd70ae93f0379ce5afebd5e17c8f481439155910080aa8e37cabf61975e7",
+        "cmake/HPX_SetupAsio.cmake": "9df0e5af35aae2b0dc1ff49334fd5fcbf4b5c648f19832fdbc31152a8430aab5",
+        "libs/core/async_sycl/src/sycl_event_callback.cpp": "f89247751e3781adebdffe655ff41fc08d9c7ee6cab359d9f9c228802cc09cd1",
+        "libs/core/executors/include/hpx/executors/thread_pool_continues_on_sender.hpp": "fc289a78720ed2e94623cb1557f22543afdc3302c035f3fc2723db7469a9c3f0"
+      }
+    },
+    "kokkos": {
+      "url": "https://github.com/kokkos/kokkos.git",
+      "commit": "8e15454876298832f013ebcaf08d53825b5bda40",
+      "tag": "5.2.2",
+      "patches": []
+    },
+    "hpx-kokkos": {
+      "url": "https://github.com/STEllAR-GROUP/hpx-kokkos.git",
+      "commit": "5b794d0b9ca10fb1eecc950d49992abfa7fb609c",
+      "patches": [
+        {
+          "file": "hpx-kokkos.patch",
+          "sha256": "81e96322e2ac87e80af3ddb2eddef292c64929f697bb19a0ead8a6b4369ad252"
+        }
+      ]
+    },
+    "cppuddle": {
+      "url": "https://github.com/SC-SGS/CPPuddle.git",
+      "commit": "5d189e5b910d03901b358ffa5c2539e2e71edb06",
+      "tag": "v0.4.0",
+      "patches": [
+        {
+          "file": "cppuddle.patch",
+          "sha256": "ef75ccefa632a96c590023a7592b4e4a5611196013839dcaeef79373b52ae8fa"
+        }
+      ]
+    },
+    "silo": {
+      "url": "https://github.com/LLNL/Silo.git",
+      "commit": "f05c5a8e6c22b784b7f5eb958d50218cae873d07",
+      "tag": "4.12.1",
+      "patches": []
+    }
+  },
+  "subdependencies": {
+    "onedpl": {
+      "url": "https://github.com/uxlfoundation/oneDPL.git",
+      "commit": "4d9921f2203ea452a020bf2e52947a7e576c35e1",
+      "tag": "oneDPL-2022.7.1-release"
+    },
+    "stdexec": {
+      "url": "https://github.com/NVIDIA/stdexec.git",
+      "commit": "04de75de5807e73a229acf047c6976575e313359"
+    },
+    "asio": {
+      "url": "https://github.com/chriskohlhoff/asio.git",
+      "commit": "12e0ce9e0500bf0f247dbd1ae894272656456079",
+      "tag": "asio-1-30-2"
+    },
+    "dpcpp": {
+      "url": "https://github.com/intel/llvm.git",
+      "commit": "e42590ef4b94d24d708f51a095c8b6c56f1748ad",
+      "version": "2025.0.1",
+      "cuda": true
+    }
+  },
+  "validation": {
+    "local_hpx_master": "255/255 Octotiger CTests and 70/70 targeted CTests passed with GCC13, Kokkos HPX/Serial, CUDA/HIP/SYCL disabled. This does not establish GPU matrix success.",
+    "ci": "Jenkins must validate all eighteen CPU/CUDA/HIP/SYCL matrix entries with this new dependency stack."
+  }
+}

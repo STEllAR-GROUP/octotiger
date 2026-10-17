@@ -1,0 +1,8 @@
+{
+  "url": "https://github.com/dmarce1/PowerTiger.git",
+  "commit": "b80f2c9e0bfe84f1c811898129c034188400aaa1",
+  "patch": {
+    "file": "powertiger.patch",
+    "sha256": "5e6b3a9468ebc2a47c8a99faf6b59060879c8e0d87a90af0ed10c219e28f314e"
+  }
+}
