@@ -1,7 +1,8 @@
+#if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)
+
 #include <hpx/apply.hpp>
 #include <hpx/synchronization/once.hpp>
 
-#if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)
 #include <buffer_manager.hpp>
 #if defined(OCTOTIGER_HAVE_CUDA)
 #include <cuda_buffer_util.hpp>
