@@ -49,6 +49,7 @@ public:
 	bool rad_implicit;
 	bool rewrite_silo;
 	bool correct_am_grav;
+	// Retained for legacy configuration and serialized-option compatibility.
 	bool correct_am_hydro;
 	bool rotating_star_amr;
 	bool idle_rates;

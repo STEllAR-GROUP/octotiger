@@ -1,7 +1,7 @@
-#include <hpx/apply.hpp>
-#include <hpx/synchronization/once.hpp>
-
 #if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)
+
+#include <hpx/executors/post.hpp>
+#include <hpx/synchronization/once.hpp>
 #include <buffer_manager.hpp>
 #if defined(OCTOTIGER_HAVE_CUDA)
 #include <cuda_buffer_util.hpp>
@@ -175,8 +175,6 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
           (hydro.get_nf()) * max_slices, alloc_device_int);
       aggregated_device_buffer_t<int, decltype(alloc_device_int)> device_smooth_field(
           (hydro.get_nf()) * max_slices, alloc_device_int);
-      aggregated_device_buffer_t<double, decltype(alloc_device_double)> device_AM(
-          (NDIM * q_inx * q_inx * q_inx + 128) * max_slices, alloc_device_double);
 
 
       // Host buffers
@@ -219,14 +217,14 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
           smooth_field[f + smooth_slice_offset * slice_id] = smooth_bool[f];
       }
 
-      hpx::apply(exec_slice, cudaMemcpyAsync, device_u.device_side_buffer, combined_u.data(),
+      hpx::post(exec_slice, cudaMemcpyAsync, device_u.device_side_buffer, combined_u.data(),
           (hydro.get_nf() * H_N3 + 128) * sizeof(double) * number_slices, cudaMemcpyHostToDevice);
-      hpx::apply(exec_slice, cudaMemcpyAsync, device_x.device_side_buffer, combined_x.data(),
+      hpx::post(exec_slice, cudaMemcpyAsync, device_x.device_side_buffer, combined_x.data(),
           (NDIM * q_inx3 + 128) * sizeof(double) * number_slices, cudaMemcpyHostToDevice);
-      hpx::apply(exec_slice, cudaMemcpyAsync, device_disc_detect.device_side_buffer,
+      hpx::post(exec_slice, cudaMemcpyAsync, device_disc_detect.device_side_buffer,
           disc_detect.data(), (hydro.get_nf()) * sizeof(int) * number_slices,
           cudaMemcpyHostToDevice);
-      hpx::apply(exec_slice, cudaMemcpyAsync, device_smooth_field.device_side_buffer,
+      hpx::post(exec_slice, cudaMemcpyAsync, device_smooth_field.device_side_buffer,
           smooth_field.data(), (hydro.get_nf()) * sizeof(int) * number_slices,
           cudaMemcpyHostToDevice);
 
@@ -240,12 +238,12 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
               combined_large_x.data() + large_x_slice_offset * slice_id + n *
               H_N3);
       }
-      hpx::apply(exec_slice, cudaMemcpyAsync, device_large_x.device_side_buffer,
+      hpx::post(exec_slice, cudaMemcpyAsync, device_large_x.device_side_buffer,
           combined_large_x.data(), (NDIM * H_N3 + 128) * sizeof(double) * number_slices,
           cudaMemcpyHostToDevice);
 
       launch_hydro_pre_recon_cuda(exec_slice, device_large_x.device_side_buffer, omega,
-          hydro.get_angmom_index() != -1, device_u.device_side_buffer, hydro.get_nf(),
+          device_u.device_side_buffer, hydro.get_nf(),
           opts().n_species);
 
       const double dx = X[0][geo.H_DNX] - X[0][0];
@@ -255,13 +253,13 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
         dx_device(
           max_slices, alloc_device_double);
       dx_host[slice_id] = dx;
-      hpx::apply(exec_slice, cudaMemcpyAsync, dx_device.device_side_buffer, dx_host.data(),
+      hpx::post(exec_slice, cudaMemcpyAsync, dx_device.device_side_buffer, dx_host.data(),
           number_slices * sizeof(double), cudaMemcpyHostToDevice);
 
-      launch_reconstruct_cuda(exec_slice, omega, hydro.get_nf(), hydro.get_angmom_index(),
+      launch_reconstruct_cuda(exec_slice, omega, hydro.get_nf(),
           device_smooth_field.device_side_buffer, device_disc_detect.device_side_buffer,
           device_q.device_side_buffer, device_x.device_side_buffer, device_u.device_side_buffer,
-          device_AM.device_side_buffer, dx_device.device_side_buffer,
+          dx_device.device_side_buffer,
           device_unified_discs.device_side_buffer, opts().n_species);
 
       // Call Flux kernel
@@ -313,14 +311,14 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
       aggregated_host_buffer_t<int, decltype(alloc_host_int)> amax_d(
           max_slices * number_blocks * NDIM, int{}, alloc_host_int);
 
-      hpx::apply(exec_slice, cudaMemcpyAsync, amax.data(), device_amax.device_side_buffer,
+      hpx::post(exec_slice, cudaMemcpyAsync, amax.data(), device_amax.device_side_buffer,
           (number_slices * number_blocks * NDIM * (1 + 2 * nf_local)) *
           sizeof(double),
           cudaMemcpyDeviceToHost);
-      hpx::apply(exec_slice, cudaMemcpyAsync, amax_indices.data(),
+      hpx::post(exec_slice, cudaMemcpyAsync, amax_indices.data(),
           device_amax_indices.device_side_buffer,
           number_slices * number_blocks * NDIM * sizeof(int), cudaMemcpyDeviceToHost);
-      hpx::apply(exec_slice, cudaMemcpyAsync, amax_d.data(), device_amax_d.device_side_buffer,
+      hpx::post(exec_slice, cudaMemcpyAsync, amax_d.data(), device_amax_d.device_side_buffer,
           number_slices * number_blocks * NDIM * sizeof(int), cudaMemcpyDeviceToHost);
       auto flux_kernel_fut =
           hpx::async(exec_slice, cudaMemcpyAsync, f.data(), device_f.device_side_buffer,

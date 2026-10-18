@@ -99,6 +99,48 @@ void hydro_computer<NDIM, INX, PHYSICS>::reconstruct_ppm(std::vector<std::vector
 			}
 		}
 	}
+	if (disc_detect) {
+		constexpr auto eps = 0.01;
+		constexpr auto eps2 = 0.001;
+		constexpr auto eta1 = 20.0;
+		constexpr auto eta2 = 0.05;
+		for (int d = 0; d < geo.NDIR / 2; d++) {
+			auto const di = dir[d];
+			for (int j = 0; j < geo.H_NX_XM4; j++) {
+				for (int k = 0; k < geo.H_NX_YM4; k++) {
+#pragma ivdep
+					for (int l = 0; l < geo.H_NX_ZM4; l++) {
+						int const i = geo.to_index(j + 2, k + 2, l + 2);
+						auto const &up = u[i + di];
+						auto const &u0 = u[i];
+						auto const &um = u[i - di];
+						auto const dif = up - um;
+						if (std::abs(dif) > disc[d][i] * std::min(std::abs(up), std::abs(um))) {
+							if (std::min(std::abs(up), std::abs(um)) / std::max(std::abs(up), std::abs(um)) > eps2) {
+								auto const d2p = (1.0 / 6.0) * (u[i + 2 * di] + u0 - 2.0 * up);
+								auto const d2m = (1.0 / 6.0) * (u0 + u[i - 2 * di] - 2.0 * um);
+								if (d2p * d2m < 0.0) {
+									double eta = 0.0;
+									if (std::abs(dif) > eps * std::min(std::abs(up), std::abs(um))) {
+										eta = -(d2p - d2m) / dif;
+									}
+									eta = std::max(0.0, std::min(eta1 * (eta - eta2), 1.0));
+									if (eta > 0.0) {
+										auto const ul = um + 0.5 * minmod_theta(u0 - um, um - u[i - 2 * di], 2.0);
+										auto const ur = up - 0.5 * minmod_theta(u[i + 2 * di] - up, up - u0, 2.0);
+										auto &qp = q[d][i];
+										auto &qm = q[geo.flip(d)][i];
+										qp += eta * (ur - qp);
+										qm += eta * (ul - qm);
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 	if (!smooth) {
 		for (int d = 0; d < geo.NDIR / 2; d++) {
 			for (int j = 0; j < geo.H_NX_XM4; j++) {
@@ -146,29 +188,15 @@ template<int NDIM, int INX, class PHYS>
 const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(const hydro::state_type &U_,
 		const hydro::x_type &X, safe_real omega) {
 	PROFILE();
-	static thread_local std::vector<std::vector<safe_real>> AM(geo::NANGMOM, std::vector < safe_real > (geo::H_N3));
 	static thread_local std::vector<std::vector<std::vector<safe_real>> > Q(nf_,
 			std::vector < std::vector < safe_real >> (geo::NDIR, std::vector < safe_real > (geo::H_N3)));
 
-	static constexpr auto xloc = geo::xloc();
-	static constexpr auto levi_civita = geo::levi_civita();
-	static constexpr auto vw = geo::volume_weight();
 	static constexpr auto dir = geo::direction();
 
-	const auto dx = X[0][geo::H_DNX] - X[0][0];
-	const auto &U = PHYS::template pre_recon<INX>(U_, X, omega, angmom_index_ != -1);
+	auto const &U = PHYS::template pre_recon<INX>(U_, X, omega);
 	const auto &cdiscs = PHYS::template find_contact_discs<INX>(U_);
-	if (angmom_index_ == -1 || NDIM == 1) {
-		for (int f = 0; f < nf_; f++) {
-//			if (f < lx_i || f > lx_i + geo::NANGMOM || NDIM == 1) {
-			reconstruct_ppm(Q[f], U[f], false, disc_detect_[f], cdiscs);
-//			reconstruct_ppm(Q[f], U[f], smooth_field_[f], disc_detect_[f], cdiscs);
-//			} else {
-//				reconstruct_minmod<NDIM, INX>(Q[f], U[f]);
-//			}
-//			reconstruct_minmod<NDIM, INX>(Q[f], U[f]);
-		}
-
+	for (int f = 0; f < nf_; f++) {
+		reconstruct_ppm(Q[f], U[f], smooth_field_[f], disc_detect_[f], cdiscs);
 	}
 
 
@@ -234,7 +262,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 	}
 
 #endif
-	PHYS::template post_recon<INX>(Q, X, omega, angmom_index_ != -1);
+	PHYS::template post_recon<INX>(Q, X, omega);
 
 	return Q;
 }

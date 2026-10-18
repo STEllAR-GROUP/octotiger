@@ -13,8 +13,8 @@ if (OCTOTIGER_WITH_GRIDDIM EQUAL 8)
     COMMAND octotiger
       --config_file=${PROJECT_SOURCE_DIR}/test_problems/marshak/marshak.ini)
   add_test(NAME test_problems.cpu.marshak.diff
-    COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
-       ${PROJECT_SOURCE_DIR}/octotiger-testdata/marshak.silo ${PROJECT_BINARY_DIR}/test_problems/marshak/final.silo.data/0.silo)
+    COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12 -E "idle_rate,locality,/_hdf5libinfo,/_silolibinfo"
+       "${OCTOTIGER_TESTDATA_DIR}/marshak.silo" ${PROJECT_BINARY_DIR}/test_problems/marshak/final.silo.data/0.silo)
 
   set_tests_properties(test_problems.cpu.marshak PROPERTIES
     FIXTURES_SETUP test_problems.cpu.marshak)
