@@ -635,6 +635,16 @@ add_hpx_executable(
 )
 set_property(TARGET octotiger PROPERTY FOLDER "Octo-Tiger")
 
+# Kokkos consumers need the requested host architecture flags too.
+# Clang CUDA and SYCL use CXX sources for both their host and device passes.
+if(OCTOTIGER_WITH_KOKKOS)
+  separate_arguments(octotiger_host_arch_options NATIVE_COMMAND "${OCTOTIGER_ARCH_FLAG}")
+  foreach(target optionslib octolib hydrolib octotiger unitiger)
+    target_compile_options(${target} PRIVATE
+      "$<$<COMPILE_LANGUAGE:CXX>:${octotiger_host_arch_options}>")
+  endforeach()
+endif()
+
 if(MSVC)
   # Enable solution folders for MSVC
   set_property(GLOBAL PROPERTY USE_FOLDERS ON)
