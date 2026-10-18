@@ -43,6 +43,7 @@ class Hpx(CMakePackage, CudaPackage, ROCmPackage):
     homepage = "https://github.com/TheHPXProject/hpx"
     git = "https://github.com/TheHPXProject/hpx.git"
     version("master", commit="dc521c20f9d2a8b9de3b9ea53f634c6afa3ea258", preferred=True)
+    patch("hpx-nvcc.patch", when="+cuda %gcc")
     patch("hpx-sycl.patch", when="+sycl")
     resource(name="asio", git="https://github.com/chriskohlhoff/asio.git",
              commit="12e0ce9e0500bf0f247dbd1ae894272656456079",
@@ -85,13 +86,25 @@ class Hpx(CMakePackage, CudaPackage, ROCmPackage):
             # Spack mirrors can archive Git sources without their .git metadata.
             # The recipe commit fixes the fetch; check identifying source files
             # too, without accidentally reading the parent Octotiger checkout.
-            fingerprints = {'CMakeLists.txt': 'e1e7fd70ae93f0379ce5afebd5e17c8f481439155910080aa8e37cabf61975e7', 'cmake/HPX_SetupAsio.cmake': '9df0e5af35aae2b0dc1ff49334fd5fcbf4b5c648f19832fdbc31152a8430aab5', 'libs/core/async_sycl/src/sycl_event_callback.cpp': 'f89247751e3781adebdffe655ff41fc08d9c7ee6cab359d9f9c228802cc09cd1', 'libs/core/executors/include/hpx/executors/thread_pool_continues_on_sender.hpp': 'fc289a78720ed2e94623cb1557f22543afdc3302c035f3fc2723db7469a9c3f0'}
+            fingerprints = {'CMakeLists.txt': 'e1e7fd70ae93f0379ce5afebd5e17c8f481439155910080aa8e37cabf61975e7', 'cmake/HPX_SetupAsio.cmake': '9df0e5af35aae2b0dc1ff49334fd5fcbf4b5c648f19832fdbc31152a8430aab5', 'libs/core/async_sycl/src/sycl_event_callback.cpp': 'f89247751e3781adebdffe655ff41fc08d9c7ee6cab359d9f9c228802cc09cd1'}
             for relative, wanted in fingerprints.items():
                 with open(join_path(source, relative), "rb") as handle:
                     actual = hashlib.sha256(handle.read()).hexdigest()
                 if actual != wanted:
                     raise InstallError("HPX pinned archive source differs: " + relative)
             print("Verified HPX master pinned archive source hashes: " + expected, flush=True)
+
+        if self.spec.satisfies("+cuda %gcc"):
+            # Verify the reviewed compatibility subset after Spack patches the
+            # pinned base, for both Git checkouts and source archives.
+            fingerprints = {'cmake/HPX_SetupStdexec.cmake': '3bda25c8babfd7098d31efb748699f83c89b9d70cbe98961b77f5a118297df69', 'cmake/HPX_StdexecNvccGcc13.patch': '4c9c98f102e7c0c943a3903aa4cf3260aa62f2dbb67c7451286423bcba6787b4', 'libs/core/executors/include/hpx/executors/thread_pool_continues_on_sender.hpp': '80136adef178d4a18f4f9d03a13e7cbc4820eed0ed9d3bdb6cb7968e78564fce'}
+            for relative, wanted in fingerprints.items():
+                with open(join_path(source, relative), "rb") as handle:
+                    actual = hashlib.sha256(handle.read()).hexdigest()
+                if actual != wanted:
+                    raise InstallError("HPX NVCC compatibility source differs: " + relative)
+            print("Verified HPX NVCC compatibility subset: PR 7711 revision "
+                  "8767d155e4cedec8c545951bfea92f92820fd671", flush=True)
 
     def setup_build_environment(self, env):
         compiler_environment(self, env)

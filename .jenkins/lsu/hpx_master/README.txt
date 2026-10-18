@@ -14,8 +14,15 @@ row uses ROCm 6.4.1, and the SYCL row builds the pinned DPC++/oneAPI 2025.0.1
 compiler with its CUDA adapter. These match the modern dependency requirements;
 the previous HPX 1.9.1/Kokkos 4/GCC 11 stack is not reused.
 
-HPX master includes its own stdexec/NVCC patches. The old HPX RC patch is not
-applied. Only SYCL adds an atomic-header opt-out: CUDA CCCL atomic declarations
+HPX master supplies the initial stdexec/NVCC workarounds. GCC/CUDA also applies
+the reviewed NVCC compatibility subset from HPX PR #7711 revision 8767d155,
+rebased onto this exact master revision. It fixes host sender instantiation,
+exports STDEXEC_DEMANGLE_SENDER_NAMES consistently to C++ and CUDA consumers,
+and preserves the NVCC operation-state destructor workaround. The recipe
+checks all three patched source hashes; stack-lock.json records the full
+upstream revision, patch checksum, and resulting hashes. Rebuilding HPX and
+its consumers together is required because the macro changes sender types.
+Only SYCL adds the separate atomic-header opt-out: CUDA CCCL atomic declarations
 conflict with the pinned DPC++ headers. HPX exports that choice to every
 consumer. HPX-Kokkos replaces the removed HPX range trait with std::ranges and
 uses Kokkos's public sycl_queue() accessor. CPPuddle uses the current HPX
@@ -32,6 +39,8 @@ runs one case at a time. GPU rows request a GPU explicitly and preserve Slurm's
 device visibility; the SYCL row prints the visible devices before testing.
 The pipeline does not send notification email.
 
-Local validation of this HPX master revision passed 255/255 full CPU tests and
-70/70 targeted tests with GCC13 and Kokkos HPX/Serial. That CPU evidence does
-not establish CUDA/HIP/SYCL success; Jenkins is the validation for this matrix.
+Historical local validation of hydro_changes passed 255/255 full CPU tests
+and 70/70 targeted tests against this HPX master revision, using GCC13 and
+Kokkos HPX/Serial. These results predate the added NVCC patch and do not
+validate that patch or CUDA/HIP/SYCL execution. Fresh validation of the
+patched dependency stack is required before claiming GPU matrix success.

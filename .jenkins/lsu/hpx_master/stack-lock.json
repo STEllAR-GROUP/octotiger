@@ -8,6 +8,19 @@
       "branch_at_resolution": "master",
       "patches": [
         {
+          "file": "hpx-nvcc.patch",
+          "sha256": "c2c9f1eea30ffdb547a7b1a6b5300e7b4734d42ed67541ed129dfb468468eba8",
+          "when": "+cuda %gcc",
+          "source": "https://github.com/TheHPXProject/hpx/pull/7711",
+          "source_revision": "8767d155e4cedec8c545951bfea92f92820fd671",
+          "scope": "NVCC compatibility subset only",
+          "patched_fingerprints": {
+            "cmake/HPX_SetupStdexec.cmake": "3bda25c8babfd7098d31efb748699f83c89b9d70cbe98961b77f5a118297df69",
+            "cmake/HPX_StdexecNvccGcc13.patch": "4c9c98f102e7c0c943a3903aa4cf3260aa62f2dbb67c7451286423bcba6787b4",
+            "libs/core/executors/include/hpx/executors/thread_pool_continues_on_sender.hpp": "80136adef178d4a18f4f9d03a13e7cbc4820eed0ed9d3bdb6cb7968e78564fce"
+          }
+        },
+        {
           "file": "hpx-sycl.patch",
           "sha256": "b6e39f79615741ef4e8f2a13859572c3b2c82001daf1a17acf434738cc477de6",
           "when": "+sycl"
@@ -16,8 +29,7 @@
       "archive_fingerprints": {
         "CMakeLists.txt": "e1e7fd70ae93f0379ce5afebd5e17c8f481439155910080aa8e37cabf61975e7",
         "cmake/HPX_SetupAsio.cmake": "9df0e5af35aae2b0dc1ff49334fd5fcbf4b5c648f19832fdbc31152a8430aab5",
-        "libs/core/async_sycl/src/sycl_event_callback.cpp": "f89247751e3781adebdffe655ff41fc08d9c7ee6cab359d9f9c228802cc09cd1",
-        "libs/core/executors/include/hpx/executors/thread_pool_continues_on_sender.hpp": "fc289a78720ed2e94623cb1557f22543afdc3302c035f3fc2723db7469a9c3f0"
+        "libs/core/async_sycl/src/sycl_event_callback.cpp": "f89247751e3781adebdffe655ff41fc08d9c7ee6cab359d9f9c228802cc09cd1"
       }
     },
     "kokkos": {
@@ -77,7 +89,8 @@
     }
   },
   "validation": {
-    "local_hpx_master": "255/255 Octotiger CTests and 70/70 targeted CTests passed with GCC13, Kokkos HPX/Serial, CUDA/HIP/SYCL disabled. This does not establish GPU matrix success.",
-    "ci": "Jenkins must validate all eighteen CPU/CUDA/HIP/SYCL matrix entries with this new dependency stack."
+    "local_hpx_master": "Historical hydro_changes validation: 255/255 Octotiger CTests and 70/70 targeted CTests passed with GCC13, Kokkos HPX/Serial, CUDA/HIP/SYCL disabled. These results predate the added NVCC patch and do not validate that patch or GPU execution.",
+    "ci": "Jenkins must validate all eighteen CPU/CUDA/HIP/SYCL matrix entries with this new dependency stack.",
+    "local_nvcc_patch": "Patch application and source-hash checks against pinned HPX master are local checks. The full reviewed PR revision previously built HPX and Octotiger with GCC 13.3/NVCC 12.8; this extracted subset and the Jenkins GCC 13.2/CUDA 12.9 stack need fresh compilation and runtime validation."
   }
 }
