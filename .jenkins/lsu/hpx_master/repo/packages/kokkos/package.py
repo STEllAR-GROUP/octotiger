@@ -1,6 +1,16 @@
 # SPDX-License-Identifier: BSL-1.0
 """Pristine Kokkos 5.2.2: no source patch directives."""
-from spack.package import *
+from spack.package import (
+    CMakePackage,
+    CudaPackage,
+    InstallError,
+    ROCmPackage,
+    conflicts,
+    depends_on,
+    generator,
+    variant,
+    version,
+)
 from spack.pkg.octotiger_hpx_master.hpx import compiler_args, compiler_environment
 
 

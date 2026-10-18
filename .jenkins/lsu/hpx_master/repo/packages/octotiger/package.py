@@ -1,8 +1,21 @@
 # SPDX-License-Identifier: BSL-1.0
 import os
-import subprocess
 
-from spack.package import *
+from spack.package import (
+    CMakePackage,
+    CudaPackage,
+    Executable,
+    InstallError,
+    ProcessError,
+    ROCmPackage,
+    conflicts,
+    depends_on,
+    generator,
+    join_path,
+    variant,
+    version,
+    working_dir,
+)
 from spack.pkg.octotiger_hpx_master.hpx import compiler_args, compiler_environment
 
 
@@ -109,13 +122,14 @@ class Octotiger(CMakePackage, CudaPackage, ROCmPackage):
             for name in ("CUDA_VISIBLE_DEVICES", "KOKKOS_VISIBLE_DEVICES", "SYCL_DEVICE_FILTER", "ONEAPI_DEVICE_SELECTOR"):
                 value = repr(os.environ[name]) if name in os.environ else "<unset>"
                 print("SYCL test environment: " + name + "=" + value, flush=True)
-            executable = join_path(self.spec["dpcpp"].prefix, "bin", "sycl-ls")
+            executable = Executable(join_path(self.spec["dpcpp"].prefix, "bin", "sycl-ls"))
             try:
-                result = subprocess.run([executable], timeout=30, check=False)
-                print("SYCL device diagnostic exit status: " + str(result.returncode), flush=True)
-            except (OSError, subprocess.TimeoutExpired) as error:
+                executable(timeout=30)
+                print("SYCL device diagnostic exit status: " + str(executable.returncode), flush=True)
+            except ProcessError as error:
                 print("SYCL device diagnostic unavailable: " + str(error), flush=True)
         # Invoke CTest directly: preserve streamed progress and prevent Spack
         # from adding parallelism; HPX uses the row's allocated worker count.
         with working_dir(self.build_directory):
+            ctest = Executable(join_path(self.spec["cmake"].prefix, "bin", "ctest"))
             ctest("--output-on-failure", "--timeout", "3600", "--parallel", "1")

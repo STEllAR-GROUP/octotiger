@@ -1,5 +1,14 @@
 # SPDX-License-Identifier: BSL-1.0
-from spack.package import *
+from spack.package import (
+    CMakePackage,
+    CudaPackage,
+    ROCmPackage,
+    depends_on,
+    generator,
+    patch,
+    variant,
+    version,
+)
 from spack.pkg.octotiger_hpx_master.hpx import compiler_args, compiler_environment
 
 
