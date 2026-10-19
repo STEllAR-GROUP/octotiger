@@ -3,6 +3,8 @@
 # Distributed under the Boost Software License, Version 1.0. (See accompanying
 # file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+add_subdirectory(eos)
+
 # Reject field differences and mismatched meshes/object inventories.
 set(OCTOTIGER_SILODIFF_FAIL_PATTERN "[.]vals|appears only in file")
 
