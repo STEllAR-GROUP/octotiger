@@ -1,13 +1,36 @@
-#include "frontend-helper.hpp"
-#ifdef OCTOTIGER_HAVE_KOKKOS
-#include "octotiger/common_kernel/kokkos_util.hpp"
+#include <cfenv>
+#include <chrono>
+#include <cstddef>
+#include <cstdio>
+#include <iostream>
+#include <string>
+#include <tuple>
+#include <utility>
+#include <vector>
+#if defined(_MSC_VER)
+#include <cfloat>
 #endif
-#ifdef OCTOTIGER_HAVE_CUDA
-#include "octotiger/cuda_util/cuda_scheduler.hpp"
-#include "octotiger/monopole_interactions/legacy/cuda_monopole_interaction_interface.hpp"
-#include "octotiger/multipole_interactions/legacy/cuda_multipole_interaction_interface.hpp"
 
+#if defined(OCTOTIGER_HAVE_CUDA) && !defined(OCTOTIGER_HAVE_KOKKOS)
+// Preserve the configuration cuda_helper.hpp established before dependency headers.
+#ifndef BOOST_NO_CXX11_ALLOCATOR
+#define BOOST_NO_CXX11_ALLOCATOR
+#endif
+#ifndef CUDA_API_PER_THREAD_DEFAULT_STREAM
+#define CUDA_API_PER_THREAD_DEFAULT_STREAM
+#endif
+#endif
+#ifdef OCTOTIGER_HAVE_KOKKOS
+#include <Kokkos_Core.hpp>
+#endif
+#include <hpx/collectives/broadcast_direct.hpp>
+#include <hpx/hpx_init.hpp>
+#include <hpx/include/actions.hpp>
+#include <hpx/include/lcos.hpp>
+#include <hpx/include/util.hpp>
+#ifdef OCTOTIGER_HAVE_CUDA
 #include <cuda_buffer_util.hpp>
+#include <stream_manager.hpp>
 #endif
 #ifdef OCTOTIGER_HAVE_HIP
 #include <hip_buffer_util.hpp>
@@ -15,58 +38,43 @@
 #if defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_SYCL)
 #include <sycl_buffer_util.hpp>
 #endif
+#if !defined(_MSC_VER)
+#include <unistd.h>
+#endif
+
+#include "frontend-helper.hpp"
+#ifdef OCTOTIGER_HAVE_KOKKOS
+#include "octotiger/common_kernel/kokkos_util.hpp"
+#endif
+#ifdef OCTOTIGER_HAVE_CUDA
+#include "octotiger/cuda_util/cuda_helper.hpp"
+#include "octotiger/cuda_util/cuda_scheduler.hpp"
+#include "octotiger/monopole_interactions/legacy/cuda_monopole_interaction_interface.hpp"
+#include "octotiger/multipole_interactions/legacy/cuda_multipole_interaction_interface.hpp"
+#endif
 #include "octotiger/common_kernel/interaction_constants.hpp"
 #include "octotiger/monopole_interactions/util/calculate_stencil.hpp"
 #include "octotiger/monopole_interactions/legacy/p2m_interaction_interface.hpp"
 #include "octotiger/monopole_interactions/legacy/monopole_interaction_interface.hpp"
 #include "octotiger/multipole_interactions/util/calculate_stencil.hpp"
 #include "octotiger/multipole_interactions/legacy/multipole_interaction_interface.hpp"
-
-
 #include "octotiger/compute_factor.hpp"
 #include "octotiger/defs.hpp"
-// #include "octotiger/future.hpp"
 #include "octotiger/grid_fmm.hpp"
 #include "octotiger/grid_scf.hpp"
 #include "octotiger/node_client.hpp"
 #include "octotiger/options.hpp"
 #include "octotiger/physcon.hpp"
 #include "octotiger/problem.hpp"
+#include "octotiger/test_problems/amr/amr.hpp"
 #include "octotiger/test_problems/blast.hpp"
 #include "octotiger/test_problems/rotating_star.hpp"
 #include "octotiger/unitiger/physics.hpp"
 #include "octotiger/unitiger/physics_impl.hpp"
-
-#include "octotiger/test_problems/amr/amr.hpp"
-
-#include <hpx/collectives/broadcast_direct.hpp>
-#include <hpx/hpx_init.hpp>
-#include <hpx/include/actions.hpp>
-#include <hpx/include/lcos.hpp>
-#include <hpx/include/util.hpp>
-
-#include <iostream>
-#include <chrono>
-#include <cstdio>
-#include <string>
-#include <tuple>
-#include <utility>
-#include <vector>
-#include <cfenv>
-#if !defined(_MSC_VER)
-#include <unistd.h>
-#else
-#include <cfloat>
-#endif
-
 #ifdef OCTOTIGER_HAVE_KOKKOS
 #include "octotiger/monopole_interactions/kernel/kokkos_kernel.hpp"
 #include "octotiger/multipole_interactions/kernel/kokkos_kernel.hpp"
 #include "octotiger/unitiger/hydro_impl/hydro_kokkos_kernel.hpp"
-#endif
-#ifdef OCTOTIGER_HAVE_CUDA
-#include <stream_manager.hpp>
-#include "octotiger/cuda_util/cuda_helper.hpp"
 #endif
 
 // In case we build without kokkos we want the cuda futures to default
@@ -77,7 +85,18 @@
 #define HPX_KOKKOS_CUDA_FUTURE_TYPE 0
 #endif
 
+#if HPX_KOKKOS_CUDA_FUTURE_TYPE == 0 && (defined(OCTOTIGER_HAVE_CUDA) || \
+    defined(OCTOTIGER_HAVE_HIP) || defined(KOKKOS_ENABLE_CUDA) || defined(KOKKOS_ENABLE_HIP))
+namespace {
+    // Initialization and cleanup each run once per locality, in that order.
+    bool cuda_polling_registered = false;
+}
+#endif
+
 void cleanup_puddle_on_this_locality(void) {
+#ifdef OCTOTIGER_HAVE_KOKKOS
+    Kokkos::fence();
+#endif
     // Shutdown stream manager
     if (opts().executors_per_gpu > 0) {
 #if defined(OCTOTIGER_HAVE_CUDA) 
@@ -95,13 +114,17 @@ void cleanup_puddle_on_this_locality(void) {
 #endif
     }
     // Disable polling
-#if (defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)) && HPX_KOKKOS_CUDA_FUTURE_TYPE == 0 
-    if (opts().polling_threads > 0) {
-      std::cout << "Unregistering cuda polling on polling pool... " << std::endl;
-      hpx::cuda::experimental::detail::unregister_polling(hpx::resource::get_thread_pool("polling"));
-    } else {
-        std::cout << "Unregistering cuda polling..." << std::endl;
-        hpx::cuda::experimental::detail::unregister_polling(hpx::resource::get_thread_pool(0));
+#if HPX_KOKKOS_CUDA_FUTURE_TYPE == 0 && (defined(OCTOTIGER_HAVE_CUDA) || \
+    defined(OCTOTIGER_HAVE_HIP) || defined(KOKKOS_ENABLE_CUDA) || defined(KOKKOS_ENABLE_HIP))
+    if (cuda_polling_registered) {
+        if (opts().polling_threads > 0) {
+            std::cout << "Unregistering cuda polling on polling pool... " << std::endl;
+            hpx::cuda::experimental::detail::unregister_polling(hpx::resource::get_thread_pool("polling"));
+        } else {
+            std::cout << "Unregistering cuda polling..." << std::endl;
+            hpx::cuda::experimental::detail::unregister_polling(hpx::resource::get_thread_pool(0));
+        }
+        cuda_polling_registered = false;
     }
 #endif
 #if defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_SYCL)
@@ -113,11 +136,14 @@ void cleanup_puddle_on_this_locality(void) {
       hpx::sycl::experimental::detail::unregister_polling(hpx::resource::get_thread_pool(0));
     }
 #endif
-    // Use finalize functionality. Cleans up all buffers and prevents further use
-    recycler::finalize();
 #ifdef OCTOTIGER_HAVE_KOKKOS
     stream_pool::cleanup<hpx::kokkos::hpx_executor, round_robin_pool<hpx::kokkos::hpx_executor>>();
     stream_pool::cleanup<hpx::kokkos::serial_executor, round_robin_pool<hpx::kokkos::serial_executor>>();
+#endif
+    // Static stencil views outlive the runtimes. Release their buffers now and
+    // finalize the recycler so their later destructors cannot access dead pools.
+    recycler::finalize();
+#ifdef OCTOTIGER_HAVE_KOKKOS
     std::cerr << "Starting KOKKOS finalize ..." << std::endl;
     Kokkos::finalize();
 #endif
@@ -141,25 +167,42 @@ void init_executors(void) {
     std::cout << "Check number of available GPUs..." << std::endl;
     int num_devices = 0; 
 #if defined(OCTOTIGER_HAVE_CUDA) || defined(KOKKOS_ENABLE_CUDA) 
-    cudaGetDeviceCount(&num_devices);
+    auto const device_count_status = cudaGetDeviceCount(&num_devices);
+    if (device_count_status != cudaSuccess) {
+        num_devices = 0;
+        if (opts().number_gpus > 0) {
+            std::cerr << "ERROR: Cannot enumerate requested CUDA devices: "
+                      << cudaGetErrorString(device_count_status) << std::endl;
+            abort();
+        }
+    }
     std::cout << "Found " << num_devices << " CUDA devices! " << std::endl;
 #elif defined(OCTOTIGER_HAVE_HIP) || defined(KOKKOS_ENABLE_HIP) 
-    hipGetDeviceCount(&num_devices);
+    auto const device_count_status = hipGetDeviceCount(&num_devices);
+    if (device_count_status != hipSuccess) {
+        num_devices = 0;
+        if (opts().number_gpus > 0) {
+            std::cerr << "ERROR: Cannot enumerate requested HIP devices: "
+                      << hipGetErrorString(device_count_status) << std::endl;
+            abort();
+        }
+    }
     std::cout << "Found " << num_devices << " HIP devices! " << std::endl;
 #endif
-    if (num_devices > 0) { // some devices were found
-      if (opts().number_gpus > num_devices) {
-          std::cerr << "ERROR: Requested " << opts().number_gpus << " GPUs but only "
-                    << num_devices << " were found!" << std::endl;
-          abort();
-      }
-      if (opts().number_gpus > recycler::max_number_gpus) {
+#if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP) || \
+    defined(KOKKOS_ENABLE_CUDA) || defined(KOKKOS_ENABLE_HIP)
+    if (opts().number_gpus > static_cast<size_t>(num_devices)) {
+        std::cerr << "ERROR: Requested " << opts().number_gpus << " GPUs but only "
+                  << num_devices << " were found!" << std::endl;
+        abort();
+    }
+    if (opts().number_gpus > recycler::max_number_gpus) {
         std::cerr << "ERROR: Requested " << opts().number_gpus
                   << " GPUs but CPPuddle was built with CPPUDDLE_WITH_MAX_NUMBER_GPUS="
                   << recycler::max_number_gpus << std::endl;
         abort();
-      }
     }
+#endif
 
 
     std::cout << "Initialize executors and masks..." << std::endl;
@@ -196,14 +239,19 @@ void init_executors(void) {
 
 #if HPX_KOKKOS_CUDA_FUTURE_TYPE == 0
 #if (defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP) || defined(KOKKOS_ENABLE_CUDA) || defined(KOKKOS_ENABLE_HIP))  
-    if (opts().polling_threads>0) {
-      std::cout << "Registering HPX CUDA polling on polling pool..." << std::endl;
-      hpx::cuda::experimental::detail::register_polling(hpx::resource::get_thread_pool("polling"));
-    } else {
-      std::cout << "Registering HPX CUDA polling..." << std::endl;
-      hpx::cuda::experimental::detail::register_polling(hpx::resource::get_thread_pool(0));
+    // Polling initializes HPX's CUDA event pool even with no queued work.
+    // CPU-only runs must not require an available GPU just to make progress.
+    if (opts().number_gpus > 0) {
+        if (opts().polling_threads > 0) {
+            std::cout << "Registering HPX CUDA polling on polling pool..." << std::endl;
+            hpx::cuda::experimental::detail::register_polling(hpx::resource::get_thread_pool("polling"));
+        } else {
+            std::cout << "Registering HPX CUDA polling..." << std::endl;
+            hpx::cuda::experimental::detail::register_polling(hpx::resource::get_thread_pool(0));
+        }
+        cuda_polling_registered = true;
+        std::cout << "Registered HPX CUDA polling!" << std::endl;
     }
-    std::cout << "Registered HPX CUDA polling!" << std::endl;
 #endif
 #endif
 #if defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_SYCL)
