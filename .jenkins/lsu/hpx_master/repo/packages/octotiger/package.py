@@ -41,6 +41,7 @@ class Octotiger(CMakePackage, CudaPackage, ROCmPackage):
     depends_on("python@3:", type="build")
     depends_on("vc@1.4.1")
     depends_on("boost@1.74: cxxstd=2a +program_options +filesystem +system")
+    depends_on("libbacktrace")
     depends_on("hdf5 +threadsafe +szip +hl ~mpi")
     depends_on("silo@4.12.1 ~mpi ~fortran")
     depends_on("hpx@master cxxstd=20")

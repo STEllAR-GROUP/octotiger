@@ -137,6 +137,21 @@ find_package(HPX REQUIRED NO_CMAKE_PACKAGE_REGISTRY 1.8.1)
 find_package(CPPuddle REQUIRED)
 find_package(Silo REQUIRED)
 find_package(Boost COMPONENTS system filesystem program_options REQUIRED)
+add_library(octotiger_stacktrace STATIC src/stack_trace.cpp)
+target_include_directories(octotiger_stacktrace PUBLIC "${PROJECT_SOURCE_DIR}")
+target_link_libraries(octotiger_stacktrace PRIVATE Boost::boost ${CMAKE_DL_LIBS})
+if(NOT MSVC)
+  # The addr2line backend in older Boost releases cannot relocate PIE addresses.
+  # Use Boost's header-only backend so a Boost build that omitted this optional
+  # component still works with an explicitly supplied libbacktrace.
+  find_package(Libbacktrace REQUIRED)
+  target_link_libraries(octotiger_stacktrace PRIVATE Libbacktrace::libbacktrace)
+  target_compile_definitions(octotiger_stacktrace PRIVATE BOOST_STACKTRACE_USE_BACKTRACE)
+endif()
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  target_compile_options(octotiger_stacktrace PUBLIC
+    "$<$<COMPILE_LANGUAGE:CXX>:-fno-omit-frame-pointer>")
+endif()
 if(NOT MSVC)
   find_package(Threads REQUIRED)  # Required by target gen_rotating_star_init
 endif()
@@ -225,7 +240,6 @@ set(source_files
     src/io/silo.cpp
     src/io/silo_out.cpp
     src/io/silo_in.cpp
-    src/stack_trace.cpp
     src/taylor.cpp
     src/util.cpp
     src/common_kernel/interactions_iterators.cpp
@@ -649,6 +663,17 @@ add_hpx_executable(
 )
 set_property(TARGET octotiger PROPERTY FOLDER "Octo-Tiger")
 
+foreach(target octotiger unitiger)
+  target_link_libraries(${target} PRIVATE octotiger_stacktrace)
+  set_target_properties(${target} PROPERTIES ENABLE_EXPORTS ON)
+endforeach()
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  foreach(target optionslib octolib hydrolib)
+    target_compile_options(${target} PRIVATE
+      "$<$<COMPILE_LANGUAGE:CXX>:-fno-omit-frame-pointer>")
+  endforeach()
+endif()
+
 # Kokkos consumers need the requested host architecture flags too.
 # Clang CUDA and SYCL use CXX sources for both their host and device passes.
 if(OCTOTIGER_WITH_KOKKOS)
@@ -1061,5 +1086,6 @@ add_subdirectory(tools)
 if(OCTOTIGER_WITH_TESTS)
     enable_testing()
 
+  add_subdirectory(test_problems/stacktrace)
   add_subdirectory(test_problems)
 endif()
