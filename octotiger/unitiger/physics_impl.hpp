@@ -136,8 +136,10 @@ void physics<NDIM>::to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v
                 }
                 const double dp_drho = dpdeg_drho + (fgamma_ - 1.0) * ein * rhoinv;
                 const double dp_deps = (fgamma_ - 1.0) * rho;
-                p = (fgamma_ - 1.0) * ein + pdeg;
-                z = p * rhoinv * rhoinv * dp_deps + dp_drho;
+                auto const pthermal = (fgamma_ - 1.0) * ein;
+                p = pthermal + pdeg;
+                // The cold contribution is already in dpdeg_drho: c^2 = dPdeg/drho + gamma * Pthermal/rho.
+                z = pthermal * rhoinv * rhoinv * dp_deps + dp_drho;
                 if( z < 0.0 ) {
                         printf( "%e %e %e %e %e %e %e %e %e\n", p, rhoinv, dpdeg_drho, dp_deps, ein, dp_drho, u[tau_i], ek, edeg);
                 }

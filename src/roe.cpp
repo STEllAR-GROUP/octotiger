@@ -3,17 +3,17 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+#include <array>
+#include <cassert>
+#include <cmath>
+#include <vector>
+
 #include "octotiger/roe.hpp"
 #include "octotiger/defs.hpp"
 #include "octotiger/grid.hpp"
 #include "octotiger/options.hpp"
 #include "octotiger/physcon.hpp"
 #include "octotiger/simd_legacy.hpp"
-
-#include <array>
-#include <cassert>
-#include <cmath>
-#include <vector>
 
 const integer con_i = rho_i;
 const integer acl_i = sx_i;
@@ -29,8 +29,9 @@ real ztwd_sound_speed(real d, real ei) {
 	x = pow(d / B, 1.0 / 3.0);
 	dp_drho = ((8.0 * A) / (3.0 * B)) * sqr(x) / sqrt(sqr(x) + 1.0) + (fgamma - 1.0) * ei / d;
 	dp_depsilon = (fgamma - 1.0) * d;
-	const real p = ztwd_pressure(d) + (fgamma - 1.0) * ei;
-	cs2 = std::max((p / sqr(d)) * dp_depsilon + dp_drho, real(0));
+	real const pthermal = (fgamma - 1.0) * ei;
+	// The cold pressure derivative is already included in dp_drho.
+	cs2 = std::max((pthermal / sqr(d)) * dp_depsilon + dp_drho, real(0));
 	return sqrt(cs2);
 }
 
