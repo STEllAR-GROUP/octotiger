@@ -21,6 +21,7 @@ if (EXISTS "${OCTOTIGER_TESTDATA_DIR}/sphere.silo" AND IS_DIRECTORY "${OCTOTIGER
     add_subdirectory(sod)
     add_subdirectory(sphere)
     add_subdirectory(star)
+    add_subdirectory(wd_equilibrium)
 else()
   message(FATAL_ERROR "Could not find directory containing the test reference files (tested with sphere.silo)! "
    "Is the submodule initialized? To fix check out all submodules (run <git submodule update --init --recursive> within the octotiger directory) "

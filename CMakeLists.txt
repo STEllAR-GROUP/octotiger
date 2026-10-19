@@ -216,6 +216,7 @@ set(source_files
     src/node_server_actions_3.cpp
     src/physcon.cpp
     src/problem.cpp
+    src/test_problems/wd_equilibrium.cpp
     src/options_processing.cpp
     src/profiler.cpp
     src/real.cpp
@@ -332,6 +333,7 @@ set(header_files
     octotiger/radiation/opacities.hpp
     octotiger/radiation/rad_grid.hpp
     octotiger/test_problems/rotating_star.hpp
+    octotiger/test_problems/wd_equilibrium.hpp
     
 )
 
