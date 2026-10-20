@@ -5,6 +5,8 @@
 add_executable(wd_equilibrium_model_test
   model.cpp
   ${PROJECT_SOURCE_DIR}/src/test_problems/wd_equilibrium.cpp)
+# Source properties are directory scoped; use the production FP policy here too.
+octotiger_require_strict_fp(${PROJECT_SOURCE_DIR}/src/test_problems/wd_equilibrium.cpp)
 target_include_directories(wd_equilibrium_model_test PRIVATE ${PROJECT_SOURCE_DIR})
 target_compile_features(wd_equilibrium_model_test PRIVATE cxx_std_17)
 add_test(NAME test_problems.wd_equilibrium.model COMMAND wd_equilibrium_model_test)

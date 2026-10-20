@@ -517,6 +517,20 @@ else()
   endif()
 endif()
 
+# The WD initializer and conservative grid update contain cancellation-sensitive
+# arithmetic. Keep their evaluation order and finite-value checks intact, even
+# when fast math or FMA is enabled for the separate compute kernels.
+function(octotiger_require_strict_fp)
+  if(CMAKE_CXX_COMPILER_ID MATCHES "^(GNU|Clang|AppleClang|IntelLLVM)$")
+    set_property(SOURCE ${ARGN} APPEND PROPERTY COMPILE_OPTIONS
+      -fno-fast-math -ffp-contract=off)
+  endif()
+endfunction()
+octotiger_require_strict_fp(
+  src/grid.cpp
+  src/problem.cpp
+  src/test_problems/wd_equilibrium.cpp)
+
 # Hydro library
 add_hpx_library(
   hydrolib
@@ -661,6 +675,25 @@ if(OCTOTIGER_WITH_KOKKOS)
   endforeach()
 endif()
 
+# Use the same arithmetic policy throughout CPU-only solver builds. Fast math
+# can reassociate cold-EOS and gravity-energy subtractions and discard finite
+# checks. Keep accelerator kernel policies separate; FMA is an explicit choice.
+set(octotiger_strict_cpu_fp OFF)
+if(NOT OCTOTIGER_WITH_CUDA AND NOT OCTOTIGER_WITH_HIP AND
+   NOT Kokkos_ENABLE_CUDA AND NOT Kokkos_ENABLE_HIP AND NOT Kokkos_ENABLE_SYCL AND
+   CMAKE_CXX_COMPILER_ID MATCHES "^(GNU|Clang|AppleClang|IntelLLVM)$")
+  set(octotiger_strict_cpu_fp ON)
+  if(OCTOTIGER_WITH_FAST_FP_CONTRACT)
+    set(octotiger_host_fp_contract fast)
+  else()
+    set(octotiger_host_fp_contract off)
+  endif()
+  foreach(target octolib hydrolib)
+    target_compile_options(${target} PRIVATE
+      "$<$<COMPILE_LANGUAGE:CXX>:-fno-fast-math;-ffp-contract=${octotiger_host_fp_contract}>")
+  endforeach()
+endif()
+
 if(MSVC)
   # Enable solution folders for MSVC
   set_property(GLOBAL PROPERTY USE_FOLDERS ON)
@@ -704,7 +737,10 @@ else()
     if(${CMAKE_CXX_COMPILER_ID} STREQUAL GNU)
       target_compile_options(octolib PRIVATE
         -Wno-ignored-attributes -Wno-attributes -Wno-deprecated-declarations
-        -Wno-unused-result -ffast-math -Wno-write-strings)
+        -Wno-unused-result -Wno-write-strings)
+      if(NOT octotiger_strict_cpu_fp)
+        target_compile_options(octolib PRIVATE -ffast-math)
+      endif()
       target_compile_options(unitiger PRIVATE
         -Wno-ignored-attributes -Wno-attributes -Wno-deprecated-declarations
         -Wno-unused-result -ffast-math -Wno-write-strings)
