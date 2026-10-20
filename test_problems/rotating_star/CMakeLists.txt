@@ -187,17 +187,18 @@ set_tests_properties(test_problems.rotating_star.init.fixture_cleanup PROPERTIES
 # Rotating star test with different equation of state (eos=wd)
 
 if (OCTOTIGER_WITH_GRIDDIM EQUAL 8)
-  set(rho_regex "rho 1.395105e-03 1.034051e-02")
-  set(egas_regex "egas 1.282717e-03 1.179200e-02")
-  set(tau_regex "tau 6.104387e-04 4.524548e-03")
-  set(pot_regex "pot 4.917696e-03 3.234157e-02")
-  set(sx_regex "sx 2.162120e-03 1.434366e-02")
-  set(sy_regex "sy 2.162120e-03 1.434366e-02")
-  set(sz_regex "sz 2.531845e-03 1.679645e-02")
-  set(spc1_regex "spc_1 1.395105e-03 1.034051e-02")
+  # Refreshed after correcting the WD sound speed; CPU/CUDA/HIP/SYCL agree.
+  set(rho_regex "rho 1.394994e-03 1.033916e-02")
+  set(egas_regex "egas 1.282620e-03 1.179462e-02")
+  set(tau_regex "tau 6.103896e-04 4.523953e-03")
+  set(pot_regex "pot 4.917759e-03 3.234269e-02")
+  set(sx_regex "sx 2.162751e-03 1.434610e-02")
+  set(sy_regex "sy 2.162751e-03 1.434610e-02")
+  set(sz_regex "sz 2.533092e-03 1.679967e-02")
+  set(spc1_regex "spc_1 1.394994e-03 1.033916e-02")
   # Around 1e-18 we neglet differences as we are hitting the limits of double accuracy 
   # see the wildcard . to check where we beginn to neglet differences
-  set(spc2_regex "spc_2 7.0298..e-13 2.90864.e-12")
+  set(spc2_regex "spc_2 7.1574..e-13 2.96165.e-12")
   set(spc3_regex "spc_3 0.000000e.00 0.000000e.00")
   set(spc4_regex "spc_4 0.000000e.00 0.000000e.00")
   set(spc5_regex "spc_5 0.000000e.00 0.000000e.00")
