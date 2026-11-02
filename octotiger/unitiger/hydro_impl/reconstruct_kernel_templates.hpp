@@ -591,7 +591,8 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p1_simd(const size_t 
         }
     } else {
         for (int f = 0; f < nf_; f++) {
-            if (f < lx_i || f > lx_i + nangmom) {
+            // The angular-momentum range ends before the first species field.
+            if (f < lx_i || f >= lx_i + nangmom) {
                 for (int d = 0; d < ndir; d++) {
                     if (d < ndir / 2) {
                       cell_reconstruct_ppm_simd<simd_t, simd_mask_t>(combined_q, combined_u,

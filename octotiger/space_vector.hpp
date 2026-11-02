@@ -6,12 +6,17 @@
 #ifndef SPACE_VECTOR_HPP_
 #define SPACE_VECTOR_HPP_
 
+#include <array>
+#include <cmath>
+#include <type_traits>
+
+#include <hpx/modules/serialization.hpp>
+#if defined(__AVX2__) && defined(OCTOTIGER_LEGACY_VC)
+#include <Vc/Vc>
+#endif
+
 #include "octotiger/defs.hpp"
 #include "octotiger/real.hpp"
-
-#include <hpx/parallel/traits/vector_pack_type.hpp>
-#include <hpx/runtime/serialization/datapar.hpp>
-#include <hpx/serialization/traits/is_bitwise_serializable.hpp>
 
 
 // #if !defined(HPX_HAVE_DATAPAR)
@@ -22,7 +27,6 @@
 // #if defined(Vc_HAVE_AVX512F) || defined(Vc_HAVE_AVX)
 
 #if defined(__AVX2__) && defined(OCTOTIGER_LEGACY_VC)
-#include <Vc/Vc>
 using space_vector = Vc::Vector<real, Vc::VectorAbi::Avx>;
 #else
 //using floatv = Vc::float_v;

@@ -13,16 +13,17 @@
 //#define DEBUG_CHANNEL
 
 
-#include <hpx/local_lcos/receive_buffer.hpp>
-
-#include <boost/atomic.hpp>
-
 #include <atomic>
 #include <cstddef>
-
 #ifdef DEBUG_CHANNEL
 #include <unordered_set>
 #include <typeinfo>
+#endif
+
+#include <boost/atomic.hpp>
+#include <hpx/modules/lcos_local.hpp>
+
+#ifdef DEBUG_CHANNEL
 using used_cycles_t = std::unordered_set<std::size_t>;
 #endif
 

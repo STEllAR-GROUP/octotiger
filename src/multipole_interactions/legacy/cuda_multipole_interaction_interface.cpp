@@ -4,16 +4,10 @@
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 #if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)
-#include "octotiger/multipole_interactions/legacy/cuda_multipole_interaction_interface.hpp"
-#include "octotiger/multipole_interactions/legacy/multipole_cuda_kernel.hpp"
-#include "octotiger/multipole_interactions/util/calculate_stencil.hpp"
-
-#include "octotiger/defs.hpp"
-#include "octotiger/options.hpp"
-
 #include <array>
 #include <vector>
 
+#include <hpx/executors/post.hpp>
 #include <buffer_manager.hpp>
 #if defined(OCTOTIGER_HAVE_CUDA)
 #include <cuda_buffer_util.hpp>
@@ -23,6 +17,12 @@
 #include <hip_buffer_util.hpp>
 #endif
 #include <stream_manager.hpp>
+
+#include "octotiger/multipole_interactions/legacy/cuda_multipole_interaction_interface.hpp"
+#include "octotiger/multipole_interactions/legacy/multipole_cuda_kernel.hpp"
+#include "octotiger/multipole_interactions/util/calculate_stencil.hpp"
+#include "octotiger/defs.hpp"
+#include "octotiger/options.hpp"
 
 #if defined(OCTOTIGER_HAVE_CUDA)
 template <typename T>
@@ -104,14 +104,14 @@ namespace fmm {
                     local_expansions_SoA, center_of_masses_SoA, grid_ptr, use_root_stencil);
 
                 if (!use_root_stencil) {
-                    hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
+                    hpx::post(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                         cudaMemcpyAsync, device_local_monopoles.device_side_buffer,
                         local_monopoles.data(), local_monopoles_size, cudaMemcpyHostToDevice);
                 }
-                hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
+                hpx::post(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                     cudaMemcpyAsync, device_local_expansions.device_side_buffer,
                     local_expansions_SoA.get_pod(), local_expansions_size, cudaMemcpyHostToDevice);
-                hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
+                hpx::post(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                     cudaMemcpyAsync, device_centers.device_side_buffer,
                     center_of_masses_SoA.get_pod(), center_of_masses_size, cudaMemcpyHostToDevice);
                 int block_numbers = NUMBER_MULTIPOLE_BLOCKS * NUMBER_MULTIPOLE_BLOCKS;
@@ -159,7 +159,7 @@ namespace fmm {
                             device_tmp_erg_corrs.device_side_buffer, 
                             device_erg_corrs.device_side_buffer);
 #endif
-                        hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
+                        hpx::post(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                             cudaMemcpyAsync, angular_corrections_SoA.get_pod(),
                             device_erg_corrs.device_side_buffer, angular_corrections_size,
                             cudaMemcpyDeviceToHost);
@@ -231,7 +231,7 @@ namespace fmm {
                             device_tmp_erg_corrs.device_side_buffer, 
                             device_erg_corrs.device_side_buffer);
 #endif
-                        hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
+                        hpx::post(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                             cudaMemcpyAsync, angular_corrections_SoA.get_pod(),
                             device_erg_corrs.device_side_buffer, angular_corrections_size,
                             cudaMemcpyDeviceToHost);
