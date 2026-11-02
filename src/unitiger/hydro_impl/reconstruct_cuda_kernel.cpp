@@ -25,13 +25,13 @@
 #endif
 
 #if defined(OCTOTIGER_HAVE_CUDA)
-__global__ void __launch_bounds__(64, 4) reconstruct_cuda_kernel_no_amc(double omega,
+__global__ void __launch_bounds__(64, 4) reconstruct_cuda_kernel(double omega,
 #elif defined(OCTOTIGER_HAVE_HIP)
-__global__ void reconstruct_cuda_kernel_no_amc(double omega,
+__global__ void reconstruct_cuda_kernel(double omega,
 #endif
-     int nf_,  int angmom_index_,  int* __restrict__ smooth_field_,
+     int nf_, int* __restrict__ smooth_field_,
      int* __restrict__ disc_detect_, double* __restrict__ combined_q,
-     double* __restrict__ combined_x,  double* __restrict__ combined_u, double* __restrict__ AM,
+     double* __restrict__ combined_x,  double* __restrict__ combined_u,
      double *dx,  double* __restrict__ cdiscs,  int n_species_,  int ndir,
      int nangmom) {
     const int q_i = (blockIdx.z * 1 + threadIdx.x) * 64 + (threadIdx.y) * 8 + (threadIdx.z);
@@ -41,94 +41,38 @@ __global__ void reconstruct_cuda_kernel_no_amc(double omega,
 
     const int q_slice_offset = (nf_ * 27 * q_inx3 + 128) * slice_id;
     const int u_slice_offset = (nf_ * H_N3 + 128) * slice_id;
-    const int am_slice_offset = (NDIM * q_inx3 + 128) * slice_id;
     const int disc_slice_offset = (ndir / 2 * H_N3 + 128) * slice_id; 
     const int x_slice_offset = (NDIM * q_inx3 + 128) * slice_id;
 
     if (q_i < q_inx3) {
-        cell_reconstruct_inner_loop_p1_simd<device_simd_t, device_simd_mask_t>(nf_, angmom_index_,
+        cell_reconstruct_inner_loop_p1_simd<device_simd_t, device_simd_mask_t>(nf_,
             smooth_field_ + nf_ * slice_id, disc_detect_ + nf_ * slice_id,
-            combined_q + q_slice_offset, combined_u + u_slice_offset, AM + am_slice_offset,
-            dx[slice_id], cdiscs + disc_slice_offset, i, q_i, ndir, nangmom);
+            combined_q + q_slice_offset, combined_u + u_slice_offset,
+            cdiscs + disc_slice_offset, i, q_i, ndir, nangmom);
         // Phase 2
         for (int d = 0; d < ndir; d++) {
             cell_reconstruct_inner_loop_p2_simd<device_simd_t, device_simd_mask_t>(omega,
-                angmom_index_, combined_q + q_slice_offset, combined_x + x_slice_offset,
-                combined_u + u_slice_offset, AM + am_slice_offset,
-                dx[slice_id], d, i, q_i, ndir,
-                nangmom, n_species_, nf_);
-        }
-    }
-}
-
-#if defined(OCTOTIGER_HAVE_CUDA)
-__global__ void __launch_bounds__(64, 4) reconstruct_cuda_kernel(double omega, int nf_,
-#elif defined(OCTOTIGER_HAVE_HIP)
-__global__ void reconstruct_cuda_kernel(const double omega, const int nf_,
-#endif
-     int angmom_index_,  int* __restrict__ smooth_field_,  int* __restrict__ disc_detect_,
-    double* __restrict__ combined_q,  double* __restrict__ combined_x,
-     double* __restrict__ combined_u, double* __restrict__ AM,  double *dx,
-     double* __restrict__ cdiscs,  int n_species_,  int ndir,  int nangmom) {
-    const int sx_i = angmom_index_;
-    const int zx_i = sx_i + NDIM;
-
-
-    const int q_i = (blockIdx.z * 1 + threadIdx.x) * 64 + (threadIdx.y) * 8 + (threadIdx.z);
-    const int i = ((q_i / q_inx2) + 2) * inx_large * inx_large +
-        (((q_i % q_inx2) / q_inx) + 2) * inx_large + (((q_i % q_inx2) % q_inx) + 2);
-    const int slice_id = blockIdx.x;
-
-    const int q_slice_offset = (nf_ * 27 * q_inx3 + 128) * slice_id;
-    const int u_slice_offset = (nf_ * H_N3 + 128) * slice_id;
-    const int am_slice_offset = (NDIM * q_inx3 + 128) * slice_id;
-    const int disc_slice_offset = (ndir / 2 * H_N3 + 128) * slice_id; 
-    const int x_slice_offset = (NDIM * q_inx3 + 128) * slice_id;
-
-    using simd_t = device_simd_t;
-    using simd_mask_t = device_simd_mask_t;
-    if (q_i < q_inx3) {
-        for (int n = 0; n < nangmom; n++) {
-            AM[n * am_offset + q_i + am_slice_offset] =
-                combined_u[(zx_i + n) * u_face_offset + i + u_slice_offset] *
-                combined_u[i + u_slice_offset];
-        }
-        cell_reconstruct_inner_loop_p1_simd<device_simd_t, device_simd_mask_t>(nf_, angmom_index_,
-            smooth_field_ + nf_ * slice_id, disc_detect_ + nf_ * slice_id,
-            combined_q + q_slice_offset, combined_u + u_slice_offset, AM + am_slice_offset,
-            dx[slice_id], cdiscs + disc_slice_offset, i, q_i, ndir, nangmom);
-        // Phase 2
-        for (int d = 0; d < ndir; d++) {
-            cell_reconstruct_inner_loop_p2_simd<device_simd_t, device_simd_mask_t>(omega,
-                angmom_index_, combined_q + q_slice_offset, combined_x + x_slice_offset,
-                combined_u + u_slice_offset, AM + am_slice_offset,
-                dx[slice_id], d, i, q_i, ndir,
-                nangmom, n_species_, nf_);
+                combined_q + q_slice_offset, combined_x + x_slice_offset,
+                dx[slice_id], d, q_i, ndir, nangmom, n_species_);
         }
     }
 }
 
 #if defined(OCTOTIGER_HAVE_HIP)
 void reconstruct_hip_kernel_ggl_wrapper(dim3 const grid_spec, dim3 const threads_per_block,
-    double omega, int nf_, int angmom_index_, int *smooth_field_, int* disc_detect, double *combined_q,
-    double *combined_x, double *combined_u, double *AM, double *dx, double *cdiscs, int n_species_, int ndir, int nangmom,
+    double omega, int nf_, int *smooth_field_, int* disc_detect, double *combined_q,
+    double *combined_x, double *combined_u, double *dx, double *cdiscs, int n_species_, int ndir, int nangmom,
     cudaStream_t const& stream) {
-    if (angmom_index_ > -1) {
-				hipLaunchKernelGGL(reconstruct_cuda_kernel, grid_spec, threads_per_block, 0, stream, omega, nf_,
-						angmom_index_, smooth_field_, disc_detect, combined_q, combined_x, combined_u, AM, dx, cdiscs,
-             n_species_, ndir, nangmom);
-    } else {
-				hipLaunchKernelGGL(reconstruct_cuda_kernel_no_amc, grid_spec, threads_per_block, 0, stream, omega, nf_,
-						angmom_index_, smooth_field_, disc_detect, combined_q, combined_x, combined_u, AM, dx, cdiscs,
-             n_species_, ndir, nangmom);
-    }
+    hipLaunchKernelGGL(reconstruct_cuda_kernel, grid_spec, threads_per_block, 0, stream,
+        omega, nf_, smooth_field_, disc_detect, combined_q, combined_x, combined_u, dx,
+        cdiscs, n_species_, ndir, nangmom);
 }
 #endif
 
 void launch_reconstruct_cuda(
     aggregated_executor_t& executor, double omega,
-    int nf_, int angmom_index_, int* smooth_field_, int* disc_detect_, double* combined_q,
-    double* combined_x, double* combined_u, double* AM, double *dx, double* cdiscs, int n_species_) {
+    int nf_, int* smooth_field_, int* disc_detect_, double* combined_q,
+    double* combined_x, double* combined_u, double *dx, double* cdiscs, int n_species_) {
     static const cell_geometry<NDIM, INX> geo;
 
     static_assert(device_simd_t::size() == 1, "CUDA/HIP kernels expect scalar SIMD types");
@@ -142,22 +86,14 @@ void launch_reconstruct_cuda(
     int ndir = geo.NDIR;
     int nangmom = geo.NANGMOM;
 #if defined(OCTOTIGER_HAVE_CUDA)
-    void* args[] = {&omega, &nf_, &angmom_index_, &(smooth_field_), &(disc_detect_), &(combined_q),
-        &(combined_x), &(combined_u), &(AM), &(dx), &(cdiscs), &n_species_, &ndir, &nangmom};
-    if (angmom_index_ > -1) {
-      // apply only seems to work with clang...
-      /* hpx::apply(executor.post(, cudaLaunchKernel<decltype(reconstruct_cuda_kernel)>, reconstruct_cuda_kernel, */
-      /*       grid_spec, threads_per_block, args, 0); */
-      executor.post(cudaLaunchKernel<decltype(reconstruct_cuda_kernel)>, reconstruct_cuda_kernel,
-            grid_spec, threads_per_block, args, 0);
-    } else {
-        executor.post(cudaLaunchKernel<decltype(reconstruct_cuda_kernel_no_amc)>,
-            reconstruct_cuda_kernel_no_amc, grid_spec, threads_per_block, args, 0);
-    }
+    void* args[] = {&omega, &nf_, &(smooth_field_), &(disc_detect_), &(combined_q),
+        &(combined_x), &(combined_u), &(dx), &(cdiscs), &n_species_, &ndir, &nangmom};
+    executor.post(cudaLaunchKernel<decltype(reconstruct_cuda_kernel)>,
+        reconstruct_cuda_kernel, grid_spec, threads_per_block, args, 0);
 #elif defined(OCTOTIGER_HAVE_HIP)
     hpx::post(executor, reconstruct_hip_kernel_ggl_wrapper, grid_spec,
         threads_per_block, omega,
-        nf_, angmom_index_, smooth_field_, disc_detect_, combined_q, combined_x, combined_u, AM, dx,
+        nf_, smooth_field_, disc_detect_, combined_q, combined_x, combined_u, dx,
         cdiscs, n_species_, ndir, nangmom);
 #endif
 }
@@ -255,7 +191,7 @@ void launch_find_contact_discs_cuda(
 }
 
 __global__ void __launch_bounds__(64, 4)
-    hydro_pre_recon_cuda(double* __restrict__ device_X, safe_real omega, bool angmom,
+    hydro_pre_recon_cuda(double* __restrict__ device_X, safe_real omega,
         double* __restrict__ device_u, const int nf, const int n_species_) {
     // Index mapping to actual grid
     const int index = (blockIdx.z * 1 + threadIdx.x) * 64 + (threadIdx.y) * 8 + (threadIdx.z);
@@ -270,34 +206,34 @@ __global__ void __launch_bounds__(64, 4)
         device_X += large_x_slice_offset;
         device_u += u_slice_offset;
         cell_hydro_pre_recon(
-            device_X, omega, angmom, device_u, nf,
+            device_X, omega, device_u, nf,
             n_species_, grid_x, grid_y, grid_z);
     }
 }
 #if defined(OCTOTIGER_HAVE_HIP)
 void pre_recon_hip_kernel_ggl_wrapper(dim3 const grid_spec, dim3 const threads_per_block,
-    double* device_X, double omega, bool angmom, double* device_u, int nf, int n_species_,
+    double* device_X, double omega, double* device_u, int nf, int n_species_,
     cudaStream_t const& stream) {
     hipLaunchKernelGGL(hydro_pre_recon_cuda, grid_spec, threads_per_block, 0, stream, device_X,
-        omega, angmom, device_u, nf, n_species_);
+        omega, device_u, nf, n_species_);
 }
 #endif
 
 void launch_hydro_pre_recon_cuda(
     aggregated_executor_t& executor,
-    double* device_X, double omega, bool angmom, double* device_u, int nf, int n_species_) {
+    double* device_X, double omega, double* device_u, int nf, int n_species_) {
     const int blocks = (inx_large * inx_large * inx_large) / 64 + 1;
     dim3 const grid_spec(executor.number_slices, 1, blocks);
     dim3 const threads_per_block(1, 8, 8);
 #if defined(OCTOTIGER_HAVE_CUDA)
-    void* args[] = {&(device_X), &omega, &angmom, &(device_u), &nf, &n_species_};
+    void* args[] = {&(device_X), &omega, &(device_u), &nf, &n_species_};
     /* hpx::apply(executor, cudaLaunchKernel<decltype(hydro_pre_recon_cuda)>, hydro_pre_recon_cuda, grid_spec, */
     /*     threads_per_block, args, 0); */
     executor.post(cudaLaunchKernel<decltype(hydro_pre_recon_cuda)>, hydro_pre_recon_cuda, grid_spec,
         threads_per_block, args, 0);
 #elif defined(OCTOTIGER_HAVE_HIP)
     hpx::post(executor, pre_recon_hip_kernel_ggl_wrapper, grid_spec, threads_per_block, device_X, omega,
-        angmom, device_u, nf, n_species_);
+        device_u, nf, n_species_);
 #endif
 }
 

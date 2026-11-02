@@ -97,8 +97,6 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 
 	int compareF(const hydro::flux_type &Fl, int num, std::string test_type);
 
-	void use_angmom_correction(int index);
-
 	void use_smooth_recon(int field);
 
 	void use_disc_detect(int field);
@@ -122,14 +120,12 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 	}
 
 	inline int get_nf() const {return nf_;}
-	inline int get_angmom_index() const {return angmom_index_;}
 	inline const std::vector<bool>& get_smooth_field() const {return smooth_field_;}
 	inline const std::vector<bool>& get_disc_detect() const {return disc_detect_;}
 
 private:
 	int experiment;
 	int nf_;
-	int angmom_index_;
 	std::vector<bool> smooth_field_;
 	std::vector<bool> disc_detect_;
 	std::vector<bc_type> bc_;
