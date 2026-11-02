@@ -3,37 +3,40 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+#include <cfenv>
+#include <chrono>
+#include <cstdio>
+#include <iostream>
+#include <string>
+#include <tuple>
+#include <utility>
+#include <vector>
+#if defined(_MSC_VER)
+#include <cfloat>
+#endif
+
 #include <hpx/config/compiler_specific.hpp>
 #if !defined(HPX_COMPUTE_DEVICE_CODE)
 
 #include <hpx/hpx_init.hpp>
 #include <hpx/resource_partitioner/partitioner.hpp>
+#include <hpx/runtime_local/get_locality_id.hpp>
+#include <hpx/runtime_local/startup_function.hpp>
 #ifdef OCTOTIGER_HAVE_KOKKOS
 #include <hpx/kokkos.hpp>
 #endif
 
-#include "frontend-helper.hpp"
-
-#include <chrono>
-#include <cstdio>
-#include <string>
-#include <tuple>
-#include <utility>
-#include <vector>
-
-#include <cfenv>
 #if !defined(_MSC_VER)
 #include <unistd.h>
-#else
-#include <cfloat>
 #endif
-
-#include <iostream>
 
 #ifdef OCTOTIGER_HAVE_HIP
 #warning "Experimental HIP Build! Do not (yet) use for production runs"
 #include <hip/hip_runtime.h>
 #endif
+
+#include "frontend-helper.hpp"
+#include "octotiger/debug.hpp"
 
 #ifndef OCTOTIGER_GIT_COMMIT_HASH
 #define OCTOTIGER_GIT_COMMIT_HASH "unknown"
@@ -208,6 +211,12 @@ void init_resource_partitioner_handler(hpx::resource::partitioner& rp,
 }
 
 int main(int argc, char* argv[]) {
+    // Ordinary main runs on every locality; hpx_main normally runs only on the console.
+    // Install after HPX sets up its own handlers, and restore after hpx::init returns.
+    octotiger::debug::stacktrace_handler stacktrace;
+    hpx::register_startup_function([&stacktrace]() {
+        stacktrace.install(hpx::get_locality_id());
+    });
 
 #if defined(OCTOTIGER_HAVE_HIP) || (defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_HIP))
     // Touch all AMDGPUs before starting HPX. This initializes all GPUs before starting HPX
