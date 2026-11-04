@@ -153,9 +153,9 @@ future<void> node_server::exchange_flux_corrections() {
 	}, "node_server::exchange_flux_corrections::sync"));
 }
 
-void node_server::all_hydro_bounds() {
+void node_server::all_hydro_bounds(real boundary_time) {
 	exchange_interlevel_hydro_data(); // bottom up step
-	collect_hydro_boundaries(); // interlevel step
+	collect_hydro_boundaries(false, boundary_time); // interlevel step
 	send_hydro_amr_boundaries(); // up-down step
 	++hcycle;
 }
@@ -190,7 +190,7 @@ void node_server::exchange_interlevel_hydro_data() {
   }, "all_hydro_bounds::exchange_interlevel_hydro_data")();
 }
 
-void node_server::collect_hydro_boundaries(bool energy_only) {
+void node_server::collect_hydro_boundaries(bool energy_only, real boundary_time) {
   hpx::annotated_function([&]() {
 	grid_ptr->clear_amr();
   const bool use_local_optimization = opts().optimize_local_communication;
@@ -416,7 +416,7 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
   }, "collect_hydro_boundaries::complete_hydro_amr_boundary")();
 	for (auto &face : geo::face::full_set()) {
 		if (my_location.is_physical_boundary(face)) {
-			grid_ptr->set_physical_boundaries(face, current_time);
+			grid_ptr->set_physical_boundaries(face, boundary_time < 0 ? current_time : boundary_time);
 		}
 	}
   }, "all_hydro_bounds::collect_hydro_boundaries")();

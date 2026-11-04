@@ -111,6 +111,10 @@ private:
 	channel<timestep_t> global_timestep_channel;
 	std::array<channel<timestep_t>, NCHILD + 1> local_timestep_channels;
 
+    std::array<channel<real>, NCHILD> radiation_iteration_children;
+    channel<real> radiation_iteration_global;
+    real radiation_iteration_max(real);
+
 	timestep_t dt_;
 
 public:
@@ -138,7 +142,7 @@ private:
 	static std::atomic<integer> static_initializing;
 	void initialize(real, real);
 	void send_hydro_amr_boundaries(bool energy_only=false);
-	void collect_hydro_boundaries(bool energy_only=false);
+	void collect_hydro_boundaries(bool energy_only=false, real boundary_time = -1);
 	static void static_initialize();
 	void clear_family();
 	hpx::future<void> exchange_flux_corrections();
@@ -156,7 +160,7 @@ public:
 		return step_num;
 	}
 	void exchange_interlevel_hydro_data();
-	void all_hydro_bounds();
+	void all_hydro_bounds(real boundary_time = -1);
 	void energy_hydro_bounds();
 	static bool child_is_on_face(integer ci, integer face) {
 		return (((ci >> (face / 2)) & 1) == (face & 1));
@@ -315,11 +319,15 @@ private:
 	unordered_channel<expansion_pass_type> parent_rad_channel;
 public:
 	hpx::future<void> exchange_rad_flux_corrections();
+    void receive_radiation_iteration(integer child, real value);
+    HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, receive_radiation_iteration, receive_radiation_iteration_action);
+    void broadcast_radiation_iteration(real value);
+    HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, broadcast_radiation_iteration, broadcast_radiation_iteration_action);
 	void compute_radiation(real dt, real omega);
 	hpx::future<void> exchange_interlevel_rad_data();
-	void all_rad_bounds();
+	void all_rad_bounds(real boundary_time);
 
-	void collect_radiation_bounds();
+	void collect_radiation_bounds(real boundary_time);
 	void send_rad_amr_bounds();
 
 	void recv_rad_flux_correct(std::vector<real>&&, const geo::face& face, const geo::octant& ci);/**/
@@ -380,6 +388,8 @@ HPX_REGISTER_ACTION_DECLARATION(node_server::form_tree_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::diagnostics_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::timestep_driver_ascend_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::scf_params_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::receive_radiation_iteration_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::broadcast_radiation_iteration_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_rad_boundary_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_rad_children_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_rad_flux_correct_action);

@@ -261,6 +261,8 @@ set(source_files
     src/multipole_interactions/util/calculate_stencil.cpp
     src/multipole_interactions/legacy/multipole_cpu_kernel.cpp
     src/radiation/rad_grid.cpp
+    src/radiation/exchange.cpp
+    src/radiation/iteration.cpp
     src/test_problems/marshak/marshak.cpp
     src/test_problems/rotating_star/rotating_star.cpp
     src/test_problems/sod/sod.cpp
@@ -543,7 +545,10 @@ endfunction()
 octotiger_require_strict_fp(
   src/grid.cpp
   src/problem.cpp
-  src/test_problems/wd_equilibrium.cpp)
+  src/test_problems/wd_equilibrium.cpp
+  src/radiation/rad_grid.cpp
+  src/radiation/exchange.cpp
+  src/radiation/iteration.cpp)
 
 # Hydro library
 add_hpx_library(
@@ -591,6 +596,8 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/io/silo_out.cpp
     src/io/silo_in.cpp
     src/radiation/rad_grid.cpp
+    src/radiation/exchange.cpp
+    src/radiation/iteration.cpp
     frontend/frontend-helper.cpp
 
     src/eos.cpp
@@ -1124,6 +1131,7 @@ add_subdirectory(tools)
 if(OCTOTIGER_WITH_TESTS)
     enable_testing()
 
+  add_subdirectory(test_problems/radiation_infrastructure)
   add_subdirectory(test_problems/elliptic)
   add_subdirectory(test_problems/stacktrace)
   add_subdirectory(test_problems)
