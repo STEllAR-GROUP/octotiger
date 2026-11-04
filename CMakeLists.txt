@@ -1124,6 +1124,7 @@ add_subdirectory(tools)
 if(OCTOTIGER_WITH_TESTS)
     enable_testing()
 
+  add_subdirectory(test_problems/elliptic)
   add_subdirectory(test_problems/stacktrace)
   add_subdirectory(test_problems)
 endif()
