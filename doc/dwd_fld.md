@@ -94,14 +94,17 @@ equal_struct_eos=1
 contact_fill=0
 ```
 
-SCF determines the cold WD structure and normalizes its physical units. The
-initial `fill2` estimate enters as its fifth power in the donor radius estimate;
-do not equate it directly with the final volume filling fraction reported by
-SCF. `scf_max_iterations` is a positive setup-only iteration budget, defaulting
-to the existing 256 iterations. The example explicitly uses 16 iterations at
+SCF determines the cold WD structure and normalizes its physical units. With
+`equal_struct_eos=1`, the applied donor surface constant is
+`C2=(1-fill2)*phi_center2+fill2*phi_L1`, so `fill2=1` places its surface at L1;
+`fill1` is ignored. The initial `fill2` estimate also enters as its fifth power
+in the donor radius estimate. Neither quantity is the final volume filling
+fraction reported by SCF. `scf_max_iterations` is a positive setup-only iteration
+budget, defaulting to 256. The example explicitly uses 16 iterations at
 level three for a bounded initialization check. Its `stop_step=1` limits the
 short evolution after SCF, not the SCF work itself; `stop_step=0` would return
-before any evolution. Check the SCF masses,
+before any evolution. Saving that state also requires `output=<checkpoint_stem>`;
+`stop_step=0` by itself does not write the final model. Check the SCF masses,
 filling fractions, density maxima and virial residual before using its result.
 An illustrative low-resolution run is not proof of SCF convergence.
 
@@ -162,7 +165,134 @@ New checkpoints preserve `fld_boundary`. Older checkpoints without this
 optional field restore `reflecting`, overriding the command-line boundary
 selection to retain the saved model's prior behavior.
 
+## Staff et al. (2018) q = 0.7 candidate
+
+The separate [seed configuration](../test_problems/fld/staff2018_q07/seed.cfg)
+and [SCF input](../test_problems/fld/staff2018_q07/scf.init) follow the
+q = 0.7, total-mass 0.9 solar-mass AMR initial-model family in
+[Staff et al. (2018), Sections 2 and 2.2.1](https://arxiv.org/pdf/1806.00337).
+That model has a homogeneous equal-mass carbon/oxygen accretor and a helium
+donor. Its donor fills the Roche lobe; the paper describes initial numerical
+readjustment initiating overflow. The configuration constructs a synchronous
+cold-WD counterpart of that family, with zero imposed angular-momentum or
+entropy driving. FLD is an added physical model, and this coarse candidate
+does not reproduce the paper's resolution or establish its merger outcome.
+
+| Parameter | Value |
+| --- | --- |
+| Accretor target mass | `0.5294117647058824` solar masses = `0.9/1.7` |
+| Donor target mass | `0.37058823529411766` solar masses = `0.9*0.7/1.7` |
+| Donor surface | `fill2=1`, with `equal_struct_eos=1` and `contact_fill=0` |
+| Rotation | `async1=async2=0`, synchronous |
+| SCF seed scale | `a=1`, `xscale=1`; physical units follow the cold WD normalization |
+| Mesh candidate | Fixed level three; repeat at level four before assessing resolution sensitivity |
+| SCF stopping | Tolerance `1e-6`, budget `1024`, minimum `25`, consecutive stable iterations `5` |
+| FLD solve | Nonlinear tolerance `1e-8`, outer-iteration budget `150`, multigrid-cycle budget `200` |
+| Radiation | Initially zero; fully ionized free-free/Thomson model, vacuum diffusion boundary |
+| Numerical atmosphere | Density `1e-12` in code units, helium composition; support heat follows the SCF prescription |
+| Opacity regularization | `1e4 K`, applied only to opacity; not an initial temperature |
+
+The current level-three candidate exhausted its 1,024-iteration SCF budget
+without meeting the unchanged `1e-6` criterion. Its final density residual was
+`2.9369332187e-5`, component-mass error `2.7505207324e-6`, and scalar change
+`6.1145009684e-11`, with zero consecutive stable iterations. Initialization
+was rejected before evolution; no equilibrium seed or physical stability
+pilot has been accepted. The bounded normal-CFL solver evidence below uses a
+separate, deliberately incomplete SCF initialization.
+
+Only the accretor-core, donor-core, and vacuum slots are populated initially;
+both envelope slots are zero, so neither star has a core/envelope subdivision.
+For the accretor mixture, `sum(X/A)=7/96`, `sum(X*Z/A)=1/2`, and
+`sum(X*Z^2/A)=7/2`. Its tracer therefore uses `A=96/7`, `Z=48/7`, and
+`atomic_number_squared=48`. These preserve the fully ionized heat-capacity,
+electron-density, and free-free charge moments of the 50/50 mixture exactly
+within the model; replacing the last value with `Z^2` would not. The donor and
+vacuum tracers each use `A=4`, `Z=2`, and `atomic_number_squared=4`.
+The unused accretor-envelope slot has the same composition as its accretor-core
+slot; the unused donor-envelope slot has the same composition as its donor-core
+slot. The cold
+EOS has electron molecular weight two for both stars.
+
+Create an isolated run directory and copy `scf.init` into it; that file is read
+from the process working directory, independently of `--config_file`. The
+following commands assume a built executable and one allocated HPX worker:
+
+```sh
+octotiger_source=/absolute/path/to/octotiger
+octotiger_exe=/absolute/path/to/build/octotiger
+run_dir=/absolute/path/to/staff2018_q07_l3
+mkdir -p "$run_dir/seed"
+cp "$octotiger_source/test_problems/fld/staff2018_q07/scf.init" "$run_dir/seed/scf.init"
+cd "$run_dir/seed"
+"$octotiger_exe" --hpx:threads=1 \
+  --config_file="$octotiger_source/test_problems/fld/staff2018_q07/seed.cfg" \
+  > application.log 2>&1
+```
+
+The seed configuration sets `stop_step=0` and `output=staff2018_q07_seed`.
+The explicit-output path runs after SCF and the bulk-velocity correction, then
+writes `staff2018_q07_seed.silo` and its companion
+`staff2018_q07_seed.silo.data/` directory. Retain both. Check the final
+`SCF converged` message, the last `scf_convergence.dat` row, and checkpoint
+readability before using the model. A configuration file alone is not evidence
+that this convergence target has been achieved.
+The named `SCF_STATE` line records the finalized mass, length and time units,
+post-update component masses, separation, angular frequency, stellar volumes,
+and volume-equivalent radii. Multiply the radii and separation by `code_to_cm`
+for centimeters; the physical period is `2*pi*code_to_s/omega` seconds.
+
+Both model configurations set `fld_max_iterations=150`: the normal-CFL probe
+required 104 outer iterations at the unchanged `1e-8` tolerance. FLD solver
+options are stored in checkpoints and restored over run-time options, so the
+seed must save this budget; changing only the evolution configuration would
+not override a checkpoint's lower limit.
+
+Resume into a separate directory using `evolve.cfg` for a short undriven CFL
+pilot. This file omits the seed-only `output` option, which would otherwise
+write a checkpoint and exit without evolving. An empty `--output=` is rejected
+by the HPX command-line parser. The saved seed has hydro enabled; `hard_dt=-1` allows the
+CFL-selected timestep rather than the smoke test's `1e-8` cap.
+
+```sh
+mkdir -p "$run_dir/pilot"
+ln -s "$run_dir/seed/staff2018_q07_seed.silo.data" \
+  "$run_dir/pilot/staff2018_q07_seed.silo.data"
+cd "$run_dir/pilot"
+"$octotiger_exe" --hpx:threads=1 \
+  --config_file="$octotiger_source/test_problems/fld/staff2018_q07/evolve.cfg" \
+  --restart_filename="$run_dir/seed/staff2018_q07_seed.silo" \
+  --stop_step=19 --hydro=on --hard_dt=-1 \
+  --driving_rate=0 --entropy_driving_rate=0 \
+  > application.log 2>&1
+```
+
+This is a 20-step pilot with the current inclusive `stop_step` convention.
+The shard-directory link lets Silo resolve the checkpoint's relative shard
+paths from the new working directory.
+Use its measured timestep and wall time to budget longer undriven evolution.
+Track component mass and central-density drift, separation and orbital
+frequency, angular-momentum and total-energy conservation, thermal/radiation
+growth, and escaping radiation. Column five of `step.dat` is the accumulated
+orbital phase `rotational_time`; divide it by `2*pi` for elapsed orbits. At exact contact,
+an undriven model may begin physical mass transfer during numerical
+readjustment; a detached stable plateau is not a promised outcome. Compare
+level-three and level-four seeds and startup histories before interpreting
+transfer onset or selecting any additional forcing. To form the level-four
+candidate, rerun the seed in another directory with
+`--min_level=4 --max_level=4` and the same physical inputs.
+
 ## Bounded validation
+
+The `staff_five_cfl_l2_retry150` application probe passed two normal-CFL steps
+at level two (32,768 cells), with `cfl=0.4` and `hard_dt=-1`. The timesteps were
+`0.01551547` and `0.02029541` in code units. Coupled residuals were
+`9.17034e-9` and `9.79584e-9` after 104 and 99 outer iterations. Reported
+radiation energies and material temperatures remained finite and nonnegative;
+the relative per-implicit-step thermal-plus-radiation-plus-escape energy
+defects were below `2.5e-16`. These ledgers test the implicit exchange and
+boundary leakage, not complete hydrodynamic energy conservation. The setup
+used only two SCF iterations and is evidence for solver robustness, not an
+equilibrium binary or physical stability.
 
 After the global inner-target correction described below, the separate
 `fld_global_target_amr` pure-scattering regression passed three steps on
