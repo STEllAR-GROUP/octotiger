@@ -105,6 +105,8 @@ void load_options_from_silo(std::string fname, DBfile *db) {
 			// Older hydro checkpoints have no FLD field or metadata.
 			opts().fld = DBInqVarExists(db, "fld") && ri(db, "fld");
 			if (opts().fld) {
+                // Missing boundary metadata preserves the historical closed box.
+                opts().fld_boundary = "reflecting";
                 opts().fld_opacity_model = "legacy";
                 opts().fld_material_model = "constant_cv";
                 opts().fld_unit_system = "code";
@@ -137,6 +139,12 @@ void load_options_from_silo(std::string fname, DBfile *db) {
                         }
                         return std::string(value.data());
                     };
+                    if (DBInqVarExists(db, "fld_boundary")) {
+                        opts().fld_boundary = read_fld_string("fld_boundary");
+                        if (opts().fld_boundary != "reflecting" && opts().fld_boundary != "vacuum") {
+                            throw std::runtime_error("Invalid FLD checkpoint boundary");
+                        }
+                    }
                     opts().fld_opacity_model = read_fld_string("fld_opacity_model");
                     opts().fld_material_model = read_fld_string("fld_material_model");
                     opts().fld_unit_system = read_fld_string("fld_unit_system");

@@ -51,6 +51,7 @@ public:
 	bool radiation;
 	// Independent comoving FLD model; coefficients and energies are in code units.
 	bool fld = false;
+	std::string fld_boundary = "reflecting";
 	std::string fld_opacity_model = "legacy";
 	std::string fld_material_model = "auto";
 	std::string fld_unit_system = "auto";
@@ -320,6 +321,7 @@ public:
 		arc & code_to_s;
 		arc & code_to_cm;
 		arc & fld;
+		arc & fld_boundary;
 		arc & fld_opacity_model;
 		arc & fld_material_model;
 		arc & fld_unit_system;

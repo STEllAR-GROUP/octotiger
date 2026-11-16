@@ -129,6 +129,7 @@ bool options::process_options(int argc, char *argv[]) {
 	("hydro", po::value<bool>(&(opts().hydro))->default_value(true), "hydro on/off")    //
 	("radiation", po::value<bool>(&(opts().radiation))->default_value(false), "radiation on/off")    //
 	("fld", po::value<bool>(&opts().fld)->default_value(false), "Enable comoving FLD with shared radiation energy")
+	("fld_boundary", po::value<std::string>(&opts().fld_boundary)->default_value("reflecting"), "Outer FLD diffusion boundary: reflecting or vacuum (zero incident radiation)")
 	("fld_opacity_model", po::value<std::string>(&opts().fld_opacity_model)->default_value("legacy"), "Opacity provider: legacy, independent, free_free_thomson")
 	("fld_material_model", po::value<std::string>(&opts().fld_material_model)->default_value("auto"), "Thermal model: auto, constant_cv, fully_ionized")
 	("fld_unit_system", po::value<std::string>(&opts().fld_unit_system)->default_value("auto"), "FLD units: auto, code, physical; physical uses finalized code_to_* and Kelvin")
@@ -267,6 +268,9 @@ bool options::process_options(int argc, char *argv[]) {
         throw std::invalid_argument("scf_max_iterations must be positive");
     }
     if (fld) {
+        if (fld_boundary != "reflecting" && fld_boundary != "vacuum") {
+            throw std::invalid_argument("fld_boundary must be reflecting or vacuum");
+        }
         if (radiation || (eos != IDEAL && eos != WD)) {
             throw std::invalid_argument("FLD supports IDEAL or WD and requires radiation=off (the separate M1 model)");
         }
@@ -431,6 +435,7 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(rad_implicit);
 		SHOW(radiation);
 		SHOW(fld);
+		SHOW(fld_boundary);
 		SHOW(fld_opacity_model);
 		SHOW(fld_material_model);
 		SHOW(fld_unit_system);

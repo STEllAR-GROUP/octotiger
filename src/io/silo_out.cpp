@@ -375,6 +375,7 @@ void output_stage4(std::string fname, int cycle) {
 			int const length = int(value.size()) + 1;
 			DBWrite(db, name, value.c_str(), &length, 1, DB_CHAR);
 		};
+		write_fld_string("fld_boundary", opts().fld_boundary);
 		write_fld_string("fld_opacity_model", opts().fld_opacity_model);
 		write_fld_string("fld_material_model", opts().fld_material_model);
 		write_fld_string("fld_unit_system", opts().fld_unit_system);

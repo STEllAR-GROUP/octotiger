@@ -136,7 +136,7 @@ The finite-volume diffusion operator uses shared face fluxes,
 \]
 
 Face diffusivities are formed from adjacent cells. Physical radiation boundaries
-have zero normal diffusive flux. At coarse-fine boundaries the
+use the `fld_boundary` condition described below. At coarse-fine boundaries the
 coarse flux is replaced by the area-weighted fine flux before residuals are
 evaluated. Covered parent
 cells are multigrid storage and do not contribute to physical energy totals.
@@ -193,6 +193,63 @@ In differential form the thermal contribution to the advected tau equation is
 backward-Euler step applies the solved energy increment and then recomputes
 tau, rather than explicitly stepping this differential source.
 
+## Outer radiation boundary
+
+`fld_boundary=reflecting` is the default and sets the normal diffusive flux to
+zero on every exterior face. `fld_boundary=vacuum` instead specifies zero
+incident radiation through a modified Marshak (Sánchez–Pomraning) condition.
+It controls implicit radiation diffusion; the hydro boundary options continue
+to control fluid transport and the explicit radiation advection.
+
+For outward normal \(\boldsymbol n\), the continuum vacuum condition is
+
+\[
+F_{\rm out}=-D\,\partial_n E_0=\beta(R)cE_b,\qquad
+\beta(R)=\frac{\log\cosh R}{R\tanh R},\qquad
+\beta(0)=\frac12,\quad\beta(\infty)=1.
+\]
+
+Here \(E_b\) is radiation energy density at the exterior face. The boundary
+coefficient corresponds to twice Castro's `FLDalpha`; Castro documents this
+as boundary condition 105. See its [coefficient implementation](https://github.com/AMReX-Astro/Castro/blob/main/Source/radiation/fluxlimiter.H)
+and [radiation boundary documentation](https://amrex-astro.github.io/Castro/docs/radiation.html#boundary-conditions).
+
+Octo-Tiger uses a positive finite-volume Robin flux across the half-cell
+distance \(h=\Delta x/2\), with adjacent interior energy \(E_c\):
+
+\[
+E_b=\frac{E_c}{1+\beta c h/D},\qquad
+F_{\rm out}=H E_c,\qquad
+H=\frac{c}{1/\beta+\chi_R h/\lambda},\qquad
+D=\frac{c\lambda}{\chi_R}.
+\]
+
+This combines diffusion across the interior half cell with the vacuum face
+condition. It preserves \(E_b\ge0\) and \(0\le F_{\rm out}\le cE_c\) for
+nonnegative interior energy, without constructing negative ghost energy.
+It is a half-cell finite-volume discretization of the condition, not a copy of
+Castro's boundary stencil. Both \(R=|\nabla E_0|/(\chi_R E_0)\) and the rational
+Levermore–Pomraning limiter use the adjacent interior cell's gradient estimate:
+an inward one-sided derivative in each direction touching a physical boundary,
+and a centered derivative otherwise. This includes edges and corners; clamped
+ghosts do not halve the normal derivative used in the boundary closure.
+Boundary coefficients are
+lagged during each linear solve and refreshed in the outer nonlinear iteration.
+
+Each accepted `FLD_STEP` reports `escaped_diffusion_energy`, the timestep
+integral of the outward flux over physical leaf faces, and
+`boundary_diffusion_luminosity`, that energy divided by the implicit timestep.
+The six fields `escape_x_minus`, `escape_x_plus`, `escape_y_minus`,
+`escape_y_plus`, `escape_z_minus`, and `escape_z_plus` give the per-face energy
+contributions. These are per-step code energies and code power, respectively;
+they are not cumulative totals. `boundary_vacuum=0/1` records the selected
+condition. Reflecting boundaries have zero diffusive escape.
+
+For a static implicit stage, the final gas-plus-radiation energy plus the
+escaped diffusive energy balances the initial gas-plus-radiation energy to the
+solver tolerance. This escape diagnostic excludes explicit advective flux and
+does not represent a directional photosphere luminosity or a spectrum.
+
 ## Timestep and options
 
 Implicit diffusion and thermal exchange remove their explicit stability limits.
@@ -208,6 +265,7 @@ The FLD options are:
 | Option | Meaning |
 | --- | --- |
 | `fld` | Enable the comoving FLD model; use `radiation=off`. |
+| `fld_boundary` | `reflecting` (default, zero diffusive flux) or `vacuum` (zero incident radiation on all exterior faces). |
 | `fld_absorption` | Coefficient \(\alpha_*\). |
 | `fld_density_exponent` | Exponent \(p\). |
 | `fld_temperature_exponent` | Exponent \(q\). |
@@ -257,6 +315,23 @@ high-Mach cancellation. They inspect
 accepted diagnostics and shared-buffer ownership rather than relying only on
 process exit status.
 
+`check_boundary.py` checks vacuum escape on uniform and mixed-AMR meshes,
+zero-radiation preservation, stiff absorption/emission, physical free-free plus
+Thomson WD material, and checkpoint restoration against uninterrupted evolution.
+It verifies the per-face flux sum and the gas/radiation/escape energy ledger.
+The numerical boundary fixture independently integrates the angular closure,
+and the multigrid fixture checks analytic one-cell decay, flux telescoping, FAS
+residual consistency, and area restriction of wall conductance.
+
+The seven boundary CTests passed on the CPU Release build on November 16, 2026.
+The vacuum AMR fixture used 288 leaves and 147,456 cells for three timesteps;
+its maximum nonlinear residual was `9.17e-10`. Across uniform, mixed-AMR,
+zero-radiation, stiff-exchange and physical WD-opacity fixtures, the largest
+relative gas/radiation/escape energy imbalance was `2.63e-15`. The WD fixture
+uses a small physical box to make escape measurable, not a stellar equilibrium.
+A preserved checkpoint without boundary metadata restored reflecting behavior,
+reported exactly zero escape and reproduced 14 saved diagnostic fields exactly.
+
 The rotating uniform-state fixture enables `inflow_bc`, because a uniform
 inertial fluid crosses the rotating box in both directions. The default outflow
 condition clips incoming mesh-relative velocities and does not preserve that
@@ -293,6 +368,10 @@ conservatively; coarse temperature is restricted thermal energy divided by
 restricted capacity. Accepted hydro species and thermal tau retain the existing
 hydro AMR transfers. Restart model version 1 stores all physics choices and
 coefficients. Older FLD checkpoints explicitly restore legacy opacity, constant
-Cv and code units.
+Cv and code units. The optional `fld_boundary` metadata preserves the selected
+diffusion boundary without changing the model version. Checkpoints lacking
+that field restore `reflecting`, including when the new command line requests
+`vacuum`; the checkpoint takes precedence. Diagnostic opacity selection remains
+a runtime setting.
 
 See [dwd_fld.md](dwd_fld.md) for equations, options, limitations and bounded tests.

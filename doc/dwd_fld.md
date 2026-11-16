@@ -115,6 +115,27 @@ diagnostic convention, not an extra opacity switch.
 
 Use `fld=on` with `radiation=off`: the latter controls the separate M1 solver.
 
+The example selects `fld_boundary=vacuum`, a zero-incident-radiation modified
+Marshak (Sánchez–Pomraning) boundary. The default remains `reflecting`, with zero
+normal diffusive flux, so existing configurations retain their behavior.
+For the vacuum condition, the outward face flux is \(F_{\rm out}=\beta cE_b\),
+where \(\beta=\log(\cosh R)/(R\tanh R)\) ranges from \(1/2\) to \(1\).
+The positive half-cell Robin discretization uses
+\(F_{\rm out}=cE_c/[1/\beta+\chi_R(\Delta x/2)/\lambda]\), with the interior
+closure estimate refreshed each nonlinear iteration. See the
+[boundary equations and implementation limits](comoving_fld.md#outer-radiation-boundary).
+
+`escaped_diffusion_energy` is the accepted per-step radiation energy leaving
+the computational box through diffusion, and `boundary_diffusion_luminosity`
+is that energy divided by the timestep. The six `escape_{x,y,z}_{minus,plus}`
+fields separate its box-face contributions; `boundary_vacuum` identifies the
+selected condition. These diagnostics use code energy and power units and
+exclude explicit advective transport. Domain-size and outer-atmosphere
+sensitivity still require assessment for a production run.
+
+New checkpoints preserve `fld_boundary`. Older checkpoints without this
+optional field restore `reflecting`, overriding the command-line boundary
+selection to retain the saved model's prior behavior.
 
 ## Bounded validation
 
@@ -127,7 +148,8 @@ application logs and `metrics.json` files retain the detailed measurements.
 `check_dwd_fld.py` launches one process at a time, defaults to one HPX worker,
 and applies a 600-second total wall-time budget across all phases of a case.
 Use a distinct empty work directory for each invocation. These WD runner cases
-use reflecting diffusion boundaries. Available cases are:
+retain the default reflecting diffusion boundary; the standalone DWD example
+selects vacuum. Available cases are:
 
 | Case | Check |
 | --- | --- |

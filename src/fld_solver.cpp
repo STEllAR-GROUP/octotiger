@@ -407,7 +407,7 @@ octotiger::fld::StageResult node_server::fld_stage(int stage, int target_level, 
                 int const side = int(face.get_side());
                 if (my_location.is_physical_boundary(face)) {
                     radiation.refreshPhysicalBoundaryFaceCoefficients(
-                        axis, side, false, physicalBoundaries);
+                        axis, side, opts().fld_boundary == "vacuum", physicalBoundaries);
                 } else if (neighbors[face.to_direction()].empty()) {
                     radiation.refreshBoundaryFaceCoefficients(axis, side, 2.0);
                 }
@@ -548,6 +548,29 @@ octotiger::fld::StageResult node_server::fld_stage(int stage, int target_level, 
             }
             result.diagnostics.opacityRegularizedCells = double(radiation.regularizedCells);
             result.diagnostics.unsharedBlocks = radiation.sharedEnergy == grid_ptr->get_fld_energy() ? 0.0 : 1.0;
+            // flux already contains dt. Sum physical leaf faces only: covered
+            // parents and internal coarse/fine interfaces must not be counted.
+            for (auto const& face : geo::face::full_set()) {
+                if (!my_location.is_physical_boundary(face)) {
+                    continue;
+                }
+                int const axis = int(face.get_dimension());
+                int const side = int(face.get_side());
+                int const a = (axis + 1) % NDIM;
+                int const b = (axis + 2) % NDIM;
+                std::array<int, NDIM> index{};
+                index[axis] = side ? INX + 1 : 1;
+                for (int i = 1; i <= INX; ++i) {
+                    for (int j = 1; j <= INX; ++j) {
+                        index[a] = i;
+                        index[b] = j;
+                        double const escaped = (side ? 1.0 : -1.0) * dx * dx *
+                            block.flux[axis](index[0], index[1], index[2]);
+                        result.diagnostics.escapedDiffusionEnergy += escaped;
+                        result.diagnostics.faceEscape[2 * axis + side] += escaped;
+                    }
+                }
+            }
         }
     }
     for (auto& child : descendants) {
@@ -757,6 +780,12 @@ void node_server::compute_fld(double dt) {
         << " cold_energy=" << totals.coldEnergy
         << " atmosphere_thermal_energy=" << totals.atmosphereThermalEnergy
         << " atmosphere_radiation_energy=" << totals.atmosphereRadiationEnergy
+        << " escaped_diffusion_energy=" << totals.escapedDiffusionEnergy
+        << " boundary_diffusion_luminosity=" << totals.escapedDiffusionEnergy / dt
+        << " escape_x_minus=" << totals.faceEscape[FXM] << " escape_x_plus=" << totals.faceEscape[FXP]
+        << " escape_y_minus=" << totals.faceEscape[FYM] << " escape_y_plus=" << totals.faceEscape[FYP]
+        << " escape_z_minus=" << totals.faceEscape[FZM] << " escape_z_plus=" << totals.faceEscape[FZP]
+        << " boundary_vacuum=" << (opts().fld_boundary == "vacuum" ? 1 : 0)
         << " shared=" << (totals.unsharedBlocks == 0.0 ? 1 : 0)
         << " leaves=" << topology.leaves << " cells=" << topology.leaves * INX * INX * INX << '\n';
 }

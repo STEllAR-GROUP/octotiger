@@ -58,6 +58,16 @@ if(TARGET octotiger)
 endif()
 
 if(TARGET octotiger)
+  foreach(case uniform amr restart cold coupled wd)
+    add_test(NAME fld_boundary_${case}
+      COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/check_boundary.py
+        --exe $<TARGET_FILE:octotiger>
+        --work-dir ${CMAKE_CURRENT_BINARY_DIR}/boundary_${case}
+        --case ${case})
+    set_tests_properties(fld_boundary_${case} PROPERTIES
+      PROCESSORS 1 TIMEOUT 660 LABELS "fld;boundary" RUN_SERIAL TRUE
+      ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
+  endforeach()
   foreach(case cold heated independent amr restart shock)
     add_test(NAME fld_wd_${case}
       COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/check_dwd_fld.py
