@@ -224,6 +224,8 @@ set(source_files
     src/grid_scf.cpp
     src/lane_emden.cpp
     src/multigrid/block.cpp
+    src/multigrid/reaction_diffusion.cpp
+    src/fld_grid.cpp
     src/new.cpp
     src/node_client.cpp
     src/node_location.cpp
@@ -548,6 +550,8 @@ endfunction()
 octotiger_require_strict_fp(
   src/grid.cpp
   src/multigrid/block.cpp
+    src/multigrid/reaction_diffusion.cpp
+    src/fld_grid.cpp
   src/problem.cpp
   src/test_problems/wd_equilibrium.cpp
   src/radiation/rad_grid.cpp
@@ -597,6 +601,8 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/node_server_actions_2.cpp
     src/node_server_actions_3.cpp
     src/multigrid/block.cpp
+    src/multigrid/reaction_diffusion.cpp
+    src/fld_grid.cpp
     src/physcon.cpp 
     src/io/silo_out.cpp
     src/io/silo_in.cpp

@@ -10,13 +10,30 @@ add_compile_definitions(OCTOTIGER_GRIDDIM=${OCTOTIGER_WITH_GRIDDIM})
 
 get_filename_component(fld_source_root "${CMAKE_CURRENT_SOURCE_DIR}/../.." ABSOLUTE)
 
-add_executable(fld_numerics test_numerics.cpp)
+add_executable(fld_numerics test_numerics.cpp
+  "${fld_source_root}/src/multigrid/block.cpp"
+  "${fld_source_root}/src/multigrid/reaction_diffusion.cpp")
 target_include_directories(fld_numerics PRIVATE "${fld_source_root}")
 target_compile_features(fld_numerics PRIVATE cxx_std_17)
 add_test(NAME fld_numerics COMMAND fld_numerics)
 set_tests_properties(fld_numerics PROPERTIES PROCESSORS 1 TIMEOUT 120 LABELS fld)
 
-foreach(fixture opacity material)
+add_executable(fld_hydro_numerics test_hydro.cpp)
+target_include_directories(fld_hydro_numerics PRIVATE "${fld_source_root}")
+target_compile_features(fld_hydro_numerics PRIVATE cxx_std_17)
+add_test(NAME fld_hydro_numerics COMMAND fld_hydro_numerics)
+set_tests_properties(fld_hydro_numerics PROPERTIES PROCESSORS 1 TIMEOUT 120 LABELS fld)
+
+add_executable(fld_thermal_numerics test_thermal.cpp
+  "${fld_source_root}/src/fld_grid.cpp"
+  "${fld_source_root}/src/multigrid/block.cpp"
+  "${fld_source_root}/src/multigrid/reaction_diffusion.cpp")
+target_include_directories(fld_thermal_numerics PRIVATE "${fld_source_root}")
+target_compile_features(fld_thermal_numerics PRIVATE cxx_std_17)
+add_test(NAME fld_thermal_numerics COMMAND fld_thermal_numerics)
+set_tests_properties(fld_thermal_numerics PROPERTIES PROCESSORS 1 TIMEOUT 120 LABELS fld)
+
+foreach(fixture opacity material boundary)
   add_executable(fld_${fixture}_numerics test_${fixture}.cpp)
   target_include_directories(fld_${fixture}_numerics PRIVATE "${fld_source_root}")
   target_compile_features(fld_${fixture}_numerics PRIVATE cxx_std_17)
