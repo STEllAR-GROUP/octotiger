@@ -10,6 +10,12 @@ add_compile_definitions(OCTOTIGER_GRIDDIM=${OCTOTIGER_WITH_GRIDDIM})
 
 get_filename_component(fld_source_root "${CMAKE_CURRENT_SOURCE_DIR}/../.." ABSOLUTE)
 
+add_executable(fld_numerics test_numerics.cpp)
+target_include_directories(fld_numerics PRIVATE "${fld_source_root}")
+target_compile_features(fld_numerics PRIVATE cxx_std_17)
+add_test(NAME fld_numerics COMMAND fld_numerics)
+set_tests_properties(fld_numerics PROPERTIES PROCESSORS 1 TIMEOUT 120 LABELS fld)
+
 foreach(fixture opacity)
   add_executable(fld_${fixture}_numerics test_${fixture}.cpp)
   target_include_directories(fld_${fixture}_numerics PRIVATE "${fld_source_root}")
@@ -17,3 +23,6 @@ foreach(fixture opacity)
   add_test(NAME fld_${fixture}_numerics COMMAND fld_${fixture}_numerics)
   set_tests_properties(fld_${fixture}_numerics PROPERTIES PROCESSORS 1 TIMEOUT 120 LABELS fld)
 endforeach()
+
+find_package(Threads REQUIRED)
+target_link_libraries(fld_opacity_numerics PRIVATE Threads::Threads)
