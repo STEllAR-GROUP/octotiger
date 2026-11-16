@@ -223,6 +223,7 @@ set(source_files
     src/grid_output.cpp
     src/grid_scf.cpp
     src/lane_emden.cpp
+    src/multigrid/block.cpp
     src/new.cpp
     src/node_client.cpp
     src/node_location.cpp
@@ -546,6 +547,7 @@ function(octotiger_require_strict_fp)
 endfunction()
 octotiger_require_strict_fp(
   src/grid.cpp
+  src/multigrid/block.cpp
   src/problem.cpp
   src/test_problems/wd_equilibrium.cpp
   src/radiation/rad_grid.cpp
@@ -594,6 +596,7 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/node_server_actions_1.cpp
     src/node_server_actions_2.cpp
     src/node_server_actions_3.cpp
+    src/multigrid/block.cpp
     src/physcon.cpp 
     src/io/silo_out.cpp
     src/io/silo_in.cpp
@@ -1141,5 +1144,6 @@ if(OCTOTIGER_WITH_TESTS)
   add_subdirectory(test_problems/radiation_infrastructure)
   add_subdirectory(test_problems/elliptic)
   add_subdirectory(test_problems/stacktrace)
+  add_subdirectory(test_problems/multigrid)
   add_subdirectory(test_problems)
 endif()
