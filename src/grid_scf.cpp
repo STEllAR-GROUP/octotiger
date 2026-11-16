@@ -280,6 +280,14 @@ struct scf_parameters {
 			//	printf( "!\n");
 			struct_eos2 = std::make_shared<struct_eos>(scf_options::M2, R2);
 			struct_eos1 = std::make_shared<struct_eos>(scf_options::M1, *struct_eos2);
+			// A unit core fraction is a homogeneous star. Its envelope tracer
+			// remains exactly zero, including during the initial refinement.
+			if (scf_options::core_frac1 == 1.0) {
+				struct_eos1->wd_core_cut = 0.0;
+			}
+			if (scf_options::core_frac2 == 1.0) {
+				struct_eos2->wd_core_cut = 0.0;
+			}
 		} else {
 			if (scf_options::equal_struct_eos) {
 				struct_eos2 = std::make_shared<struct_eos>(scf_options::M2, R2, scf_options::nc2, scf_options::ne2, scf_options::core_frac2, scf_options::mu2);
@@ -528,8 +536,10 @@ void node_server::run_scf(std::string const &data_dir) {
 		//	printf( "++++++++++++++++++++%e %e %e %e \n", rho1, rho2, c1_x, c2_x);
 		params.struct_eos2->set_d0(rho2);
 		if (opts().eos == WD) {
-			params.struct_eos1->set_wd_T0(0.0, opts().atomic_mass[0], opts().atomic_number[0]);
-			params.struct_eos2->set_wd_T0(0.0, opts().atomic_mass[3], opts().atomic_number[3]);
+			size_t const accretor_species = spc_ac_i - spc_i;
+			size_t const donor_species = (scf_options::core_frac2 == 1.0 ? spc_dc_i : spc_de_i) - spc_i;
+			params.struct_eos1->set_wd_T0(0.0, opts().atomic_mass[accretor_species], opts().atomic_number[accretor_species]);
+			params.struct_eos2->set_wd_T0(0.0, opts().atomic_mass[donor_species], opts().atomic_number[donor_species]);
 ///			printf("wd_eps = %e %e\n", params.struct_eos1->wd_eps, params.struct_eos2->wd_eps);
 		}
 		if (scf_options::equal_struct_eos) {
@@ -584,17 +594,25 @@ void node_server::run_scf(std::string const &data_dir) {
 		if (opts().eos == WD) {
 			e1f = e1->wd_core_cut;
 			e2f = e2->wd_core_cut;
-			auto relerr = 2.0 * (scf_options::core_frac1 - core_frac_1) / (scf_options::core_frac1 + core_frac_1);
-			if (relerr < 0.0) {
-				e1f = (1.0 - w0) * e1f + w0 * e1f * (1.0 - 10.0 * relerr);
+			if (scf_options::core_frac1 == 1.0) {
+				e1f = 0.0;
 			} else {
-				e1f = (1.0 - w0) * e1f + w0 * e1f / (1.0 + 10.0 * relerr);
+				real const relerr = 2.0 * (scf_options::core_frac1 - core_frac_1) / (scf_options::core_frac1 + core_frac_1);
+				if (relerr < 0.0) {
+					e1f = (1.0 - w0) * e1f + w0 * e1f * (1.0 - 10.0 * relerr);
+				} else {
+					e1f = (1.0 - w0) * e1f + w0 * e1f / (1.0 + 10.0 * relerr);
+				}
 			}
-			relerr = 2.0 * (scf_options::core_frac2 - core_frac_2) / (scf_options::core_frac2 + core_frac_2);
-			if (relerr < 0.0) {
-				e2f = (1.0 - w0) * e2f + w0 * e2f * (1.0 - 10.0 * relerr);
+			if (scf_options::core_frac2 == 1.0) {
+				e2f = 0.0;
 			} else {
-				e2f = (1.0 - w0) * e2f + w0 * e2f / (1.0 + 10.0 * relerr);
+				real const relerr = 2.0 * (scf_options::core_frac2 - core_frac_2) / (scf_options::core_frac2 + core_frac_2);
+				if (relerr < 0.0) {
+					e2f = (1.0 - w0) * e2f + w0 * e2f * (1.0 - 10.0 * relerr);
+				} else {
+					e2f = (1.0 - w0) * e2f + w0 * e2f / (1.0 + 10.0 * relerr);
+				}
 			}
 			e1->wd_core_cut = e1f;
 			e2->wd_core_cut = e2f;

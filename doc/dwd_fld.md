@@ -110,8 +110,12 @@ existing small numerical floor. The density-floor atmosphere has a separate
 gravitational-support thermal prescription, so it is not a globally cold
 vacuum. `cold_energy`, `thermal_energy`, `radiation_energy`,
 `atmosphere_thermal_energy`, and `atmosphere_radiation_energy` expose the distinct
-reservoirs. The atmosphere classification uses the fifth DWD tracer and is a
-diagnostic convention, not an extra opacity switch.
+reservoirs. The standard five-tracer layout is retained: accretor core,
+accretor envelope, donor core, donor envelope, vacuum. Setting
+`core_frac1=core_frac2=1` places each uniform star entirely in its core slot
+and initializes both envelope slots to zero. The unused slots remain available
+for later models. The atmosphere classification uses the vacuum tracer and is
+a diagnostic convention, not an extra opacity switch.
 
 Use `fld=on` with `radiation=off`: the latter controls the separate M1 solver.
 `light_curve_opacity_model=fld` evaluates the same total Rosseland provider as
