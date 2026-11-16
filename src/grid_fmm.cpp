@@ -3,6 +3,13 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+#include <cmath>
+#include <cstddef>
+#include <utility>
+#include <vector>
+
+#include <hpx/include/parallel_for_loop.hpp>
+
 #include "octotiger/common_kernel/interaction_constants.hpp"
 #include "octotiger/common_kernel/interactions_iterators.hpp"
 #include "octotiger/common_kernel/struct_of_array_data.hpp"
@@ -17,13 +24,6 @@
 #include "octotiger/simd_legacy.hpp"
 #include "octotiger/space_vector.hpp"
 #include "octotiger/taylor.hpp"
-
-#include <hpx/include/parallel_for_loop.hpp>
-
-#include <cmath>
-#include <cstddef>
-#include <utility>
-#include <vector>
 
 extern taylor<4, real> factor;
 extern taylor<4, m2m_vector> factor_half_v;
@@ -1713,6 +1713,17 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
                             real mtot = Vc::reduce(mc);
 #endif
 							for (integer d = 0; d < NDIM; ++d) {
+                                // Empty source groups have no center of mass. Use
+                                // their geometric center so zero moments remain
+                                // finite during the upward FMM translation.
+                                if (mtot == 0.0) {
+                                    real center = 0.0;
+                                    for (integer ci = 0; ci != NCHILD; ++ci) {
+                                        center += X[d][ci];
+                                    }
+                                    (*(com_ptr[1]))[iiip][d] = center / NCHILD;
+                                    continue;
+                                }
 #if !defined(HPX_HAVE_DATAPAR_VC) || (defined(Vc_IS_VERSION_1) && Vc_IS_VERSION_1)
 								(*(com_ptr[1]))[iiip][d] = (X[d] * mc).sum() / mtot;
 #else
