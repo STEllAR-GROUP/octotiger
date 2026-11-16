@@ -178,7 +178,8 @@ void node_server::rho_move(real x) {
 		}
 	}
 	const auto dx_min = 2.0 * opts().xscale / H_NX / (1 << opts().max_level);
-	grid_ptr->rho_move(std::min(w0 * x / 2.0, dx_min / 10.0));
+	real const shift_limit = dx_min / 10.0;
+	grid_ptr->rho_move(std::clamp(w0 * x / 2.0, -shift_limit, shift_limit));
 	all_hydro_bounds();
 	if (is_refined) {
 		for (auto &f : futs) {

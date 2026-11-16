@@ -384,6 +384,23 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 		return rc;
 	}
 	const real dV = dx * dx * dx;
+	real grid_mass = 0.0;
+	auto const accumulate_grid_center = [&](integer const cell) {
+		real const cell_mass = U[rho_i][cell] * dV;
+		grid_mass += cell_mass;
+		for (integer dimension = 0; dimension != NDIM; ++dimension) {
+			rc.grid_com[dimension] += cell_mass * X[dimension][cell];
+		}
+	};
+	auto const finish = [&]() {
+		// Stage one only identifies stellar centers, but its reduction still
+		// needs the full current grid mass to combine this center correctly.
+		rc.grid_sum[rho_i] = grid_mass;
+		for (integer dimension = 0; dimension != NDIM; ++dimension) {
+			rc.grid_com[dimension] = grid_mass > 0.0 ? rc.grid_com[dimension] / grid_mass : 0.0;
+		}
+		return rc;
+	};
 	real x, y, z;
 	integer iii, iiig;
 
@@ -392,6 +409,7 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				for (integer l = H_BW; l != H_NX - H_BW; ++l) {
 					const integer iii = hindex(j, k, l);
+					accumulate_grid_center(iii);
 					if (std::abs(X[YDIM][iii]) < dx && std::abs(X[ZDIM][iii]) < dx) {
 						rc.xline.push_back(std::make_pair(X[XDIM][iii], std::vector<real>()));
 						for (int fi = 0; fi < opts().n_fields; fi++) {
@@ -471,7 +489,7 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 			rc.grid_out[f] += U_out[f];
 		}
 		rc.grid_out[egas_i] += U_out[pot_i];
-		return rc;
+		return finish();
 	}
 
 	const auto is_loc = [this, diags](integer j, integer k, integer l) {
@@ -573,6 +591,7 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 		for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 			for (integer l = H_BW; l != H_NX - H_BW; ++l) {
 				iii = hindex(j, k, l);
+				accumulate_grid_center(iii);
 				iiig = gindex(j - H_BW, k - H_BW, l - H_BW);
 				x = X[XDIM][iii];
 				y = X[YDIM][iii];
@@ -596,7 +615,7 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 						rho = { 0.0, 0.0 };
 					} else {
 						rc.failed = true;
-						return rc;
+						return finish();
 					}
 				}
 				if (diags.stage > 1) {
@@ -604,7 +623,7 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 					const real phi_g = G[iiig][phi_i];
 					if (diags.omega < 0.0) {
 						rc.failed = true;
-						return rc;
+						return finish();
 					}
 					const safe_real phi_r = -0.5 * POWER(diags.omega, 2) * R2;
 					const safe_real phi_eff = phi_g + phi_r;
@@ -775,7 +794,7 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 	}
 	rc.grid_out[egas_i] += U_out[pot_i];
 
-	return rc;
+	return finish();
 }
 
 hpx::spinlock grid::omega_mtx;
