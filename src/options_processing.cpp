@@ -131,6 +131,11 @@ bool options::process_options(int argc, char *argv[]) {
 	("rewrite_silo", po::value<bool>(&(opts().rewrite_silo))->default_value(false), "rewrite silo and exit")    //
 	("rad_implicit", po::value<bool>(&(opts().rad_implicit))->default_value(true), "implicit radiation on/off")    //
 	("gravity", po::value<bool>(&(opts().gravity))->default_value(true), "gravity on/off")    //
+	("gravity_compare", po::value<bool>(&(opts().gravity_compare))->default_value(false), "Compare static sphere gravity using Scorpio multigrid and FMM")
+	("gravity_compare_output", po::value<bool>(&(opts().gravity_compare_output))->default_value(false), "Write independent MG, FMM and analytic leaf fields as CSV")
+	("gravity_mg_max_cycles", po::value<integer>(&(opts().gravity_mg_max_cycles))->default_value(100), "Maximum static gravity multigrid cycles")
+	("gravity_mg_tolerance", po::value<real>(&(opts().gravity_mg_tolerance))->default_value(1.0e-9), "Relative volume L2 Poisson residual tolerance")
+	("gravity_mg_boundary", po::value<std::string>(&(opts().gravity_mg_boundary))->default_value("analytic"), "Static gravity boundary: analytic or multipole (degree four)")
 	("bench", po::value<bool>(&(opts().bench))->default_value(false), "run benchmark") //
 	("datadir", po::value<std::string>(&(opts().data_dir))->default_value("./"), "directory for output") //
 	("output", po::value<std::string>(&(opts().output_filename))->default_value(""), "filename for output") //

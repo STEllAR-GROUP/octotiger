@@ -243,6 +243,9 @@ public:
 	real get_dx() const {
 		return dx;
 	}
+	real gravity_value(integer field, integer i, integer j, integer k) const {
+		return G[gindex(i, j, k)][field];
+	}
 	static std::vector<std::pair<std::string, std::string>> get_scalar_expressions();
 	static std::vector<std::pair<std::string, std::string>> get_vector_expressions();
 	std::vector<safe_real>& get_field(integer f) {

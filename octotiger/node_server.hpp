@@ -6,6 +6,19 @@
 #ifndef NODE_SERVER_HPP_
 #define NODE_SERVER_HPP_
 
+#include <array>
+#include <atomic>
+#include <cstddef>
+#include <iostream>
+#include <map>
+#include <vector>
+#include <memory>
+
+#include <hpx/futures/future.hpp>
+#include <hpx/include/components.hpp>
+#include <hpx/include/serialization.hpp>
+#include <hpx/mutex.hpp>
+
 #include "octotiger/config/export_definitions.hpp"
 #include "octotiger/radiation/rad_grid.hpp"
 #include "octotiger/interaction_types.hpp"
@@ -18,20 +31,11 @@
 #include "octotiger/node_location.hpp"
 #include "octotiger/profiler.hpp"
 #include "octotiger/io/silo.hpp"
-//#include "octotiger/struct_eos.hpp"
 
-#include <hpx/futures/future.hpp>
-#include <hpx/include/components.hpp>
-#include <hpx/include/serialization.hpp>
-#include <hpx/mutex.hpp>
-
-#include <array>
-#include <atomic>
-#include <cstddef>
-#include <iostream>
-#include <map>
-#include <vector>
-
+namespace octotiger { namespace multigrid {
+class Block;
+struct GravityBoundary;
+} }
 
 struct node_count_type {
 	std::uint64_t total;
@@ -72,6 +76,8 @@ private:
 	std::array<integer, NVERTEX> child_descendant_count;
 	std::array<real, NDIM> xmin;
 	real dx;
+	std::shared_ptr<octotiger::multigrid::Block> multigrid_block_;
+	std::shared_ptr<octotiger::multigrid::GravityBoundary> multigrid_boundary_;
 
   size_t number_hydro_exchange_promises;
   std::vector<hpx::promise<void>> ready_for_hydro_exchange;
@@ -238,6 +244,17 @@ public:
 	HPX_DEFINE_COMPONENT_ACTION(node_server, solve_gravity, solve_gravity_action);
 
 	void execute_solver(bool scf, node_count_type);
+	void compare_gravity_multigrid();
+	std::vector<double> multigrid_stage(int stage, int level);
+	std::vector<double> multigrid_data(int field, int operation, int index);
+	std::vector<double> multigrid_face(int axis, int side, int kind);
+	std::vector<double> multigrid_sample(int field, std::vector<double> positions);
+	std::vector<double> multigrid_boundary(int stage, std::vector<double> parameters);
+	HPX_DEFINE_COMPONENT_ACTION(node_server, multigrid_stage, multigrid_stage_action);
+	HPX_DEFINE_COMPONENT_ACTION(node_server, multigrid_data, multigrid_data_action);
+	HPX_DEFINE_COMPONENT_ACTION(node_server, multigrid_face, multigrid_face_action);
+	HPX_DEFINE_COMPONENT_ACTION(node_server, multigrid_sample, multigrid_sample_action);
+	HPX_DEFINE_COMPONENT_ACTION(node_server, multigrid_boundary, multigrid_boundary_action);
 
 	void set_grid(const std::vector<real>&, std::vector<real>&&);/**/
 	HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, set_grid, set_grid_action);
@@ -396,6 +413,11 @@ HPX_REGISTER_ACTION_DECLARATION(node_server::send_rad_flux_correct_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::set_rad_grid_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::erad_init_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::amr_error_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::multigrid_stage_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::multigrid_data_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::multigrid_face_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::multigrid_sample_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::multigrid_boundary_action);
 //HPX_REGISTER_ACTION_DECLARATION(node_server::set_parent_action);
 
 #endif /* NODE_SERVER_HPP_ */

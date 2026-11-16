@@ -6,17 +6,17 @@
 #ifndef OPTIONS_HPP_
 #define OPTIONS_HPP_
 
+#include <cstddef>
+#include <string>
+#include <vector>
+
+#include <hpx/include/naming.hpp>
+
 #include "octotiger/config/export_definitions.hpp"
 #include "octotiger/defs.hpp"
 #include "octotiger/interaction_types.hpp"
 #include "octotiger/options_enum.hpp"
 #include "octotiger/real.hpp"
-
-#include <hpx/include/naming.hpp>
-
-#include <cstddef>
-#include <string>
-#include <vector>
 
 /* Must look like this - no spaces
  COMMAND_LINE_ENUM(problem_type,DWD,SOD,BLAST,NONE,SOLID_SPHERE,STAR,MOVING_STAR,RADIATION_TEST,ROTATING_STAR,MARSHAK,AMR_TEST);
@@ -41,6 +41,12 @@ public:
 	bool disable_analytic;
 	bool core_refine;
 	bool gravity;
+	// Run-only diagnostics, intentionally absent from checkpoint serialization.
+	bool gravity_compare = false;
+	bool gravity_compare_output = false;
+	integer gravity_mg_max_cycles = 100;
+	real gravity_mg_tolerance = 1.0e-9;
+	std::string gravity_mg_boundary = "analytic";
 	bool hydro;
 	bool radiation;
 	real grad_rho_refine;

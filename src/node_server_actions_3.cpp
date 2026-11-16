@@ -263,6 +263,10 @@ void line_of_centers_analyze(line_of_centers_t const &loc, real omega, real com,
 }
 
 void node_server::execute_solver(bool scf, node_count_type ngrids) {
+	if (opts().gravity_compare) {
+		compare_gravity_multigrid();
+		return;
+	}
 	timings_.times_[timings::time_regrid] = 0.0;
 	timings_.times_[timings::time_fmm] = 0.0;
 	timings_.times_[timings::time_total] = 0.0;

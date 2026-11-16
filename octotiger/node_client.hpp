@@ -6,6 +6,12 @@
 #ifndef NODE_CLIENT_HPP_
 #define NODE_CLIENT_HPP_
 
+#include <memory>
+#include <vector>
+
+#include <hpx/futures/promise.hpp>
+#include <hpx/include/naming.hpp>
+
 #include "octotiger/config/export_definitions.hpp"
 #include "octotiger/radiation/rad_grid.hpp"
 #include "octotiger/defs.hpp"
@@ -15,11 +21,6 @@
 #include "octotiger/geometry.hpp"
 #include "octotiger/grid.hpp"
 #include "octotiger/node_location.hpp"
-
-#include <hpx/futures/promise.hpp>
-#include <hpx/include/naming.hpp>
-
-//#include <boost/mpi/packed_iarchive.hpp>
 
 class node_server;
 class analytic_t;
@@ -88,6 +89,11 @@ public:
         const geo::octant& ci) const;
     future<diagnostics_t> diagnostics(const diagnostics_t&) const;
     future<analytic_t> compare_analytic() const;
+    future<std::vector<double>> multigrid_stage(int stage, int level) const;
+    future<std::vector<double>> multigrid_data(int field, int operation, int index) const;
+    future<std::vector<double>> multigrid_face(int axis, int side, int kind) const;
+    future<std::vector<double>> multigrid_sample(int field, std::vector<double> positions) const;
+    future<std::vector<double>> multigrid_boundary(int stage, std::vector<double> parameters) const;
     //	hpx::future<void> set_parent(hpx::id_type);
     node_client();
     future<set_child_aunt_type> set_child_aunt(
