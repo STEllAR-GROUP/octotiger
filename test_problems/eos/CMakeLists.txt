@@ -10,5 +10,11 @@ add_hpx_executable(wdeos_sound_speed_test
 # Match the instruction set selected for the production SIMD kernels.
 separate_arguments(wdeos_arch_options NATIVE_COMMAND "${OCTOTIGER_ARCH_FLAG}")
 target_compile_options(wdeos_sound_speed_test PRIVATE ${wdeos_arch_options})
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  # Retain the direct hydrolib dependency. Otherwise --as-needed can discard
+  # it and pull a second Kokkos runtime from its transitive static archives,
+  # registering two destructors for an interposed Kokkos static string.
+  target_link_options(wdeos_sound_speed_test PRIVATE "LINKER:--no-as-needed")
+endif()
 add_test(NAME wdeos_sound_speed COMMAND wdeos_sound_speed_test)
 set_tests_properties(wdeos_sound_speed PROPERTIES PROCESSORS 1 TIMEOUT 120 LABELS eos)
