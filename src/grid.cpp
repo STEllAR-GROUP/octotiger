@@ -2046,7 +2046,7 @@ void grid::restore() {
 		for (integer i = 0; i != INX; ++i) {
 			for (integer j = 0; j != INX; ++j) {
 				for (integer k = 0; k != INX; ++k) {
-					U[field][h0index(i, j, k)] = U0[field][hindex(i + H_BW, j + H_BW, k + H_BW)];
+					U[field][hindex(i + H_BW, j + H_BW, k + H_BW)] = U0[field][h0index(i, j, k)];
 				}
 			}
 		}
