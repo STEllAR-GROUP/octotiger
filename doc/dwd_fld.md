@@ -1,5 +1,32 @@
 # Cold white dwarfs with FLD
 
+The WD path separates the cold degeneracy energy from the material reservoir
+that emits and absorbs radiation. For each cell,
+
+\[
+e_{\rm th}=E_{\rm gas}-|\boldsymbol{p}|^2/(2\rho)-e_{\rm cold}(\rho),
+\qquad e_{\rm th}=C_V T.
+\]
+
+The existing dual-energy switch uses `tau^gamma` when subtraction cannot recover
+the thermal component reliably. The implicit step changes the evolved total
+gas energy by the accepted radiation exchange and updates the thermal tracer;
+it does not reconstruct total gas energy from the tracer. Cold energy remains
+in the WD pressure and hydrodynamic energy equations.
+
+`fld_material_model=auto` selects fully ionized material for `eos=wd` and the
+legacy constant `fld_cv` for the ideal EOS. The fully ionized model evaluates
+`sum(X_s (Z_s+1)/A_s)`, `sum(X_s Z_s/A_s)`, and `sum(X_s Z_s^2/A_s)` from the
+cell's normalized species tracers. An optional per-tracer
+`atomic_number_squared` supplies the ion-number-weighted charge-squared moment
+for a homogeneous mixture; its default is `atomic_number^2` for a single ion
+species. Its fixed-density heat capacity is
+`rho * (k_B/m_H) * sum(X_s (Z_s+1)/A_s) / (gamma-1)`. The cold WD EOS still uses
+its existing electron molecular weight of two; arbitrary compositions do not
+alter that cold EOS. The fully ionized thermal model includes classical ions
+and electrons and does not include electron degeneracy corrections to heat
+capacity, ionization energy, nuclear burning, or Compton exchange.
+
 ## Units and opacity
 
 `fld_unit_system=physical` uses the finalized `code_to_g`, `code_to_cm`, and

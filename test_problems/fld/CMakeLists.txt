@@ -16,7 +16,7 @@ target_compile_features(fld_numerics PRIVATE cxx_std_17)
 add_test(NAME fld_numerics COMMAND fld_numerics)
 set_tests_properties(fld_numerics PROPERTIES PROCESSORS 1 TIMEOUT 120 LABELS fld)
 
-foreach(fixture opacity)
+foreach(fixture opacity material)
   add_executable(fld_${fixture}_numerics test_${fixture}.cpp)
   target_include_directories(fld_${fixture}_numerics PRIVATE "${fld_source_root}")
   target_compile_features(fld_${fixture}_numerics PRIVATE cxx_std_17)
