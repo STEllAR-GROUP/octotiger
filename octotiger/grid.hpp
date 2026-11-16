@@ -29,12 +29,8 @@
 #include "octotiger/scf_data.hpp"
 #include "octotiger/scf_geometry.hpp"
 #include "octotiger/io/silo.hpp"
-// #include "octotiger/simd_legacy.hpp"
 #include "octotiger/space_vector.hpp"
-//#include "octotiger/taylor.hpp"
 #include "octotiger/unitiger/safe_real.hpp"
-
-//#include "octotiger/unitiger/hydro.hpp"
 
 class struct_eos;
 
@@ -153,6 +149,20 @@ private:
 	static double idle_rate;
 	hydro_computer<NDIM, INX, physics<NDIM>> hydro;
 	std::shared_ptr<rad_grid> rad_grid_ptr;
+	std::shared_ptr<std::vector<real>> fld_energy_;
+	std::vector<real> fld_energy0_;
+	std::vector<real> fld_rhs_;
+	std::vector<real> fld_shadow_;
+	std::array<std::vector<real>, NDIM> fld_flux_;
+	real fld_outflow_ = 0.0;
+	real fld_outflow0_ = 0.0;
+	std::array<real, NCHILD> fld_child_outflows_{};
+	timestep_t compute_fld_fluxes();
+	void compute_fld_sources();
+	void compute_fld_dudt();
+	void next_fld_energy(integer rk, real dt);
+	void complete_fld_amr_boundary();
+	void set_fld_physical_boundary(geo::face const &face);
 	std::vector<roche_type> roche_lobe;
 	std::vector<int> is_coarse;
 	std::vector<int> has_coarse;
@@ -286,7 +296,20 @@ public:
 		U_out = std::move(u);
 	}
 	std::vector<real> get_outflows_raw() {
-		return U_out;
+		auto result = U_out;
+		if (fld_energy_) {
+			result.push_back(fld_outflow_);
+		}
+		return result;
+	}
+	std::shared_ptr<std::vector<real>> get_fld_energy() const {
+		return fld_energy_;
+	}
+	real get_fld_outflow() const {
+		return fld_outflow_;
+	}
+	void set_fld_outflow(real const value) {
+		fld_outflow_ = value;
 	}
 	void set_root(bool flag = true) {
 		is_root = flag;
@@ -429,6 +452,10 @@ void grid::load(Archive &arc, const unsigned) {
 	arc >> xmin;
 	allocate();
 	arc >> U;
+	if (opts().fld) {
+		arc >> *fld_energy_;
+		arc >> fld_outflow_;
+	}
 	if (rad_grid_ptr != nullptr) {
 		arc >> *rad_grid_ptr;
 		rad_grid_ptr->set_dx(dx);
@@ -454,6 +481,10 @@ void grid::save(Archive &arc, const unsigned) const {
 	arc << dx;
 	arc << xmin;
 	arc << U;
+	if (opts().fld) {
+		arc << *fld_energy_;
+		arc << fld_outflow_;
+	}
 	if (rad_grid_ptr != nullptr) {
 		arc << *rad_grid_ptr;
 	}

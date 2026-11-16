@@ -380,7 +380,7 @@ void node_server::collect_hydro_boundaries(bool energy_only, real boundary_time)
 
 	amr_boundary_type kernel_type = opts().amr_boundary_kernel_type;
   hpx::annotated_function([&]() {
-	if (kernel_type == AMR_LEGACY) {
+	if (opts().fld || kernel_type == AMR_LEGACY) {
 		grid_ptr->complete_hydro_amr_boundary(energy_only);
 	} else {
 		std::array<double, NDIM> xmin;
@@ -522,6 +522,7 @@ void node_server::initialize(real t, real rt) {
 	} else {
 		grid_ptr = std::make_shared<grid>(dx, xmin);
 	}
+	bind_fld_grid();
 	if (opts().radiation) {
 		rad_grid_ptr = grid_ptr->get_rad_grid();
 		rad_grid_ptr->set_dx(dx);
@@ -580,6 +581,7 @@ node_server::node_server(const node_location &_my_location, integer _step_num, b
 	rotational_time = _rotational_time;
 //     grid test;
 	grid_ptr = std::make_shared<grid>(std::move(_grid));
+	bind_fld_grid();
 	if (is_refined) {
 		std::copy(_c.begin(), _c.end(), children.begin());
 	}

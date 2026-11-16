@@ -1,38 +1,34 @@
 /*
  * silo.cpp
  *
- *  Created on: Oct 16, 2018
- *      Author: dmarce1
+ * Created on: Oct 16, 2018
+ * Author: dmarce1
  */
+
+#include <cmath>
+#include <future>
+#include <map>
+#include <mutex>
+#include <stdexcept>
+#include <vector>
 
 #include <hpx/config/compiler_specific.hpp>
 #if !defined(HPX_COMPUTE_DEVICE_CODE)
+#include <hpx/collectives/broadcast.hpp>
+#include <hpx/include/run_as.hpp>
+#include <hpx/include/threads.hpp>
+#include <hpx/io_service/io_service_pool.hpp>
 
-//101 - fixed units bug in momentum
 #include "octotiger/io/silo.hpp"
+#include "octotiger/node_registry.hpp"
 #include "octotiger/node_server.hpp"
 #include "octotiger/options.hpp"
 #include "octotiger/physcon.hpp"
 #include "octotiger/util.hpp"
 
-#include "octotiger/node_registry.hpp"
-
-#include <hpx/collectives/broadcast.hpp>
-#include <hpx/io_service/io_service_pool.hpp>
-
-#include <future>
-#include <mutex>
-#include <map>
-#include <vector>
-
 static int version_;
-
-static const auto &localities = options::all_localities;
-
+static auto const& localities = options::all_localities;
 static std::mutex silo_mtx_;
-
-#include <hpx/include/threads.hpp>
-#include <hpx/include/run_as.hpp>
 
 template<class T>
 struct read_silo_var {
@@ -73,7 +69,9 @@ static dir_map_type node_dir_;
 	if( i != 0 ) printf( "SILO call failed at %i\n", __LINE__ );
 
 void load_options_from_silo(std::string fname, DBfile *db) {
-	const auto func = [&fname, &db]() {
+    bool restoreColdEOS = false;
+    real coldA = 0.0, coldB = 0.0;
+    auto const func = [&fname, &db, &restoreColdEOS, &coldA, &coldB]() {
 		bool leaveopen;
 		if (db == nullptr) {
 			db = DBOpenReal(fname.c_str(), DB_UNKNOWN, DB_READ);
@@ -104,6 +102,64 @@ void load_options_from_silo(std::string fname, DBfile *db) {
 			opts().output_dt = rr(db, "output_frequency");
 			opts().problem = problem_type(ri(db, "problem"));
 			opts().radiation = ri(db, "radiation");
+			// Older hydro checkpoints have no FLD field or metadata.
+			opts().fld = DBInqVarExists(db, "fld") && ri(db, "fld");
+			if (opts().fld) {
+                opts().fld_opacity_model = "legacy";
+                opts().fld_material_model = "constant_cv";
+                opts().fld_unit_system = "code";
+                opts().fld_rosseland = 1.0;
+                opts().fld_rosseland_density_exponent = 0.0;
+                opts().fld_rosseland_temperature_exponent = 0.0;
+                opts().fld_opacity_temperature_floor = 0.0;
+                opts().fld_gaunt = 1.0;
+                if (DBInqVarExists(db, "fld_model_version")) {
+                    if (ri(db, "fld_model_version") != 1) {
+                        throw std::runtime_error("Unsupported FLD checkpoint model version");
+                    }
+                    if (opts().eos == WD) {
+                        coldA = rr(db, "fld_wd_A");
+                        coldB = rr(db, "fld_wd_B");
+                        if (!(coldA > 0.0) || !(coldB > 0.0) ||
+                            !std::isfinite(double(coldA)) || !std::isfinite(double(coldB))) {
+                            throw std::runtime_error("Invalid checkpoint WD EOS normalization");
+                        }
+                        restoreColdEOS = true;
+                    }
+                    auto const read_fld_string = [db](char const *name) {
+                        int const length = DBGetVarLength(db, name);
+                        if (length < 1 || length > 128) {
+                            throw std::runtime_error("Invalid FLD checkpoint model name");
+                        }
+                        std::vector<char> value(length, '\0');
+                        if (DBReadVar(db, name, value.data()) != 0 || value.back() != '\0') {
+                            throw std::runtime_error("Cannot read FLD checkpoint model name");
+                        }
+                        return std::string(value.data());
+                    };
+                    opts().fld_opacity_model = read_fld_string("fld_opacity_model");
+                    opts().fld_material_model = read_fld_string("fld_material_model");
+                    opts().fld_unit_system = read_fld_string("fld_unit_system");
+                    opts().fld_rosseland = rr(db, "fld_rosseland");
+                    opts().fld_rosseland_density_exponent = rr(db, "fld_rosseland_density_exponent");
+                    opts().fld_rosseland_temperature_exponent = rr(db, "fld_rosseland_temperature_exponent");
+                    opts().fld_opacity_temperature_floor = rr(db, "fld_opacity_temperature_floor");
+                    opts().fld_gaunt = rr(db, "fld_gaunt");
+                }
+				opts().fld_absorption = rr(db, "fld_absorption");
+				opts().fld_scattering = rr(db, "fld_scattering");
+				opts().fld_density_exponent = rr(db, "fld_density_exponent");
+				opts().fld_temperature_exponent = rr(db, "fld_temperature_exponent");
+				opts().fld_cv = rr(db, "fld_cv");
+				opts().fld_c = rr(db, "fld_c");
+				opts().fld_ar = rr(db, "fld_ar");
+				opts().fld_initial_energy = rr(db, "fld_initial_energy");
+				opts().fld_initial_pulse = rr(db, "fld_initial_pulse");
+				opts().fld_tolerance = rr(db, "fld_tolerance");
+				opts().fld_max_iterations = ri(db, "fld_max_iterations");
+				opts().fld_max_cycles = ri(db, "fld_max_cycles");
+			}
+
 			opts().refinement_floor = rr(db, "refinement_floor");
 			opts().xscale = rr(db, "xscale");
 			opts().atomic_number.resize(opts().n_species);
@@ -112,6 +168,26 @@ void load_options_from_silo(std::string fname, DBfile *db) {
 			opts().Z.resize(opts().n_species);
 			SILO_TEST(DBReadVar(db, "atomic_number", opts().atomic_number.data()));
 			SILO_TEST(DBReadVar(db, "atomic_mass", opts().atomic_mass.data()));
+            opts().atomic_number_squared.resize(opts().n_species);
+            if (DBInqVarExists(db, "atomic_number_squared")) {
+                if (DBGetVarLength(db, "atomic_number_squared") != opts().n_species ||
+                    DBGetVarType(db, "atomic_number_squared") != db_type<real>::d ||
+                    DBReadVar(db, "atomic_number_squared", opts().atomic_number_squared.data()) != 0) {
+                    throw std::runtime_error("Invalid checkpoint atomic_number_squared metadata");
+                }
+            } else {
+                // Old checkpoints describe one effective ion per tracer.
+                // Restore their charge moment instead of retaining a CLI override.
+                for (size_t species = 0; species < opts().atomic_number_squared.size(); ++species) {
+                    real const z = opts().atomic_number[species];
+                    opts().atomic_number_squared[species] = z * z;
+                }
+            }
+            for (real const value : opts().atomic_number_squared) {
+                if (!(value >= 0.0) || !std::isfinite(double(value))) {
+                    throw std::runtime_error("Checkpoint charge-squared moments must be finite and nonnegative");
+                }
+            }
 			SILO_TEST(DBReadVar(db, "X", opts().X.data()));
 			SILO_TEST(DBReadVar(db, "Z", opts().Z.data()));
 			if (!leaveopen) {
@@ -129,6 +205,12 @@ void load_options_from_silo(std::string fname, DBfile *db) {
 	}
 	grid::set_omega(opts().omega, false);
 	set_units(1. / opts().code_to_g, 1. / opts().code_to_cm, 1. / opts().code_to_s, 1); /**/
+    // Preserve the exact cold reservoir, including historical choices of A/B.
+    // Re-deriving A from the CGS conversion can change it by several ppm.
+    if (restoreColdEOS) {
+        physcon().A = coldA;
+        physcon().B = coldB;
+    }
 
 }
 
@@ -200,6 +282,9 @@ node_server::node_server(const node_location &loc) :
 			for (int f = 0; f != hydro_names.size(); f++) {
 				const auto this_name = suffix + std::string("/") + hydro_names[f]; /**/
 				auto var = DBGetQuadvar(db, this_name.c_str());
+				if (var == nullptr) {
+					throw std::runtime_error("Missing checkpoint field: " + this_name);
+				}
 				load.nx = var->dims[0];
 				const int nvar = load.nx * load.nx * load.nx;
 				load.outflows[f].first = load.vars[f].first = hydro_names[f];

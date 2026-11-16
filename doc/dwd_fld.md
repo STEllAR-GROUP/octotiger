@@ -76,6 +76,121 @@ It never supplies gas heat or initial radiation. `opacity_regularized_cells`
 counts leaf interior cells affected by the cutoff. A cutoff sensitivity study
 is required before interpreting a production result dominated by such cells.
 
+## Building a binary initial state
+
+`test_problems/fld/dwd_example.cfg` is a short, coarse setup example. It uses
+helium species and a `1e4 K` opacity cutoff explicitly as example choices. It
+does not select the production masses, fill factor, composition, spatial
+resolution, or atmosphere treatment. Create and review `scf.init` in the run
+directory before launching it. That separate file accepts:
+
+```text
+M1=<accretor mass in solar masses>
+M2=<0.7 times the accretor mass, in solar masses>
+a=<initial SCF separation parameter>
+fill2=<donor SCF fill parameter>
+fill1=0.99
+equal_struct_eos=1
+contact_fill=0
+```
+
+SCF determines the cold WD structure and normalizes its physical units. The
+initial `fill2` estimate enters as its fifth power in the donor radius estimate;
+do not equate it directly with the final volume filling fraction reported by
+SCF. `scf_max_iterations` is a positive setup-only iteration budget, defaulting
+to the existing 256 iterations. The example explicitly uses 16 iterations at
+level three for a bounded initialization check. Its `stop_step=1` limits the
+short evolution after SCF, not the SCF work itself; `stop_step=0` would return
+before any evolution. Check the SCF masses,
+filling fractions, density maxima and virial residual before using its result.
+An illustrative low-resolution run is not proof of SCF convergence.
+
+The stellar SCF thermal parameter is zero. Its entropy tracer retains the
+existing small numerical floor. The density-floor atmosphere has a separate
+gravitational-support thermal prescription, so it is not a globally cold
+vacuum. `cold_energy`, `thermal_energy`, `radiation_energy`,
+`atmosphere_thermal_energy`, and `atmosphere_radiation_energy` expose the distinct
+reservoirs. The atmosphere classification uses the fifth DWD tracer and is a
+diagnostic convention, not an extra opacity switch.
+
+Use `fld=on` with `radiation=off`: the latter controls the separate M1 solver.
+
+
+## Bounded validation
+
+After the global inner-target correction described below, the separate
+`fld_global_target_amr` pure-scattering regression passed three steps on
+147,456 cells with residuals below `7.7e-10`. This checks transport on a mixed
+AMR hierarchy; it does not extend the DWD pilot's physical coverage. The saved
+application logs and `metrics.json` files retain the detailed measurements.
+
+`check_dwd_fld.py` launches one process at a time, defaults to one HPX worker,
+and applies a 600-second total wall-time budget across all phases of a case.
+Use a distinct empty work directory for each invocation. These WD runner cases
+use reflecting diffusion boundaries. Available cases are:
+
+| Case | Check |
+| --- | --- |
+| `cold` | Existing cold `STAR+WD` initializer; frozen-gas cutoffs at `1e3`, `1e4`, `1e5 K`, followed by two tiny coupled hydro/gravity steps with density and cold/thermal/radiation drift recorded |
+| `heated` | Uniform WD thermal reservoir, physical units/composition and physical free-free source against an independent scalar backward-Euler root |
+| `independent` | Same physical material with unequal Planck and Rosseland means, repeated with length/time units scaled by `0.5` and `2` while preserving the physical state, domain and elapsed time |
+| `amr` | Mixed AMR hierarchy, density-dependent independent total extinction, pure transport conservation and pulse spreading |
+| `restart` | Independent means with physical material; continuous versus Silo restart, refinement and coarsening |
+| `shock` | WD pressure discontinuity evolved to code time `0.1` with hydro on and measurable motion; radiation off/on and timesteps `0.005`, `0.0025` |
+| `scf` | Optional synthetic `M1=1`, `M2=.7` solar-mass pair, `xscale=1`, level-three SCF for 16 iterations followed by one physical FLD step; records residuals without claiming equilibrium |
+
+For example:
+
+```sh
+python3 test_problems/fld/check_dwd_fld.py --exe /absolute/path/to/octotiger \
+  --case heated --work-dir /tmp/wd_fld_heated --threads 1
+```
+
+The SOD-based heated fixture supplies `cold_energy + C_V*T` through the existing
+SOD pressure input, disables its ideal-gas analytic comparison, and selects
+`dual_energy_sw1=0`. SOD's initial entropy tracer includes that supplied total
+internal energy; the first FLD step replaces it with the recovered thermal
+tracer. This fixture tests conservative WD thermal subtraction but does not
+test a separately initialized, consistent thermal tracer before that step.
+The cold `STAR` fixture covers the genuine cold tracer initialization.
+Its short dynamic check records density and energy drift without imposing a
+resolution-dependent equilibrium threshold on a coarse grid. The frozen
+cutoff comparison tests that opacity regularization does not create a material
+or radiation reservoir. It is not a cutoff sensitivity result for a heated,
+partially ionized production atmosphere.
+
+For the SOD fixtures, `radiation=off` and `gravity=off` select the explicit-unit
+branch of `these_units`, which preserves the supplied `code_to_s`. The unit
+comparison keeps density and velocity units fixed, scales mass by the cube of
+the length factor, and scales the inverse-code-length opacities and code
+timestep in opposite directions. This preserves `A=B=1` as well as the
+physical temperature and exchange problem.
+
+Each case saves the commands, application logs, and checked diagnostics in
+`metrics.json`. Test presence is not evidence of a passing run. The shock's two
+timesteps and coarse spatial profile do not establish temporal order or a
+resolved shock structure, and the SCF smoke does not establish
+equilibrium or a resolved donor stream. These checks do not select or validate
+a full DWD production campaign.
+
+The synthetic SCF fixture requires enough spatial resolution to retain both
+stellar centers. At level two with `xscale=1`, its existing SCF partition
+collapsed after the first update, and the resulting orbital frequency produced
+an invalid enthalpy target; the same failure occurred with FLD disabled.
+Level three retained both stellar components through a 30-iteration diagnostic
+probe. This observation motivates the fixture resolution but does not establish
+a converged initial binary or a general minimum resolution.
+
+SCF iteration diagnostics are written after mass normalization and before each
+density update. The runner labels these `last_iteration_*` and separately reads
+`final_*` diagnostics from `binary.dat` after evolution. In the bounded
+16-iteration fixture, the last normalized masses were `1` and `.7` solar
+masses, while the final component masses were `.9976108` and `.6994727`, giving
+`q=.70114788` (a relative target difference of about `0.164%`). The final ratio
+is reported rather than asserted equal to the target; this is not a converged
+production initial state.
+
+
 ## Frequency quadrature and nonlinear iteration
 
 With \(x=h\nu/(k_BT)\), the physical provider evaluates
@@ -119,3 +234,29 @@ measured maximum interpolation error over the numerical test's dense log-range
 scan is `2.25e-12`, below the `1e-10` test limit. Independent quadrature,
 extension order, interval boundaries and concurrent extensions are checked.
 There is no arbitrary opacity coefficient cap.
+
+Temperature-dependent opacities and the flux limiter are refreshed in the outer
+nonlinear iteration. The inner Jacobian holds them fixed and includes the
+4 ar T^3 emission derivative. Final convergence is checked with refreshed
+coefficients; a failed nonlinear solve never commits a radiation/material update.
+
+The inner solve checks both a volume-weighted residual and a local residual
+scaled to each cell's radiation and thermal reservoirs. Its global target is
+`max(0.01 * initial, 0.05 * fld_tolerance * sqrt(scaleSquared))`, where `initial`
+is the initial linear L2 residual and `scaleSquared` is the volume-integrated
+squared nonlinear energy scale. There is no additional `0.1 * initial` cap:
+forcing another relative reduction after reaching the absolute target can
+demand accuracy below roundoff. The independent local guard is unchanged and
+continues to protect cold cells whose errors the global norm can hide. The
+final nonlinear tolerance is also unchanged. After global convergence,
+leaf-only relaxation removes tiny cold-cell errors without reinjecting coarse
+corrections. Trial radiation values are projected onto nonnegative values, and
+the material candidate is evaluated as a sum of nonnegative terms. Damping
+interpolates the absolute states, avoiding cancellation when the new radiation
+is many orders of magnitude smaller. Every trial still requires the refreshed
+nonlinear residual check, and accepted gas updates use the conservative exchange.
+
+New FLD WD checkpoints also preserve the exact code-unit cold EOS A and B.
+Reconstructing them from older CGS conversion constants could otherwise change
+the cold reservoir by several parts per million. Existing checkpoints without
+new FLD model metadata retain their historical restart behavior.

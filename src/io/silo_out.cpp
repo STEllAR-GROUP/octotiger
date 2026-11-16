@@ -1,14 +1,15 @@
-#include <hpx/config/compiler_specific.hpp>
-#if !defined(HPX_COMPUTE_DEVICE_CODE)
-
 #include <cerrno>
 #include <ctime>
+
+#include <hpx/config/compiler_specific.hpp>
+#if !defined(HPX_COMPUTE_DEVICE_CODE)
 
 #include <hpx/modules/runtime_local.hpp>
 #include <sys/stat.h>
 
 #include "octotiger/io/silo.hpp"
 #include "octotiger/node_registry.hpp"
+#include "octotiger/physcon.hpp"
 
 static const auto &localities = options::all_localities;
 
@@ -366,6 +367,35 @@ void output_stage4(std::string fname, int cycle) {
 		fr(db, "output_frequency", opts().output_dt);
 		fi(db, "problem", integer(opts().problem));
 		fi(db, "radiation", integer(opts().radiation));
+		fi(db, "fld", integer(opts().fld));
+		fi(db, "fld_model_version", 1);
+		fr(db, "fld_wd_A", physcon().A);
+		fr(db, "fld_wd_B", physcon().B);
+		auto const write_fld_string = [db](char const *name, std::string const &value) {
+			int const length = int(value.size()) + 1;
+			DBWrite(db, name, value.c_str(), &length, 1, DB_CHAR);
+		};
+		write_fld_string("fld_opacity_model", opts().fld_opacity_model);
+		write_fld_string("fld_material_model", opts().fld_material_model);
+		write_fld_string("fld_unit_system", opts().fld_unit_system);
+		fr(db, "fld_rosseland", opts().fld_rosseland);
+		fr(db, "fld_rosseland_density_exponent", opts().fld_rosseland_density_exponent);
+		fr(db, "fld_rosseland_temperature_exponent", opts().fld_rosseland_temperature_exponent);
+		fr(db, "fld_opacity_temperature_floor", opts().fld_opacity_temperature_floor);
+		fr(db, "fld_gaunt", opts().fld_gaunt);
+		fr(db, "fld_absorption", opts().fld_absorption);
+		fr(db, "fld_scattering", opts().fld_scattering);
+		fr(db, "fld_density_exponent", opts().fld_density_exponent);
+		fr(db, "fld_temperature_exponent", opts().fld_temperature_exponent);
+		fr(db, "fld_cv", opts().fld_cv);
+		fr(db, "fld_c", opts().fld_c);
+		fr(db, "fld_ar", opts().fld_ar);
+		fr(db, "fld_initial_energy", opts().fld_initial_energy);
+		fr(db, "fld_initial_pulse", opts().fld_initial_pulse);
+		fr(db, "fld_tolerance", opts().fld_tolerance);
+		fi(db, "fld_max_iterations", opts().fld_max_iterations);
+		fi(db, "fld_max_cycles", opts().fld_max_cycles);
+
 		fr(db, "refinement_floor", opts().refinement_floor);
 		fr(db, "cgs_time", dtime);
 		fr(db, "rotational_time", rtime);
@@ -381,6 +411,7 @@ void output_stage4(std::string fname, int cycle) {
 		DBWrite(db, "Z", opts().Z.data(), &nspc, 1, db_type<real>::d);
 		DBWrite(db, "atomic_mass", opts().atomic_mass.data(), &nspc, 1, db_type<real>::d);
 		DBWrite(db, "atomic_number", opts().atomic_number.data(), &nspc, 1, db_type<real>::d);
+		DBWrite(db, "atomic_number_squared", opts().atomic_number_squared.data(), &nspc, 1, db_type<real>::d);
 		fi(db, "node_count", integer(nnodes));
 		fi(db, "leaf_count", integer(node_list_.silo_leaves.size()));
 		write_silo_var<integer>()(db, "timestamp", timestamp);

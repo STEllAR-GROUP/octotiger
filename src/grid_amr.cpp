@@ -10,12 +10,13 @@
 std::vector<real> grid::get_subset(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub, bool energy_only) {
 	PROFILE();
 	std::vector<real> data;
-	for (int f = 0; f < opts().n_fields; f++) {
-		if (!energy_only || f == egas_i) {
+	for (int f = 0; f < opts().n_fields + bool(fld_energy_); f++) {
+		if (!energy_only || f == egas_i || f == opts().n_fields) {
 			for (int i = lb[0]; i < ub[0]; i++) {
 				for (int j = lb[1]; j < ub[1]; j++) {
 					for (int k = lb[2]; k < ub[2]; k++) {
-						data.push_back(U[f][hindex(i, j, k)]);
+						auto const &values = f == opts().n_fields ? *fld_energy_ : U[f];
+                        data.push_back(values[hindex(i, j, k)]);
 					}
 				}
 			}
@@ -44,13 +45,14 @@ void grid::set_hydro_amr_boundary(const std::vector<real> &data, const geo::dire
 		ub[dim] = std::min(ub[dim] + 1, integer(HS_NX));
 	}
 
-	for (int f = 0; f < opts().n_fields; f++) {
-		if (!energy_only || f == egas_i) {
+	for (int f = 0; f < opts().n_fields + bool(fld_energy_); f++) {
+		if (!energy_only || f == egas_i || f == opts().n_fields) {
 			for (int i = lb[0]; i < ub[0]; i++) {
 				for (int j = lb[1]; j < ub[1]; j++) {
 					for (int k = lb[2]; k < ub[2]; k++) {
 						has_coarse[hSindex(i, j, k)]++;
-						Ushad[f][hSindex(i, j, k)] = data[l++];
+						auto &values = f == opts().n_fields ? fld_shadow_ : Ushad[f];
+                        values[hSindex(i, j, k)] = data[l++];
 					}
 				}
 			}
@@ -204,6 +206,9 @@ void grid::complete_hydro_amr_boundary(bool energy_only) {
 			}
 		}
 	}
+    if (fld_energy_) {
+        complete_fld_amr_boundary();
+    }
 }
 
 std::pair<real, real> grid::amr_error() const {

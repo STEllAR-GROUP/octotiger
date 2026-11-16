@@ -7,6 +7,7 @@
 #include <fstream>
 #include <iosfwd>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -109,6 +110,7 @@ bool options::process_options(int argc, char *argv[]) {
 	("silo_offset_z", po::value<integer>(&(opts().silo_offset_z))->default_value(0), "")      //
 	("amrbnd_order", po::value<integer>(&(opts().amrbnd_order))->default_value(1), "amr boundary interpolation order")        //
 	("scf_output_frequency", po::value<integer>(&(opts().scf_output_frequency))->default_value(25), "Frequency of SCF output")        //
+	("scf_max_iterations", po::value<integer>(&opts().scf_max_iterations)->default_value(256), "Number of SCF iterations before evolution")
 	("scf_rho_floor", po::value<real>(&(opts().scf_rho_floor))->default_value(1.0e-12), "scf density floor")     //
 	("silo_num_groups", po::value<integer>(&(opts().silo_num_groups))->default_value(-1), "Number of SILO I/O groups")        //
 	("core_refine", po::value<bool>(&(opts().core_refine))->default_value(false), "refine cores by one more level")           //
@@ -126,6 +128,28 @@ bool options::process_options(int argc, char *argv[]) {
         ("ipr_eint_floor", po::value<real>(&(opts().ipr_eint_floor))->default_value(0.0), "floor thermal energy for ideal gas plus radiation eos")                              //
 	("hydro", po::value<bool>(&(opts().hydro))->default_value(true), "hydro on/off")    //
 	("radiation", po::value<bool>(&(opts().radiation))->default_value(false), "radiation on/off")    //
+	("fld", po::value<bool>(&opts().fld)->default_value(false), "Enable comoving FLD with shared radiation energy")
+	("fld_opacity_model", po::value<std::string>(&opts().fld_opacity_model)->default_value("legacy"), "Opacity provider: legacy, independent, free_free_thomson")
+	("fld_material_model", po::value<std::string>(&opts().fld_material_model)->default_value("auto"), "Thermal model: auto, constant_cv, fully_ionized")
+	("fld_unit_system", po::value<std::string>(&opts().fld_unit_system)->default_value("auto"), "FLD units: auto, code, physical; physical uses finalized code_to_* and Kelvin")
+	("fld_rosseland", po::value<real>(&opts().fld_rosseland)->default_value(1.0), "Total Rosseland coefficient in independent mode; inverse code length")
+	("fld_rosseland_density_exponent", po::value<real>(&opts().fld_rosseland_density_exponent)->default_value(0.0), "Total Rosseland density exponent")
+	("fld_rosseland_temperature_exponent", po::value<real>(&opts().fld_rosseland_temperature_exponent)->default_value(0.0), "Total Rosseland temperature exponent")
+	("fld_opacity_temperature_floor", po::value<real>(&opts().fld_opacity_temperature_floor)->default_value(0.0), "Opacity evaluation cutoff only; emission uses actual temperature; Kelvin in physical mode")
+	("fld_gaunt", po::value<real>(&opts().fld_gaunt)->default_value(1.0), "Constant free-free Gaunt factor; zero selects Thomson only")
+	("fld_absorption", po::value<real>(&opts().fld_absorption)->default_value(1.0), "Absorption coefficient alpha0 in alpha=alpha0*rho^p*T^q; inverse code length")
+	("fld_scattering", po::value<real>(&opts().fld_scattering)->default_value(0.0), "Constant elastic scattering opacity per unit mass; code area / code mass, extinction=rho*kappa_s")
+	("fld_density_exponent", po::value<real>(&opts().fld_density_exponent)->default_value(0.0), "Absorption density exponent p")
+	("fld_temperature_exponent", po::value<real>(&opts().fld_temperature_exponent)->default_value(0.0), "Absorption temperature exponent q")
+	("fld_cv", po::value<real>(&opts().fld_cv)->default_value(1.0), "Ideal-gas specific heat in code units")
+	("fld_c", po::value<real>(&opts().fld_c)->default_value(1.0), "Physical speed of light in code units")
+	("fld_ar", po::value<real>(&opts().fld_ar)->default_value(1.0), "Radiation constant in code units")
+	("fld_initial_energy", po::value<real>(&opts().fld_initial_energy)->default_value(0.0), "Initial uniform comoving radiation energy density")
+	("fld_initial_pulse", po::value<real>(&opts().fld_initial_pulse)->default_value(0.0), "Initial Gaussian radiation amplitude, width 0.2*xscale")
+	("fld_tolerance", po::value<real>(&opts().fld_tolerance)->default_value(1.0e-8), "Relative coupled nonlinear residual tolerance")
+	("fld_max_iterations", po::value<integer>(&opts().fld_max_iterations)->default_value(100), "Maximum FLD nonlinear iterations")
+	("fld_max_cycles", po::value<integer>(&opts().fld_max_cycles)->default_value(100), "Maximum multigrid cycles per FLD linearization")
+
 	("correct_am_hydro", po::value<bool>(&(opts().correct_am_hydro))->default_value(false), "Obsolete compatibility option (ignored)")    //
 	("correct_am_grav", po::value<bool>(&(opts().correct_am_grav))->default_value(true), "Angular momentum correction switch for gravity")    //
 	("rewrite_silo", po::value<bool>(&(opts().rewrite_silo))->default_value(false), "rewrite silo and exit")    //
@@ -186,6 +210,7 @@ bool options::process_options(int argc, char *argv[]) {
 	("n_species", po::value<integer>(&(opts().n_species))->default_value(5), "number of mass species") //
 	("atomic_mass", po::value<std::vector<real>>(&(opts().atomic_mass))->multitoken(), "atomic masses") //
 	("atomic_number", po::value<std::vector<real>>(&(opts().atomic_number))->multitoken(), "atomic numbers") //
+	("atomic_number_squared", po::value<std::vector<real>>(&(opts().atomic_number_squared))->multitoken(), "Number-weighted mean squared ionic charge per tracer; omitted defaults to atomic_number squared") //
 	("X", po::value<std::vector<real>>(&(opts().X))->multitoken(), "X - hydrogen mass fraction") //
 	("Z", po::value<std::vector<real>>(&(opts().Z))->multitoken(), "Z - metallicity") //
 	("code_to_g", po::value<real>(&(opts().code_to_g))->default_value(1), "code units to grams") //
@@ -234,7 +259,61 @@ bool options::process_options(int argc, char *argv[]) {
 		}
 		load_options_from_silo(opts().restart_filename);
 	}
-	n_fields = n_species + spc_i;
+    if (problem == DWD && n_species < 5) {
+        throw std::invalid_argument("DWD requires at least five tracers");
+    }
+    n_fields = n_species + spc_i;
+    if (scf_max_iterations < 1) {
+        throw std::invalid_argument("scf_max_iterations must be positive");
+    }
+    if (fld) {
+        if (radiation || (eos != IDEAL && eos != WD)) {
+            throw std::invalid_argument("FLD supports IDEAL or WD and requires radiation=off (the separate M1 model)");
+        }
+        if (!(fld_cv > 0.0) || !(fld_c > 0.0) || !(fld_ar > 0.0) ||
+            !(fld_absorption >= 0.0) || !(fld_scattering >= 0.0) ||
+            (fld_opacity_model == "legacy" && !(fld_absorption + fld_scattering > 0.0)) ||
+            !(fld_rosseland > 0.0) || !(fld_opacity_temperature_floor >= 0.0) || !(fld_gaunt >= 0.0) ||
+            !(fld_initial_energy >= 0.0) || !(fld_initial_pulse >= 0.0) ||
+            !(fld_tolerance > 0.0 && fld_tolerance < 1.0) ||
+            fld_max_iterations < 1 || fld_max_cycles < 1) {
+            throw std::invalid_argument("Invalid FLD coefficients, initial energy, tolerance or iteration limit");
+        }
+        for (double const value : {fld_cv, fld_c, fld_ar, fld_absorption,
+                 fld_scattering, fld_density_exponent, fld_temperature_exponent,
+                 fld_initial_energy, fld_initial_pulse, fld_tolerance, fld_rosseland,
+                 fld_rosseland_density_exponent, fld_rosseland_temperature_exponent,
+                 fld_opacity_temperature_floor, fld_gaunt}) {
+            if (!std::isfinite(value)) {
+                throw std::invalid_argument("FLD parameters must be finite");
+            }
+        }
+        if (fld_opacity_model != "legacy" && fld_opacity_model != "independent" &&
+            fld_opacity_model != "free_free_thomson") {
+            throw std::invalid_argument("Unknown fld_opacity_model");
+        }
+        if (fld_material_model != "auto" && fld_material_model != "constant_cv" &&
+            fld_material_model != "fully_ionized") {
+            throw std::invalid_argument("Unknown fld_material_model");
+        }
+        if (fld_unit_system != "auto" && fld_unit_system != "code" && fld_unit_system != "physical") {
+            throw std::invalid_argument("Unknown fld_unit_system");
+        }
+        if (fld_opacity_model == "free_free_thomson" &&
+            (!(fld_opacity_temperature_floor > 0.0) || fld_unit_system == "code")) {
+            throw std::invalid_argument("free_free_thomson needs physical units and a positive opacity temperature cutoff");
+        }
+        if ((fld_material_model == "fully_ionized" || (fld_material_model == "auto" && eos == WD)) &&
+            fld_unit_system == "code") {
+            throw std::invalid_argument("fully_ionized thermal capacity requires physical units");
+        }
+        if (!hydro && !(hard_dt > 0.0 && std::isfinite(hard_dt))) {
+            throw std::invalid_argument("FLD with hydro=off requires finite positive hard_dt");
+        }
+        // The generic exchanges carry the shared radiation vector as well.
+        optimize_local_communication = false;
+        amr_boundary_kernel_type = AMR_LEGACY;
+    }
     if (opts().executors_per_gpu > 0 && opts().number_gpus == 0) {
         opts().number_gpus = 1;
 	}
@@ -258,11 +337,36 @@ bool options::process_options(int argc, char *argv[]) {
     opts().detected_intel_compiler=true;
   }
 #endif
+	while (atomic_number.size() < opts().n_species) {
+		atomic_number.push_back(number_solar);
+	}
+	while (atomic_mass.size() < opts().n_species) {
+		atomic_mass.push_back(mass_solar);
+	}
+    if (atomic_number_squared.empty()) {
+        atomic_number_squared.resize(n_species);
+        for (size_t species = 0; species < atomic_number_squared.size(); ++species) {
+            atomic_number_squared[species] = atomic_number[species] * atomic_number[species];
+        }
+    }
+    if (atomic_number_squared.size() != size_t(n_species)) {
+        throw std::invalid_argument("atomic_number_squared must contain one value per species");
+    }
+    for (real const value : atomic_number_squared) {
+        if (!(value >= 0.0) || !std::isfinite(double(value))) {
+            throw std::invalid_argument("atomic_number_squared values must be finite and nonnegative");
+        }
+    }
 	{
 #define SHOW( opt ) std::cout << std::string( #opt ) << " = " << to_string(opt) << '\n';
 		std::cout << "atomic_number=";
 		for (auto r : atomic_number) {
 			std::cout << std::to_string(r) << ',';
+		}
+		std::cout << '\n';
+		std::cout << "atomic_number_squared=";
+		for (real const value : atomic_number_squared) {
+			std::cout << std::to_string(value) << ',';
 		}
 		std::cout << '\n';
 		std::cout << "atomic_mass=";
@@ -326,12 +430,35 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(problem);
 		SHOW(rad_implicit);
 		SHOW(radiation);
+		SHOW(fld);
+		SHOW(fld_opacity_model);
+		SHOW(fld_material_model);
+		SHOW(fld_unit_system);
+		SHOW(fld_rosseland);
+		SHOW(fld_rosseland_density_exponent);
+		SHOW(fld_rosseland_temperature_exponent);
+		SHOW(fld_opacity_temperature_floor);
+		SHOW(fld_gaunt);
+		SHOW(fld_absorption);
+		SHOW(fld_scattering);
+		SHOW(fld_density_exponent);
+		SHOW(fld_temperature_exponent);
+		SHOW(fld_cv);
+		SHOW(fld_c);
+		SHOW(fld_ar);
+		SHOW(fld_initial_energy);
+		SHOW(fld_initial_pulse);
+		SHOW(fld_tolerance);
+		SHOW(fld_max_iterations);
+		SHOW(fld_max_cycles);
+
 		SHOW(refinement_floor);
 		SHOW(reflect_bc);
 		SHOW(restart_filename);
 		SHOW(rotating_star_amr);
 		SHOW(rotating_star_x);
 		SHOW(scf_output_frequency);
+		SHOW(scf_max_iterations);
 		SHOW(silo_num_groups);
 		SHOW(stop_step);
 		SHOW(stop_time);
@@ -354,12 +481,6 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(hydro_device_kernel_type);
 		SHOW(hydro_host_kernel_type);
 
-	}
-	while (atomic_number.size() < opts().n_species) {
-		atomic_number.push_back(number_solar);
-	}
-	while (atomic_mass.size() < opts().n_species) {
-		atomic_mass.push_back(mass_solar);
 	}
 	while (X.size() < opts().n_species) {
 		X.push_back(X_solar);

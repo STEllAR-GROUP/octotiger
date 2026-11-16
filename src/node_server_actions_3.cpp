@@ -3,6 +3,17 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+#include <cerrno>
+#include <algorithm>
+#include <array>
+#include <cstdio>
+#include <chrono>
+
+#include <hpx/include/lcos.hpp>
+#include <hpx/include/run_as.hpp>
+#include <hpx/include/util.hpp>
+#include <hpx/collectives/broadcast.hpp>
+
 #include "octotiger/defs.hpp"
 #include "octotiger/future.hpp"
 #include "octotiger/node_client.hpp"
@@ -12,17 +23,6 @@
 #include "octotiger/real.hpp"
 #include "octotiger/util.hpp"
 #include "octotiger/util/timestep_util.hpp"
-
-#include <cerrno>
-
-#include <hpx/include/lcos.hpp>
-#include <hpx/include/run_as.hpp>
-#include <hpx/include/util.hpp>
-#include <hpx/collectives/broadcast.hpp>
-
-#include <algorithm>
-#include <array>
-#include <cstdio>
 
 #if !defined(HPX_COMPUTE_DEVICE_CODE)
 
@@ -273,7 +273,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 	integer output_cnt { };
 //	output_all("X", 0, false);
 
-	if (!opts().hydro && !opts().radiation) {
+	if (!opts().hydro && !opts().radiation && !opts().fld) {
 //		diagnostics();
 		if (!opts().disable_output) {
 			output_all(this, "final", output_cnt, true);
@@ -450,7 +450,11 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 				FILE *fp = fopen((opts().data_dir + "step.dat").c_str(), "at");
 				if (fp == NULL) {
 					printf("Unable to open step.dat for writing %s\n", std::strerror(errno));
-				} else {
+				} else if (opts().fld && !opts().hydro) {
+                    fprintf(fp, "%i %e %e %e %e\n", int(next_step - 1), double(t),
+                        double(dt_.dt), time_elapsed, rotational_time);
+                    fclose(fp);
+                } else {
 					const auto vr = sqrt(sqr(dt_.ur[sx_i]) + sqr(dt_.ur[sy_i]) + sqr(dt_.ur[sz_i])) / dt_.ur[0];
 					const auto vl = sqrt(sqr(dt_.ul[sx_i]) + sqr(dt_.ul[sy_i]) + sqr(dt_.ul[sz_i])) / dt_.ul[0];
 					fprintf(fp, "%i %e %e %e %e %e %e %e %e %e %e %e %e %i %i %i %i\n", int(next_step - 1), double(t), double(dt_.dt), time_elapsed, rotational_time, dt_.x, dt_.y, dt_.z, dt_.a, dt_.ur[0], dt_.ul[0], vr,vl,dt_.dim, int(ngrids.total), int(ngrids.leaf), int(ngrids.amr_bnd));
@@ -461,7 +465,12 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 
 		/* hpx::threads::run_as_os_thread( */
 		/* 		[=]() { */
-    {
+    if (opts().fld && !opts().hydro) {
+        printf("TS %i:: t: %e, dt: %e, time_elapsed: %e, rotational_time: %e, "
+               "ngrids: %i, leafs: %i, amr_boundaries: %i\n",
+            int(next_step), double(t), double(dt_.dt), time_elapsed, rotational_time,
+            int(ngrids.total), int(ngrids.leaf), int(ngrids.amr_bnd));
+    } else {
 					const auto vr = sqrt(sqr(dt_.ur[sx_i]) + sqr(dt_.ur[sy_i]) + sqr(dt_.ur[sz_i])) / dt_.ur[0];
 					const auto vl = sqrt(sqr(dt_.ul[sx_i]) + sqr(dt_.ul[sy_i]) + sqr(dt_.ul[sz_i])) / dt_.ul[0];
 					printf("TS %i:: t: %e, dt: %e, time_elapsed: %e, rotational_time: %e, x: %e, y: %e, z: %e, ",
@@ -768,29 +777,60 @@ future<real> node_server::local_step(integer steps) {
 }
 
 future<real> node_server::step(integer steps) {
-	grid_ptr->set_coordinates();
-
-	std::array<future<void>, NCHILD> child_futs;
-	if (is_refined) {
-		for (integer ci = 0; ci != NCHILD; ++ci) {
-			child_futs[ci] = children[ci].step(steps);
-		}
-	}
-
-	future<real> fut = local_step(steps);
-
-	if (is_refined) {
-		return hpx::dataflow(hpx::launch::sync,
-				[this](future<real> dt_fut, future<std::array<future<void>, NCHILD>> &&f) {
-					auto fi = GET(f); // propagate exceptions
-					for (auto &f : fi) {
-						GET(f);
-					}
-					return GET(dt_fut);
-				}, std::move(fut), hpx::when_all(std::move(child_futs)));
-	}
-
-	return fut;
+    // Complete the implicit solve globally before children enter their next
+    // explicit step or change the mesh.
+    if (opts().fld && my_location.level() == 0 && steps > 1) {
+        future<real> chain = hpx::make_ready_future(real(0.0));
+        for (integer i = 0; i < steps; ++i) {
+            chain = chain.then(hpx::launch::async, [this](future<real> previous) {
+                previous.get();
+                return step(1).get();
+            });
+        }
+        return chain;
+    }
+    if (opts().fld && !opts().hydro) {
+        assert(my_location.level() == 0);
+        return hpx::async([this]() -> real {
+            real dt = opts().hard_dt;
+            if (opts().stop_time > 0.0) {
+                dt = std::min(dt, opts().stop_time - current_time);
+            }
+            if (dt > 0.0) {
+                compute_fld(dt);
+                // fld_stage advances every node's clock for stationary material.
+            }
+            return dt;
+        });
+    }
+    grid_ptr->set_coordinates();
+    std::array<future<void>, NCHILD> child_futs;
+    if (is_refined) {
+        for (integer ci = 0; ci != NCHILD; ++ci) {
+            child_futs[ci] = children[ci].step(steps);
+        }
+    }
+    future<real> fut = local_step(steps);
+    if (is_refined) {
+        fut = hpx::dataflow(hpx::launch::sync,
+            [](future<real> dt_fut, future<std::array<future<void>, NCHILD>> children_done) {
+                auto finished = children_done.get();
+                for (auto& child : finished) {
+                    child.get();
+                }
+                return dt_fut.get();
+            }, std::move(fut), hpx::when_all(std::move(child_futs)));
+    }
+    if (opts().fld && my_location.level() == 0) {
+        return fut.then(hpx::launch::async, [this](future<real> completed) {
+            real const dt = completed.get();
+            if (opts().fld) {
+                compute_fld(dt);
+            }
+            return dt;
+        });
+    }
+    return fut;
 }
 
 using timestep_driver_ascend_action_type = node_server::timestep_driver_ascend_action;

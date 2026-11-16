@@ -25,6 +25,7 @@
 #include "octotiger/channel.hpp"
 #include "octotiger/defs.hpp"
 #include "octotiger/future.hpp"
+#include "octotiger/fld_stage_result.hpp"
 #include "octotiger/geometry.hpp"
 #include "octotiger/grid.hpp"
 #include "octotiger/node_client.hpp"
@@ -36,6 +37,8 @@ namespace octotiger { namespace multigrid {
 class Block;
 struct GravityBoundary;
 } }
+
+class fld_grid;
 
 struct node_count_type {
 	std::uint64_t total;
@@ -71,6 +74,8 @@ private:
 	real current_time;
 	real rotational_time;
 	std::shared_ptr<grid> grid_ptr; //
+	std::shared_ptr<fld_grid> fld_grid_ptr;
+	void bind_fld_grid();
 	std::shared_ptr<rad_grid> rad_grid_ptr; //
 	std::atomic<bool> is_refined;
 	std::array<integer, NVERTEX> child_descendant_count;
@@ -336,6 +341,15 @@ private:
 	unordered_channel<expansion_pass_type> parent_rad_channel;
 public:
 	hpx::future<void> exchange_rad_flux_corrections();
+    void compute_fld(double dt);
+    octotiger::fld::StageResult fld_stage(int stage, int level, std::vector<double> parameters);
+    HPX_DEFINE_COMPONENT_ACTION(node_server, fld_stage, fld_stage_action);
+    std::vector<double> fld_data(int which, int operation, int index);
+    HPX_DEFINE_COMPONENT_ACTION(node_server, fld_data, fld_data_action);
+    std::vector<double> fld_sample(int which, std::vector<double> positions);
+    HPX_DEFINE_COMPONENT_ACTION(node_server, fld_sample, fld_sample_action);
+    std::vector<double> fld_face(int axis, int side, bool children);
+    HPX_DEFINE_COMPONENT_ACTION(node_server, fld_face, fld_face_action);
     void receive_radiation_iteration(integer child, real value);
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, receive_radiation_iteration, receive_radiation_iteration_action);
     void broadcast_radiation_iteration(real value);

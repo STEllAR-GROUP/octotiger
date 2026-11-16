@@ -5,6 +5,7 @@
 
 #ifndef OCTOTIGER_UNITIGER_HYDRO_HPP_
 #define OCTOTIGER_UNITIGER_HYDRO_HPP_
+#include <array>
 #include <vector>
 
 #include "safe_real.hpp"
@@ -73,7 +74,11 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 	const hydro::recon_type<NDIM>& reconstruct_cuda(hydro::state_type &U, const hydro::x_type&, safe_real);
 //#endif
 
-	timestep_t flux(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X, safe_real omega);
+	timestep_t flux(hydro::state_type const &U, hydro::recon_type<NDIM> const &Q,
+        hydro::flux_type &F, hydro::x_type &X, safe_real omega,
+        std::vector<std::vector<safe_real>> const *radiation_recon = nullptr,
+        std::array<std::vector<safe_real>, NDIM> const *radiation_acoustic = nullptr,
+        std::array<std::vector<safe_real>, NDIM> *radiation_flux = nullptr);
 	timestep_t flux_experimental(const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X, safe_real omega);
 
 	void post_process(hydro::state_type &U, const hydro::state_type &X, safe_real dx);

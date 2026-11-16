@@ -33,7 +33,7 @@ target_compile_features(fld_thermal_numerics PRIVATE cxx_std_17)
 add_test(NAME fld_thermal_numerics COMMAND fld_thermal_numerics)
 set_tests_properties(fld_thermal_numerics PROPERTIES PROCESSORS 1 TIMEOUT 120 LABELS fld)
 
-foreach(fixture opacity material boundary)
+foreach(fixture opacity material boundary scf_geometry)
   add_executable(fld_${fixture}_numerics test_${fixture}.cpp)
   target_include_directories(fld_${fixture}_numerics PRIVATE "${fld_source_root}")
   target_compile_features(fld_${fixture}_numerics PRIVATE cxx_std_17)
@@ -43,3 +43,28 @@ endforeach()
 
 find_package(Threads REQUIRED)
 target_link_libraries(fld_opacity_numerics PRIVATE Threads::Threads)
+
+if(TARGET octotiger)
+  find_package(Python3 COMPONENTS Interpreter REQUIRED)
+  foreach(case uniform pulse amr rotation restart dual_energy nonconvergence)
+    add_test(NAME fld_application_${case}
+      COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/check_fld.py
+        --exe $<TARGET_FILE:octotiger>
+        --work-dir ${CMAKE_CURRENT_BINARY_DIR}/${case}
+        --case ${case})
+    set_tests_properties(fld_application_${case} PROPERTIES
+      PROCESSORS 1 TIMEOUT 660 LABELS fld RUN_SERIAL TRUE)
+  endforeach()
+endif()
+
+if(TARGET octotiger)
+  foreach(case cold heated independent amr restart shock)
+    add_test(NAME fld_wd_${case}
+      COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/check_dwd_fld.py
+        --exe $<TARGET_FILE:octotiger>
+        --work-dir ${CMAKE_CURRENT_BINARY_DIR}/wd_${case}
+        --case ${case})
+    set_tests_properties(fld_wd_${case} PROPERTIES
+      PROCESSORS 1 TIMEOUT 660 LABELS "fld;wd" RUN_SERIAL TRUE)
+  endforeach()
+endif()

@@ -35,7 +35,6 @@ constexpr integer spc_vac_i = spc_i + 4;
 const real w0init = 1.0 / 2.0;
 const real w0max = 0.5;
 const real iter2max = 25.0;
-const int itermax = 256;
 real w0 = w0init;
 
 namespace scf_options {
@@ -462,7 +461,7 @@ void node_server::run_scf(std::string const &data_dir) {
 	grid::set_omega(omega);
 	printf("Starting SCF\n");
 	real l1_phi = 0.0, l2_phi, l3_phi;
-	for (integer i = 0; i != itermax; ++i) {
+	for (integer i = 0; i != opts().scf_max_iterations; ++i) {
 //		profiler_output(stdout);
 		char buffer[33];    // 21 bytes for int (max) + some leeway
 		sprintf(buffer, "X.scf.%i", int(i));

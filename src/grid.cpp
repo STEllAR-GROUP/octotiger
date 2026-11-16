@@ -3,12 +3,21 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+#include <fenv.h>
+#include <array>
+#include <cassert>
+#include <cmath>
+#include <string>
+#include <unordered_map>
+
+#include <hpx/include/runtime.hpp>
+#include <hpx/collectives/broadcast_direct.hpp>
+#include <hpx/synchronization/once.hpp>
+
 #include "octotiger/radiation/rad_grid.hpp"
 #include "octotiger/test_problems/exact_sod.hpp"
-
-#include <fenv.h>
-
 #include "octotiger/diagnostics.hpp"
+#include "octotiger/fld_material_state.hpp"
 #include "octotiger/future.hpp"
 #include "octotiger/grid.hpp"
 #include "octotiger/node_server.hpp"
@@ -21,20 +30,8 @@
 #include "octotiger/test_problems/amr/amr.hpp"
 #include "octotiger/unitiger/hydro_impl/reconstruct.hpp"
 #include "octotiger/unitiger/hydro_impl/flux.hpp"
-
-#include <hpx/include/runtime.hpp>
-#include <hpx/collectives/broadcast_direct.hpp>
-#include <hpx/synchronization/once.hpp>
-
-#include <array>
-#include <cassert>
-#include <cmath>
-#include <string>
-#include <unordered_map>
-
 #include "octotiger/unitiger/hydro_impl/flux_kernel_interface.hpp"
 #include "octotiger/unitiger/hydro_impl/reconstruct_kernel_interface.hpp"
-//#include "octotiger/unitiger/hydro_impl/hydro_cuda_interface.hpp"
 #include "octotiger/unitiger/hydro_impl/hydro_kernel_interface.hpp"
 
 #if !defined(HPX_COMPUTE_DEVICE_CODE)
@@ -48,7 +45,7 @@ std::unordered_map<int, std::string> grid::index_to_str_gravity;
 double grid::idle_rate;
 
 bool grid::is_hydro_field(const std::string &str) {
-	return str_to_index_hydro.find(str) != str_to_index_hydro.end();
+	return (opts().fld && str == "Erad") || str_to_index_hydro.find(str) != str_to_index_hydro.end();
 }
 
 std::vector<std::pair<std::string, real>> grid::get_outflows() const {
@@ -57,17 +54,28 @@ std::vector<std::pair<std::string, real>> grid::get_outflows() const {
 	for (auto i = str_to_index_hydro.begin(); i != str_to_index_hydro.end(); ++i) {
 		rc.push_back(std::make_pair(i->first, U_out[i->second]));
 	}
+    if (fld_energy_) {
+        rc.emplace_back("Erad", fld_outflow_);
+    }
 	return std::move(rc);
 }
 
 void grid::set_outflows(std::vector<std::pair<std::string, real>> &&u) {
 	for (const auto &p : u) {
-		U_out[str_to_index_hydro[p.first]] = p.second;
+        if (p.first == "Erad" && fld_energy_) {
+            fld_outflow_ = p.second;
+        } else {
+            U_out[str_to_index_hydro.at(p.first)] = p.second;
+        }
 	}
 }
 
 void grid::set_outflow(std::pair<std::string, real> &&p) {
-	U_out[str_to_index_hydro[p.first]] = p.second;
+    if (p.first == "Erad" && fld_energy_) {
+        fld_outflow_ = p.second;
+        return;
+    }
+	U_out[str_to_index_hydro.at(p.first)] = p.second;
 	U_out[rho_i] = 0.0;
 	for (integer s = 0; s < opts().n_species; s++) {
 		U_out[rho_i] += U_out[spc_i + s];
@@ -136,16 +144,31 @@ std::vector<std::string> grid::get_hydro_field_names() {
 		rc.push_back(i.first);
 	}
 //	}
+    if (opts().fld) {
+        rc.push_back("Erad");
+    }
 	return rc;
 }
 
 void grid::set(const std::string name, real *data, int version) {
 	PROFILE();
+    if (name == "Erad" && fld_energy_) {
+        real const unit = convert_hydro_units(egas_i);
+        integer offset = 0;
+        for (integer i = 0; i < INX; ++i) {
+            for (integer j = 0; j < INX; ++j) {
+                for (integer k = 0; k < INX; ++k) {
+                    (*fld_energy_)[hindex(k + H_BW, j + H_BW, i + H_BW)] = data[offset++] / unit;
+                }
+            }
+        }
+        return;
+    }
 	auto iter = str_to_index_hydro.find(name);
-	real unit = convert_hydro_units(iter->second);
 
 	if (iter != str_to_index_hydro.end()) {
 		int f = iter->second;
+        real unit = convert_hydro_units(f);
 		int jjj = 0;
 
 		/* Correct for bugfix across versions */
@@ -232,6 +255,9 @@ std::vector<grid::roche_type> grid::get_roche_lobe() const {
 }
 
 std::string grid::hydro_units_name(const std::string &nm) {
+    if (nm == "Erad" && opts().fld) {
+        return "g / (cm s^2)";
+    }
 	int f = str_to_index_hydro[nm];
 	if (f >= spc_i && f <= spc_i + opts().n_species) {
 		return "g / cm^3";
@@ -289,6 +315,22 @@ std::vector<silo_var_t> grid::var_data() const {
 	}
 //	}
 
+    if (fld_energy_) {
+        silo_var_t radiation("Erad");
+        real const radiation_unit = convert_hydro_units(egas_i);
+        integer offset = 0;
+        for (integer i = 0; i < INX; ++i) {
+            for (integer j = 0; j < INX; ++j) {
+                for (integer k = 0; k < INX; ++k) {
+                    integer const cell = hindex(k + H_BW - x0, j + H_BW - y0, i + H_BW - z0);
+                    radiation(offset) = (*fld_energy_)[cell] * radiation_unit;
+                    radiation.set_range(radiation(offset));
+                    ++offset;
+                }
+            }
+        }
+        s.push_back(std::move(radiation));
+    }
 	if (opts().gravity) {
 		for (auto l : str_to_index_gravity) {
 			unit = convert_gravity_units(l.second);
@@ -431,10 +473,20 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 							real X;
 							real Z;
 							mean_ion_weight(species, mmw, X, Z);
-							rc.Trad0 = rad_grid_ptr->get_field(0, j-H_BW+R_BW, k-H_BW+R_BW, l-H_BW+R_BW);
-							rc.Trad0 /= 4.0 * physcon().sigma / physcon().c;
-							rc.Trad0 = pow(rc.Trad0, 0.25);
-							rc.Tgas0 = POWER(U[tau_i][iii], fgamma) / U[rho_i][iii] / physcon().kb * (physcon().mh * mmw) * (fgamma-1.0);
+							if (opts().radiation && rad_grid_ptr) {
+								rc.Trad0 = rad_grid_ptr->get_field(0, j-H_BW+R_BW, k-H_BW+R_BW, l-H_BW+R_BW);
+								rc.Trad0 /= 4.0 * physcon().sigma / physcon().c;
+								rc.Trad0 = pow(rc.Trad0, 0.25);
+							} else if (opts().fld && fld_energy_) {
+								rc.Trad0 = std::pow((*fld_energy_)[iii] / octotiger::fld::fld_effective_ar(), 0.25);
+							} else {
+								rc.Trad0 = 0.0;
+							}
+							if (opts().fld) {
+								rc.Tgas0 = octotiger::fld::fld_material_state(U, static_cast<size_t>(iii)).temperature;
+							} else {
+								rc.Tgas0 = POWER(U[tau_i][iii], fgamma) / U[rho_i][iii] / physcon().kb * (physcon().mh * mmw) * (fgamma-1.0);
+							}
 
 						}
 					}
@@ -817,14 +869,14 @@ std::vector<real> grid::get_prolong(const std::array<integer, NDIM> &lb, const s
 	PROFILE();
 	std::vector<real> data;
 
-	integer size = opts().n_fields;
+	integer size = opts().n_fields + bool(fld_energy_);
 	for (integer dim = 0; dim != NDIM; ++dim) {
 		size *= (ub[dim] - lb[dim]);
 	}
 	data.reserve(size);
 
-	for (integer f = 0; f < opts().n_fields; f++) {
-		const auto &u = U[f];
+	for (integer f = 0; f < opts().n_fields + bool(fld_energy_); f++) {
+		auto const &u = f == opts().n_fields ? *fld_energy_ : U[f];
 		for (integer i = lb[XDIM]; i != ub[XDIM]; ++i) {
 			const real x = (i % 2) ? +1 : -1;
 			for (integer j = lb[YDIM]; j != ub[YDIM]; ++j) {
@@ -834,6 +886,11 @@ std::vector<real> grid::get_prolong(const std::array<integer, NDIM> &lb, const s
 					const real z = (k % 2) ? +1 : -1;
 					const auto u0 = u[iii];
 					real value = u0;
+                    // Piecewise constant radiation prolongation preserves positivity and its volume integral.
+                    if (f == opts().n_fields) {
+                        data.push_back(u0);
+                        continue;
+                    }
 					value += (9. / 64.) * minmod(u[iii + x * H_DNX] - u0, u0 - u[iii - x * H_DNX]);
 					value += (9. / 64.) * minmod(u[iii + y * H_DNY] - u0, u0 - u[iii - y * H_DNY]);
 					value += (9. / 64.) * minmod(u[iii + z * H_DNZ] - u0, u0 - u[iii - z * H_DNZ]);
@@ -856,7 +913,8 @@ std::vector<real> grid::get_restrict() const {
 	integer Size = opts().n_fields * INX * INX * INX / NCHILD + opts().n_fields;
 	std::vector<real> data;
 	data.reserve(Size);
-	for (integer field = 0; field != opts().n_fields; ++field) {
+	for (integer field = 0; field != opts().n_fields + bool(fld_energy_); ++field) {
+        auto const &values = field == opts().n_fields ? *fld_energy_ : U[field];
 		for (integer i = H_BW; i < H_NX - H_BW; i += 2) {
 			for (integer j = H_BW; j < H_NX - H_BW; j += 2) {
 				for (integer k = H_BW; k < H_NX - H_BW; k += 2) {
@@ -866,7 +924,7 @@ std::vector<real> grid::get_restrict() const {
 						for (integer y = 0; y != 2; ++y) {
 							for (integer z = 0; z != 2; ++z) {
 								const integer jjj = iii + x * H_DNX + y * H_DNY + z * H_DNZ;
-								pt += U[field][jjj];
+								pt += values[jjj];
 							}
 						}
 					}
@@ -876,6 +934,9 @@ std::vector<real> grid::get_restrict() const {
 			}
 		}
 	}
+    if (fld_energy_) {
+        data.push_back(fld_outflow_);
+    }
 	for (integer field = 0; field != opts().n_fields; ++field) {
 		data.push_back(U_out[field]);
 	}
@@ -888,18 +949,27 @@ void grid::set_restrict(const std::vector<real> &data, const geo::octant &octant
 	const integer i0 = octant.get_side(XDIM) * (INX / 2);
 	const integer j0 = octant.get_side(YDIM) * (INX / 2);
 	const integer k0 = octant.get_side(ZDIM) * (INX / 2);
-	for (integer field = 0; field != opts().n_fields; ++field) {
+	for (integer field = 0; field != opts().n_fields + bool(fld_energy_); ++field) {
 		for (integer i = H_BW; i != H_NX / 2; ++i) {
 			for (integer j = H_BW; j != H_NX / 2; ++j) {
 				for (integer k = H_BW; k != H_NX / 2; ++k) {
 					const integer iii = (i + i0) * H_DNX + (j + j0) * H_DNY + (k + k0) * H_DNZ;
-					auto &v = U[field][iii];
+					auto &values = field == opts().n_fields ? *fld_energy_ : U[field];
+                    auto &v = values[iii];
 					v = data[index];
 					++index;
 				}
 			}
 		}
 	}
+    if (fld_energy_) {
+        int const child = octant.get_side(XDIM) + 2 * octant.get_side(YDIM) + 4 * octant.get_side(ZDIM);
+        fld_child_outflows_[child] = data[index];
+        fld_outflow_ = 0.0;
+        for (auto const value : fld_child_outflows_) {
+            fld_outflow_ += value;
+        }
+    }
 }
 
 void grid::set_hydro_boundary(const std::vector<real> &data, const geo::direction &dir, bool energy_only) {
@@ -908,9 +978,9 @@ void grid::set_hydro_boundary(const std::vector<real> &data, const geo::directio
 	integer iter = 0;
 	const auto &bw = energy_only ? energy_bw : field_bw;
 
-	for (integer field = 0; field != opts().n_fields; ++field) {
-		get_boundary_size(lb, ub, dir, OUTER, INX, H_BW, bw[field]);
-		auto &Ufield = U[field];
+	for (integer field = 0; field != opts().n_fields + bool(fld_energy_); ++field) {
+		get_boundary_size(lb, ub, dir, OUTER, INX, H_BW, field == opts().n_fields ? H_BW : bw[field]);
+		auto &Ufield = field == opts().n_fields ? *fld_energy_ : U[field];
 		for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
 			for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
 				for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
@@ -930,14 +1000,14 @@ std::vector<real> grid::get_hydro_boundary(const geo::direction &dir, bool energ
 	std::vector<real> data;
 	integer size = 0;
 
-	for (integer field = 0; field != opts().n_fields; ++field) {
-		size += get_boundary_size(lb, ub, dir, INNER, INX, H_BW, bw[field]);
+	for (integer field = 0; field != opts().n_fields + bool(fld_energy_); ++field) {
+		size += get_boundary_size(lb, ub, dir, INNER, INX, H_BW, field == opts().n_fields ? H_BW : bw[field]);
 	}
 	data.resize(size);
 	integer iter = 0;
-	for (integer field = 0; field != opts().n_fields; ++field) {
-		get_boundary_size(lb, ub, dir, INNER, INX, H_BW, bw[field]);
-		auto &Ufield = U[field];
+	for (integer field = 0; field != opts().n_fields + bool(fld_energy_); ++field) {
+		get_boundary_size(lb, ub, dir, INNER, INX, H_BW, field == opts().n_fields ? H_BW : bw[field]);
+		auto const &Ufield = field == opts().n_fields ? *fld_energy_ : U[field];
 		for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
 			for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
 				for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
@@ -1105,11 +1175,12 @@ std::vector<real> grid::get_flux_restrict(const std::array<integer, NDIM> &lb, c
 		size *= (ub[dim] - lb[dim]);
 	}
 	size /= (NCHILD / 2);
-	size *= opts().n_fields;
+	size *= opts().n_fields + bool(fld_energy_);
 	data.reserve(size);
 	const integer stride1 = (dim == XDIM) ? (INX + 1) : (INX + 1) * (INX + 1);
 	const integer stride2 = (dim == ZDIM) ? (INX + 1) : 1;
-	for (integer field = 0; field != opts().n_fields; ++field) {
+	for (integer field = 0; field != opts().n_fields + bool(fld_energy_); ++field) {
+        auto const &flux = field == opts().n_fields ? fld_flux_[dim] : F[dim][field];
 		for (integer i = lb[XDIM]; i < ub[XDIM]; i += 2) {
 			for (integer j = lb[YDIM]; j < ub[YDIM]; j += 2) {
 				for (integer k = lb[ZDIM]; k < ub[ZDIM]; k += 2) {
@@ -1118,10 +1189,10 @@ std::vector<real> grid::get_flux_restrict(const std::array<integer, NDIM> &lb, c
 					const integer i01 = i00 + stride2;
 					const integer i11 = i00 + stride1 + stride2;
 					real value = ZERO;
-					value += F[dim][field][i00];
-					value += F[dim][field][i10];
-					value += F[dim][field][i01];
-					value += F[dim][field][i11];
+					value += flux[i00];
+					value += flux[i10];
+					value += flux[i01];
+					value += flux[i11];
 					value /= real(4);
 					data.push_back(value);
 				}
@@ -1135,12 +1206,13 @@ void grid::set_flux_restrict(const std::vector<real> &data, const std::array<int
 		const std::array<integer, NDIM> &ub, const geo::dimension &dim) {
 	PROFILE();
 	integer index = 0;
-	for (integer field = 0; field != opts().n_fields; ++field) {
+	for (integer field = 0; field != opts().n_fields + bool(fld_energy_); ++field) {
+        auto &flux = field == opts().n_fields ? fld_flux_[dim] : F[dim][field];
 		for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
 			for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
 				for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
 					const integer iii = findex(i, j, k);
-					F[dim][field][iii] = data[index];
+					flux[iii] = data[index];
 					++index;
 				}
 			}
@@ -1151,13 +1223,18 @@ void grid::set_flux_restrict(const std::vector<real> &data, const std::array<int
 void grid::set_prolong(const std::vector<real> &data, std::vector<real> &&outflows) {
 	PROFILE();
 	integer index = 0;
+    if (fld_energy_) {
+        fld_outflow_ = outflows.size() > size_t(opts().n_fields) ? outflows.back() : 0.0;
+        outflows.resize(opts().n_fields);
+    }
 	U_out = std::move(outflows);
-	for (integer field = 0; field != opts().n_fields; ++field) {
+	for (integer field = 0; field != opts().n_fields + bool(fld_energy_); ++field) {
 		for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 			for (integer j = H_BW; j != H_NX - H_BW; ++j) {
 				for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 					const integer iii = hindex(i, j, k);
-					auto &value = U[field][iii];
+					auto &values = field == opts().n_fields ? *fld_energy_ : U[field];
+                    auto &value = values[iii];
 					value = data[index];
 					++index;
 				}
@@ -1257,6 +1334,9 @@ void grid::change_units(real m, real l, real t, real k) {
 			U[spc_i + si][i] *= m * l3inv;
 		}
 		U[egas_i][i] *= (m * l2 * t2inv) * l3inv;
+        if (fld_energy_) {
+            (*fld_energy_)[i] *= (m * l2 * t2inv) * l3inv;
+        }
 		if (opts().eos != IPR) { // for IPR eos, tau is the temperature
 			U[tau_i][i] *= std::pow(m * l2 * t2inv * l3inv, 1.0 / fgamma);
 		}
@@ -1844,6 +1924,20 @@ analytic_t grid::compute_analytic(real t) {
 
 void grid::allocate() {
 
+    bool const initialize_fld = opts().fld && !fld_energy_;
+    if (opts().fld) {
+        if (!fld_energy_) {
+            fld_energy_ = std::make_shared<std::vector<real>>(H_N3, opts().fld_initial_energy);
+        } else {
+            fld_energy_->resize(H_N3, opts().fld_initial_energy);
+        }
+        fld_energy0_.resize(H_N3);
+        fld_rhs_.resize(INX * INX * INX);
+        fld_shadow_.resize(HS_N3);
+        for (auto &flux : fld_flux_) {
+            flux.resize(F_N3);
+        }
+    }
 	if (opts().radiation) {
 		rad_grid_ptr = std::make_shared<rad_grid>();
 		rad_grid_ptr->set_dx(dx);
@@ -1872,6 +1966,16 @@ void grid::allocate() {
 	com_ptr.resize(2);
 
 	set_coordinates();
+    if (initialize_fld && opts().fld_initial_pulse != 0.0) {
+        double const width = 0.2 * scaling_factor;
+        for (integer cell = 0; cell < H_N3; ++cell) {
+            double radius_squared = 0.0;
+            for (int dim = 0; dim < NDIM; ++dim) {
+                radius_squared += X[dim][cell] * X[dim][cell];
+            }
+            (*fld_energy_)[cell] += opts().fld_initial_pulse * std::exp(-radius_squared / (width * width));
+        }
+    }
 
 #ifdef OCTOTIGER_HAVE_GRAV_PAR
 	L_mtx.reset(new hpx::spinlock);
@@ -1987,6 +2091,9 @@ timestep_t grid::compute_fluxes() {
 	}
 	hydro.use_smooth_recon(pot_i);
     
+    if (opts().fld) {
+        return compute_fld_fluxes();
+    }
   const interaction_host_kernel_type host_type = opts().hydro_host_kernel_type;
   const interaction_device_kernel_type device_type = opts().hydro_device_kernel_type;
   const size_t device_queue_length = opts().max_gpu_executor_queue_length;
@@ -2038,6 +2145,10 @@ void grid::store() {
 		}
 	}
 	U_out0 = U_out;
+    if (fld_energy_) {
+        fld_energy0_ = *fld_energy_;
+        fld_outflow0_ = fld_outflow_;
+    }
 }
 
 void grid::restore() {
@@ -2052,6 +2163,10 @@ void grid::restore() {
 		}
 	}
 	U_out = U_out0;
+    if (fld_energy_) {
+        *fld_energy_ = fld_energy0_;
+        fld_outflow_ = fld_outflow0_;
+    }
 }
 
 void grid::set_physical_boundaries(const geo::face &face, real t) {
@@ -2185,6 +2300,9 @@ void grid::set_physical_boundaries(const geo::face &face, real t) {
 			}
 		}
 	}
+    if (fld_energy_) {
+        set_fld_physical_boundary(face);
+    }
 }
 
 void grid::compute_sources(real t, real rotational_time) {
@@ -2282,6 +2400,9 @@ void grid::compute_sources(real t, real rotational_time) {
 			}
 		}
 	}
+    if (fld_energy_) {
+        compute_fld_sources();
+    }
 }
 
 void grid::compute_dudt() {
@@ -2318,6 +2439,9 @@ void grid::compute_dudt() {
 		}
 	}
 //	solve_gravity(DRHODT);
+    if (fld_energy_) {
+        compute_fld_dudt();
+    }
 }
 
 void grid::egas_to_etot() {
@@ -2357,7 +2481,9 @@ void grid::next_u(integer rk, real t, real dt) {
 	if (!opts().hydro) {
 		return;
 	}
-//	return;
+    if (fld_energy_) {
+        next_fld_energy(rk, dt);
+    }
 
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {

@@ -53,7 +53,7 @@ void node_server::check_for_refinement(real omega, real new_floor) {
 			futs[index++] = child.check_for_refinement(omega, new_floor);
 		}
 	}
-	if (opts().hydro || opts().problem == AMR_TEST) {
+	if (opts().hydro || opts().fld || opts().problem == AMR_TEST) {
 		all_hydro_bounds();
 	}
 	if (!rc) {

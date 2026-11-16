@@ -18,6 +18,7 @@
 #include "octotiger/diagnostics.hpp"
 #include "octotiger/eos.hpp"
 #include "octotiger/future.hpp"
+#include "octotiger/fld_stage_result.hpp"
 #include "octotiger/geometry.hpp"
 #include "octotiger/grid.hpp"
 #include "octotiger/node_location.hpp"
@@ -89,6 +90,10 @@ public:
         const geo::octant& ci) const;
     future<diagnostics_t> diagnostics(const diagnostics_t&) const;
     future<analytic_t> compare_analytic() const;
+    future<octotiger::fld::StageResult> fld_stage(int stage, int level, std::vector<double> parameters = {}) const;
+    future<std::vector<double>> fld_data(int which, int operation, int index) const;
+    future<std::vector<double>> fld_sample(int which, std::vector<double> positions) const;
+    future<std::vector<double>> fld_face(int axis, int side, bool children) const;
     future<std::vector<double>> multigrid_stage(int stage, int level) const;
     future<std::vector<double>> multigrid_data(int field, int operation, int index) const;
     future<std::vector<double>> multigrid_face(int axis, int side, int kind) const;

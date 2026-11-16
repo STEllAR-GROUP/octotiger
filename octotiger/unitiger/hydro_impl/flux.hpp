@@ -6,6 +6,7 @@
 #ifndef OCTOTIGER____FLUX____HPP123
 #define OCTOTIGER____FLUX____HPP123
 
+#include "octotiger/fld_hydro.hpp"
 #include "octotiger/unitiger/physics.hpp"
 #include "octotiger/unitiger/physics_impl.hpp"
 #include "octotiger/common_kernel/struct_of_array_data.hpp"
@@ -13,13 +14,17 @@
 //#define FACE_ONLY_HYDRO
 
 template<int NDIM, int INX, class PHYS>
-timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X,	safe_real omega) {
+timestep_t hydro_computer<NDIM, INX, PHYS>::flux(hydro::state_type const &U,
+    hydro::recon_type<NDIM> const &Q, hydro::flux_type &F, hydro::x_type &X, safe_real omega,
+    std::vector<std::vector<safe_real>> const *radiation_recon,
+    std::array<std::vector<safe_real>, NDIM> const *radiation_acoustic,
+    std::array<std::vector<safe_real>, NDIM> *radiation_flux) {
 
 	PROFILE();
 	// input Q, X
 	// output F
 
-	timestep_t ts;
+	timestep_t ts{};
 	ts.a = 0.0;
 	// bunch of tmp containers
 	static thread_local std::vector<safe_real> UR(nf_), UL(nf_), this_flux(nf_);
@@ -46,6 +51,11 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, con
 			}
 		}
 
+        if (radiation_flux != nullptr) {
+            for (auto const i : indices) {
+                (*radiation_flux)[dim][i] = 0.0;
+            }
+        }
 		for (const auto &i : indices) {
 			safe_real ap = 0.0, am = 0.0;
 			safe_real this_ap, this_am;
@@ -81,19 +91,43 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, con
 
 				PHYS::template physical_flux<INX>(UR, FR, dim, amr, apr, x, vg);
 				PHYS::template physical_flux<INX>(UL, FL, dim, aml, apl, x, vg);
+                double radiation_left = 0.0;
+                double radiation_right = 0.0;
+                if (radiation_recon != nullptr) {
+                    radiation_right = std::max(0.0, double((*radiation_recon)[d][i]));
+                    radiation_left = std::max(0.0, double((*radiation_recon)[geo::flip_dim(d, dim)][i - geo.H_DN[dim]]));
+                    double const vr = 0.5 * (apr + amr);
+                    double const vl = 0.5 * (apl + aml);
+                    double const cr = 0.5 * (apr - amr);
+                    double const cl = 0.5 * (apl - aml);
+                    double const crad_r = (*radiation_acoustic)[dim][i] * radiation_right / UR[physics<NDIM>::rho_i];
+                    double const crad_l = (*radiation_acoustic)[dim][i - geo.H_DN[dim]] * radiation_left / UL[physics<NDIM>::rho_i];
+                    double const speed_r = std::sqrt(cr * cr + crad_r);
+                    double const speed_l = std::sqrt(cl * cl + crad_l);
+                    apr = vr + speed_r;
+                    amr = vr - speed_r;
+                    apl = vl + speed_l;
+                    aml = vl - speed_l;
+                }
+
 				this_ap = std::max(std::max(apr, apl), safe_real(0.0));
 				this_am = std::min(std::min(amr, aml), safe_real(0.0));
 #pragma ivdep
 				for (int f = 0; f < nf_; f++) {
-					// this isn't vectorized
-					if (this_ap - this_am != 0.0) { 
-						this_flux[f] = (this_ap * FL[f] - this_am * FR[f] + this_ap * this_am * (UR[f] - UL[f])) / (this_ap - this_am);
-						//const auto a = std::max(this_ap, -this_am);
-				//		this_flux[f] = 0.5 * (FL[f] + FR[f] - a * (UR[f] - UL[f]));
-					} else {
-						this_flux[f] = (FL[f] + FR[f]) / 2.0;
-					}
+                    this_flux[f] = octotiger::fld::hll_flux(UL[f], UR[f], FL[f], FR[f], this_am, this_ap);
 				}
+                if (radiation_flux != nullptr) {
+                    double const vl = UL[physics<NDIM>::sx_i + dim] / UL[physics<NDIM>::rho_i] - vg[dim];
+                    double const vr = UR[physics<NDIM>::sx_i + dim] / UR[physics<NDIM>::rho_i] - vg[dim];
+                    double const flux = octotiger::fld::hll_flux(radiation_left, radiation_right,
+                        vl * radiation_left, vr * radiation_right, this_am, this_ap);
+#ifdef FACE_ONLY_HYDRO
+                    (*radiation_flux)[dim][i] += flux;
+#else
+                    (*radiation_flux)[dim][i] += weights[fi] * flux;
+#endif
+                }
+
 				am = std::min(am, this_am);
 				ap = std::max(ap, this_ap);
 #pragma ivdep

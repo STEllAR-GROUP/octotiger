@@ -227,6 +227,8 @@ set(source_files
     src/multigrid/gravity.cpp
     src/multigrid/reaction_diffusion.cpp
     src/fld_grid.cpp
+    src/fld_hydro.cpp
+    src/fld_solver.cpp
     src/new.cpp
     src/node_client.cpp
     src/node_location.cpp
@@ -554,6 +556,8 @@ octotiger_require_strict_fp(
   src/multigrid/gravity.cpp
     src/multigrid/reaction_diffusion.cpp
     src/fld_grid.cpp
+    src/fld_hydro.cpp
+    src/fld_solver.cpp
   src/problem.cpp
   src/test_problems/wd_equilibrium.cpp
   src/radiation/rad_grid.cpp
@@ -606,6 +610,8 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/multigrid/gravity.cpp
     src/multigrid/reaction_diffusion.cpp
     src/fld_grid.cpp
+    src/fld_hydro.cpp
+    src/fld_solver.cpp
     src/physcon.cpp 
     src/io/silo_out.cpp
     src/io/silo_in.cpp

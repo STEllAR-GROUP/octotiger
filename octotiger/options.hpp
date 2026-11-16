@@ -49,6 +49,29 @@ public:
 	std::string gravity_mg_boundary = "analytic";
 	bool hydro;
 	bool radiation;
+	// Independent comoving FLD model; coefficients and energies are in code units.
+	bool fld = false;
+	std::string fld_opacity_model = "legacy";
+	std::string fld_material_model = "auto";
+	std::string fld_unit_system = "auto";
+	real fld_rosseland = 1.0;
+	real fld_rosseland_density_exponent = 0.0;
+	real fld_rosseland_temperature_exponent = 0.0;
+	real fld_opacity_temperature_floor = 0.0;
+	real fld_gaunt = 1.0;
+	real fld_absorption = 1.0;
+	real fld_scattering = 0.0;
+	real fld_density_exponent = 0.0;
+	real fld_temperature_exponent = 0.0;
+	real fld_cv = 1.0;
+	real fld_c = 1.0;
+	real fld_ar = 1.0;
+	real fld_initial_energy = 0.0;
+	real fld_initial_pulse = 0.0;
+	real fld_tolerance = 1.0e-8;
+	integer fld_max_iterations = 100;
+	integer fld_max_cycles = 100;
+
 	real grad_rho_refine;
 	real clight_retard;
 	bool v1309;
@@ -64,6 +87,7 @@ public:
   bool print_times_per_timestep;
 
 	integer scf_output_frequency;
+	integer scf_max_iterations = 256;
 	integer silo_num_groups;
 	integer amrbnd_order;
 	integer extra_regrid;
@@ -166,6 +190,7 @@ public:
 
 	std::vector<real> atomic_mass;
 	std::vector<real> atomic_number;
+	std::vector<real> atomic_number_squared;
 	std::vector<real> X;
 	std::vector<real> Z;
 
@@ -217,6 +242,7 @@ public:
 		arc & silo_offset_y;
 		arc & silo_offset_z;
 		arc & scf_output_frequency;
+		arc & scf_max_iterations;
 		arc & silo_num_groups;
 		arc & amrbnd_order;
 		arc & dual_energy_sw1;
@@ -286,12 +312,35 @@ public:
     arc & print_times_per_timestep;
 		arc & atomic_mass;
 		arc & atomic_number;
+		arc & atomic_number_squared;
 		arc & X;
 		arc & Z;
 		arc & grad_rho_refine;
 		arc & code_to_g;
 		arc & code_to_s;
 		arc & code_to_cm;
+		arc & fld;
+		arc & fld_opacity_model;
+		arc & fld_material_model;
+		arc & fld_unit_system;
+		arc & fld_rosseland;
+		arc & fld_rosseland_density_exponent;
+		arc & fld_rosseland_temperature_exponent;
+		arc & fld_opacity_temperature_floor;
+		arc & fld_gaunt;
+		arc & fld_absorption;
+		arc & fld_scattering;
+		arc & fld_density_exponent;
+		arc & fld_temperature_exponent;
+		arc & fld_cv;
+		arc & fld_c;
+		arc & fld_ar;
+		arc & fld_initial_energy;
+		arc & fld_initial_pulse;
+		arc & fld_tolerance;
+		arc & fld_max_iterations;
+		arc & fld_max_cycles;
+
 	}
 
 	OCTOTIGER_EXPORT bool process_options(int argc, char *argv[]);
