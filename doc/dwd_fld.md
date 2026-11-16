@@ -105,6 +105,21 @@ before any evolution. Check the SCF masses,
 filling fractions, density maxima and virial residual before using its result.
 An illustrative low-resolution run is not proof of SCF convergence.
 
+`scf_tolerance=0` retains the historical fixed-count behavior. A positive value
+requires the volume-integrated density fixed-point defect, normalized by target
+total mass and with the relaxation factor removed, the actual post-update
+component mass errors, and successive changes in central density, separation,
+angular frequency, surface constants and EOS scales to meet that tolerance.
+The default minimum is 25 iterations, with five consecutive stable iterations.
+Exhausting the budget throws before evolution. `scf_convergence.dat` reports
+the updated masses, mass ratio, density maxima, volume fills and virial after
+the updated gravity solve. Virial and volume fills are reported independently
+because their discretization error does not vanish merely by iterating SCF.
+Line-of-centers samples retain their actual cell positions: their centrifugal
+potential uses the same cylindrical radius and rotation center as the density
+update. Treating an off-axis cell as a point on the line produces a nonzero
+density defect even at an otherwise stationary SCF state.
+
 The stellar SCF thermal parameter is zero. Its entropy tracer retains the
 existing small numerical floor. The density-floor atmosphere has a separate
 gravitational-support thermal prescription, so it is not a globally cold
@@ -213,8 +228,9 @@ Level three retained both stellar components through a 30-iteration diagnostic
 probe. This observation motivates the fixture resolution but does not establish
 a converged initial binary or a general minimum resolution.
 
-SCF iteration diagnostics are written after mass normalization and before each
-density update. The runner labels these `last_iteration_*` and separately reads
+The legacy `log.txt` iteration diagnostics are written after mass normalization
+and before each density update; `scf_convergence.dat` now supplies the separate
+post-update summary. The runner labels legacy values `last_iteration_*` and separately reads
 `final_*` diagnostics from `binary.dat` after evolution. In the bounded
 16-iteration fixture, the last normalized masses were `1` and `.7` solar
 masses, while the final component masses were `.9976108` and `.6994727`, giving

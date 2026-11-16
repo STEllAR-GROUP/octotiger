@@ -98,6 +98,9 @@ public:
 
 	integer scf_output_frequency;
 	integer scf_max_iterations = 256;
+	real scf_tolerance = 0.0;
+	integer scf_min_iterations = 25;
+	integer scf_stable_iterations = 5;
 	integer silo_num_groups;
 	integer amrbnd_order;
 	integer extra_regrid;
@@ -253,6 +256,9 @@ public:
 		arc & silo_offset_z;
 		arc & scf_output_frequency;
 		arc & scf_max_iterations;
+		arc & scf_tolerance;
+		arc & scf_min_iterations;
+		arc & scf_stable_iterations;
 		arc & silo_num_groups;
 		arc & amrbnd_order;
 		arc & dual_energy_sw1;

@@ -4,10 +4,14 @@
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <limits>
 #include <mutex>
+#include <sstream>
+#include <stdexcept>
 #include <string>
 
 #include "octotiger/defs.hpp"
@@ -324,6 +328,8 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 	real rho_floor = opts().scf_rho_floor;
 	real rho_int = 10.0 * rho_floor;
 	rho_int = SQRT(rho_int * rho_floor);
+	real density_change = 0.0;
+	real const cell_volume = dx * dx * dx;
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
@@ -335,6 +341,7 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 				const real z = X[ZDIM][iiih];
 				const real R = SQRT(POWER(x - com, 2) + y * y);
 				real rho = U[rho_i][iiih];
+				real const old_rho = rho;
 				real phi_eff = G[iiig][phi_i] - 0.5 * POWER(omega * R, 2);
 				const real fx = G[iiig][gx_i] + (x - com) * POWER(omega, 2);
 				const real fy = G[iiig][gy_i] + y * POWER(omega, 2);
@@ -387,6 +394,9 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 				if (new_rho < rho_int) {
 					rho = rho_floor;
 				}
+				// Remove the relaxation weight so a smaller w0 cannot masquerade
+				// as a smaller fixed-point defect. Include the atmosphere cutoff.
+				density_change += std::abs(rho - old_rho) * cell_volume / w0;
 				U[rho_i][iiih] = rho;
 				const real rho0 = rho - rho_floor;
 				if (opts().eos == WD) {
@@ -458,10 +468,97 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 	if (opts().radiation) {
 		rad_grid_ptr->initialize_erad(U[rho_i], U[tau_i]);
 	}
-	return 0.0;
+	return density_change;
+}
+
+namespace {
+
+constexpr size_t scf_accretor = 0;
+constexpr size_t scf_donor = 1;
+constexpr size_t scf_star_count = 2;
+
+struct scf_convergence_state {
+	std::array<real, scf_star_count> mass;
+	std::array<real, scf_star_count> central_density;
+	std::array<space_vector, scf_star_count> center;
+	std::array<real, scf_star_count> bernoulli;
+	std::array<real, scf_star_count> central_enthalpy;
+	std::array<real, scf_star_count> eos_a;
+	std::array<real, scf_star_count> eos_b;
+	real separation;
+	real omega;
+};
+
+void validate_scf_diagnostics(diagnostics_t const &diags, integer iteration, char const *stage) {
+	bool valid = !diags.failed && std::isfinite(double(diags.virial)) &&
+		std::isfinite(double(diags.a)) && diags.a > 0.0 &&
+		std::isfinite(double(diags.omega)) && diags.omega > 0.0;
+	for (size_t star = 0; star != scf_star_count; ++star) {
+		for (real const value : {real(diags.m[star]), real(diags.rho_max[star]),
+				real(diags.stellar_vol[star]), real(diags.roche_vol[star])}) {
+			valid = valid && std::isfinite(double(value)) && value > 0.0;
+		}
+		for (size_t dimension = 0; dimension != NDIM; ++dimension) {
+			valid = valid && std::isfinite(double(diags.com[star][dimension])) &&
+				std::isfinite(double(diags.grid_com[dimension]));
+		}
+	}
+	if (!valid) {
+		std::ostringstream message;
+		message << "Invalid " << stage << " SCF diagnostics at iteration " << iteration
+			<< ": M1=" << diags.m[scf_accretor] << " M2=" << diags.m[scf_donor]
+			<< " separation=" << diags.a << " omega=" << diags.omega
+			<< " virial=" << diags.virial << " geometry_failed=" << diags.failed;
+		throw std::runtime_error(message.str());
+	}
+}
+
+real scf_relative_change(real current, real previous, real scale = 0.0) {
+	real const denominator = scale > 0.0 ? scale :
+		std::max({std::abs(current), std::abs(previous), real(std::numeric_limits<double>::min())});
+	return std::abs(current - previous) / denominator;
+}
+
+real scf_scalar_change(scf_convergence_state const &current, scf_convergence_state const &previous) {
+	real change = std::max(scf_relative_change(current.separation, previous.separation),
+		scf_relative_change(current.omega, previous.omega));
+	for (size_t star = 0; star != scf_star_count; ++star) {
+		for (size_t dimension = 0; dimension != NDIM; ++dimension) {
+			change = std::max(change,
+				std::abs(current.center[star][dimension] - previous.center[star][dimension]) /
+					std::max(current.separation, previous.separation));
+		}
+		real const enthalpy_scale = std::max(current.central_enthalpy[star], previous.central_enthalpy[star]);
+		change = std::max({change,
+			scf_relative_change(current.mass[star], previous.mass[star]),
+			scf_relative_change(current.central_density[star], previous.central_density[star]),
+			scf_relative_change(current.bernoulli[star], previous.bernoulli[star], enthalpy_scale),
+			scf_relative_change(current.central_enthalpy[star], previous.central_enthalpy[star]),
+			scf_relative_change(current.eos_a[star], previous.eos_a[star]),
+			scf_relative_change(current.eos_b[star], previous.eos_b[star])});
+	}
+	return change;
+}
+
 }
 
 void node_server::run_scf(std::string const &data_dir) {
+	bool const check_convergence = opts().scf_tolerance > 0.0;
+	std::array<real, scf_star_count> const target_mass = {scf_options::M1, scf_options::M2};
+	if (check_convergence) {
+		for (real const mass : target_mass) {
+			if (!std::isfinite(double(mass)) || mass <= 0.0) {
+				throw std::invalid_argument("Converged SCF initialization requires finite positive target masses");
+			}
+		}
+	}
+	scf_convergence_state previous_state{};
+	bool have_previous_state = false;
+	bool converged = false;
+	integer stable_iterations = 0;
+	real density_residual = std::numeric_limits<double>::infinity();
+	real mass_error = std::numeric_limits<double>::infinity();
+	real scalar_change = std::numeric_limits<double>::infinity();
 	solve_gravity(false, false);
 	real omega = initial_params().omega;
 	real jorb0;
@@ -481,6 +578,9 @@ void node_server::run_scf(std::string const &data_dir) {
 			}
 		}
 		auto diags = diagnostics();
+		if (check_convergence) {
+			validate_scf_diagnostics(diags, i + 1, "pre-update");
+		}
 		real f0 = scf_options::M1 * INVERSE(diags.m[0]);
 		real f1 = scf_options::M2 * INVERSE(diags.m[1]);
 		real f = (scf_options::M1 + scf_options::M2) * INVERSE(diags.m[0] + diags.m[1]);
@@ -682,10 +782,100 @@ void node_server::run_scf(std::string const &data_dir) {
 		}
 //		printf( "%e %e\n", grid::get_A(), grid::get_B());
 		//	printf( "%e %e %e\n", rho1_max.first, rho2_max.first, l1_x);
-		scf_update(com, omega, c_1, c_2, rho1_max.first, rho2_max.first, l1_x, *e1, *e2);
+		real const density_change = scf_update(com, omega, c_1, c_2,
+			rho1_max.first, rho2_max.first, l1_x, *e1, *e2);
 		solve_gravity(false, false);
+		// These diagnostics describe the updated stars, before the next mass
+		// renormalization. Virial is measured with their newly solved gravity.
+		if (check_convergence || i + 1 == opts().scf_max_iterations) {
+			auto const post = diagnostics();
+			if (check_convergence) {
+				validate_scf_diagnostics(post, i + 1, "post-update");
+			}
+			density_residual = density_change / (target_mass[scf_accretor] + target_mass[scf_donor]);
+			mass_error = std::max(std::abs(real(post.m[scf_accretor]) / target_mass[scf_accretor] - 1.0),
+				std::abs(real(post.m[scf_donor]) / target_mass[scf_donor] - 1.0));
+			scf_convergence_state const current_state{
+				{post.m[scf_accretor], post.m[scf_donor]},
+				{post.rho_max[scf_accretor], post.rho_max[scf_donor]},
+				{post.com[scf_accretor], post.com[scf_donor]},
+				{c_1, c_2}, {e1->h0(), e2->h0()},
+				{opts().eos == WD ? e1->A : e1->s0(), opts().eos == WD ? e2->A : e2->s0()},
+				{opts().eos == WD ? e1->B() : e1->get_frac(), opts().eos == WD ? e2->B() : e2->get_frac()},
+				post.a, omega};
+			if (check_convergence) {
+				for (size_t star = 0; star != scf_star_count; ++star) {
+					if (!(current_state.central_enthalpy[star] > 0.0)) {
+						throw std::runtime_error("Nonpositive SCF central enthalpy");
+					}
+					for (real const value : {current_state.bernoulli[star], current_state.central_enthalpy[star],
+							current_state.eos_a[star], current_state.eos_b[star]}) {
+						if (!std::isfinite(double(value))) {
+							throw std::runtime_error("Nonfinite SCF surface or EOS parameter");
+						}
+					}
+				}
+				if (!std::isfinite(double(density_residual)) || !std::isfinite(double(mass_error))) {
+					throw std::runtime_error("Nonfinite SCF density or mass residual");
+				}
+			}
+			scalar_change = have_previous_state ? scf_scalar_change(current_state, previous_state) :
+				std::numeric_limits<double>::infinity();
+			bool const stable = have_previous_state && density_residual <= opts().scf_tolerance &&
+				mass_error <= opts().scf_tolerance && scalar_change <= opts().scf_tolerance;
+			stable_iterations = stable ? stable_iterations + 1 : 0;
+			converged = check_convergence && i + 1 >= opts().scf_min_iterations &&
+				stable_iterations >= opts().scf_stable_iterations;
+			if (i == 0 || !check_convergence) {
+				lprint((opts().data_dir + "scf_convergence.dat").c_str(),
+					"# iteration density_residual mass_error scalar_change stable_iterations "
+					"M1 M2 q separation omega virial rho1 rho2 volume_fill1 volume_fill2 converged\n");
+			}
+			// Volume fills and virial have mesh-dependent floors; report them,
+			// rather than mistaking a requested fixed-point tolerance for accuracy.
+			lprint((opts().data_dir + "scf_convergence.dat").c_str(),
+				"%i %.17e %.17e %.17e %i %.17e %.17e %.17e %.17e %.17e %.17e %.17e %.17e %.17e %.17e %i\n",
+				int(i + 1), double(density_residual), double(mass_error), double(scalar_change), int(stable_iterations),
+				double(post.m[scf_accretor]), double(post.m[scf_donor]), double(post.m[scf_donor] / post.m[scf_accretor]),
+				double(post.a), double(omega), double(post.virial),
+				double(post.rho_max[scf_accretor]), double(post.rho_max[scf_donor]),
+				double(post.stellar_vol[scf_accretor] / post.roche_vol[scf_accretor]),
+				double(post.stellar_vol[scf_donor] / post.roche_vol[scf_donor]), int(converged));
+			previous_state = current_state;
+			have_previous_state = true;
+			if (converged) {
+				printf("SCF converged after %i iterations: density_residual=%.17e mass_error=%.17e "
+					"scalar_change=%.17e post_update_virial=%.17e\n", int(i + 1), double(density_residual),
+					double(mass_error), double(scalar_change), double(post.virial));
+				real const radius1 = std::cbrt(3.0 * post.stellar_vol[scf_accretor] / (4.0 * M_PI));
+				real const radius2 = std::cbrt(3.0 * post.stellar_vol[scf_donor] / (4.0 * M_PI));
+				real grid_com_squared = 0.0;
+				for (size_t dimension = 0; dimension != NDIM; ++dimension) {
+					grid_com_squared += post.grid_com[dimension] * post.grid_com[dimension];
+				}
+				real const grid_com_over_a = std::sqrt(grid_com_squared) / post.a;
+				printf("SCF_STATE iteration=%i code_to_g=%.17e code_to_cm=%.17e code_to_s=%.17e "
+					"M1=%.17e M2=%.17e a=%.17e omega=%.17e stellar_vol1=%.17e stellar_vol2=%.17e "
+					"radius1=%.17e radius2=%.17e grid_com_over_a=%.17e\n", int(i + 1), double(opts().code_to_g),
+					double(opts().code_to_cm), double(opts().code_to_s), double(post.m[scf_accretor]),
+					double(post.m[scf_donor]), double(post.a), double(omega),
+					double(post.stellar_vol[scf_accretor]), double(post.stellar_vol[scf_donor]),
+					double(radius1), double(radius2), double(grid_com_over_a));
+				break;
+			}
+		}
 		w0 = std::min(w0max, w0 * POWER(w0max / w0init, 1.0 / iter2max));
 
+	}
+	if (check_convergence && !converged) {
+		std::ostringstream message;
+		message.precision(17);
+		message << "SCF failed to converge within " << opts().scf_max_iterations
+			<< " iterations: density_residual=" << density_residual << " mass_error=" << mass_error
+			<< " scalar_change=" << scalar_change << " tolerance=" << opts().scf_tolerance
+			<< " stable_iterations=" << stable_iterations << '/' << opts().scf_stable_iterations
+			<< "; evolution has not started";
+		throw std::runtime_error(message.str());
 	}
 	if (opts().radiation) {
 		if (opts().eos == WD) {

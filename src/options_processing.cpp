@@ -110,7 +110,10 @@ bool options::process_options(int argc, char *argv[]) {
 	("silo_offset_z", po::value<integer>(&(opts().silo_offset_z))->default_value(0), "")      //
 	("amrbnd_order", po::value<integer>(&(opts().amrbnd_order))->default_value(1), "amr boundary interpolation order")        //
 	("scf_output_frequency", po::value<integer>(&(opts().scf_output_frequency))->default_value(25), "Frequency of SCF output")        //
-	("scf_max_iterations", po::value<integer>(&opts().scf_max_iterations)->default_value(256), "Number of SCF iterations before evolution")
+	("scf_max_iterations", po::value<integer>(&opts().scf_max_iterations)->default_value(256), "SCF iteration budget; failure to meet a positive scf_tolerance prevents evolution")
+	("scf_tolerance", po::value<real>(&opts().scf_tolerance)->default_value(0.0), "Relative SCF fixed-point tolerance; zero retains fixed-count initialization")
+	("scf_min_iterations", po::value<integer>(&opts().scf_min_iterations)->default_value(25), "Minimum SCF iterations before accepting convergence")
+	("scf_stable_iterations", po::value<integer>(&opts().scf_stable_iterations)->default_value(5), "Consecutive SCF iterations that must satisfy scf_tolerance")
 	("scf_rho_floor", po::value<real>(&(opts().scf_rho_floor))->default_value(1.0e-12), "scf density floor")     //
 	("silo_num_groups", po::value<integer>(&(opts().silo_num_groups))->default_value(-1), "Number of SILO I/O groups")        //
 	("core_refine", po::value<bool>(&(opts().core_refine))->default_value(false), "refine cores by one more level")           //
@@ -277,6 +280,20 @@ bool options::process_options(int argc, char *argv[]) {
     }
     if (scf_max_iterations < 1) {
         throw std::invalid_argument("scf_max_iterations must be positive");
+    }
+    if (scf_output_frequency < 1 || scf_min_iterations < 1 || scf_stable_iterations < 1) {
+        throw std::invalid_argument("SCF output frequency, minimum iterations, and stable iterations must be positive");
+    }
+    if (!std::isfinite(scf_tolerance) || scf_tolerance < 0.0) {
+        throw std::invalid_argument("scf_tolerance must be finite and nonnegative");
+    }
+    if (scf_tolerance > 0.0) {
+        if (scf_min_iterations > scf_max_iterations || scf_stable_iterations > scf_max_iterations) {
+            throw std::invalid_argument("SCF minimum and stable iterations must fit within scf_max_iterations");
+        }
+        if (disable_diagnostics) {
+            throw std::invalid_argument("A positive scf_tolerance requires disable_diagnostics=off");
+        }
     }
     if (light_curve && light_curve_opacity_model == "fld" && !fld) {
         throw std::invalid_argument("light_curve_opacity_model=fld requires fld=on");
@@ -498,6 +515,9 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(rotating_star_x);
 		SHOW(scf_output_frequency);
 		SHOW(scf_max_iterations);
+		SHOW(scf_tolerance);
+		SHOW(scf_min_iterations);
+		SHOW(scf_stable_iterations);
 		SHOW(silo_num_groups);
 		SHOW(stop_step);
 		SHOW(stop_time);
