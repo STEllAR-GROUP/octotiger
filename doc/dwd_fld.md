@@ -114,6 +114,10 @@ reservoirs. The atmosphere classification uses the fifth DWD tracer and is a
 diagnostic convention, not an extra opacity switch.
 
 Use `fld=on` with `radiation=off`: the latter controls the separate M1 solver.
+`light_curve_opacity_model=fld` evaluates the same total Rosseland provider as
+evolution for the optical-depth diagnostic. This consistency does not make a
+gray Rosseland photosphere a frequency-dependent spectrum. Unresolved optical
+depth surfaces remain reported by the existing light-curve diagnostics.
 
 The example selects `fld_boundary=vacuum`, a zero-incident-radiation modified
 Marshak (Sánchez–Pomraning) boundary. The default remains `reflecting`, with zero
@@ -130,8 +134,10 @@ the computational box through diffusion, and `boundary_diffusion_luminosity`
 is that energy divided by the timestep. The six `escape_{x,y,z}_{minus,plus}`
 fields separate its box-face contributions; `boundary_vacuum` identifies the
 selected condition. These diagnostics use code energy and power units and
-exclude explicit advective transport. Domain-size and outer-atmosphere
-sensitivity still require assessment for a production run.
+exclude explicit advective transport. The photosphere luminosity remains a
+separate diagnostic proxy, rather than the escaping box-boundary flux or a
+frequency-dependent observable. Domain-size and outer-atmosphere sensitivity
+still require assessment for a production run.
 
 New checkpoints preserve `fld_boundary`. Older checkpoints without this
 optional field restore `reflecting`, overriding the command-line boundary

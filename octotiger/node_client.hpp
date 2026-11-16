@@ -21,6 +21,7 @@
 #include "octotiger/fld_stage_result.hpp"
 #include "octotiger/geometry.hpp"
 #include "octotiger/grid.hpp"
+#include "octotiger/light_curve.hpp"
 #include "octotiger/node_location.hpp"
 
 class node_server;
@@ -94,6 +95,8 @@ public:
     future<std::vector<double>> fld_data(int which, int operation, int index) const;
     future<std::vector<double>> fld_sample(int which, std::vector<double> positions) const;
     future<std::vector<double>> fld_face(int axis, int side, bool children) const;
+    future<std::vector<octotiger::light_curve::Column>> trace_light_curve_columns(
+        std::vector<octotiger::light_curve::Column> columns, bool from_above) const;
     future<std::vector<double>> multigrid_stage(int stage, int level) const;
     future<std::vector<double>> multigrid_data(int field, int operation, int index) const;
     future<std::vector<double>> multigrid_face(int axis, int side, int kind) const;

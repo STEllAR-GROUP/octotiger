@@ -229,6 +229,8 @@ set(source_files
     src/fld_grid.cpp
     src/fld_hydro.cpp
     src/fld_solver.cpp
+    src/light_curve.cpp
+    src/light_curve_grid.cpp
     src/new.cpp
     src/node_client.cpp
     src/node_location.cpp
@@ -558,6 +560,8 @@ octotiger_require_strict_fp(
     src/fld_grid.cpp
     src/fld_hydro.cpp
     src/fld_solver.cpp
+    src/light_curve.cpp
+    src/light_curve_grid.cpp
   src/problem.cpp
   src/test_problems/wd_equilibrium.cpp
   src/radiation/rad_grid.cpp
@@ -612,6 +616,8 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/fld_grid.cpp
     src/fld_hydro.cpp
     src/fld_solver.cpp
+    src/light_curve.cpp
+    src/light_curve_grid.cpp
     src/physcon.cpp 
     src/io/silo_out.cpp
     src/io/silo_in.cpp
@@ -1161,5 +1167,6 @@ if(OCTOTIGER_WITH_TESTS)
   add_subdirectory(test_problems/stacktrace)
   add_subdirectory(test_problems/multigrid)
   add_subdirectory(test_problems/fld)
+  add_subdirectory(test_problems/light_curve)
   add_subdirectory(test_problems)
 endif()

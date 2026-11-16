@@ -274,6 +274,9 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 //	output_all("X", 0, false);
 
 	if (!opts().hydro && !opts().radiation && !opts().fld) {
+        if (opts().light_curve) {
+            compute_light_curve();
+        }
 //		diagnostics();
 		if (!opts().disable_output) {
 			output_all(this, "final", output_cnt, true);
@@ -337,6 +340,9 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 	auto fut_ptr = me.get_ptr();
 	auto root_ptr = GET(fut_ptr);
 	if (!opts().output_filename.empty()) {
+		if (opts().light_curve) {
+			compute_light_curve();
+		}
 		diagnostics();
 		solve_gravity(false, false);
 		output_all(this, opts().output_filename, output_cnt, false);
@@ -347,6 +353,9 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 		printf("Solving gravity\n");
 		solve_gravity(false, false);
 		ngrids = regrid(me.get_gid(), grid::get_omega(), -1, false);
+	}
+	if (opts().light_curve) {
+		compute_light_curve();
 	}
 
 	real output_dt = opts().output_dt;
@@ -777,9 +786,9 @@ future<real> node_server::local_step(integer steps) {
 }
 
 future<real> node_server::step(integer steps) {
-    // Complete the implicit solve globally before children enter their next
-    // explicit step or change the mesh.
-    if (opts().fld && my_location.level() == 0 && steps > 1) {
+    // Complete the implicit solve and any photosphere snapshot globally before
+    // children enter their next explicit step or change the sampled mesh.
+    if ((opts().fld || opts().light_curve) && my_location.level() == 0 && steps > 1) {
         future<real> chain = hpx::make_ready_future(real(0.0));
         for (integer i = 0; i < steps; ++i) {
             chain = chain.then(hpx::launch::async, [this](future<real> previous) {
@@ -799,6 +808,9 @@ future<real> node_server::step(integer steps) {
             if (dt > 0.0) {
                 compute_fld(dt);
                 // fld_stage advances every node's clock for stationary material.
+                if (opts().light_curve && step_num % opts().light_curve_interval == 0) {
+                    compute_light_curve();
+                }
             }
             return dt;
         });
@@ -821,11 +833,14 @@ future<real> node_server::step(integer steps) {
                 return dt_fut.get();
             }, std::move(fut), hpx::when_all(std::move(child_futs)));
     }
-    if (opts().fld && my_location.level() == 0) {
+    if ((opts().fld || opts().light_curve) && my_location.level() == 0) {
         return fut.then(hpx::launch::async, [this](future<real> completed) {
             real const dt = completed.get();
             if (opts().fld) {
                 compute_fld(dt);
+            }
+            if (opts().light_curve && step_num % opts().light_curve_interval == 0) {
+                compute_light_curve();
             }
             return dt;
         });

@@ -22,6 +22,7 @@
 #include "octotiger/diagnostics.hpp"
 #include "octotiger/geometry.hpp"
 #include "octotiger/interaction_types.hpp"
+#include "octotiger/light_curve.hpp"
 #include "octotiger/problem.hpp"
 #include "octotiger/radiation/rad_grid.hpp"
 #include "octotiger/real.hpp"
@@ -417,6 +418,8 @@ public:
 	std::pair<real, real> virial() const;
 
 	std::vector<silo_var_t> var_data() const;
+	octotiger::light_curve::Trace trace_light_curve_columns(
+		std::vector<octotiger::light_curve::Column> columns, bool from_above) const;
 	void set(const std::string name, real *data, int);
 	friend class node_server;
 };

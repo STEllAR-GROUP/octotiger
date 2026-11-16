@@ -133,6 +133,7 @@ bool options::process_options(int argc, char *argv[]) {
 	("fld_opacity_model", po::value<std::string>(&opts().fld_opacity_model)->default_value("legacy"), "Opacity provider: legacy, independent, free_free_thomson")
 	("fld_material_model", po::value<std::string>(&opts().fld_material_model)->default_value("auto"), "Thermal model: auto, constant_cv, fully_ionized")
 	("fld_unit_system", po::value<std::string>(&opts().fld_unit_system)->default_value("auto"), "FLD units: auto, code, physical; physical uses finalized code_to_* and Kelvin")
+	("light_curve_opacity_model", po::value<std::string>(&opts().light_curve_opacity_model)->default_value("override"), "Photosphere opacity: override or fld (same total Rosseland extinction as evolution)")
 	("fld_rosseland", po::value<real>(&opts().fld_rosseland)->default_value(1.0), "Total Rosseland coefficient in independent mode; inverse code length")
 	("fld_rosseland_density_exponent", po::value<real>(&opts().fld_rosseland_density_exponent)->default_value(0.0), "Total Rosseland density exponent")
 	("fld_rosseland_temperature_exponent", po::value<real>(&opts().fld_rosseland_temperature_exponent)->default_value(0.0), "Total Rosseland temperature exponent")
@@ -150,6 +151,13 @@ bool options::process_options(int argc, char *argv[]) {
 	("fld_tolerance", po::value<real>(&opts().fld_tolerance)->default_value(1.0e-8), "Relative coupled nonlinear residual tolerance")
 	("fld_max_iterations", po::value<integer>(&opts().fld_max_iterations)->default_value(100), "Maximum FLD nonlinear iterations")
 	("fld_max_cycles", po::value<integer>(&opts().fld_max_cycles)->default_value(100), "Maximum multigrid cycles per FLD linearization")
+	("light_curve", po::value<bool>(&opts().light_curve)->default_value(false), "Save +z/-z tau=1 photosphere meshes and bolometric light curves")
+	("light_curve_interval", po::value<integer>(&opts().light_curve_interval)->default_value(1), "Completed steps between light-curve samples; also sample the initial state")
+	("light_curve_output", po::value<std::string>(&opts().light_curve_output)->default_value("light_curve.dat"), "Light-curve table filename, relative to data_dir; meshes saved in filename.mesh")
+	("light_curve_absorption", po::value<real>(&opts().light_curve_absorption)->default_value(1.0), "Diagnostic alpha0 in alpha=alpha0*rho^p*T^q, extinction per code length")
+	("light_curve_scattering", po::value<real>(&opts().light_curve_scattering)->default_value(0.0), "Diagnostic constant scattering opacity per code mass; extinction=rho*kappa_s")
+	("light_curve_density_exponent", po::value<real>(&opts().light_curve_density_exponent)->default_value(0.0), "Diagnostic absorption density exponent p")
+	("light_curve_temperature_exponent", po::value<real>(&opts().light_curve_temperature_exponent)->default_value(0.0), "Diagnostic absorption temperature exponent q")
 
 	("correct_am_hydro", po::value<bool>(&(opts().correct_am_hydro))->default_value(false), "Obsolete compatibility option (ignored)")    //
 	("correct_am_grav", po::value<bool>(&(opts().correct_am_grav))->default_value(true), "Angular momentum correction switch for gravity")    //
@@ -264,8 +272,26 @@ bool options::process_options(int argc, char *argv[]) {
         throw std::invalid_argument("DWD requires at least five tracers");
     }
     n_fields = n_species + spc_i;
+    if (light_curve_opacity_model != "override" && light_curve_opacity_model != "fld") {
+        throw std::invalid_argument("Unknown light_curve_opacity_model");
+    }
     if (scf_max_iterations < 1) {
         throw std::invalid_argument("scf_max_iterations must be positive");
+    }
+    if (light_curve && light_curve_opacity_model == "fld" && !fld) {
+        throw std::invalid_argument("light_curve_opacity_model=fld requires fld=on");
+    }
+    if (light_curve) {
+        if (light_curve_interval < 1 || light_curve_output.empty() ||
+            !(light_curve_absorption >= 0.0) || !(light_curve_scattering >= 0.0)) {
+            throw std::invalid_argument("Invalid light-curve cadence, output path, or opacity");
+        }
+        for (double const value : {light_curve_absorption, light_curve_scattering,
+                 light_curve_density_exponent, light_curve_temperature_exponent}) {
+            if (!std::isfinite(value)) {
+                throw std::invalid_argument("Light-curve opacity parameters must be finite");
+            }
+        }
     }
     if (fld) {
         if (fld_boundary != "reflecting" && fld_boundary != "vacuum") {
@@ -439,6 +465,7 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(fld_opacity_model);
 		SHOW(fld_material_model);
 		SHOW(fld_unit_system);
+		SHOW(light_curve_opacity_model);
 		SHOW(fld_rosseland);
 		SHOW(fld_rosseland_density_exponent);
 		SHOW(fld_rosseland_temperature_exponent);
@@ -456,6 +483,13 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(fld_tolerance);
 		SHOW(fld_max_iterations);
 		SHOW(fld_max_cycles);
+		SHOW(light_curve);
+		SHOW(light_curve_interval);
+		SHOW(light_curve_output);
+		SHOW(light_curve_absorption);
+		SHOW(light_curve_scattering);
+		SHOW(light_curve_density_exponent);
+		SHOW(light_curve_temperature_exponent);
 
 		SHOW(refinement_floor);
 		SHOW(reflect_bc);

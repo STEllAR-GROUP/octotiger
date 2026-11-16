@@ -28,6 +28,7 @@
 #include "octotiger/fld_stage_result.hpp"
 #include "octotiger/geometry.hpp"
 #include "octotiger/grid.hpp"
+#include "octotiger/light_curve.hpp"
 #include "octotiger/node_client.hpp"
 #include "octotiger/node_location.hpp"
 #include "octotiger/profiler.hpp"
@@ -322,6 +323,11 @@ public:
 	line_of_centers_t line_of_centers(const std::pair<space_vector, space_vector>& line) const;
 	HPX_DEFINE_COMPONENT_ACTION(node_server, line_of_centers, line_of_centers_action);
 
+    void compute_light_curve();
+    std::vector<octotiger::light_curve::Column> trace_light_curve_columns(
+        std::vector<octotiger::light_curve::Column> columns, bool from_above) const;
+    HPX_DEFINE_COMPONENT_ACTION(node_server, trace_light_curve_columns, trace_light_curve_columns_action);
+
 	void rho_mult(real factor, real);/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server,rho_mult, rho_mult_action);
 
@@ -391,6 +397,7 @@ HPX_REGISTER_ACTION_DECLARATION(node_server::kill_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::change_units_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::rho_mult_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::line_of_centers_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::trace_light_curve_columns_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::velocity_inc_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::energy_adj_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::scf_update_action);

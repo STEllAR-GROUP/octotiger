@@ -49,12 +49,21 @@ public:
 	std::string gravity_mg_boundary = "analytic";
 	bool hydro;
 	bool radiation;
+	// Diagnostic configuration is broadcast to localities, but not saved as EOS state.
+	bool light_curve = false;
+	integer light_curve_interval = 1;
+	std::string light_curve_output = "light_curve.dat";
+	real light_curve_absorption = 1.0;
+	real light_curve_scattering = 0.0;
+	real light_curve_density_exponent = 0.0;
+	real light_curve_temperature_exponent = 0.0;
 	// Independent comoving FLD model; coefficients and energies are in code units.
 	bool fld = false;
 	std::string fld_boundary = "reflecting";
 	std::string fld_opacity_model = "legacy";
 	std::string fld_material_model = "auto";
 	std::string fld_unit_system = "auto";
+	std::string light_curve_opacity_model = "override";
 	real fld_rosseland = 1.0;
 	real fld_rosseland_density_exponent = 0.0;
 	real fld_rosseland_temperature_exponent = 0.0;
@@ -325,6 +334,7 @@ public:
 		arc & fld_opacity_model;
 		arc & fld_material_model;
 		arc & fld_unit_system;
+		arc & light_curve_opacity_model;
 		arc & fld_rosseland;
 		arc & fld_rosseland_density_exponent;
 		arc & fld_rosseland_temperature_exponent;
@@ -342,6 +352,13 @@ public:
 		arc & fld_tolerance;
 		arc & fld_max_iterations;
 		arc & fld_max_cycles;
+		arc & light_curve;
+		arc & light_curve_interval;
+		arc & light_curve_output;
+		arc & light_curve_absorption;
+		arc & light_curve_scattering;
+		arc & light_curve_density_exponent;
+		arc & light_curve_temperature_exponent;
 
 	}
 
