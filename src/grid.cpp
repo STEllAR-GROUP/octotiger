@@ -932,16 +932,14 @@ std::vector<real> grid::get_hydro_boundary(const geo::direction &dir, bool energ
 
 }
 
-line_of_centers_t grid::line_of_centers(const std::pair<space_vector, space_vector> &line) {
+line_of_centers_t grid::line_of_centers(std::pair<space_vector, space_vector> const &line) {
 
 	line_of_centers_t loc;
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
-				const integer iii = hindex(i, j, k);
-				const integer iiig = gindex(i - H_BW, j - H_BW, k - H_BW);
-				const auto R2 = std::sqrt(X[XDIM][iii] * X[XDIM][iii] + X[YDIM][iii] * X[YDIM][iii]);
-				const real dV = dx * dx * dx;
+				integer const iii = hindex(i, j, k);
+				integer const iiig = gindex(i - H_BW, j - H_BW, k - H_BW);
 				/*		for (integer d = 0; d != NDIM; ++d) {
 				 loc.core1_s[d] += U[sx_i + d][iii] * U[spc_ac_i][iii]
 				 / U[rho_i][iii]* dV;
@@ -951,7 +949,7 @@ line_of_centers_t grid::line_of_centers(const std::pair<space_vector, space_vect
 				 loc.core1 += U[spc_ac_i][iii] * dV;
 				 loc.core2 += U[spc_dc_i][iii] * dV;*/
 				space_vector a = line.first;
-				const space_vector &o = 0.0;
+				space_vector const &o = 0.0;
 				space_vector b;
 				real bb = 0.0;
 				real ab = 0.0;
@@ -963,19 +961,21 @@ line_of_centers_t grid::line_of_centers(const std::pair<space_vector, space_vect
 					bb += b[d] * b[d];
 					ab += a[d] * b[d];
 				}
-				const real d = std::sqrt(std::max(bb - ab * ab, 0.0));
+				real const d = std::sqrt(std::max(bb - ab * ab, 0.0));
 				real p = ab;
 				std::vector<real> data(opts().n_fields + NGF);
-				if (d < std::sqrt(3.0) * dx / 2.0) {
+				if (d < std::sqrt(real(NDIM)) * dx / 2.0) {
 					for (integer ui = 0; ui != opts().n_fields; ++ui) {
 						data[ui] = U[ui][iii];
 					}
 					for (integer gi = 0; gi != NGF; ++gi) {
 						data[opts().n_fields + gi] = G[iiig][gi];
 					}
-					loc.resize(loc.size() + 1);
-					loc[loc.size() - 1].first = p;
-					loc[loc.size() - 1].second = std::move(data);
+					line_of_centers_sample sample;
+					sample.coordinate = p;
+					sample.fields = std::move(data);
+					sample.position = {X[XDIM][iii], X[YDIM][iii], X[ZDIM][iii]};
+					loc.push_back(std::move(sample));
 				}
 			}
 		}

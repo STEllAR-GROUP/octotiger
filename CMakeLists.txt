@@ -61,6 +61,8 @@ option(OCTOTIGER_WITH_AVX2 "" OFF)
 option(OCTOTIGER_WITH_AVX512 "" OFF)
 
 option(OCTOTIGER_WITH_TESTS "Enable tests" ON)
+option(OCTOTIGER_WITH_SCF_TESTS "Enable SCF numerical tests without reference data"
+  ${OCTOTIGER_WITH_TESTS})
 set(OCTOTIGER_WITH_GRIDDIM "8" CACHE STRING "Grid size")
 set(OCTOTIGER_WITH_MAX_NUMBER_FIELDS "15" CACHE STRING "Maximum allowed nf_ (number fields)")
 set(OCTOTIGER_THETA_MINIMUM "0.34" CACHE STRING "Minimal allowed theta value - important for optimizations")
@@ -1128,6 +1130,11 @@ add_subdirectory(tools)
 ################################################################################
 # Tests
 ################################################################################
+if(OCTOTIGER_WITH_SCF_TESTS)
+  enable_testing()
+  add_subdirectory(test_problems/scf)
+endif()
+
 if(OCTOTIGER_WITH_TESTS)
     enable_testing()
 

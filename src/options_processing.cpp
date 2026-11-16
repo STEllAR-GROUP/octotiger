@@ -3,26 +3,28 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include "octotiger/defs.hpp"
-#include "octotiger/grid.hpp"
-#include "octotiger/options.hpp"
-#include "octotiger/physcon.hpp"
-#include "octotiger/real.hpp"
-#include "octotiger/common_kernel/interaction_constants.hpp"
-
-#include <boost/program_options.hpp>
-#if HPX_VERSION_FULL > 0x010600
-// Can't find hpx::find_all_localities() in newer HPX versions without this header
-#include <hpx/modules/runtime_distributed.hpp>
-#endif
-
 #include <cmath>
+#include <fstream>
 #include <iosfwd>
 #include <sstream>
 #include <string>
 #include <vector>
 
-#include <fstream>
+#include <boost/program_options.hpp>
+#include <hpx/config.hpp>
+#include <hpx/version.hpp>
+#if HPX_VERSION_FULL > 0x010600
+// Can't find hpx::find_all_localities() in newer HPX versions without this header
+#include <hpx/modules/runtime_distributed.hpp>
+#endif
+
+#include "octotiger/defs.hpp"
+#include "octotiger/grid.hpp"
+#include "octotiger/hydro_defs.hpp"
+#include "octotiger/options.hpp"
+#include "octotiger/physcon.hpp"
+#include "octotiger/real.hpp"
+#include "octotiger/common_kernel/interaction_constants.hpp"
 
 #define IN_OPTIONS_CPP
 
@@ -216,7 +218,6 @@ bool options::process_options(int argc, char *argv[]) {
         if (opts().problem == MOVING_STAR || opts().problem == ROTATING_STAR) {
                 opts().n_species = std::max(int(2), int(opts().n_species));
 	}
-	n_fields = n_species + 10;
 	if (!opts().restart_filename.empty()) {
 		FILE *fp = fopen(opts().restart_filename.c_str(), "rb");
 		if (fp == NULL) {
@@ -228,6 +229,7 @@ bool options::process_options(int argc, char *argv[]) {
 		}
 		load_options_from_silo(opts().restart_filename);
 	}
+	n_fields = n_species + spc_i;
     if (opts().executors_per_gpu > 0 && opts().number_gpus == 0) {
         opts().number_gpus = 1;
 	}

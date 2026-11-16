@@ -149,38 +149,39 @@ void node_server::recv_hydro_flux_correct(std::vector<real> &&data, const geo::f
 using line_of_centers_action_type = node_server::line_of_centers_action;
 HPX_REGISTER_ACTION(line_of_centers_action_type);
 
-future<line_of_centers_t> node_client::line_of_centers(const std::pair<space_vector, space_vector> &line) const {
+future<line_of_centers_t> node_client::line_of_centers(std::pair<space_vector, space_vector> const &line) const {
 	return hpx::async<typename node_server::line_of_centers_action>(get_unmanaged_gid(), line);
 }
 
-void output_line_of_centers(FILE *fp, const line_of_centers_t &loc) {
+void output_line_of_centers(FILE *fp, line_of_centers_t const &loc) {
 	for (integer i = 0; i != loc.size(); ++i) {
-		fprintf(fp, "%e ", loc[i].first);
+		fprintf(fp, "%e ", loc[i].coordinate);
 		for (integer j = 0; j != opts().n_fields + NGF; ++j) {
-			fprintf(fp, "%e ", loc[i].second[j]);
+			fprintf(fp, "%e ", loc[i].fields[j]);
 		}
 		fprintf(fp, "\n");
 	}
 }
 
-line_of_centers_t node_server::line_of_centers(const std::pair<space_vector, space_vector> &line) const {
+line_of_centers_t node_server::line_of_centers(std::pair<space_vector, space_vector> const &line) const {
 	line_of_centers_t return_line;
 	if (is_refined) {
 		std::array<future<line_of_centers_t>, NCHILD> futs;
 		for (integer ci = 0; ci != NCHILD; ++ci) {
 			futs[ci] = children[ci].line_of_centers(line);
 		}
-		std::map<real, std::vector<real>> map;
+		std::map<real, line_of_centers_sample> samples;
 		for (auto &&fut : futs) {
 			auto tmp = fut.get();
-			for (integer ii = 0; ii != tmp.size(); ++ii) {
-				if (map.find(tmp[ii].first) == map.end()) {
-					map.emplace(std::move(tmp[ii]));
-				}
+			for (auto &sample : tmp) {
+				real const coordinate = sample.coordinate;
+				samples.try_emplace(coordinate, std::move(sample));
 			}
 		}
-		return_line.resize(map.size());
-		std::move(map.begin(), map.end(), return_line.begin());
+		return_line.reserve(samples.size());
+		for (auto &sample : samples) {
+			return_line.push_back(std::move(sample.second));
+		}
 	} else {
 		return_line = grid_ptr->line_of_centers(line);
 	}
@@ -188,20 +189,22 @@ line_of_centers_t node_server::line_of_centers(const std::pair<space_vector, spa
 	return return_line;
 }
 
-void line_of_centers_analyze(const line_of_centers_t &loc, real omega, std::pair<real, real> &rho1_max,
+void line_of_centers_analyze(line_of_centers_t const &loc, real omega, real com, std::pair<real, real> &rho1_max,
 		std::pair<real, real> &rho2_max, std::pair<real, real> &l1_phi, std::pair<real, real> &l2_phi,
 		std::pair<real, real> &l3_phi, real &rho1_phi, real &rho2_phi) {
-
 	constexpr integer spc_ac_i = spc_i;
 	constexpr integer spc_ae_i = spc_i + 1;
 	constexpr integer spc_dc_i = spc_i + 2;
 	constexpr integer spc_de_i = spc_i + 3;
-	constexpr integer spc_vac_i = spc_i + 4;
 
-	for (auto &l : loc) {
-		ASSERT_NONAN(l.first);
+
+	for (auto const &sample : loc) {
+		ASSERT_NONAN(sample.coordinate);
+		ASSERT_NONAN(sample.position.x);
+		ASSERT_NONAN(sample.position.y);
+		ASSERT_NONAN(sample.position.z);
 		for (integer f = 0; f != opts().n_fields + NGF; ++f) {
-			ASSERT_NONAN(l.second[f]);
+			ASSERT_NONAN(sample.fields[f]);
 		}
 	}
 
@@ -209,32 +212,28 @@ void line_of_centers_analyze(const line_of_centers_t &loc, real omega, std::pair
 	integer rho1_maxi, rho2_maxi;
 	///	printf( "LOCSIZE %i\n", loc.size());
 	for (integer i = 0; i != loc.size(); ++i) {
-		const real x = loc[i].first;
-		const real rho = loc[i].second[rho_i];
-		const real pot = loc[i].second[pot_i];
-		if (loc[i].second[spc_ac_i] + loc[i].second[spc_ae_i] > 0.5 * loc[i].second[rho_i]) {
+		real const x = loc[i].coordinate;
+		real const rho = loc[i].fields[rho_i];
+		if (loc[i].fields[spc_ac_i] + loc[i].fields[spc_ae_i] > 0.5 * rho) {
 			//		printf("%e %e\n", x, rho);
 			if (rho1_max.second < rho) {
 				//	printf( "!\n");
 				rho1_max.second = rho;
 				rho1_max.first = x;
 				rho1_maxi = i;
-				real phi_eff = pot / ASSERT_POSITIVE(rho) - 0.5 * x * x * omega * omega;
-				rho1_phi = phi_eff;
+				rho1_phi = loc[i].position.effective_potential(loc[i].fields[opts().n_fields + phi_i], omega, com);
 			}
 		}
 	}
 	for (integer i = 0; i != loc.size(); ++i) {
-		const real x = loc[i].first;
-		if (loc[i].second[spc_dc_i] + loc[i].second[spc_de_i] > 0.5 * loc[i].second[rho_i]) {
-			const real rho = loc[i].second[rho_i];
-			const real pot = loc[i].second[pot_i];
+		real const x = loc[i].coordinate;
+		if (loc[i].fields[spc_dc_i] + loc[i].fields[spc_de_i] > 0.5 * loc[i].fields[rho_i]) {
+			real const rho = loc[i].fields[rho_i];
 			if (rho2_max.second < rho) {
 				rho2_max.second = rho;
 				rho2_max.first = x;
 				rho2_maxi = i;
-				real phi_eff = pot / ASSERT_POSITIVE(rho) - 0.5 * x * x * omega * omega;
-				rho2_phi = phi_eff;
+				rho2_phi = loc[i].position.effective_potential(loc[i].fields[opts().n_fields + phi_i], omega, com);
 			}
 		}
 	}
@@ -242,10 +241,8 @@ void line_of_centers_analyze(const line_of_centers_t &loc, real omega, std::pair
 	l2_phi.second = -std::numeric_limits<real>::max();
 	l3_phi.second = -std::numeric_limits<real>::max();
 	for (integer i = 0; i != loc.size(); ++i) {
-		const real x = loc[i].first;
-		const real rho = loc[i].second[rho_i];
-		const real pot = loc[i].second[pot_i];
-		real phi_eff = pot / ASSERT_POSITIVE(rho) - 0.5 * x * x * omega * omega;
+		real const x = loc[i].coordinate;
+		real const phi_eff = loc[i].position.effective_potential(loc[i].fields[opts().n_fields + phi_i], omega, com);
 		if (x > std::min(rho1_max.first, rho2_max.first) && x < std::max(rho1_max.first, rho2_max.first)) {
 			if (phi_eff > l1_phi.second) {
 				l1_phi.second = phi_eff;

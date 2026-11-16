@@ -3,6 +3,13 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+#include <algorithm>
+#include <cmath>
+#include <cstdio>
+#include <cstring>
+#include <mutex>
+#include <string>
+
 #include "octotiger/defs.hpp"
 #include "octotiger/eos.hpp"
 #include "octotiger/grid.hpp"
@@ -15,12 +22,6 @@
 #include "octotiger/profiler.hpp"
 #include "octotiger/real.hpp"
 #include "octotiger/util.hpp"
-
-#include <algorithm>
-#include <cstdio>
-#include <cstring>
-#include <mutex>
-
 
 #if !defined(HPX_COMPUTE_DEVICE_CODE)
 
@@ -106,17 +107,17 @@ void read_option_file() {
 	if (fp != nullptr) {
 		if (hpx::get_locality_id() == 0)
 			printf("SCF option file found\n");
-		const auto cmp = [](char *ptr, const char *str) {
+		auto const cmp = [](char *ptr, char const *str) {
 			return strncmp(ptr, str, strlen(str)) == 0;
 		};
-		const auto read_float = [](char *ptr) {
+		auto const read_float = [](char *ptr) {
 			while (*ptr != '\0' && *ptr != '=') {
 				++ptr;
 			}
 			if (*ptr == '=') {
 				++ptr;
 			}
-			return std::stof(ptr);
+			return std::stod(ptr);
 		};
 		while (!feof(fp)) {
 			char buffer[1024];
@@ -381,10 +382,10 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 				U[rho_i][iiih] = rho;
 				const real rho0 = rho - rho_floor;
 				if (opts().eos == WD) {
-					U[spc_ac_i][iiih] = rho > this_struct_eos.wd_core_cut ? (is_donor_side ? 0.0 : rho) : 0.0;
-					U[spc_dc_i][iiih] = rho > this_struct_eos.wd_core_cut ? (is_donor_side ? rho : 0.0) : 0.0;
-					U[spc_ae_i][iiih] = rho <= this_struct_eos.wd_core_cut ? (is_donor_side ? 0.0 : rho) : 0.0;
-					U[spc_de_i][iiih] = rho <= this_struct_eos.wd_core_cut ? (is_donor_side ? rho : 0.0) : 0.0;
+					U[spc_ac_i][iiih] = rho > this_struct_eos.wd_core_cut ? (is_donor_side ? 0.0 : rho0) : 0.0;
+					U[spc_dc_i][iiih] = rho > this_struct_eos.wd_core_cut ? (is_donor_side ? rho0 : 0.0) : 0.0;
+					U[spc_ae_i][iiih] = rho <= this_struct_eos.wd_core_cut ? (is_donor_side ? 0.0 : rho0) : 0.0;
+					U[spc_de_i][iiih] = rho <= this_struct_eos.wd_core_cut ? (is_donor_side ? rho0 : 0.0) : 0.0;
 				} else {
 					U[spc_ac_i][iiih] = rho > this_struct_eos.dE() ? (is_donor_side ? 0.0 : rho0) : 0.0;
 					U[spc_dc_i][iiih] = rho > this_struct_eos.dE() ? (is_donor_side ? rho0 : 0.0) : 0.0;
@@ -507,7 +508,7 @@ void node_server::run_scf(std::string const &data_dir) {
 		std::pair<real, real> l2_phi_pair;
 		std::pair<real, real> l3_phi_pair;
 		real phi_1, phi_2;
-		line_of_centers_analyze(loc, omega, rho1_max, rho2_max, l1_phi_pair, l2_phi_pair, l3_phi_pair, phi_1, phi_2);
+		line_of_centers_analyze(loc, omega, com, rho1_max, rho2_max, l1_phi_pair, l2_phi_pair, l3_phi_pair, phi_1, phi_2);
 		real rho1, rho2;
 		if (rho1_max.first > rho2_max.first) {
 			std::swap(phi_1, phi_2);
@@ -515,8 +516,10 @@ void node_server::run_scf(std::string const &data_dir) {
 		}
 		c1_x = diags.com[0][XDIM];
 		c2_x = diags.com[1][XDIM];
-		rho1 = diags.rho_max[0];
-		rho2 = diags.rho_max[1];
+		// Pair each central density with its potential from the same cell
+		// after rho_move; diags still describes the state before recentering.
+		rho1 = rho1_max.second;
+		rho2 = rho2_max.second;
 		l1_x = l1_phi_pair.first;
 		l1_phi = l1_phi_pair.second;
 		l2_phi = l2_phi_pair.second;
@@ -636,8 +639,8 @@ void node_server::run_scf(std::string const &data_dir) {
 		mu = M1 * M2 * INVERSE(M1 + M2);
 		amin = SQRT(3.0 * (is1 + is2) * INVERSE( mu ));
 
-		const real r0 = POWER(diags.stellar_vol[0] / (1.3333333333 * 3.14159), 1.0 / 3.0);
-		const real r1 = POWER(diags.stellar_vol[1] / (1.3333333333 * 3.14159), 1.0 / 3.0);
+		real const r0 = std::cbrt(3.0 * diags.stellar_vol[0] / (4.0 * M_PI));
+		real const r1 = std::cbrt(3.0 * diags.stellar_vol[1] / (4.0 * M_PI));
 		const real fi0 = diags.stellar_vol[0] * INVERSE(diags.roche_vol[0]);
 		const real fi1 = diags.stellar_vol[1] * INVERSE(diags.roche_vol[1]);
 
@@ -726,17 +729,19 @@ std::vector<real> scf_binary(real x, real y, real z, real dx) {
 	u[rho_i] = rho;
 
 	if (opts().eos == WD) {
-		u[spc_ac_i] = rho > this_struct_eos->wd_core_cut ? (x > params.l1_x ? 0.0 : rho) : 0.0;
-		u[spc_dc_i] = rho > this_struct_eos->wd_core_cut ? (x > params.l1_x ? rho : 0.0) : 0.0;
-		u[spc_ae_i] = rho <= this_struct_eos->wd_core_cut ? (x > params.l1_x ? 0.0 : rho) : 0.0;
-		u[spc_de_i] = rho <= this_struct_eos->wd_core_cut ? (x > params.l1_x ? rho : 0.0) : 0.0;
+		real const stellar_density = rho - opts().scf_rho_floor;
+		u[spc_ac_i] = rho > this_struct_eos->wd_core_cut ? (x > params.l1_x ? 0.0 : stellar_density) : 0.0;
+		u[spc_dc_i] = rho > this_struct_eos->wd_core_cut ? (x > params.l1_x ? stellar_density : 0.0) : 0.0;
+		u[spc_ae_i] = rho <= this_struct_eos->wd_core_cut ? (x > params.l1_x ? 0.0 : stellar_density) : 0.0;
+		u[spc_de_i] = rho <= this_struct_eos->wd_core_cut ? (x > params.l1_x ? stellar_density : 0.0) : 0.0;
+		u[spc_vac_i] = opts().scf_rho_floor;
 	} else {
 		u[spc_ac_i] = rho > this_struct_eos->dE() ? (x > params.l1_x ? 0.0 : rho) : 0.0;
 		u[spc_dc_i] = rho > this_struct_eos->dE() ? (x > params.l1_x ? rho : 0.0) : 0.0;
 		u[spc_ae_i] = rho <= this_struct_eos->dE() ? (x > params.l1_x ? 0.0 : rho) : 0.0;
 		u[spc_de_i] = rho <= this_struct_eos->dE() ? (x > params.l1_x ? rho : 0.0) : 0.0;
 	}
-	u[egas_i] = ei + 0.5 * (x * x + y * y) * params.omega * params.omega;
+	u[egas_i] = ei + 0.5 * rho * (x * x + y * y) * params.omega * params.omega;
 	u[sx_i] = -y * params.omega * rho;
 	u[sy_i] = +x * params.omega * rho;
 	u[sz_i] = 0.0;
