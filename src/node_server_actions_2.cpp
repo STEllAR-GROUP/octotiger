@@ -277,12 +277,6 @@ diagnostics_t node_server::diagnostics() {
 //		printf( "%i\n", i );
 		diags.stage = i;
 		diags = diagnostics(diags).compute();
-		if (opts().gravity) {
-			diags.grid_com = grid_ptr->center_of_mass();
-
-		} else {
-			//TODO center of mass for non gravity runs
-		}
 	}
 	if (!diags.failed && !opts().disable_diagnostics) {
 

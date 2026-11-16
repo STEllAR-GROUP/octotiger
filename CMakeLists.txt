@@ -61,6 +61,8 @@ option(OCTOTIGER_WITH_AVX2 "" OFF)
 option(OCTOTIGER_WITH_AVX512 "" OFF)
 
 option(OCTOTIGER_WITH_TESTS "Enable tests" ON)
+option(OCTOTIGER_WITH_SCF_TESTS "Enable SCF numerical tests without reference data"
+  ${OCTOTIGER_WITH_TESTS})
 set(OCTOTIGER_WITH_GRIDDIM "8" CACHE STRING "Grid size")
 set(OCTOTIGER_WITH_MAX_NUMBER_FIELDS "15" CACHE STRING "Maximum allowed nf_ (number fields)")
 set(OCTOTIGER_THETA_MINIMUM "0.34" CACHE STRING "Minimal allowed theta value - important for optimizations")
@@ -261,6 +263,8 @@ set(source_files
     src/multipole_interactions/util/calculate_stencil.cpp
     src/multipole_interactions/legacy/multipole_cpu_kernel.cpp
     src/radiation/rad_grid.cpp
+    src/radiation/exchange.cpp
+    src/radiation/iteration.cpp
     src/test_problems/marshak/marshak.cpp
     src/test_problems/rotating_star/rotating_star.cpp
     src/test_problems/sod/sod.cpp
@@ -543,7 +547,10 @@ endfunction()
 octotiger_require_strict_fp(
   src/grid.cpp
   src/problem.cpp
-  src/test_problems/wd_equilibrium.cpp)
+  src/test_problems/wd_equilibrium.cpp
+  src/radiation/rad_grid.cpp
+  src/radiation/exchange.cpp
+  src/radiation/iteration.cpp)
 
 # Hydro library
 add_hpx_library(
@@ -591,6 +598,8 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/io/silo_out.cpp
     src/io/silo_in.cpp
     src/radiation/rad_grid.cpp
+    src/radiation/exchange.cpp
+    src/radiation/iteration.cpp
     frontend/frontend-helper.cpp
 
     src/eos.cpp
@@ -1121,9 +1130,16 @@ add_subdirectory(tools)
 ################################################################################
 # Tests
 ################################################################################
+if(OCTOTIGER_WITH_SCF_TESTS)
+  enable_testing()
+  add_subdirectory(test_problems/scf)
+endif()
+
 if(OCTOTIGER_WITH_TESTS)
     enable_testing()
 
+  add_subdirectory(test_problems/radiation_infrastructure)
+  add_subdirectory(test_problems/elliptic)
   add_subdirectory(test_problems/stacktrace)
   add_subdirectory(test_problems)
 endif()

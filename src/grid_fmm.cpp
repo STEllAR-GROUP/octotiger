@@ -240,15 +240,10 @@ std::pair<space_vector, space_vector> grid::find_axis() const {
 				const integer iii0 = gindex(i + H_BW, j + H_BW, k + H_BW);
 				space_vector const &com0iii1 = com0[iii1];
 				multipole const &Miii1 = M[iii1];
+				real const mass = is_leaf ? mon[iii1] : Miii1();
+				mtot += mass;
 				for (integer n = 0; n != NDIM; ++n) {
-					real mass;
-					if (is_leaf) {
-						mass = mon[iii1];
-					} else {
-						mass = Miii1();
-					}
 					this_com[n] += mass * com0iii1[n];
-					mtot += mass;
 					for (integer m = 0; m != NDIM; ++m) {
 						if (!is_leaf) {
 							quad_moment[n][m] += Miii1(n, m);

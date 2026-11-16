@@ -8,6 +8,14 @@
 
 #define SILO_UNITS
 
+#include <functional>
+#include <memory>
+#include <utility>
+#include <vector>
+
+#include <hpx/serialization/serialize.hpp>
+#include <hpx/serialization/traits/is_bitwise_serializable.hpp>
+
 #include "octotiger/config.hpp"
 #include "octotiger/config/export_definitions.hpp"
 #include "octotiger/defs.hpp"
@@ -19,19 +27,13 @@
 #include "octotiger/real.hpp"
 #include "octotiger/roe.hpp"
 #include "octotiger/scf_data.hpp"
+#include "octotiger/scf_geometry.hpp"
 #include "octotiger/io/silo.hpp"
 // #include "octotiger/simd_legacy.hpp"
 #include "octotiger/space_vector.hpp"
 //#include "octotiger/taylor.hpp"
 #include "octotiger/unitiger/safe_real.hpp"
 
-#include <hpx/serialization/serialize.hpp>
-#include <hpx/serialization/traits/is_bitwise_serializable.hpp>
-
-#include <functional>
-#include <memory>
-#include <utility>
-#include <vector>
 //#include "octotiger/unitiger/hydro.hpp"
 
 class struct_eos;
@@ -96,11 +98,22 @@ public:
 
 //HPX_IS_BITWISE_SERIALIZABLE(analytic_t);  commenting this line because it causes failures when futures return analytic_t type from one locality to another
 
-using line_of_centers_t = std::vector<std::pair<real,std::vector<real>>>;
+struct line_of_centers_sample {
+	real coordinate = 0.0;
+	std::vector<real> fields;
+	octotiger::scf::SamplePosition position;
 
-void output_line_of_centers(FILE *fp, const line_of_centers_t &loc);
+	template<class Archive>
+	void serialize(Archive &archive, unsigned) {
+		archive & coordinate & fields & position;
+	}
+};
 
-void line_of_centers_analyze(const line_of_centers_t &loc, real omega, std::pair<real, real> &rho1_max,
+using line_of_centers_t = std::vector<line_of_centers_sample>;
+
+void output_line_of_centers(FILE *fp, line_of_centers_t const &loc);
+
+void line_of_centers_analyze(line_of_centers_t const &loc, real omega, real com, std::pair<real, real> &rho1_max,
 		std::pair<real, real> &rho2_max, std::pair<real, real> &l1_phi, std::pair<real, real> &l2_phi,
 		std::pair<real, real> &l3_phi, real &rho1_phi, real &rho2_phi);
 

@@ -152,7 +152,7 @@ future<hpx::id_type> node_server::create_child(hpx::id_type const &locality, int
 			}
 		}
 		if (opts().radiation) {
-			std::array<integer, NDIM> lb = {2 * R_BW, 2 * R_BW, 2 * R_BW};
+			std::array<integer, NDIM> lb = {2 * RAD_BW, 2 * RAD_BW, 2 * RAD_BW};
 			std::array<integer, NDIM> ub;
 			lb[XDIM] += (1 & (ci >> 0)) * (INX);
 			lb[YDIM] += (1 & (ci >> 1)) * (INX);
@@ -164,7 +164,7 @@ future<hpx::id_type> node_server::create_child(hpx::id_type const &locality, int
 			 if (ci == 0) {
 			 outflows = grid_ptr->get_outflows();
 			 }*/
-			if (current_time > ZERO) {
+			if (current_time > ZERO || opts().restart_filename != "") {
 				std::vector<real> prolong;
 				{
 					std::unique_lock < hpx::spinlock > lk(prolong_mtx);
