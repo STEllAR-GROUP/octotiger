@@ -30,6 +30,35 @@ namespace {
             t0 <= n / 2 && t1 <= n / 2 && size == static_cast<size_t>(n / 2) * (n / 2);
     }
 
+    std::vector<double> coarseFaceDifferences(Field const& field, int axis, int side) {
+        assert(axis >= 0 && axis < NDIM);
+        assert(side == 0 || side == 1);
+        int const n = field.n;
+        int const face = side == 0 ? 1 : n + 1;
+        int const a = (axis + 1) % NDIM;
+        int const b = (axis + 2) % NDIM;
+        std::vector<double> result;
+        result.reserve(static_cast<size_t>(n / 2) * (n / 2));
+        for (int j = 1; j <= n; j += 2) {
+            for (int k = 1; k <= n; k += 2) {
+                double value = 0.0;
+                for (int dj = 0; dj < 2; ++dj) {
+                    for (int dk = 0; dk < 2; ++dk) {
+                        std::array<int, NDIM> hi{};
+                        hi[axis] = face;
+                        hi[a] = j + dj;
+                        hi[b] = k + dk;
+                        auto lo = hi;
+                        --lo[axis];
+                        value += field(hi[0], hi[1], hi[2]) - field(lo[0], lo[1], lo[2]);
+                    }
+                }
+                result.push_back(0.5 * value);
+            }
+        }
+        return result;
+    }
+
 }    // namespace
 
 Field::Field(int interiorSize)
@@ -83,6 +112,83 @@ Block::Block(int interiorSize, double cellWidth)
         component = Field(n);
     }
     assert(dx > 0.0 && std::isfinite(dx));
+}
+
+void Block::initializeCorrection() {
+    correction.fill(0.0);
+    correctionRhs.fill(0.0);
+    if (!refined) {
+        double const scale = dx * dx / NFACE;
+        for (int i = 1; i <= n; ++i) {
+            for (int j = 1; j <= n; ++j) {
+                for (int k = 1; k <= n; ++k) {
+                    correctionRhs(i, j, k) = scale * physicalResidual(i, j, k);
+                }
+            }
+        }
+    }
+}
+
+double Block::correctionResidual(int i, int j, int k) const {
+    return correctionRhs(i, j, k) + correction.laplacianNumerator(i, j, k) / NFACE;
+}
+
+std::vector<double> Block::restrictCorrectionResidual() const {
+    constexpr int refinementRatio = 2;
+    constexpr double scale = double(refinementRatio * refinementRatio) / NCHILD;
+    std::vector<double> result;
+    result.reserve(static_cast<size_t>(n / 2) * (n / 2) * (n / 2));
+    for (int i = 1; i <= n; i += refinementRatio) {
+        for (int j = 1; j <= n; j += refinementRatio) {
+            for (int k = 1; k <= n; k += refinementRatio) {
+                double value = 0.0;
+                for (int di = 0; di < refinementRatio; ++di) {
+                    for (int dj = 0; dj < refinementRatio; ++dj) {
+                        for (int dk = 0; dk < refinementRatio; ++dk) {
+                            value += correctionResidual(i + di, j + dj, k + dk);
+                        }
+                    }
+                }
+                result.push_back(scale * value);
+            }
+        }
+    }
+    return result;
+}
+
+void Block::addCorrection(std::vector<double> const& values) {
+    assert(values.size() == static_cast<size_t>(n) * n * n);
+    size_t index = 0;
+    for (int i = 1; i <= n; ++i) {
+        for (int j = 1; j <= n; ++j) {
+            for (int k = 1; k <= n; ++k) {
+                correction(i, j, k) += values[index++];
+            }
+        }
+    }
+}
+
+std::vector<double> Block::prolongatedCorrection(int octant) const {
+    assert(octant >= 0 && octant < NCHILD);
+    std::array<double, NDIM> offset{};
+    for (int d = 0; d < NDIM; ++d) {
+        offset[d] = ((octant >> d) & 1) * (n / 2) + 0.25;
+    }
+    std::vector<double> result;
+    result.reserve(static_cast<size_t>(n) * n * n);
+    for (int i = 1; i <= n; ++i) {
+        for (int j = 1; j <= n; ++j) {
+            for (int k = 1; k <= n; ++k) {
+                std::array<int, NDIM> const index{{i, j, k}};
+                auto logical = offset;
+                for (int d = 0; d < NDIM; ++d) {
+                    logical[d] += 0.5 * index[d];
+                }
+                result.push_back(linearInterpolate(correction, logical));
+            }
+        }
+    }
+    return result;
 }
 
 void Block::beginDown() {
@@ -291,31 +397,36 @@ double Block::sampleNearestCell(Field const& field, std::array<double, NDIM> con
     return field(index[0], index[1], index[2]);
 }
 
-std::vector<double> Block::coarseFaceJumps(int axis, int side) const {
-    assert(axis >= 0 && axis < NDIM);
-    assert(side == 0 || side == 1);
-    int const face = side == 0 ? 1 : n + 1;
-    int const a = (axis + 1) % NDIM;
-    int const b = (axis + 2) % NDIM;
-    std::vector<double> result;
-    for (int j = 1; j <= n; j += 2) {
-        for (int k = 1; k <= n; k += 2) {
-            double value = 0.0;
-            for (int dj = 0; dj < 2; ++dj) {
-                for (int dk = 0; dk < 2; ++dk) {
-                    std::array<int, NDIM> hi{};
-                    hi[axis] = face;
-                    hi[a] = j + dj;
-                    hi[b] = k + dk;
-                    auto lo = hi;
-                    --lo[axis];
-                    value += phi(hi[0], hi[1], hi[2]) - phi(lo[0], lo[1], lo[2]);
-                }
-            }
-            result.push_back(0.5 * value);
+double Block::linearInterpolate(
+    Field const& field, std::array<double, NDIM> const& logicalPosition) {
+    std::array<int, NDIM> lower{};
+    std::array<double, NDIM> fraction{};
+    for (int d = 0; d < NDIM; ++d) {
+        double const coordinate = logicalPosition[d];
+        assert(std::isfinite(coordinate) && coordinate >= 0.0 && coordinate <= field.n + 1.0);
+        lower[d] = std::min(static_cast<int>(std::floor(coordinate)), field.n);
+        fraction[d] = coordinate - lower[d];
+    }
+    double result = 0.0;
+    for (int octant = 0; octant < NCHILD; ++octant) {
+        auto index = lower;
+        double weight = 1.0;
+        for (int d = 0; d < NDIM; ++d) {
+            int const upper = (octant >> d) & 1;
+            index[d] += upper;
+            weight *= upper != 0 ? fraction[d] : 1.0 - fraction[d];
         }
+        result += weight * field(index[0], index[1], index[2]);
     }
     return result;
+}
+
+std::vector<double> Block::coarseFaceJumps(int axis, int side) const {
+    return coarseFaceDifferences(phi, axis, side);
+}
+
+std::vector<double> Block::coarseCorrectionFaceJumps(int axis, int side) const {
+    return coarseFaceDifferences(correction, axis, side);
 }
 
 std::vector<double> Block::coarseFaceForces(int axis, int side) const {
@@ -365,6 +476,26 @@ void Block::adjustFluxDefect(
             auto cell = hi;
             cell[axis] = interior;
             correction(cell[0], cell[1], cell[2]) += sign * delta;
+        }
+    }
+}
+
+void Block::addCorrectionFluxRhs(
+    int axis, int faceIndex, int t0, int t1, std::vector<double> const& jumps) {
+    assert(!refined);
+    assert(validPatch(n, axis, faceIndex, t0, t1, jumps.size()));
+    int const a = (axis + 1) % NDIM;
+    int const b = (axis + 2) % NDIM;
+    int const interior = faceIndex == 1 ? 1 : n;
+    double const scale = (faceIndex == 1 ? -1.0 : 1.0) / NFACE;
+    size_t index = 0;
+    for (int j = 1; j <= n / 2; ++j) {
+        for (int k = 1; k <= n / 2; ++k) {
+            std::array<int, NDIM> cell{};
+            cell[axis] = interior;
+            cell[a] = j + t0;
+            cell[b] = k + t1;
+            correctionRhs(cell[0], cell[1], cell[2]) += scale * jumps[index++];
         }
     }
 }

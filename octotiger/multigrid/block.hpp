@@ -49,6 +49,20 @@ public:
 
     Block(int interiorSize, double cellWidth);
 
+    // Start a residual-correction cycle after physical forces have been
+    // synchronized, including coarse/fine flux replacement. Covered parents
+    // receive their RHS from restricted child residuals instead.
+    void initializeCorrection();
+    // H_h = -h^2 Laplacian/NFACE; the correction equation is H_h c = b.
+    double correctionResidual(int i, int j, int k) const;
+    // Return 4 R(b - H_h c), accounting for the doubled coarse cell width.
+    std::vector<double> restrictCorrectionResidual() const;
+    // Add an already-interpolated n^3 payload, in z-contiguous order.
+    void addCorrection(std::vector<double> const& values);
+    // Trilinearly sample this parent's correction at every cell center of a
+    // child. Refresh the parent's full halo layer before requesting a payload.
+    std::vector<double> prolongatedCorrection(int octant) const;
+
     // Preserve received child corrections in a refined block. Initialize leaf
     // interiors and homogeneous correction ghosts; exchange other ghosts afterward.
     void beginDown();
@@ -72,6 +86,10 @@ public:
     // that cell's center. The 27-point polynomial is Scorpio's phi interpolation.
     static double quadraticInterpolate(
         Field const& field, std::array<double, NDIM> const& logicalPosition);
+    // Eight-point cell-centered interpolation, including ghost cells when
+    // needed. Logical positions must lie within the stored 0..n+1 interval.
+    static double linearInterpolate(
+        Field const& field, std::array<double, NDIM> const& logicalPosition);
     // Sample only; the caller assigns the returned value to its destination.
     static double sampleNearestCell(Field const& field, std::array<double, NDIM> const& logicalPosition);
 
@@ -80,10 +98,16 @@ public:
     // Forces: quarter the sum of four physical fine accelerations.
     // The tangential dimensions are (axis+1)%NDIM and (axis+2)%NDIM, second fastest.
     std::vector<double> coarseFaceJumps(int axis, int side) const;
+    std::vector<double> coarseCorrectionFaceJumps(int axis, int side) const;
     std::vector<double> coarseFaceForces(int axis, int side) const;
     // faceIndex is the right cell's index, 1 or n+1; t0/t1 are zero-based offsets
     // of a half-face patch on an unrefined block's boundary.
     void adjustFluxDefect(
+        int axis, int faceIndex, int t0, int t1, std::vector<double> const& jumps);
+    // Before an unrefined coarse block is smoothed, include the partial fine
+    // correction's interface flux in its RHS. Its own correction is still zero.
+    // Apply once on descent; do not change this RHS during post-smoothing.
+    void addCorrectionFluxRhs(
         int axis, int faceIndex, int t0, int t1, std::vector<double> const& jumps);
     void setRestrictedForce(
         int axis, int faceIndex, int t0, int t1, std::vector<double> const& forces);

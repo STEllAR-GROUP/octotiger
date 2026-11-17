@@ -20,6 +20,7 @@
 
 #include "octotiger/multigrid/block.hpp"
 #include "octotiger/multigrid/isolated_boundary.hpp"
+#include "octotiger/multigrid/poisson_cycle.hpp"
 #include "octotiger/node_client.hpp"
 #include "octotiger/node_server.hpp"
 #include "octotiger/options.hpp"
@@ -38,6 +39,7 @@ struct GravityBoundary {
 namespace {
 using octotiger::multigrid::Block;
 using octotiger::multigrid::Field;
+using octotiger::multigrid::PoissonStage;
 
 static_assert(INX >= 2 && INX % 2 == 0, "Multigrid requires a positive even grid size");
 
@@ -45,7 +47,17 @@ enum Stage {
     initialize_block, restrict_source, halo_phi, begin_down, restrict_correction,
     adjust_defect, save_rhs, halo_correction, relax, replace_mean,
     inject_correction, retire, restrict_phi, forces, restrict_forces,
-    residual, errors, write_fields, release
+    residual, errors, write_fields, release, stage_count
+};
+
+enum DataOperation {
+    restrict_values = 1, child_values, neighbor_values,
+    restrict_residual_values, prolong_values
+};
+
+enum FaceOperation {
+    potential_jumps, force_values, child_potential_jumps,
+    child_force_values, correction_jumps, child_correction_jumps
 };
 
 Field& field(Block& block, int which) {
@@ -219,14 +231,20 @@ std::vector<double> node_server::multigrid_boundary(int stage, std::vector<doubl
 
 std::vector<double> node_server::multigrid_data(int which, int operation, int index) {
     assert(multigrid_block_);
+    if (operation == restrict_residual_values) {
+        return multigrid_block_->restrictCorrectionResidual();
+    }
+    if (operation == prolong_values) {
+        return multigrid_block_->prolongatedCorrection(index);
+    }
     auto const& value = field(*multigrid_block_, which);
-    if (operation == 1) {
+    if (operation == restrict_values) {
         return multigrid_block_->restrictField(value);
     }
-    if (operation == 2) {
+    if (operation == child_values) {
         return multigrid_block_->childValues(value, index);
     }
-    assert(operation == 3);
+    assert(operation == neighbor_values);
     assert(index >= 0 && index < geo::direction::count());
     // Read only interiors. Concurrent halo fills on this block never write them.
     auto const direction = geo::direction::full_set()[index];
@@ -247,19 +265,19 @@ std::vector<double> node_server::multigrid_data(int which, int operation, int in
 std::vector<double> node_server::multigrid_sample(int which, std::vector<double> positions) {
     assert(multigrid_block_);
     assert(multigrid_boundary_);
-    assert(positions.size() % 3 == 0);
-    std::vector<double> result(positions.size() / 3);
-    std::array<std::vector<double>, 27> pending;
-    std::array<std::vector<size_t>, 27> indices;
+    assert(positions.size() % NDIM == 0);
+    std::vector<double> result(positions.size() / NDIM);
+    std::array<std::vector<double>, NDIR> pending;
+    std::array<std::vector<size_t>, NDIR> indices;
     auto const& value = field(*multigrid_block_, which);
     double const extent = grid::get_scaling_factor();
     for (size_t p = 0; p < result.size(); ++p) {
-        std::array<double, 3> x{}, logical{};
-        std::array<int, 3> offset{};
+        std::array<double, NDIM> x{}, logical{};
+        std::array<int, NDIM> offset{};
         bool exterior = false;
         bool local = true;
-        for (int d = 0; d < 3; ++d) {
-            x[d] = positions[3 * p + d];
+        for (int d = 0; d < NDIM; ++d) {
+            x[d] = positions[NDIM * p + d];
             exterior = exterior || x[d] < -extent || x[d] > extent;
             logical[d] = (x[d] - xmin[d]) / dx + 0.5;
             offset[d] = logical[d] < 0.5 ? -1 : logical[d] > INX + 0.5 ? 1 : 0;
@@ -269,25 +287,26 @@ std::vector<double> node_server::multigrid_sample(int which, std::vector<double>
             result[p] = which == 0 ? physical_boundary(*multigrid_boundary_, x) : 0.0;
         } else if (local) {
             // Callers sample a strictly coarser level after its halo barrier.
-            result[p] = which == 0 ? Block::quadraticInterpolate(value, logical) :
-                Block::sampleNearestCell(value, logical);
+            // Both physical potential and correction ghosts use the same
+            // composite operator. Interior prolongation is a separate operation.
+            result[p] = Block::quadraticInterpolate(value, logical);
         } else {
             geo::direction direction;
             direction.set(offset[0], offset[1], offset[2]);
-            int const destination = neighbors[direction].empty() ? 26 : int(direction);
-            assert(destination != 26 || !parent.empty());
+            int const destination = neighbors[direction].empty() ? NDIR - 1 : int(direction);
+            assert(destination != NDIR - 1 || !parent.empty());
             indices[destination].push_back(p);
             pending[destination].insert(pending[destination].end(), x.begin(), x.end());
         }
     }
-    std::array<future<std::vector<double>>, 27> requests;
-    for (int d = 0; d < 27; ++d) {
+    std::array<future<std::vector<double>>, NDIR> requests;
+    for (int d = 0; d < NDIR; ++d) {
         if (!pending[d].empty()) {
-            auto const& destination = d == 26 ? parent : neighbors[d];
+            auto const& destination = d == NDIR - 1 ? parent : neighbors[d];
             requests[d] = destination.multigrid_sample(which, std::move(pending[d]));
         }
     }
-    for (int d = 0; d < 27; ++d) {
+    for (int d = 0; d < NDIR; ++d) {
         if (!indices[d].empty()) {
             auto values = requests[d].get();
             for (size_t p = 0; p < values.size(); ++p) {
@@ -300,20 +319,25 @@ std::vector<double> node_server::multigrid_sample(int which, std::vector<double>
 
 std::vector<double> node_server::multigrid_face(int axis, int side, int kind) {
     assert(multigrid_block_);
-    assert(axis >= 0 && axis < 3);
+    assert(axis >= 0 && axis < NDIM);
     assert(side >= 0 && side <= 1);
-    assert(kind >= 0 && kind <= 3);
-    if (kind < 2) {
-        return kind == 0 ? multigrid_block_->coarseFaceJumps(axis, side) :
+    assert(kind >= potential_jumps && kind <= child_correction_jumps);
+    if (kind == correction_jumps) {
+        return multigrid_block_->coarseCorrectionFaceJumps(axis, side);
+    }
+    if (kind == potential_jumps || kind == force_values) {
+        return kind == potential_jumps ? multigrid_block_->coarseFaceJumps(axis, side) :
             multigrid_block_->coarseFaceForces(axis, side);
     }
     assert(is_refined);
-    int const a = (axis + 1) % 3;
-    int const b = (axis + 2) % 3;
-    std::array<future<std::vector<double>>, 4> requests;
-    for (int q = 0; q < 4; ++q) {
+    int const a = (axis + 1) % NDIM;
+    int const b = (axis + 2) % NDIM;
+    constexpr int faceChildren = NCHILD / 2;
+    std::array<future<std::vector<double>>, faceChildren> requests;
+    for (int q = 0; q < faceChildren; ++q) {
         int const child = (side << axis) | ((q / 2) << a) | ((q % 2) << b);
-        requests[q] = children[child].multigrid_face(axis, side, kind - 2);
+        requests[q] = children[child].multigrid_face(axis, side, kind == child_correction_jumps ? correction_jumps :
+            kind == child_potential_jumps ? potential_jumps : force_values);
     }
     std::vector<double> result;
     result.reserve(INX * INX);
@@ -362,35 +386,80 @@ std::vector<double> node_server::multigrid_stage(int stage, int target_level) {
         } else {
             assert(multigrid_block_);
             auto& block = *multigrid_block_;
-            if (stage == restrict_source || stage == restrict_phi || stage == restrict_correction) {
+            auto const poissonStage = static_cast<PoissonStage>(stage - stage_count);
+            bool const downHalo = poissonStage == PoissonStage::halo_down;
+            bool const upHalo = poissonStage == PoissonStage::halo_up;
+            if (poissonStage == PoissonStage::initialize) {
+                block.initializeCorrection();
+            } else if (poissonStage == PoissonStage::restrict_residual) {
+                if (is_refined) {
+                    std::array<future<std::vector<double>>, NCHILD> requests;
+                    for (int child = 0; child < NCHILD; ++child) {
+                        requests[child] = children[child].multigrid_data(1, restrict_residual_values, 0);
+                    }
+                    for (int child = 0; child < NCHILD; ++child) {
+                        block.setChild(block.correctionRhs, child, requests[child].get());
+                    }
+                }
+            } else if (poissonStage == PoissonStage::adjust_rhs) {
+                if (!is_refined) {
+                    constexpr int faceChildren = NCHILD / 2;
+                    for (auto const& face : geo::face::full_set()) {
+                        if (nieces[face] != 1) {
+                            continue;
+                        }
+                        int const axis = int(face.get_dimension());
+                        int const side = int(face.get_side());
+                        auto const packets = neighbors[face.to_direction()].multigrid_face(
+                            axis, side ^ 1, child_correction_jumps).get();
+                        size_t const count = INX * INX / faceChildren;
+                        for (int q = 0; q < faceChildren; ++q) {
+                            std::vector<double> patch(packets.begin() + q * count,
+                                packets.begin() + (q + 1) * count);
+                            block.addCorrectionFluxRhs(axis, side ? INX + 1 : 1,
+                                (q / 2) * (INX / 2), (q % 2) * (INX / 2), patch);
+                        }
+                    }
+                }
+            } else if (poissonStage == PoissonStage::smooth) {
+                block.relax();
+            } else if (poissonStage == PoissonStage::prolong) {
+                if (!parent.empty()) {
+                    block.addCorrection(parent.multigrid_data(
+                        1, prolong_values, int(my_location.get_child_index())).get());
+                }
+            } else if (poissonStage == PoissonStage::retire) {
+                block.retireCorrection();
+            } else if (stage == restrict_source || stage == restrict_phi || stage == restrict_correction) {
                 int const which = stage == restrict_source ? 2 : stage == restrict_phi ? 0 : 1;
                 if (is_refined) {
                     std::array<future<std::vector<double>>, 8> requests;
                     for (int c = 0; c < 8; ++c) {
-                        requests[c] = children[c].multigrid_data(which, 1, 0);
+                        requests[c] = children[c].multigrid_data(which, restrict_values, 0);
                     }
                     for (int c = 0; c < 8; ++c) {
                         block.setChild(field(block, which), c, requests[c].get());
                     }
                 }
-            } else if (stage == halo_phi || stage == halo_correction || stage == inject_correction) {
+            } else if (stage == halo_phi || stage == halo_correction || stage == inject_correction ||
+                downHalo || upHalo) {
                 int const which = stage == halo_phi ? 0 : 1;
                 auto& values = field(block, which);
-                std::array<future<std::vector<double>>, 26> requests;
+                std::array<future<std::vector<double>>, NDIR - 1> requests;
                 for (auto const& direction : geo::direction::full_set()) {
-                    if (which == 1 && !direction.is_face()) {
+                    if (which == 1 && !downHalo && !upHalo && !direction.is_face()) {
                         continue;
                     }
                     if (!neighbors[direction].empty()) {
                         requests[direction] = neighbors[direction].multigrid_data(
-                            which, 3, int(direction.flip()));
+                            which, neighbor_values, int(direction.flip()));
                     }
                 }
                 std::vector<std::array<int, 3>> coarse_cells;
                 std::vector<double> positions;
                 double const extent = grid::get_scaling_factor();
                 for (auto const& direction : geo::direction::full_set()) {
-                    if (which == 1 && !direction.is_face()) {
+                    if (which == 1 && !downHalo && !upHalo && !direction.is_face()) {
                         continue;
                     }
                     auto const lb = lower_bound(direction, INX, true);
@@ -417,6 +486,8 @@ std::vector<double> node_server::multigrid_stage(int stage, int target_level) {
                                 if (exterior) {
                                     values(i, j, k) = which == 0 ?
                                         physical_boundary(*multigrid_boundary_, x) : 0.0;
+                                } else if (downHalo) {
+                                    values(i, j, k) = 0.0;
                                 } else if (stage != halo_correction) {
                                     assert(!parent.empty());
                                     coarse_cells.push_back(index);
@@ -442,7 +513,7 @@ std::vector<double> node_server::multigrid_stage(int stage, int target_level) {
             } else if (stage == replace_mean) {
                 if (!parent.empty()) {
                     block.replaceCorrectionMean(parent.multigrid_data(
-                        1, 2, int(my_location.get_child_index())).get());
+                        1, child_values, int(my_location.get_child_index())).get());
                 }
             } else if (stage == retire) {
                 block.retireCorrection();
@@ -457,7 +528,7 @@ std::vector<double> node_server::multigrid_stage(int stage, int target_level) {
                         int const axis = int(face.get_dimension());
                         int const side = int(face.get_side());
                         auto packets = neighbors[face.to_direction()].multigrid_face(
-                            axis, side ^ 1, stage == adjust_defect ? 2 : 3).get();
+                            axis, side ^ 1, stage == adjust_defect ? child_potential_jumps : child_force_values).get();
                         size_t const count = INX * INX / 4;
                         for (int q = 0; q < 4; ++q) {
                             std::vector<double> patch(packets.begin() + q * count,
@@ -651,25 +722,9 @@ void node_server::compare_gravity_multigrid() {
     int cycles = 0;
     while (std::sqrt(norms[0]) > opts().gravity_mg_tolerance * source_norm &&
         cycles < opts().gravity_mg_max_cycles) {
-        for (int level = deepest; level >= 0; --level) {
-            run(restrict_correction, level);
-            run(begin_down, level);
-            run(adjust_defect, level);
-            run(save_rhs, level);
-            for (int sweep = 0; sweep < 2; ++sweep) {
-                run(halo_correction, level);
-                run(relax, level);
-            }
-        }
-        for (int level = 0; level <= deepest; ++level) {
-            run(replace_mean, level);
-            run(inject_correction, level);
-            for (int sweep = 0; sweep < 4; ++sweep) {
-                run(halo_correction, level);
-                run(relax, level);
-            }
-        }
-        run(retire, -1);
+        octotiger::multigrid::poissonCycle(deepest, [&](PoissonStage stage, int level) {
+            run(stage_count + static_cast<int>(stage), level);
+        });
         norms = update();
         ++cycles;
         if (!std::isfinite(norms[0])) {

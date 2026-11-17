@@ -34,6 +34,9 @@ target_include_directories(multigrid_numerics PRIVATE "${multigrid_source_root}"
 target_compile_features(multigrid_numerics PRIVATE cxx_std_17)
 add_test(NAME multigrid_numerics COMMAND multigrid_numerics)
 set_tests_properties(multigrid_numerics PROPERTIES PROCESSORS 1 TIMEOUT 120 LABELS multigrid)
+add_test(NAME multigrid_numerics_deep_uniform COMMAND multigrid_numerics --deep)
+set_tests_properties(multigrid_numerics_deep_uniform PROPERTIES
+  PROCESSORS 1 TIMEOUT 600 LABELS multigrid RUN_SERIAL TRUE)
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test_isolated_boundary.cpp")
   add_executable(multigrid_isolated_boundary test_isolated_boundary.cpp)
