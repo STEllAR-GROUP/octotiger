@@ -469,8 +469,8 @@ void grid::compute_interactions(gsolve_type type) {
 //                     A1(a) = -m1() * D(a);
 //                     for (integer b = 0; b < NDIM; ++b) {
 //                         if (type != RHO) {
-//                             A0(a) -= m0(a) * D(a, b);
-//                             A1(a) -= m1(a) * D(a, b);
+//                             A0(a) -= m0(b) * D(a, b);
+//                             A1(a) -= m1(b) * D(a, b);
 //                         }
 //                         for (integer c = b; c < NDIM; ++c) {
 //                             const auto tmp1 = D(a, b, c) * (factor(c, b) * HALF);
@@ -487,8 +487,8 @@ void grid::compute_interactions(gsolve_type type) {
 				A1(a) = -m1() * D(a);
 				for (integer i = 0; i != 6; ++i) {
 					if (type != RHO && i < 3) {
-						A0(a) -= m0(a) * D[ab_idx_map[i]];
-						A1(a) -= m1(a) * D[ab_idx_map[i]];
+						A0(a) -= m0(i) * D[ab_idx_map[i]];
+						A1(a) -= m1(i) * D[ab_idx_map[i]];
 					}
 					const integer cb_idx = cb_idx_map[i];
 					const auto tmp1 = D[abc_idx_map[i]] * (factor[cb_idx] * HALF);
@@ -710,7 +710,7 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
 //                     A0(a) = m0() * D(a);
 //                     for (integer b = 0; b < NDIM; ++b) {
 //                         if (type != RHO) {
-//                             A0(a) -= m0(a) * D(a, b);
+//                             A0(a) -= m0(b) * D(a, b);
 //                         }
 //                         for (integer c = b; c < NDIM; ++c) {
 //                             const auto tmp = D(a, b, c) * (factor(c, b) * HALF);
@@ -725,7 +725,7 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
 			A0(a) = m0() * D(a);
 			for (integer i = 0; i != 6; ++i) {
 				if (type != RHO && i < 3) {
-					A0(a) -= m0(a) * D[ab_idx_map[i]];
+					A0(a) -= m0(i) * D[ab_idx_map[i]];
 				}
 				const integer cb_idx = cb_idx_map[i];
 				const auto tmp = D[abc_idx_map[i]] * (factor[cb_idx] * HALF);
@@ -873,7 +873,7 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
 //                     A0(a) = m0() * D(a);
 //                     for (integer b = 0; b < NDIM; ++b) {
 //                         if (type != RHO) {
-//                             A0(a) -= m0(a) * D(a, b);
+//                             A0(a) -= m0(b) * D(a, b);
 //                         }
 //                         for (integer c = b; c < NDIM; ++c) {
 //                             A0(a) += m0(c, b) * D(a, b, c) * (factor(b, c) * HALF);
@@ -887,7 +887,7 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
 			A0(a) = m0() * D(a);
 			for (integer i = 0; i != 6; ++i) {
 				if (type != RHO && i < 3) {
-					A0(a) -= m0(a) * D[ab_idx_map[i]];
+					A0(a) -= m0(i) * D[ab_idx_map[i]];
 				}
 				const integer cb_idx = cb_idx_map[i];
 				A0(a) += m0[cb_idx] * D[abc_idx_map[i]] * (factor[cb_idx] * HALF);

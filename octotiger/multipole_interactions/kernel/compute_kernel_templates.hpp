@@ -377,15 +377,15 @@ namespace fmm {
             tmpstore[3] += m_partner[0] * D_lower[3];
             tmpstore[0] -= m_partner[1] * D_lower[1];
             tmpstore[1] -= m_partner[1] * D_lower[4];
-            tmpstore[1] -= m_partner[1] * D_lower[5];
-            tmpstore[1] -= m_partner[1] * D_lower[6];
+            tmpstore[1] -= m_partner[2] * D_lower[5];
+            tmpstore[1] -= m_partner[3] * D_lower[6];
             tmpstore[0] -= m_partner[2] * D_lower[2];
-            tmpstore[2] -= m_partner[2] * D_lower[5];
+            tmpstore[2] -= m_partner[1] * D_lower[5];
             tmpstore[2] -= m_partner[2] * D_lower[7];
-            tmpstore[2] -= m_partner[2] * D_lower[8];
+            tmpstore[2] -= m_partner[3] * D_lower[8];
             tmpstore[0] -= m_partner[3] * D_lower[3];
-            tmpstore[3] -= m_partner[3] * D_lower[6];
-            tmpstore[3] -= m_partner[3] * D_lower[8];
+            tmpstore[3] -= m_partner[1] * D_lower[6];
+            tmpstore[3] -= m_partner[2] * D_lower[8];
             tmpstore[3] -= m_partner[3] * D_lower[9];
             compute_interaction_multipole_non_rho(m_partner, tmpstore, D_lower);
         }
