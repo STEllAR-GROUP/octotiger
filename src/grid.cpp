@@ -3,11 +3,20 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+#include <fenv.h>
+#include <array>
+#include <cassert>
+#include <cmath>
+#include <string>
+#include <unordered_map>
+
+#include <hpx/include/runtime.hpp>
+#include <hpx/collectives/broadcast_direct.hpp>
+#include <hpx/synchronization/once.hpp>
+#include <hpx/modules/threading_base.hpp>
+
 #include "octotiger/radiation/rad_grid.hpp"
 #include "octotiger/test_problems/exact_sod.hpp"
-
-#include <fenv.h>
-
 #include "octotiger/diagnostics.hpp"
 #include "octotiger/future.hpp"
 #include "octotiger/grid.hpp"
@@ -21,21 +30,10 @@
 #include "octotiger/test_problems/amr/amr.hpp"
 #include "octotiger/unitiger/hydro_impl/reconstruct.hpp"
 #include "octotiger/unitiger/hydro_impl/flux.hpp"
-
-#include <hpx/include/runtime.hpp>
-#include <hpx/collectives/broadcast_direct.hpp>
-#include <hpx/synchronization/once.hpp>
-
-#include <array>
-#include <cassert>
-#include <cmath>
-#include <string>
-#include <unordered_map>
-
 #include "octotiger/unitiger/hydro_impl/flux_kernel_interface.hpp"
 #include "octotiger/unitiger/hydro_impl/reconstruct_kernel_interface.hpp"
-//#include "octotiger/unitiger/hydro_impl/hydro_cuda_interface.hpp"
 #include "octotiger/unitiger/hydro_impl/hydro_kernel_interface.hpp"
+//#include "octotiger/unitiger/hydro_impl/hydro_cuda_interface.hpp"
 
 #if !defined(HPX_COMPUTE_DEVICE_CODE)
 
@@ -2170,6 +2168,7 @@ void grid::set_physical_boundaries(const geo::face &face, real t) {
 
 void grid::compute_sources(real t, real rotational_time) {
 	PROFILE();
+  hpx::annotated_function([&]() {
 	auto &src = dUdt;
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
@@ -2263,10 +2262,12 @@ void grid::compute_sources(real t, real rotational_time) {
 			}
 		}
 	}
+  }, "nonrefined_step::compute_sources")();
 }
 
 void grid::compute_dudt() {
 	PROFILE();
+  hpx::annotated_function([&]() {
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
 			for (integer field = 0; field != opts().n_fields; ++field) {
@@ -2299,6 +2300,7 @@ void grid::compute_dudt() {
 		}
 	}
 //	solve_gravity(DRHODT);
+  }, "nonrefined_step::compute_dudt")();
 }
 
 void grid::egas_to_etot() {
@@ -2335,6 +2337,7 @@ void grid::etot_to_egas() {
 
 void grid::next_u(integer rk, real t, real dt) {
 	PROFILE();
+  hpx::annotated_function([&]() {
 	if (!opts().hydro) {
 		return;
 	}
@@ -2476,6 +2479,7 @@ void grid::next_u(integer rk, real t, real dt) {
 			}
 		}
 	}
+  }, "nonrefined_step::next_u")();
 }
 
 void grid::dual_energy_update() {

@@ -3,6 +3,15 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+#include <array>
+#include <iostream>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
+#include <hpx/include/future.hpp>
+#include <hpx/modules/threading_base.hpp>
+
 #include "octotiger/defs.hpp"
 #include "octotiger/grid.hpp"
 #include "octotiger/node_server.hpp"
@@ -14,14 +23,6 @@
 #include "octotiger/real.hpp"
 #include "octotiger/roe.hpp"
 #include "octotiger/space_vector.hpp"
-
-#include <hpx/include/future.hpp>
-
-#include <array>
-#include <iostream>
-#include <string>
-#include <unordered_map>
-#include <vector>
 #include "octotiger/unitiger/radiation/radiation_physics_impl.hpp"
 
 #if !defined(HPX_COMPUTE_DEVICE_CODE)
@@ -613,6 +614,7 @@ hpx::future<void> node_server::exchange_rad_flux_corrections() {
 		}
 	}
 
+	return hpx::annotated_function([this]() -> future<void> {
 	constexpr integer size = geo::face::count() * geo::quadrant::count();
 	std::array<future<void>, size> futs;
 	for (auto &f : futs) {
@@ -623,7 +625,7 @@ hpx::future<void> node_server::exchange_rad_flux_corrections() {
 		if (this->nieces[f] == +1) {
 			for (auto const &quadrant : geo::quadrant::full_set()) {
 				futs[index++] = niece_rad_channels[f][quadrant].get_future().then(
-						[this, f, quadrant](hpx::future<std::vector<real> > &&fdata) -> void {
+						hpx::annotated_function([this, f, quadrant](hpx::future<std::vector<real> > &&fdata) -> void {
 							const auto face_dim = f.get_dimension();
 							std::array<integer, NDIM> lb, ub;
 							switch (face_dim) {
@@ -654,7 +656,7 @@ hpx::future<void> node_server::exchange_rad_flux_corrections() {
 								break;
 							}
 							rad_grid_ptr->set_flux_restrict(GET(fdata), lb, ub, face_dim);
-						});
+						}, "node_server::exchange_rad_flux_corrections::set_flux_restrict"));
 			}
 		}
 	}
@@ -664,6 +666,7 @@ hpx::future<void> node_server::exchange_rad_flux_corrections() {
 			GET(f);
 		}
 	});
+	}, "node_server::set_rad_flux_restrict")();
 }
 
 void rad_grid::set_flux_restrict(const std::vector<real> &data, const std::array<integer, NDIM> &lb,
@@ -763,7 +766,7 @@ void node_server::collect_radiation_bounds() {
 	for (auto const &dir : geo::direction::full_set()) {
 		if (!(neighbors[dir].empty() && my_location.level() == 0)) {
 			results[index++] = sibling_rad_channels[dir].get_future(rcycle).then(
-			/*hpx::util::annotated_function(*/[this, dir](future<sibling_rad_type> &&f) -> void {
+			hpx::annotated_function([this, dir](future<sibling_rad_type> &&f) -> void {
 				auto &&tmp = GET(f);
 				if (!neighbors[dir].empty()) {
 					rad_grid_ptr->set_boundary(tmp.data, tmp.direction);
@@ -771,7 +774,7 @@ void node_server::collect_radiation_bounds() {
 					rad_grid_ptr->set_rad_amr_boundary(tmp.data, tmp.direction);
 
 				}
-			}/*, "node_server::collect_rad_boundaries::set_rad_boundary")*/);
+			}, "node_server::collect_rad_boundaries::set_rad_boundary"));
 		}
 	}
 	while (index < geo::direction::count()) {
