@@ -3,11 +3,12 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include <fenv.h>
-#include <time.h>
+#include <cfenv>
+#include <ctime>
 
 //#include <hpx/hpx_init.hpp>
 
+#include "octotiger/debug.hpp"
 #include "octotiger/unitiger/unitiger.hpp"
 #include "octotiger/unitiger/hydro.hpp"
 #include "octotiger/unitiger/physics.hpp"
@@ -166,6 +167,8 @@ void run_test(typename PHYS::test_type problem, bool writingForTest) {
 }
 
 int main(int argc, char *argv[]) {
+	octotiger::debug::stacktrace_handler stacktrace;
+	stacktrace.install();
 	//feenableexcept(FE_DIVBYZERO);
 	//feenableexcept(FE_INVALID);
 	//feenableexcept(FE_OVERFLOW);
