@@ -3,6 +3,24 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+#include <array>
+#include <fstream>
+#include <iostream>
+#include <streambuf>
+
+#include <hpx/async_combinators/when_all.hpp>
+#include <hpx/include/performance_counters.hpp>
+#include <hpx/include/lcos.hpp>
+#include <hpx/include/util.hpp>
+#include <hpx/modules/threading_base.hpp>
+#include <sys/stat.h>
+#if !defined(_MSC_VER)
+#include <unistd.h>
+#endif
+#ifdef HPX_HAVE_APEX
+#include <apex_api.hpp>
+#endif
+
 #include "octotiger/defs.hpp"
 #include "octotiger/future.hpp"
 #include "octotiger/node_registry.hpp"
@@ -12,29 +30,10 @@
 #include "octotiger/taylor.hpp"
 #include "octotiger/util.hpp"
 #include "octotiger/interaction_types.hpp"
-
 #include "octotiger/monopole_interactions/monopole_kernel_interface.hpp"
 #include "octotiger/multipole_interactions/multipole_kernel_interface.hpp"
-
 #include "octotiger/unitiger/hydro_impl/hydro_boundary_exchange.hpp"
 
-#include <hpx/async_combinators/when_all.hpp>
-#include <hpx/include/performance_counters.hpp>
-#include <hpx/include/lcos.hpp>
-#include <hpx/include/util.hpp>
-
-#include <array>
-#include <fstream>
-#include <iostream>
-#include <streambuf>
-#include <sys/stat.h>
-#if !defined(_MSC_VER)
-#include <unistd.h>
-#endif
-
-#ifdef HPX_HAVE_APEX
-#include <apex_api.hpp>
-#endif
 HPX_REGISTER_COMPONENT(hpx::components::managed_component<node_server>, node_server);
 
 hpx::mutex node_server::node_count_mtx;
@@ -100,6 +99,7 @@ future<void> node_server::exchange_flux_corrections() {
 		}
 	}
 
+	return hpx::annotated_function([this]() -> future<void> {
 	constexpr integer size = geo::face::count() * geo::quadrant::count();
 	std::array<future<void>, size> futs;
 	for (auto &f : futs) {
@@ -151,6 +151,7 @@ future<void> node_server::exchange_flux_corrections() {
 			GET(f);
 		}
 	}, "node_server::exchange_flux_corrections::sync"));
+	}, "node_server::set_flux_restrict")();
 }
 
 void node_server::all_hydro_bounds() {
