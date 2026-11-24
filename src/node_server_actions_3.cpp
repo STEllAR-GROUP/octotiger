@@ -3,6 +3,17 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+#include <cerrno>
+#include <algorithm>
+#include <array>
+#include <cstdio>
+
+#include <hpx/include/lcos.hpp>
+#include <hpx/include/run_as.hpp>
+#include <hpx/include/util.hpp>
+#include <hpx/collectives/broadcast.hpp>
+#include <hpx/modules/threading_base.hpp>
+
 #include "octotiger/defs.hpp"
 #include "octotiger/future.hpp"
 #include "octotiger/node_client.hpp"
@@ -12,17 +23,6 @@
 #include "octotiger/real.hpp"
 #include "octotiger/util.hpp"
 #include "octotiger/util/timestep_util.hpp"
-
-#include <cerrno>
-
-#include <hpx/include/lcos.hpp>
-#include <hpx/include/run_as.hpp>
-#include <hpx/include/util.hpp>
-#include <hpx/collectives/broadcast.hpp>
-
-#include <algorithm>
-#include <array>
-#include <cstdio>
 
 #if !defined(HPX_COMPUTE_DEVICE_CODE)
 
@@ -648,6 +648,7 @@ future<void> node_server::nonrefined_step() {
 						}
 						local_timestep_channels[NCHILD].set_value(dt_);
 					}
+					hpx::annotated_function([&]() {
 					grid_ptr->compute_sources(current_time, rotational_time);
 					grid_ptr->compute_dudt();
 					compute_fmm(DRHODT, false);
@@ -661,6 +662,7 @@ future<void> node_server::nonrefined_step() {
 					grid_ptr->next_u(rk, current_time, dt_.dt);
 					compute_fmm(RHO, true);
 					rk == NRK - 1 ? energy_hydro_bounds() : all_hydro_bounds();
+					}, "node_server::nonrefined_step::compute_fmm")();
 				}, "node_server::nonrefined_step::compute_fluxes"));
 	}
 
@@ -827,7 +829,7 @@ future<void> node_server::timestep_driver_descend() {
 			futs[index++] = local_timestep.get_future();
 		}
 
-		return hpx::dataflow(hpx::launch::sync, /*hpx::annotated_function(*/[this](std::array<future<timestep_t>, NCHILD + 1> dts_fut) {
+		return hpx::dataflow(hpx::launch::sync, hpx::annotated_function([this](std::array<future<timestep_t>, NCHILD + 1> dts_fut) {
 
 			auto dts = hpx::unwrap(dts_fut);
 			timestep_t dt;
@@ -845,7 +847,7 @@ future<void> node_server::timestep_driver_descend() {
 			}
 
 			return;
-		}/*, "node_server::timestep_driver_descend")*/, futs);
+		}, "node_server::timestep_driver_descend"), futs);
 	} else {
 		return local_timestep_channels[NCHILD].get_future().then(hpx::launch::sync, hpx::annotated_function([this](future<timestep_t> &&f) {
 			timestep_t dt = GET(f);
