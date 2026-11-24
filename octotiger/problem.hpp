@@ -6,13 +6,13 @@
 #ifndef PROBLEM_HPP_
 #define PROBLEM_HPP_
 
-#include "octotiger/config/export_definitions.hpp"
-#include "octotiger/defs.hpp"
-#include "octotiger/real.hpp"
-
 #include <array>
 #include <functional>
 #include <vector>
+
+#include "octotiger/config/export_definitions.hpp"
+#include "octotiger/defs.hpp"
+#include "octotiger/real.hpp"
 
 using init_func_type = std::function<std::vector<real>(real, real, real, real)>;
 using analytic_func_type = init_func_type;
@@ -36,6 +36,7 @@ OCTOTIGER_EXPORT std::vector<real> sod_shock_tube_analytic(
 OCTOTIGER_EXPORT std::vector<real> marshak_wave(real, real, real, real);
 OCTOTIGER_EXPORT std::vector<real> marshak_wave_analytic(real, real, real, real);
 OCTOTIGER_EXPORT std::vector<real> star(real, real, real, real);
+OCTOTIGER_EXPORT void initialize_wd_star();
 OCTOTIGER_EXPORT std::vector<real> moving_star_analytic(real, real, real, real);
 OCTOTIGER_EXPORT std::vector<real> moving_star(real, real, real, real);
 OCTOTIGER_EXPORT std::vector<real> equal_mass_binary(real, real, real, real);

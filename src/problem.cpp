@@ -3,6 +3,14 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdio>
+#include <vector>
+
+#include <hpx/include/lcos.hpp>
+
 #include "octotiger/defs.hpp"
 #include "octotiger/eos.hpp"
 #include "octotiger/grid.hpp"
@@ -10,12 +18,7 @@
 #include "octotiger/options.hpp"
 #include "octotiger/physcon.hpp"
 #include "octotiger/problem.hpp"
-
-#include <hpx/include/lcos.hpp>
-
-#include <array>
-#include <cmath>
-#include <vector>
+#include "octotiger/test_problems/wd_equilibrium.hpp"
 
 constexpr integer spc_ac_i = spc_i;
 constexpr integer spc_ae_i = spc_i + 1;
@@ -455,21 +458,28 @@ std::vector<real> solid_sphere(real x0, real y0, real z0, real dx, real xshift) 
 	return u;
 }
 
+void initialize_wd_star() {
+    // initialize() calls this once on every locality, before constructing grids
+    // or normalizing units. Cell initialization only reads the cached profile.
+    auto const &model = octotiger::test_problems::one_solar_mass_wd();
+    physcon().A = model.code_a();
+    physcon().B = model.code_b();
+    std::printf("Equilibrium WD: mass=%.15e g radius=%.15e cm rho_center=%.15e code\n",
+        model.mass_cgs(), model.radius_cgs(), model.central_density());
+}
+
 std::vector<real> star(real x, real y, real z, real) {
 	const real fgamma = grid::get_fgamma();
 	const real rho_out = opts().star_rho_out;
 	std::vector<real> u(opts().n_fields, real(0));
 	if (opts().eos == WD) {
 		const real r = std::sqrt(x * x + y * y + z * z);
-		static struct_eos eos(1.0, 1.0);
-		physcon().A = eos.A;
-		physcon().B = eos.B();
-		normalize_constants();
-		const real rho = std::max(eos.density_at(r, 0.01), rho_out);
-		const real ei = eos.energy(rho);
+		auto const &model = octotiger::test_problems::one_solar_mass_wd();
+		real const rho = std::max(model.density_at(r), rho_out);
+		real const ei = ztwd_energy(rho);
 		u[rho_i] = rho;
 		u[egas_i] = ei;
-		u[tau_i] = std::pow(std::max(ei - ztwd_energy(rho), 0.0), 1.0 / fgamma);
+		u[tau_i] = 0.0;
 		u[spc_i] = rho;
 		return u;
 	} else {
