@@ -6,17 +6,16 @@
 #ifndef DIAGNOSTICS_HPP_
 #define DIAGNOSTICS_HPP_
 
-#include "octotiger/unitiger/safe_real.hpp"
+#include <array>
+#include <limits>
+#include <vector>
+
 #include "octotiger/defs.hpp"
 #include "octotiger/options.hpp"
 #include "octotiger/space_vector.hpp"
 #include "octotiger/taylor.hpp"
-
+#include "octotiger/unitiger/safe_real.hpp"
 #include "safe_math.hpp"
-
-#include <array>
-#include <limits>
-#include <vector>
 
 struct diagnostics_t {
 	static constexpr integer nspec = 2;
@@ -116,6 +115,15 @@ struct diagnostics_t {
 	const diagnostics_t& compute();
 	diagnostics_t& operator+=(const diagnostics_t &other) {
 		failed = failed || other.failed;
+		// Each leaf reports the center of its current hydro mass, including
+		// the atmosphere. Combine before grid_sum acquires the other mass.
+		safe_real const left_mass = grid_sum[rho_i];
+		safe_real const right_mass = other.grid_sum[rho_i];
+		safe_real const total_mass = left_mass + right_mass;
+		for (integer dimension = 0; dimension != NDIM; ++dimension) {
+			grid_com[dimension] = total_mass > 0.0 ?
+				(left_mass * grid_com[dimension] + right_mass * other.grid_com[dimension]) / total_mass : 0.0;
+		}
 		if (opts().problem == DWD) {
 			l1_phi = std::max(l1_phi, other.l1_phi);
 			l2_phi = std::max(l2_phi, other.l2_phi);
