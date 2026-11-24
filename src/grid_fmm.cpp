@@ -337,6 +337,30 @@ void grid::compute_interactions(gsolve_type type) {
 	std::fill(std::begin(L), std::end(L), ZERO);
 	std::fill(std::begin(L_c), std::end(L_c), ZERO);
 
+	if (is_leaf && is_root) {
+		auto const &centers = *com_ptr[0];
+		for (size_t i = 0; i < mon.size(); ++i) {
+			for (size_t j = i + 1; j < mon.size(); ++j) {
+				space_vector displacement;
+				real distance_squared = ZERO;
+				for (integer d = 0; d < NDIM; ++d) {
+					displacement[d] = centers[i][d] - centers[j][d];
+					distance_squared += sqr(displacement[d]);
+				}
+				real const inverse_distance = ONE / std::sqrt(distance_squared);
+				real const inverse_cube = inverse_distance * inverse_distance * inverse_distance;
+				L[i][0] -= mon[j] * inverse_distance;
+				L[j][0] -= mon[i] * inverse_distance;
+				for (integer d = 0; d < NDIM; ++d) {
+					real const gradient = displacement[d] * inverse_cube;
+					L[i](d) += mon[j] * gradient;
+					L[j](d) -= mon[i] * gradient;
+				}
+			}
+		}
+		return;
+	}
+
 	// Non-leaf nodes use taylor expansion
 	// For leaf node, calculates the gravitational potential between two particles
 	if (!is_leaf) {

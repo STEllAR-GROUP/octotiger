@@ -23,3 +23,10 @@ endfunction()
 add_fmm_scalar_test(stencil_default stencil_bounds.cpp 0.34)
 add_fmm_scalar_test(stencil_even_width stencil_bounds.cpp 0.5)
 add_fmm_scalar_test(stencil_large_even_width stencil_bounds.cpp 0.3)
+
+add_hpx_executable(fmm_root_leaf_test DEPENDENCIES octolib SOURCES root_leaf.cpp)
+target_compile_options(fmm_root_leaf_test PRIVATE ${fmm_arch_options})
+add_test(NAME fmm.root_leaf COMMAND fmm_root_leaf_test)
+add_test(NAME fmm.root_leaf_device_only COMMAND fmm_root_leaf_test --device-only)
+set_tests_properties(fmm.root_leaf fmm.root_leaf_device_only PROPERTIES
+  PROCESSORS 1 TIMEOUT 120 LABELS fmm)
