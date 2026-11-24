@@ -143,7 +143,8 @@ namespace fmm {
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
             std::array<bool, geo::direction::count()>& is_direction_empty,
             std::shared_ptr<grid>& grid_ptr) {
-            if (opts().monopole_host_kernel_type == interaction_host_kernel_type::LEGACY) {
+            if (opts().monopole_host_kernel_type == interaction_host_kernel_type::LEGACY ||
+                opts().monopole_host_kernel_type == interaction_host_kernel_type::DEVICE_ONLY) {
 #ifdef HPX_HAVE_APEX
                 std::string kernel_name = "kernel p2m-rho legacy";
                 if (type != RHO)

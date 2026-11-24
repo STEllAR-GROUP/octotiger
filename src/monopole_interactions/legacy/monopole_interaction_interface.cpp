@@ -120,7 +120,8 @@ namespace fmm {
                 std::cerr << "Tried to call Vc kernel in non-Vc build!" << std::endl;
                 abort();
 #endif
-            } else if (p2p_type == interaction_host_kernel_type::LEGACY) {
+            } else if (p2p_type == interaction_host_kernel_type::LEGACY ||
+                p2p_type == interaction_host_kernel_type::DEVICE_ONLY) {
 #ifdef HPX_HAVE_APEX
                 auto p2p_timer = apex::start("kernel p2p legacy");
 #endif
