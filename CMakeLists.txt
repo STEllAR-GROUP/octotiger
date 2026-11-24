@@ -118,7 +118,21 @@ endif()
 ################################################################################
 # Find required packages
 ################################################################################
+# Vc probes the host compiler with -dumpversion and -print-prog-name=as,
+# which nvcc_wrapper forwards to NVCC. Run only Vc discovery through the
+# selected CUDA host compiler, then restore the CUDA wrapper for the build.
+get_filename_component(OCTOTIGER_CXX_DRIVER "${CMAKE_CXX_COMPILER}" NAME)
+if(OCTOTIGER_WITH_CUDA AND OCTOTIGER_CXX_DRIVER STREQUAL "nvcc_wrapper"
+   AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CUDA_HOST_COMPILER)
+  set(OCTOTIGER_VC_SAVED_CXX_COMPILER "${CMAKE_CXX_COMPILER}")
+  set(CMAKE_CXX_COMPILER "${CMAKE_CUDA_HOST_COMPILER}")
+endif()
 find_package(Vc REQUIRED)
+if(DEFINED OCTOTIGER_VC_SAVED_CXX_COMPILER)
+  set(CMAKE_CXX_COMPILER "${OCTOTIGER_VC_SAVED_CXX_COMPILER}")
+  unset(OCTOTIGER_VC_SAVED_CXX_COMPILER)
+endif()
+unset(OCTOTIGER_CXX_DRIVER)
 find_package(HPX REQUIRED NO_CMAKE_PACKAGE_REGISTRY 1.8.1)
 find_package(CPPuddle REQUIRED)
 find_package(Silo REQUIRED)
@@ -635,6 +649,16 @@ add_hpx_executable(
 )
 set_property(TARGET octotiger PROPERTY FOLDER "Octo-Tiger")
 
+# Kokkos consumers need the requested host architecture flags too.
+# Clang CUDA and SYCL use CXX sources for both their host and device passes.
+if(OCTOTIGER_WITH_KOKKOS)
+  separate_arguments(octotiger_host_arch_options NATIVE_COMMAND "${OCTOTIGER_ARCH_FLAG}")
+  foreach(target optionslib octolib hydrolib octotiger unitiger)
+    target_compile_options(${target} PRIVATE
+      "$<$<COMPILE_LANGUAGE:CXX>:${octotiger_host_arch_options}>")
+  endforeach()
+endif()
+
 if(MSVC)
   # Enable solution folders for MSVC
   set_property(GLOBAL PROPERTY USE_FOLDERS ON)
@@ -952,11 +976,10 @@ target_compile_definitions(hydrolib PUBLIC OCTOTIGER_THETA_MINIMUM=${OCTOTIGER_T
 
 # Blast test problem quad-precision float support
 if(OCTOTIGER_WITH_BLAST_TEST)
-  if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-    message(FATAL_ERROR "Trying to build BLAST test with clang. The test requires quadmath which is not "
-    "bundled with clang. If you really need the blast test scenario compile "
-    "with a different compiler (gcc). If do not need this test (or aren't sure about it) "
-    " try the cmake variable OCTOTIGER_WITH_BLAST_TEST=OFF")
+  if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" AND NOT OCTOTIGER_WITH_BOOST_MULTIPRECISION)
+    message(FATAL_ERROR "The BLAST test with Clang requires "
+      "OCTOTIGER_WITH_BOOST_MULTIPRECISION=ON because quadmath is not bundled "
+      "with Clang. Alternatively, set OCTOTIGER_WITH_BLAST_TEST=OFF.")
   endif()
   target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_BLAST_TEST)
   set(blast_sources

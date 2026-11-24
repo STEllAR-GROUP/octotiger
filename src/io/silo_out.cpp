@@ -1,14 +1,14 @@
 #include <hpx/config/compiler_specific.hpp>
 #if !defined(HPX_COMPUTE_DEVICE_CODE)
 
+#include <cerrno>
+#include <ctime>
+
+#include <hpx/modules/runtime_local.hpp>
+#include <sys/stat.h>
+
 #include "octotiger/io/silo.hpp"
 #include "octotiger/node_registry.hpp"
-
-#include <ctime>
-#include <hpx/runtime/threads/run_as_os_thread.hpp>
-#include <cerrno>
-
-#include <sys/stat.h>
 
 static const auto &localities = options::all_localities;
 

@@ -37,15 +37,12 @@ static constexpr safe_real dt_out = tmax / 100;
 #endif
 
 template<int NDIM, int INX, class PHYS>
-void run_test(typename PHYS::test_type problem, bool with_correction, bool writingForTest);
+void run_test(typename PHYS::test_type problem, bool writingForTest);
 
 template<int NDIM, int INX, class PHYS>
-void run_test(typename PHYS::test_type problem, bool with_correction, bool writingForTest) {
+void run_test(typename PHYS::test_type problem, bool writingForTest) {
 	static constexpr safe_real CFL = (0.4 / NDIM);
 	hydro_computer<NDIM, INX, PHYS> computer;
-	if (with_correction) {
-		computer.use_angmom_correction(PHYS::get_angmom_index());
-	}
 	const auto nf = PHYS::field_count();
 	computer.use_disc_detect(PHYS::rho_i);
 	for (int s = 0; s < 5; s++) {
@@ -127,8 +124,8 @@ void run_test(typename PHYS::test_type problem, bool with_correction, bool writi
 //      PHYS::template analytic_solution<INX>(problem, U, X, t);
 //      computer.output(U, X, iter++, t);
 //
-//      phys.template pre_recon<INX>(U0, X, omega, with_correction);
-//      phys.template pre_recon<INX>(U, X, omega, with_correction);
+//      phys.template pre_recon<INX>(U0, X, omega);
+//      phys.template pre_recon<INX>(U, X, omega);
 //      std::vector<safe_real> L1(nf);
 //      std::vector<safe_real> L2(nf);
 //      std::vector<safe_real> Linf(nf);
@@ -184,11 +181,11 @@ int main(int argc, char *argv[]) {
 	}
 
 	srand(123);
-	run_test<2, 64, physics<2>>(physics<2>::KEPLER, true, createTests);
-//	run_test<2, 100, physics<2>>(physics<2>::KEPLER, true, createTests);
-//        run_test<3, 8, physics<3>>(physics<3>::SOD, false, createTests);
-//        run_test<2, 50, physics<2>>(physics<2>::BLAST, true, createTests);
-//        run_test<2, 50, radiation_physics<2>>(radiation_physics<2>::CONTACT, true, createTests);
+	run_test<2, 64, physics<2>>(physics<2>::KEPLER, createTests);
+//	run_test<2, 100, physics<2>>(physics<2>::KEPLER, createTests);
+//        run_test<3, 8, physics<3>>(physics<3>::SOD, createTests);
+//        run_test<2, 50, physics<2>>(physics<2>::BLAST, createTests);
+//        run_test<2, 50, radiation_physics<2>>(radiation_physics<2>::CONTACT, createTests);
 
 	return 0;
 }

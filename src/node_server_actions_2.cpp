@@ -3,9 +3,17 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include "octotiger/config.hpp"
+#include <cerrno>
+#include <cstdint>
+#include <cstdio>
 #include <fenv.h>
 
+#include <hpx/include/lcos.hpp>
+#include <hpx/include/run_as.hpp>
+#include <hpx/modules/async_colocated.hpp>
+#include <hpx/serialization/list.hpp>
+
+#include "octotiger/config.hpp"
 #include "octotiger/diagnostics.hpp"
 #include "octotiger/future.hpp"
 #include "octotiger/node_client.hpp"
@@ -14,15 +22,6 @@
 #include "octotiger/options.hpp"
 #include "octotiger/profiler.hpp"
 #include "octotiger/taylor.hpp"
-
-#include <hpx/include/lcos.hpp>
-#include <hpx/include/run_as.hpp>
-#include <hpx/runtime/get_colocation_id.hpp>
-#include <hpx/serialization/list.hpp>
-
-#include <cerrno>
-#include <cstdint>
-#include <cstdio>
 
 #if !defined(HPX_COMPUTE_DEVICE_CODE)
 

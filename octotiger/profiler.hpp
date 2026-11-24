@@ -6,13 +6,12 @@
 #ifndef PROFILER_HPP_
 #define PROFILER_HPP_
 
-#include <hpx/include/serialization.hpp>
-//#include <hpx/util/high_resolution_timer.hpp>
-#include <hpx/timing.hpp>
-
 #include <algorithm>
 #include <array>
 #include <iostream>
+
+#include <hpx/chrono.hpp>
+#include <hpx/include/serialization.hpp>
 
 struct profiler_register {
 	profiler_register(const char*, int);

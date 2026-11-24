@@ -2,12 +2,6 @@
 //
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
-#include "octotiger/grid.hpp"
-
-#include <hpx/runtime/threads/run_as_os_thread.hpp>
-
-#include "octotiger/test_problems/blast.hpp"
-
 #include <algorithm>
 #include <functional>
 #include <memory>
@@ -15,14 +9,23 @@
 #include <unordered_map>
 #include <vector>
 
+#include <hpx/modules/runtime_local.hpp>
+#if defined(OCTOTIGER_HAVE_BLAST_TEST)
+#if !defined(OCTOTIGER_HAVE_BOOST_MULTIPRECISION)
+#include <quadmath.h>
+#else
+#include <boost/multiprecision/cpp_bin_float.hpp>
+#endif
+#endif
+
+#include "octotiger/grid.hpp"
+#include "octotiger/test_problems/blast.hpp"
 
 #if defined(OCTOTIGER_HAVE_BLAST_TEST)
 
 #if !defined(OCTOTIGER_HAVE_BOOST_MULTIPRECISION)
-#include <quadmath.h>
 using sed_real = __float128;
 #else
-#include <boost/multiprecision/cpp_bin_float.hpp>
 using sed_real = boost::multiprecision::cpp_bin_float_quad;
 #endif
 

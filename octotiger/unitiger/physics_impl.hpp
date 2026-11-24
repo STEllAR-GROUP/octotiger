@@ -394,7 +394,7 @@ const std::vector<std::vector<safe_real>>& physics<NDIM>::find_contact_discs(con
 	static const cell_geometry<NDIM, INX> geo;
 	auto dir = geo.direction();
 	static thread_local std::vector<std::vector<safe_real>> disc(geo.NDIR / 2, std::vector<double>(geo.H_N3));
-	static thread_local std::vector<safe_real> P(H_N3);
+	static thread_local std::vector<safe_real> P(geo.H_N3);
 	for (int j = 0; j < geo.H_NX_XM2; j++) {
 		for (int k = 0; k < geo.H_NX_YM2; k++) {
 #pragma ivdep
