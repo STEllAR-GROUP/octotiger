@@ -30,3 +30,17 @@ add_test(NAME fmm.root_leaf COMMAND fmm_root_leaf_test)
 add_test(NAME fmm.root_leaf_device_only COMMAND fmm_root_leaf_test --device-only)
 set_tests_properties(fmm.root_leaf fmm.root_leaf_device_only PROPERTIES
   PROCESSORS 1 TIMEOUT 120 LABELS fmm)
+
+add_fmm_scalar_test(dipole dipole.cpp 0.34)
+add_hpx_executable(fmm_legacy_dipole_test DEPENDENCIES octolib SOURCES legacy_dipole.cpp)
+target_compile_options(fmm_legacy_dipole_test PRIVATE ${fmm_arch_options})
+add_test(NAME fmm.legacy_dipole COMMAND fmm_legacy_dipole_test)
+set_tests_properties(fmm.legacy_dipole PROPERTIES PROCESSORS 1 TIMEOUT 120 LABELS fmm)
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  foreach(target fmm_device_only_fallback_test fmm_root_leaf_test fmm_legacy_dipole_test)
+    # Keep hydrolib's Kokkos globals owned by the shared library during teardown.
+    target_link_libraries(${target} PRIVATE
+      "-Wl,--push-state,--no-as-needed" hydrolib "-Wl,--pop-state")
+  endforeach()
+endif()
