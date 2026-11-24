@@ -3,6 +3,8 @@
 # Distributed under the Boost Software License, Version 1.0. (See accompanying
 # file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+add_subdirectory(eos)
+
 # Reject field differences and mismatched meshes/object inventories.
 set(OCTOTIGER_SILODIFF_FAIL_PATTERN "[.]vals|appears only in file")
 
@@ -19,6 +21,7 @@ if (EXISTS "${OCTOTIGER_TESTDATA_DIR}/sphere.silo" AND IS_DIRECTORY "${OCTOTIGER
     add_subdirectory(sod)
     add_subdirectory(sphere)
     add_subdirectory(star)
+    add_subdirectory(wd_equilibrium)
 else()
   message(FATAL_ERROR "Could not find directory containing the test reference files (tested with sphere.silo)! "
    "Is the submodule initialized? To fix check out all submodules (run <git submodule update --init --recursive> within the octotiger directory) "
