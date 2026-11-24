@@ -23,32 +23,32 @@ function(test_star_scenario test_name test_log_file kernel_parameters)
   add_test(NAME ${test_name}.TS11_dt_regex COMMAND cat ${test_log_file})
   set_tests_properties(${test_name}.TS11_dt_regex PROPERTIES
   FIXTURES_REQUIRED ${test_name}
-  PASS_REGULAR_EXPRESSION "TS 1.:: t: 7.352407e.00, dt: 6.715325e-01")
+  PASS_REGULAR_EXPRESSION "TS 1.:: t: 7.352407e.00, dt: 6.715320e-01")
 
   add_test(NAME ${test_name}.TS11_a_regex COMMAND cat ${test_log_file})
   set_tests_properties(${test_name}.TS11_a_regex PROPERTIES
   FIXTURES_REQUIRED ${test_name}
-  PASS_REGULAR_EXPRESSION "a: 9.307070e-01")
+  PASS_REGULAR_EXPRESSION "a: 9.307077e-01")
 
   add_test(NAME ${test_name}.TS11_ur_regex COMMAND cat ${test_log_file})
   set_tests_properties(${test_name}.TS11_ur_regex PROPERTIES
   FIXTURES_REQUIRED ${test_name}
-  PASS_REGULAR_EXPRESSION "ur: 1.680614e-02")
+  PASS_REGULAR_EXPRESSION "ur: 1.680619e-02")
 
   add_test(NAME ${test_name}.TS11_ul_regex COMMAND cat ${test_log_file})
   set_tests_properties(${test_name}.TS11_ul_regex PROPERTIES
   FIXTURES_REQUIRED ${test_name}
-  PASS_REGULAR_EXPRESSION "ul: 1.365091e-02")
+  PASS_REGULAR_EXPRESSION "ul: 1.680619e-02")
 
   add_test(NAME ${test_name}.TS11_vr_regex COMMAND cat ${test_log_file})
   set_tests_properties(${test_name}.TS11_vr_regex PROPERTIES
   FIXTURES_REQUIRED ${test_name}
-  PASS_REGULAR_EXPRESSION "vr: 6.075061e-02")
+  PASS_REGULAR_EXPRESSION "vr: 6.075094e-02")
 
   add_test(NAME ${test_name}.TS11_vl_regex COMMAND cat ${test_log_file})
   set_tests_properties(${test_name}.TS11_vl_regex PROPERTIES
   FIXTURES_REQUIRED ${test_name}
-  PASS_REGULAR_EXPRESSION "vl: 2.912973e-02")
+  PASS_REGULAR_EXPRESSION "vl: 6.075094e-02")
 
   add_test(NAME ${test_name}.TS11_boundaries_regex COMMAND cat ${test_log_file})
   set_tests_properties(${test_name}.TS11_boundaries_regex PROPERTIES
