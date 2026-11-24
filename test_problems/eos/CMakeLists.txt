@@ -7,6 +7,11 @@ add_hpx_executable(wdeos_sound_speed_test
   DEPENDENCIES octolib
   SOURCES wdeos_sound_speed.cpp)
 
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  target_link_libraries(wdeos_sound_speed_test PRIVATE
+    "-Wl,--push-state,--no-as-needed" hydrolib "-Wl,--pop-state")
+endif()
+
 # Match the instruction set selected for the production SIMD kernels.
 separate_arguments(wdeos_arch_options NATIVE_COMMAND "${OCTOTIGER_ARCH_FLAG}")
 target_compile_options(wdeos_sound_speed_test PRIVATE ${wdeos_arch_options})

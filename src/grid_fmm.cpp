@@ -337,6 +337,30 @@ void grid::compute_interactions(gsolve_type type) {
 	std::fill(std::begin(L), std::end(L), ZERO);
 	std::fill(std::begin(L_c), std::end(L_c), ZERO);
 
+	if (is_leaf && is_root) {
+		auto const &centers = *com_ptr[0];
+		for (size_t i = 0; i < mon.size(); ++i) {
+			for (size_t j = i + 1; j < mon.size(); ++j) {
+				space_vector displacement;
+				real distance_squared = ZERO;
+				for (integer d = 0; d < NDIM; ++d) {
+					displacement[d] = centers[i][d] - centers[j][d];
+					distance_squared += sqr(displacement[d]);
+				}
+				real const inverse_distance = ONE / std::sqrt(distance_squared);
+				real const inverse_cube = inverse_distance * inverse_distance * inverse_distance;
+				L[i][0] -= mon[j] * inverse_distance;
+				L[j][0] -= mon[i] * inverse_distance;
+				for (integer d = 0; d < NDIM; ++d) {
+					real const gradient = displacement[d] * inverse_cube;
+					L[i](d) += mon[j] * gradient;
+					L[j](d) -= mon[i] * gradient;
+				}
+			}
+		}
+		return;
+	}
+
 	// Non-leaf nodes use taylor expansion
 	// For leaf node, calculates the gravitational potential between two particles
 	if (!is_leaf) {
@@ -469,8 +493,8 @@ void grid::compute_interactions(gsolve_type type) {
 //                     A1(a) = -m1() * D(a);
 //                     for (integer b = 0; b < NDIM; ++b) {
 //                         if (type != RHO) {
-//                             A0(a) -= m0(a) * D(a, b);
-//                             A1(a) -= m1(a) * D(a, b);
+//                             A0(a) -= m0(b) * D(a, b);
+//                             A1(a) -= m1(b) * D(a, b);
 //                         }
 //                         for (integer c = b; c < NDIM; ++c) {
 //                             const auto tmp1 = D(a, b, c) * (factor(c, b) * HALF);
@@ -487,8 +511,8 @@ void grid::compute_interactions(gsolve_type type) {
 				A1(a) = -m1() * D(a);
 				for (integer i = 0; i != 6; ++i) {
 					if (type != RHO && i < 3) {
-						A0(a) -= m0(a) * D[ab_idx_map[i]];
-						A1(a) -= m1(a) * D[ab_idx_map[i]];
+						A0(a) -= m0(i) * D[ab_idx_map[i]];
+						A1(a) -= m1(i) * D[ab_idx_map[i]];
 					}
 					const integer cb_idx = cb_idx_map[i];
 					const auto tmp1 = D[abc_idx_map[i]] * (factor[cb_idx] * HALF);
@@ -710,7 +734,7 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
 //                     A0(a) = m0() * D(a);
 //                     for (integer b = 0; b < NDIM; ++b) {
 //                         if (type != RHO) {
-//                             A0(a) -= m0(a) * D(a, b);
+//                             A0(a) -= m0(b) * D(a, b);
 //                         }
 //                         for (integer c = b; c < NDIM; ++c) {
 //                             const auto tmp = D(a, b, c) * (factor(c, b) * HALF);
@@ -725,7 +749,7 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
 			A0(a) = m0() * D(a);
 			for (integer i = 0; i != 6; ++i) {
 				if (type != RHO && i < 3) {
-					A0(a) -= m0(a) * D[ab_idx_map[i]];
+					A0(a) -= m0(i) * D[ab_idx_map[i]];
 				}
 				const integer cb_idx = cb_idx_map[i];
 				const auto tmp = D[abc_idx_map[i]] * (factor[cb_idx] * HALF);
@@ -873,7 +897,7 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
 //                     A0(a) = m0() * D(a);
 //                     for (integer b = 0; b < NDIM; ++b) {
 //                         if (type != RHO) {
-//                             A0(a) -= m0(a) * D(a, b);
+//                             A0(a) -= m0(b) * D(a, b);
 //                         }
 //                         for (integer c = b; c < NDIM; ++c) {
 //                             A0(a) += m0(c, b) * D(a, b, c) * (factor(b, c) * HALF);
@@ -887,7 +911,7 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
 			A0(a) = m0() * D(a);
 			for (integer i = 0; i != 6; ++i) {
 				if (type != RHO && i < 3) {
-					A0(a) -= m0(a) * D[ab_idx_map[i]];
+					A0(a) -= m0(i) * D[ab_idx_map[i]];
 				}
 				const integer cb_idx = cb_idx_map[i];
 				A0(a) += m0[cb_idx] * D[abc_idx_map[i]] * (factor[cb_idx] * HALF);

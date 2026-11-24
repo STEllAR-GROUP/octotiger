@@ -4,6 +4,7 @@
 # file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 add_subdirectory(eos)
+add_subdirectory(fmm)
 
 # Reject field differences and mismatched meshes/object inventories.
 set(OCTOTIGER_SILODIFF_FAIL_PATTERN "[.]vals|appears only in file")

@@ -99,6 +99,10 @@ namespace fmm {
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
             std::array<bool, geo::direction::count()>& is_direction_empty,
             std::shared_ptr<grid>& grid_ptr, const bool contains_multipole_neighbor) {
+            if (grid_ptr->get_root() && grid_ptr->get_leaf()) {
+                grid_ptr->compute_interactions(type);
+                return;
+            }
             interaction_host_kernel_type host_type = opts().monopole_host_kernel_type;
             interaction_device_kernel_type device_type = opts().monopole_device_kernel_type;
 
