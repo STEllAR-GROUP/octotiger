@@ -851,7 +851,11 @@ future<void> node_server::timestep_driver_descend() {
 	} else {
 		return local_timestep_channels[NCHILD].get_future().then(hpx::launch::sync, hpx::annotated_function([this](future<timestep_t> &&f) {
 			timestep_t dt = GET(f);
-			parent.set_local_timestep(my_location.get_child_index(), dt);
+			if (my_location.level() == 0) {
+				timestep_driver_ascend(dt);
+			} else {
+				parent.set_local_timestep(my_location.get_child_index(), dt);
+			}
 			return;
 		}, "timestep_driver_descend::set_local_timestep")
 		);
