@@ -538,7 +538,9 @@ void output_all(node_server *root_ptr, std::string fname, int cycle, bool block)
 	for (auto &id : localities) {
 		futs1.push_back(hpx::async<output_stage1_action>(hpx::launch::async_policy(hpx::threads::thread_priority::boost), id, fname, cycle));
 	}
-	GET(hpx::when_all(futs1));
+	for (auto &f : GET(hpx::when_all(futs1))) {
+		GET(f);
+	}
 
 	std::vector<hpx::future<node_list_t>> id_futs;
 	for (auto &id : localities) {

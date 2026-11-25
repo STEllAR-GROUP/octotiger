@@ -367,7 +367,7 @@ std::vector<silo_var_t> grid::var_data() const {
 }
 
 void grid::set_idle_rate() {
-	std::string counter_name = "/threads{" + std::to_string(hpx::get_locality_id()) + "/total}/idle-rate";
+	std::string counter_name = "/threads{locality#" + std::to_string(hpx::get_locality_id()) + "/total}/idle-rate";
 	hpx::performance_counters::performance_counter count(counter_name);
 	idle_rate = count.get_value<double>().get();
 	count.reset();
